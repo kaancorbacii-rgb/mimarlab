@@ -428,11 +428,27 @@ const AuthModal = (function () {
     #am-panel .col-view-toggle button{padding:6px 16px; border:none; background:var(--paper-card); color:var(--ink); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
     #am-panel .col-view-toggle button + button{border-left:1px solid var(--line);}
     #am-panel .col-view-toggle button.active{background:var(--ink); color:var(--paper-card);}
+    /* Tam sayfa görünüm (kullanıcı isteği, 2026-09-06 madde 2) — am-col-canvas-fs-target ızgara/
+       liste VE araçlarını (görünüm geçişi + ekle menüsü col-view-row'da zaten yukarıda kaldığından
+       bunlar ayrıca değil, ama araç çubuğu/ekleme panelleri/tuval/liste'nin TAMAMINI kapsar) tek
+       parça olarak fixed+inset:0 ile ekranı kaplatır. z-index:60, modal-shell.js'in KENDİ köşe
+       butonlarının (z-index:5) üstünde yeterli — modal-shell-overlay'in z-index:150'lik KENDİ
+       stacking context'i içinde kaldığından global bir çakışma riski yok. */
+    #am-panel .col-fullscreen-toggle{width:34px; height:34px; border-radius:50%; border:1.5px solid var(--ink); background:none; color:var(--ink); display:inline-flex; align-items:center; justify-content:center; padding:0; cursor:pointer; margin-left:auto;}
+    #am-panel .col-fullscreen-toggle:hover, #am-panel .col-fullscreen-toggle[aria-pressed="true"]{background:var(--ink); color:var(--paper-card);}
+    #am-panel .col-canvas-fs-target.is-fullscreen{position:fixed; inset:0; z-index:60; background:var(--paper-card); padding:20px 24px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+    #am-panel .col-canvas-fs-target.is-fullscreen .col-canvas-wrap{flex:1; min-height:0; display:flex;}
+    #am-panel .col-canvas-fs-target.is-fullscreen .col-canvas-viewport{flex:1; height:auto; min-height:0;}
+    #am-panel .col-canvas-fs-target.is-fullscreen .col-list{flex:1; min-height:0; overflow-y:auto;}
     #am-panel .col-list{display:flex; flex-direction:column; gap:8px;}
     #am-panel .col-list-row{display:flex; align-items:center; gap:10px; padding:8px; border:1px solid var(--line-soft); border-radius:10px; background:var(--paper);}
-    #am-panel .col-list-row.dragging{opacity:0.5;}
-    #am-panel .col-list-handle{display:flex; align-items:center; color:var(--ink-soft); cursor:grab; touch-action:none; flex-shrink:0;}
-    #am-panel .col-list-handle:active{cursor:grabbing;}
+    /* Sürükle-bırak yerine yukarı/aşağı butonları (kullanıcı isteği, 2026-09-06) — sürükleme
+       trackpad/dokunmatikte tutarsız kalıyordu, sıralama artık iki ayrı düğmeyle KESİN adımlarla
+       yapılır (bkz. renderItemsListMode/moveListItem). */
+    #am-panel .col-list-reorder{display:flex; flex-direction:column; gap:2px; flex-shrink:0;}
+    #am-panel .col-list-move{display:flex; align-items:center; justify-content:center; width:22px; height:18px; padding:0; border:1px solid var(--line-soft); border-radius:5px; background:var(--paper-card); color:var(--ink-soft); cursor:pointer;}
+    #am-panel .col-list-move:hover:not(:disabled){border-color:var(--walnut); color:var(--walnut);}
+    #am-panel .col-list-move:disabled{opacity:0.3; cursor:default;}
     #am-panel .col-list-thumb{width:48px; height:48px; border-radius:8px; object-fit:cover; background:var(--paper-alt); flex-shrink:0;}
     #am-panel .col-list-thumb-empty{background:var(--paper-alt);}
     #am-panel .col-list-title{font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -1396,10 +1412,10 @@ const AuthModal = (function () {
 
       <div id="am-col-detail-view" style="display:none;">
         <div class="dash-section">
-          <!-- Buton sırası kullanıcı isteği (2026-09-06 madde 1): Paylaş/Dışa Aktar/Panoyu Sil
-               artık "← Panolarım"ın yanındaki TEK bir "⋮" menüsünün içinde, üç ayrı buton yerine
-               (bkz. am-col-kebab-toggle dinleyicisi). "Yeniden Adlandır" buradan da KALDIRILDI —
-               artık pano adının sağındaki kalem ikonu. -->
+          <!-- Buton sırası kullanıcı isteği (2026-09-06 madde 2): Paylaş/Dışa Aktar/Yeniden Adlandır/
+               Panoyu Sil artık "← Panolarım"ın yanındaki TEK bir "⋮" menüsünün içinde (bkz.
+               am-col-kebab-toggle dinleyicisi). Pano adının yanındaki kalem ikonu KALDIRILDI —
+               "Yeniden Adlandır" buraya, "Panoyu Sil"in HEMEN ÜSTÜNE taşındı (kullanıcı isteği). -->
           <div class="col-toolbar">
             <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
             <div class="col-kebab-wrap" id="am-col-kebab-wrap">
@@ -1417,18 +1433,20 @@ const AuthModal = (function () {
                      NOT: bu blok bir template literal içindedir - ters tırnak KULLANMA (bkz. proje
                      belleği: sekme içi ters tırnak şablonu sessizce bozar). -->
                 <button type="button" class="col-kebab-item" id="am-col-export-btn">Dışa Aktar</button>
+                <button type="button" class="col-kebab-item" id="am-col-rename-btn">Yeniden Adlandır</button>
                 <button type="button" class="col-kebab-item col-kebab-item-danger" id="am-col-delete-btn">Panoyu Sil</button>
               </div>
             </div>
           </div>
-          <h2 id="am-col-detail-title" style="display:inline-flex; align-items:center; gap:8px;">
+          <h2 id="am-col-detail-title">
             <span id="am-col-detail-title-text"></span>
-            <button type="button" id="am-col-rename-btn" aria-label="Panoyu yeniden adlandır" title="Yeniden adlandır"
-              style="background:none; border:none; padding:2px; line-height:0; cursor:pointer; color:var(--ink-soft);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            </button>
           </h2>
           <p class="section-hint" id="am-col-detail-count"></p>
+          <!-- Tam sayfa görünüm sarmalayıcısı (kullanıcı isteği, 2026-09-06 madde 2) — görünüm
+               geçişi + ekle menüsü BU satırdan itibaren dahil (kullanıcı isteği: "liste/ızgara ve
+               ekle butonu dahil"), aksi halde tam ekran moduna geçince bu satır sarmalayıcının
+               ALTINDA/GERİSİNDE kalıp görünmez/tıklanamaz olurdu (bkz. am-col-fullscreen-toggle). -->
+          <div class="col-canvas-fs-target" id="am-col-canvas-fs-target">
           <!-- Liste/Izgara görünüm geçişi (kullanıcı isteği madde 1) — ikisi de AYNI openCollection.
                items dizisinden beslenir (bkz. renderDetail). Liste artık SOLDA ve VARSAYILAN
                (kullanıcı isteği, 2026-09-06): kelime sırası değişti VE boardViewMode başlangıç
@@ -1448,6 +1466,12 @@ const AuthModal = (function () {
                 <button type="button" class="col-kebab-item" data-col-add="note">Not Ekle</button>
               </div>
             </div>
+            <!-- Tam sayfa görünüm (kullanıcı isteği, 2026-09-06 madde 2): ızgara/liste VE araçları
+                 (bu satır + ekle menüsü dahil) tek bir sarmalayıcıda (am-col-canvas-fs-target)
+                 tam ekranı kaplar — bkz. am-col-fullscreen-toggle dinleyicisi. -->
+            <button type="button" class="col-fullscreen-toggle" id="am-col-fullscreen-toggle" aria-pressed="false" aria-label="Tam sayfa görünüm" title="Tam sayfa görünüm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
           </div>
 
           <!-- Paylaş/İşbirliği paneli — kullanıcı isteği madde 3. Herkese açık bağlantı aç/kapat +
@@ -1582,6 +1606,7 @@ const AuthModal = (function () {
                karşılıklı gizlenir (bkz. renderDetail). Kalem çizimleri burada YOK — yalnızca
                collection_items satır satır listelenir. -->
           <div class="col-list" id="am-col-list-mode" style="display:none;"></div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -3131,30 +3156,38 @@ const AuthModal = (function () {
           <button type="button" class="notif-del saved-remove-btn" data-id="${n.id}" aria-label="Bildirimi sil">✕</button>
         </div>`).join('');
       container.querySelectorAll('.notif-row').forEach(row => {
-        row.addEventListener('click', async () => {
+        row.addEventListener('click', () => {
           const item = items.find(n => String(n.id) === row.dataset.id);
           if (!item) return;
-          if (!item.is_read) {
+          // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-06): "okundu" işareti (turuncudan beyaza)
+          // eskiden İLK tıklamada, herhangi bir detay ekranı açılmadan ÖNCE uygulanıyordu — bu
+          // yüzden bir bildirime tıklamak hiçbir şey açmıyormuş gibi görünüyordu (satır zaten
+          // beyaza dönmüştü). markRead() artık her dalın SONUNDA, ilgili ekran açıldıktan SONRA
+          // çağrılır; açılacak bir ekranı olmayan türler (ör. rozet onay/red — bkz. dosya başı
+          // yorumu, o link değerleri hiçbir prefix'e uymuyor) hâlâ hemen okundu sayılır.
+          function markRead() {
+            if (item.is_read) return;
             row.classList.remove('unread');
             const dot = row.querySelector('.notif-dot');
             if (dot) dot.remove();
             item.is_read = true;
-            try {
-              await fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) });
-            } catch {}
+            fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) }).catch(() => {});
           }
           const threadId = threadIdFromLink(item.link);
-          if (threadId) { openMessageThread(threadId); return; }
+          if (threadId) { openMessageThread(threadId); markRead(); return; }
           const consultationId = consultationIdFromLink(item.link);
-          if (consultationId) { ensureConsultationDetailModalLoaded().then(() => ConsultationDetailModal.open(consultationId)); return; }
+          if (consultationId) { ensureConsultationDetailModalLoaded().then(() => { ConsultationDetailModal.open(consultationId); markRead(); }); return; }
           // Ürün etiketleme onayı (kullanıcı isteği, 2026-09-05 madde 5) — bkz. openHotspotTagPrompt.
           const hotspotTagId = hotspotTagIdFromLink(item.link);
-          if (hotspotTagId) { openHotspotTagPrompt(hotspotTagId); return; }
+          if (hotspotTagId) { openHotspotTagPrompt(hotspotTagId); markRead(); return; }
           // Kullanıcı isteği (2026-09-02 madde 4): kayıt sonrası gönderilen dizin daveti
           // bildirimine tıklayınca AYNI soruyu evet/hayır ile soran bir pop-up açılır.
           if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) {
             openDirectoryPrompt();
+            markRead();
+            return;
           }
+          markRead();
         });
       });
       container.querySelectorAll('.notif-del').forEach(btn => {
@@ -3881,6 +3914,8 @@ const AuthModal = (function () {
     // Liste/Izgara görünüm anahtarı (kullanıcı isteği madde 1) — 'grid' | 'list'. Varsayılan
     // artık 'list' (kullanıcı isteği, 2026-09-06) — bkz. openDetail'deki AYNI atama.
     let boardViewMode = 'list';
+    // Tam sayfa görünüm açık mı (kullanıcı isteği, 2026-09-06 madde 2) — bkz. am-col-fullscreen-toggle.
+    let boardFullscreen = false;
     // Seçili vektörel çizim objesi (kullanıcı isteği) — tuval her yeniden çizildiğinde sıfırlanır.
     let selectedStrokeId = null;
 
@@ -4215,9 +4250,10 @@ const AuthModal = (function () {
     }
 
     // ---------- Liste Modu (kullanıcı isteği madde 1) ----------
-    // Öğeler satır satır, sol tutamaçtan sürükle-bırakla yeniden sıralanabilir. Yalnızca collection_
-    // items'ı listeler — çizimler (kalem izleri) burada YOK SAYILIR (yapıları gereği bir tuval
-    // konsepti, "sıra"ları/satırları olmaz).
+    // Öğeler satır satır, yukarı/aşağı butonlarıyla yeniden sıralanabilir (kullanıcı isteği,
+    // 2026-09-06: sürükleyerek sıralamak yerine buton — trackpad/dokunmatikte sürükleme tutarsız
+    // kalıyordu). Yalnızca collection_items'ı listeler — çizimler (kalem izleri) burada YOK
+    // SAYILIR (yapıları gereği bir tuval konsepti, "sıra"ları/satırları olmaz).
     function renderItemsListMode() {
       const container = document.getElementById('am-col-list-mode');
       if (!container || !openCollection) return;
@@ -4226,19 +4262,26 @@ const AuthModal = (function () {
         container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
         return;
       }
-      container.innerHTML = openCollection.items.map((it) => {
+      container.innerHTML = openCollection.items.map((it, idx) => {
         const image = safeUrl(it.image);
         const thumb = image
           ? `<img class="col-list-thumb" src="${escapeAttr(avatarImg(image, 120, image))}" alt="" loading="lazy" decoding="async">`
           : '<div class="col-list-thumb col-list-thumb-empty"></div>';
         const titleText = it.title || (it.kind === 'note' ? (it.note || '').slice(0, 60) : 'Adsız öğe');
         const kindLabel = it.kind === 'note' ? 'Not' : (it.kind === 'image' ? 'Görsel' : (SAVED_TYPE_LABELS[it.itemType] || 'Kayıt'));
-        const handle = readonly ? '' : `<span class="col-list-handle" aria-label="Sürükle, yeniden sırala" title="Sürükle">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>
-          </span>`;
+        const isFirst = idx === 0;
+        const isLast = idx === openCollection.items.length - 1;
+        const reorderBtns = readonly ? '' : `<div class="col-list-reorder">
+            <button type="button" class="col-list-move" data-dir="up" aria-label="Yukarı taşı" title="Yukarı taşı"${isFirst ? ' disabled' : ''}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+            </button>
+            <button type="button" class="col-list-move" data-dir="down" aria-label="Aşağı taşı" title="Aşağı taşı"${isLast ? ' disabled' : ''}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+          </div>`;
         const removeBtn = readonly ? '' : '<button type="button" class="col-list-remove" aria-label="Kaldır">✕</button>';
         return `<div class="col-list-row" data-item-id="${escapeAttr(it.id)}">
-          ${handle}${thumb}
+          ${reorderBtns}${thumb}
           <div style="min-width:0; flex:1;">
             <div class="col-list-title">${escapeHtml(titleText)}</div>
             <div class="saved-row-meta">${escapeHtml(kindLabel)}</div>
@@ -4246,7 +4289,14 @@ const AuthModal = (function () {
           ${removeBtn}
         </div>`;
       }).join('');
-      if (!readonly) wireListReorder(container);
+      if (!readonly) {
+        container.querySelectorAll('.col-list-move').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const row = btn.closest('.col-list-row');
+            moveListItem(row.dataset.itemId, btn.dataset.dir);
+          });
+        });
+      }
       container.querySelectorAll('.col-list-remove').forEach(btn => {
         btn.addEventListener('click', async () => {
           const row = btn.closest('.col-list-row');
@@ -4259,55 +4309,22 @@ const AuthModal = (function () {
       });
     }
 
-    // Sol tutamaçtan Pointer Events ile sürükle-sırala — wireCanvasInteractions'taki AYNI
-    // setPointerCapture deseni, burada delta değil "en yakın satırın önüne/arkasına taşı" mantığı.
-    function wireListReorder(container) {
-      container.querySelectorAll('.col-list-handle').forEach(handle => {
-        handle.addEventListener('pointerdown', (e) => {
-          if (e.button !== undefined && e.button !== 0) return;
-          const row = handle.closest('.col-list-row');
-          if (!row) return;
-          e.preventDefault();
-          row.classList.add('dragging');
-          handle.setPointerCapture(e.pointerId);
-
-          // GERÇEK BULGU (kullanıcı bildirimi: "liste görünümünde maddeleri kaydırmada problem
-          // var"): eski sürüm compareDocumentPosition ile satırın SÜRÜKLENEN satıra göre ÖNCE/
-          // SONRA olduğunu kontrol edip buna göre dal seçiyordu — ama koşullar ters kutuplanmıştı,
-          // bu yüzden hem yukarı hem aşağı sürüklemede satır çoğu zaman hiç yer değiştirmiyordu.
-          // Doğru/standart yaklaşım: konumdan BAĞIMSIZ, her hareket adımında imlecin dikey
-          // konumuna göre "hangi satırın önüne gitmeli" sorusu yeniden hesaplanır.
-          function onMove(ev) {
-            const rows = Array.from(container.querySelectorAll('.col-list-row')).filter(r => r !== row);
-            let target = null;
-            for (const other of rows) {
-              const rect = other.getBoundingClientRect();
-              if (ev.clientY < rect.top + rect.height / 2) { target = other; break; }
-            }
-            if (target) container.insertBefore(row, target);
-            else container.appendChild(row);
-          }
-          function onUp(ev) {
-            handle.releasePointerCapture(ev.pointerId);
-            handle.removeEventListener('pointermove', onMove);
-            handle.removeEventListener('pointerup', onUp);
-            handle.removeEventListener('pointercancel', onUp);
-            row.classList.remove('dragging');
-            const order = Array.from(container.querySelectorAll('.col-list-row')).map(r => r.dataset.itemId);
-            // Sunucu cevabını beklemeden openCollection.items'ı da AYNI sıraya sok — aksi halde bir
-            // sonraki renderDetail (ör. başka bir öğe eklenince tetiklenen reloadDetail) sürüklemeyi
-            // eski sıraya geri sıçratırdı.
-            const byId = new Map(openCollection.items.map(it => [it.id, it]));
-            openCollection.items = order.map(id => byId.get(id)).filter(Boolean);
-            fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items`, {
-              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }),
-            }).catch(() => {});
-          }
-          handle.addEventListener('pointermove', onMove);
-          handle.addEventListener('pointerup', onUp);
-          handle.addEventListener('pointercancel', onUp);
-        });
-      });
+    // Yukarı/aşağı butonu tıklanınca komşu öğeyle yer değiştirir, ekranı yeniden çizer (sınır
+    // durumundaki disabled butonlar bu şekilde güncellenir) ve sunucudaki sırayı kalıcı hale
+    // getirir — collections.js#persistLayout İLE AYNI "önce yerel, sonra fire-and-forget PATCH"
+    // deseni (kullanıcı çıkışı bekletilmez).
+    function moveListItem(itemId, direction) {
+      if (!openCollection) return;
+      const items = openCollection.items;
+      const idx = items.findIndex(it => it.id === itemId);
+      const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+      if (idx === -1 || swapWith < 0 || swapWith >= items.length) return;
+      [items[idx], items[swapWith]] = [items[swapWith], items[idx]];
+      renderItemsListMode();
+      const order = items.map(it => it.id);
+      fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }),
+      }).catch(() => {});
     }
 
     // Sürükle (gövdeden, tutamaçlardan/linklerden/silme butonundan DEĞİL) ve köşe tutamaçlarından
@@ -4603,6 +4620,12 @@ const AuthModal = (function () {
       setPenActive(false);
       styleTargetItemId = null;
       boardViewMode = 'list';
+      if (boardFullscreen) document.body.style.overflow = ''; // yalnızca BİZİM açtığımız kilidi geri al
+      boardFullscreen = false;
+      const fsTarget = document.getElementById('am-col-canvas-fs-target');
+      if (fsTarget) fsTarget.classList.remove('is-fullscreen');
+      const fsToggle = document.getElementById('am-col-fullscreen-toggle');
+      if (fsToggle) fsToggle.setAttribute('aria-pressed', 'false');
       try {
         const res = await fetch(`/api/collections/${encodeURIComponent(id)}`);
         if (!res.ok) { showList(); return; }
@@ -4651,6 +4674,19 @@ const AuthModal = (function () {
       if (btn.dataset.view === boardViewMode) return;
       boardViewMode = btn.dataset.view;
       renderDetail();
+    });
+
+    // Tam sayfa görünüm (kullanıcı isteği, 2026-09-06 madde 2) — am-col-canvas-fs-target (görünüm
+    // geçişi hariç, araç çubuğu+ekleme panelleri+tuval/liste'nin TAMAMI) ekranı kaplar. Boyut
+    // değişince pafta yeniden ölçeklenmeli (bkz. fitCanvasToViewport) — aksi halde eski, küçük
+    // viewport'a göre hesaplanmış zoom/pan değerleriyle kalırdı.
+    on('am-col-fullscreen-toggle', 'click', () => {
+      boardFullscreen = !boardFullscreen;
+      const target = document.getElementById('am-col-canvas-fs-target');
+      if (target) target.classList.toggle('is-fullscreen', boardFullscreen);
+      document.getElementById('am-col-fullscreen-toggle').setAttribute('aria-pressed', String(boardFullscreen));
+      document.body.style.overflow = boardFullscreen ? 'hidden' : '';
+      if (boardViewMode === 'grid') requestAnimationFrame(() => fitCanvasToViewport());
     });
 
     // Kebab (⋮) menüler — "Paylaş/Dışa Aktar/Panoyu Sil" ve "+ Ekle" (kullanıcı isteği, 2026-09-06).
@@ -5604,6 +5640,17 @@ const AuthModal = (function () {
   document.addEventListener('mimarlab-modal-closed', () => {
     const overlay = document.getElementById('am-thread-overlay');
     if (overlay) overlay.remove();
+  });
+
+  // Tam sayfa pano görünümü (kullanıcı isteği, 2026-09-06 madde 2) — message-button.js#openCompose
+  // İLE AYNI gerçek bulgu sınıfı: fullscreen açıkken ModalShell X/backdrop'tan kapatılırsa, panel
+  // kendisi opacity/visibility ile görünmez olur ama fs-target'ın YAZDIĞI document.body.style.
+  // overflow='hidden' CSS'e bağlı DEĞİL, geri alınmazsa TÜM SAYFA kalıcı olarak kaydırılamaz kalır.
+  document.addEventListener('mimarlab-modal-closed', () => {
+    const fsTarget = document.getElementById('am-col-canvas-fs-target');
+    if (!fsTarget || !fsTarget.classList.contains('is-fullscreen')) return;
+    fsTarget.classList.remove('is-fullscreen');
+    document.body.style.overflow = '';
   });
 
   // ---------------------------------------------------------------------------------------------

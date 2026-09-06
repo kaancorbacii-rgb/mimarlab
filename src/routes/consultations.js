@@ -94,16 +94,20 @@ async function getAvailability(env, url) {
   return json({ booked });
 }
 
-// GET /api/consultations/:id — "Görüşme Detayı" (kullanıcı isteği, 2026-09-06, Aşama 4): danışmanı
-// bildirimden bu ekrana yönlendirir. Güvenlik kuralı KELİME KELİME uygulanır: alıcı bilgileri
-// SADECE talebin host'unu (architects.claimed_by_user_id) CLAIM ETMİŞ kullanıcıya döner — talebin
-// KENDİ SAHİBİNE (buyer) bile değil, çünkü buyer zaten kendi girdiği bilgiyi biliyor ve bu uç
-// mentor tarafının görünümü içindir.
+// GET /api/consultations/:id — "Görüşme Detayı": danışmanı "yeni talep" bildiriminden, ALICIYI ise
+// "ödeme onaylandı/reddedildi" bildiriminden (kullanıcı isteği, 2026-09-06: admin onayı sonrası
+// bildirim) bu ekrana yönlendirir. Güvenlik: SADECE talebin KENDİ SAHİBİ (buyer, user_id) VEYA
+// host'unu (architects.claimed_by_user_id) CLAIM ETMİŞ kullanıcı görebilir — başka herkese 403.
 async function getConsultationDetail(env, user, id) {
   const row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE id = ?`).bind(id).first();
   if (!row) return errorJson('Bulunamadı', 404);
-  const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
-  if (!host || !host.claimed_by_user_id || host.claimed_by_user_id !== user.id) {
+  const isBuyer = row.user_id === user.id;
+  let isHost = false;
+  if (!isBuyer) {
+    const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+    isHost = !!(host && host.claimed_by_user_id && host.claimed_by_user_id === user.id);
+  }
+  if (!isBuyer && !isHost) {
     return errorJson('Bu görüşme detayını görüntüleme yetkin yok.', 403);
   }
   return json({

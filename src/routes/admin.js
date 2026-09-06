@@ -111,6 +111,7 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'profile-options') return await handleProfileOptionsAdmin(env, url);
     if (sub === 'corrections') return await handleCorrectionsAdmin(request, env, url, segments);
     if (sub === 'badges') return await handleBadgesAdmin(request, env, url, segments);
+    if (sub === 'consultations') return await handleConsultationsAdmin(request, env, url, segments);
     if (sub === 'profile-badge') return await handleProfileBadgeAdmin(request, env, url);
     if (sub === 'contact') return await handleContactAdmin(request, env, segments);
     if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);
@@ -290,13 +291,14 @@ async function handleAdminSummary(env) {
   );
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_requests WHERE status = 'pending'`).first(),
   ]);
 
   return json({
@@ -306,6 +308,7 @@ async function handleAdminSummary(env) {
     unreadContact: contactRow?.n || 0,
     pendingMigrationConflicts: migrationRow?.n || 0,
     unseenComments: commentsRow?.n || 0,
+    pendingConsultations: consultationsRow?.n || 0,
   });
 }
 
@@ -970,6 +973,59 @@ async function handleBadgesAdmin(request, env, url, segments) {
     // gerekli DEĞİL; diğer 13 admin mutasyon noktasıyla tutarlılık için (ör. ileride başka bir
     // uç buraya eklenirse) bir güvenlik ağı olarak bırakıldı.
     await invalidatePublicCache(env);
+    return json({ ok: true });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// /api/admin/consultations?status=pending
+// /api/admin/consultations/:id  (PATCH: status günceller — approved/rejected)
+// Havale ile ödenen danışmanlık taleplerinin admin onay ekranı (kullanıcı isteği, 2026-09-06) —
+// handleBadgesAdmin İLE AYNI desen (havale bildirimi 'pending' oluşturur, admin banka ekstresinden
+// doğrulayıp elle onaylar/reddeder). Onaylanınca ALICIYA (row.user_id — talebi yapan kişi, host'a
+// DEĞİL) bildirim gider; host zaten talep oluşturulduğunda ayrıca bildirilmişti (bkz.
+// consultations.js#createConsultationRequest).
+async function handleConsultationsAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const status = url.searchParams.get('status');
+    const query = status
+      ? env.DB.prepare(
+          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM consultation_requests c
+           JOIN users u ON u.id = c.user_id WHERE c.status = ? ORDER BY c.created_at DESC`
+        ).bind(status)
+      : env.DB.prepare(
+          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM consultation_requests c
+           JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC`
+        );
+    const { results } = await query.all();
+    return json({ items: results });
+  }
+
+  if (segments.length === 4 && request.method === 'PATCH') {
+    const id = segments[3];
+    const body = await readJson(request);
+    if (!['approved', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
+    const row = await env.DB.prepare('SELECT user_id, requested_date, requested_time, status FROM consultation_requests WHERE id = ?').bind(id).first();
+    if (!row) return errorJson('Bulunamadı', 404);
+    if (row.status !== 'pending') return errorJson('Bu talep zaten işleme alınmış.');
+    const now = Date.now();
+    await env.DB.prepare('UPDATE consultation_requests SET status = ?, updated_at = ? WHERE id = ?').bind(body.status, now, id).run();
+
+    if (body.status === 'approved') {
+      await createNotification(
+        env, row.user_id, 'consultation_payment_approved',
+        'Danışmanlık ödemen onaylandı',
+        `${row.requested_date} ${row.requested_time} için randevun onaylandı.`,
+        `consultation:${id}`,
+      );
+    } else {
+      await createNotification(
+        env, row.user_id, 'consultation_payment_rejected',
+        'Danışmanlık talebin reddedildi',
+        'Ödeme onaylanamadı — detaylar için bizimle iletişime geç.',
+        `consultation:${id}`,
+      );
+    }
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);

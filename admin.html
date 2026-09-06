@@ -327,6 +327,7 @@
         <button class="admin-tab" data-tab="archive">Arşiv</button>
         <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
+        <button class="admin-tab" data-tab="consultations">Danışmanlık Talepleri<span class="admin-tab-dot" data-dot="consultations"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
@@ -363,6 +364,11 @@
       <div class="admin-section" id="section-badges">
         <div class="admin-subtabs" id="badges-subtabs"></div>
         <div id="badges-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-consultations">
+        <div class="admin-subtabs" id="consultations-subtabs"></div>
+        <div id="consultations-list"></div>
       </div>
 
       <div class="admin-section" id="section-contact">
@@ -987,10 +993,12 @@ let claimsKind = 'ownership';
 let claimsStatus = 'pending';
 let correctionsStatus = 'pending';
 let badgesStatus = 'pending';
+let consultationsStatus = 'pending';
 const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
 const CORRECTION_STATUS_LABELS = { pending:'Beklemede', resolved:'Çözüldü', dismissed:'Reddedildi' };
 const CLAIM_KIND_LABELS = { ownership:'Sahiplenme Talepleri', correction:'Düzeltme Önerileri' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
+const CONSULTATION_STATUS_LABELS_ADMIN = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
 const PROFILE_TYPE_LABELS = { architect:'Kişi', office:'Firma' };
 const BADGE_TYPE_LABELS = { destekci:'Destekçi', verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
 
@@ -1153,6 +1161,43 @@ async function loadBadgeRequests(){
       btn.disabled = true;
       await api(`/api/admin/badges/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
       loadBadgeRequests();
+      refreshAdminSummary();
+    });
+  });
+}
+
+// Havale ile ödenen danışmanlık taleplerinin onay ekranı (kullanıcı isteği, 2026-09-06) —
+// loadBadgeRequests İLE AYNI desen (bkz. src/routes/admin.js#handleConsultationsAdmin).
+async function loadConsultationRequests(){
+  renderStatusSubtabs(document.getElementById('consultations-subtabs'), CONSULTATION_STATUS_LABELS_ADMIN, consultationsStatus, (s)=>{ consultationsStatus = s; loadConsultationRequests(); }, true);
+  const list = document.getElementById('consultations-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/consultations?status=${consultationsStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda talep yok.</div>'; return; }
+  list.innerHTML = items.map(c => `
+    <div class="admin-card" data-id="${c.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(c.contact_name || c.user_name)} <span class="admin-badge badge-pending">${Number(c.price_try).toFixed(2)} TL</span> <span class="admin-badge badge-approved">${escapeHtml(c.requested_date)} ${escapeHtml(c.requested_time)}</span> <span class="admin-badge badge-neutral">${c.payment_provider === 'havale' ? 'Havale/EFT' : 'Elle'}</span></div>
+          <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)}${c.contact_phone ? ` · ${escapeHtml(c.contact_phone)}` : ''} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        ${c.status === 'pending' ? `
+        <div class="admin-actions">
+          <button class="admin-btn primary" data-action="approved">Onayla</button>
+          <button class="admin-btn danger" data-action="rejected">Reddet</button>
+        </div>` : ''}
+      </div>
+      ${c.note ? `<div class="admin-card-note"><strong>Görüşme isteği hakkında not</strong>${escapeHtml(c.note)}</div>` : ''}
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      const status = btn.dataset.action;
+      btn.disabled = true;
+      await api(`/api/admin/consultations/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+      loadConsultationRequests();
       refreshAdminSummary();
     });
   });
@@ -1655,6 +1700,7 @@ async function refreshAdminSummary(){
       pending: data.pendingSubmissions > 0,
       claims: data.pendingClaims > 0,
       badges: data.pendingBadges > 0,
+      consultations: data.pendingConsultations > 0,
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
       conflicts: data.pendingMigrationConflicts > 0,
@@ -1970,6 +2016,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'archive') loadArchive();
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
+    if(tab.dataset.tab === 'consultations') loadConsultationRequests();
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();
