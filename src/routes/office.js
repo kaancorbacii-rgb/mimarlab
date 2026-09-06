@@ -167,6 +167,27 @@ export async function handleOfficeSearchRoute(request, env, url) {
   });
 }
 
+// GET /api/offices/names — sitedeki TÜM firma ve markaların adları, tek istekte (kullanıcı isteği,
+// 2026-09-06 madde 1 ve 4: "sitede yüklü tüm firmalar ve markalar alt alta çoktan seçilebilir
+// şekilde ... en üstte de arama çubuğu olsun"). office-picker.js'in TEK veri kaynağı.
+//
+// Neden /api/offices DEĞİL: o uç sayfalı (en fazla 96/sayfa — istemci tarafında ~9 ardışık istek)
+// VE saf markaları (yalnızca üretici olan VitrA gibi kayıtlar, bkz. office-kind.js#isPureBrandOffice)
+// firma.html davranışını korumak için havuzdan DÜŞÜRÜYOR. Bu kutunun ihtiyacı tam tersi: firma+marka
+// AYRIMSIZ tek liste. Havuz zaten KV'de önbellekli (fetchOfficePool) olduğundan bu uç ek bir D1
+// sorgusu getirmez, yalnızca aynı havuzdan iki alan (ad + marka mı) projeksiyonu yapar.
+export async function handleOfficeNamesRoute(request, env, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const pool = await fetchOfficePool(env);
+    const items = pool
+      .filter(o => o.name)
+      .map(o => ({ name: o.name, brand: isBrandOffice(o.cats, o.productCount) ? 1 : 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    return { items };
+  });
+}
+
 // firma.html#FOREIGN_LOC_TO_COUNTRY/cityOf ile BİREBİR aynı — Türkiye dışındaki markalar için konum
 // filtresinde şehir değil ülke adı gösterilir.
 const FOREIGN_LOC_TO_COUNTRY = {
@@ -383,6 +404,33 @@ async function fetchRawTeamNames(env, o) {
   try { return JSON.parse(row.team) || []; } catch { return []; }
 }
 
+// Serbest metin olarak yazılmış Kurucular/Ekip isimlerini canonical `architects` satırlarıyla
+// eşleştirir; dönen Map foldTr(isim) -> { photo, slug }.
+//
+// GERÇEK BULGU (kullanıcı isteği, 2026-09-06 madde 6 — canlıda "Deneme" firmasının Ekip kutusuna
+// yazılan "Kaan Çorbacı"): bu iki liste (fetchRawFounderNames/fetchRawTeamNames) firma-ekle.html'in
+// serbest metin kutularından geldiği için aşağıda HER ZAMAN `photo: null` ile ekleniyordu — kişinin
+// sitede bir kişi profili (ve profil fotoğrafı) OLSA BİLE popup'ta baş harfli gri rozet görünüyordu.
+// Ad eşleşmesi Türkçe casefold'lu (`name_fold`, bkz. migrations/0079) yapılır: office_founders
+// bağlantısı kurulamamış olması ismin karşılığının olmadığı anlamına gelmiyor (canonicalSync
+// eşleştirmeyi yalnızca ONAY anında dener, sonradan eklenen bir kişi profilini görmez).
+async function fetchArchitectsByRawNames(env, names) {
+  const wanted = [...new Set((names || []).filter(Boolean).map(n => foldTr(n)))].filter(Boolean);
+  if (!wanted.length) return new Map();
+  // Düz IN(...) — bkz. SQLite ifade-ağacı derinlik sınırı (100 terimli `A OR B` reddedilir); bu
+  // listeler zaten onlarca isimle sınırlı, yine de güvenli tarafta kalmak için tek IN kullanılır.
+  const placeholders = wanted.map(() => '?').join(', ');
+  const { results } = await env.DB.prepare(
+    `SELECT name, name_fold, slug, photo_url FROM architects
+     WHERE deleted_at IS NULL AND hidden_at IS NULL AND name_fold IN (${placeholders})`
+  ).bind(...wanted).all();
+  const map = new Map();
+  for (const r of results || []) {
+    if (!map.has(r.name_fold)) map.set(r.name_fold, { photo: r.photo_url || null, slug: r.slug || null });
+  }
+  return map;
+}
+
 // Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
 async function fetchAdjacentOffice(env, id) {
   const { prev, next } = await fetchAdjacentEntity(env, 'offices', id, { titleCol: 'name', imageCol: 'logo_url' });
@@ -589,22 +637,34 @@ async function buildOfficePayload(env, key) {
     fetchRawTeamNames(env, o),
   ]);
 
+  // Serbest metin Kurucular/Ekip isimlerinin kişi profili fotoğrafları (bkz.
+  // fetchArchitectsByRawNames'teki GERÇEK BULGU) — üç listenin isimleri TEK sorguda çözülür.
+  const rawNameMatches = await fetchArchitectsByRawNames(env, [
+    ...rawFounderNames,
+    ...rawTeamNames,
+    ...(teamClaimRows.results || []).map(r => r.name),
+  ]);
+  const matchFor = (name) => rawNameMatches.get(foldTr(name || '')) || null;
+
   const founders = foundersRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
   const knownFounderNames = new Set(founders.map(f => trLower(f.name)));
   for (const name of rawFounderNames) {
     if (!name || knownFounderNames.has(trLower(name))) continue;
     knownFounderNames.add(trLower(name));
-    founders.push({ name, role: null, photo: null, badges: [], unregistered: true });
+    founders.push({ name, role: null, photo: (matchFor(name) || {}).photo || null, badges: [], unregistered: true });
   }
   const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
   const team = [];
   for (const row of teamClaimRows.results || []) {
     if (!row.name || knownFounderNames.has(trLower(row.name))) continue;
+    // photo: hesabın kendi profil fotoğrafı (users.photo_url) yoksa, aynı isimli kişi profilinin
+    // fotoğrafına düşülür — iki kayıt aynı kişiyi temsil ediyor (bkz. matchFor).
+    const photo = row.photo_url || (matchFor(row.name) || {}).photo || null;
     if (FOUNDER_POSITIONS.has(row.position)) {
       knownFounderNames.add(trLower(row.name));
-      founders.push({ name: row.name, role: row.position, photo: null, badges: [], unregistered: true });
+      founders.push({ name: row.name, role: row.position, photo, badges: [], unregistered: true });
     } else {
-      team.push({ name: row.name, role: row.position || null, photo: row.photo_url || null });
+      team.push({ name: row.name, role: row.position || null, photo });
     }
   }
   // firma-ekle.html'deki opsiyonel "Ekip" kutusuna serbest metin girilen isimler — foundersFromClaims
@@ -613,7 +673,7 @@ async function buildOfficePayload(env, key) {
   for (const name of rawTeamNames) {
     if (!name || knownFounderNames.has(trLower(name)) || knownTeamNames.has(trLower(name))) continue;
     knownTeamNames.add(trLower(name));
-    team.push({ name, role: null, photo: null });
+    team.push({ name, role: null, photo: (matchFor(name) || {}).photo || null });
   }
   // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
   // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son

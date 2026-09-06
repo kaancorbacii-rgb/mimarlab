@@ -1094,7 +1094,7 @@ function mountProductAdminActions(){
       ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
       : (currentUserRole === 'admin'
         ? 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.'
-        : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılır, Gönderiyi Düzenle üzerinden tekrar yayınlayabilirsin.');
+        : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılır, Düzenle üzerinden tekrar yayınlayabilirsin.');
     if(!confirm(confirmText)) return;
     archiveBtn.disabled = true;
     deleteBtn.disabled = true;

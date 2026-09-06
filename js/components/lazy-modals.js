@@ -30,7 +30,10 @@
       // meslek kutusu bu bileşene bağlı. Çoğu sayfa onu ayrıca yüklüyor ama bağımlılığı burada
       // belirtmek, yüklemeyen bir sayfada da (ör. gelecekte eklenecek yeni bir sayfa) formun
       // çıplak kalmasını önler; zaten sayfada varsa tekrar enjekte edilmez (bkz. querySelector).
-      deps: ['profession-shared.js', 'js/components/profession-drawer.js', 'js/components/image-crop.js'],
+      // office-picker.js — Profili Düzenle'deki "Firma veya Marka" çoklu seçim kutusu (kullanıcı
+      // isteği, 2026-09-06 madde 1). profession-shared.js ile AYNI gerekçe: auth-modal.js tembel
+      // yüklendiğinden sayfalara ayrı <script> koymak işe yaramaz, bağımlılık burada bildirilir.
+      deps: ['profession-shared.js', 'office-picker.js', 'js/components/profession-drawer.js', 'js/components/image-crop.js'],
       hrefRe: {
         login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/,
         account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/,

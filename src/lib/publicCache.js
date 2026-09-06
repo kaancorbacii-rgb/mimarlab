@@ -377,7 +377,12 @@ async function withSingleFlight(key, fn) {
 //     burada özellikle keskin: bu değişiklik HİÇBİR satırın updated_at'ini değiştirmiyor, yani
 //     listFingerprint aynı kalıyor — sürüm artırılmazsa /kisi'yi daha önce açmış ziyaretçiler eski
 //     ETag'le 304 alıp yeni ödül seçeneklerini HİÇ görmezdi.
-const API_PAYLOAD_VERSION = 'v16';
+// v17 (kullanıcı isteği, 2026-09-06 madde 6): /api/office/:key yanıtındaki `founders[]`/`team[]`
+//     girdileri artık serbest metin isimler için de `photo` taşıyabiliyor (bkz. src/routes/office.js#
+//     fetchArchitectsByRawNames). v5-v15'in AYNI tuzağı: hiçbir satırın updated_at'i değişmediğinden
+//     fingerprint aynı kalır, sürüm artırılmazsa firmayı daha önce açmış ziyaretçiler 304 alıp
+//     ekip üyesinin fotoğrafını HİÇ görmezdi.
+const API_PAYLOAD_VERSION = 'v17';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

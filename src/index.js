@@ -5,7 +5,7 @@ import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from '.
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute, fetchArchitectPool } from './routes/architect.js';
-import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute, fetchOfficePool } from './routes/office.js';
+import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeNamesRoute, handleOfficeListRoute, fetchOfficePool } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute, fetchActiveProjectPoolCached } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute, fetchProductPool } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
@@ -1180,6 +1180,9 @@ async function routeApi(request, env, url, ctx) {
   if (path === '/api/architects/search') return handleArchitectSearchRoute(request, env, url);
   if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
+  // Firma+marka adlarının TAMAMI (office-picker.js'in çoklu seçim kutusu) — /api/offices/search ile
+  // AYNI çakışma önleme gerekçesi: bu da çoğul prefix'in altındadır ve genel eşleşmeden ÖNCE gelmeli.
+  if (path === '/api/offices/names') return handleOfficeNamesRoute(request, env, url);
   if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
   // Ürün markaları (proje-ekle.html'deki Firma kutusu) — bkz. handleProductBrandSearchRoute'un
   // "kaynak offices değil products" gerekçesi.

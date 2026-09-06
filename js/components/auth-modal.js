@@ -18,6 +18,19 @@ const AuthModal = (function () {
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  // src/routes/office.js#foldTr / office-picker.js ile AYNI Türkçe casefold — isim karşılaştırmaları
+  // ("bu gönderi hesabın kendisi mi", bkz. fetchOwnSelfSubmission) büyük/küçük ve aksan farkından
+  // bağımsız olmalı, sunucudaki eşdeğer kontrolle (submissions.js#isSelfDirectoryListing) aynı sonucu
+  // vermeli.
+  function foldTrAm(s) {
+    return String(s || '')
+      .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
+      .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
+      .toLowerCase()
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u').replace(/ö/g, 'o')
+      .trim();
+  }
   // gerçek bulgu (2026-08-13, bkz. project-meta.js#safeUrl'deki AYNI kök neden): window.location.href
   // yerine document.baseURI — bu modal site genelinde (her sayfada, farklı <base href> bağlamlarında)
   // yükleniyor; "Kaydedilenler" listesindeki item_image D1'de legacy_static kaynaklı çoğu kayıtta
@@ -1066,11 +1079,15 @@ const AuthModal = (function () {
               <option value="İşsiz">İşsiz</option>
             </select>
           </div>
+          <!-- Firma veya Marka — kullanıcı isteği (2026-09-06 madde 1): başlık "Firma"dan "Firma veya
+               Marka"ya çevrildi, tekil <select> yerine arama kutulu ÇOKLU seçim paneli kullanılıyor
+               (bkz. office-picker.js; kisi-ekle.html'deki AYNI bileşen). Seçilen her ad ayrı bir
+               profile_claims('office') talebi doğurur (bkz. submitFirmaClaimIfChanged) ve tamamı
+               virgüllü tek metin olarak mimar kaydının office alanına da yazılır (bkz.
+               submitArchitectSyncIfNeeded) — kisi-ekle.html ile aynı depolama biçimi. -->
           <div>
-            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma</label>
-            <select id="am-edit-office" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
-              <option value="">Seç... (opsiyonel)</option>
-            </select>
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma veya Marka <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+            <div id="am-edit-office-picker"></div>
           </div>
           <!-- Ödüller/Sosyal Medya/Açıklama — bkz. kullanıcı isteği: "Mimar profiliyle henüz
                eşleşmemiş kullanıcılar da ödül, sosyal medya ve açıklama ekleyebilsinler" — herkes
@@ -2091,16 +2108,16 @@ const AuthModal = (function () {
       select.insertAdjacentHTML('beforeend', html);
     }
 
-    // Firma kutusu (Pozisyon'un yanında) — açılır liste TÜM firmaları listeler (bkz. kullanıcı
-    // isteği: "açılır menü ile tüm firmaları görüp istediği firmayı seçebilsin"), ama seçim artık
-    // doğrudan profile yazılmıyor: "Bu firma sana mı ait?" kutusuyla (js/components/
-    // claim-correction-box.js) AYNI profile_claims('office') talebini (POST /api/claims) oluşturur
-    // ve admin onayı bekler (bkz. src/routes/admin.js#handleClaimsAdmin, admin.html "Profil
-    // Talepleri"). Onaylanınca CANLI olarak Profil Bilgileri kutusundaki Mimar satırının ÜSTÜNDEki
-    // "Firma" satırında görünür (bkz. loadMyClaims). /api/offices sayfalı döndüğünden (en fazla
-    // 96/sayfa) tüm firmaları toplamak için totalPages'e kadar döngüyle çekilir; sonuç bu modülün
-    // ömrü boyunca önbelleklenir (allOfficeNamesPromise) — modal her açıldığında/loadUser her
-    // çalıştığında yeniden istek atılmaz.
+    // "Firma veya Marka" kutusu (Pozisyon'un yanında) — arama kutulu, ÇOKLU seçim paneli (kullanıcı
+    // isteği, 2026-09-06 madde 1; bkz. office-picker.js, kisi-ekle.html ile AYNI bileşen ve AYNI
+    // GET /api/offices/names kaynağı: firma+marka ayrımsız tüm adlar). Seçim doğrudan profile
+    // yazılmaz: "Bu firma sana mı ait?" kutusuyla (js/components/claim-correction-box.js) AYNI
+    // profile_claims('office') talebini (POST /api/claims) oluşturur ve admin onayı bekler (bkz.
+    // src/routes/admin.js#handleClaimsAdmin, admin.html "Profil Talepleri"). Onaylanınca CANLI olarak
+    // Profil Bilgileri kutusundaki "Firma" satırında görünür (bkz. loadMyClaims). Seçimlerin TAMAMI
+    // ayrıca virgüllü tek metin olarak mimar kaydının `office` alanına yazılır (bkz.
+    // submitArchitectSyncIfNeeded) — kisi-ekle.html ile aynı biçim, src/lib/canonicalSync.js#
+    // syncArchitect bunu bölüp her firmayı office_founders'a bağlar.
     // loadMyClaims() (dashboard) VE prefillFirmaSelect() (Profili Düzenle formu) AYNI /api/claims/mine
     // ucunu okuyordu — ikisi de loadUser()'ın tetiklediği açılışta neredeyse eşzamanlı çağrıldığından
     // her Hesabım açılışında bu uca gereksiz İKİNCİ bir istek atılıyordu (bkz. kullanıcı isteği,
@@ -2127,79 +2144,64 @@ const AuthModal = (function () {
       }
       return claimedArchitectPromise;
     }
-    let allOfficeNamesPromise = null;
-    async function fetchAllOfficeNames() {
-      const names = [];
-      let page = 1, totalPages = 1;
-      do {
-        const res = await fetch(`/api/offices?page=${page}&limit=96&sort=name_asc`);
-        if (!res.ok) break;
-        const data = await res.json();
-        (data.items || []).forEach(o => { if (o.name) names.push(o.name); });
-        totalPages = data.totalPages || 1;
-        page += 1;
-      } while (page <= totalPages);
-      return names;
-    }
-    // Seçenekler bir kez doldurulur ve DÖNEN SÖZ saklanır — prefillFirmaSelect() değeri ancak
-    // <option>'lar DOM'a girdikten sonra atayabilir (gerçek bulgu: ikisi paralel çağrıldığından,
-    // seçenekler geç gelirse select.value = "X" sessizce boşta kalıyordu).
+    // Kutunun kendisi office-picker.js'te (arama kutusu + tüm firma/marka adları + çoklu seçim);
+    // burada yalnızca TEK bir örnek tutulur. loadFirmaOptions(), eski adıyla çağrılan yerleri
+    // (loadUser'ın ön ısıtması) bozmamak için korunur ve kutuyu bir kez kurar.
+    let firmaPicker = null;
     let firmaOptionsPromise = null;
     function loadFirmaOptions() {
       if (firmaOptionsPromise) return firmaOptionsPromise;
-      firmaOptionsPromise = (async () => {
-        const select = document.getElementById('am-edit-office');
-        if (!allOfficeNamesPromise) allOfficeNamesPromise = fetchAllOfficeNames().catch(() => []);
-        const names = await allOfficeNamesPromise;
-        select.innerHTML = '<option value="">Seç... (opsiyonel)</option>' + names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
-      })();
+      const mount = document.getElementById('am-edit-office-picker');
+      // office-picker.js js/components/lazy-modals.js tarafından bu modülden ÖNCE yüklenir (deps),
+      // ama bu modül doğrudan bir <script> ile de yüklenebiliyor — o durumda kutu sessizce hiç
+      // kurulmasın diye (form geri kalanı çalışmaya devam eder) tek bir korumalı kontrol.
+      if (!mount || typeof createOfficePicker === 'undefined') {
+        firmaOptionsPromise = Promise.resolve();
+        return firmaOptionsPromise;
+      }
+      firmaPicker = createOfficePicker(mount, {
+        placeholder: 'Firma veya marka seç',
+        searchLabel: 'Firma veya marka ara...',
+      });
+      firmaOptionsPromise = firmaPicker.ready;
       return firmaOptionsPromise;
     }
-    // Listede olmayan bir firma adı (ör. mimar kaydından gelen, /api/offices sayfalamasında
-    // yakalanmamış ya da yalnızca gönderi olarak var olan bir isim) seçilebilsin diye seçenek
-    // gerekirse yerinde oluşturulur — aksi halde select.value ataması sessizce boşa düşer ve
-    // kullanıcı firmasını formda GÖREMEZDİ (kullanıcı isteği, 2026-09-06 madde 4).
-    function setOfficeSelectValue(select, name) {
-      if (!name) { select.value = ''; return; }
-      if (!Array.from(select.options).some(o => o.value === name)) {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        select.appendChild(opt);
-      }
-      select.value = name;
-    }
-    // Kutunun başlangıç değeri, kullanıcının hâlihazırda onaylı ya da beklemede bir ofis talebi
-    // varsa onu yansıtır — böylece kaydet'e tekrar basmak (seçim değiştirilmeden) createClaim'in
-    // no-op dallarına düşer (bkz. src/routes/claims.js — approved/pending için ikinci bir POST hiçbir
-    // şey yazmaz), yalnızca GERÇEKTEN farklı bir firma seçilirse yeni bir talep oluşur.
+    function selectedFirmaNames() { return firmaPicker ? firmaPicker.get() : []; }
+    // Kutunun başlangıç değeri, kullanıcının hâlihazırda onaylı ya da beklemedeki TÜM ofis
+    // taleplerini yansıtır — böylece kaydet'e tekrar basmak (seçim değiştirilmeden) hiç yeni talep
+    // üretmez (bkz. submitFirmaClaimIfChanged'in prefill karşılaştırması).
     //
     // İKİNCİ KAYNAK (kullanıcı isteği, 2026-09-06 madde 4: "bir kullanıcı bir firmada ortak, kurucu,
     // ekip üyesi vs. şeklinde gözüküyorsa ... profilini düzenle ekranında da bu firma bilgisi
-    // gözüksün"): ofis talebi YOKSA sahiplenilmiş mimar kaydının `office` alanına düşülür. Kullanıcı
-    // bir firmanın Kurucular/Ekip kutusuna ELLE yazılmışsa (bkz. src/lib/officeFounderCascade.js —
-    // görünürlüğün ikinci yolu) hiç profile_claims satırı oluşmaz; eski kod bu durumda kutuyu boş
-    // bırakıyordu.
+    // gözüksün"): sahiplenilmiş mimar kaydının `office` alanı da (virgüllü çoklu firma) eklenir.
+    // Kullanıcı bir firmanın Kurucular/Ekip kutusuna ELLE yazılmışsa (bkz. src/lib/
+    // officeFounderCascade.js — görünürlüğün ikinci yolu) hiç profile_claims satırı oluşmaz; eski kod
+    // bu durumda kutuyu boş bırakıyordu.
     async function prefillFirmaSelect() {
-      const select = document.getElementById('am-edit-office');
       try {
         await loadFirmaOptions();
+        if (!firmaPicker) return;
         const claims = (await fetchMyClaims()).items || [];
-        const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved')
-          || claims.find(c => c.profile_type === 'office' && c.status === 'pending');
-        if (officeClaim) { setOfficeSelectValue(select, officeClaim.profile_key); }
-        else {
-          const arch = await fetchClaimedArchitect(claims);
-          setOfficeSelectValue(select, (arch && arch.office) || '');
-        }
+        const names = claims
+          .filter(c => c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending'))
+          .map(c => c.profile_key).filter(Boolean);
+        // Kişi kaydının kendi `office` alanı — İKİ kayıt türü de okunur: sahiplenilmiş profil
+        // (fetchClaimedArchitect) ya da kullanıcının kendi açtığı kişi kaydı (fetchOwnSelfSubmission,
+        // claimed_profile_key TAŞIMAZ). İkincisi eksikti: kullanıcı firmalarını kisi-ekle.html'den
+        // ya da kendi profil popup'ındaki Düzenle'den seçtiğinde, Profili Düzenle kutusu boş
+        // açılıyordu — "iki profil birbiriyle entegre" isteğinin (madde 2) tam karşıtı.
+        const claimedArch = await fetchClaimedArchitect(claims);
+        const arch = claimedArch || await fetchOwnSelfSubmission();
+        String((arch && arch.office) || '').split(',').forEach(n => { const t = n.trim(); if (t) names.push(t); });
+        firmaPicker.set(names);
         // bkz. submitFirmaClaimIfChanged — kullanıcı seçimi DEĞİŞTİRMEDİYSE Kaydet'te talep
         // gönderilmemeli. Ofis talebi varken bunu zaten o fonksiyonun `existing` kontrolü sağlıyordu;
-        // mimar kaydından gelen ön-dolum için karşılaştırılacak bir talep olmadığından değeri burada
-        // hatırlıyoruz.
-        firmaSelectPrefillValue = select.value || '';
+        // mimar kaydından gelen ön-dolum için karşılaştırılacak bir talep olmadığından değerler
+        // burada hatırlanır.
+        firmaSelectPrefillValue = new Set(firmaPicker.get());
       } catch {}
     }
-    let firmaSelectPrefillValue = '';
+    let firmaSelectPrefillValue = new Set();
 
     // Ödüller kutusu — kisi-ekle.html#wireMultiDropdown ile BİREBİR aynı desen: kapalı bir düğme
     // (seçili sayıyı/tek seçimi gösterir), tıklanınca checkbox'lı bir panel açılır. Bir kere kurulur
@@ -2341,15 +2343,35 @@ const AuthModal = (function () {
     // (editId/office/photoUrl) kurar ki Kaydet'te submitArchitectSyncIfNeeded doğru uca yazsın.
     // Kullanıcının onaylı bir mimar profili YOKKEN oluşturduğu kendi kişi gönderisini bulur
     // (claimed_profile_key TAŞIMAZ — bir profili sahiplenme değil, kendi kaydını açma).
-    async function fetchOwnSelfSubmission() {
-      try {
-        const res = await fetch('/api/architects/mine');
-        if (!res.ok) return null;
-        const data = await res.json();
-        const own = (data.items || []).filter(m => !m.claimed_profile_key);
-        if (!own.length) return null;
-        return own.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
-      } catch { return null; }
+    // Söz saklanır: refreshArchitectSyncState VE prefillFirmaSelect (bkz. kullanıcı isteği,
+    // 2026-09-06 madde 2 — "Firma veya Marka" kutusu kendi kişi kaydından da beslenmeli) ikisi de
+    // loadUser'ın açılışında neredeyse eşzamanlı çağrıldığından, memo olmadan /api/architects/mine'a
+    // her Hesabım açılışında İKİ istek giderdi (fetchMyClaims'teki AYNI gerekçe/desen).
+    let ownSelfSubmissionPromise = null;
+    function fetchOwnSelfSubmission() {
+      if (!ownSelfSubmissionPromise) {
+        ownSelfSubmissionPromise = (async () => {
+          try {
+            const res = await fetch('/api/architects/mine');
+            if (!res.ok) return null;
+            const data = await res.json();
+            const own = (data.items || []).filter(m => !m.claimed_profile_key);
+            if (!own.length) return null;
+            // GERÇEK BULGU (2026-09-06): burada yalnızca "en son güncellenen claim'siz kayıt"
+            // seçiliyordu. Ama kisi-ekle.html'in ASIL kullanımı BAŞKA birini eklemek — kullanıcı
+            // bir meslektaşını eklediği anda o kayıt en yenisi olup kullanıcının KENDİ kaydının
+            // önüne geçiyor, Profili Düzenle de (dizin tercihi, firma seçimleri) yanlış kaydı
+            // okuyordu. Önce hesabın adıyla eşleşen kayıt aranır — sunucunun "bu gönderi kişinin
+            // kendisi mi" kuralıyla (bkz. src/routes/submissions.js#isSelfDirectoryListing) AYNI
+            // ölçüt; eşleşme yoksa eski davranış (en yeni kayıt) korunur.
+            const myName = foldTrAm((accountUser && accountUser.name) || '');
+            const byName = myName ? own.filter(m => foldTrAm(m.name || '') === myName) : [];
+            const pool = byName.length ? byName : own;
+            return pool.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
+          } catch { return null; }
+        })();
+      }
+      return ownSelfSubmissionPromise;
     }
 
     async function refreshArchitectSyncState(claimItems) {
@@ -2575,25 +2597,31 @@ const AuthModal = (function () {
       }, true);
     }
 
-    // Firma seçimi ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi) yalnızca
-    // seçim GERÇEKTEN kullanıcının mevcut onaylı/beklemedeki talebinden farklıysa gönderilir —
-    // aksi halde her Kaydet'te aynı isim için gereksiz bir POST atılır (zararsız no-op olsa da).
+    // Firma/marka seçimleri ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi)
+    // yalnızca kullanıcının mevcut onaylı/beklemedeki taleplerinde OLMAYAN adlar için gönderilir —
+    // aksi halde her Kaydet'te aynı isimler için gereksiz POST'lar atılır (zararsız no-op olsa da).
+    // Çoklu seçim (kullanıcı isteği, 2026-09-06 madde 1): her YENİ ad ayrı bir talep doğurur;
+    // profile_claims zaten kullanıcı başına birden çok ofis satırını destekliyor.
     async function submitFirmaClaimIfChanged() {
-      const selected = document.getElementById('am-edit-office').value;
-      if (!selected) return false;
-      // Form açılırken kutuya KENDİMİZİN yazdığı değer (bkz. prefillFirmaSelect) — kullanıcı bunu
-      // değiştirmediyse ortada yeni bir talep yok.
-      if (selected === firmaSelectPrefillValue) return false;
+      const selected = selectedFirmaNames();
+      // Form açılırken kutuya KENDİMİZİN yazdığı değerler (bkz. prefillFirmaSelect) — kullanıcı
+      // bunlara yenisini eklemediyse ortada yeni bir talep yok.
+      const fresh = selected.filter(n => n && !firmaSelectPrefillValue.has(n));
+      if (!fresh.length) return false;
       try {
         const claimsRes = await fetch('/api/claims/mine');
         const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
-        const existing = claims.find(c => c.profile_type === 'office' && c.profile_key === selected);
-        if (existing && (existing.status === 'approved' || existing.status === 'pending')) return false;
-        await fetch('/api/claims', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profileType: 'office', profileKey: selected }),
-        });
-        return true;
+        let submitted = false;
+        for (const name of fresh) {
+          const existing = claims.find(c => c.profile_type === 'office' && c.profile_key === name);
+          if (existing && (existing.status === 'approved' || existing.status === 'pending')) continue;
+          await fetch('/api/claims', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profileType: 'office', profileKey: name }),
+          });
+          submitted = true;
+        }
+        return submitted;
       } catch { return false; }
     }
 
@@ -2659,7 +2687,12 @@ const AuthModal = (function () {
         // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çoklu meslek de
         // aynı virgüllü biçimde yazılır (bkz. kisi-ekle.html#meslekDropdown).
         profession: professionLabelText(professionSlug) || null,
-        office: architectSyncState.office || null,
+        // "Firma veya Marka" kutusu ARTIK bu formda düzenleniyor (kullanıcı isteği, 2026-09-06
+        // madde 1) — seçimler virgüllü tek metin olarak kişi kaydına da yazılır, böylece Profili
+        // Düzenle ile kisi-ekle.html AYNI alanı düzenlemiş olur (madde 2'deki "iki profil birbiriyle
+        // entegre" isteği). Kutu hiç kurulamadıysa (bkz. loadFirmaOptions'ın koruması) mevcut değer
+        // olduğu gibi korunur — sıfırlanmaz.
+        office: (firmaPicker ? (firmaPicker.getText() || null) : (architectSyncState.office || null)),
         position: position || null,
         awards,
         photo_url: architectSyncState.photoUrl || null,

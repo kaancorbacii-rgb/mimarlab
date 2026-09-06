@@ -307,6 +307,9 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="profession-shared.js"></script>
+<!-- Firma/Marka çoklu seçim kutusu (bkz. office-picker.js) — defer YOK: aşağıdaki satır içi
+     script createOfficePicker'ı doğrudan çağırıyor, awards-shared/profession-shared ile AYNI sebep. -->
+<script src="office-picker.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-crop.js" defer></script>
@@ -396,7 +399,7 @@
 
       <div class="form-section">
         <h2>Firmalar / Markalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Bağlı olduğun firma veya markaları profiline ekleyebilirsin. Birden fazla firma veya markadan sorumluysan aralarına virgül koyarak yaz.</p>
+        <p class="section-hint">Bağlı olduğun firma veya markaları profiline ekleyebilirsin. Listeden birden fazla firma veya marka seçebilirsin.</p>
         <div class="form-row">
           <div class="form-field">
             <label for="dd-pozisyon-btn">Pozisyon</label>
@@ -408,10 +411,16 @@
               <div class="dd-panel"><div class="dd-options" id="dd-pozisyon-options"></div></div>
             </div>
           </div>
-          <div class="form-field ac-field" id="ac-marka-field">
-            <label for="m-office">Firma / Marka Adı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="m-office" name="office" placeholder="ör. EAA — Emre Arolat Architecture, B Tasarım Studio" autocomplete="off">
-            <div class="ac-suggestions" id="ac-marka-suggestions"></div>
+          <!-- Firma / Marka: serbest metin + autocomplete yerine ÇOKLU SEÇİM kutusu (kullanıcı
+               isteği, 2026-09-06 madde 4) — bkz. office-picker.js. #m-office <input type="hidden">
+               olarak KALIR ve kutunun seçimlerini virgüllü metin olarak taşır: bu sayfadaki tüm
+               okuma/yazma noktaları (prefill*/collect) o alanı doğrudan kullanıyor ve hiçbiri
+               değişmek zorunda kalmıyor. Depolama biçimi de değişmiyor (architect_submissions.office
+               zaten virgüllü çoklu firma taşıyor, bkz. src/lib/canonicalSync.js#syncArchitect). -->
+          <div class="form-field">
+            <label for="m-office-picker">Firma veya Marka <span class="opt">(opsiyonel, birden fazla seçebilirsin)</span></label>
+            <input type="hidden" id="m-office" name="office">
+            <div id="m-office-picker"></div>
           </div>
         </div>
       </div>
@@ -764,7 +773,16 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('focus', onInput);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search');
+// Firma / Marka kutusu ARTIK canlı autocomplete DEĞİL, tüm firma+markaları listeleyen bir çoklu
+// seçim paneli (kullanıcı isteği, 2026-09-06 madde 4) — bkz. office-picker.js. #m-office gizli
+// input olarak kalır ve seçimleri virgüllü metin biçiminde taşır, bu yüzden aşağıdaki
+// prefill*/collect noktalarının hiçbiri değişmedi; yalnızca kutuyu input'la hizalayan
+// officePicker.syncFromInput() çağrıları eklendi.
+const officePicker = createOfficePicker(document.getElementById('m-office-picker'), {
+  input: document.getElementById('m-office'),
+  placeholder: 'Firma veya marka seç',
+  searchLabel: 'Firma veya marka ara...',
+});
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite ----------
 // /api/architects/schools artık Türkiye'deki TÜM üniversiteleri (src/lib/universities.js) ve
@@ -977,6 +995,7 @@ async function prefillForEdit(){
     document.getElementById('m-school').value = item.school || '';
     meslekDropdown.setChecked(professionLabelList(item.profession));
     document.getElementById('m-office').value = item.office || '';
+    officePicker.syncFromInput();
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
     document.getElementById('m-about').value = item.about || '';
@@ -1082,6 +1101,7 @@ async function prefillForClaim(){
   document.getElementById('m-school').value = merged.school || '';
   meslekDropdown.setChecked(professionLabelList(merged.profession));
   document.getElementById('m-office').value = merged.office || '';
+  officePicker.syncFromInput();
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
   document.getElementById('m-about').value = merged.about || '';
@@ -1178,15 +1198,21 @@ async function maybeAutoFillFromAccount(){
   // profilinin kendisinde firma adı diye bir alan yok (bkz. js/components/auth-modal.js "Firma"
   // kutusu), o kutudaki seçim aslında profile_claims('office') talebine dönüşüyor — bu yüzden AYNI
   // kaynak burada da okunur: onaylı (yoksa beklemede) bir ofis talebi varsa adı buraya yazılır.
+  // Kutu çoklu seçim olduğundan (kullanıcı isteği, 2026-09-06 madde 4) artık TEK talep değil,
+  // onaylı/beklemedeki TÜM ofis taleplerinin adları yazılır.
   const officeInput = document.getElementById('m-office');
   if(!officeInput.value){
     try{
       const claimsRes = await fetch('/api/claims/mine');
       if(claimsRes.ok){
         const claims = (await claimsRes.json()).items || [];
-        const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved')
-          || claims.find(c => c.profile_type === 'office' && c.status === 'pending');
-        if(officeClaim) officeInput.value = officeClaim.profile_key;
+        const officeKeys = claims
+          .filter(c => c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending'))
+          .map(c => c.profile_key).filter(Boolean);
+        if(officeKeys.length){
+          officeInput.value = [...new Set(officeKeys)].join(', ');
+          officePicker.syncFromInput();
+        }
       }
     }catch{}
   }

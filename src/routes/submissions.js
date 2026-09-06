@@ -12,11 +12,17 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
+import { notifySubmissionApproved } from '../lib/notify.js';
 import { foldTr } from '../lib/textMatch.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
+// Meslek etiketi <-> slug çevirisinin TEK kaynağı (bkz. profession-shared.js dosya başı yorumu:
+// users.profession SLUG, architects.profession ETİKET taşır) — kişi profilinden hesap profiline
+// geri senkron bu çeviriye muhtaç (bkz. syncOwnArchitectToAccount).
+import professionSharedJs from '../../profession-shared.js';
 
 const { isBrandOffice } = officeKindJs;
+const { professionSlugOf } = professionSharedJs;
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
@@ -208,6 +214,74 @@ export async function handleSubmissionRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
+// ---------------------------------------------------------------------------------------------
+// KİŞİ PROFİLİ <-> HESAP PROFİLİ ÇİFT YÖNLÜ SENKRON (kullanıcı isteği, 2026-09-06 madde 2:
+// "Kendi kişi profillerinde değişiklik yaparlarsa bu profil bilgileri ekranına da yansımalı ya da
+// profil bilgileri ekranında yapılan değişiklikler de şahsi kişi profiline yansımalı. Bu iki profil
+// birbiriyle entegre ve dinamik ilerlemeli.")
+//
+// İLERİ YÖN zaten vardı: Hesabım > Profili Düzenle'nin Kaydet'i hem PATCH /api/profile hem de bu
+// dosyanın uçlarına (POST/PATCH /api/architects) yazar — bkz. js/components/auth-modal.js#
+// submitArchitectSyncIfNeeded. GERİ YÖN hiç yoktu: kullanıcı AYNI profili kisi-ekle.html'den
+// düzenlediğinde (ya da artık kişi popup'ındaki Düzenle butonundan, bkz. claim-correction-box.js)
+// yalnızca architect_submissions satırı değişiyor, Profil Bilgileri kutusu eski değerleri
+// göstermeye devam ediyordu. Senkron İSTEMCİDE değil BURADA yapılır ki hangi form kullanılırsa
+// kullanılsın (kisi-ekle.html, Profili Düzenle, admin) sonuç aynı olsun.
+//
+// "Bu kayıt kullanıcının KENDİSİ mi?" sorusunun iki geçerli cevabı var ve ikisi de doğrulanır:
+//   * claimed_profile_key üzerinde ONAYLI bir profile_claims('architect') satırı (sahiplenilmiş profil),
+//   * ya da kayıt kullanıcının KENDİ adıyla açılmış olması (bkz. isSelfDirectoryListing'in AYNI kuralı).
+// Başkası adına açılan/düzenlenen kişi kayıtları (kisi-ekle.html'in asıl kullanımı) bu iki testin
+// ikisinden de geçemez, dolayısıyla düzenleyenin hesabına HİÇBİR ŞEY yazılmaz.
+const ACCOUNT_SYNC_STRING_FIELDS = ['dob', 'school', 'dept', 'position', 'about', 'photo_url'];
+async function syncOwnArchitectToAccount(env, user, typeKey, row, selfMatchName) {
+  if (typeKey !== 'architects' || !user || !row) return;
+  let isSelf = false;
+  if (row.claimed_profile_key) {
+    const claim = await env.DB.prepare(
+      `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved'`
+    ).bind(user.id, row.claimed_profile_key).first();
+    isSelf = !!claim;
+  }
+  // Ad karşılaştırması DÜZENLEMEDEN ÖNCEKİ ad (selfMatchName) üzerinden yapılır — kullanıcı kendi
+  // kişi profilinde ad soyadını değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez, eski ad eşleşir.
+  if (!isSelf && selfMatchName && user.name) isSelf = foldTr(selfMatchName) === foldTr(user.name);
+  if (!isSelf) return;
+
+  const updates = [];
+  const values = [];
+  for (const f of ACCOUNT_SYNC_STRING_FIELDS) {
+    if (row[f] === undefined) continue;
+    updates.push(`${f} = ?`); values.push(row[f] || null);
+  }
+  if (row.name) { updates.push('name = ?'); values.push(row.name); }
+  // architects.profession HAM Türkçe etiket ("Mimar, Fotoğrafçı"), users.profession SLUG
+  // ("mimar,fotografci") — bkz. profession-shared.js. Tanınmayan etiket sessizce atlanır.
+  if (row.profession !== undefined) {
+    const slugs = String(row.profession || '').split(',').map(s => professionSlugOf(s)).filter(Boolean);
+    updates.push('profession = ?'); values.push(slugs.length ? [...new Set(slugs)].join(',') : null);
+  }
+  // awards/social_links: iki tabloda da AYNI JSON dizi biçimi (bkz. src/routes/auth.js#
+  // updateUserProfileFields). normalizeSubmission bu alanları D1'e bind edilebilir JSON METNİ olarak
+  // bırakır (bkz. o fonksiyondaki arrayFields dalı) — NULL ise "gövdede hiç yok" demektir ve
+  // hesaptaki mevcut değer korunur (nullableArrayFields semantiği).
+  for (const f of ['awards', 'social_links']) {
+    const raw = row[f];
+    if (raw === undefined || raw === null) continue;
+    updates.push(`${f} = ?`);
+    values.push(typeof raw === 'string' ? raw : JSON.stringify(Array.isArray(raw) ? raw : []));
+  }
+  if (!updates.length) return;
+  values.push(user.id);
+  try {
+    await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+  } catch (err) {
+    // Best-effort yan etki — asıl gönderi yazımı zaten başarıyla tamamlandı, burada bir hata
+    // kullanıcıya 500 olarak dönmemeli (bkz. src/lib/notify.js#createNotification'daki AYNI gerekçe).
+    console.error('syncOwnArchitectToAccount failed', err);
+  }
+}
+
 async function createSubmission(request, env, user, typeKey) {
   // Hiçbir gönderi tipinde (products/materials dahil, bkz. kullanıcı isteği: rozet şartı kaldırıldı)
   // aylık bir üst sınır yok — oturum açmış tek bir hesabın kısa vadede admin moderasyon kuyruğunu
@@ -324,6 +398,11 @@ async function createSubmission(request, env, user, typeKey) {
   await env.DB.prepare(
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
+
+  // Kişi profili -> hesap profili geri senkronu (bkz. syncOwnArchitectToAccount). Yeni kayıtta
+  // "kendisi mi" testi kaydın KENDİ adıyla yapılır: bir kullanıcı ancak kendi adıyla açtığı kaydı
+  // kendi profili sayabilir (isSelfDirectoryListing ile AYNI kural).
+  await syncOwnArchitectToAccount(env, user, typeKey, { ...row, claimed_profile_key: body.claimed_profile_key || null }, row.name);
 
   // Bu, önceden arşivlenmiş (bkz. handleContentAction/handleProjectAction) bir statik kaydın
   // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
@@ -503,6 +582,15 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // SONRA çalışır, yazı başarısız olursa (yukarıdaki .run() fırlatırsa) buraya hiç ulaşılmaz.
   if (CANONICAL_TYPES.has(typeKey)) await cleanupReplacedR2Media(env, typeKey, existing, row);
 
+  // Kişi profili -> hesap profili geri senkronu (bkz. syncOwnArchitectToAccount) — "kendisi mi"
+  // testi DÜZENLEMEDEN ÖNCEKİ ad (existing.name) ile yapılır, kullanıcı kendi profilinde ad soyadını
+  // değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez.
+  await syncOwnArchitectToAccount(
+    env, user, typeKey,
+    { ...row, claimed_profile_key: body.claimed_profile_key || existing.claimed_profile_key || null },
+    existing.name
+  );
+
   // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle (bkz.
   // src/lib/officeFounderCascade.js — gerçek "kurucu/ortak" görünürlüğü bu alandan gelir, founders
   // dizisinin kendisi yalnızca kozmetiktir).
@@ -571,6 +659,19 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
       // ilk invalidatePublicCache() ile cascade arasındaki yarış penceresi düzeltmesi, audit bulgusu).
       await invalidatePublicCache(env);
     }
+  }
+
+  // Bekleyen bir gönderi BU İSTEKLE yayına girdiyse sahibine bildirim düşer (kullanıcı isteği,
+  // 2026-09-06 madde 3) — bkz. src/lib/notify.js#notifySubmissionApproved'daki GERÇEK BULGU:
+  // admin panelinin bekleyen kartındaki "Düzenle / İncele" bağlantısı bu uca gelir ve yukarıdaki
+  // `mustStayPending` kuralı gereği admin kaydettiği anda gönderi 'approved' olur — o yol bugüne
+  // kadar hiç bildirim üretmiyordu (canlıda MİMARLAB Robotu'nun projesinde görülen davranış).
+  // Yalnızca gönderiyi BAŞKASI (admin) onayladıysa gönderilir: kendi bekleyen gönderisini
+  // düzenleyip yayına alan bir admin kendine bildirim almamalı.
+  if (existing.status === 'pending' && status === 'approved'
+      && existing.owner_user_id && existing.owner_user_id !== user.id) {
+    const linkRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+    await notifySubmissionApproved(env, typeKey, { ...(linkRow || existing), owner_user_id: existing.owner_user_id });
   }
 
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın

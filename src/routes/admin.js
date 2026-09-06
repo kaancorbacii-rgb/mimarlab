@@ -6,7 +6,7 @@ import { listSaved } from './saved.js';
 import { myRatings } from './ratings.js';
 import { myComments } from './comments.js';
 import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, sanitizeImageHotspots } from '../lib/submissionTypes.js';
-import { createNotification } from '../lib/notify.js';
+import { createNotification, notifySubmissionApproved, notifySubmissionRejected } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
@@ -76,29 +76,10 @@ const TYPE_BY_PATH = Object.assign(Object.create(null), {
   architects: 'architects',
 });
 
-// Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
-// de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
-const SUBMISSION_TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
-
-// "Gönderin onaylandı" bildiriminin tıklanınca gideceği KANONİK yol (kullanıcı isteği, 2026-09-06
-// madde 2). Eşleme js/components/auth-modal.js#itemDetailUrl ile BİREBİR aynı olmak ZORUNDA — ikisi
-// de aynı satırdan aynı public URL'i türetir; ayrışırlarsa Hesabım'daki "Eklediklerim" linki ile
-// bildirim linki aynı kaydın FARKLI adreslerine giderdi. 'submission:<id>' işareti, henüz bir
-// claimed_profile_key'e bağlanmamış yeni kayıtlar için kullanılan legacy_key çözümlemesidir (bkz.
-// src/routes/product.js#findProductByLegacyMarker ve mimar/firma karşılıkları).
-// Yol üretilemiyorsa (ör. slug'ı olmayan bir proje satırı) null döner ve bildirim linksiz kalır —
-// tıklanınca hiçbir şey yapmayan kırık bir adres yazmaktansa satır yalnızca okundu işaretlenir.
-function approvedSubmissionLink(typeKey, row) {
-  if (!row) return null;
-  if (typeKey === 'projects') {
-    const slug = row.claimed_slug || row.slug;
-    return slug ? `/proje/${encodeURIComponent(slug)}` : null;
-  }
-  if (typeKey === 'offices') return `/firma/${encodeURIComponent(row.claimed_profile_key || ('submission:' + row.id))}`;
-  if (typeKey === 'architects') return `/kisi/${encodeURIComponent(row.claimed_profile_key || ('submission:' + row.id))}`;
-  if (typeKey === 'products' || typeKey === 'materials') return `/urun/${encodeURIComponent('submission:' + row.id)}`;
-  return null;
-}
+// SUBMISSION_TYPE_LABELS/approvedSubmissionLink ARTIK src/lib/notify.js'te (bkz. o dosyadaki
+// notifySubmissionApproved) — aynı bildirimi artık iki onay yolu birden üretiyor (admin panelindeki
+// "Onayla" düğmesi VE admin'in "Düzenle / İncele"den kaydetmesi, bkz. src/routes/submissions.js#
+// updateOwnSubmission), bu yüzden metin/bağlantı üretimi tek bir paylaşılan yere taşındı.
 
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
 const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };
@@ -691,28 +672,16 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
 
       // Durum fiilen değiştiyse (onaylandı/reddedildi) gönderi sahibine bildirim düşer.
       if (body.status && body.status !== existing.status && (body.status === 'approved' || body.status === 'rejected')) {
-        const label = SUBMISSION_TYPE_LABELS[typeKey] || typeKey;
-        const name = existing.name || existing.title || '';
         if (body.status === 'approved') {
           // Bildirime tıklanınca YAYINA ALINAN kaydın popup'ı açılsın (kullanıcı isteği, 2026-09-06
           // madde 2: "bir proje gönderin onaylandı yazıyorsa o bildirime tıklayınca o proje
-          // gönderisi popupı açılsın") — link artık 'hesabim.html' değil kaydın kanonik yolu.
-          // Satır bu noktada canonical'a senkronlanmış olduğundan (bkz. yukarıdaki blok) slug/
-          // claimed_* alanları için TAZE hâli okunur.
+          // gönderisi popupı açılsın") — link 'hesabim.html' değil kaydın kanonik yoludur (bkz.
+          // src/lib/notify.js#approvedSubmissionLink). Satır bu noktada canonical'a senkronlanmış
+          // olduğundan (bkz. yukarıdaki blok) slug/claimed_* alanları için TAZE hâli okunur.
           const linkRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-          await createNotification(
-            env, existing.owner_user_id, 'submission_approved',
-            `${label} gönderin onaylandı`,
-            name ? `"${name}" yayına alındı.` : null,
-            approvedSubmissionLink(typeKey, linkRow || existing)
-          );
+          await notifySubmissionApproved(env, typeKey, { ...(linkRow || existing), owner_user_id: existing.owner_user_id });
         } else {
-          await createNotification(
-            env, existing.owner_user_id, 'submission_rejected',
-            `${label} gönderin reddedildi`,
-            name ? `"${name}" için gönderdiğin içerik reddedildi.` : null,
-            'hesabim.html'
-          );
+          await notifySubmissionRejected(env, typeKey, existing);
         }
       }
       return json({ ok: true });

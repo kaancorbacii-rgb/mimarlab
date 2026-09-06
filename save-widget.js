@@ -468,7 +468,8 @@ window.addEventListener('mimarlab:authchange', () => {
   initFollowedWidget();
 });
 
-// "Gönderiyi Düzenle" butonu: proje/ürün/malzeme/haber/iş ilanı kartlarında/detay sayfalarında,
+// "Düzenle" butonu (etiket kullanıcı isteğiyle "Gönderiyi Düzenle"den kısaltıldı, 2026-09-06
+// madde 5): proje/ürün/malzeme/haber/iş ilanı kartlarında/detay sayfalarında,
 // gösterilen öğe (source==='member', yani submissionId/id'si olan) mevcut kullanıcının kendi
 // gönderisiyse ya da mevcut kullanıcı adminse bir düzenleme linki döner. Admin için sahiplik
 // kontrolü yapılmaz — /api/admin/submissions/:type/:id (owner kontrolü yapmayan PATCH, bkz.
@@ -510,7 +511,7 @@ async function editSubmissionBtnHtml(type, id){
     canEdit = mine.has(id);
   }
   if(!canEdit) return '';
-  return `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}&stype=${encodeURIComponent(type)}">Gönderiyi Düzenle</a>`;
+  return `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`;
 }
 
 // Ürün/malzeme/iş ilanı listeleme sayfalarında kartlar tek seferde senkron olarak render edilir
@@ -530,7 +531,7 @@ async function applyEditButtons(type){
     const id = slot.dataset.id;
     if(!id) return;
     if(isAdmin || mine.has(id)){
-      slot.innerHTML = `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}&stype=${encodeURIComponent(type)}">Gönderiyi Düzenle</a>`;
+      slot.innerHTML = `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`;
     }
   });
 }

@@ -29,8 +29,36 @@
 //                      loadClaimCard/renderProfileEditButton içindeki gerçek bulgu. Verilmezse hiç
 //                      kontrol edilmez (eski davranış, yalnızca product/project profillerinde
 //                      claim-correction-box kullanılmadığından bu callback'e zaten ihtiyaç yok).
+// /api/<tip>/mine sonuçları (kullanıcının KENDİ gönderileri) modül ömrü boyunca önbelleklenir —
+// save-widget.js#myEditableIdsCache ile AYNI desen ve AYNI gerekçe: bu uç her mimar/firma popup'ı
+// açılışında yeniden sorgulanmamalı. Hesap değişirse (popup içinden çıkış/giriş, sayfa
+// yenilenmeden) önbellek geçersiz kılınır, aksi halde önceki kullanıcının gönderilerine göre
+// "Düzenle" butonu yanlış profillerde görünürdü.
+// window'a asılır, top-level `const` DEĞİL: bu dosya (nadiren de olsa) iki kez enjekte edilirse
+// top-level bir const yeniden bildirimi TÜM script'i SyntaxError ile düşürürdü (bkz. proje notu:
+// "const global'ler window'a YAZILMAZ" ve save-widget.js#currentUser çakışması).
+window.__claimBoxMineCache = window.__claimBoxMineCache || {};
+window.addEventListener('mimarlab:authchange', () => {
+  const cache = window.__claimBoxMineCache;
+  Object.keys(cache).forEach(k => delete cache[k]);
+});
+function fetchMyOwnSubmissions(contentType){
+  const cache = window.__claimBoxMineCache;
+  if(!cache[contentType]){
+    cache[contentType] = fetch(`/api/${contentType}/mine`)
+      .then(r => (r.ok ? r.json() : { items: [] }))
+      .then(d => d.items || [])
+      .catch(() => []);
+  }
+  return cache[contentType];
+}
+
 function createClaimCorrectionBox(config){
   let isProfileOwner = false;
+  // Kullanıcının bu profili KENDİSİNİN yayınlamış olması (bkz. loadOwnSubmissionId) — sahiplenme
+  // talebinden (profile_claims) TAMAMEN ayrı ikinci bir sahiplik yolu. Dolu ise bu profilin
+  // düzenlenebilir taslak (architect_submissions/office_submissions) id'sidir.
+  let ownSubmissionId = null;
   // Onay ANINDA dondurulmuş pozisyon (/api/claims/status → officePosition). Kullanıcının canlı
   // position'ı DEĞİL — bkz. renderProfileEditButton'daki gerçek bulgu.
   let claimOfficePosition = null;
@@ -81,6 +109,44 @@ function createClaimCorrectionBox(config){
     const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges[config.profileType] && dynamicBadges[config.profileType][profileKey]) || [];
     const staticBadges = config.getStaticBadges ? (config.getStaticBadges() || []) : [];
     return (dynamic.length ? dynamic : staticBadges).length > 0;
+  }
+
+  // src/routes/office.js#foldTr ile AYNI Türkçe casefold — profil adı ile gönderi adını
+  // büyük/küçük ve aksan farkından bağımsız karşılaştırmak için.
+  function foldTrLocal(s){
+    return String(s || '')
+      .replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ')
+      .replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç')
+      .toLowerCase()
+      .replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g')
+      .replace(/ü/g,'u').replace(/ö/g,'o');
+  }
+
+  // "Bu profili ben yayınladım" — kullanıcı isteği (2026-09-06 madde 2): "Kullanıcılar Profili
+  // Düzenle ekranından yayınladıkları kişi profillerini popup olarak görüntüledikleri zaman Düzenle
+  // butonu görünür olsun."
+  //
+  // GERÇEK BULGU: renderProfileEditButton bugüne kadar sahipliği YALNIZCA onaylı bir
+  // profile_claims('architect'/'office') satırından okuyordu. Ama bir kullanıcı kendi kişi profilini
+  // Hesabım > Profili Düzenle'den ("Kişi sayfasında görünmek istiyor musunuz? Evet", bkz.
+  // src/routes/submissions.js#isSelfDirectoryListing) ya da kisi-ekle.html'den yayınladığında
+  // ortada SAHİPLENME talebi yoktur — kayıt zaten onundur. Bu yüzden kendi profilinin popup'ında
+  // Düzenle butonunu HİÇ göremiyordu; düzenlemenin tek yolu Hesabım > Eklediklerim listesiydi.
+  // /api/<tip>/mine yalnızca oturum sahibinin kendi taslaklarını döner (bkz. submissions.js#listMine),
+  // yani bu kontrol istemci tarafında güvenle yapılabilir — asıl yetki kapısı yine sunucudadır
+  // (PATCH /api/<tip>/:id owner_user_id kontrolü yapar).
+  async function loadOwnSubmissionId(){
+    ownSubmissionId = null;
+    if(!config.contentType) return;
+    // currentUser save-widget.js'te asenkron dolduruluyor — loadClaimCard'daki AYNI bekleme.
+    if(config.ready) await config.ready;
+    if(!currentUser) return;
+    try{
+      const items = await fetchMyOwnSubmissions(config.contentType);
+      const key = foldTrLocal(config.getProfileKey());
+      const match = items.find(it => foldTrLocal(it.name || '') === key);
+      if(match) ownSubmissionId = match.id;
+    }catch{}
   }
 
   async function loadClaimCard(){
@@ -248,17 +314,26 @@ function createClaimCorrectionBox(config){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;
     const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(claimOfficePosition);
-    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
+    // ownSubmissionId — kullanıcının KENDİ yayınladığı profil (bkz. loadOwnSubmissionId'deki GERÇEK
+    // BULGU): onaylı bir sahiplenme talebi olmasa da düzenleyebilmeli.
+    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin' || ownSubmissionId)){ slot.innerHTML = ''; return; }
     // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
     // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
     // etkilenmesin diye buraya bir varsayılan değerle eklendi).
     const editLabel = (config.labels && config.labels.editButtonText) || 'Düzenle';
+    // Sahiplenme talebi/admin yolu ?claim= ile gider (form o profili SAHİPLENME modunda açar);
+    // kullanıcının kendi gönderisi ise doğrudan o taslağın id'siyle açılır — save-widget.js'in
+    // "Düzenle" butonuyla BİREBİR aynı adres, böylece iki kapı da AYNI satırı düzenler ve mükerrer
+    // bir gönderi oluşmaz.
+    const editHref = (!isProfileOwner && currentUser.role !== 'admin' && ownSubmissionId)
+      ? `${config.editUrlBase}?edit=${encodeURIComponent(ownSubmissionId)}&stype=${encodeURIComponent(config.contentType || '')}`
+      : `${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}`;
     const editButtonHtml = config.onEditClick
       ? `<button type="button" class="profile-edit-btn" id="profile-edit-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
           ${editLabel}
         </button>`
-      : `<a class="profile-edit-btn" href="${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}">
+      : `<a class="profile-edit-btn" href="${editHref}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
           ${editLabel}
         </a>`;
@@ -268,7 +343,9 @@ function createClaimCorrectionBox(config){
 
   async function init(){
     injectStyles();
-    await loadClaimCard();
+    // İki sahiplik yolu PARALEL sorgulanır (claim durumu + kullanıcının kendi gönderileri) —
+    // ikisi de renderProfileEditButton'ın girdisi, seri çalıştırmak boşuna bir gidiş-dönüş olurdu.
+    await Promise.all([loadClaimCard(), loadOwnSubmissionId()]);
     // gerçek bulgu (bkz. loadClaimCard içindeki AYNI isStale yorumu): loadClaimCard() kendi İÇİNDEKİ
     // yazımları zaten korur, ama kendisi normal döndüğünde (erken return olmadan) init() burada yine
     // de devam edip renderProfileEditButton()/loadCorrectionCard()'ı çağırırdı — bu ikisi
