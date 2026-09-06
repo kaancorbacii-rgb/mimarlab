@@ -361,7 +361,14 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
 <script src="save-widget.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
-<script src="js/components/modal-shell.js" defer></script>
+<!-- modal-shell.js BİLEREK YOK (performans denetimi deseni, madde 19). kisi/firma/marka
+     sayfalarındaki AYNI yapılandırma: 75 KB'lık popup kabuğu ilk yüklemede engelleyici olarak
+     inmez, ilk gerçekten popup gerektiren tıklamada (Giriş Yap/Hesabım) lazy-modals.js tarafından
+     yüklenir. Bu sayfada güvenli, çünkü Gündem kartları hiç popup açmaz (kendi kalıcı /gundem/:slug
+     adresine giderler) ve yüklenen betiklerin HİÇBİRİ `ModalShell`i korumasız kullanmıyor —
+     site-chrome.js'teki 8 geçişin tamamı YORUM içindedir (doğrulandı). Bu, o üç sayfada canlıda
+     bir kez sayfa öldürmüş sınıftaki bir hatadır, bu yüzden buraya bir betik eklerken önce
+     `rg 'ModalShell' <dosya>` ile korumasız kullanım olmadığı doğrulanmalı. -->
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
