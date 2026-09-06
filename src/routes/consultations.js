@@ -39,6 +39,9 @@ export async function handleConsultationsRoute(request, env, url) {
   if (segments.length === 2 && request.method === 'POST') return createConsultationRequest(request, env, user);
   if (segments.length === 3 && request.method === 'PATCH') return updateConsultationRequest(request, env, user, segments[2]);
   if (segments.length === 3 && request.method === 'GET') return getConsultationDetail(env, user, segments[2]);
+  if (segments.length === 4 && segments[3] === 'actions' && request.method === 'POST') {
+    return createConsultationAction(request, env, user, segments[2]);
+  }
   return errorJson('Bulunamadı', 404);
 }
 
@@ -52,6 +55,13 @@ function isValidDate(s) {
 // karşılaştırma sağlar; consultation-modal.js#isSlotTooSoon istemci tarafında AYNI mantığı uygular
 // (yalnızca kullanıcı deneyimi için — asıl doğrulama HER ZAMAN burada, sunucuda yapılır).
 const MIN_NOTICE_MS = 24 * 60 * 60 * 1000;
+// Yeniden planlama kapanış eşiği (kullanıcı isteği, 2026-09-06): "1 kereye mahsus... görüşmeden
+// en az 2 gün öncesine kadar" — bu, MIN_NOTICE_MS'den (yeni tarih için 24 saat) FARKLI bir kontrol:
+// ORİJİNAL randevu anına göre hesaplanır (updateConsultationRequest'te row.requested_date/time),
+// yeni seçilecek tarihe göre DEĞİL.
+const RESCHEDULE_MIN_NOTICE_MS = 2 * 24 * 60 * 60 * 1000;
+const CONSULTATION_ACTION_TYPES = new Set(['completed', 'review', 'cancel']);
+const MAX_ACTION_NOTE_LEN = 2000;
 
 function isAllowedSlot(dateStr, timeStr) {
   if (!isValidDate(dateStr) || !ALLOWED_TIMES.has(timeStr)) return false;
@@ -102,14 +112,17 @@ async function getConsultationDetail(env, user, id) {
   const row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE id = ?`).bind(id).first();
   if (!row) return errorJson('Bulunamadı', 404);
   const isBuyer = row.user_id === user.id;
-  let isHost = false;
-  if (!isBuyer) {
-    const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
-    isHost = !!(host && host.claimed_by_user_id && host.claimed_by_user_id === user.id);
-  }
+  const host = await env.DB.prepare(`SELECT name, claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+  const isHost = !isBuyer && !!(host && host.claimed_by_user_id && host.claimed_by_user_id === user.id);
   if (!isBuyer && !isHost) {
     return errorJson('Bu görüşme detayını görüntüleme yetkin yok.', 403);
   }
+  // Yeniden planlama gösterge kapısı (kullanıcı isteği, 2026-09-06) — istemci "Tarihi Değiştir"
+  // butonunu bu üç koşulla gizler/gösterir; sunucu updateConsultationRequest'te AYNI kontrolleri
+  // tek gerçek kaynak olarak TEKRAR uygular (istemci burada yalnızca UX içindir).
+  const originalSlotMs = new Date(`${row.requested_date}T${row.requested_time}:00Z`).getTime();
+  const canReschedule = isBuyer && row.status === 'pending' && !row.has_rescheduled
+    && (originalSlotMs - Date.now()) >= RESCHEDULE_MIN_NOTICE_MS;
   return json({
     id: row.id,
     date: row.requested_date,
@@ -121,6 +134,11 @@ async function getConsultationDetail(env, user, id) {
     contactPhone: row.contact_phone,
     note: row.note,
     hasRescheduled: !!row.has_rescheduled,
+    hostSlug: row.host_slug,
+    hostName: host ? host.name : row.host_slug,
+    isBuyer,
+    isHost,
+    canReschedule,
   });
 }
 
@@ -184,6 +202,18 @@ async function createConsultationRequest(request, env, user) {
     );
   }
 
+  // Alıcıya bilgilendirme bildirimi (kullanıcı isteği, 2026-09-06): "danışmanlık satın alan
+  // kullanıcıya da bir bilgilendirme bildirimi gitsin" — host'a giden yukarıdaki bildirimden AYRI,
+  // talebi oluşturan kişinin (user.id) kendisine gider. Aynı `consultation:<id>` bağlantı deseni
+  // (bkz. auth-modal.js#consultationIdFromLink) ConsultationDetailModal'ı açar; oradan hem "Tarihi
+  // Değiştir" hem Görüşme Gerçekleşti/Değerlendir/İptal Et aksiyonlarına erişilir.
+  await createNotification(
+    env, user.id, 'consultation_request_received',
+    'Danışmanlık talebin alındı',
+    `${body.date} ${body.time} için randevu talebin alındı. Ödemen onaylandığında sana bildirim göndereceğiz.`,
+    `consultation:${id}`,
+  );
+
   return json({ id, status: 'pending', priceTry: CONSULTATION_PRICE_TRY }, 201);
 }
 
@@ -199,6 +229,12 @@ async function updateConsultationRequest(request, env, user, id) {
   if (!row) return errorJson('Bulunamadı', 404);
   if (row.status !== 'pending') return errorJson('Bu talep artık değiştirilemez.');
   if (row.has_rescheduled) return errorJson('Görüşme tarihi yalnızca bir kez değiştirilebilir.');
+  // "en az 2 gün öncesine kadar" (kullanıcı isteği, 2026-09-06) — ORİJİNAL randevu anına göre,
+  // yeni seçilecek tarihe göre DEĞİL (bkz. dosya başı RESCHEDULE_MIN_NOTICE_MS yorumu).
+  const originalSlotMs = new Date(`${row.requested_date}T${row.requested_time}:00Z`).getTime();
+  if (originalSlotMs - Date.now() < RESCHEDULE_MIN_NOTICE_MS) {
+    return errorJson('Görüşmeye 2 günden az kaldığı için tarih değiştirilemez.');
+  }
 
   const body = await readJson(request);
   if (!isAllowedSlot(body.date, body.time)) return errorJson('Lütfen listelenen uygun gün ve saatlerden birini seç.');
@@ -210,5 +246,51 @@ async function updateConsultationRequest(request, env, user, id) {
     `UPDATE consultation_requests SET requested_date = ?, requested_time = ?, has_rescheduled = 1, updated_at = ? WHERE id = ? AND user_id = ?`
   ).bind(body.date, body.time, Date.now(), id, user.id).run();
 
+  // Danışmana bildirim (kullanıcı isteği, 2026-09-06): "danışmana tarih değiştirilirse tarih
+  // değiştirildi diye bildirim gitsin" — host_request bildirimiyle AYNI architects.claimed_by_
+  // user_id çözümü (bkz. createConsultationRequest).
+  const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+  if (host && host.claimed_by_user_id) {
+    await createNotification(
+      env, host.claimed_by_user_id, 'consultation_rescheduled',
+      'Danışmanlık randevusu tarihi değişti',
+      `${row.contact_name || 'Kullanıcı'}, randevu tarihini ${body.date} ${body.time} olarak değiştirdi.`,
+      `consultation:${id}`,
+    );
+  }
+
   return json({ ok: true });
+}
+
+// POST /api/consultations/:id/actions — "Görüşme Gerçekleşti" / "Değerlendir" / "İptal Et"
+// (kullanıcı isteği, 2026-09-06): alıcı ya da danışman bir sebep yazıp admin değerlendirmesine
+// gönderir — profile_corrections İLE AYNI desen (bkz. src/routes/claims.js#handleCorrectionsRoute).
+async function createConsultationAction(request, env, user, consultationId) {
+  if (!(await checkRateLimit(env, 'consultation-action', user.id, 10, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla talep gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+  const row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE id = ?`).bind(consultationId).first();
+  if (!row) return errorJson('Bulunamadı', 404);
+  const isBuyer = row.user_id === user.id;
+  let isHost = false;
+  if (!isBuyer) {
+    const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+    isHost = !!(host && host.claimed_by_user_id && host.claimed_by_user_id === user.id);
+  }
+  if (!isBuyer && !isHost) return errorJson('Bu görüşme için talepte bulunma yetkin yok.', 403);
+
+  const body = await readJson(request);
+  const actionType = typeof body.actionType === 'string' ? body.actionType : '';
+  if (!CONSULTATION_ACTION_TYPES.has(actionType)) return errorJson('Geçersiz aksiyon türü.');
+  const note = trimOrNull(body.note, MAX_ACTION_NOTE_LEN);
+  if (!note) return errorJson('Lütfen bir açıklama yaz.');
+
+  const now = Date.now();
+  const id = newId();
+  await env.DB.prepare(
+    `INSERT INTO consultation_actions (id, consultation_id, requested_by_user_id, requested_by_role, action_type, note, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+  ).bind(id, consultationId, user.id, isBuyer ? 'buyer' : 'host', actionType, note, now, now).run();
+
+  return json({ id, status: 'pending' }, 201);
 }

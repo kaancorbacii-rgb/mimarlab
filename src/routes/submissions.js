@@ -12,6 +12,7 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
+import { foldTr } from '../lib/textMatch.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
 
@@ -238,6 +239,17 @@ async function createSubmission(request, env, user, typeKey) {
   // olmayan HİÇBİR yoldan bu değer yazılamaz. updateOwnSubmission'da da AYNI kontrol tekrarlanır.
   if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
 
+  // Kişi dizini kendi-kendine-yayın (kullanıcı isteği, 2026-09-06): Hesabım'daki "Kişi sayfasında
+  // görünmek istiyorum: Evet" akışı (bkz. auth-modal.js#submitArchitectSyncIfNeeded) artık admin
+  // onay kuyruğuna DÜŞMEDEN doğrudan yayına girer — TEK KOŞULLA: gönderilen isim, oturum açmış
+  // hesabın KENDİ adıyla (foldTr ile Türkçe casefold, büyük/küçük+aksan bağımsız) birebir eşleşmeli.
+  // Bu, bir kullanıcının "selfDirectoryListing" bayrağını BAŞKASININ adıyla göndererek moderasyonu
+  // atlatıp sahte bir üçüncü şahıs profili anında yayınlamasını engeller — yalnızca "kendini"
+  // temsil eden gönderi bu kısayolu kullanabilir, diğer HERKES (kisi-ekle.html, başkası adına
+  // gönderiler) normal moderasyon kuyruğuna girmeye devam eder.
+  const isSelfDirectoryListing = typeKey === 'architects' && body.selfDirectoryListing === true
+    && !!(body.name || '').trim() && foldTr((body.name || '').trim()) === foldTr(user.name || '');
+
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
     if (err) return err;
@@ -260,6 +272,21 @@ async function createSubmission(request, env, user, typeKey) {
   if (!body.claimed_profile_key && !(CLAIMED_SLUG_TYPES.has(typeKey) && body.claimed_slug)) {
     const dupName = typeKey === 'projects' ? body.title : body.name;
     if (dupName && (await isDuplicateCanonicalName(env, typeKey, dupName, { brand: body.brand }))) {
+      // Kişi dizini kendi-kendine-yayın çakışması (kullanıcı isteği, 2026-09-06): "Ferhat Yılmaz
+      // kişisi zaten var, profile giderek 'Bu profil bana ait' talebi oluştur" örneğindeki AYNI
+      // uyarı — istemcinin (auth-modal.js) bağlantı kurabilmesi için mevcut profilin slug'ı da
+      // döner (bkz. claim-correction-box.js'teki AYNI "Bu profil bana ait" akışı, POST /api/claims).
+      if (isSelfDirectoryListing) {
+        const { results } = await env.DB.prepare(`SELECT slug, name FROM architects WHERE deleted_at IS NULL`).all();
+        const foldedDup = foldTr(dupName);
+        const existingMatch = (results || []).find(r => foldTr(r.name || '') === foldedDup);
+        return json({
+          error: `"${dupName}" kişisi zaten var. Bu profil sana aitse, profile giderek "Bu profil bana ait" talebi oluşturabilirsin.`,
+          duplicateName: true,
+          existingSlug: existingMatch ? existingMatch.slug : null,
+          existingName: existingMatch ? existingMatch.name : dupName,
+        }, 409);
+      }
       return errorJson(DUPLICATE_NAME_ERROR[typeKey]);
     }
   }
@@ -288,7 +315,7 @@ async function createSubmission(request, env, user, typeKey) {
   // kullanıcı isteği: "kullanıcı o firmaya/mimara ait projelerde de istediği zaman değişiklik
   // yapabilsin" / "ürün ekle/düzenle de aynı entegre sistem").
   const isOwnerProfileEdit = !!body.claimed_profile_key || (CLAIMED_SLUG_TYPES.has(typeKey) && !!body.claimed_slug);
-  const status = (user.role === 'admin' || isOwnerProfileEdit) ? 'approved' : 'pending';
+  const status = (user.role === 'admin' || isOwnerProfileEdit || isSelfDirectoryListing) ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];
   const placeholders = columns.map(() => '?').join(', ');

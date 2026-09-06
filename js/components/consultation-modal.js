@@ -121,11 +121,8 @@ const ConsultationModal = (function () {
         .cns-contact-field input{width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:13.5px; font-family:inherit; background:var(--paper); color:var(--ink);}
         .cns-contact-field input:focus{outline:none; border-color:var(--walnut);}
         .cns-note-wrap{position:relative; margin-bottom:2px;}
-        .cns-note-wrap textarea{width:100%; box-sizing:border-box; min-height:64px; padding:9px 84px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:12.5px; resize:vertical;}
+        .cns-note-wrap textarea{width:100%; box-sizing:border-box; min-height:64px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:12.5px; resize:vertical;}
         .cns-note-wrap textarea:focus{outline:none; border-color:var(--walnut);}
-        .cns-note-wrap button{position:absolute; right:6px; bottom:6px; background:var(--ink); color:var(--paper-card); padding:7px 14px; border-radius:100px; font-weight:600; font-size:12px; border:none; cursor:pointer;}
-        .cns-note-wrap button:hover{background:var(--walnut);}
-        .cns-note-wrap button:disabled{opacity:0.5; cursor:not-allowed;}
         .cns-pay-summary-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:14px;}
         .cns-pay-summary-row:last-of-type{border-bottom:none; margin-bottom:6px;}
         .cns-pay-summary-total{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:17px;}
@@ -200,7 +197,6 @@ const ConsultationModal = (function () {
           <div class="cns-field-label">Görüşme isteği hakkında</div>
           <div class="cns-note-wrap">
             <textarea id="cns-note" maxlength="2000" placeholder="Opsiyonel — konuşmak istediğin konuyu ya da eklemek istediklerini yaz…"></textarea>
-            <button type="button" id="cns-note-send-btn">Gönder</button>
           </div>
 
           <div class="cns-pay-section-title">Ödeme Yöntemi</div>
@@ -258,7 +254,6 @@ const ConsultationModal = (function () {
     const emailInput = overlay.querySelector('#cns-contact-email');
     const phoneInput = overlay.querySelector('#cns-contact-phone');
     const noteInput = overlay.querySelector('#cns-note');
-    const noteSendBtn = overlay.querySelector('#cns-note-send-btn');
     const successSummaryEl = overlay.querySelector('#cns-success-summary');
     const successTextEl = overlay.querySelector('#cns-success-text');
     const rescheduleBtn = overlay.querySelector('#cns-reschedule-btn');
@@ -450,18 +445,6 @@ const ConsultationModal = (function () {
       } catch {}
     });
 
-    // "Gönder" (kullanıcı isteği: gönder butonu kutucuğun İÇİNDE olsun, bkz. js/components/
-    // claim-correction-box.js#feedback-input-wrap İLE AYNI görsel dil). Not, asıl gönderim olan
-    // "Ödemeyi Yaptım" ile birlikte tek istekte gider — bu buton yalnızca yazdığını onaylayıp
-    // kısa bir geri bildirim verir (rozet-pay'deki Kopyala butonuyla AYNI mikro-etkileşim deseni).
-    noteSendBtn.addEventListener('click', () => {
-      if (!noteInput.value.trim()) { noteInput.focus(); return; }
-      const original = noteSendBtn.textContent;
-      noteSendBtn.textContent = 'Eklendi ✓';
-      noteSendBtn.disabled = true;
-      setTimeout(() => { noteSendBtn.textContent = original; noteSendBtn.disabled = false; }, 1500);
-    });
-
     confirmBtn.addEventListener('click', async () => {
       const contactName = nameInput.value.trim();
       const contactEmail = emailInput.value.trim();
@@ -501,8 +484,11 @@ const ConsultationModal = (function () {
       }
     });
 
-    rescheduleBtn.addEventListener('click', () => {
-      // Mevcut randevunun ayına atla ki kullanıcı "neyi değiştiriyorum" bağlamını kaybetmesin.
+    // Mevcut randevunun ayına atla ki kullanıcı "neyi değiştiriyorum" bağlamını kaybetmesin —
+    // hem başarı ekranındaki "Görüşme Tarihini Değiştir" butonundan (rescheduleBtn) HEM DE
+    // ConsultationDetailModal'ın "Tarihi Değiştir" butonundan (bkz. openReschedule, kullanıcı
+    // isteği 2026-09-06) aynı takvim ekranına girilir.
+    function enterRescheduleCalendar() {
       const targetY = state.date ? parseInt(state.date.slice(0, 4), 10) : new Date().getFullYear();
       const targetM = state.date ? parseInt(state.date.slice(5, 7), 10) - 1 : new Date().getMonth();
       calendarState.year = targetY;
@@ -513,7 +499,8 @@ const ConsultationModal = (function () {
       refreshContinueState();
       loadAvailabilityForMonth(targetY, targetM);
       showScreen('book');
-    });
+    }
+    rescheduleBtn.addEventListener('click', enterRescheduleCalendar);
     successCloseBtn.addEventListener('click', close);
 
     popupApi = {
@@ -548,11 +535,29 @@ const ConsultationModal = (function () {
           if (d && d.user) prefill = { name: d.user.name || '', email: d.user.email || '' };
         }).catch(() => {});
       },
+      // ConsultationDetailModal'ın "Tarihi Değiştir" butonundan çağrılır (kullanıcı isteği,
+      // 2026-09-06) — bildirime tıklayınca açılan detay ekranından DOĞRUDAN yeniden planlama
+      // takvimine girer, "Danışmanlık Al"ı baştan açmaz. state.requestId dolu olduğundan
+      // continueBtn'in click handler'ı zaten PATCH /api/consultations/:id dalına gider.
+      openReschedule({ requestId, hostSlug, hostName, date, time, hasRescheduled }) {
+        state.hostSlug = hostSlug;
+        state.hostName = hostName;
+        state.requestId = requestId;
+        state.date = date || null;
+        state.time = time || null;
+        state.hasRescheduled = !!hasRescheduled;
+        titleEl.textContent = `${hostName} ile Görüşme`;
+        introEl.textContent = 'Randevu tarihini değiştirmek için yeni bir gün ve saat seç.';
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        enterRescheduleCalendar();
+      },
     };
     return popupApi;
   }
 
   return {
     open(opts) { ensurePopup().open(opts); },
+    openReschedule(opts) { ensurePopup().openReschedule(opts); },
   };
 })();

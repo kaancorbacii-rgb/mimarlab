@@ -458,7 +458,11 @@ export async function updateUserProfileFields(env, userId, body) {
   if ('name' in body && body.name) {
     const clash = await findArchitectByFoldedName(env, body.name);
     if (clash && clash.claimed_by_user_id !== userId) {
-      return { error: 'Bu ad soyad Kişi sayfasında zaten kayıtlı. Farklı bir ad soyad gir.' };
+      // duplicateName/existingSlug/existingName (kullanıcı isteği, 2026-09-06): istemcinin (bkz.
+      // auth-modal.js#am-dash-save-btn) düz bir hata metni yerine "X kişisi zaten var, profile
+      // giderek 'Bu profil bana ait' talebi oluştur" uyarısını gösterebilmesi için — submissions.js#
+      // createSubmission'daki AYNI zenginleştirilmiş 409 yanıtı (bkz. isSelfDirectoryListing).
+      return { error: 'Bu ad soyad Kişi sayfasında zaten kayıtlı. Farklı bir ad soyad gir.', duplicateName: true, existingSlug: clash.slug, existingName: clash.name };
     }
   }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
@@ -500,7 +504,12 @@ export async function handleProfileRoute(request, env, url) {
 
   const body = await readJson(request);
   const result = await updateUserProfileFields(env, user.id, body);
-  if (result.error) return errorJson(result.error);
+  if (result.error) {
+    if (result.duplicateName) {
+      return json({ error: result.error, duplicateName: true, existingSlug: result.existingSlug, existingName: result.existingName }, 409);
+    }
+    return errorJson(result.error);
+  }
   return json({ user: result.user });
 }
 

@@ -487,7 +487,6 @@ const AuthModal = (function () {
        aracı aktifken TÜMÜ pointer-events:none olur (çizim, altındaki mevcut izleri seçmemeli). */
     #am-panel .canvas-stroke-obj{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;}
     #am-panel .col-canvas.pen-active .canvas-stroke-obj path{pointer-events:none !important;}
-    #am-panel .canvas-stroke-obj path.selected{filter:drop-shadow(0 0 0.5px #fff) drop-shadow(0 0 2.5px var(--walnut)) drop-shadow(0 0 2.5px var(--walnut));}
     #am-panel .canvas-item{position:absolute; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; background:var(--paper); box-sizing:border-box; touch-action:none; cursor:grab;}
     /* Notlar artık kartsız — dış .canvas-item sarmalayıcısının kendi kart görünümü (border+arka
        plan) kaldırılır, metin doğrudan ızgaranın/paftanın üzerinde durur (kullanıcı isteği,
@@ -1093,6 +1092,11 @@ const AuthModal = (function () {
           </span>
         </div>
 
+        <!-- Aynı isimde başka bir kişi zaten varsa (kullanıcı isteği, 2026-09-06) — isim ALTI ÇİZİLİ
+             ve profilin linkine bağlı, yanında "Bu profil bana ait" talep butonu (bkz.
+             submitArchitectSyncIfNeeded'in 409 dalı, claim-correction-box.js İLE AYNI POST /api/claims). -->
+        <div id="am-directory-duplicate-warning" style="display:none; padding:12px 14px; margin:-6px 0 16px; border:1px solid var(--accent); border-radius:10px; background:rgba(224,138,62,0.10); font-size:12.5px; line-height:1.6; color:var(--ink);"></div>
+
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
@@ -1591,16 +1595,6 @@ const AuthModal = (function () {
             </div>
           </div>
 
-          <!-- Vektörel Çizim Objesi araç çubuğu (kullanıcı isteği) — bir kalem izine tıklanınca
-               görünür (bkz. selectStroke). Sil/Öne Getir/Arkaya Gönder. -->
-          <div class="col-note-style-panel" id="am-col-stroke-toolbar" style="display:none; left:14px; top:14px; bottom:auto;">
-            <strong style="font-size:12.5px;">Seçili Çizim</strong>
-            <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
-              <button type="button" class="col-btn" data-stroke-action="front">Öne Getir</button>
-              <button type="button" class="col-btn" data-stroke-action="back">Arkaya Gönder</button>
-              <button type="button" class="col-btn col-btn-danger" data-stroke-action="delete">Sil</button>
-            </div>
-          </div>
 
           <!-- Liste görünümü (kullanıcı isteği madde 1) — .col-canvas-wrap ile AYNI seviyede, ikisi
                karşılıklı gizlenir (bkz. renderDetail). Kalem çizimleri burada YOK — yalnızca
@@ -2527,8 +2521,46 @@ const AuthModal = (function () {
     // gerçekten TEK bir veri kaynağını düzenlemiş olur (bkz. kullanıcı isteği: "tam bir
     // senkronizasyon"). office/photo_url bu formda düzenlenmediğinden fetchArchitectRecordForSync'in
     // getirdiği son bilinen değerleriyle olduğu gibi geri gönderilir, sıfırlanmazlar.
+    // Aynı isimde bir kişi zaten varsa (kullanıcı isteği, 2026-09-06): isim ALTI ÇİZİLİ ve profilin
+    // linkine bağlı, yanında "Bu profil bana ait" talebi POST /api/claims'e gider — claim-correction-
+    // box.js'in AYNI akışı, burada yalnızca bağlamı (Hesabım'daki dizin kutusu) farklı.
+    function showDirectoryDuplicateWarning(existingName, existingSlug) {
+      const box = document.getElementById('am-directory-duplicate-warning');
+      if (!box) return;
+      const nameHtml = existingSlug
+        ? `<a href="/kisi/${escapeAttr(existingSlug)}" target="_blank" rel="noopener" style="text-decoration:underline; font-weight:600; color:var(--ink);">${escapeHtml(existingName)}</a>`
+        : `<span style="text-decoration:underline; font-weight:600;">${escapeHtml(existingName)}</span>`;
+      box.innerHTML = `${nameHtml} kişisi zaten var, profile giderek "Bu profil bana ait" talebi oluşturabilirsin.
+        <div style="margin-top:8px;">
+          <button type="button" id="am-directory-claim-btn" class="dash-edit-btn" style="padding:6px 14px; font-size:12px; margin-left:0;">Bu profil bana ait — talep gönder</button>
+          <span id="am-directory-claim-msg" style="font-size:12px; color:var(--ink-soft); margin-left:8px;"></span>
+        </div>`;
+      box.style.display = '';
+      const claimBtn = document.getElementById('am-directory-claim-btn');
+      const claimMsg = document.getElementById('am-directory-claim-msg');
+      claimBtn.addEventListener('click', async () => {
+        claimBtn.disabled = true;
+        try {
+          const res = await fetch('/api/claims', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profileType: 'architect', profileKey: existingName }),
+          });
+          const data = await res.json().catch(() => ({}));
+          claimMsg.textContent = res.ok ? 'Talep gönderildi, admin onayını bekliyor.' : (data.error || 'Talep gönderilemedi.');
+          if (!res.ok) claimBtn.disabled = false;
+        } catch {
+          claimMsg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+          claimBtn.disabled = false;
+        }
+      });
+    }
+
     // Kaydet mesajının "onaya gönderildi" demesi için: bu turda YENİ bir kişi kaydı açıldı mı?
     let createdSelfRecord = false;
+    // Dönüş değeri (kullanıcı isteği, 2026-09-06): eskiden bu fonksiyon hiçbir şey döndürmüyordu,
+    // hata yanıtları (409 isim çakışması dahil) sessizce yutuluyordu (bkz. GERÇEK BULGU aşağıda) —
+    // artık çağıran (am-dash-save-btn) sonuca göre ya normal başarı mesajı ya da isim çakışması
+    // uyarısını (am-directory-duplicate-warning) gösterebiliyor.
     async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks) {
       createdSelfRecord = false;
       // Onaylı profili de kendi kaydı da olmayan kullanıcı dizine girmek istiyorsa, kaydı BURADA
@@ -2536,7 +2568,7 @@ const AuthModal = (function () {
       // ve zaten kaydı olmayan kullanıcı için yapılacak bir şey yok, boş gönderi açılmaz.
       if (!architectSyncState) {
         const picked = document.querySelector('input[name="am-directory-listed"]:checked');
-        if (!picked || picked.value !== 'yes') return;
+        if (!picked || picked.value !== 'yes') return { ok: true };
         architectSyncState = { profileKey: null, editId: null, office: '', photoUrl: (accountUser && accountUser.photoUrl) || '' };
         createdSelfRecord = true;
       }
@@ -2558,6 +2590,11 @@ const AuthModal = (function () {
           const picked = document.querySelector('input[name="am-directory-listed"]:checked');
           return picked ? { directory_listed: picked.value === 'yes' ? 1 : 0 } : {};
         })(),
+        // Kendi-kendine-yayın bayrağı (kullanıcı isteği, 2026-09-06) — YALNIZCA bu turda YENİ bir
+        // kayıt açılıyorsa gönderilir (bkz. src/routes/submissions.js#isSelfDirectoryListing, isim
+        // sunucuda oturumdaki hesabın adıyla AYRICA doğrulanır, istemci bayrağına güvenilmez).
+        // Sunucu bunu görünce admin onay kuyruğuna DÜŞMEDEN anında yayına alır.
+        ...(createdSelfRecord ? { selfDirectoryListing: true } : {}),
       };
       // profileKey yalnızca bir PROFİL SAHİPLENME akışında doludur; kendi kaydını açan kullanıcıda
       // null'dır ve alan hiç gönderilmemelidir (aksi halde sunucu boş bir sahiplenme anahtarı yazar).
@@ -2569,11 +2606,22 @@ const AuthModal = (function () {
           method: architectSyncState.editId ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
         });
+        const data = await res.json().catch(() => ({}));
         if (res.ok) {
-          const data = await res.json();
           if (data.id) architectSyncState.editId = data.id;
+          return { ok: true };
         }
-      } catch {}
+        // GERÇEK BULGU (kod incelemesi, 2026-09-06): bu try/catch eskiden yalnızca ağ hatalarını
+        // yakalıyordu — sunucunun 409 isim çakışması yanıtı (bkz. submissions.js#createSubmission)
+        // res.ok===false olduğu için hiç okunmuyor, kullanıcıya "Kaydedildi" gibi yanlış bir mesaj
+        // gösteriliyordu, kayıt sessizce hiç oluşmamış oluyordu.
+        if (res.status === 409 && data.duplicateName) {
+          return { ok: false, duplicateName: true, existingName: data.existingName, existingSlug: data.existingSlug };
+        }
+        return { ok: false, error: data.error || 'Kaydedilemedi.' };
+      } catch {
+        return { ok: false, error: 'Sunucuya ulaşılamadı.' };
+      }
     }
 
     // gerçek bulgu (denetim, 2026-08-24): bu handler ne çift-tıklamaya karşı devre dışı bırakma
@@ -2649,18 +2697,47 @@ const AuthModal = (function () {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),
         });
-        if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
+        if (!res.ok) {
+          // GERÇEK BULGU (kod incelemesi, 2026-09-06): Ad Soyad alanı hem hesap adı HEM kişi dizini
+          // kaydının adı olduğundan, isim çakışması ASLINDA burada (PATCH /api/profile) yakalanır —
+          // submitArchitectSyncIfNeeded'e hiç ULAŞILMADAN "Kaydedilemedi, tekrar dene." gösterilip
+          // dönülüyordu, kullanıcı isteğindeki "X kişisi zaten var, ... 'Bu profil bana ait' talebi
+          // oluştur" uyarısı BURADA da (bkz. src/routes/auth.js#updateUserProfileFields'in AYNI
+          // zenginleştirilmiş 409'u) gösterilmeliydi.
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 409 && errData.duplicateName) {
+            showDirectoryDuplicateWarning(errData.existingName, errData.existingSlug);
+            msg.textContent = errData.error || 'Kaydedilemedi.';
+          } else {
+            msg.textContent = errData.error || 'Kaydedilemedi, tekrar dene.';
+          }
+          return;
+        }
         // Kayıt başarılı — bekleyen dosya tüketildi.
         if (pendingAvatarUrl) { URL.revokeObjectURL(pendingAvatarUrl); pendingAvatarUrl = null; }
         pendingAvatarFile = null;
         const claimSubmitted = await submitFirmaClaimIfChanged();
-        await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
+        const dirWarning = document.getElementById('am-directory-duplicate-warning');
+        const architectResult = await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
 
-        // Dizine yeni girenler, kaydın HEMEN yayımlanmadığını bilmeli — kişi kaydı diğer tüm üye
-        // gönderileri gibi admin onayından sonra /kisi listesine düşer (bkz. architect_submissions).
+        // Aynı isimde bir kişi zaten varsa (kullanıcı isteği, 2026-09-06) — pop-up KAPANMAZ, isim
+        // altı çizili/profile bağlantılı bir uyarı + "Bu profil bana ait" talep butonu gösterilir
+        // (bkz. showDirectoryDuplicateWarning, claim-correction-box.js İLE AYNI POST /api/claims).
+        if (architectResult && architectResult.duplicateName) {
+          showDirectoryDuplicateWarning(architectResult.existingName, architectResult.existingSlug);
+          msg.textContent = 'Profil bilgilerin kaydedildi, ama kişi dizini için aşağıya bak.';
+          await loadUser();
+          await loadMyClaims();
+          return;
+        }
+        if (dirWarning) dirWarning.style.display = 'none';
+
+        // Kendi-kendine-yayın artık ANINDA canlıya girer (kullanıcı isteği, 2026-09-06) — eskiden
+        // burada "admin onayına gönderildi" yazıyordu, submissions.js#isSelfDirectoryListing bunu
+        // moderasyon kuyruğundan tamamen çıkardığından mesaj artık YANLIŞ olurdu.
         msg.textContent = claimSubmitted
           ? 'Kaydedildi. Firma talebi admin onayına gönderildi.'
-          : (createdSelfRecord ? 'Kaydedildi. Kişi sayfasında yayımlanmak için admin onayına gönderildi.' : 'Kaydedildi.');
+          : (createdSelfRecord ? 'Kaydedildi. Profilin artık Kişi sayfasında yayında.' : 'Kaydedildi.');
         await loadUser();
         await loadMyClaims();
         // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz.
@@ -3916,8 +3993,6 @@ const AuthModal = (function () {
     let boardViewMode = 'list';
     // Tam sayfa görünüm açık mı (kullanıcı isteği, 2026-09-06 madde 2) — bkz. am-col-fullscreen-toggle.
     let boardFullscreen = false;
-    // Seçili vektörel çizim objesi (kullanıcı isteği) — tuval her yeniden çizildiğinde sıfırlanır.
-    let selectedStrokeId = null;
 
     function canEdit() {
       return openCollection && openCollection.item.role !== 'viewer';
@@ -4224,9 +4299,6 @@ const AuthModal = (function () {
       </div>`;
       const pageEl = document.getElementById('am-col-canvas');
       if (penActive) pageEl.classList.add('pen-active');
-      selectedStrokeId = null; // tuval yeniden çizildi — önceki seçim artık geçersiz DOM'a işaret eder
-      const strokeToolbarEl = document.getElementById('am-col-stroke-toolbar');
-      if (strokeToolbarEl) strokeToolbarEl.style.display = 'none';
       wireCanvasInteractions(pageEl);
       wireStrokeInteractions(pageEl);
       wirePenAndPan(document.getElementById('am-col-canvas-viewport'), pageEl);
@@ -4403,27 +4475,12 @@ const AuthModal = (function () {
       });
     }
 
-    // ---------- Vektörel Çizim Objeleri: seç / taşı / sil / z-index (kullanıcı isteği) ----------
+    // ---------- Vektörel Çizim Objeleri: tıkla-öne getir / taşı / z-index (kullanıcı isteği) ----------
     // Her çizim (.canvas-stroke-obj > path) .canvas-item'larla AYNI Pointer Events + setPointerCapture
-    // deseniyle bağımsız bir obje gibi davranır: tıkla-seç (küçük araç çubuğu açılır), sürükle-taşı,
-    // Sil/Öne Getir/Arkaya Gönder butonlarıyla düzenle.
-    function deselectStroke() {
-      if (!selectedStrokeId) { selectedStrokeId = null; return; }
-      const prevPath = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(selectedStrokeId)}"] path`);
-      if (prevPath) prevPath.classList.remove('selected');
-      selectedStrokeId = null;
-      const toolbar = document.getElementById('am-col-stroke-toolbar');
-      if (toolbar) toolbar.style.display = 'none';
-    }
-    function selectStroke(strokeId) {
-      if (selectedStrokeId === strokeId) return;
-      deselectStroke();
-      selectedStrokeId = strokeId;
-      const path = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(strokeId)}"] path`);
-      if (path) path.classList.add('selected');
-      const toolbar = document.getElementById('am-col-stroke-toolbar');
-      if (toolbar) toolbar.style.display = '';
-    }
+    // deseniyle bağımsız bir obje gibi davranır. GERÇEK BULGU/kullanıcı isteği (2026-09-06): eskiden
+    // tıklama bir "Seçili Çizim" menüsü (Sil/Öne Getir/Arkaya Gönder) açıyordu — artık menü YOK,
+    // tıklamanın kendisi çizimi DOĞRUDAN öne getirir (bkz. aşağıdaki canvasMaxZ artırımı), diğer
+    // .canvas-item'ların tıklayınca z-index almasıyla AYNI davranış.
     function wireStrokeObject(wrapperEl, canvasEl) {
       const path = wrapperEl.querySelector('path');
       if (!path || !canEdit()) return;
@@ -4435,7 +4492,8 @@ const AuthModal = (function () {
         const strokeId = wrapperEl.dataset.strokeId;
         const stroke = (openCollection.strokes || []).find(s => s.id === strokeId);
         if (!stroke) return;
-        selectStroke(strokeId);
+        canvasMaxZ += 1;
+        applyStrokeZIndex(strokeId, canvasMaxZ);
         const rect = canvasEl.getBoundingClientRect();
         const startPointer = { x: e.clientX, y: e.clientY };
         const startPoints = stroke.points.map(p => [p[0], p[1]]);
@@ -4479,29 +4537,6 @@ const AuthModal = (function () {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zIndex }),
       }).catch(() => {});
     }
-    on('am-col-stroke-toolbar', 'click', (e) => {
-      if (!selectedStrokeId || !openCollection) return;
-      const strokeId = selectedStrokeId;
-      if (e.target.closest('[data-stroke-action="delete"]')) {
-        const wrapperEl = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(strokeId)}"]`);
-        if (wrapperEl) wrapperEl.remove();
-        openCollection.strokes = (openCollection.strokes || []).filter(s => s.id !== strokeId);
-        deselectStroke();
-        fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/strokes/${encodeURIComponent(strokeId)}`, { method: 'DELETE' }).catch(() => {});
-        return;
-      }
-      if (e.target.closest('[data-stroke-action="front"]')) {
-        canvasMaxZ += 1;
-        applyStrokeZIndex(strokeId, canvasMaxZ);
-        return;
-      }
-      if (e.target.closest('[data-stroke-action="back"]')) {
-        const minZ = Math.min(0, ...openCollection.items.map(it => it.zIndex || 0), ...openCollection.strokes.map(s => s.zIndex || 0));
-        applyStrokeZIndex(strokeId, minZ - 1);
-        return;
-      }
-    });
-
     // ---------- Pan (boş tuval üzerinde sürükle) + Çizim Aracı (kullanıcı isteği madde 1/2) ----------
     // İkisi AYNI pointerdown/move/up zincirini paylaşır: hedef bir .canvas-item DEĞİLSE (o durum
     // wireCanvasInteractions'ta ele alınır) ya kalem aktifse yeni bir iz çizilir, ya da tuval
@@ -4529,9 +4564,6 @@ const AuthModal = (function () {
       let drawState = null;
 
       page.addEventListener('pointerdown', (e) => {
-        // Boş tuvale (bir çizim objesinin ÜZERİNE değil) tıklamak seçili çizimi bırakır — .canvas-item
-        // sürüklemesi de dahil (bkz. aşağıdaki erken return, bu satır ONDAN ÖNCE çalışır).
-        if (!e.target.closest('.canvas-stroke-obj')) deselectStroke();
         if (e.target.closest('.canvas-item')) return; // öğe kendi dinleyicisinde ele alınır
         if (e.target.closest('.canvas-stroke-obj')) return; // çizim kendi dinleyicisinde ele alınır (wireStrokeObject)
         if (e.button !== undefined && e.button !== 0) return;

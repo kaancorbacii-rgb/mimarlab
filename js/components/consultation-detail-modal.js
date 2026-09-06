@@ -1,10 +1,12 @@
 // ConsultationDetailModal — "Görüşme Detayı" (kullanıcı isteği, 2026-09-06, Aşama 4): danışmanlık
-// veren kişi (şu an yalnızca Kaan Çorbacı) Bildirimler sekmesinde bir "Yeni danışmanlık talebi"
-// bildirimine tıkladığında alıcının Ad Soyad/E-posta/Telefon/Not bilgilerini görebileceği popup.
-// Güvenlik: bu bilgiler yalnızca GET /api/consultations/:id sunucu tarafında (host'u claim etmiş
-// kullanıcı ID eşleşmesiyle) doğrulandıktan sonra döner — bkz. src/routes/consultations.js#
+// veren kişi VE danışmanlık alan kişi, Bildirimler kutusundan bir danışmanlık bildirimine
+// tıkladığında bu popup açılır — hem detayları gösterir hem de (kullanıcı isteği, 2026-09-06 ikinci
+// tur) alıcının bir kereye mahsus tarih değiştirmesine VE her iki tarafın "Görüşme Gerçekleşti/
+// Değerlendir/İptal Et" aksiyonlarını admin değerlendirmesine göndermesine izin verir.
+// Güvenlik: bu bilgiler yalnızca GET /api/consultations/:id sunucu tarafında (alıcı YA DA host'u
+// claim etmiş kullanıcı eşleşmesiyle) doğrulandıktan sonra döner — bkz. src/routes/consultations.js#
 // getConsultationDetail. Bu dosya kendi başına, hesabim.html'in Bildirimler kutusundan çağrılır
-// (bkz. hesabim.html#renderNotifications, link formatı `consultation:<id>`).
+// (bkz. auth-modal.js#renderNotifList, link formatı `consultation:<id>`).
 //
 // Görsel dil consultation-modal.js#ensurePopup İLE AYNI desen (singleton overlay, tek seferlik
 // enjeksiyon) ama sınıf öneki çakışmasın diye "cnd-" kullanıldı.
@@ -23,7 +25,28 @@ const ConsultationDetailModal = (function () {
     return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
-  const STATUS_LABELS = { pending: 'Ödeme onayı bekleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', cancelled: 'İptal edildi' };
+  const STATUS_LABELS = { pending: 'Ödeme onayı bekleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', cancelled: 'İptal edildi', completed: 'Görüşme Gerçekleşti' };
+  // "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" (kullanıcı isteği, 2026-09-06) — hem alıcı HEM
+  // danışman aynı üç aksiyona erişir, tıklayınca bir sebep kutusu açılır ve admin değerlendirmesine
+  // gider (bkz. src/routes/consultations.js#createConsultationAction).
+  const ACTION_LABELS = { completed: 'Görüşme Gerçekleşti', review: 'Değerlendir', cancel: 'İptal Et' };
+
+  // consultation-modal.js (takvim/yeniden planlama akışı) her sayfada statik <script> ile
+  // yüklenmez — auth-modal.js#ensureConsultationDetailModalLoaded İLE AYNI tembel yükleme deseni,
+  // yalnızca "Tarihi Değiştir" tıklanınca devreye girer.
+  let consultationModalLoad = null;
+  function ensureConsultationModalLoaded() {
+    if (typeof ConsultationModal !== 'undefined') return Promise.resolve();
+    if (!consultationModalLoad) {
+      consultationModalLoad = new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = '/js/components/consultation-modal.js';
+        script.onload = () => resolve();
+        document.head.appendChild(script);
+      });
+    }
+    return consultationModalLoad;
+  }
 
   function ensurePopup() {
     if (popupApi) return popupApi;
@@ -46,6 +69,21 @@ const ConsultationDetailModal = (function () {
         .cnd-note-value{white-space:pre-wrap;}
         .cnd-state{font-size:13px; color:var(--ink-soft); padding:24px 0; text-align:center;}
         .cnd-state.error{color:#B84C4C;}
+        .cnd-reschedule-btn{width:100%; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:11px; border-radius:100px; font-weight:600; font-size:13.5px; cursor:pointer; margin-top:16px; font-family:inherit;}
+        .cnd-reschedule-btn:hover{border-color:var(--walnut); color:var(--walnut);}
+        .cnd-reschedule-btn:disabled{opacity:0.5; cursor:default;}
+        .cnd-actions-title{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin:20px 0 8px;}
+        .cnd-actions-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+        .cnd-action-btn{padding:11px 8px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;}
+        .cnd-action-btn:hover{border-color:var(--walnut); color:var(--walnut);}
+        .cnd-action-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+        .cnd-action-form{display:none; margin-top:10px; border:1px dashed var(--line); border-radius:10px; padding:12px;}
+        .cnd-action-form.open{display:block;}
+        .cnd-action-form textarea{width:100%; box-sizing:border-box; min-height:70px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:12.5px; resize:vertical; margin-bottom:8px;}
+        .cnd-action-submit{background:var(--ink); color:var(--paper-card); border:none; padding:9px 18px; border-radius:100px; font-weight:600; font-size:12.5px; cursor:pointer; font-family:inherit;}
+        .cnd-action-submit:hover{background:var(--walnut);}
+        .cnd-action-submit:disabled{opacity:0.5; cursor:default;}
+        .cnd-action-feedback{font-size:12px; color:var(--ink-soft); margin-top:8px; min-height:1em;}
       `;
       document.head.appendChild(style);
     }
@@ -70,10 +108,80 @@ const ConsultationDetailModal = (function () {
     overlay.querySelector('.cnd-close').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) close(); });
+    // ModalShell (Hesabım popup'ı) X/backdrop'tan kapanırsa bu overlay de kapanmalı — aksi halde
+    // document.body.style.overflow 'hidden'da asılı kalır (bkz. consultation-modal.js#ensurePopup
+    // İLE AYNI 'mimarlab-modal-closed' temizliği; bu dosyada eskiden EKSİKTİ).
+    document.addEventListener('mimarlab-modal-closed', close);
 
     function row(label, value, extraClass) {
       if (!value) return '';
       return `<div class="cnd-row"><div class="cnd-row-label">${esc(label)}</div><div class="cnd-row-value${extraClass ? ' ' + extraClass : ''}">${esc(value)}</div></div>`;
+    }
+
+    function actionsHtml() {
+      return `
+        <div class="cnd-actions-title">Görüşme Aksiyonları</div>
+        <div class="cnd-actions-grid">
+          ${Object.entries(ACTION_LABELS).map(([type, label]) => `<button type="button" class="cnd-action-btn" data-action-type="${esc(type)}">${esc(label)}</button>`).join('')}
+        </div>
+        <div class="cnd-action-form" id="cnd-action-form">
+          <textarea id="cnd-action-note" maxlength="2000" placeholder="Sebebini yaz…"></textarea>
+          <button type="button" class="cnd-action-submit" id="cnd-action-submit">Gönder</button>
+          <div class="cnd-action-feedback" id="cnd-action-feedback"></div>
+        </div>`;
+    }
+
+    // Üç aksiyon butonu (Görüşme Gerçekleşti/Değerlendir/İptal Et) TEK bir sebep formunu paylaşır —
+    // birine tıklamak formu açar/hedef aksiyonu değiştirir, tekrar tıklamak kapatır (kullanıcı
+    // isteği: "her birine tıklayınca bir yazı yazma kutucuğu açılsın").
+    function wireActions(id) {
+      const grid = bodyEl.querySelector('.cnd-actions-grid');
+      const form = bodyEl.querySelector('#cnd-action-form');
+      const noteEl = bodyEl.querySelector('#cnd-action-note');
+      const submitBtn = bodyEl.querySelector('#cnd-action-submit');
+      const feedbackEl = bodyEl.querySelector('#cnd-action-feedback');
+      if (!grid) return;
+      let activeType = null;
+      grid.addEventListener('click', (e) => {
+        const btn = e.target.closest('.cnd-action-btn');
+        if (!btn) return;
+        const type = btn.dataset.actionType;
+        const opening = activeType !== type;
+        grid.querySelectorAll('.cnd-action-btn').forEach(b => b.classList.toggle('active', opening && b === btn));
+        activeType = opening ? type : null;
+        form.classList.toggle('open', opening);
+        feedbackEl.textContent = '';
+        noteEl.value = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Gönder';
+        if (opening) noteEl.focus();
+      });
+      submitBtn.addEventListener('click', async () => {
+        if (!activeType) return;
+        const note = noteEl.value.trim();
+        if (!note) { noteEl.focus(); return; }
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Gönderiliyor…';
+        try {
+          const res = await fetch(`/api/consultations/${encodeURIComponent(id)}/actions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actionType: activeType, note }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            feedbackEl.textContent = data.error || 'Gönderilemedi, tekrar dene.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Gönder';
+            return;
+          }
+          feedbackEl.textContent = 'Talebin admin değerlendirmesine gönderildi.';
+          noteEl.value = '';
+        } catch {
+          feedbackEl.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Gönder';
+        }
+      });
     }
 
     async function load(id) {
@@ -94,7 +202,27 @@ const ConsultationDetailModal = (function () {
           row('E-posta', data.contactEmail),
           row('Telefon', data.contactPhone),
           row('Görüşme İsteği Hakkında Not', data.note, 'cnd-note-value'),
-        ].join('');
+        ].join('')
+          // "Tarihi Değiştir" (kullanıcı isteği, 2026-09-06) — yalnızca alıcıda VE sunucunun izin
+          // verdiği durumda (bkz. getConsultationDetail#canReschedule: pending + değiştirilmemiş +
+          // görüşmeye en az 2 gün kalmış) görünür.
+          + (data.canReschedule ? '<button type="button" class="cnd-reschedule-btn" id="cnd-reschedule-btn">Tarihi Değiştir</button>' : '')
+          + actionsHtml();
+
+        const rescheduleBtn = bodyEl.querySelector('#cnd-reschedule-btn');
+        if (rescheduleBtn) {
+          rescheduleBtn.addEventListener('click', async () => {
+            rescheduleBtn.disabled = true;
+            rescheduleBtn.textContent = 'Yükleniyor…';
+            await ensureConsultationModalLoaded();
+            close();
+            ConsultationModal.openReschedule({
+              requestId: data.id, hostSlug: data.hostSlug, hostName: data.hostName,
+              date: data.date, time: data.time, hasRescheduled: data.hasRescheduled,
+            });
+          });
+        }
+        wireActions(id);
       } catch {
         bodyEl.innerHTML = '<div class="cnd-state error">Sunucuya ulaşılamadı, lütfen tekrar dene.</div>';
       }

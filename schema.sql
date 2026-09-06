@@ -869,6 +869,24 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_host_status ON consultation_requests(host_slug, status, requested_date);
 
+-- ---------- Danışmanlık görüşme aksiyonu talepleri (0098) ----------
+-- "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" — profile_corrections İLE AYNI desen (bkz.
+-- migrations/0098_consultation_actions.sql).
+CREATE TABLE IF NOT EXISTS consultation_actions (
+  id TEXT PRIMARY KEY,
+  consultation_id TEXT NOT NULL REFERENCES consultation_requests(id),
+  requested_by_user_id TEXT NOT NULL REFERENCES users(id),
+  requested_by_role TEXT NOT NULL,
+  action_type TEXT NOT NULL,
+  note TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  admin_response TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_consultation_actions_consultation ON consultation_actions(consultation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_consultation_actions_status ON consultation_actions(status, created_at DESC);
+
 -- (KALDIRILDI 2026-09-05 — bkz. migrations/0090_drop_dead_feature_tables.sql: Düello
 --  özelliği yayından çekilmişti, tablo(lar) production D1'den düşürüldü.)
 

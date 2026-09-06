@@ -328,6 +328,7 @@
         <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
         <button class="admin-tab" data-tab="consultations">Danışmanlık Talepleri<span class="admin-tab-dot" data-dot="consultations"></span></button>
+        <button class="admin-tab" data-tab="consultation-actions">Görüşme Aksiyonları<span class="admin-tab-dot" data-dot="consultation-actions"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
@@ -369,6 +370,11 @@
       <div class="admin-section" id="section-consultations">
         <div class="admin-subtabs" id="consultations-subtabs"></div>
         <div id="consultations-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-consultation-actions">
+        <div class="admin-subtabs" id="consultation-actions-subtabs"></div>
+        <div id="consultation-actions-list"></div>
       </div>
 
       <div class="admin-section" id="section-contact">
@@ -994,11 +1000,14 @@ let claimsStatus = 'pending';
 let correctionsStatus = 'pending';
 let badgesStatus = 'pending';
 let consultationsStatus = 'pending';
+let consultationActionsStatus = 'pending';
 const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
 const CORRECTION_STATUS_LABELS = { pending:'Beklemede', resolved:'Çözüldü', dismissed:'Reddedildi' };
 const CLAIM_KIND_LABELS = { ownership:'Sahiplenme Talepleri', correction:'Düzeltme Önerileri' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
 const CONSULTATION_STATUS_LABELS_ADMIN = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
+const CONSULTATION_ACTION_STATUS_LABELS_ADMIN = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
+const CONSULTATION_ACTION_TYPE_LABELS = { completed:'Görüşme Gerçekleşti', review:'Değerlendir', cancel:'İptal Et' };
 const PROFILE_TYPE_LABELS = { architect:'Kişi', office:'Firma' };
 const BADGE_TYPE_LABELS = { destekci:'Destekçi', verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
 
@@ -1198,6 +1207,47 @@ async function loadConsultationRequests(){
       btn.disabled = true;
       await api(`/api/admin/consultations/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
       loadConsultationRequests();
+      refreshAdminSummary();
+    });
+  });
+}
+
+// "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" talepleri (kullanıcı isteği, 2026-09-06) —
+// loadConsultationRequests İLE AYNI desen (bkz. src/routes/admin.js#handleConsultationActionsAdmin).
+// Sebepler (c.note) admin-card-note içinde okunabilir; onay/red kararı isteğe bağlı bir yanıt
+// metniyle birlikte talebi gönderen kişiye (kullanıcı ya da danışman) bildirim olarak gider.
+async function loadConsultationActions(){
+  renderStatusSubtabs(document.getElementById('consultation-actions-subtabs'), CONSULTATION_ACTION_STATUS_LABELS_ADMIN, consultationActionsStatus, (s)=>{ consultationActionsStatus = s; loadConsultationActions(); }, true);
+  const list = document.getElementById('consultation-actions-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/consultation-actions?status=${consultationActionsStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda talep yok.</div>'; return; }
+  list.innerHTML = items.map(a => `
+    <div class="admin-card" data-id="${a.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${CONSULTATION_ACTION_TYPE_LABELS[a.action_type] || escapeHtml(a.action_type)} <span class="admin-badge badge-approved">${escapeHtml(a.requested_date)} ${escapeHtml(a.requested_time)}</span> <span class="admin-badge badge-neutral">${a.requested_by_role === 'host' ? 'Danışman' : 'Kullanıcı'}</span></div>
+          <div class="admin-card-meta">${escapeHtml(a.requester_name)} · ${escapeHtml(a.requester_email)}${a.contact_name ? ` · Görüşme: ${escapeHtml(a.contact_name)}` : ''} · ${new Date(a.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        ${a.status === 'pending' ? `
+        <div class="admin-actions">
+          <button class="admin-btn primary" data-action="approved">Onayla</button>
+          <button class="admin-btn danger" data-action="rejected">Reddet</button>
+        </div>` : ''}
+      </div>
+      <div class="admin-card-note"><strong>Sebep</strong>${escapeHtml(a.note)}</div>
+      ${a.admin_response ? `<div class="admin-card-note"><strong>Admin yanıtı</strong>${escapeHtml(a.admin_response)}</div>` : ''}
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      const status = btn.dataset.action;
+      const response = window.prompt('Talebi gönderen kişiye iletilecek not (opsiyonel):', '') || '';
+      btn.disabled = true;
+      await api(`/api/admin/consultation-actions/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status, response}) });
+      loadConsultationActions();
       refreshAdminSummary();
     });
   });
@@ -1701,6 +1751,7 @@ async function refreshAdminSummary(){
       claims: data.pendingClaims > 0,
       badges: data.pendingBadges > 0,
       consultations: data.pendingConsultations > 0,
+      'consultation-actions': data.pendingConsultationActions > 0,
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
       conflicts: data.pendingMigrationConflicts > 0,
@@ -2017,6 +2068,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'consultations') loadConsultationRequests();
+    if(tab.dataset.tab === 'consultation-actions') loadConsultationActions();
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();

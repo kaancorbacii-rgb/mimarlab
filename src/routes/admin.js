@@ -112,6 +112,7 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'corrections') return await handleCorrectionsAdmin(request, env, url, segments);
     if (sub === 'badges') return await handleBadgesAdmin(request, env, url, segments);
     if (sub === 'consultations') return await handleConsultationsAdmin(request, env, url, segments);
+    if (sub === 'consultation-actions') return await handleConsultationActionsAdmin(request, env, url, segments);
     if (sub === 'profile-badge') return await handleProfileBadgeAdmin(request, env, url);
     if (sub === 'contact') return await handleContactAdmin(request, env, segments);
     if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);
@@ -291,7 +292,7 @@ async function handleAdminSummary(env) {
   );
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow, consultationActionsRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
@@ -299,6 +300,7 @@ async function handleAdminSummary(env) {
     env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_requests WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_actions WHERE status = 'pending'`).first(),
   ]);
 
   return json({
@@ -309,6 +311,7 @@ async function handleAdminSummary(env) {
     pendingMigrationConflicts: migrationRow?.n || 0,
     unseenComments: commentsRow?.n || 0,
     pendingConsultations: consultationsRow?.n || 0,
+    pendingConsultationActions: consultationActionsRow?.n || 0,
   });
 }
 
@@ -1026,6 +1029,69 @@ async function handleConsultationsAdmin(request, env, url, segments) {
         `consultation:${id}`,
       );
     }
+    return json({ ok: true });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// /api/admin/consultation-actions?status=pending
+// /api/admin/consultation-actions/:id (PATCH: status onaylar/reddeder, opsiyonel admin_response)
+// "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" talepleri (kullanıcı isteği, 2026-09-06) —
+// handleCorrectionsAdmin İLE AYNI desen. Talebi gönderen kişiye (alıcı YA DA danışman —
+// requested_by_user_id) admin kararı bildirim olarak gider.
+const CONSULTATION_ACTION_LABELS = { completed: 'Görüşme Gerçekleşti', review: 'Değerlendir', cancel: 'İptal Et' };
+async function handleConsultationActionsAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const status = url.searchParams.get('status');
+    const query = status
+      ? env.DB.prepare(
+          `SELECT a.*, u.name AS requester_name, u.email AS requester_email,
+                  c.requested_date, c.requested_time, c.host_slug, c.contact_name
+           FROM consultation_actions a
+           JOIN users u ON u.id = a.requested_by_user_id
+           JOIN consultation_requests c ON c.id = a.consultation_id
+           WHERE a.status = ? ORDER BY a.created_at DESC`
+        ).bind(status)
+      : env.DB.prepare(
+          `SELECT a.*, u.name AS requester_name, u.email AS requester_email,
+                  c.requested_date, c.requested_time, c.host_slug, c.contact_name
+           FROM consultation_actions a
+           JOIN users u ON u.id = a.requested_by_user_id
+           JOIN consultation_requests c ON c.id = a.consultation_id
+           ORDER BY a.created_at DESC`
+        );
+    const { results } = await query.all();
+    return json({ items: results });
+  }
+
+  if (segments.length === 4 && request.method === 'PATCH') {
+    const id = segments[3];
+    const body = await readJson(request);
+    if (!['approved', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
+    const response = typeof body.response === 'string' ? body.response.trim().slice(0, 2000) || null : null;
+    const row = await env.DB.prepare('SELECT consultation_id, requested_by_user_id, action_type, status FROM consultation_actions WHERE id = ?').bind(id).first();
+    if (!row) return errorJson('Bulunamadı', 404);
+    if (row.status !== 'pending') return errorJson('Bu talep zaten işleme alınmış.');
+    const now = Date.now();
+    await env.DB.prepare('UPDATE consultation_actions SET status = ?, admin_response = ?, updated_at = ? WHERE id = ?').bind(body.status, response, now, id).run();
+
+    // Onaylanan "İptal Et"/"Görüşme Gerçekleşti" görüşmenin KENDİ durumunu da günceller (makul
+    // varsayılan davranış) — "Değerlendir" bir durum değişikliği gerektirmez, sadece kuyruktan düşer.
+    if (body.status === 'approved') {
+      if (row.action_type === 'cancel') {
+        await env.DB.prepare(`UPDATE consultation_requests SET status = 'cancelled', updated_at = ? WHERE id = ?`).bind(now, row.consultation_id).run();
+      } else if (row.action_type === 'completed') {
+        await env.DB.prepare(`UPDATE consultation_requests SET status = 'completed', updated_at = ? WHERE id = ?`).bind(now, row.consultation_id).run();
+      }
+    }
+
+    const actionLabel = CONSULTATION_ACTION_LABELS[row.action_type] || row.action_type;
+    await createNotification(
+      env, row.requested_by_user_id, 'consultation_action_reviewed',
+      `"${actionLabel}" talebin değerlendirildi`,
+      response || (body.status === 'approved' ? 'Talebin onaylandı.' : 'Talebin reddedildi.'),
+      `consultation:${row.consultation_id}`,
+    );
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
