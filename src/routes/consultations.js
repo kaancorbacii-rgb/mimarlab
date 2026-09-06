@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
+import { sendConsultationMessage } from './messages.js';
 
 // "Danışmanlık Al" — kişi popup'ında tek bir profile (kaan-corbaci) özel birebir görüşme randevusu
 // talebi. Ödeme yöntemi badges.js#createBadgeRequest İLE AYNI desen: havale/EFT, admin banka
@@ -60,8 +61,28 @@ const MIN_NOTICE_MS = 24 * 60 * 60 * 1000;
 // ORİJİNAL randevu anına göre hesaplanır (updateConsultationRequest'te row.requested_date/time),
 // yeni seçilecek tarihe göre DEĞİL.
 const RESCHEDULE_MIN_NOTICE_MS = 2 * 24 * 60 * 60 * 1000;
-const CONSULTATION_ACTION_TYPES = new Set(['completed', 'review', 'cancel']);
+// 'completed' ("Görüşme Gerçekleşti") KALDIRILDI (kullanıcı isteği, 2026-09-06) — yerini 'message'
+// ("Mesaj Gönder") aldı ve bu tür admin kuyruğuna DÜŞMEZ, doğrudan karşı tarafın mesaj kutusuna
+// gider (bkz. createConsultationAction'ın 'message' dalı). 'cancel' ve 'review' eskisi gibi
+// consultation_actions'a yazılıp admin değerlendirmesine gider.
+const CONSULTATION_ACTION_TYPES = new Set(['message', 'review', 'cancel']);
 const MAX_ACTION_NOTE_LEN = 2000;
+
+// Aksiyon zaman kapıları (kullanıcı isteği, 2026-09-06):
+//   * Tarihi Değiştir (1 kez) VE İptal Et -> yalnızca görüşmeye 2 GÜNDEN FAZLA varken,
+//   * Değerlendir                          -> yalnızca görüşme ANINDAN SONRA,
+//   * Mesaj Gönder                         -> her zaman (kapısı yok).
+// Tek kaynak burasıdır; istemci aynı bayrakları getConsultationDetail'den okuyup butonları
+// pasifleştirir (yalnızca UX), sunucu her POST'ta TEKRAR doğrular.
+function consultationSlotMs(row) {
+  return new Date(`${row.requested_date}T${row.requested_time}:00Z`).getTime();
+}
+function isBeforeCutoff(row) {
+  return consultationSlotMs(row) - Date.now() >= RESCHEDULE_MIN_NOTICE_MS;
+}
+function isAfterMeeting(row) {
+  return Date.now() >= consultationSlotMs(row);
+}
 
 function isAllowedSlot(dateStr, timeStr) {
   if (!isValidDate(dateStr) || !ALLOWED_TIMES.has(timeStr)) return false;
@@ -120,9 +141,14 @@ async function getConsultationDetail(env, user, id) {
   // Yeniden planlama gösterge kapısı (kullanıcı isteği, 2026-09-06) — istemci "Tarihi Değiştir"
   // butonunu bu üç koşulla gizler/gösterir; sunucu updateConsultationRequest'te AYNI kontrolleri
   // tek gerçek kaynak olarak TEKRAR uygular (istemci burada yalnızca UX içindir).
-  const originalSlotMs = new Date(`${row.requested_date}T${row.requested_time}:00Z`).getTime();
-  const canReschedule = isBuyer && row.status === 'pending' && !row.has_rescheduled
-    && (originalSlotMs - Date.now()) >= RESCHEDULE_MIN_NOTICE_MS;
+  const beforeCutoff = isBeforeCutoff(row);   // görüşmeye 2 günden fazla var mı
+  const openStatus = row.status === 'pending' || row.status === 'approved';
+  // Tarihi Değiştir: yalnızca ALICIDA, henüz değiştirilmemişse, talep hâlâ 'pending' iken ve
+  // 2 gün kapısı açıkken. İptal Et: iki tarafta da, talep hâlâ açıkken ve 2 gün kapısı açıkken.
+  // Değerlendir: iki tarafta da, YALNIZCA görüşme anı geçtikten sonra.
+  const canReschedule = isBuyer && row.status === 'pending' && !row.has_rescheduled && beforeCutoff;
+  const canCancel = openStatus && beforeCutoff;
+  const canReview = isAfterMeeting(row);
   return json({
     id: row.id,
     date: row.requested_date,
@@ -139,6 +165,8 @@ async function getConsultationDetail(env, user, id) {
     isBuyer,
     isHost,
     canReschedule,
+    canCancel,
+    canReview,
   });
 }
 
@@ -272,11 +300,8 @@ async function createConsultationAction(request, env, user, consultationId) {
   const row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE id = ?`).bind(consultationId).first();
   if (!row) return errorJson('Bulunamadı', 404);
   const isBuyer = row.user_id === user.id;
-  let isHost = false;
-  if (!isBuyer) {
-    const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
-    isHost = !!(host && host.claimed_by_user_id && host.claimed_by_user_id === user.id);
-  }
+  const host = await env.DB.prepare(`SELECT name, claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+  const isHost = !isBuyer && !!(host && host.claimed_by_user_id && host.claimed_by_user_id === user.id);
   if (!isBuyer && !isHost) return errorJson('Bu görüşme için talepte bulunma yetkin yok.', 403);
 
   const body = await readJson(request);
@@ -284,6 +309,33 @@ async function createConsultationAction(request, env, user, consultationId) {
   if (!CONSULTATION_ACTION_TYPES.has(actionType)) return errorJson('Geçersiz aksiyon türü.');
   const note = trimOrNull(body.note, MAX_ACTION_NOTE_LEN);
   if (!note) return errorJson('Lütfen bir açıklama yaz.');
+
+  // Zaman kapıları — istemcinin butonu pasifleştirmesinden BAĞIMSIZ, tek gerçek kaynak (bkz.
+  // dosya başındaki isBeforeCutoff/isAfterMeeting yorumu).
+  if (actionType === 'cancel' && !isBeforeCutoff(row)) {
+    return errorJson('Görüşmeye 2 günden az kaldığı için iptal edilemez.');
+  }
+  if (actionType === 'review' && !isAfterMeeting(row)) {
+    return errorJson('Değerlendirme yalnızca görüşme gerçekleştikten sonra yapılabilir.');
+  }
+
+  // "Mesaj Gönder" (kullanıcı isteği, 2026-09-06) — admin kuyruğuna DÜŞMEZ, doğrudan karşı tarafın
+  // mesaj kutusuna gider (bkz. messages.js#sendConsultationMessage). Alıcı yazarsa danışmana,
+  // danışman yazarsa alıcıya ulaşır; ikisi de AYNI konuşma balonunda toplanır.
+  if (actionType === 'message') {
+    if (!host || !host.claimed_by_user_id) return errorJson('Bu danışmana şu anda mesaj gönderilemiyor.');
+    const buyer = await env.DB.prepare('SELECT id, name, email FROM users WHERE id = ?').bind(row.user_id).first();
+    if (!buyer) return errorJson('Bu görüşme için mesaj gönderilemiyor.');
+    const result = await sendConsultationMessage(env, {
+      actor: user,
+      buyer: { id: buyer.id, name: row.contact_name || buyer.name, email: row.contact_email || buyer.email, phone: row.contact_phone },
+      hostUserId: host.claimed_by_user_id,
+      hostName: host.name,
+      text: note,
+    });
+    if (result.error) return errorJson(result.error);
+    return json({ ok: true, threadId: result.id, sent: true }, 201);
+  }
 
   const now = Date.now();
   const id = newId();

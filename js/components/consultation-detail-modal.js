@@ -29,10 +29,21 @@ const ConsultationDetailModal = (function () {
   // "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" (kullanıcı isteği, 2026-09-06) — hem alıcı HEM
   // danışman aynı üç aksiyona erişir, tıklayınca bir sebep kutusu açılır ve admin değerlendirmesine
   // gider (bkz. src/routes/consultations.js#createConsultationAction).
-  // Sıra kullanıcı isteği (2026-09-06): İptal Et → Görüşme Gerçekleşti → Değerlendir. "Tarihi
-  // Değiştir" bunların ÖNÜNE, aynı ızgaranın ilk hücresine girer (bkz. actionsHtml) — ayrı bir
-  // buton değil, aksiyon ızgarasının parçası.
-  const ACTION_LABELS = { cancel: 'İptal Et', completed: 'Görüşme Gerçekleşti', review: 'Değerlendir' };
+  // Sıra kullanıcı isteği (2026-09-06): İptal Et → Mesaj Gönder → Değerlendir. "Tarihi Değiştir"
+  // bunların ÖNÜNE, aynı ızgaranın ilk hücresine girer (bkz. actionsHtml) — ayrı bir buton değil,
+  // aksiyon ızgarasının parçası.
+  // 'message' ("Mesaj Gönder", eski adı "Görüşme Gerçekleşti") admin kuyruğuna DÜŞMEZ — yazılan
+  // metin doğrudan karşı tarafın mesaj kutusuna gider (bkz. consultations.js'in 'message' dalı),
+  // bu yüzden yer tutucusu ve başarı metni de diğerlerinden farklıdır (bkz. wireActions).
+  const ACTION_LABELS = { cancel: 'İptal Et', message: 'Mesaj Gönder', review: 'Değerlendir' };
+  // Hangi aksiyon hangi sunucu bayrağına bağlı (kullanıcı isteği, 2026-09-06): İptal Et yalnızca
+  // görüşmeye 2 günden fazla varken, Değerlendir yalnızca görüşmeden sonra. Mesaj Gönder'in kapısı
+  // yok. Sunucu aynı kuralları POST'ta TEKRAR uygular (bkz. createConsultationAction).
+  const ACTION_GATES = { cancel: 'canCancel', review: 'canReview' };
+  const ACTION_DISABLED_TITLES = {
+    cancel: 'Görüşmeye 2 günden az kaldığı için iptal edilemez.',
+    review: 'Değerlendirme yalnızca görüşme gerçekleştikten sonra yapılabilir.',
+  };
 
   // consultation-modal.js (takvim/yeniden planlama akışı) her sayfada statik <script> ile
   // yüklenmez — auth-modal.js#ensureConsultationDetailModalLoaded İLE AYNI tembel yükleme deseni,
@@ -123,12 +134,20 @@ const ConsultationDetailModal = (function () {
     // 1-Tarihi Değiştir 2-İptal Et 3-Görüşme Gerçekleşti 4-Değerlendir) — data-action-type YOK,
     // bu yüzden sebep formunu açan delege dinleyicisi (wireActions) onu görmezden gelir; kendi
     // ayrı id'li dinleyicisi (cnd-reschedule-btn) takvimi açar.
-    function actionsHtml(canReschedule) {
+    // "Tarihi Değiştir" data.canReschedule false ise (zaten değiştirilmiş / 2 gün kapısı kapanmış /
+    // kullanıcı danışman) ızgaraya HİÇ eklenmez — diğer üçü her zaman görünür ama kapısı kapalıysa
+    // pasifleştirilip sebebi title'da açıklanır (kullanıcı isteği: butonlar "aktif olsun/olmasın").
+    function actionsHtml(data) {
+      const gated = Object.entries(ACTION_LABELS).map(([type, label]) => {
+        const gate = ACTION_GATES[type];
+        const disabled = gate ? !data[gate] : false;
+        return `<button type="button" class="cnd-action-btn" data-action-type="${esc(type)}"${disabled ? ` disabled title="${esc(ACTION_DISABLED_TITLES[type] || '')}"` : ''}>${esc(label)}</button>`;
+      }).join('');
       return `
         <div class="cnd-actions-title">Görüşme Aksiyonları</div>
         <div class="cnd-actions-grid">
-          ${canReschedule ? '<button type="button" class="cnd-action-btn" id="cnd-reschedule-btn">Tarihi Değiştir</button>' : ''}
-          ${Object.entries(ACTION_LABELS).map(([type, label]) => `<button type="button" class="cnd-action-btn" data-action-type="${esc(type)}">${esc(label)}</button>`).join('')}
+          ${data.canReschedule ? '<button type="button" class="cnd-action-btn" id="cnd-reschedule-btn">Tarihi Değiştir</button>' : ''}
+          ${gated}
         </div>
         <div class="cnd-action-form" id="cnd-action-form">
           <textarea id="cnd-action-note" maxlength="2000" placeholder="Sebebini yaz…"></textarea>
@@ -163,6 +182,9 @@ const ConsultationDetailModal = (function () {
         noteEl.value = '';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Gönder';
+        // "Mesaj Gönder" bir SEBEP değil, karşı tarafa gidecek mesajın kendisidir — yer tutucu da
+        // buna göre değişir (diğer ikisi admin değerlendirmesine gerekçe yazdırır).
+        noteEl.placeholder = type === 'message' ? 'Mesajını yaz…' : 'Sebebini yaz…';
         if (opening) noteEl.focus();
       });
       submitBtn.addEventListener('click', async () => {
@@ -183,7 +205,9 @@ const ConsultationDetailModal = (function () {
             submitBtn.textContent = 'Gönder';
             return;
           }
-          feedbackEl.textContent = 'Talebin admin değerlendirmesine gönderildi.';
+          feedbackEl.textContent = data.sent
+            ? 'Mesajın gönderildi — Hesabım > Mesajlar\'dan takip edebilirsin.'
+            : 'Talebin admin değerlendirmesine gönderildi.';
           noteEl.value = '';
         } catch {
           feedbackEl.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
@@ -215,7 +239,7 @@ const ConsultationDetailModal = (function () {
           // "Tarihi Değiştir" (kullanıcı isteği, 2026-09-06) — yalnızca alıcıda VE sunucunun izin
           // verdiği durumda (bkz. getConsultationDetail#canReschedule: pending + değiştirilmemiş +
           // görüşmeye en az 2 gün kalmış) görünür; artık aksiyon ızgarasının İLK hücresinde.
-          + actionsHtml(data.canReschedule);
+          + actionsHtml(data);
 
         const rescheduleBtn = bodyEl.querySelector('#cnd-reschedule-btn');
         if (rescheduleBtn) {

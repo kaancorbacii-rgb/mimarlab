@@ -1039,6 +1039,10 @@ async function handleConsultationsAdmin(request, env, url, segments) {
 // "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" talepleri (kullanıcı isteği, 2026-09-06) —
 // handleCorrectionsAdmin İLE AYNI desen. Talebi gönderen kişiye (alıcı YA DA danışman —
 // requested_by_user_id) admin kararı bildirim olarak gider.
+// 'completed' ARTIK YENİ oluşturulmuyor (kullanıcı isteği, 2026-09-06: "Görüşme Gerçekleşti" →
+// "Mesaj Gönder", ve o tür admin kuyruğuna düşmeden doğrudan mesaj olarak gidiyor — bkz.
+// consultations.js#createConsultationAction). Etiket ve aşağıdaki status güncellemesi, bu
+// değişiklikten ÖNCE kuyruğa girmiş bekleyen satırlar hâlâ işlenebilsin diye BİLEREK korunuyor.
 const CONSULTATION_ACTION_LABELS = { completed: 'Görüşme Gerçekleşti', review: 'Değerlendir', cancel: 'İptal Et' };
 async function handleConsultationActionsAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'GET') {

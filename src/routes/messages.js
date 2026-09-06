@@ -173,6 +173,51 @@ async function appendMessageToThread(env, thread, user, text) {
   }
 }
 
+// Danışmanlık görüşmesinin iki tarafı arasında mesajlaşma (kullanıcı isteği, 2026-09-06:
+// "Mesaj Gönder ... buradan gönderilen mesaj danışmanın mesaj kutusuna gitsin") — bkz.
+// src/routes/consultations.js#createConsultationAction. Konuşma HER ZAMAN ('architect', hostName)
+// profiline ve "A tarafı" olarak ALICIYA (buyer) bağlanır; danışman yazdığında bu AYNI thread'e
+// yanıt olarak eklenir, böylece iki taraf için de tek bir balon oluşur (bkz. listMyThreads).
+//
+// resolveRecipients BİLEREK kullanılmaz: o, alıcıyı profile_claims'ten çözüyor ama danışmanlık
+// host'unun (kaan-corbaci) onaylı bir claim satırı YOK — sahiplik doğrudan
+// architects.claimed_by_user_id'de (bkz. consultations.js'teki AYNI gerekçe). Alıcı zaten
+// çağıran tarafından çözülmüş hâlde geldiğinden burada tekrar aranmaz.
+export async function sendConsultationMessage(env, { actor, buyer, hostUserId, hostName, text }) {
+  const body = (text || '').trim();
+  if (!body || body.length > MAX_BODY_LEN) return { error: 'Mesaj metni boş olamaz.' };
+
+  const existing = await env.DB.prepare(
+    `SELECT * FROM message_threads
+     WHERE profile_type = 'architect' AND profile_key = ? AND sender_user_id = ? AND status = 'open'
+     ORDER BY updated_at DESC LIMIT 1`
+  ).bind(hostName, buyer.id).first();
+  if (existing) {
+    await appendMessageToThread(env, existing, actor, body);
+    return { id: existing.id };
+  }
+
+  const now = Date.now();
+  const threadId = newId();
+  await env.DB.prepare(
+    `INSERT INTO message_threads (id, profile_type, profile_key, sender_user_id, sender_name, sender_email, sender_city, sender_company, sender_phone, status, created_at, updated_at)
+     VALUES (?, 'architect', ?, ?, ?, ?, NULL, NULL, ?, 'open', ?, ?)`
+  ).bind(threadId, hostName, buyer.id, (buyer.name || '').slice(0, 200), (buyer.email || '').slice(0, 200),
+    (buyer.phone || '').slice(0, 60) || null, now, now).run();
+  await env.DB.prepare(
+    `INSERT INTO messages (id, thread_id, sender_user_id, body, created_at) VALUES (?, ?, ?, ?, ?)`
+  ).bind(newId(), threadId, actor.id, body, now).run();
+  await env.DB.prepare(
+    `INSERT INTO message_thread_recipients (thread_id, user_id) VALUES (?, ?)`
+  ).bind(threadId, hostUserId).run();
+
+  // Bildirim KARŞI tarafa gider: alıcı yazdıysa danışmana, danışman yazdıysa alıcıya.
+  const otherId = actor.id === hostUserId ? buyer.id : hostUserId;
+  const preview = body.length > 140 ? body.slice(0, 140) + '…' : body;
+  await createNotification(env, otherId, 'message', '1 Yeni Mesaj', `${actor.name}: ${preview}`, `msg:${threadId}`);
+  return { id: threadId };
+}
+
 async function assertParticipant(env, threadId, userId) {
   const thread = await env.DB.prepare('SELECT * FROM message_threads WHERE id = ?').bind(threadId).first();
   if (!thread) return { thread: null };
