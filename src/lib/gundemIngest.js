@@ -51,6 +51,12 @@ export const GUNDEM_LIMITS = {
   maxItemsPerSource: 5,
   maxPublishPerDay: 50,
   // Bir içerik için AI en fazla bu kadar denenir (ilk deneme dahil). "Sonsuz retry yapma" (madde 9).
+  //
+  // ÖLÇÜLMÜŞ DAVRANIŞ (gerçek modelle 6 içerik, 2026-09-06): @cf/meta/llama-3.3-70b bu görevde
+  // İLK denemede neredeyse her zaman kısa yazıyor (23-33 kelime); ne yanlış yaptığı söylenen
+  // İKİNCİ denemede 38-55 kelimeye çıkıyor. Yani içerik başına pratikte ~2 AI çağrısı normaldir
+  // ve 2 deneme yeterlidir — 6 içeriğin 5'i bu şekilde yayına ulaştı, elenen tek içerik gerçekten
+  // kısa kalandı. 3. bir deneme eklemek tur bütçesini yer, kazanç getirmez.
   aiMaxAttempts: 2,
   // Üst üste bu kadar hata veren kaynak soğutmaya alınır.
   maxSourceFailures: 4,
@@ -64,7 +70,13 @@ export const GUNDEM_LIMITS = {
   maxItemAgeDays: 21,
   // Turun toplam duvar-saati bütçesi. Aşılırsa tur temiz biçimde durur ve kalanı bir sonraki cron
   // alır (madde 21: "Cloudflare Worker execution/time limitsini dikkate al").
-  runBudgetMs: 60000,
+  //
+  // 60sn -> 120sn (ilk canlı tur ölçümü, 2026-09-06): 60sn'de yalnızca 8 aday işlenebildi ve tur
+  // `run_budget_exhausted` ile kesildi — AI çağrısı başına ~4sn sürüyor. Cron tetikleyicilerinin
+  // duvar-saati sınırı bunun çok üstündedir (CPU sınırı 30sn'dir ve AI çağrıları CPU değil G/Ç
+  // beklemesidir), yani asıl kısıt buradaki kendi bütçemizdi. 120sn, tur başına 20 içeriklik
+  // tavana gerçekten ulaşılabilmesini sağlar.
+  runBudgetMs: 120000,
 };
 
 const DAY_MS = 86400000;
@@ -331,6 +343,9 @@ async function publishCandidate(env, candidate, ctx) {
         sourceTitle: candidate.title,
         sourceExcerpt: excerptForAi,
         sourceLanguage: source.language,
+        // İkinci denemede modele NE YANLIŞ YAPTIĞI söylenir (bkz. gundemAi.js#RETRY_HINT_BY_REASON)
+        // — aynı promptu tekrarlamak ilk canlı turda aynı hatayı tekrar üretiyordu.
+        retryReason: attempt > 0 ? lastReason : null,
       });
     } catch (err) {
       if (err instanceof AiProviderError && err.quotaExceeded) {

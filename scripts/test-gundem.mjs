@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { parseFeed, stripHtml, decodeEntities, normalizeImageUrl, extractPageMeta } from '../src/lib/gundemFeed.js';
 import {
   normalizeSourceUrl, titleKey, contentHash, isAllowedImageHost, validateAiOutput,
-  wordCount, isSingleParagraph, looksTurkish, titleOverlapsSource,
+  wordCount, isSingleParagraph, looksTurkish, looksEnglish, englishWordHits, titleLanguageOk, titleOverlapsSource,
 } from '../src/lib/gundemQuality.js';
 import { GUNDEM_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCategories.js';
 import { GUNDEM_SOURCES, activeGundemSources, GUNDEM_IMAGE_HOSTS } from '../src/lib/gundemSources.js';
@@ -315,6 +315,55 @@ await test('TEST 3f: clickbait başlık reddedilir', () => {
   }, ctx);
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'title_clickbait');
+});
+
+// İLK CANLI TUR REGRESYONU (2026-09-06 20:30): 8 içeriğin 3'ü `title_not_turkish` ile elendi,
+// çünkü başlık kapısı özet kapısıyla AYNI looksTurkish() kontrolünü kullanıyordu ve yalnızca özel
+// adlardan oluşan geçerli Türkçe başlıkları da reddediyordu.
+// TOLERANS BANDI (ölçüm, 2026-09-06): model düzeltmeli denemeden sonra 37-39 kelimelik KUSURSUZ
+// özetler üretiyordu; sert 40 tabanı bunları eliyordu. İstek "YAKLAŞIK 40-80" diyor.
+await test('TOLERANS: 37 kelimelik özet kabul edilir (hedef 40, taban 36)', () => {
+  const r = validateAiOutput({
+    title: 'OMA imzalı kültür merkezi Seul’de açıldı',
+    summary: validSummary(37), category: 'haber',
+  }, ctx);
+  assert.equal(r.ok, true, r.reason);
+});
+
+await test('TOLERANS: 35 kelime hâlâ REDDEDİLİR (bant sınırsız değil)', () => {
+  const r = validateAiOutput({ title: 'OMA kültür merkezi Seul', summary: validSummary(35), category: 'haber' }, ctx);
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'summary_too_short');
+});
+
+await test('TOLERANS: 85 kelime kabul, 95 kelime reddedilir', () => {
+  assert.equal(validateAiOutput({ title: 'OMA kültür merkezi Seul açıldı', summary: validSummary(85), category: 'haber' }, ctx).ok, true);
+  assert.equal(validateAiOutput({ title: 'OMA kültür merkezi Seul açıldı', summary: validSummary(95), category: 'haber' }, ctx).reason, 'summary_too_long');
+});
+
+await test('TEST 3g: özel adlardan oluşan Türkçe başlık REDDEDİLMEZ (canlı tur regresyonu)', () => {
+  // Ne Türkçe'ye özgü harf ne Türkçe işlev kelimesi var — ama İngilizce de değil.
+  assert.equal(titleLanguageOk('Plaza Corporate Kuzey Kulesi'), true);
+  assert.equal(titleLanguageOk('OMA Seoul Kultur Merkezi'), true);
+});
+
+await test('TEST 3h: gerçekten İNGİLİZCE kalmış başlık reddedilir', () => {
+  assert.equal(titleLanguageOk('OMA completes new cultural centre in Seoul'), false);
+  assert.equal(titleLanguageOk('The Overlook House by Migration Studios'), false);
+  assert.equal(looksEnglish('OMA completes new cultural centre in Seoul'), true);
+});
+
+await test('TEST 3i: Türkçe işareti taşıyan başlık, İngilizce kelime içerse de geçer', () => {
+  // Kaynak adı özel ad olarak korunabilir; Türkçe ekler başlığı yine Türkçe yapar.
+  assert.equal(titleLanguageOk("The Architectural Review'dan Fallingwater değerlendirmesi"), true);
+});
+
+// EŞİK 2 (ölçüm, 2026-09-06): çevrilmiş ama özgün adın artikelini koruyan başlıklar eleniyordu.
+await test('TEST 3j: tek İngilizce artikel içeren ÇEVRİLMİŞ başlık geçer ("The Overlook Evi")', () => {
+  assert.equal(englishWordHits('The Overlook Evi'), 1);
+  assert.equal(titleLanguageOk('The Overlook Evi'), true);
+  // Gerçekten çevrilmemiş başlık birden fazla İngilizce işlev kelimesi taşır:
+  assert.ok(englishWordHits('OMA completes new cultural centre in Seoul') >= 2);
 });
 
 await test('TEST 4: boş başlık/özet reddedilir (AI başarısızsa yayın YOK)', () => {

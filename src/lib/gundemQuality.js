@@ -8,12 +8,23 @@ import { foldTr } from './textMatch.js';
 import { GUNDEM_IMAGE_HOSTS } from './gundemSources.js';
 import { isValidGundemCategory } from './gundemCategories.js';
 
-// Özet sınırları — kullanıcı isteği madde 9'daki 40-80 kelime aralığı. Kelime sayımı Türkçe metinde
-// boşlukla ayrılan token sayısıdır. Alt sınırda 2 kelimelik bir tolerans YOK: bir modelin "38
-// kelime" üretmesi de "120 kelime" üretmesi de talimatı tutturamadığı anlamına gelir ve içerik
-// yeniden denenir (bkz. gundemIngest.js retry döngüsü).
+// Özet uzunluğu — kullanıcı isteği madde 9: "YAKLAŞIK 40-80 kelime".
+//
+// İKİ AYRI SAYI, bilerek:
+//   * SUMMARY_MIN/MAX_WORDS  → modele VERİLEN hedef (prompt bu aralığı söyler).
+//   * SUMMARY_MIN/MAX_ACCEPT → KABUL eşiği; hedefin %10 dışına kadar tolere eder.
+//
+// NEDEN (ölçüm, 2026-09-06 — gerçek modelle 6 içerik üzerinde iki turlu deneme): düzeltmeli
+// yeniden deneme sonrası model 37 ve 39 kelimelik, içerik olarak KUSURSUZ özetler üretti ve sert
+// 40 tabanı bunları eledi. İsteğin kendi ifadesi "yaklaşık" olduğundan, tek kelimelik sapmayı
+// yayın engeline çevirmek isteği daha iyi karşılamıyor — aksine iyi içeriği kaybettiriyordu
+// (madde 26'nın "eksik yayınlamak yeğdir" ilkesi ŞÜPHELİ içerik içindir, doğru ama 3 kelime kısa
+// içerik için değil). Gerçekten kısa olan (22-27 kelime) çıktılar bu bandın de dışında kalır ve
+// elenmeye devam eder.
 export const SUMMARY_MIN_WORDS = 40;
 export const SUMMARY_MAX_WORDS = 80;
+export const SUMMARY_MIN_ACCEPT = 36;
+export const SUMMARY_MAX_ACCEPT = 88;
 export const TITLE_MIN_CHARS = 12;
 export const TITLE_MAX_CHARS = 140;
 
@@ -110,11 +121,40 @@ export function isSingleParagraph(text) {
 // Model yanlışlıkla İngilizce özet üretirse ikisi de tutmaz ve içerik reddedilir. Yanlış NEGATİF
 // (gerçekten Türkçe bir metni reddetmek) yayın kaybına yol açar ama yanlış POZİTİFTEN (İngilizce
 // metni Türkçe sanıp yayınlamak) tercih edilir — bu dosyanın temel ilkesi.
-const TR_FUNCTION_WORDS = /\b(ve|ile|için|olarak|bir|bu|olan|yer|tarafından|üzerine|arasında|yeni|proje|tasarım|yapı|mimar)\b/i;
+const TR_FUNCTION_WORDS = /\b(ve|ile|için|olarak|bir|bu|olan|yer|tarafından|üzerine|arasında|yeni|proje|tasarım|yapı|mimar|kent|bina|ofis)\b/i;
 export function looksTurkish(text) {
   const s = String(text || '');
   if (/[çğıöşüÇĞİÖŞÜ]/.test(s)) return true;
   return TR_FUNCTION_WORDS.test(s);
+}
+
+// İngilizceye ÖZGÜ işlev kelimeleri. looksTurkish'in tersi DEĞİLDİR: bir metin ikisine de
+// uymayabilir (ör. yalnızca özel adlardan oluşan kısa bir başlık).
+// EŞİK 2 (ölçüm, 2026-09-06): tek bir İngilizce kelime yeterli sayılınca "The Overlook Evi"
+// gibi ÇEVRİLMİŞ ama özgün adının artikelini koruyan başlıklar da eleniyordu. Gerçekten
+// çevrilmemiş bir başlık ("OMA completes new cultural centre in Seoul") her zaman birden fazla
+// İngilizce işlev kelimesi taşır — iki eşiği yanlış pozitifleri keser, gerçek hedefi kaçırmaz.
+const EN_FUNCTION_WORDS = /\b(the|of|and|with|for|from|by|into|its|their|that|this|has|have|will|are|is|in|on|at|as|new|a|an|to)\b/gi;
+export function englishWordHits(text) {
+  const m = String(text || '').match(EN_FUNCTION_WORDS);
+  return m ? new Set(m.map(w => w.toLowerCase())).size : 0;
+}
+export function looksEnglish(text) {
+  return englishWordHits(text) >= 2;
+}
+
+// BAŞLIK dil kapısı — özet kapısından AYRI ve bilerek daha gevşek.
+//
+// GERÇEK BULGU (ilk canlı tur, 2026-09-06 20:30): 8 içeriğin 3'ü `title_not_turkish` ile elendi.
+// Kapı, başlıkta da looksTurkish() arıyordu; ama geçerli bir Türkçe başlık ÖZEL ADLARDAN ibaret
+// olabilir ve ne Türkçe'ye özgü bir harf ne de bir Türkçe işlev kelimesi içerebilir —
+// ör. "Plaza Corporate Kuzey Kulesi". Bunlar doğru çevirilerdi ve yayınlanmaları gerekirdi.
+// Özet (40-80 kelime akıcı Türkçe) için aynı kontrol güvenilirdir ve orada KORUNUR; asıl yakalamak
+// istediğimiz "model başlığı hiç çevirmedi" durumu ise burada doğrudan sorulur: başlık İNGİLİZCE
+// işlev kelimesi taşıyor VE hiçbir Türkçe işareti yoksa reddedilir.
+export function titleLanguageOk(title) {
+  if (looksTurkish(title)) return true;
+  return !looksEnglish(title);
 }
 
 // AI ÇIKTISI KAYNAKLA İLGİLİ Mİ? (madde 10: "title kaynakla alakasız mı?", "AI kaynakta olmayan
@@ -171,7 +211,7 @@ export function validateAiOutput(ai, ctx) {
   if (!title) return { ok: false, reason: 'title_empty' };
   if (title.length < TITLE_MIN_CHARS) return { ok: false, reason: 'title_too_short' };
   if (title.length > TITLE_MAX_CHARS) return { ok: false, reason: 'title_too_long' };
-  if (!looksTurkish(title)) return { ok: false, reason: 'title_not_turkish' };
+  if (!titleLanguageOk(title)) return { ok: false, reason: 'title_not_turkish' };
   // NOT: kaynakla ilgililik kapısı BİLEREK aşağıda, özet doğrulandıktan SONRA çalışır — ölçü artık
   // başlık + özetin BİRLİKTE değerlendirilmesine dayanıyor (bkz. titleOverlapsSource'un iki kademeli
   // gerekçesi). Önce buradaydı ve özeti hiç göremediği için doğru içerikleri eliyordu.
@@ -183,8 +223,8 @@ export function validateAiOutput(ai, ctx) {
   if (!summary) return { ok: false, reason: 'summary_empty' };
   if (!isSingleParagraph(ai.summary)) return { ok: false, reason: 'summary_not_single_paragraph' };
   const words = wordCount(summary);
-  if (words < SUMMARY_MIN_WORDS) return { ok: false, reason: 'summary_too_short' };
-  if (words > SUMMARY_MAX_WORDS) return { ok: false, reason: 'summary_too_long' };
+  if (words < SUMMARY_MIN_ACCEPT) return { ok: false, reason: 'summary_too_short' };
+  if (words > SUMMARY_MAX_ACCEPT) return { ok: false, reason: 'summary_too_long' };
   if (!looksTurkish(summary)) return { ok: false, reason: 'summary_not_turkish' };
   // Modelin "özetleyemedim/bilgi yok" gibi meta yanıtları — içerik değil, hata sinyalidir.
   if (/(yeterli bilgi (yok|bulunmuyor)|özetleyemiyorum|as an ai|kaynak metin)/i.test(summary)) {
