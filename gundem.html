@@ -514,6 +514,10 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/share-button.js" defer></script>
+<!-- image-lightbox.js — kullanıcı isteği (2026-09-07 madde 1): kart görseline tıklanınca popup'ta
+     büyür. Bu sayfada TEK tıklanabilir öğe görsel olduğu için bu betik ZORUNLUDUR; yoksa tıklama
+     yeni sekme fallback'ine düşer ve o da popup engelleyicilere takılır (canlıda doğrulandı). -->
+<script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="gundem"></div>
   <script src="js/components/site-chrome.js"></script>

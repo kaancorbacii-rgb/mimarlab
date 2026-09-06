@@ -180,6 +180,15 @@ else
   ok "gundem sayfa boyutu üç yerde de hizalı (=$gundem_page_size)"
 fi
 
+# image-lightbox.js — Gündem'de görsel TEK tıklanabilir öğedir (kullanıcı isteği 2026-09-07
+# madde 1). Betik düşerse tıklama sessizce yeni-sekme fallback'ine düşer ve popup engelleyiciye
+# takılır; canlıda tam olarak bu oldu (betik kümesi kısaltılırken kazara çıkmıştı).
+if grep -q 'js/components/image-lightbox.js' gundem.html; then
+  ok "gundem.html — image-lightbox.js yükleniyor (görsel büyütme çalışır)"
+else
+  bad "gundem.html — image-lightbox.js kayıp; görsele tıklama popup açmaz"
+fi
+
 # SSR konteyneri — yukarıdaki dört liste sayfasıyla AYNI gerekçe (src/index.js#serveGundemListPage
 # ve #injectMeta bu id'yi hedefliyor; kaybolursa SSR gövdesi sessizce hiçbir yere basılmaz).
 if grep -q 'id="ssr-entity-body"' gundem.html; then
