@@ -36,8 +36,9 @@
 //  enabled          false ise tur sırasında hiç DOKUNULMAZ (ağ isteği bile yapılmaz)
 //  defaultCategory  AI'nin kategori önerisi whitelist dışına düşerse/emin olmazsa kullanılan değer
 //  categoryHints    feed'in kendi <category> etiketlerinden kategori türetme kuralları (AI'den ÖNCE)
-//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron her 30dk çalışır; bu değer
-//                   kaynak-başına seyreltme sağlar — bkz. gundem_source_health.last_run_at)
+//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron 2 SAATTE BİR çalışır; bu değer
+//                   kaynak-başına ek seyreltme sağlar — bkz. gundem_source_health.last_run_at).
+//                   120 = her turda okunur; 360 = üç turda bir (az yayımlayan kaynaklar).
 //  maxItemsPerRun   tek turda bu kaynaktan alınacak azami YENİ içerik
 //  imageStrategy    'feed'  → görsel yalnızca feed alanlarından (enclosure/media:*/gövdedeki ilk <img>)
 //                   'og'    → feed'de görsel yoksa makale <head>'inden og:image okunur
@@ -59,8 +60,8 @@ export const GUNDEM_SOURCES = [
     enabled: true,
     defaultCategory: 'haber',
     categoryHints: [],
-    fetchIntervalMin: 60,
-    maxItemsPerRun: 5,
+    fetchIntervalMin: 120,
+    maxItemsPerRun: 6,
     imageStrategy: 'feed',
     imageHosts: ['images.adsttc.com'],
     language: 'en',
@@ -84,8 +85,8 @@ export const GUNDEM_SOURCES = [
       { match: /^(exhibitions?|events?|dezeen events guide|design events)$/i, category: 'etkinlik' },
       { match: /^(opinion|interviews?|comment)$/i, category: 'gorus' },
     ],
-    fetchIntervalMin: 60,
-    maxItemsPerRun: 5,
+    fetchIntervalMin: 120,
+    maxItemsPerRun: 6,
     imageStrategy: 'feed',
     imageHosts: ['static.dezeen.com'],
     language: 'en',
@@ -109,8 +110,8 @@ export const GUNDEM_SOURCES = [
       { match: /^(görüş|söyleşi|röportaj|yazı)$/i, category: 'gorus' },
       { match: /^(iş ilanı|kariyer|ilan)$/i, category: 'kariyer' },
     ],
-    fetchIntervalMin: 60,
-    maxItemsPerRun: 5,
+    fetchIntervalMin: 120,
+    maxItemsPerRun: 6,
     imageStrategy: 'og',
     imageHosts: ['www.arkitera.com', 'arkitera.com'],
     language: 'tr',
@@ -171,8 +172,8 @@ export const GUNDEM_SOURCES = [
     // Bu kaynak tamamen yarışma duyurusu yayımlar — AI'nin kategori önerisine gerek yok.
     defaultCategory: 'yarisma',
     categoryHints: [],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 3,
+    fetchIntervalMin: 360,
+    maxItemsPerRun: 4,
     imageStrategy: 'og',
     imageHosts: ['competitions.archi'],
     language: 'en',
@@ -194,8 +195,8 @@ export const GUNDEM_SOURCES = [
       { match: /(competition|awards?)/i, category: 'yarisma' },
       { match: /(exhibition|event)/i, category: 'etkinlik' },
     ],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 3,
+    fetchIntervalMin: 360,
+    maxItemsPerRun: 4,
     imageStrategy: 'og',
     imageHosts: ['cdn.ca.emap.com'],
     language: 'en',

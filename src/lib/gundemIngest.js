@@ -48,7 +48,10 @@ import { purgeGundemCache } from './gundemCache.js';
 export const GUNDEM_LIMITS = {
   maxItemsPerRun: 20,
   // Kaynak yapılandırmasındaki maxItemsPerRun bundan BÜYÜK olamaz (tavan burada).
-  maxItemsPerSource: 5,
+  // 5 -> 6 (2026-09-07): cron 30dk'dan 2 SAATE indi, yani tur başına daha fazla birikmiş içerik
+  // oluyor. Tavan kaynak yapılandırmasındaki değerlerle (6) hizalandı — aksi halde oradaki 6
+  // sessizce 5'e kırpılırdı.
+  maxItemsPerSource: 6,
   maxPublishPerDay: 50,
   // Bir içerik için AI en fazla bu kadar denenir (ilk deneme dahil). "Sonsuz retry yapma" (madde 9).
   //
@@ -125,10 +128,10 @@ async function recordSourceResult(env, sourceId, ok, errorMessage) {
 // penceresini ıskalayıp bir sonraki tura kalıyordu) — sistem tasarlandığından kalıcı olarak yavaş
 // çalışıyordu, üstelik hiçbir hata vermeden.
 //
-// 5 dakikalık pay bu kaymayı fazlasıyla kapsar ve hızı ARTIRMAZ: cron ızgarası 30 dakikalık
-// olduğundan, 60 dakikalık bir aralık "55 dakikadan sonra due" olsa bile bir sonraki fiili tur
-// yine 60. dakikadaki turdur (55. dakikada tur yoktur). Yani kaynaklara gidiş sıklığı değişmez,
-// yalnızca ıskalanan pencere düzelir.
+// 5 dakikalık pay bu kaymayı fazlasıyla kapsar ve hızı ARTIRMAZ: cron ızgarası (2026-09-07'den
+// beri 2 SAATLİK) her zaman bu paydan çok daha geniştir — 120 dakikalık bir aralık "115 dakikadan
+// sonra due" olsa bile bir sonraki fiili tur yine 120. dakikadaki turdur. Yani kaynaklara gidiş
+// sıklığı değişmez, yalnızca ıskalanan pencere düzelir.
 const DUE_GRACE_MS = 5 * 60000;
 
 function isSourceDue(source, health, now) {
@@ -209,10 +212,11 @@ async function allocateSlug(env, title) {
 // Tek bir kaynağın feed'inden aday listesi
 // ---------------------------------------------------------------------------------------------
 
-async function collectCandidates(source, now) {
+async function collectCandidates(source, now, opts = {}) {
   const items = await fetchFeed(source.feedUrl);
-  const maxAge = GUNDEM_LIMITS.maxItemAgeDays * DAY_MS;
-  const perSource = Math.min(source.maxItemsPerRun || GUNDEM_LIMITS.maxItemsPerSource, GUNDEM_LIMITS.maxItemsPerSource);
+  const maxAge = (opts.maxAgeDays ?? GUNDEM_LIMITS.maxItemAgeDays) * DAY_MS;
+  const perSourceCap = opts.maxItemsPerSource ?? GUNDEM_LIMITS.maxItemsPerSource;
+  const perSource = Math.min(source.maxItemsPerRun || perSourceCap, perSourceCap);
 
   const fresh = items.filter(it => {
     // Tarihi hiç olmayan girdi kabul edilir (bazı feed'lerde eksik) ama tarihi VARSA ve eskiyse elenir.
@@ -462,8 +466,14 @@ async function publishCandidate(env, candidate, ctx) {
 
 // deps: havuz okuyucuları dışarıdan enjekte edilir — bu dosyanın src/routes/* içine bağımlı
 // olmaması (lib → route yönünde bir bağımlılık doğurmaması) için. Çağıran src/index.js#scheduled.
+// options (hepsi opsiyonel) — NORMAL cron turu hiçbirini geçmez, yani varsayılan davranış
+// GUNDEM_LIMITS'in kendisidir. Yalnızca scripts/gundem-backfill.mjs (tek seferlik geri doldurma)
+// bunları kullanır: "bugün yayımlanan her şeyi şimdi çek" gibi bir istek, kaynak zamanlamasını ve
+// tur başına düşük tavanları geçici olarak esnetmeyi gerektirir. Kalite/mükerrer/görsel kapıları
+// bu override'lardan ETKİLENMEZ — onlar her koşulda aynı çalışır.
 export async function runGundemIngestion(env, deps, options = {}) {
   const startedAt = Date.now();
+  const runBudgetMs = options.runBudgetMs ?? GUNDEM_LIMITS.runBudgetMs;
   const stats = {
     sourcesTried: 0, sourcesOk: 0, sourcesFailed: 0,
     fetched: 0, candidates: 0, duplicate: 0, published: 0,
@@ -493,8 +503,8 @@ export async function runGundemIngestion(env, deps, options = {}) {
   ).bind(dayStart).first();
   const publishedToday = (dayRow && dayRow.c) || 0;
   let budget = Math.min(
-    GUNDEM_LIMITS.maxItemsPerRun,
-    Math.max(0, GUNDEM_LIMITS.maxPublishPerDay - publishedToday)
+    options.maxItemsPerRun ?? GUNDEM_LIMITS.maxItemsPerRun,
+    Math.max(0, (options.maxPublishPerDay ?? GUNDEM_LIMITS.maxPublishPerDay) - publishedToday)
   );
   if (budget <= 0) {
     console.log(JSON.stringify({ event: 'gundem_run', skipped: 'daily_cap_reached', publishedToday }));
@@ -504,7 +514,11 @@ export async function runGundemIngestion(env, deps, options = {}) {
   // --- KAYNAK SEÇİMİ ----------------------------------------------------------------------------
   const health = await loadSourceHealth(env);
   const now = Date.now();
-  const due = activeGundemSources().filter(s => isSourceDue(s, health.get(s.id), now));
+  // ignoreSourceSchedule: yalnızca geri doldurma betiği için — kaynak başına bekleme penceresini
+  // atlar. Cron turu bunu ASLA geçmez (aksi halde yayıncılara her turda gidilirdi).
+  const due = options.ignoreSourceSchedule
+    ? activeGundemSources()
+    : activeGundemSources().filter(s => isSourceDue(s, health.get(s.id), now));
   if (!due.length) {
     console.log(JSON.stringify({ event: 'gundem_run', skipped: 'no_source_due' }));
     return stats;
@@ -513,12 +527,12 @@ export async function runGundemIngestion(env, deps, options = {}) {
   // --- FEED'LERİ ÇEK (sınırlı eşzamanlılık) ------------------------------------------------------
   const feeds = [];
   for (let i = 0; i < due.length; i += GUNDEM_LIMITS.sourceConcurrency) {
-    if (Date.now() - startedAt > GUNDEM_LIMITS.runBudgetMs) break;
+    if (Date.now() - startedAt > runBudgetMs) break;
     const batch = due.slice(i, i + GUNDEM_LIMITS.sourceConcurrency);
     const settled = await Promise.all(batch.map(async source => {
       stats.sourcesTried += 1;
       try {
-        const candidates = await collectCandidates(source, now);
+        const candidates = await collectCandidates(source, now, options);
         await recordSourceResult(env, source.id, true);
         stats.sourcesOk += 1;
         stats.fetched += candidates.length;
@@ -562,11 +576,12 @@ export async function runGundemIngestion(env, deps, options = {}) {
   const perSourcePublished = new Map();
   for (const candidate of ordered) {
     if (budget <= 0 || ctx.abort) break;
-    if (Date.now() - startedAt > GUNDEM_LIMITS.runBudgetMs) {
+    if (Date.now() - startedAt > runBudgetMs) {
       stats.skipped.run_budget_exhausted = (stats.skipped.run_budget_exhausted || 0) + 1;
       break;
     }
-    const sourceCap = Math.min(candidate.source.maxItemsPerRun || GUNDEM_LIMITS.maxItemsPerSource, GUNDEM_LIMITS.maxItemsPerSource);
+    const perSourceCap = options.maxItemsPerSource ?? GUNDEM_LIMITS.maxItemsPerSource;
+    const sourceCap = Math.min(candidate.source.maxItemsPerRun || perSourceCap, perSourceCap);
     if ((perSourcePublished.get(candidate.source.id) || 0) >= sourceCap) continue;
 
     const dupReason = isDuplicate(candidate, existing, seenInRun);
