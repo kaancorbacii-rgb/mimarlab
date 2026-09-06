@@ -357,8 +357,46 @@ const OfficeModal = (function () {
   let currentSlug = null;
   let currentItem = null;
   let openedViaPush = false;
+  // bkz. js/components/project-modal.js'teki AYNI alan/gerekçe (ModalShell.popupChainRealBase).
+  let chainRealBase = true;
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
+
+  // ---------------------------------------------------------------------------------------------
+  // İKİ URL ÖNEKİ: /firma/:slug ve /marka/:slug (kullanıcı isteği, 2026-09-06 madde 2: "marka
+  // sayfasında yüklü olan markaların — Autoban ve +Murat Tabanlıoğlu hariç — URL'leri firma değil
+  // marka olmalı").
+  //
+  // Ayrımın TEK kaynağı office-kind.js#isPureBrandOffice'tir ve sunucu bunu payload'da `item.isBrand`
+  // olarak zaten veriyor (bkz. src/routes/office.js#buildOfficePayload) — yani "hangi önek" sorusu
+  // yalnızca kayıt YÜKLENDİKTEN sonra kesin yanıtlanabilir. Sitedeki bağlantıların hepsini birden
+  // marka-farkında yapmak yerine (kayıtlı kartlar, yorum/bildirim linkleri, arama sonuçları...) URL
+  // burada TEK NOKTADA düzeltilir: popup hangi önekle açılırsa açılsın, veri gelince kanonik önek
+  // replaceState ile yazılır (pushState DEĞİL — yeni bir geçmiş girdisi kapanıştaki geri sarma
+  // sayısını bozardı). Sunucu tarafında da aynı düzeltme 301 ile yapılır (bkz. src/index.js#
+  // serveDetailPage), yani tam sayfa gezinmelerde kanonik URL zaten gelir.
+  const OFFICE_BASE_PATHS = ['/firma/', '/marka/'];
+  let currentBasePath = '/firma/';
+  function normalizeBasePath(p) { return OFFICE_BASE_PATHS.indexOf(p) >= 0 ? p : null; }
+  function basePathFromLocation() {
+    for (const p of OFFICE_BASE_PATHS) { if (location.pathname.indexOf(p) === 0) return p; }
+    return null;
+  }
+  function listPath() { return currentBasePath.replace(/\/$/, ''); }
+  function syncCanonicalBasePath(item) {
+    if (!item || !currentSlug) return;
+    const want = item.isBrand ? '/marka/' : '/firma/';
+    currentBasePath = want;
+    // item.slug: kaydın GERÇEK canonical slug'ı. Popup bir ad/legacy anahtarla da açılabiliyor
+    // (ör. Koleksiyonum kartları claimed_profile_key kullanır, bkz. hesabim.html) — adres çubuğunda
+    // kanonik slug kalsın diye o tercih edilir.
+    const target = `${want}${encodeURIComponent(item.slug || currentSlug)}`;
+    if (location.pathname === target) return;
+    // Yalnızca BİR ofis popup'ı URL'indeyken düzelt: kullanıcı bu arada başka bir yola geçtiyse
+    // (yarışan bir navigasyon) onun URL'ini ezmemeliyiz.
+    if (!basePathFromLocation()) return;
+    try { history.replaceState(history.state, '', target); } catch { /* eski tarayıcı/kota */ }
+  }
 
   // ---------- Projeler haritası — bkz. js/components/architect-modal.js#renderProjectsMap İLE
   // BİREBİR AYNI desen (kullanıcı isteği: "Projeler" bölümünün altına, firmanın koordinatı olan TÜM
@@ -576,7 +614,9 @@ const OfficeModal = (function () {
     document.title = pageTitle(o.name);
     ModalShell.setLabel(o.name);
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
-    const canonicalUrl = `https://mimarlab.com/firma/${encodeURIComponent(slugify(o.name))}`;
+    // Kanonik URL, kaydın türüne göre /firma/ ya da /marka/ (bkz. syncCanonicalBasePath) —
+    // currentBasePath renderItem'dan hemen ÖNCE düzeltilmiş olur.
+    const canonicalUrl = `https://mimarlab.com${currentBasePath}${encodeURIComponent(o.slug || slugify(o.name))}`;
     const logo = logoUrl(o);
     const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
@@ -784,7 +824,8 @@ const OfficeModal = (function () {
       // findCanonicalRowByNaturalKey'in slug fallback'i).
       ShareWidget.wire('om-share-btn', () => ({
         title: o.name,
-        url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}`,
+        // Paylaşılan adres KANONİK olmalı — saf markalarda /marka/:slug (bkz. syncCanonicalBasePath).
+        url: `${window.location.origin}${currentBasePath}${encodeURIComponent(o.slug || slugify(o.name))}`,
         type: 'office', key: slugify(o.name),
         image: logoUrl(o) || '', meta: o.loc || '',
       }));
@@ -1072,9 +1113,11 @@ const OfficeModal = (function () {
     panels.bodyEl.addEventListener('click', (e) => {
       // bkz. js/components/architect-modal.js#wireInternalNav — BİREBİR aynı gerekçe.
       if (ModalShell.getContentOwner() !== 'office') return;
-      const a = e.target.closest('a[href^="/firma/"]');
+      // İki önek de aynı varlık türüdür (bkz. syncCanonicalBasePath) — bir marka bağlantısı da
+      // tam sayfa gezinme değil, aynı popup içinde swap ile açılmalı.
+      const a = e.target.closest('a[href^="/firma/"], a[href^="/marka/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const m = a.getAttribute('href').match(/^\/firma\/([^/?#]+)/);
+      const m = a.getAttribute('href').match(/^\/(?:firma|marka)\/([^/?#]+)/);
       if (!m) return;
       e.preventDefault();
       swap(decodeURIComponent(m[1]));
@@ -1088,15 +1131,22 @@ const OfficeModal = (function () {
     return ModalShell.fetchEntity(`/api/office/${encodeURIComponent(slug)}`);
   }
 
-  async function open(slug, { pushHistory = true, triggerEl = null } = {}) {
+  async function open(slug, { pushHistory = true, triggerEl = null, basePath = null } = {}) {
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
+    // basePath: tıklanan bağlantının kendi öneki (bkz. js/components/lazy-modals.js ve firma/marka.html
+    // kart dinleyicileri). Verilmediyse, doğrudan bir /firma|marka/:slug belgesinde açılıyorsak (F5/
+    // deep link) URL'in kendisi; o da yoksa /firma/. Nihai/kanonik önek veri gelince düzeltilir
+    // (bkz. syncCanonicalBasePath).
+    currentBasePath = normalizeBasePath(basePath) || basePathFromLocation() || '/firma/';
     openedViaPush = pushHistory;
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
+    // bkz. js/components/project-modal.js#open'daki AYNI realBase gerekçesi.
+    chainRealBase = ModalShell.popupChainRealBase ? ModalShell.popupChainRealBase() : true;
     pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'office', slug, depth: pushCountSinceOpen }, '', `/firma/${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'office', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -1105,6 +1155,7 @@ const OfficeModal = (function () {
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
     if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    syncCanonicalBasePath(result.item); // /firma/ <-> /marka/ (bkz. syncCanonicalBasePath)
     await renderItem(result.payload);
   }
 
@@ -1114,12 +1165,21 @@ const OfficeModal = (function () {
     currentSlug = slug;
     const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'office', slug, depth: pushCountSinceOpen }, '', `/firma/${encodeURIComponent(slug)}`);
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase(); // mevcut girdiden devralınır
+    history.pushState({ mimarlabModal: 'office', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
     if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    syncCanonicalBasePath(result.item); // /firma/ <-> /marka/ (bkz. syncCanonicalBasePath)
     await renderItem(result.payload);
+  }
+
+  // Son çare dönüş — bkz. ModalShell.leaveToListPage (eski modal-shell.js kopyalarında bu fonksiyon
+  // olmayabilir, o zaman eski davranışa düşülür).
+  function leaveToList(listPath) {
+    if (ModalShell.leaveToListPage) ModalShell.leaveToListPage(listPath);
+    else history.pushState({}, '', listPath);
   }
 
   function close() {
@@ -1127,8 +1187,9 @@ const OfficeModal = (function () {
     currentItem = null;
     // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
     // madde 11: proje popup'ından firma adına tıklayıp kapatınca proje popup'ına dönülmeli).
-    if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/firma');
+    // chainRealBase — bkz. js/components/project-modal.js#close'daki AYNI gerekçe.
+    if (openedViaPush && pushCountSinceOpen > 0 && chainRealBase) ModalShell.goBackAndWait(pushCountSinceOpen);
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) leaveToList(listPath());
     ModalShell.close();
     pushCountSinceOpen = 0;
   }
@@ -1138,9 +1199,13 @@ const OfficeModal = (function () {
     if (ModalShell.wasCurrentPopSuperseded()) return;
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
+    currentBasePath = basePathFromLocation() || currentBasePath; // geri/ileri ile /firma/ ↔ /marka/ arası geçiş
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
+    } else {
+      pushCountSinceOpen = 0; // bkz. js/components/project-modal.js#handlePopState'teki AYNI gerekçe
     }
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase();
     // bkz. js/components/project-modal.js#handlePopState — BİREBİR aynı sahip kontrolü gerekçesi.
     const ownsContent = ModalShell.getContentOwner() === 'office';
     if (ownsContent && slug === currentSlug) return;
@@ -1151,6 +1216,7 @@ const OfficeModal = (function () {
       const result = await fetchItem(slug);
       if (mySeq !== requestSeq || currentSlug !== slug) return;
       if (result.status !== 'ok') { renderNotFound(result.status); return; }
+      syncCanonicalBasePath(result.item); // bkz. open()'daki AYNI çağrı
       await renderItem(result.payload);
     })();
   }

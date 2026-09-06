@@ -27,6 +27,8 @@
 // SINIR (ITEMS_PER_HUB): ItemList tek bir sayfaya binlerce öğe koymak için değil; 100 öğe hem
 // Google'ın rahatça işlediği bir aralıktır hem de sayfa ağırlığını makul tutar. Geri kalan
 // kayıtlara sitemap + detay sayfalarındaki "Benzer/Diğer" şeritleri üzerinden ulaşılır.
+import { officePath } from './officeUrl.js';
+
 const ITEMS_PER_HUB = 100;
 
 const SITE_ORIGIN = 'https://mimarlab.com';
@@ -41,9 +43,13 @@ const HUBS = {
     name: 'Kişiler',
     map: (it) => ({ url: `${SITE_ORIGIN}/kisi/${it.slug}`, name: it.name }),
   },
+  // Not: iki ofis hub'ı da KANONİK öneki kullanır (bkz. src/lib/officeUrl.js) — havuz kaydı cats ve
+  // productCount taşıdığından ayrım burada da doğru yapılabiliyor. /firma listesinde saf markalar
+  // zaten yok, ama Autoban gibi karma kayıtlar /marka listesinde görünüyor ve onların kanonik URL'i
+  // /firma/:slug olarak KALIR — hub bağlantısı da o yüzden koşulsuz değil, kayda göre üretilir.
   '/firma': {
     name: 'Firmalar',
-    map: (it) => ({ url: `${SITE_ORIGIN}/firma/${it.slug}`, name: it.name }),
+    map: (it) => ({ url: `${SITE_ORIGIN}${officePath(it.slug, it.cats, it.productCount)}`, name: it.name }),
   },
   '/urun': {
     name: 'Ürünler',
@@ -51,7 +57,7 @@ const HUBS = {
   },
   '/marka': {
     name: 'Markalar',
-    map: (it) => ({ url: `${SITE_ORIGIN}/firma/${it.slug}`, name: it.name }),
+    map: (it) => ({ url: `${SITE_ORIGIN}${officePath(it.slug, it.cats, it.productCount)}`, name: it.name }),
   },
 };
 

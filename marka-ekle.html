@@ -995,6 +995,9 @@ function overlayNonEmpty(base, patch){
 
 async function prefillForEdit(){
   if(!editId) return;
+  // bkz. kisi-ekle.html#prefillForEdit'teki AYNI gerekçe — mountOfficeAdminActions admin/sahip
+  // yolunu isAdmin'e göre seçiyor, bu değer beklenmeden okunmamalı.
+  await currentUserReady;
   try{
     const res = await fetch(`/api/offices/${encodeURIComponent(editId)}`);
     if(!res.ok) return;
@@ -1173,12 +1176,13 @@ async function prefillForClaim(){
 
 // Arşivle/Sil — artık firma popup'ında DEĞİL (bkz. kullanıcı isteği: proje-ekle.html#
 // mountProjectAdminActions ile AYNI desen bu sayfaya da taşınsın), Gönder'in altında gösterilir.
-// kisi-ekle.html#mountArchitectAdminActions'daki AYNI gerekçe — offices için de owner-moderate
-// ucu yok, yalnızca admin görür; targetKey her zaman `key` (claimed_profile_key/name) ile gider.
+// kisi-ekle.html#mountArchitectAdminActions ile BİREBİR AYNI iki yol (kullanıcı isteği, 2026-09-06
+// madde 4): ADMIN → content-action + `key`, SAHİP → /api/offices/:id/moderate + kendi gönderi id'si.
 function mountOfficeAdminActions(){
-  if(!isAdmin) return;
   const key = claimName || originalName;
-  if(!key) return;
+  const canAdmin = isAdmin && !!key;
+  const canOwner = !isAdmin && !!editId;
+  if(!canAdmin && !canOwner) return;
   const row = document.getElementById('o-danger-row');
   const archiveBtn = document.getElementById('o-archive-btn');
   const deleteBtn = document.getElementById('o-delete-btn');
@@ -1186,15 +1190,22 @@ function mountOfficeAdminActions(){
   async function run(action){
     const confirmText = action === 'delete'
       ? 'Bu marka profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
-      : 'Bu marka profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+      : (canAdmin
+        ? 'Bu marka profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.'
+        : 'Bu marka profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılır, Düzenle üzerinden tekrar yayınlayabilirsin.');
     if(!confirm(confirmText)) return;
     archiveBtn.disabled = true;
     deleteBtn.disabled = true;
     try{
-      const res = await fetch('/api/admin/legacy/content-action', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'offices', action, key }),
-      });
+      const res = canAdmin
+        ? await fetch('/api/admin/legacy/content-action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'offices', action, key }),
+        })
+        : await fetch(`/api/offices/${encodeURIComponent(editId)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
       if(!res.ok) throw new Error('request failed');
       window.location.href = '/marka';
     }catch{

@@ -102,12 +102,24 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // yollarının SSR kabuğudur — sürüm artırılmazsa daha önce ziyaret edilmiş profil sayfaları s-maxage
 // boyunca ESKİ stil/işaretleme ile servis edilir ve yeni .sidebar-add sarmalayıcısı olmayan kabukta
 // filtre kutusu (yeni CSS + eski HTML karışımıyla) bozuk görünürdü.
-export const SSR_CACHE_VERSION = 'v118';
+// v119 (kullanıcı isteği, 2026-09-06 madde 2): saf markaların kanonik URL'i /firma/:slug'tan
+// /marka/:slug'a taşındı (bkz. src/lib/officeUrl.js). Bu üç şeyi birden değiştirir ve üçü de
+// önbelleklenmiş SSR gövdesine gömülüdür: (a) /marka/:slug artık marka.html kabuğunu servis eden
+// YENİ bir detay yolu (kabuktaki detay-yolu regex'leri /firma/ → /marka/ olarak güncellendi),
+// (b) canonical/og:url etiketleri, (c) marka.html/firma.html kart bağlantıları (`o.brand` bayrağına
+// göre önek). v110-v118'deki AYNI tuzak: sürüm artırılmazsa daha önce ziyaret edilmiş marka
+// sayfaları s-maxage boyunca ESKİ kabukla (yanlış regex → popup hiç açılmaz) servis edilirdi.
+export const SSR_CACHE_VERSION = 'v119';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',
   architect: '/kisi/',
-  office: '/firma/',
+  // office: İKİ önek — bir kayıt saf markaysa kanonik URL /marka/:slug, değilse /firma/:slug (bkz.
+  // src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). Hangisinin önbellekte olduğu
+  // purge anında bilinemez (kayıt az önce marka olmaktan çıkmış da olabilir), bu yüzden İKİSİ de
+  // temizlenir — yoksa bayat bir SSR gövdesi s-maxage boyunca yaşamaya devam ederdi. Dizi biçimini
+  // aşağıdaki döngü zaten destekliyor.
+  office: ['/firma/', '/marka/'],
   product: '/urun/',
 };
 

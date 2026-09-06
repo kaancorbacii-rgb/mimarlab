@@ -696,16 +696,37 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   return json({ id, status });
 }
 
-// POST /api/products/:id/moderate ve /api/materials/:id/moderate  body: {action:'delete'|'archive'} —
+// POST /api/<tip>/:id/moderate  body: {action:'delete'|'archive'} —
 // runContentAction (bkz. src/routes/legacyContent.js) kendi başına yetki kontrolü YAPMAZ, o yüzden
 // sahiplik burada doğrulanır (admin ya da bu gönderinin owner_user_id'si) — handleContentAction'ın
-// (admin panelindeki AYNI fonksiyon) tam tersine, burada 'key' (statik kayıt) YOLU hiç kullanılmaz;
-// yalnızca bir kullanıcının/marka gönderisinin (id'li) kendi kaydı hedeflenebilir.
+// (admin panelindeki AYNI fonksiyon) tam tersine, burada 'key' (statik kayıt) YOLU İSTEMCİDEN hiç
+// kabul edilmez; hedef her zaman kullanıcının KENDİ gönderi satırından türetilir.
+//
+// architects/offices (kullanıcı isteği, 2026-09-06 madde 4: "Kullanıcıların kendi yükledikleri
+// gönderilerde de ... Değişikliği Kaydet butonunun altında Arşivle ve Sil butonları olsun"):
+// eskiden yalnızca products/materials'ta sahip moderasyonu vardı, kişi/firma/marka gönderilerinde
+// Arşivle/Sil YALNIZCA admine görünüyordu (bkz. kisi-ekle.html#mountArchitectAdminActions'ın eski
+// `if(!isAdmin) return;` kapısı).
+//
+// GÜVENLİK — targetKey İSTEMCİDEN GELMEZ: runContentAction'ın `key` yolu canonical satırı DOĞAL
+// ANAHTARLA (isim/slug/legacy_key) bulur, yani serbest bir key kabul etseydik kullanıcı kendi
+// gönderisinin id'siyle BAŞKASININ canonical kaydını (ör. adını "Zaha Hadid" yazarak) sildirebilirdi.
+// Bu yüzden anahtar iki güvenli kaynaktan türetilir:
+//   * claimed_profile_key — yalnızca ONAYLI bir profile_claims ile yazılabilir (bkz.
+//     verifyClaimedProfileKey), zaten runContentAction'ın claimedColumn dalı okur;
+//   * yoksa `submission:<id>` işareti — canonical satır tam olarak BU gönderiden doğmuşsa onun
+//     legacy_key'idir (bkz. src/lib/canonicalSync.js#syncArchitect/syncOffice), başka hiçbir satıra
+//     denk gelemez. Eşleşen canonical satır yoksa setLegacyHidden/findCanonicalRowByNaturalKey
+//     sessizce hiçbir şey yapmaz (bkz. o fonksiyonlar) — yalnızca gönderi satırı arşivlenir/silinir.
+const OWNER_MODERATE_TYPES = new Set(['products', 'materials', 'architects', 'offices']);
 async function moderateOwnSubmission(request, env, user, typeKey, id) {
-  if (typeKey !== 'products' && typeKey !== 'materials') return errorJson('Bulunamadı', 404);
+  if (!OWNER_MODERATE_TYPES.has(typeKey)) return errorJson('Bulunamadı', 404);
   const existing = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
   const body = await readJson(request);
   if (!['delete', 'archive'].includes(body.action)) return errorJson('Geçersiz işlem.');
-  return runContentAction(env, user, { type: typeKey, action: body.action, id });
+  const key = (typeKey === 'architects' || typeKey === 'offices') && !existing.claimed_profile_key
+    ? `submission:${id}`
+    : undefined;
+  return runContentAction(env, user, { type: typeKey, action: body.action, id, key });
 }

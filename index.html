@@ -777,9 +777,13 @@ function officeSlideHtml(o, i){
   const media = o.logo
     ? `<img class="slide-logo-img" src="${escapeAttr(cdnImg(o.logo, 900))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 860px) 50vw, 190px"` : ''} alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(o.name)}">${escapeHtml(slideInitials(o.name))}</div>`;
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/firma/${encodeURIComponent(o.slug || idxSlugify(o.name))}" data-index="${i}">
+  // o.brand: kaydın KANONİK URL öneki (/marka/:slug yalnızca saf markalarda — bkz.
+  // src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). /api/offices bu bayrağı liste
+  // öğelerinde döner; eski bir önbellek gövdesinde alan yoksa eski davranış (/firma/) sürer ve
+  // sunucu 301 ile kanonik adrese yönlendirir.
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="${o.brand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug || idxSlugify(o.name))}" data-index="${i}">
     ${media}
-    <span class="slide-tag">Firma</span>
+    <span class="slide-tag">${o.brand ? 'Marka' : 'Firma'}</span>
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(o.name)}</h2>
     </div>

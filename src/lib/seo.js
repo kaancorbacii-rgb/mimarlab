@@ -6,6 +6,7 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // ikinci bir sezgi yazmak yerine AYNI kaynak paylaşılır, aksi halde popup ile SSR farklı
 // sınıflandırma üretebilirdi.
 import { isOfficeName } from './projectPool.js';
+import { officePath, isBrandUrlOffice } from './officeUrl.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
 // proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
 // products) tablolarından okunuyor, src/routes/architect.js|office.js|project.js|product.js'in
@@ -203,8 +204,11 @@ const CATALOG_CRUMB = {
   project: { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },
 };
-function breadcrumbJsonLd(type, name, canonicalUrl) {
-  const catalog = CATALOG_CRUMB[type];
+// crumbOverride: saf marka profillerinde ikinci basamak "Firmalar › /firma" değil "Markalar ›
+// /marka" olmalı — kanonik URL de /marka/:slug (bkz. src/lib/officeUrl.js), aksi halde
+// yapılandırılmış veri sayfanın kendi kimliğiyle çelişirdi.
+function breadcrumbJsonLd(type, name, canonicalUrl, crumbOverride) {
+  const catalog = crumbOverride || CATALOG_CRUMB[type];
   if (!catalog) return null;
   const items = [
     { name: 'Ana Sayfa', url: `${SITE_ORIGIN}/` },
@@ -547,15 +551,25 @@ async function fetchUnlinkedProjectCredits(env, projectRow) {
 // products.brand_name_raw kolon yorumu) ikisi de NULL kalır, yeni bir round-trip AÇILMAZ.
 async function findProductRow(env, key) {
   if (!env || !env.DB) return null;
+  // bo.cats + markanın ürün SAYISI: markanın kanonik URL öneki (/firma/ mi /marka/ mi) buna bağlı
+  // (bkz. src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). Bir ürünün markası tipik
+  // olarak SAF markadır, yani bu bağlantı düzeltilmeseydi ürün sayfasındaki en önemli iç bağlantı
+  // (ve JSON-LD Brand url'i) kalıcı olarak bir 301'e işaret ederdi.
   const joinSql = `FROM products p LEFT JOIN offices bo ON bo.id = p.brand_office_id AND bo.deleted_at IS NULL`;
   const row = await env.DB.prepare(
-    `SELECT p.*, bo.name AS brand_office_name, bo.slug AS brand_office_slug ${joinSql} WHERE p.slug = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
+    `SELECT p.*, bo.name AS brand_office_name, bo.slug AS brand_office_slug, bo.cats AS brand_office_cats,
+       (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+          AND (pr.brand_office_id = bo.id OR pr.brand_name_raw = bo.name COLLATE NOCASE)) AS brand_office_product_count
+     ${joinSql} WHERE p.slug = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
   ).bind(key).first();
   if (row) return row;
   const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
   const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
   if (!match) return null;
-  return env.DB.prepare(`SELECT p.*, bo.name AS brand_office_name, bo.slug AS brand_office_slug ${joinSql} WHERE p.id = ?`).bind(match.id).first();
+  return env.DB.prepare(`SELECT p.*, bo.name AS brand_office_name, bo.slug AS brand_office_slug, bo.cats AS brand_office_cats,
+       (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+          AND (pr.brand_office_id = bo.id OR pr.brand_name_raw = bo.name COLLATE NOCASE)) AS brand_office_product_count
+     ${joinSql} WHERE p.id = ?`).bind(match.id).first();
 }
 
 // slug: kaydın GERÇEK canonical a.slug'ı (bkz. findArchitectRow'daki denetim notu) — çağıranın URL'de
@@ -643,9 +657,8 @@ async function buildArchitectMeta(slug, env) {
 // ({name, about, yil, loc, logo, website}) indirgenip tek fonksiyondan geçirilir.
 async function officeMetaFromRecord(o, slug, env) {
   const title = pageTitle(o.name);
-  const canonicalUrl = `${SITE_ORIGIN}/firma/${encodeURIComponent(slug)}`;
   const logoUrl = o.logo ? absoluteUrl(o.logo) : null;
-  const jsonLd = { '@context': 'https://schema.org', '@type': 'Organization', name: o.name, url: canonicalUrl };
+  const jsonLd = { '@context': 'https://schema.org', '@type': 'Organization', name: o.name };
   if (o.about) jsonLd.description = o.about;
   if (o.yil) jsonLd.foundingDate = String(o.yil);
   if (o.loc) {
@@ -681,6 +694,15 @@ async function officeMetaFromRecord(o, slug, env) {
     fetchBrandProducts(env, o.id, o.name),
   ]);
   const isBrand = isBrandOffice(o.cats, brandProducts.total);
+  // KANONİK URL burada — Promise.all'dan SONRA — hesaplanır, çünkü önek ürün SAYISINA bağlıdır:
+  // saf markalar (office-kind.js#isPureBrandOffice: hiçbir mimarlık hizmeti sunmayan üreticiler)
+  // /marka/:slug altında yaşar (kullanıcı isteği, 2026-09-06 madde 2, bkz. src/lib/officeUrl.js).
+  // isBrand ile AYNI ŞEY DEĞİL: Autoban gibi hem mimarlık yapıp hem ürün tasarlayan kayıtlar
+  // popup'ta marka bölümlerini görür ama URL'i /firma/:slug OLARAK KALIR.
+  // src/index.js#serveDetailPage bu değeri okuyup yanlış önekle gelen istekleri 301'ler.
+  const isBrandUrl = isBrandUrlOffice(o.cats, brandProducts.total);
+  const canonicalUrl = `${SITE_ORIGIN}${officePath(slug, o.cats, brandProducts.total)}`;
+  jsonLd.url = canonicalUrl;
   const catsText = textList(o.cats, ' · ');
   const catList = officeCatList(o.cats);
   if (isBrand) {
@@ -737,7 +759,7 @@ async function officeMetaFromRecord(o, slug, env) {
       ['Website', site ? `<a href="${escapeHtml(site)}" rel="nofollow noopener" target="_blank">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>` : null],
     ]),
   ].filter(Boolean).join('');
-  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
+  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl, isBrandUrl ? { label: 'Markalar', path: '/marka' } : null), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
 }
 
 // slug: kaydın GERÇEK canonical o.slug'ı — bkz. findArchitectRow'daki AYNI denetim notu
@@ -932,7 +954,7 @@ function productMetaFromRecord(record, canonicalUrl) {
   // metin marka adı) alan eklenmez — tahmini/kırık bir URL üretilmez.
   if (record.brand) {
     jsonLd.brand = record.brandOfficeSlug
-      ? { '@type': 'Brand', name: record.brand, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(record.brandOfficeSlug)}` }
+      ? { '@type': 'Brand', name: record.brand, url: `${SITE_ORIGIN}${record.brandOfficePath || `/firma/${encodeURIComponent(record.brandOfficeSlug)}`}` }
       : { '@type': 'Brand', name: record.brand };
   }
   // audit bulgusu: bu obje daha önce offers/aggregateRating/review'dan HİÇBİRİNİ taşımıyordu — Google
@@ -956,7 +978,7 @@ function productMetaFromRecord(record, canonicalUrl) {
   // submission kökenli kayıtlarda (buildProductMeta'nın "m-<id>" dalı) hiç yok — o durumda marka
   // adı düz metin kalır, kırık/tahmini bir link üretilmez.
   const brandHtml = record.brand
-    ? (record.brandOfficeSlug ? internalLink(`/firma/${encodeURIComponent(record.brandOfficeSlug)}`, record.brand) : escapeHtml(record.brand))
+    ? (record.brandOfficeSlug ? internalLink(record.brandOfficePath || `/firma/${encodeURIComponent(record.brandOfficeSlug)}`, record.brand) : escapeHtml(record.brand))
     : null;
   // POPUP HİZALAMASI (bkz. "POPUP KÜNYE SÖZLEŞMESİ"): popup künyesi Versiyonlar → Marka → Tasarımcı
   // → Kategori → Yıl → Teknik Özellikler sırasını gösterir (bkz. js/components/product-modal.js).
@@ -1063,6 +1085,7 @@ async function buildProductMeta(key, env) {
   ]);
   return productMetaFromRecord({
     title: p.title, brand: p.brand_name_raw, brandOfficeSlug: row.brand_office_slug || null,
+    brandOfficePath: row.brand_office_slug ? officePath(row.brand_office_slug, row.brand_office_cats, row.brand_office_product_count) : null,
     category: p.category, description: p.description, images: p.images, rating,
     designers, year: p.year, variants: p.variants, specs: p.specs,
   }, canonicalUrl);

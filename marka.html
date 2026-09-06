@@ -5,16 +5,20 @@
        1) etiketler ("Firma" → "Marka") ve <head> meta/canonical (/firma → /marka),
        2) liste isteği ?brands=1 taşır (bkz. src/routes/office.js#handleOfficeListRoute — aynı
           `offices` havuzu, yalnızca kataloğunda ürünü olan firmalar),
-       3) data-nav-active="marka".
-     Kart tıklaması/detay popup'ı BİLEREK değişmedi: markalar da birer `offices` satırı olduğundan
-     detay URL'si /firma/:slug ve popup js/components/office-modal.js olarak kalır — ayrı bir
-     /marka/:slug SSR öneki/redirect zinciri açmaya gerek yok (bkz. src/index.js#CLEAN_URL_ASSETS). -->
+       3) data-nav-active="marka",
+       4) DETAY YOLU (kullanıcı isteği, 2026-09-06 madde 2): bu sayfa artık /marka/:slug'ı da servis
+          eder. Markalar hâlâ birer `offices` satırıdır ve popup yine js/components/office-modal.js'tir
+          — değişen tek şey KANONİK ÖNEK: yalnızca üretici olan kayıtlar (office-kind.js#
+          isPureBrandOffice) /marka/:slug altında yaşar, Autoban / +MURAT TABANLIOĞLU gibi hem
+          mimarlık yapan hem ürün tasarlayan kayıtlar /firma/:slug'da KALIR ve firma.html tarafından
+          servis edilir. Yanlış önekle gelen istekler 301 ile kanonik adrese gider (bkz.
+          src/index.js#serveDetailPage), yani eski /firma/:slug bağlantıları kırılmaz. -->
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <!-- İki işi olan tek bir senkron <head> betiği (performans denetimi, 2026-09-06 madde 3 ve 4).
      BURADA olmasının sebebi ikisinin de HTML ayrıştırmasının EN BAŞINDA olması gerekmesidir:
-     (a) DETAY yolu (/firma/:slug) — pm-boot-loading "boot veil"i (mevcut davranış, değişmedi) +
+     (a) DETAY yolu (/marka/:slug) — pm-boot-loading "boot veil"i (mevcut davranış, değişmedi) +
          popup zincirinin İKİ EN BÜYÜK dosyası için <link rel="preload">. Modüller artık liste
          sayfasında <script> etiketiyle yüklenmiyor (bkz. </body> yakınındaki not); preload,
          baytların eski etiketlerden bile ERKEN yola çıkmasını sağlar, asıl yükleme sırasını
@@ -26,7 +30,7 @@
          listFetch() aşağıda normal fetch'e düşer — yani en kötü ihtimalle kazanç kaybolur,
          ASLA ikinci bir istek doğmaz (promise tüketildiğinde sözlükten silinir). -->
 <script>(function(){try{var p=location.pathname;
-if(/^\/firma\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
+if(/^\/marka\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
 ['js/components/office-modal.js','js/components/modal-shell.js'].forEach(function(s){var l=document.createElement('link');l.rel='preload';l.as='script';l.href=s;document.head.appendChild(l);});return;}
 if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1&limit=24&brands=1';var f=fetch(u);f.catch(function(){});(window.__mlPrefetch=window.__mlPrefetch||{})[u]=f;}
 }catch(e){}})();</script>
@@ -50,12 +54,12 @@ if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1
 <meta name="twitter:description" content="Mimarlık ve tasarım ürünleri üreten markaları keşfet." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
-     sayfalarının <head>'ine ... application/ld+json ekle") — /firma/:slug detay görünümünde
+     sayfalarının <head>'ine ... application/ld+json ekle") — /marka/:slug detay görünümünde
      OfficeModal kendi Organization şemasını AYRI bir <script> olarak ekler, bu ikisiyle çakışmaz. -->
 <script type="application/ld+json" id="list-jsonld">
 {"@context":"https://schema.org","@type":"CollectionPage","name":"Markalar — MİMARLAB","url":"https://mimarlab.com/marka","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
-<!-- Temiz URL'lerle bu sayfa /firma dışında /firma/:slug altında da (firma modalını doğrudan açan
+<!-- Temiz URL'lerle bu sayfa /marka dışında /marka/:slug altında da (marka modalını doğrudan açan
      bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
      içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
      gerekçe). -->
@@ -217,7 +221,7 @@ if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   /* ---------- SSR ENTITY BODY (bkz. src/index.js#injectMeta, src/lib/seo.js#bodyHtml) ---------- */
-  /* /firma/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/firma) boş
+  /* /marka/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/marka) boş
      kalır, :empty kuralı sayfaya gereksiz bir boşluk eklenmesini önler. */
   .ssr-entity:empty{display:none;}
   .ssr-entity{max-width:1260px; margin:0 auto; padding:0 32px 20px; display:flex; gap:20px; align-items:flex-start;}
@@ -619,7 +623,7 @@ let currentPage = 1;
 let searchQuery = '';
 
 // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
-// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /firma/:slug
+// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /marka/:slug
 // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK firma içeriğinin üzerine OfficeModal
 // kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
 //
@@ -924,7 +928,7 @@ async function render(){
     const coverHtml = `<span class="office-card-cover-fallback" style="background-color:${officeColor(o.name)}"></span>`
       + (cover ? `<img class="office-card-cover-img" src="${escapeAttr(cdnImg(cover, 600))}"${coverSrcset ? ` srcset="${escapeAttr(coverSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove();">` : '');
     return `
-    <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
+    <a class="office-card" href="${o.brand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug || slugify(o.name))}">
       <div class="office-card-cover">
         ${coverHtml}
         <div class="office-card-logo${logo ? '' : ' no-logo'}" data-initials="${safeInitialsAttr}"${logo ? '' : ` style="background:${officeColor(o.name)}"`}>${logo ? `<img src="${escapeAttr(cdnImg(logo, 400))}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('no-logo'); this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
@@ -946,7 +950,9 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest('a.office-card');
   if(!a) return;
-  const m = (a.getAttribute('href') || '').match(/^\/firma\/([^/?#]+)/);
+  // İki önek de aynı popup'ı açar; hangisiyle pushState edileceği bağlantının kendi önekidir
+  // (bkz. js/components/office-modal.js#syncCanonicalBasePath — kanonik düzeltme veri gelince).
+  const m = (a.getAttribute('href') || '').match(/^\/(firma|marka)\/([^/?#]+)/);
   if(!m) return;
   e.preventDefault();
   // office-modal.js artık bu sayfada <script> etiketiyle YÜKLENMİYOR (bkz. yukarıdaki performans
@@ -956,7 +962,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   // lazy-modals.js'teki AYNI güvenlik ağı.
   const href = a.href;
   LazyModals.load('office')
-    .then(Modal => { if (Modal) Modal.open(decodeURIComponent(m[1]), { triggerEl: a }); else window.location.href = href; })
+    .then(Modal => { if (Modal) Modal.open(decodeURIComponent(m[2]), { triggerEl: a, basePath: `/${m[1]}/` }); else window.location.href = href; })
     .catch(() => { window.location.href = href; });
 });
 
@@ -991,7 +997,7 @@ window.addEventListener('popstate', ()=>{
   // tanımadığımız bir varlık yolunda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan
   // popup'ı hemen kapatırdı). Aynı gerekçe js/pages/proje.js'te de var.
   if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
-  const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/marka\/([^/]+)\/?$/);
   // Modül henüz yüklenmemişken (kullanıcı hiç kart açmadan geri/ileri bastı) iki durum da
   // güvenlidir: bir /firma/:slug yoluna GİDİLİYORSA modül indirilip popup açılır; modül yüklü
   // değilse AÇIK bir popup da olamayacağından "açık popup'ı kapat" dalı hiç çalıştırılmamalıdır.
@@ -1028,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // script'lerin (OfficeModal dahil) KESİN olarak tanımlanmış olmasını garantiler — render()/network
 // zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
-  const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/marka\/([^/]+)\/?$/);
   if (!m) return;
   // bkz. <head>'deki pm-boot-loading senkron script'i (AYNI gerçek bulgu, proje.html'e bkz.) — çıplak
   // SSR içeriğini bir "boot veil" ile örttü; OfficeModal.open()'ın Promise'i renderItem()/

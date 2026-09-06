@@ -479,10 +479,12 @@ async function runSearch(){
     meta: a.office || 'Kişi',
     badge: verifiedBadgeHtml('architect', a.name, a.badges, 13),
   });
-  // Marka satırları da /firma/:slug'a gider — markaların ayrı bir detay URL'si yok (bkz.
-  // marka.html: detay URL'si /firma/:slug ve popup office-modal.js olarak kalır).
+  // Firma ve marka satırları AYNI biçimi paylaşır, yalnızca URL öneki kayda göre değişir: saf
+  // markalar /marka/:slug (bkz. src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2).
+  // `o.brand` bayrağı /api/offices'ten gelir; taşımayan kaynaklarda (AI kanalı, arama uçları)
+  // eski /firma/:slug üretilir ve sunucu 301 ile kanonik adrese yönlendirir.
   const officeRow = o => rowHtml({
-    href: `/firma/${encodeURIComponent(o.slug)}`,
+    href: `${o.brand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug)}`,
     avatarStyle: `background:${officeColor(o.name)}`,
     avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
     title: o.name,

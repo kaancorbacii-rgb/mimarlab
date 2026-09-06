@@ -257,11 +257,15 @@ const ArchitectModal = (function () {
          çizgi .am-two-col-row::after ile, yatay çizgilerle AYNI 1px var(--line) değerinden. -->
     <div class="related-section am-two-col-row" id="am-office-pair" style="display:none;">
       <div class="am-two-col-cell" id="am-office-section" style="display:none;">
-        <h2 class="related-title">Firmalar</h2>
+        <!-- Başlıklar "Firma / Marka" (kullanıcı isteği, 2026-09-06 madde 3): bu iki ızgara ofis
+             kayıtlarını türüne bakmadan listeler (bkz. office-kind.js — bir offices satırı hem firma
+             hem marka olabilir), bu yüzden salt "Firmalar" demek bir markanın orada görünmesini
+             açıklamıyordu. -->
+        <h2 class="related-title">Firma / Marka</h2>
         <div class="related-grid-scroll" id="am-office-grid"></div>
       </div>
       <div class="am-two-col-cell" id="am-colleagues-section" style="display:none;">
-        <h2 class="related-title">Firma Ortakları</h2>
+        <h2 class="related-title">Firma / Marka Ortakları</h2>
         <div class="related-grid-scroll" id="am-colleagues-grid"></div>
       </div>
     </div>
@@ -330,6 +334,8 @@ const ArchitectModal = (function () {
   let currentSlug = null;
   let currentItem = null;
   let openedViaPush = false;
+  // bkz. js/components/project-modal.js'teki AYNI alan/gerekçe (ModalShell.popupChainRealBase).
+  let chainRealBase = true;
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
 
@@ -1053,8 +1059,10 @@ const ArchitectModal = (function () {
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
+    // bkz. js/components/project-modal.js#open'daki AYNI realBase gerekçesi.
+    chainRealBase = ModalShell.popupChainRealBase ? ModalShell.popupChainRealBase() : true;
     pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/kisi/${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `/kisi/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -1072,7 +1080,8 @@ const ArchitectModal = (function () {
     currentSlug = slug;
     const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/kisi/${encodeURIComponent(slug)}`);
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase(); // mevcut girdiden devralınır
+    history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `/kisi/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
@@ -1080,13 +1089,21 @@ const ArchitectModal = (function () {
     await renderItem(result.payload);
   }
 
+  // Son çare dönüş — bkz. ModalShell.leaveToListPage (eski modal-shell.js kopyalarında bu fonksiyon
+  // olmayabilir, o zaman eski davranışa düşülür).
+  function leaveToList(listPath) {
+    if (ModalShell.leaveToListPage) ModalShell.leaveToListPage(listPath);
+    else history.pushState({}, '', listPath);
+  }
+
   function close() {
     currentSlug = null;
     currentItem = null;
     // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
     // madde 11: proje popup'ından mimar adına tıklayıp kapatınca proje popup'ına dönülmeli).
-    if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/kisi');
+    // chainRealBase — bkz. js/components/project-modal.js#close'daki AYNI gerekçe.
+    if (openedViaPush && pushCountSinceOpen > 0 && chainRealBase) ModalShell.goBackAndWait(pushCountSinceOpen);
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) leaveToList('/kisi');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }
@@ -1098,7 +1115,10 @@ const ArchitectModal = (function () {
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
+    } else {
+      pushCountSinceOpen = 0; // bkz. js/components/project-modal.js#handlePopState'teki AYNI gerekçe
     }
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase();
     // bkz. js/components/project-modal.js#handlePopState — BİREBİR aynı sahip kontrolü gerekçesi.
     const ownsContent = ModalShell.getContentOwner() === 'architect';
     if (ownsContent && slug === currentSlug) return;

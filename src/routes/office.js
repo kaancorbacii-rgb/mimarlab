@@ -10,6 +10,7 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 // bkz. src/routes/product.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
 // sınıflandırma referansı (hangi hizmet alanı firmaya, hangisi markaya ait).
+import { isBrandUrlOffice } from '../lib/officeUrl.js';
 import officeKindJs from '../../office-kind.js';
 
 const { isBrandOffice, isPureBrandOffice, officeCatList, OFFICE_SERVICE_CATS, BRAND_CATS, LEGACY_BRAND_CAT } = officeKindJs;
@@ -331,7 +332,11 @@ export async function handleOfficeListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ projectCount, productCount, ...rest }) => rest);
+    // brand: kartın KANONİK URL öneki (bkz. src/lib/officeUrl.js — saf markalar /marka/:slug).
+    // productCount/projectCount karta çıkmaz (eskiden de çıkmıyordu) ama önek kararı ikisinden
+    // birine bağlı olduğundan burada, düşürülmeden ÖNCE hesaplanır.
+    const items = filtered.slice(start, start + limit)
+      .map(({ projectCount, productCount, ...rest }) => ({ ...rest, brand: isBrandUrlOffice(rest.cats, productCount) ? 1 : 0 }));
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,

@@ -500,6 +500,8 @@ const ProductModal = (function () {
   let currentSlug = null;
   let currentItem = null;
   let openedViaPush = false;
+  // bkz. js/components/project-modal.js'teki AYNI alan/gerekçe (ModalShell.popupChainRealBase).
+  let chainRealBase = true;
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
 
@@ -1343,8 +1345,10 @@ const ProductModal = (function () {
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
+    // bkz. js/components/project-modal.js#open'daki AYNI realBase gerekçesi.
+    chainRealBase = ModalShell.popupChainRealBase ? ModalShell.popupChainRealBase() : true;
     pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen }, '', `/urun/${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `/urun/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -1362,7 +1366,8 @@ const ProductModal = (function () {
     currentSlug = slug;
     const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen }, '', `/urun/${encodeURIComponent(slug)}`);
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase(); // mevcut girdiden devralınır
+    history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `/urun/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
@@ -1370,13 +1375,21 @@ const ProductModal = (function () {
     await renderItem(result.item, slug);
   }
 
+  // Son çare dönüş — bkz. ModalShell.leaveToListPage (eski modal-shell.js kopyalarında bu fonksiyon
+  // olmayabilir, o zaman eski davranışa düşülür).
+  function leaveToList(listPath) {
+    if (ModalShell.leaveToListPage) ModalShell.leaveToListPage(listPath);
+    else history.pushState({}, '', listPath);
+  }
+
   function close() {
     currentSlug = null;
     currentItem = null;
     // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
     // madde 11: Koleksiyonum'dan açılan ürün popup'ı kapatılınca Koleksiyonum'a dönülmeli).
-    if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/urun');
+    // chainRealBase — bkz. js/components/project-modal.js#close'daki AYNI gerekçe.
+    if (openedViaPush && pushCountSinceOpen > 0 && chainRealBase) ModalShell.goBackAndWait(pushCountSinceOpen);
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) leaveToList('/urun');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }
@@ -1388,7 +1401,10 @@ const ProductModal = (function () {
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
+    } else {
+      pushCountSinceOpen = 0; // bkz. js/components/project-modal.js#handlePopState'teki AYNI gerekçe
     }
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase();
     // bkz. js/components/project-modal.js#handlePopState — BİREBİR aynı sahip kontrolü gerekçesi.
     const ownsContent = ModalShell.getContentOwner() === 'product';
     if (ownsContent && slug === currentSlug) return;

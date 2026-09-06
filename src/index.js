@@ -39,6 +39,7 @@ import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 // Hub sayfalarının SSR iç link grafiği (SEO denetimi, 2026-09-05) — bkz. o dosyanın başındaki ölçüm.
 import { isHubPath, hubItemListJsonLd } from './lib/hubLinks.js';
+import { officePath } from './lib/officeUrl.js';
 // office-kind.js — FİRMA/MARKA ayrımının tek kaynağı (bkz. loadHubPool).
 import officeKindJs from '../office-kind.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
@@ -162,7 +163,16 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/kisi/', asset: '/kisi', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
+  // /marka/:slug — AYNI `offices` kaydı, AYNI popup (marka.html firma.html'in türetilmiş kopyasıdır,
+  // bkz. o dosyanın başı), yalnızca KANONİK ÖNEK farklı: saf markalar (office-kind.js#
+  // isPureBrandOffice) /marka/:slug altında yaşar (kullanıcı isteği, 2026-09-06 madde 2). İki önek
+  // arasındaki düzeltme serveDetailPage'te 301 ile yapılır — yani /firma/:slug ile gelen eski/dış
+  // bağlantılar kırılmaz, kanonik adrese yönlendirilir.
+  { prefix: '/marka/', asset: '/marka', type: 'office' },
 ];
+// Bir ofis kaydının İKİ olası önekinden hangisi olduğu buildMeta'nın ürettiği canonicalUrl'den
+// okunur (bkz. src/lib/seo.js#officeMetaFromRecord) — serveDetailPage bu ikisi arasında 301 atar.
+const OFFICE_URL_PREFIXES = ['/firma/', '/marka/'];
 
 // serveDetailPage#type ('project'/'architect'/'office') -> slug_redirects.entity_type (bkz.
 // migrations/0041_slug_redirects.sql) — src/lib/canonicalSync.js/officeFounderCascade.js'teki AYNI
@@ -919,6 +929,21 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
     return notFoundDetailPageResponse(assetResponse, wasHidden ? 410 : 404);
   }
 
+  // FİRMA ↔ MARKA ÖNEK DÜZELTMESİ (kullanıcı isteği, 2026-09-06 madde 2). Kaydın kanonik öneki
+  // buildMeta'nın döndürdüğü canonicalUrl'de (bkz. src/lib/seo.js#officeMetaFromRecord, tek karar
+  // noktası office-kind.js#isPureBrandOffice). İstenen önek ondan farklıysa 301: hem eski /firma/
+  // bağlantıları (indekslenmiş/paylaşılmış) çalışmaya devam eder hem de arama motoru tek bir
+  // kanonik adres görür. Slug segmenti OLDUĞU GİBİ taşınır — slug normalizasyonu/yeniden adlandırma
+  // yönlendirmeleri yukarıdaki dallarda zaten yapıldı.
+  if (cleanRoute.type === 'office' && meta.canonicalUrl) {
+    const canonicalPrefix = OFFICE_URL_PREFIXES.find(p => new URL(meta.canonicalUrl).pathname.startsWith(p));
+    if (canonicalPrefix && !url.pathname.startsWith(canonicalPrefix)) {
+      const dest = new URL(canonicalPrefix + url.pathname.slice(cleanRoute.prefix.length), url.origin);
+      dest.search = url.search;
+      return Response.redirect(dest.href, 301);
+    }
+  }
+
   const rewritten = injectMeta(assetResponse, meta);
   const headers = new Headers(rewritten.headers);
   for (const [k, v] of Object.entries(SSR_PAGE_CACHE_HEADERS)) headers.set(k, v);
@@ -1120,15 +1145,23 @@ function toLastmod(sqliteDatetime) {
 async function listCanonicalEntityUrls(env) {
   if (!env || !env.DB) return [];
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
+  // offices: cats + ürün sayısı da okunur — sitemap KANONİK URL'i vermeli, saf markalar /marka/:slug
+  // altında yaşıyor (bkz. src/lib/officeUrl.js). Alt sorgu src/routes/office.js#fetchOfficePool'daki
+  // eşleşme kuralının (brand_office_id VEYA marka adı) BİREBİR aynısıdır.
   const [archRes, officeRes, projRes, prodRes] = await Promise.all([
     env.DB.prepare(`SELECT slug, updated_at FROM architects WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug, updated_at FROM offices WHERE ${where}`).all(),
+    env.DB.prepare(
+      `SELECT o.slug, o.cats, o.updated_at,
+         (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+            AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count
+       FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL`
+    ).all(),
     env.DB.prepare(`SELECT slug, updated_at FROM projects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug, updated_at FROM products WHERE ${where}`).all(),
   ]);
   return [
     ...archRes.results.map(r => [`/kisi/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
-    ...officeRes.results.map(r => [`/firma/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
+    ...officeRes.results.map(r => [officePath(r.slug, r.cats, r.product_count), toLastmod(r.updated_at)]),
     ...projRes.results.map(r => [`/proje/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
     ...prodRes.results.map(r => [`/urun/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
   ];

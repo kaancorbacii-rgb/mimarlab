@@ -382,7 +382,12 @@ async function withSingleFlight(key, fn) {
 //     fetchArchitectsByRawNames). v5-v15'in AYNI tuzağı: hiçbir satırın updated_at'i değişmediğinden
 //     fingerprint aynı kalır, sürüm artırılmazsa firmayı daha önce açmış ziyaretçiler 304 alıp
 //     ekip üyesinin fotoğrafını HİÇ görmezdi.
-const API_PAYLOAD_VERSION = 'v17';
+// v18 (kullanıcı isteği, 2026-09-06 madde 2): /api/offices liste öğeleri artık `brand` bayrağı
+//     taşıyor — kartın hangi kanonik önekle (/firma/:slug mi /marka/:slug mi) bağlantı vereceğinin
+//     tek kaynağı (bkz. src/lib/officeUrl.js). v5-v17'nin AYNI tuzağı: hiçbir satırın updated_at'i
+//     değişmediğinden fingerprint aynı kalır, sürüm artırılmazsa /marka'yı daha önce açmış
+//     ziyaretçiler 304 alıp kartlarda hâlâ eski /firma/:slug bağlantısını görürdü.
+const API_PAYLOAD_VERSION = 'v18';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

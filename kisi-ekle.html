@@ -963,6 +963,10 @@ function overlayNonEmpty(base, patch){
 
 async function prefillForEdit(){
   if(!editId) return;
+  // isAdmin bu noktada KESİN olmalı — mountArchitectAdminActions admin/sahip yollarından hangisinin
+  // kullanılacağını ona göre seçiyor (bkz. o fonksiyon); beklenmezse yarış sonucu admin'e sahip
+  // yolu gösterilirdi (prefillForClaim zaten aynı promise'i bekliyor).
+  await currentUserReady;
   try{
     const res = await fetch(`/api/architects/${encodeURIComponent(editId)}`);
     if(!res.ok) return;
@@ -1116,19 +1120,20 @@ async function prefillForClaim(){
 
 // Arşivle/Sil — artık mimar popup'ında DEĞİL (bkz. kullanıcı isteği: proje-ekle.html#
 // mountProjectAdminActions ile AYNI desen bu sayfaya da taşınsın), Gönder'in altında gösterilir.
-// GERÇEK BULGU: architects/offices'in products/materials'takine (moderateOwnSubmission) ya da
-// projects'tekine (handleSelfProjectModerate/handleSelfProjectDelete) benzer bir OWNER-moderate ucu
-// yok — src/routes/legacyContent.js#CONTENT_ACTION_TYPES yalnızca admin'in POST /api/admin/legacy/
-// content-action ucundan erişilir (bkz. js/components/architect-modal.js#createClaimCorrectionBox
-// çağrısının ownerCanModerate hiç vermemesi — Sil eskiden de popup'ta yalnızca admin'e görünüyordu).
-// Bu yüzden bu buton sahibe DEĞİL yalnızca admine gösterilir; sahip kendi profilini Arşivle/Sil
-// istiyorsa admine yazması gerekir. targetKey her zaman `key` (claimed_profile_key/name) ile gider —
-// editId (bir architect_submissions taslak id'si) olsa bile id yolu yerine key yolu kullanılır,
-// çünkü key hem taslaklı hem taslaksız (statik) kayıtları kapsar.
+// İKİ YOL (kullanıcı isteği, 2026-09-06 madde 4: "Kullanıcıların kendi yükledikleri gönderilerde de
+// ... Değişikliği Kaydet butonunun altında Arşivle ve Sil butonları olsun"):
+//   * ADMIN → POST /api/admin/legacy/content-action, targetKey her zaman `key`
+//     (claimed_profile_key/name) ile gider; key hem taslaklı hem taslaksız (statik) kayıtları kapsar.
+//   * SAHİP → POST /api/architects/:id/moderate (bkz. src/routes/submissions.js#moderateOwnSubmission
+//     — bu uç 2026-09-06'da architects/offices'e de açıldı; eskiden yalnızca products/materials'ta
+//     vardı ve bu yüzden burada `if(!isAdmin) return;` duruyordu). Sahip yolu YALNIZCA kendi gönderi
+//     satırını (editId) hedefler; canonical anahtar İSTEMCİDEN GİTMEZ, sunucu onu gönderi satırından
+//     türetir (bkz. o fonksiyondaki güvenlik notu).
 function mountArchitectAdminActions(){
-  if(!isAdmin) return;
   const key = claimName || originalName;
-  if(!key) return;
+  const canAdmin = isAdmin && !!key;
+  const canOwner = !isAdmin && !!editId;
+  if(!canAdmin && !canOwner) return;
   const row = document.getElementById('m-danger-row');
   const archiveBtn = document.getElementById('m-archive-btn');
   const deleteBtn = document.getElementById('m-delete-btn');
@@ -1136,15 +1141,22 @@ function mountArchitectAdminActions(){
   async function run(action){
     const confirmText = action === 'delete'
       ? 'Bu kişi profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
-      : 'Bu kişi profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+      : (canAdmin
+        ? 'Bu kişi profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.'
+        : 'Bu kişi profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılır, Düzenle üzerinden tekrar yayınlayabilirsin.');
     if(!confirm(confirmText)) return;
     archiveBtn.disabled = true;
     deleteBtn.disabled = true;
     try{
-      const res = await fetch('/api/admin/legacy/content-action', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'architects', action, key }),
-      });
+      const res = canAdmin
+        ? await fetch('/api/admin/legacy/content-action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'architects', action, key }),
+        })
+        : await fetch(`/api/architects/${encodeURIComponent(editId)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
       if(!res.ok) throw new Error('request failed');
       window.location.href = '/kisi';
     }catch{

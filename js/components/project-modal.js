@@ -147,6 +147,10 @@ const ProjectModal = (function () {
     return top100LookupPromise;
   }
   let openedViaPush = false; // bu açılış gerçek bir tıklamadan mı geldi (history.back güvenli mi)
+  // Bu popup zincirinin TABANI gerçek bir sayfa mı (bkz. ModalShell.popupChainRealBase — kullanıcı
+  // isteği, 2026-09-06 madde 1). false ise kapanışta history.go(-N) KULLANILMAZ, çünkü N adım geri
+  // gitmek kullanıcıyı bir önceki POPUP'ta bırakır.
+  let chainRealBase = true;
   let pushCountSinceOpen = 0; // open() + o zamandan beri yapılan swap() sayısı — kapatırken TÜMÜNÜ
   // tek seferde geri sarmak için (bkz. close(), history.go(-N)) — modal içinde birden fazla projeye
   // bakıldıktan sonra X/Escape'e basmak, yalnızca son swap'ı değil doğrudan asıl listeye dönmeli.
@@ -877,8 +881,12 @@ const ProjectModal = (function () {
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
+    // realBase: zincirin tabanı gerçek bir sayfa mı (bkz. ModalShell.popupChainRealBase) — pushState'ten
+    // ÖNCE, yani URL hâlâ tabanı gösterirken okunmalı. modal-shell.js ayrı cache'lenen bir asset
+    // olduğundan eski bir kopyada bu fonksiyon olmayabilir; o zaman eski davranış (true) sürer.
+    chainRealBase = ModalShell.popupChainRealBase ? ModalShell.popupChainRealBase() : true;
     pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     // ModalShell.open() ÖNCE çağrılır (overlay/panel DOM'unu ilk kez o oluşturur) — ensureTemplate()
     // panellere innerHTML basmaya çalıştığında panel elemanları henüz yoksa (bkz. gerçek bulgu) null
     // referans hatası verirdi.
@@ -927,7 +935,10 @@ const ProjectModal = (function () {
     // mekanizması) her zaman doğru "buradan modal-öncesi duruma kaç adım var" bilgisini verir.
     const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
+    // realBase mevcut girdiden DEVRALINIR (bkz. ModalShell.popupChainRealBase) — swap zinciri
+    // uzatır, tabanı değiştirmez.
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase();
+    history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen, realBase: chainRealBase }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     // bkz. open()'daki AYNI gerçek bulgu yorumu — swap() URL/pushState'i HEMEN güncelliyordu ama
     // panel bir önceki projenin içeriğini fetchItem() bitene kadar göstermeye devam ediyordu (URL
     // yeni projeyi gösterirken başlık/galeri/açıklama hâlâ eskisi — kullanıcının fark ettiği "bozuk"
@@ -951,6 +962,13 @@ const ProjectModal = (function () {
   // X/backdrop/Escape tetiklediğinde çağrılır (bkz. modal-shell.js#onRequestClose) — geçerli bir
   // aynı-sekme geçmiş girdisi varsa history.back() ile oraya (liste durumu korunarak) dönülür;
   // yoksa (doğrudan /proje/:slug ile açılmış bir sekme) /proje listesine pushState edilir.
+  // Son çare dönüş — bkz. ModalShell.leaveToListPage (eski modal-shell.js kopyalarında bu fonksiyon
+  // olmayabilir, o zaman eski davranışa düşülür).
+  function leaveToList(listPath) {
+    if (ModalShell.leaveToListPage) ModalShell.leaveToListPage(listPath);
+    else history.pushState({}, '', listPath);
+  }
+
   function close() {
     const listPath = currentBasePath.replace(/\/$/, '') || '/proje';
     currentSlug = null;
@@ -964,8 +982,11 @@ const ProjectModal = (function () {
     // Hydration ile açılmışsa (deep link/F5 ya da BAŞKA bir sayfadan tam sayfa gelinerek) önce
     // "geldiğim sayfaya dön" denenir — bkz. ModalShell.returnToPreviousPage (kullanıcı isteği,
     // 2026-09-01 madde 11); yalnızca site dışından/doğrudan gelinmişse listeye düşülür.
-    if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', listPath);
+    // chainRealBase (bkz. ModalShell.popupChainRealBase): zincir bu belgede bir POPUP URL'inin
+    // üstünde başladıysa geri sarmak kullanıcıyı o önceki popup'a bırakırdı — o durumda da
+    // returnToPreviousPage'e düşülür (kullanıcı isteği, 2026-09-06 madde 1).
+    if (openedViaPush && pushCountSinceOpen > 0 && chainRealBase) ModalShell.goBackAndWait(pushCountSinceOpen);
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) leaveToList(listPath);
     ModalShell.close();
     pushCountSinceOpen = 0;
   }
@@ -989,7 +1010,13 @@ const ProjectModal = (function () {
     // history.go(-N) doğru mesafeyi kullanır (geri navigasyon sırasında biriken sayaç sapmasını önler).
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
+    } else {
+      // Bu girdinin hiç popup state'i yok — yani zincirin BU BELGEDEKİ tabanına (doğrudan
+      // /proje/:slug ile yüklenmiş belgenin kendi girdisine) geri gelindi. Sayaç sıfırlanmazsa
+      // kapanıştaki geri sarma bir fazla adım atıp bir önceki belgenin popup'ına düşerdi.
+      pushCountSinceOpen = 0;
     }
+    if (ModalShell.popupChainRealBase) chainRealBase = ModalShell.popupChainRealBase();
     // SAHİP KONTROLÜ (kullanıcı isteği, 2026-09-06: aynı belgede popup türleri arası geçiş) —
     // geri/ileri tuşu bizi bir proje URL'ine getirdiğinde ekrandaki popup BAŞKA bir modalın
     // (kişi/firma/ürün) olabilir; o durumda paneller onun DOM'unu taşır ve renderItem'ın aradığı

@@ -799,9 +799,13 @@ const ModalShell = (function () {
   // şu konuma in" mesajını taşıyan tek seferlik anahtar (bkz. aşağıdaki restorePendingScroll).
   const RESTORE_SCROLL_KEY = 'mimarlab:restoreScroll';
   const EDIT_PAGE_RE = /^\/(proje|urun|kisi|firma|marka|mimar|haber)-ekle(\.html)?$/;
-  // Varlık popup'ı URL'leri — src/index.js#CLEAN_URL_ASSETS ile AYNI dört önek (+ /mimar, artık
+  // Varlık popup'ı URL'leri — src/index.js#CLEAN_URL_ASSETS ile AYNI BEŞ önek (+ /mimar, artık
   // yalnızca /kisi'ye 301'lenen eski aile). Bir slug segmenti ŞART: /proje listedir, /proje/x popup.
-  const ENTITY_POPUP_RE = /^\/(proje|kisi|firma|urun|mimar)\/[^/]+/;
+  // /marka/:slug (kullanıcı isteği, 2026-09-06 madde 2 — saf markaların kanonik URL'i artık /firma
+  // değil /marka) BURADA OLMAK ZORUNDA: eksik olduğu sürece markRealPage bir marka POPUP'ını
+  // "son gerçek sayfa" sanıp kaydediyor, dolayısıyla sonraki popup kapatıldığında kullanıcı bir
+  // önceki POPUP'a dönüyordu (madde 1'in kök nedenlerinden biri).
+  const ENTITY_POPUP_RE = /^\/(proje|kisi|firma|marka|urun|mimar)\/[^/]+/;
   function sameOriginUrl(href) {
     try { const u = new URL(href, location.href); return u.origin === location.origin ? u : null; } catch { return null; }
   }
@@ -920,6 +924,52 @@ const ModalShell = (function () {
     return (st && st.mimarlabModal && typeof st.depth === 'number') ? st.depth : 0;
   }
 
+  // ---------------------------------------------------------------------------------------------
+  // ZİNCİRİN TABANI GERÇEK BİR SAYFA MI? (kullanıcı isteği, 2026-09-06 madde 1: "bir popup'ı
+  // kapattığımda HİÇBİR ZAMAN bir önceki popup'a gitmesin; ilk popup'ı hangi sayfadan açtıysam
+  // oraya döneyim.")
+  //
+  // GERÇEK BULGU: popupHistoryDepth (yukarısı) history.state'ten okunur ve history.state YENİ BİR
+  // BELGEDE null'dır. Zincir belge değiştirdiğinde — ki bu sık olur: proje.html architect-modal.js/
+  // office-modal.js YÜKLEMEZ, o yüzden proje popup'ındaki bir kişi adına tıklamak GERÇEK bir tam
+  // sayfa gezinmesidir — sayaç sıfırlanır. Yeni belgede (ör. /kisi/y) açılan İKİNCİ bir popup
+  // (ör. /firma/z) kendini depth=1 sanır ve kapanışta goBackAndWait(1) yapar: bu, bir önceki
+  // BELGEYE, yani /kisi/y POPUP'ına geri gitmektir — kullanıcının şikâyet ettiği davranışın
+  // tam olarak kendisi.
+  //
+  // Derinlik sayısı belgeler arasında güvenilir biçimde bilinemez (kaç geçmiş girdisi olduğunu
+  // ölçemeyiz), ama ŞU bilinebilir: "bu belgede zincir BAŞLARKEN URL gerçek bir sayfa mıydı?".
+  // Yanıt EVET ise history.go(-depth) kesin olarak o gerçek sayfaya iner (tüm girdiler bu belgenin
+  // kendi pushState'leridir). HAYIR ise (belge zaten bir popup/düzenleme URL'inde açılmış) geri
+  // sarmak kullanıcıyı bir popup'ta bırakır — o durumda kapanış returnToPreviousPage'e devredilir,
+  // yani referrer/"son gerçek sayfa" kaydı üzerinden doğrudan sayfaya dönülür.
+  //
+  // Değer pushState state'inde taşınır (`realBase`), böylece zincir uzadıkça (swap/başka tür popup)
+  // devralınır; state'i olmayan ya da eski bir sürümden kalan girdilerde varsayılan `true`'dur —
+  // yani bu bayrak yokken davranış eskisiyle bit-bit aynı kalır.
+  function popupChainRealBase() {
+    const st = history.state;
+    if (st && st.mimarlabModal) return st.realBase !== false;
+    return !isEntityPopupUrl(location.href) && !isEditPageUrl(location.href);
+  }
+
+  // SON ÇARE DÖNÜŞ — returnToPreviousPage() de "hiç kayıt yok" dediğinde (dış bir deep link'le
+  // gelinmiş yepyeni bir sekme: ne aynı-origin referrer var ne de kaydedilmiş bir gerçek sayfa).
+  // Modaller burada eskiden KOŞULSUZ `history.pushState({}, '', listPath)` yapıyordu; bu, YALNIZCA
+  // belge zaten o listenin kabuğuysa doğrudur (ör. /kisi/:slug kisi.html'dir, popup kapanınca
+  // altında gerçekten kişi listesi durur). Zincir tür değiştirdiyse — /proje/:slug ile açılmış bir
+  // belgede kişi popup'ı açılıp kapatılması gibi — altta proje listesi dururken URL'i /kisi yapmak
+  // adres ile içeriğin ÇELİŞMESİNE yol açardı. O durumda gerçekten o sayfaya gidilir.
+  const DOC_INITIAL_PATH = location.pathname;
+  function leaveToListPage(listPath) {
+    const base = (listPath || '/').replace(/\/+$/, '') || '/';
+    if (DOC_INITIAL_PATH === base || DOC_INITIAL_PATH.indexOf(`${base}/`) === 0) {
+      history.pushState({}, '', base);
+      return;
+    }
+    location.replace(base);
+  }
+
   // extraDepth: popup açıldıktan SONRA aynı belgede yapılan swap()'ların sayısı.
   function returnToPreviousPage(extraDepth) {
     const ref = document.referrer ? sameOriginUrl(document.referrer) : null;
@@ -1018,7 +1068,7 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();
 
 // KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-06 madde 2: "5. sayfadan proje popup'ı açıp

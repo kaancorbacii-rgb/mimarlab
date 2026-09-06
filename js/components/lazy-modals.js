@@ -133,8 +133,11 @@
       deferredDeps: ['js/components/consultation-modal.js'],
     },
     office: {
+      // İKİ ÖNEK: /firma/:slug ve /marka/:slug — ikisi de AYNI `offices` kaydını ve AYNI popup'ı
+      // açar, ayrım yalnızca kanonik URL'dedir (kullanıcı isteği, 2026-09-06 madde 2; bkz.
+      // office-kind.js#isPureBrandOffice ve js/components/office-modal.js#syncCanonicalBasePath).
       src: 'js/components/office-modal.js', globalName: 'OfficeModal',
-      owner: 'office', pathRe: /^\/firma\/([^/?#]+)/, parallelDeps: true,
+      owner: 'office', pathRe: /^\/(?:firma|marka)\/([^/?#]+)/, parallelDeps: true,
       // firma.html/marka.html'in office-modal.js'ten önce yüklediği aynı üçlü (ConsultationModal
       // firma popup'ında kullanılmıyor) + logoyu büyüten image-lightbox (bkz. architect'teki AYNI
       // markup-üzerinden-bağımlılık notu).
@@ -354,10 +357,16 @@
       e.preventDefault();
       const slug = decodeURIComponent(m[1]);
       const href = a.href;
+      // basePath: tıklanan bağlantının kendi öneki. Aynı türün birden fazla öneki olabiliyor
+      // (/firma/ ve /marka/, bkz. ENTITY_MODULES.office) — popup açılırken hangi önekle
+      // pushState edileceği buradan gelir; kanonik düzeltme veri gelince modalın kendisinde
+      // yapılır (bkz. office-modal.js#syncCanonicalBasePath). Bu anahtarı tanımayan modaller
+      // (kişi/ürün) fazladan seçeneği yok sayar.
+      const basePath = `/${path.split('/')[1]}/`;
       // Yükleme başarısız olursa (offline/timeout, bkz. loadModule#onerror) kullanıcıyı elleri boş
       // bırakmamak için normal tam sayfa gezinmesine düşülür — auth/info dalındaki AYNI güvenlik ağı.
       loadModule(key)
-        .then((Modal) => { if (Modal && Modal.open) Modal.open(slug, { triggerEl: a }); else window.location.href = href; })
+        .then((Modal) => { if (Modal && Modal.open) Modal.open(slug, { triggerEl: a, basePath }); else window.location.href = href; })
         .catch(() => { window.location.href = href; });
       return;
     }
