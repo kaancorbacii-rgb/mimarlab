@@ -101,7 +101,14 @@
       // ReferenceError verirdi. Dördü de yüklenerek popup, /kisi listesinden açılanla BİREBİR aynı
       // olur (kullanıcı isteği: mevcut UI/UX değişmesin).
       deps: ['js/components/claim-correction-box.js', 'js/components/message-button.js',
-        'js/components/social-links.js', 'js/components/consultation-modal.js'],
+        'js/components/social-links.js'],
+      // consultation-modal.js (39 KB — bu grubun EN BÜYÜĞÜ; canlıda ölçüldü: tek başına 663 ms,
+      // diğer üç bağımlılığın tamamı ~135 ms) popup'ın RENDER'ı için gerekli DEĞİL: architect-modal.js
+      // ona yalnızca "Danışmanlık Al" düğmesinin TIKLAMA dinleyicisi içinde dokunuyor ve o düğme de
+      // tek bir profilde (kaan-corbaci) render ediliyor. Bekleyip popup'ı geciktirmek yerine arka
+      // planda indirilir — düğme her hâlükârda çizilir, kullanıcı tıklayana kadar modül çoktan
+      // gelmiş olur.
+      deferredDeps: ['js/components/consultation-modal.js'],
     },
     office: {
       src: 'js/components/office-modal.js', globalName: 'OfficeModal',
@@ -185,6 +192,21 @@
       dep.onerror = () => { dep.remove(); res(); };
       document.head.appendChild(dep);
     });
+    // Modülün KENDİ baytlarını bağımlılıklarla AYNI ANDA çekmeye başla. <script> etiketi yine
+    // bağımlılıklar bittikten SONRA eklenir (çalışma sırası garantisi bozulmasın) ama o an dosya
+    // zaten tarayıcı önbelleğinde olduğundan ikinci bir gidiş-dönüş oluşmaz. Canlıda ölçüldü: bu
+    // olmadan architect-modal.js indirmesi bağımlılıklardan SONRA başlıyor ve soğuk önbellekte
+    // ~280 ms'lik ek bir seri adım ekliyordu.
+    if (!document.querySelector(`link[rel="preload"][href="${mod.src}"]`)) {
+      const pre = document.createElement('link');
+      pre.rel = 'preload';
+      pre.as = 'script';
+      pre.href = mod.src;
+      document.head.appendChild(pre);
+    }
+    // deferredDeps: modülün RENDER'ı için gerekmeyen, yalnızca bir kullanıcı etkileşiminde devreye
+    // giren bağımlılıklar — indirilir ama BEKLENMEZ (bkz. ENTITY_MODULES.architect'teki gerekçe).
+    (mod.deferredDeps || []).forEach(src => { loadDep(src); });
     // parallelDeps: bağımlılıklar BİRBİRİNDEN bağımsızsa hepsi AYNI ANDA indirilir. Varlık
     // modallerinin bağımlılıkları (claim-correction-box/message-button/social-links/
     // consultation-modal/gallery/rating-widget) birbirine hiç dokunmayan ayrı IIFE'ler; sıralı
