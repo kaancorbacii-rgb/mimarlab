@@ -285,11 +285,10 @@ const PATH_RENAME_REDIRECTS = {
   '/gizlilik-politikasi.html': '/gizlilik-politikasi',
   '/hizmet-sartlari.html': '/hizmet-sartlari',
   '/cerez-politikasi.html': '/cerez-politikasi',
-  // "Neden MİMARLAB?" (bkz. neden-mimarlab.html) — INFO_MODAL_META'daki popup sayfalarının aksine
-  // GERÇEK, kendi <head>'ini/gövdesini taşıyan bağımsız bir statik sayfa (uzun kaydırmalı editoryal
-  // içerik bir modal kabuğuna sığmaz, ayrıca sunum olarak paylaşılabilir olması isteniyor). Bu
-  // yüzden ek bir meta enjeksiyonu GEREKMEZ — Cloudflare Assets '/neden-mimarlab' isteğini doğrudan
-  // dosyaya eşler; burada yalnızca ".html"li eski/elle yazılmış biçim kanonik yola 301'lenir.
+  // "Neden MİMARLAB?" — 2026-09-06 madde 7'den itibaren diğer info sayfaları gibi bir POPUP (bkz.
+  // INFO_MODAL_META'daki girdi ve js/components/info-modal.js#nedenMimarlabTemplate). Bağımsız
+  // statik dosya (neden-mimarlab.html) yalnızca sunum modu (?sunum=1) için duruyor. Buradaki satır
+  // eskisi gibi ".html"li biçimi kanonik yola 301'ler.
   '/neden-mimarlab.html': '/neden-mimarlab',
 };
 
@@ -352,6 +351,13 @@ const INFO_MODAL_META = {
   '/gizlilik-politikasi': { title: 'Gizlilik Politikası — MİMARLAB', description: 'MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.', h1: 'Gizlilik Politikası', noindex: false },
   '/hizmet-sartlari': { title: 'Hizmet Şartları — MİMARLAB', description: 'MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.', h1: 'Hizmet Şartları', noindex: false },
   '/cerez-politikasi': { title: 'Çerez Politikası — MİMARLAB', description: 'MİMARLAB çerez politikası — çerez nedir, hangi çerezleri (oturum, tercih, Google Analytics) kullandığımız, üçüncü taraf çerezleri ve çerezleri nasıl devre dışı bırakabileceğiniz.', h1: 'Çerez Politikası', noindex: false },
+  // "Neden MİMARLAB?" (kullanıcı isteği, 2026-09-06 madde 7: "popup şeklinde açılsın") — 2026-09-01'de
+  // BİLEREK bağımsız bir statik sayfa olarak bırakılmıştı; artık diğer info görünümleriyle AYNI yolu
+  // izler: ana sayfa gövdesi + bu meta, popup'ı js/components/info-modal.js açar. Sayfanın kendisi
+  // (neden-mimarlab.html) SİLİNMEDİ — sunum modu (?sunum=1, ok tuşlarıyla tam ekran bölüm gezinmesi)
+  // hâlâ o dosyadan servis edilir, bkz. routeAsset'teki sunum kontrolü. Bu yol indexlenebilir ve
+  // sitemap'te (bkz. SITEMAP_STATIC_PAGES) yer aldığından noindex DEĞİL.
+  '/neden-mimarlab': { title: 'Neden MİMARLAB? — MİMARLAB', description: 'MİMARLAB neden var, ne yapıyor: proje, kişi, firma, ürün ve markaların birbirine bağlandığı tek ağ — canlı platform verileri, görselden ürüne işaretleme ve firma künyeleriyle.', h1: 'Neden MİMARLAB?', noindex: false },
   // Kariyer artık yayında değil (bkz. kullanıcı isteği, DISABLED_PAGE_PATHS) — /kariyer isteği
   // routeAsset()'in en başındaki isDisabledPagePath() kontrolünde 404'e düştüğünden buraya hiç
   // ulaşmaz.
@@ -468,10 +474,11 @@ const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=
 // istemci tarafı fetch'lerle (kendi kısa TTL'li önbellekleriyle) yansıdığından kabuğun birkaç dakika
 // bayat kalması sorun yaratmaz.
 const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
-// '/neden-mimarlab' de AYNI gerekçeyle burada: tamamen statik bir HTML kabuğu (canlı sayaçlar
-// istemci tarafında /api/public/platform'dan çekilir, sayfada D1'e bağlı hiçbir SSR enjeksiyonu
-// yok), ama Assets'in markasız `max-age=0, must-revalidate` varsayılanıyla servis ediliyordu.
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/neden-mimarlab']);
+// '/neden-mimarlab' 2026-09-06'da BU LİSTEDEN ÇIKARILDI (kullanıcı isteği madde 7): o yol artık
+// serveInfoModalPage üzerinden ana sayfa gövdesi + kendi meta'sıyla servis ediliyor (bkz.
+// INFO_MODAL_META) ve buraya hiç ulaşmıyor; sunum modundaki (?sunum=1) statik dosya ise sorgu
+// dizesi taşıdığından zaten bu tam-yol eşleşmesine girmiyordu.
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -639,7 +646,11 @@ async function routeAsset(request, env, url, ctx) {
   // denetimi notu) — serveInfoModalPage zaten "ana sayfayı servis et + kendi meta'sını enjekte et"
   // işini yapıyor; auth yolları için ayrıca bir '/index' 307 tuzağı da yok, çünkü o fonksiyon da
   // assetUrl.pathname'i doğrudan '/' yapar.
-  const infoMeta = AUTH_MODAL_META[url.pathname] || INFO_MODAL_META[url.pathname];
+  // ?sunum=1 — "Neden MİMARLAB?"in tam ekran sunum modu (ok tuşlarıyla bölüm gezinmesi, nav/footer
+  // gizli). O mod bir popup kabuğuna sığmaz ve bilinçli olarak KORUNUYOR: sorgu taşıyan istekler
+  // aşağıdaki env.ASSETS.fetch'e düşer ve gerçek neden-mimarlab.html dosyası servis edilir.
+  const isSunumMode = url.pathname === '/neden-mimarlab' && url.searchParams.has('sunum');
+  const infoMeta = isSunumMode ? null : (AUTH_MODAL_META[url.pathname] || INFO_MODAL_META[url.pathname]);
   if (infoMeta) return serveInfoModalPage(request, env, url, infoMeta);
 
   const response = await env.ASSETS.fetch(request);

@@ -268,26 +268,12 @@ const ModalShell = (function () {
         padding:64px 32px 32px; border-right:1px solid var(--line-soft);
       }
       .modal-shell-right{padding:32px 32px 48px; min-width:0;}
-      /* Dar masaüstünde buton satırı İKİNCİ SÜTUNA taşmasın, ALT SATIRA insin (kullanıcı isteği,
-         2026-09-06). Yalnızca mimar/firma/marka popup'larında: bunlar metinli "Takip Et" +
-         "Danışmanlık Al" butonlarını taşıdığından tek satıra sığmayan tek modaller. Sınır sol
-         sütunun kendisi — .modal-shell-body grid'i 32%/68% (bkz. yukarısı) ve header left:32px'ten
-         başladığından kullanılabilir genişlik 32% - 32px'tir; max-width bunu 8px pay bırakarak
-         kilitler, flex-wrap ise sığmayanı ikinci satıra indirir. ≤860px'te bu kural @media içinde
-         nowrap'e geri alınır (tablet/mobilde ASLA 2 satır olmaz — kullanıcı isteği). */
-      .modal-shell-overlay[data-owner="architect"] .modal-shell-header,
-      .modal-shell-overlay[data-owner="office"] .modal-shell-header{
-        flex-wrap:wrap; max-width:calc(32% - 40px); row-gap:6px;
-      }
-      .modal-shell-overlay[data-owner="architect"] .modal-shell-header-actions,
-      .modal-shell-overlay[data-owner="office"] .modal-shell-header-actions{flex-wrap:wrap; row-gap:6px;}
-      /* İki satıra çıkan başlık, sol sütunun ilk içeriğinin (fotoğraf/logo) üstüne binmesin diye
-         o bandda sol sütunun üst boşluğu bir satır kadar (36px + 6px row-gap) büyütülür. Üst sınır
-         1180px: bu genişliğin üzerinde dört buton zaten tek satıra sığıyor (yerel ölçümle). */
-      @media (min-width:861px) and (max-width:1180px){
-        .modal-shell-overlay[data-owner="architect"] .modal-shell-left,
-        .modal-shell-overlay[data-owner="office"] .modal-shell-left{padding-top:106px;}
-      }
+      /* KALDIRILDI (kullanıcı isteği, 2026-09-06 madde 1): mimar/firma popup'larında buton satırı
+         dar masaüstünde İKİNCİ SATIRA iniyordu (flex-wrap:wrap + sol sütun genişliğine kilitlenmiş
+         bir max-width, ayrıca 861-1180px arasında sol sütuna eklenen 106px'lik telafi padding'i).
+         Artık satır HER genişlikte tek satır kalır — temel .modal-shell-header kuralı zaten
+         flex-wrap:nowrap taşıyor, bu yüzden burada bir geçersiz kılmaya gerek yok; buton satırı
+         gerekirse sol sütunun sınırını aşıp sağa doğru uzar (nowrap'in doğal davranışı). */
       @media (max-width:860px){
         /* Panel kenarlarda hala %92-95 genişlik/yükseklik bırakır (bkz. kullanıcı isteği: mobil/
            tablette de blurlu overlay alanı görünsün, panel ekranın kenarlarına yapışmasın) — eski
@@ -302,7 +288,7 @@ const ModalShell = (function () {
            sağda, onun hemen solunda içerik aksiyonları) — row-reverse sadece bu satırın iki DOM
            çocuğunu (X, actions-slot) yer değiştirir, actions-slot'un KENDİ içindeki sıra (ayrı bir
            flex context, row) bozulmaz. Masaüstünde sıra DEĞİŞMEZ (X → Kaydet → Paylaş, solda). */
-        .modal-shell-header{left:auto; right:16px; gap:6px; flex-direction:row-reverse;}
+        .modal-shell-header{left:auto; right:16px; gap:6px; flex-direction:row-reverse; max-width:calc(100% - 32px);}
         .modal-shell-header-actions{gap:6px;}
         /* Proje/ürün popup'ları — mobilde X'in hemen SOLUNDA Kaydet, sonra Paylaş, EN SOLDA Puanla
            (kullanıcı isteği, 2026-08-31 madde 5). DOM sırası her iki modalde de Kaydet → Paylaş →
@@ -318,15 +304,6 @@ const ModalShell = (function () {
         .modal-shell-overlay[data-owner="product"] .modal-shell-header-actions,
         .modal-shell-overlay[data-owner="architect"] .modal-shell-header-actions,
         .modal-shell-overlay[data-owner="office"] .modal-shell-header-actions{flex-direction:row-reverse;}
-        /* Tablet/mobilde buton satırı ASLA 2 satıra çıkmaz (kullanıcı isteği, 2026-09-06) — masaüstü
-           sarma kuralı (bkz. yukarısı, .modal-shell-overlay[data-owner=...] .modal-shell-header)
-           burada geri alınır. SEÇİCİ AYNI ÖZGÜLLÜKTE olmak ZORUNDA: @media özgüllük EKLEMEZ, çıplak
-           .modal-shell-header{flex-wrap:nowrap} yazmak (0,1,0) kalıp (0,3,0)'lık masaüstü kuralına
-           YENİLİRDİ — yerel ölçümle doğrulanan gerçek bulgu: tablette satır yine sarılıyordu. */
-        .modal-shell-overlay[data-owner="architect"] .modal-shell-header,
-        .modal-shell-overlay[data-owner="office"] .modal-shell-header{flex-wrap:nowrap; max-width:calc(100% - 32px);}
-        .modal-shell-overlay[data-owner="architect"] .modal-shell-header-actions,
-        .modal-shell-overlay[data-owner="office"] .modal-shell-header-actions{flex-wrap:nowrap;}
         .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
         /* Admin/sahip aksiyonları — X'in KARŞI kenarı mobilde de değişmez: X sağda olduğundan burası
            SOLA taşınır (bkz. kullanıcı isteği). flex-direction row (reverse DEĞİL): ilk DOM çocuğu

@@ -264,18 +264,18 @@
      sayfasındaki çoktan seçmeli yap". Blok kisi.html/firma.html'deki AYNI blokla birebir aynı (sınıf
      adları dahil) — orada da her sayfa kendi kopyasını taşır, bkz. kisi.html'deki
      sayfa-başına-kopyalama yorumu. */
-  #filter-groups{display:flex; flex-direction:column; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden;}
+  #filter-groups{display:flex; flex-direction:column;}
   #filter-groups:empty{display:none;}
   .filter-group{border-bottom:1px solid var(--line-soft);}
   .filter-group:last-child{border-bottom:none;}
   .filter-group-head{
     width:100%; display:flex; align-items:center; justify-content:space-between;
-    padding:11px 12px; background:none; border:none; text-align:left;
-    font-size:13.5px; font-weight:600; color:var(--ink);
+    padding:13px 16px; background:none; border:none; text-align:left;
+    font-size:14px; font-weight:600; color:var(--ink);
   }
   .filter-group-head:hover{background:var(--paper-alt);}
   .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
-  .filter-group-body{display:none; padding:0 12px 12px; max-height:240px; overflow-y:auto;}
+  .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
   .filter-group.open .filter-group-body{display:block;}
   .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
   .filter-opt{
@@ -300,9 +300,14 @@
     display:grid; grid-template-columns:240px 1fr;
     gap:28px; align-items:start;
   }
+  /* Filtreler kutusu — proje.html/urun.html'deki .grid-sidebar ile BİREBİR AYNI (kullanıcı
+     isteği, 2026-09-06 madde 9: "tüm sayfalardaki filtreler kutuları tek bir tasarıma sahip
+     olmalı ve o tasarım proje ile ürün sayfasındaki tasarım olmalı"). Kutunun KENDİ padding'i
+     ve gap'i KALDIRILDI: başlık/arama/gruplar/Ekle butonu artık kenardan kenara oturur, aralarındaki
+     ayrım kendi border/padding'lerinden gelir — orada olduğu gibi. */
   .grid-sidebar{
     background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
-    padding:18px; display:flex; flex-direction:column; gap:12px;
+    display:flex; flex-direction:column;
     position:sticky; top:90px;
     /* Akordeon filtre grupları (bkz. #filter-groups) sidebar'ı viewport'tan uzun hâle getirebiliyor
        — kisi.html/firma.html'in .grid-sidebar'ındaki AYNI çözüm: kutu kendi içinde kayar, "Marka
@@ -310,12 +315,11 @@
     max-height:calc(100vh - 110px); overflow-y:auto; overflow-x:hidden;
     -webkit-overflow-scrolling:touch;
   }
-  .sidebar-filters-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15px; font-weight:700;}
-  /* Filtreler başlığı + sıfırlama X butonu — proje.html/urun.html ile BİREBİR AYNI görsel
-     dil (kullanıcı isteği, 2026-09-06). Oradaki .sidebar-head padding/border taşır çünkü o
-     sayfalarda .grid-sidebar'ın kendi padding'i YOK; burada aside zaten padding:18px+gap:12px
-     uyguladığından yalnızca hizalama kuralları alınır, aksi halde boşluk ikiye katlanırdı. */
-  .sidebar-head{display:flex; align-items:center; justify-content:space-between;}
+  /* Filtreler başlığı + sıfırlama X butonu — proje.html/urun.html ile BİREBİR AYNI (kullanıcı
+     isteği, 2026-09-06 madde 9). Padding/alt çizgi artık BURADA da var: .grid-sidebar'ın kendi
+     padding'i kaldırıldığından (bkz. yukarısı) başlık satırı o iki sayfadaki gibi kutunun üst
+     bandını oluşturur ve altındaki çizgi filtre gruplarından ayırır. */
+  .sidebar-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line-soft);}
   .sidebar-head-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15px; font-weight:700;}
   .sidebar-close-btn{
     width:26px; height:26px; border-radius:50%; flex-shrink:0;
@@ -324,12 +328,13 @@
     display:flex; align-items:center; justify-content:center;
   }
   .sidebar-close-btn:hover{border-color:var(--walnut); color:var(--ink);}
-  .sidebar-search{display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
+  .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
   .sidebar-search svg{flex-shrink:0; opacity:0.5;}
   .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
   /* .loc-exp-row (Konum + Tecrübe'yi mobilde yan yana koyan display:contents kutusu) KALDIRILDI —
      her iki filtre de artık #filter-groups akordeonunun içinde birer grup (kullanıcı isteği,
      2026-09-01 madde 1), yani yan yana dizilecek ayrı bir <select> kalmadı. */
+  .sidebar-add{padding:16px; border-top:1px solid var(--line-soft);}
   .sidebar-add-btn{
     display:flex; align-items:center; justify-content:center; gap:8px;
     width:100%; background:var(--ink); color:var(--paper-card);
@@ -465,7 +470,7 @@
     /* Sidebar mobilde satır düzenine (flex-direction:row) geçtiğinden akordeon kutusu tam
        genişlikte kendi satırına alınır — aksi halde arama/sıralama kutularının yanında daralırdı
        (bkz. kisi.html'deki AYNI kural). */
-    .grid-sidebar > .sidebar-search, .grid-sidebar > .sidebar-head, #filter-groups, .sidebar-add-btn{flex:1 1 100%;}
+    .grid-sidebar > .sidebar-search, .grid-sidebar > .sidebar-head, #filter-groups, .grid-sidebar > .sidebar-add{flex:1 1 100%;}
   }
   @media (max-width:960px){
     .nav{padding:10px 18px; gap:10px;}
@@ -549,7 +554,7 @@
            isteği, 2026-09-01 madde 1). Tecrübe de artık sabit <option> listesi DEĞİL: hiç markası
            olmayan bir kova hiç çizilmez. -->
       <div id="filter-groups"></div>
-      <a class="sidebar-add-btn" href="/marka-ekle"><span class="sidebar-add-icon">+</span> Marka Ekle</a>
+      <div class="sidebar-add"><a class="sidebar-add-btn" href="/marka-ekle"><span class="sidebar-add-icon">+</span> Marka Ekle</a></div>
     </aside>
 
     <main>

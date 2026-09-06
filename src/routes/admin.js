@@ -80,6 +80,26 @@ const TYPE_BY_PATH = Object.assign(Object.create(null), {
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
 const SUBMISSION_TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
 
+// "Gönderin onaylandı" bildiriminin tıklanınca gideceği KANONİK yol (kullanıcı isteği, 2026-09-06
+// madde 2). Eşleme js/components/auth-modal.js#itemDetailUrl ile BİREBİR aynı olmak ZORUNDA — ikisi
+// de aynı satırdan aynı public URL'i türetir; ayrışırlarsa Hesabım'daki "Eklediklerim" linki ile
+// bildirim linki aynı kaydın FARKLI adreslerine giderdi. 'submission:<id>' işareti, henüz bir
+// claimed_profile_key'e bağlanmamış yeni kayıtlar için kullanılan legacy_key çözümlemesidir (bkz.
+// src/routes/product.js#findProductByLegacyMarker ve mimar/firma karşılıkları).
+// Yol üretilemiyorsa (ör. slug'ı olmayan bir proje satırı) null döner ve bildirim linksiz kalır —
+// tıklanınca hiçbir şey yapmayan kırık bir adres yazmaktansa satır yalnızca okundu işaretlenir.
+function approvedSubmissionLink(typeKey, row) {
+  if (!row) return null;
+  if (typeKey === 'projects') {
+    const slug = row.claimed_slug || row.slug;
+    return slug ? `/proje/${encodeURIComponent(slug)}` : null;
+  }
+  if (typeKey === 'offices') return `/firma/${encodeURIComponent(row.claimed_profile_key || ('submission:' + row.id))}`;
+  if (typeKey === 'architects') return `/kisi/${encodeURIComponent(row.claimed_profile_key || ('submission:' + row.id))}`;
+  if (typeKey === 'products' || typeKey === 'materials') return `/urun/${encodeURIComponent('submission:' + row.id)}`;
+  return null;
+}
+
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
 const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };
 
@@ -674,11 +694,17 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
         const label = SUBMISSION_TYPE_LABELS[typeKey] || typeKey;
         const name = existing.name || existing.title || '';
         if (body.status === 'approved') {
+          // Bildirime tıklanınca YAYINA ALINAN kaydın popup'ı açılsın (kullanıcı isteği, 2026-09-06
+          // madde 2: "bir proje gönderin onaylandı yazıyorsa o bildirime tıklayınca o proje
+          // gönderisi popupı açılsın") — link artık 'hesabim.html' değil kaydın kanonik yolu.
+          // Satır bu noktada canonical'a senkronlanmış olduğundan (bkz. yukarıdaki blok) slug/
+          // claimed_* alanları için TAZE hâli okunur.
+          const linkRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
           await createNotification(
             env, existing.owner_user_id, 'submission_approved',
             `${label} gönderin onaylandı`,
             name ? `"${name}" yayına alındı.` : null,
-            'hesabim.html'
+            approvedSubmissionLink(typeKey, linkRow || existing)
           );
         } else {
           await createNotification(

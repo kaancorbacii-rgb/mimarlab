@@ -50,11 +50,15 @@
         'gizlilik-politikasi': /(^|\/)gizlilik-politikasi\.html$/,
         'hizmet-sartlari': /(^|\/)hizmet-sartlari\.html$/, 'kariyer': /(^|\/)kariyer\.html$/,
         'cerez-politikasi': /(^|\/)cerez-politikasi\.html$/,
+        'neden-mimarlab': /(^|\/)neden-mimarlab\.html$/,
       },
       viewByPath: {
         '/rozet-al': 'rozet-al', '/iade-et': 'iade-et', '/iletisim': 'iletisim', '/hakkinda': 'hakkinda',
         '/gizlilik-politikasi': 'gizlilik-politikasi', '/hizmet-sartlari': 'hizmet-sartlari',
         '/kariyer': 'kariyer', '/cerez-politikasi': 'cerez-politikasi',
+        // kullanıcı isteği (2026-09-06 madde 7) — footer'ın Kurumsal sütunundaki "Neden MİMARLAB?"
+        // bağlantısı artık tam sayfa gitmek yerine InfoModal popup'ını açar.
+        '/neden-mimarlab': 'neden-mimarlab',
       },
     },
   };
@@ -143,6 +147,38 @@
       loadModule(key).then((Modal) => { if (Modal) Modal.open(view, { triggerEl: a }); }).catch(() => { window.location.href = href; });
       return;
     }
+  });
+
+  // ---------------------------------------------------------------------------------------------
+  // "Giriş Yap"a HOVER ile anında açılış (kullanıcı isteği, 2026-09-06 madde 6: "giriş yap butonunun
+  // üzerine mouse imlecini getirince yandan çekmece şeklinde giriş yap popupı hemen açılsın").
+  //
+  // NEDEN BURADA: auth-modal.js sitedeki çoğu sayfada henüz YÜKLENMEMİŞTİR (bu dosyanın tüm varlık
+  // sebebi bu) — dinleyici orada olsaydı ilk hover'da hiç çalışmazdı. Bu dosya her sayfada yüklü ve
+  // modülü indirmenin tek yolunu (loadModule) zaten biliyor.
+  //
+  // "Masaüstü" ayrımı pencere genişliğiyle DEĞİL hover yeteneğiyle yapılır — auth-nav.js'teki avatar
+  // menüsünün AYNI gerekçesi: dokunmatik cihazlarda ilk dokunuş sentetik bir mouseenter üretir,
+  // genişliğe bakılsaydı geniş ekranlı bir tablette tek dokunuş çekmeceyi açıp hemen ardından
+  // tıklama-toggle'ı (bkz. auth-modal.js#click dinleyicisi) onu geri kapatırdı.
+  //
+  // mouseenter BALONLANMADIĞINDAN (bubble etmez) delegasyon 'mouseover' ile yapılır: .nav-rate
+  // düğmesi auth-nav.js tarafından oturum açılınca DOM'dan tamamen kaldırılıp avatar menüsüyle
+  // değiştirilir, yani sabit bir elemana doğrudan bağlanmak güvenli değil.
+  const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)');
+  let hoverOpenPending = false;
+  document.addEventListener('mouseover', (e) => {
+    if (!hoverCapable.matches || hoverOpenPending) return;
+    const target = e.target && e.target.closest ? e.target.closest('a.nav-rate, a.nav-mobile-cta') : null;
+    if (!target) return;
+    if (viewForAnchor(MODULES.auth, target) !== 'login') return;
+    const Modal = window.AuthModal;
+    if (Modal && Modal.isOpen && Modal.isOpen()) return; // zaten açık — yeniden render etme
+    hoverOpenPending = true;
+    loadModule('auth')
+      .then((M) => { if (M && !(M.isOpen && M.isOpen())) M.open('login', { triggerEl: target }); })
+      .catch(() => {})
+      .then(() => { hoverOpenPending = false; });
   });
 
   // bkz. yukarısı "Doğrudan URL ile açılış" — kullanıcı popup'ı hiç tetiklemeden geri/ileri tuşuyla

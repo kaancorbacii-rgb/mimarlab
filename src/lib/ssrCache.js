@@ -94,7 +94,15 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // markada Ürün Kategorisi + Ürünler + Markanın Kullanıldığı Projeler. Bu içerik ÖNBELLEKLENEN
 // HTML'in İÇİNDE (#ssr-entity-body + <head> JSON-LD) durduğundan, sürüm artırılmazsa daha önce
 // ziyaret edilmiş detay sayfaları s-maxage boyunca eski, eksik künyeyi sunmaya devam ederdi.
-export const SSR_CACHE_VERSION = 'v117';
+// v118 (kullanıcı isteği, 2026-09-06 madde 9): kisi.html/firma.html/marka.html kabuklarındaki
+// Filtreler kenar çubuğunun CSS'i ve işaretlemesi proje.html/urun.html'inkiyle birebir eşitlendi
+// (.grid-sidebar padding/gap kaldırıldı, .sidebar-head alt çizgi aldı, "Ekle" butonu artık bir
+// .sidebar-add sarmalayıcısının içinde). v110/v111/v113/v115/v116'daki AYNI tuzak, bu kez /kisi/:key,
+// /firma/:key ve /marka/:key için: bu üç dosya yalnızca liste sayfası DEĞİL, aynı zamanda o detay
+// yollarının SSR kabuğudur — sürüm artırılmazsa daha önce ziyaret edilmiş profil sayfaları s-maxage
+// boyunca ESKİ stil/işaretleme ile servis edilir ve yeni .sidebar-add sarmalayıcısı olmayan kabukta
+// filtre kutusu (yeni CSS + eski HTML karışımıyla) bozuk görünürdü.
+export const SSR_CACHE_VERSION = 'v118';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

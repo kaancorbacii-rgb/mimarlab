@@ -191,8 +191,12 @@ const ConsultationModal = (function () {
           <div class="cns-contact-field"><input type="text" id="cns-contact-name" autocomplete="name" maxlength="120"></div>
           <div class="cns-field-label">E-posta</div>
           <div class="cns-contact-field"><input type="email" id="cns-contact-email" autocomplete="email" maxlength="120"></div>
+          <!-- Telefon (kullanıcı isteği, 2026-09-06 madde 3): SADECE 0 ile başlayan 11 haneli
+               Türkiye numarası. Kullanıcı yalnızca rakam yazar (0 + 10 hane), parantez/boşluklar
+               maskeyi uygulayan wirePhoneMask() tarafından otomatik eklenir — "0 (531) 881 24 45".
+               maxlength maskelenmiş uzunluğa (18 karakter) göre; asıl sınır maskenin kendisidir. -->
           <div class="cns-field-label">Telefon</div>
-          <div class="cns-contact-field"><input type="tel" id="cns-contact-phone" autocomplete="tel" maxlength="30"></div>
+          <div class="cns-contact-field"><input type="tel" id="cns-contact-phone" autocomplete="tel" inputmode="numeric" maxlength="18" placeholder="0 (5__) ___ __ __"></div>
 
           <div class="cns-field-label">Görüşme isteği hakkında</div>
           <div class="cns-note-wrap">
@@ -259,6 +263,69 @@ const ConsultationModal = (function () {
     const rescheduleBtn = overlay.querySelector('#cns-reschedule-btn');
     const successCloseBtn = overlay.querySelector('#cns-success-close-btn');
     const CONFIRM_BTN_LABEL = 'Ödemeyi Yaptım';
+
+    // ---------------------------------------------------------------------------------------
+    // Telefon maskesi (kullanıcı isteği, 2026-09-06 madde 3): "sadece 11 haneli, başında 0 olan
+    // telefon numarası girilebilsin ... kullanıcı parantez işareti yapmasın, bu parantez otomatik
+    // gelsin. Kişi sadece 0'la beraber diğer 10 haneyi girsin."
+    //
+    // Tek doğruluk kaynağı RAKAMLARDIR: her girdi olayında değerdeki rakam olmayan her karakter
+    // atılır, baştaki 0 yoksa eklenir (kullanıcı doğrudan "531..." yazarsa da numara geçerli olur),
+    // 11 haneye kırpılır ve maske yeniden çizilir. Böylece yapıştırma (+90 5xx, 0090..., boşluklu
+    // biçimler) ve tek tek yazma AYNI koddan geçer.
+    const PHONE_DIGITS = 11;
+    function phoneDigitsOf(value) {
+      let d = (value || '').replace(/\D/g, '');
+      // Ülke kodlu yapıştırmalar: "+90 531...", "0090531..." → yerel biçime indirgenir.
+      if (d.startsWith('0090')) d = d.slice(4);
+      else if (d.startsWith('90') && d.length > PHONE_DIGITS) d = d.slice(2);
+      if (d && d[0] !== '0') d = '0' + d;
+      return d.slice(0, PHONE_DIGITS);
+    }
+    function formatPhone(digits) {
+      if (!digits) return '';
+      let out = digits[0]; // her zaman '0'
+      if (digits.length > 1) out += ' (' + digits.slice(1, 4);
+      if (digits.length >= 4) out += ')';
+      if (digits.length > 4) out += ' ' + digits.slice(4, 7);
+      if (digits.length > 7) out += ' ' + digits.slice(7, 9);
+      if (digits.length > 9) out += ' ' + digits.slice(9, 11);
+      return out;
+    }
+    // İmleci "kaçıncı rakamdaydım" bilgisine göre yeniden konumlandırır — aksi halde numaranın
+    // ortasına bir rakam eklemek imleci her seferinde sonuna fırlatırdı.
+    function caretForDigitIndex(formatted, digitIndex) {
+      if (digitIndex <= 0) return 0;
+      let seen = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (/\d/.test(formatted[i])) {
+          seen++;
+          if (seen === digitIndex) return i + 1;
+        }
+      }
+      return formatted.length;
+    }
+    function wirePhoneMask(input) {
+      input.addEventListener('input', () => {
+        const caret = input.selectionStart || 0;
+        const raw = input.value;
+        const digitsBeforeCaret = raw.slice(0, caret).replace(/\D/g, '').length;
+        const digits = phoneDigitsOf(raw);
+        const formatted = formatPhone(digits);
+        if (formatted === raw) return;
+        // Baştaki 0 kullanıcı yazmadığı hâlde eklendiyse imleç de bir rakam ileri kaymalı.
+        const prefixed = digitsBeforeCaret > 0 && raw.replace(/\D/g, '')[0] !== '0';
+        input.value = formatted;
+        const target = caretForDigitIndex(formatted, digitsBeforeCaret + (prefixed ? 1 : 0));
+        try { input.setSelectionRange(target, target); } catch {}
+      });
+      // Rakam/düzenleme dışındaki tuşlar hiç girilmesin (mobil klavyede inputmode=numeric zaten
+      // sayısal tuş takımını açar; bu satır masaüstünde harf/sembol yazılmasını engeller).
+      input.addEventListener('keypress', (e) => {
+        if (e.key.length === 1 && !/\d/.test(e.key)) e.preventDefault();
+      });
+    }
+    wirePhoneMask(phoneInput);
 
     const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null, hasRescheduled: false };
     const calendarState = { year: 0, month: 0, availability: {} };
@@ -452,6 +519,13 @@ const ConsultationModal = (function () {
       notice.classList.remove('show', 'success');
       if (!contactName || !contactEmail || !contactPhone) {
         notice.textContent = 'Ad soyad, e-posta ve telefon numarası gerekli.';
+        notice.classList.add('show');
+        return;
+      }
+      // bkz. wirePhoneMask — maske eksik bir numarayı ("0 (531) 88") engellemez, yalnızca biçimler;
+      // tam 11 hane kontrolü burada yapılır.
+      if (phoneDigitsOf(contactPhone).length !== PHONE_DIGITS) {
+        notice.textContent = 'Telefon numarası 0 ile başlayan 11 haneli olmalı — örn. 0 (531) 881 24 45.';
         notice.classList.add('show');
         return;
       }

@@ -369,10 +369,13 @@
         <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
       </div>
       <span class="footer-copyright">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</span>
+      <!-- kullanıcı isteği (2026-09-06 madde 8): sağa/sola kayan pil (knob'lu switch) tasarımı
+           bırakıldı — artık TEK dairesel bir düğme. İki ikon da DOM'da kalır, hangisinin görüneceğine
+           CSS karar verir (bkz. injectFooterStyle): gündüzken ay (tıkla → geceye geç), geceyken güneş.
+           Renkler de temayla birlikte değişir, böylece düğmenin durumu bir bakışta okunur. -->
       <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
-        <span class="theme-toggle-icon theme-icon-sun" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
-        <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z"/></svg></span>
-        <span class="theme-toggle-knob" aria-hidden="true"></span>
+        <span class="theme-toggle-icon theme-icon-sun" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+        <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z"/></svg></span>
       </button>
     </div>
   </footer>`;
@@ -463,26 +466,24 @@
       .footer-social{display:flex; align-items:center; gap:14px; height:28px;}
       .footer-social a{display:flex; align-items:center; justify-content:center;}
       .footer-social svg{display:block;}
+      /* Gece/gündüz düğmesi — TEK dairesel buton (kullanıcı isteği, 2026-09-06 madde 8; eski
+         kaydırmalı pil + knob tasarımının yerini aldı). Aynı anda yalnızca BİR ikon görünür ve
+         gösterilen ikon "tıklarsan ne olacağı"nı anlatır: gündüzken ay (koyu lacivert zemin),
+         geceyken güneş (sıcak amber zemin). Renkler BİLEREK sabit hex: footer'ın kendi tema
+         override'ı (bkz. bu dosyanın başındaki not) --ink/--paper'ı footer içinde her iki temada da
+         AYNI tutuyor, yani token kullanmak düğmeyi temaya duyarsız bırakırdı. */
       .footer-theme-toggle{
-        position:relative; display:inline-flex; align-items:center; flex-shrink:0;
-        width:52px; height:28px; padding:0; border-radius:100px; border:none;
-        background:var(--brass); color:#fff; cursor:pointer; overflow:hidden;
-        transition: background 0.2s ease;
+        display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+        width:34px; height:34px; padding:0; border-radius:50%; border:none;
+        background:#3E5C7E; color:#F2F6FA; cursor:pointer;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
       }
-      [data-theme="dark"] .footer-theme-toggle{background:#333B46;}
-      .footer-theme-toggle:hover{opacity:0.92;}
-      .footer-theme-toggle .theme-toggle-icon{
-        position:absolute; top:50%; transform:translateY(-50%);
-        width:14px; height:14px; display:flex; align-items:center; justify-content:center; color:#fff;
-      }
-      .footer-theme-toggle .theme-icon-sun{left:7px;}
-      .footer-theme-toggle .theme-icon-moon{right:7px;}
-      .footer-theme-toggle .theme-toggle-knob{
-        position:absolute; top:3px; left:3px;
-        width:22px; height:22px; border-radius:50%; background:#fff;
-        transition: left 0.2s ease;
-      }
-      [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:27px;}
+      [data-theme="dark"] .footer-theme-toggle{background:#F0C070; color:#2A1F0E;}
+      .footer-theme-toggle:hover{transform:scale(1.08);}
+      .footer-theme-toggle .theme-toggle-icon{display:flex; align-items:center; justify-content:center;}
+      .footer-theme-toggle .theme-icon-sun{display:none;}
+      [data-theme="dark"] .footer-theme-toggle .theme-icon-sun{display:flex;}
+      [data-theme="dark"] .footer-theme-toggle .theme-icon-moon{display:none;}
       /* max-width YOK (kullanıcı isteği, 2026-09-01: "açıklama metnini tek satırda topladım") —
          340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün, firma ve markalar e-postana
          gelsin.") iki satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek

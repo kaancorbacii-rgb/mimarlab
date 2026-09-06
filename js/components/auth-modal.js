@@ -259,9 +259,31 @@ const AuthModal = (function () {
     #am-panel .saved-remove-btn:hover{border-color:#B84C4C; color:#B84C4C;}
     #am-panel .submission-edit-link{font-size:11.5px; font-weight:600; color:var(--walnut);}
     #am-panel .submission-edit-link:hover{text-decoration:underline;}
-    #am-panel .notif-row{display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--line-soft); cursor:pointer;}
+    /* Bildirim satırı ARTIK bir buton (kullanıcı isteği, 2026-09-06 madde 2: "bildirimler aktif
+       butonlar olsun") — tıklanınca tipine göre bir aksiyon ekranı açar (bkz. renderNotifList).
+       Buton olduğu görsel olarak da belli olmalı: hover'da zemin/kenarlık belirir, sağ uçta bir
+       ok ipucu durur ve klavye odağı görünür bir halka alır. .notif-row bir <div> KALIR (içinde
+       kendi <button class="notif-del"> silme düğmesi var — iç içe buton geçersiz HTML'dir);
+       erişilebilirlik role="button" + tabindex + Enter/Space ile sağlanır. */
+    #am-panel .notif-row{
+      display:flex; gap:10px; padding:12px 10px; margin:0 -10px; border-radius:10px;
+      border-bottom:1px solid var(--line-soft); cursor:pointer;
+      transition:background .15s ease;
+    }
+    #am-panel .notif-row:hover{background:var(--paper-alt);}
+    #am-panel .notif-row:focus-visible{outline:none; box-shadow:0 0 0 2px var(--brass) inset;}
     #am-panel .notif-row:last-child{border-bottom:none;}
-    #am-panel .notif-row.unread{background:rgba(224,138,62,0.07); margin:0 -10px; padding:12px 10px; border-radius:10px;}
+    /* Aksiyonu OLAN satırlarda (bkz. notifActionFor) sağ uçta bir "aç" oku — aksiyonsuz satırlarda
+       (ör. reddedilen bir rozet talebi) bilerek yoktur, kullanıcıya boş bir vaat verilmesin. */
+    #am-panel .notif-go{
+      display:flex; align-items:center; align-self:center; flex-shrink:0;
+      color:var(--ink-soft); opacity:0; transition:opacity .15s ease;
+    }
+    #am-panel .notif-row:hover .notif-go, #am-panel .notif-row:focus-visible .notif-go{opacity:1;}
+    /* padding/margin/radius artık temel .notif-row kuralında (bkz. yukarısı) — burada yalnızca
+       okunmamış zemini kalır; hover, okunmamış satırda da görünür olsun diye ayrıca yazılır. */
+    #am-panel .notif-row.unread{background:rgba(224,138,62,0.07);}
+    #am-panel .notif-row.unread:hover{background:rgba(224,138,62,0.14);}
     #am-panel .notif-dot-col{width:8px; flex-shrink:0; padding-top:5px;}
     #am-panel .notif-dot{display:block; width:8px; height:8px; border-radius:50%; background:var(--accent);}
     #am-panel .notif-title{font-size:13.5px; font-weight:600;}
@@ -2088,6 +2110,23 @@ const AuthModal = (function () {
       if (!myClaimsPromise) myClaimsPromise = fetch('/api/claims/mine').then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
       return myClaimsPromise;
     }
+    // Sahiplenilmiş MİMAR kaydı — hem syncClaimedArchitectData (profil alanlarını bir kerelik
+    // taşıma) hem loadFirmInfo/prefillFirmaSelect (firma bilgisi ikinci kaynağı, bkz. kullanıcı
+    // isteği 2026-09-06 madde 4) aynı kaydı istiyordu; üç ayrı fetch yerine tek paylaşılan söz.
+    let claimedArchitectKey = null;
+    let claimedArchitectPromise = null;
+    function fetchClaimedArchitect(claimItems) {
+      const claim = (claimItems || []).find(c => c.profile_type === 'architect' && c.status === 'approved');
+      if (!claim) return Promise.resolve(null);
+      if (claimedArchitectKey !== claim.profile_key) {
+        claimedArchitectKey = claim.profile_key;
+        claimedArchitectPromise = fetch(`/api/architect/${encodeURIComponent(claim.profile_key)}`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(d => (d && d.item) || null)
+          .catch(() => null);
+      }
+      return claimedArchitectPromise;
+    }
     let allOfficeNamesPromise = null;
     async function fetchAllOfficeNames() {
       const names = [];
@@ -2102,25 +2141,65 @@ const AuthModal = (function () {
       } while (page <= totalPages);
       return names;
     }
-    async function loadFirmaOptions() {
-      const select = document.getElementById('am-edit-office');
-      if (!allOfficeNamesPromise) allOfficeNamesPromise = fetchAllOfficeNames().catch(() => []);
-      const names = await allOfficeNamesPromise;
-      select.innerHTML = '<option value="">Seç... (opsiyonel)</option>' + names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
+    // Seçenekler bir kez doldurulur ve DÖNEN SÖZ saklanır — prefillFirmaSelect() değeri ancak
+    // <option>'lar DOM'a girdikten sonra atayabilir (gerçek bulgu: ikisi paralel çağrıldığından,
+    // seçenekler geç gelirse select.value = "X" sessizce boşta kalıyordu).
+    let firmaOptionsPromise = null;
+    function loadFirmaOptions() {
+      if (firmaOptionsPromise) return firmaOptionsPromise;
+      firmaOptionsPromise = (async () => {
+        const select = document.getElementById('am-edit-office');
+        if (!allOfficeNamesPromise) allOfficeNamesPromise = fetchAllOfficeNames().catch(() => []);
+        const names = await allOfficeNamesPromise;
+        select.innerHTML = '<option value="">Seç... (opsiyonel)</option>' + names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
+      })();
+      return firmaOptionsPromise;
+    }
+    // Listede olmayan bir firma adı (ör. mimar kaydından gelen, /api/offices sayfalamasında
+    // yakalanmamış ya da yalnızca gönderi olarak var olan bir isim) seçilebilsin diye seçenek
+    // gerekirse yerinde oluşturulur — aksi halde select.value ataması sessizce boşa düşer ve
+    // kullanıcı firmasını formda GÖREMEZDİ (kullanıcı isteği, 2026-09-06 madde 4).
+    function setOfficeSelectValue(select, name) {
+      if (!name) { select.value = ''; return; }
+      if (!Array.from(select.options).some(o => o.value === name)) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      }
+      select.value = name;
     }
     // Kutunun başlangıç değeri, kullanıcının hâlihazırda onaylı ya da beklemede bir ofis talebi
     // varsa onu yansıtır — böylece kaydet'e tekrar basmak (seçim değiştirilmeden) createClaim'in
     // no-op dallarına düşer (bkz. src/routes/claims.js — approved/pending için ikinci bir POST hiçbir
     // şey yazmaz), yalnızca GERÇEKTEN farklı bir firma seçilirse yeni bir talep oluşur.
+    //
+    // İKİNCİ KAYNAK (kullanıcı isteği, 2026-09-06 madde 4: "bir kullanıcı bir firmada ortak, kurucu,
+    // ekip üyesi vs. şeklinde gözüküyorsa ... profilini düzenle ekranında da bu firma bilgisi
+    // gözüksün"): ofis talebi YOKSA sahiplenilmiş mimar kaydının `office` alanına düşülür. Kullanıcı
+    // bir firmanın Kurucular/Ekip kutusuna ELLE yazılmışsa (bkz. src/lib/officeFounderCascade.js —
+    // görünürlüğün ikinci yolu) hiç profile_claims satırı oluşmaz; eski kod bu durumda kutuyu boş
+    // bırakıyordu.
     async function prefillFirmaSelect() {
       const select = document.getElementById('am-edit-office');
       try {
+        await loadFirmaOptions();
         const claims = (await fetchMyClaims()).items || [];
         const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved')
           || claims.find(c => c.profile_type === 'office' && c.status === 'pending');
-        select.value = officeClaim ? officeClaim.profile_key : '';
+        if (officeClaim) { setOfficeSelectValue(select, officeClaim.profile_key); }
+        else {
+          const arch = await fetchClaimedArchitect(claims);
+          setOfficeSelectValue(select, (arch && arch.office) || '');
+        }
+        // bkz. submitFirmaClaimIfChanged — kullanıcı seçimi DEĞİŞTİRMEDİYSE Kaydet'te talep
+        // gönderilmemeli. Ofis talebi varken bunu zaten o fonksiyonun `existing` kontrolü sağlıyordu;
+        // mimar kaydından gelen ön-dolum için karşılaştırılacak bir talep olmadığından değeri burada
+        // hatırlıyoruz.
+        firmaSelectPrefillValue = select.value || '';
       } catch {}
     }
+    let firmaSelectPrefillValue = '';
 
     // Ödüller kutusu — kisi-ekle.html#wireMultiDropdown ile BİREBİR aynı desen: kapalı bir düğme
     // (seçili sayıyı/tek seçimi gösterir), tıklanınca checkbox'lı bir panel açılır. Bir kere kurulur
@@ -2502,6 +2581,9 @@ const AuthModal = (function () {
     async function submitFirmaClaimIfChanged() {
       const selected = document.getElementById('am-edit-office').value;
       if (!selected) return false;
+      // Form açılırken kutuya KENDİMİZİN yazdığı değer (bkz. prefillFirmaSelect) — kullanıcı bunu
+      // değiştirmediyse ortada yeni bir talep yok.
+      if (selected === firmaSelectPrefillValue) return false;
       try {
         const claimsRes = await fetch('/api/claims/mine');
         const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
@@ -3013,16 +3095,29 @@ const AuthModal = (function () {
     // kutusu tam olarak bu talebi oluşturur (bkz. submitFirmaClaimIfChanged), yani bu kutu formda
     // seçilen firmayı gösterir. Onaylı talep beklemedekine tercih edilir; ikisi de yoksa kutu boş
     // durumunu gösterir.
-    // İKİNCİ KAYNAK YOK: mimar kaydındaki `office` alanı (architectSyncState.office) BİLEREK
-    // kullanılmıyor — o alan formdaki Firma kutusuyla AYNI Kaydet'te senkronlandığından (bkz.
-    // submitArchitectSyncIfNeeded'in office parametresi) ayrı bir doğruluk kaynağı değil, yalnızca
-    // aynı değerin kopyası; iki kaynak tutarsızlaşırsa hangisinin gösterileceği belirsizleşirdi.
+    // İKİNCİ KAYNAK (kullanıcı isteği, 2026-09-06 madde 4: "bir kullanıcı bir firmada ortak, kurucu,
+    // ekip üyesi vs. şeklinde gözüküyorsa, hesabım sayfasındaki firma bilgileri kutusunda ... bu firma
+    // bilgisi gözüksün"): profile_claims('office') satırı YOKSA sahiplenilmiş mimar kaydının `office`
+    // alanına düşülür. Bir firmanın Kurucular/Ekip listesinde görünmenin İKİ yolu var (bkz.
+    // src/lib/officeFounderCascade.js) — onaylı bir ofis talebi VEYA firma künyesindeki kutuya elle
+    // yazılmış bir isim; ikincisinde hiç claim satırı oluşmadığından bu kutu eskiden "henüz bir
+    // firmada görev almıyorsun" diyordu. Fallback yalnızca GÖRÜNTÜLEME içindir: firmInfoApproved
+    // false kalır, dolayısıyla "Profili Düzenle" butonu (bkz. renderFirmEditBtn) açılmaz — düzenleme
+    // yetkisi hâlâ yalnızca onaylı talep + yetkili pozisyon şartına bağlı.
     async function loadFirmInfo(claimItems) {
       const box = document.getElementById('am-firm-facts');
       if (!box) return;
       const claim = claimItems.find(c => c.profile_type === 'office' && c.status === 'approved')
         || claimItems.find(c => c.profile_type === 'office' && c.status === 'pending');
+      // officeKey: /api/office/:key'in beklediği anahtar — ofis talebinde profile_key, mimar
+      // kaydında `office` alanı; ikisi de firmanın ADIdır, aynı uç ikisini de çözer.
+      let officeKey = claim ? claim.profile_key : null;
+      let architectRole = null;
       if (!claim) {
+        const arch = await fetchClaimedArchitect(claimItems);
+        if (arch && arch.office) { officeKey = arch.office; architectRole = arch.role || null; }
+      }
+      if (!officeKey) {
         firmInfoKey = null;
         firmInfoSlug = null;
         firmInfoApproved = false;
@@ -3032,24 +3127,24 @@ const AuthModal = (function () {
         renderClaimsList();
         return;
       }
-      firmInfoApproved = claim.status === 'approved';
+      firmInfoApproved = !!claim && claim.status === 'approved';
       // Onay anında dondurulmuş pozisyon (bkz. renderFirmEditBtn'deki gerçek bulgu) — accountUser'ın
       // CANLI position'ı değil, sunucunun düzenleme yetkisi için gerçekten baktığı değer.
-      firmInfoPosition = claim.officePosition || null;
+      firmInfoPosition = claim ? (claim.officePosition || null) : null;
       // Künye çekilemese bile buton bir hedefe sahip olsun: talebin kendi slug'ı (yoksa adı).
-      firmInfoSlug = claim.slug || claim.profile_key;
+      firmInfoSlug = claim ? (claim.slug || claim.profile_key) : officeKey;
       renderFirmEditBtn();
       // Aynı anahtar için ikinci kez ağ isteği atma — loadMyClaims her loadUser()'da çalışıyor.
-      if (firmInfoKey === claim.profile_key) return;
-      firmInfoKey = claim.profile_key;
+      if (firmInfoKey === officeKey) return;
+      firmInfoKey = officeKey;
       let office = null;
       try {
-        const res = await fetch(`/api/office/${encodeURIComponent(claim.profile_key)}`);
+        const res = await fetch(`/api/office/${encodeURIComponent(officeKey)}`);
         if (res.ok) office = (await res.json()).item;
       } catch {}
       // Firma künyesi çekilemediyse (ağ hatası ya da henüz canonical'a senkronlanmamış bekleyen bir
       // talep) en azından adı gösterilir — kutu asla "Yükleniyor…"da takılı kalmaz.
-      const rows = [['Firma', office ? office.name : claim.profile_key]];
+      const rows = [['Firma', office ? office.name : officeKey]];
       if (office) {
         // cats üç biçimde gelebilir (JSON dizi / ' · ' ayrımlı string / null) — office-kind.js#
         // officeCatList'in tarayıcı tarafında yüklü olduğuna güvenmek yerine (bu dosya onu <script>
@@ -3059,7 +3154,10 @@ const AuthModal = (function () {
         if (cats) rows.push(['Hizmet Alanı', cats]);
         if (office.yil) rows.push(['Kuruluş Yılı', String(office.yil)]);
       }
+      // "Görevin": önce hesabın kendi pozisyonu, o boşsa mimar kaydındaki rol (fallback kaynağıyla
+      // AYNI kayıttan gelir, bkz. yukarısı architectRole).
       if (accountUser && accountUser.position) rows.push(['Görevin', accountUser.position]);
+      else if (architectRole) rows.push(['Görevin', architectRole]);
       const slug = office && office.slug ? office.slug : '';
       if (slug) { firmInfoSlug = slug; renderFirmEditBtn(); }
       // Firma satırında, firmanın rozeti varsa adının yanında gösterilir (kullanıcı isteği,
@@ -3069,7 +3167,7 @@ const AuthModal = (function () {
       // Yalnızca ONAYLI sahiplenmede gösterilir: bekleyen bir talepte firma henüz kullanıcının
       // değildir.
       const firmBadgeList = firmInfoApproved
-        ? (amPublicBadges.office && amPublicBadges.office[claim.profile_key])
+        ? (amPublicBadges.office && amPublicBadges.office[officeKey])
         : null;
       const firmBadgeType = firmBadgeList && firmBadgeList.length ? firmBadgeList[0] : null;
       box.innerHTML = rows.map(([label, value], i) => `
@@ -3109,14 +3207,9 @@ const AuthModal = (function () {
 
     async function syncClaimedArchitectData(items) {
       if (!accountUser) return;
-      const claim = items.find(c => c.profile_type === 'architect' && c.status === 'approved');
-      if (!claim) return;
-      let arch;
-      try {
-        const res = await fetch(`/api/architect/${encodeURIComponent(claim.profile_key)}`);
-        if (!res.ok) return;
-        arch = (await res.json()).item;
-      } catch { return; }
+      // fetchClaimedArchitect: loadFirmInfo ile PAYLAŞILAN tek istek (bkz. o fonksiyonun yanındaki
+      // yorum) — ikisi de her loadUser()'da çalıştığından eskiden aynı uca iki istek gidiyordu.
+      const arch = await fetchClaimedArchitect(items);
       if (!arch) return;
       const patch = {};
       if (!accountUser.photoUrl && arch.photo) patch.photo_url = arch.photo;
@@ -3211,6 +3304,90 @@ const AuthModal = (function () {
       }
       return consultationDetailModalLoad;
     }
+    // ---------- BİLDİRİM AKSİYONLARI (kullanıcı isteği, 2026-09-06 madde 2) ----------
+    // "Hesabım sayfasında bildirimler kutusuna gelen bildirimler aktif butonlar olsun. Bir bildirime
+    // tıklayınca bildirim doğrultusunda bir aksiyon ekranı çıksın — örneğin bir proje gönderin
+    // onaylandı yazıyorsa o proje gönderisi popup'ı, rozet talebin onaylandı yazıyorsa rozet al
+    // sayfası açılsın."
+    //
+    // TASARIM: her bildirimin ne yapacağı TEK yerde (notifActionFor) kararlaştırılır ve iki yerde
+    // kullanılır — satırın tıklama davranışı ve satırda "aç" okunun gösterilip gösterilmeyeceği.
+    // Böylece kullanıcıya tıklanabilir görünen her satır GERÇEKTEN bir şey açar.
+    //
+    // Yollar iki sınıfa ayrılır:
+    //   (a) Bu belgede AÇILABİLENLER — mesaj dizisi, görüşme detayı, işaretçi onayı, dizin daveti,
+    //       Rozet Al, Profili Düzenle, Koleksiyonum: kullanıcı Hesabım'dan çıkmaz.
+    //   (b) Kanonik varlık yolları (/proje/:slug, /kisi/:key, /firma/:key, /urun/:key) — o kaydın
+    //       popup'ını açan modal script'i (project-modal.js vb.) çoğu sayfada YÜKLÜ DEĞİLDİR (bkz.
+    //       js/components/lazy-modals.js dosya başı yorumu: bilinçli yükleme bütçesi kararı), bu
+    //       yüzden doğru davranış o URL'e GİTMEKTİR — sunucu kaydın SSR gövdesini döner ve sayfanın
+    //       kendi modalı popup'ı açar (sitedeki her iç bağlantının zaten yaptığı şey).
+    const NOTIF_ENTITY_PATH_RE = /^\/(proje|kisi|firma|urun|marka)\/[^/?#]+/;
+    function notifEntityPath(link) {
+      return typeof link === 'string' && NOTIF_ENTITY_PATH_RE.test(link) ? link : null;
+    }
+    // Rozet bildirimlerinin tamamı "Rozet Al" ekranına gider: rozetin güncel durumu da, yenileme/
+    // yeni talep yolu da orada. (badge_active ödeme onayından gelir, bkz. src/routes/payments.js.)
+    const NOTIF_INFO_VIEW = { badge_approved: 'rozet-al', badge_rejected: 'rozet-al', badge_active: 'rozet-al' };
+    // info-modal.js çoğu sayfada zaten <script> ile yüklü; değilse (ör. modal script'i taşımayan bir
+    // sayfada Hesabım açıldıysa) consultation-detail-modal.js ile AYNI tembel yükleme deseni.
+    let infoModalLoad = null;
+    function ensureInfoModalLoaded() {
+      if (typeof InfoModal !== 'undefined') return Promise.resolve();
+      if (!infoModalLoad) {
+        infoModalLoad = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = '/js/components/info-modal.js';
+          script.onload = () => resolve();
+          // Yüklenemezse söz TEKRAR denenebilir kalmalı (bkz. lazy-modals.js#loadModule'daki AYNI
+          // gerçek bulgu: onerror ele alınmazsa promise sonsuza kadar askıda kalıyordu).
+          script.onerror = () => { script.remove(); infoModalLoad = null; reject(new Error('info-modal yüklenemedi')); };
+          document.head.appendChild(script);
+        });
+      }
+      return infoModalLoad;
+    }
+    // Bir bildirimin aksiyonu — yoksa null (satırda ok gösterilmez, tıklama yalnızca okundu işaretler).
+    // Dönen nesne: { run, navigates } — navigates:true olan aksiyon belgeyi TERK ETTİĞİNDEN "okundu"
+    // PATCH'i ondan ÖNCE gönderilmeli, aksi halde istek navigasyonla birlikte iptal edilir ve
+    // bildirim okunmamış kalırdı.
+    function notifActionFor(item) {
+      const threadId = threadIdFromLink(item.link);
+      if (threadId) return { run: () => openMessageThread(threadId) };
+      const consultationId = consultationIdFromLink(item.link);
+      if (consultationId) return { run: () => ensureConsultationDetailModalLoaded().then(() => ConsultationDetailModal.open(consultationId)) };
+      const hotspotTagId = hotspotTagIdFromLink(item.link);
+      if (hotspotTagId) return { run: () => openHotspotTagPrompt(hotspotTagId) };
+      if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) return { run: () => openDirectoryPrompt() };
+      const infoView = NOTIF_INFO_VIEW[item.type];
+      if (infoView) {
+        return {
+          run: () => ensureInfoModalLoaded()
+            .then(() => InfoModal.open(infoView))
+            .catch(() => { window.location.href = '/rozet-al'; }),
+        };
+      }
+      // Profil sahiplenme kararı (onay/ret) — her iki durumda da yapılacak iş Profili Düzenle
+      // ekranındadır: onaylanan profil oradan düzenlenir, reddedilen talepte başka bir kişi/firma
+      // seçilir (bkz. submitFirmaClaimIfChanged).
+      if (item.type === 'claim_approved' || item.type === 'claim_rejected') return { run: () => openAmProfileEditPopup() };
+      if (item.type === 'board_invite') return { run: () => swap('collections') };
+      // Reddedilen gönderi — public bir adresi yok; durumu ve "Düzenle" bağlantısı AYNI sayfadaki
+      // "Eklediklerim" kutusunda, oraya kaydırılır.
+      if (item.type === 'submission_rejected') {
+        return {
+          run: () => {
+            const box = document.getElementById('am-dash-submissions');
+            if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          },
+        };
+      }
+      const entityPath = notifEntityPath(item.link);
+      if (entityPath) return { navigates: true, run: () => { window.location.href = entityPath; } };
+      return null;
+    }
+    const NOTIF_GO_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
     function renderNotifList(items, page, setPage, containerId, paginationId, emptyText) {
       const container = document.getElementById(containerId);
       if (!items.length) {
@@ -3222,26 +3399,37 @@ const AuthModal = (function () {
       if (page > totalPages) page = totalPages;
       const startIdx = (page - 1) * PAGE_SIZE_DASH;
       const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(n => `
-        <div class="notif-row${n.is_read ? '' : ' unread'}" data-id="${n.id}">
+      container.innerHTML = pageItems.map(n => {
+        // Aksiyonu olan satır bir düğme gibi davranır (role/tabindex/ok ipucu); olmayan satır
+        // yalnızca okunabilir bir kayıttır — bkz. notifActionFor.
+        const hasAction = !!notifActionFor(n);
+        return `
+        <div class="notif-row${n.is_read ? '' : ' unread'}" data-id="${n.id}"${hasAction ? ' role="button" tabindex="0"' : ''}>
           <div class="notif-dot-col">${n.is_read ? '' : '<span class="notif-dot"></span>'}</div>
           <div style="flex:1; min-width:0;">
             <div class="notif-title">${escapeHtml(n.title)}</div>
             ${n.body ? `<div class="notif-body">${escapeHtml(n.body)}</div>` : ''}
             <div class="notif-meta">${new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
+          ${hasAction ? `<span class="notif-go" aria-hidden="true">${NOTIF_GO_ICON}</span>` : ''}
           <button type="button" class="notif-del saved-remove-btn" data-id="${n.id}" aria-label="Bildirimi sil">✕</button>
-        </div>`).join('');
+        </div>`;
+      }).join('');
       container.querySelectorAll('.notif-row').forEach(row => {
+        // Enter/Space, role="button" taşıyan satırda tıklamayla AYNI işi yapmalı (klavye erişimi).
+        row.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          row.click();
+        });
         row.addEventListener('click', () => {
           const item = items.find(n => String(n.id) === row.dataset.id);
           if (!item) return;
           // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-06): "okundu" işareti (turuncudan beyaza)
           // eskiden İLK tıklamada, herhangi bir detay ekranı açılmadan ÖNCE uygulanıyordu — bu
           // yüzden bir bildirime tıklamak hiçbir şey açmıyormuş gibi görünüyordu (satır zaten
-          // beyaza dönmüştü). markRead() artık her dalın SONUNDA, ilgili ekran açıldıktan SONRA
-          // çağrılır; açılacak bir ekranı olmayan türler (ör. rozet onay/red — bkz. dosya başı
-          // yorumu, o link değerleri hiçbir prefix'e uymuyor) hâlâ hemen okundu sayılır.
+          // beyaza dönmüştü). markRead() aksiyon TETİKLENDİKTEN sonra çağrılır; açılacak bir ekranı
+          // olmayan türlerde (bkz. notifActionFor'un null dönüşü) satır yine de okundu sayılır.
           function markRead() {
             if (item.is_read) return;
             row.classList.remove('unread');
@@ -3250,20 +3438,11 @@ const AuthModal = (function () {
             item.is_read = true;
             fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) }).catch(() => {});
           }
-          const threadId = threadIdFromLink(item.link);
-          if (threadId) { openMessageThread(threadId); markRead(); return; }
-          const consultationId = consultationIdFromLink(item.link);
-          if (consultationId) { ensureConsultationDetailModalLoaded().then(() => { ConsultationDetailModal.open(consultationId); markRead(); }); return; }
-          // Ürün etiketleme onayı (kullanıcı isteği, 2026-09-05 madde 5) — bkz. openHotspotTagPrompt.
-          const hotspotTagId = hotspotTagIdFromLink(item.link);
-          if (hotspotTagId) { openHotspotTagPrompt(hotspotTagId); markRead(); return; }
-          // Kullanıcı isteği (2026-09-02 madde 4): kayıt sonrası gönderilen dizin daveti
-          // bildirimine tıklayınca AYNI soruyu evet/hayır ile soran bir pop-up açılır.
-          if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) {
-            openDirectoryPrompt();
-            markRead();
-            return;
-          }
+          // Tek karar noktası (bkz. notifActionFor) — satırdaki "aç" oku da AYNI fonksiyondan
+          // türetildiğinden, ok gösterilen her satır gerçekten bir ekran açar.
+          const action = notifActionFor(item);
+          if (action && action.navigates) { markRead(); action.run(); return; }
+          if (action) action.run();
           markRead();
         });
       });
@@ -5706,11 +5885,18 @@ const AuthModal = (function () {
   // kırılma noktası tamamen devre dışı. Giriş Yap/Üye Ol/Şifremi Unuttum ise DEĞİŞMEDİ: masaüstünde
   // hâlâ ModalShell popup'ı (istek yalnızca o dört sayfayı sayıyor). Bu yüzden karar artık salt
   // viewport'a değil, GÖRÜNÜME de bağlı — fonksiyon bir `view` argümanı alır.
-  const DESKTOP_DRAWER_VIEWS = new Set(DASH_NAV_VIEW_KEYS);
-  function isMobileDrawer(view) {
-    if (!window.NavDrawer) return false;
-    if (window.matchMedia('(max-width:960px)').matches) return true;
-    return DESKTOP_DRAWER_VIEWS.has(view);
+  // kullanıcı isteği (2026-09-06 madde 5): "masaüstü görünümümde giriş yap ve üye ol popupları,
+  // tablet ve mobil görünümdeki gibi yan taraftan çekmece şeklinde açılsınlar ... farklı bir tasarım
+  // yapmayacaksın, tablet ve mobil görünümde aktif olan sistemi masaüstünde de aktif edeceksin."
+  // Hesabım/Aktivitelerim/Koleksiyonum 2026-09-01'de zaten her genişlikte çekmeceye geçmişti; geriye
+  // kalan üç görünüm (login/signup/forgot) de artık aynı yolu kullanıyor, yani AuthModal'in TÜM
+  // görünümleri tek bir barındırıcıda (NavDrawer alt sayfası) yaşıyor. Bu yüzden fonksiyon artık
+  // view'a da viewport'a da BAKMAZ — yalnızca çekmecenin var olup olmadığına bakar (yoksa eski
+  // ModalShell yoluna düşülür, davranış hiçbir sayfada kırılmaz).
+  // NOT: `view` parametresi BİLEREK korunuyor — çağıranların (open/swap/handlePopState/resize)
+  // tamamı onu geçiyor ve ileride yine görünüme özgü bir ayrım gerekirse imza değişmesin.
+  function isMobileDrawer(view) { // eslint-disable-line no-unused-vars
+    return !!window.NavDrawer;
   }
   // Şu an İÇERİĞİN barındırıldığı GERÇEK host — isMobileDrawer() yalnızca ANLIK viewport'u sorar,
   // bu ise (resize sırasında iki host arasında geçiş anlarında bile) her zaman doğru kalır çünkü tüm
@@ -5960,6 +6146,11 @@ const AuthModal = (function () {
     const view = hrefToView(a);
     if (!view) return;
     e.preventDefault();
+    // Giriş Yap düğmesi bir AÇ/KAPAT anahtarıdır (kullanıcı isteği, 2026-09-06 madde 6: "tıklayınca
+    // da açılabilir ve kapanabilir olsun") — hover ile açılan çekmeceyi aynı düğmeye tıklayarak
+    // kapatmak, imleci çekmeceden çıkarmadan geri dönmenin tek yolu. Yalnızca ZATEN o görünüm
+    // açıkken kapatır; başka bir görünümdeyse aşağıdaki swap() dalı çalışır.
+    if (isOpen() && currentView === view) { close(); return; }
     // "Giriş Yap"/"Üye Ol" zaten girişliyken Hesabım'a geçme kontrolü artık open()'ın içinde (bkz.
     // orada anlatılan gerçek bulgu); swap() dalı için burada ayrıca uygulanır — swap() open()'dan
     // geçmez (popup zaten açıkken görünüm değiştirir).

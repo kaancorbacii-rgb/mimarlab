@@ -442,11 +442,10 @@ async function decideTag(request, env, user, id) {
       approve
         ? `“${productRow?.title || tag.product_slug}” ürünü artık ${tag.project_slug} projesinin görselinde işaretli.`
         : `“${productRow?.title || tag.product_slug}” için gönderdiğin işaretleme onaylanmadı.`,
-      // link BİLEREK boş: Hesabım'daki bildirim satırı (bkz. js/components/auth-modal.js#
-      // renderNotifList) düz URL'lere GİTMEZ — yalnızca "msg:"/"hotspot-tag:" gibi bilinen özel
-      // biçimleri işler. Buraya "/proje/..." yazmak tıklanınca hiçbir şey yapmayan ölü bir bağlantı
-      // olurdu; proje adı bunun yerine gövde metnine konuldu.
-      null
+      // 2026-09-06 madde 2'den SONRA: bildirim satırı artık düz varlık yollarını da açıyor (bkz.
+      // js/components/auth-modal.js#notifEntityPath) — onaylanan işaretleme kararı için doğru hedef
+      // işaretçinin GÖRÜNDÜĞÜ projedir. Reddedilende açılacak bir şey yok, link boş kalır.
+      approve && tag.project_slug ? `/proje/${encodeURIComponent(tag.project_slug)}` : null
     );
   }
 

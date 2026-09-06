@@ -207,12 +207,19 @@ async function notifyCommentOwner(env, commenter, targetType, targetId, commentB
   recipients.delete(undefined);
   if (!recipients.size) return;
   const preview = commentBody.length > 120 ? commentBody.slice(0, 117) + '…' : commentBody;
+  // Bildirime tıklanınca yorumun yapıldığı kaydın popup'ı açılsın (kullanıcı isteği, 2026-09-06
+  // madde 2) — link artık null DEĞİL, kaydın kanonik yolu. İstemci tarafı bilinen varlık öneklerini
+  // (/proje, /kisi, /firma, /urun) tanır ve o yola gider (bkz. js/components/auth-modal.js#
+  // notifEntityPath).
+  const COMMENT_TARGET_PREFIX = { project: '/proje/', architect: '/kisi/', office: '/firma/', product: '/urun/' };
+  const prefix = COMMENT_TARGET_PREFIX[targetType];
+  const link = prefix && targetId ? `${prefix}${encodeURIComponent(targetId)}` : null;
   for (const userId of recipients) {
     await createNotification(
       env, userId, 'comment_received',
       `${commenter.name} ${subjectLabel} yorum yaptı`,
       preview,
-      null
+      link
     );
   }
 }
