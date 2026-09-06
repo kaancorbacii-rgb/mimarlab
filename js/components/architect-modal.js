@@ -17,6 +17,13 @@ const ArchitectModal = (function () {
   };
   function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
   function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
+  // Künye değerlerini filtrelenmiş kişi listesine bağlar (kullanıcı isteği, 2026-09-06: "Kişi
+  // popuplarında ödüllere filtreleme linkleri ekle") — js/components/project-meta.js#filterLinkHtml
+  // İLE AYNI desen, yalnızca hedef /kisi. Desteklenen anahtarlar kisi.html#FILTER_GROUPS ve
+  // src/routes/architect.js'in getAll(...) okuduğu parametrelerle aynı: award/school/profession.
+  function kisiFilterLink(key, value) {
+    return `<a href="/kisi?${encodeURIComponent(key)}=${encodeURIComponent(value)}">${escapeHtml(value)}</a>`;
+  }
   // .detail-title/.related-*/.save-btn proje.html'in modal içeriğinde tanımladığı AYNI sınıflar/
   // değerler — kisi.html farklı bir sayfa olduğundan proje.html'in <style>'ını miras alamaz, bu
   // yüzden modal-shell.js'in injectStyles() deseniyle burada KENDİ <style>'ını bir kez enjekte eder
@@ -628,10 +635,16 @@ const ArchitectModal = (function () {
     // sadece "Meslek: Mimar"). Bu iki alan başka yerlerde (meslektaş kartları, DEPT_TO_PROFESSION
     // fallback'i, üstteki başlık satırı) hâlâ kullanıldığından DB'de DEĞİŞTİRİLMEZ, sadece bu
     // künye satırlarının derlenişinden çıkarılır.
-    if (a.school) infoFacts.push(metaRow('cap', `<strong>Üniversite:</strong> ${escapeHtml(a.school)}`));
+    if (a.school) infoFacts.push(metaRow('cap', `<strong>Üniversite:</strong> ${kisiFilterLink('school', a.school)}`));
     const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
-    if (profession) infoFacts.push(metaRow('briefcase', `<strong>Meslek:</strong> ${escapeHtml(profession)}`));
-    if (a.awards && a.awards.length) infoFacts.push(metaRow('award', `<strong>Ödüller:</strong> ${a.awards.map(escapeHtml).join(', ')}`));
+    // a.profession çoklu meslekte virgülle ayrılmış TEK bir metin ("Mimar, Fotoğrafçı") — /kisi'nin
+    // profession filtresi tek tek etiketlerle eşleştiğinden (bkz. src/routes/architect.js#
+    // professionParams) her parça AYRI bir bağlantı olur. DEPT_TO_PROFESSION fallback'i de aynı
+    // yoldan geçer; filtrede karşılığı yoksa bağlantı sonuçsuz kalır ama kırılmaz.
+    if (profession) infoFacts.push(metaRow('briefcase', `<strong>Meslek:</strong> ${profession.split(',').map(p => p.trim()).filter(Boolean).map(p => kisiFilterLink('profession', p)).join(', ')}`));
+    // Ödüller artık /kisi?award=... filtresine bağlı (kullanıcı isteği, 2026-09-06) —
+    // project-meta.js#filterLinkHtml İLE AYNI desen.
+    if (a.awards && a.awards.length) infoFacts.push(metaRow('award', `<strong>Ödüller:</strong> ${a.awards.map(v => kisiFilterLink('award', v)).join(' / ')}`));
     infoFactsEl.innerHTML = infoFacts.join('');
     infoFactsEl.style.display = infoFacts.length ? '' : 'none';
 
@@ -664,9 +677,12 @@ const ArchitectModal = (function () {
     }
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
-    // bu profillerde içerik aksiyonları Paylaş + Takip Et'tir, X'in yanında render edilir (bkz.
-    // kullanıcı isteği: sırayla önce Paylaş sonra Takip Et). Düzenle ise X'in KARŞI kenarında
-    // (ModalShell.getAdminActionsSlot()) — Arşivle/Sil kaldırıldı (bkz. kullanıcı isteği,
+    // bu profillerde içerik aksiyonları X'in yanında render edilir. SIRA (kullanıcı isteği,
+    // 2026-09-06): Takip Et → Danışmanlık Al → Mesaj → Paylaş; yani X'in HEMEN yanında Takip Et.
+    // Paylaş eskiden İLK sıradaydı, artık SONA alındı (aşağıya, mesaj yuvasından sonra). Bu DOM
+    // sırası ≤860px'te de aynı görünsün diye modal-shell.js'in row-reverse kuralına artık
+    // [data-owner="architect"] de dahil (bkz. oradaki AYNI gerekçe). Düzenle ise X'in KARŞI
+    // kenarında (ModalShell.getAdminActionsSlot()) — Arşivle/Sil kaldırıldı (bkz. kullanıcı isteği,
     // 2026-08-30), claim-correction-box.js#renderProfileEditButton hâlâ #profile-edit-slot id'sini
     // arıyor, yalnızca DOM konumu değişti.
     const headerActions = ModalShell.getHeaderActionsSlot();
@@ -674,16 +690,6 @@ const ArchitectModal = (function () {
     const adminActions = ModalShell.getAdminActionsSlot();
     if (adminActions) adminActions.innerHTML = '<span id="profile-edit-slot"></span>';
     const architectKey = slugify(a.name);
-    if (typeof ShareWidget !== 'undefined' && headerActions) {
-      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('am-share-btn'));
-      // bkz. js/components/office-modal.js'teki AYNI ek alanlar/gerekçe.
-      ShareWidget.wire('am-share-btn', () => ({
-        title: a.name,
-        url: `${window.location.origin}/kisi/${encodeURIComponent(slugify(a.name))}`,
-        type: 'architect', key: architectKey,
-        image: a.photo || '', meta: a.loc || '',
-      }));
-    }
     // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
     // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#
     // paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
@@ -724,6 +730,19 @@ const ArchitectModal = (function () {
     // yerleştirilir/kaldırılır — Takip Et'in hemen sağında durur.
     if (typeof MessageWidget !== 'undefined' && headerActions) {
       headerActions.insertAdjacentHTML('beforeend', '<span id="am-message-slot"></span>');
+    }
+    // Paylaş — SIRADA SON (kullanıcı isteği, 2026-09-06; eskiden ilk sıradaydı). Mesaj yuvası
+    // yukarıda SENKRON eklendiği için (gerçek ikon sonradan içine yazılır) buradaki 'beforeend'
+    // her zaman mesajın SAĞINA düşer, rozet fetch'i geç dönse bile sıra bozulmaz.
+    if (typeof ShareWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('am-share-btn'));
+      // bkz. js/components/office-modal.js'teki AYNI ek alanlar/gerekçe.
+      ShareWidget.wire('am-share-btn', () => ({
+        title: a.name,
+        url: `${window.location.origin}/kisi/${encodeURIComponent(slugify(a.name))}`,
+        type: 'architect', key: architectKey,
+        image: a.photo || '', meta: a.loc || '',
+      }));
     }
     const socialLinksEl = document.getElementById('am-social-links');
     if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(a.socialPlatform, a.socialUrl) : '';

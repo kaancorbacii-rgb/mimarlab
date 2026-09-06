@@ -215,6 +215,23 @@
   }
   [data-theme="dark"].pm-boot-loading::before{background:rgba(255,255,255,0.16);}
 
+  /* ---------- RESULT BAR (sonuç sayacı + sıralama) ----------
+     kullanıcı isteği (2026-09-06): Sıralama filtreler kutusundan çıkarılıp gönderilerin sağ
+     üstüne, sayaç da onun soluna alındı — proje.html/urun.html'deki .result-bar ile BİREBİR AYNI
+     değerler (paylaşılan bir stylesheet olmadığından her sayfada ayrı tutulur, bkz. proje.html'deki
+     AYNI not). flex-wrap:wrap dar ekranda sıralamayı kendi satırına indirir. */
+  .result-bar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
+  .sort-select{position:relative;}
+  .sort-select select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:100px; padding:9px 32px 9px 16px;
+    font-size:13px; font-weight:500; color:var(--ink); font-family:inherit;
+  }
+  .sort-select select:hover{border-color:var(--walnut);}
+  .sort-arrow{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
+
   /* ---------- FILTER SELECT (shared) ---------- */
   .filter-select{position:relative;}
   .filter-select select{
@@ -378,7 +395,6 @@
   @media (max-width:960px){
     .grid-layout{grid-template-columns:1fr;}
     .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap; max-height:none; overflow:visible;}
-    .grid-sidebar .filter-select{flex:1 1 160px;}
     /* Sidebar mobilde satır düzenine (flex-direction:row) geçtiğinden akordeon kutusu tam
        genişlikte kendi satırına alınır — aksi halde arama/sıralama kutularının yanında daralırdı. */
     .grid-sidebar > .sidebar-search, .grid-sidebar > .grid-sidebar-head, #filter-groups, .sidebar-add-btn{flex:1 1 100%;}
@@ -431,9 +447,11 @@
     <span class="current">Kişiler</span>
   </div>
 
+  <!-- Açıklama metni (kullanıcı isteği, 2026-09-06) — proje.html/urun.html'deki AYNI .page-head p
+       deseni. Sonuç sayacı buradan .result-bar'a taşındı (bkz. aşağısı). -->
   <div class="page-head">
     <h1 id="entity-h1">Kişiler</h1>
-    <p id="result-count"></p>
+    <p>Mimar, iç mimar, peyzaj mimarı, tasarımcı ve fotoğrafçıları keşfet.</p>
   </div>
 
   <div id="ssr-entity-body" class="ssr-entity"></div>
@@ -445,16 +463,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="g-local-search" placeholder="Kişi ara...">
       </div>
+      <!-- Sıralama BURADAN .result-bar'a taşındı (kullanıcı isteği, 2026-09-06: proje/ürün
+           sayfalarındaki gibi gönderilerin sağ üstünde olsun) — bu satırda yalnızca sıfırlama
+           ikonu kaldı, .grid-icon-btn.reset{margin-left:auto} onu sağa yaslamaya devam eder. -->
       <div class="grid-sidebar-head">
-        <div class="filter-select" style="flex:1;">
-          <select id="g-sort">
-            <option value="" selected>En Popüler</option>
-            <option value="name_asc">A-Z</option>
-            <option value="year_desc">En Genç</option>
-            <option value="year_asc">En Kıdemli</option>
-          </select>
-          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-        </div>
         <button class="grid-icon-btn reset" id="g-reset" title="Filtreleri sıfırla" aria-label="Filtreleri sıfırla">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"/></svg>
         </button>
@@ -467,6 +479,20 @@
     </aside>
 
     <main>
+      <!-- Sonuç sayacı + Sıralama (kullanıcı isteği, 2026-09-06) — urun.html'deki .result-bar
+           yapısının BİREBİR kopyası (sayaç solda flex:1 ile, sıralama sağa yaslanır). -->
+      <div class="result-bar">
+        <div class="result-count" id="result-count"></div>
+        <div class="sort-select">
+          <select id="g-sort">
+            <option value="" selected>Sıralama</option>
+            <option value="name_asc">A-Z</option>
+            <option value="year_desc">En Genç</option>
+            <option value="year_asc">En Kıdemli</option>
+          </select>
+          <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+      </div>
       <div class="card-grid" id="card-grid"></div>
       <div class="empty-state" id="empty-state">Bu kritere uyan kişi bulunamadı.</div>
       <div class="pagination" id="pagination"></div>

@@ -620,8 +620,25 @@
   // (bkz. src/routes/project.js#handleProjectFiltersRoute), burada ekstra sıralama gerekmez.
   // (İlk sürümde yanlışlıkla ürün havuzunun Grup taksonomisi kullanılmıştı, kullanıcı isteğiyle
   // proje gönderilerine düzeltildi.)
-  let NAV_SEARCH_RECOMMENDED = ['Villa', 'Ofis Projesi', 'Restorasyon', 'Peyzaj Tasarımı'];
+  // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-06): popup açılırken önce ESKİ öneri butonları çok
+  // kısa süre görünüp sonra doğrusuna dönüşüyordu. Sebep: open() önce bu diziyle BOYAR, sonra
+  // /api/projects/filters dönünce YENİDEN boyardı — yani her sayfa yüklemesindeki ilk açılışta
+  // gözle görülür bir "yanlış içerik" karesi vardı. Üç katmanlı çözüm:
+  //   1) Varsayılan dizi artık gerçek ilk-beş Grup değeriyle AYNI (bkz. project-taxonomy.js#
+  //      PROJECT_GROUP_OPTIONS) — fetch hiç dönmese bile doğru tasarım görünür.
+  //   2) Son bilinen değerler sessionStorage'da saklanır; sonraki sayfa yüklemelerinde ilk boyama
+  //      zaten sunucunun gerçek sıralamasıyla yapılır.
+  //   3) loadRecommendedTerms artık DEĞER DEĞİŞMEDİYSE onLoaded'ı hiç çağırmaz (bkz. aşağıdaki
+  //      sameTerms kontrolü) — ikinci boyama, dolayısıyla DOM titremesi, tamamen ortadan kalkar.
+  const NAV_SEARCH_TERMS_CACHE_KEY = 'mimarlab:navSearchTerms';
+  const NAV_SEARCH_RECOMMENDED_DEFAULT = ['Ofis / İş Merkezi', 'Konut', 'Turizm / Otel', 'Müze', 'Kafe / Restoran'];
+  let NAV_SEARCH_RECOMMENDED = NAV_SEARCH_RECOMMENDED_DEFAULT;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(NAV_SEARCH_TERMS_CACHE_KEY) || 'null');
+    if (Array.isArray(cached) && cached.length) NAV_SEARCH_RECOMMENDED = cached;
+  } catch {}
   let recommendedTermsLoaded = false;
+  function sameTerms(a, b){ return a.length === b.length && a.every((v, i) => v === b[i]); }
   function loadRecommendedTerms(onLoaded){
     if(recommendedTermsLoaded) return;
     fetch('/api/projects/filters')
@@ -630,7 +647,12 @@
         const options = (data && data.filters && data.filters.type && data.filters.type.options) || [];
         if(!options.length) return;
         recommendedTermsLoaded = true;
-        NAV_SEARCH_RECOMMENDED = options.slice(0, 5);
+        const next = options.slice(0, 5);
+        try { sessionStorage.setItem(NAV_SEARCH_TERMS_CACHE_KEY, JSON.stringify(next)); } catch {}
+        // Değişmediyse yeniden boyama YOK — aksi halde aynı içerik yeniden yazılıp gözle görülür
+        // bir DOM titremesi (ve chip dinleyicilerinin gereksiz yeniden bağlanması) olurdu.
+        if(sameTerms(NAV_SEARCH_RECOMMENDED, next)) return;
+        NAV_SEARCH_RECOMMENDED = next;
         if(onLoaded) onLoaded();
       })
       .catch(() => {});
@@ -1189,6 +1211,13 @@
         inp.blur();
         ensureNavSearchModal().open(inp.value.trim());
       });
+      // Önerilen aramaları popup AÇILMADAN ÖNCE, kutuya ilk yaklaşıldığında getir (kullanıcı
+      // isteği, 2026-09-06: eski tasarım hiç görünmesin). Böylece open() çalıştığında değerler
+      // çoğunlukla hazırdır ve tek bir doğru boyama olur; loadRecommendedTerms zaten kendi
+      // recommendedTermsLoaded bayrağıyla tekilleştiriyor, bu yüzden fazladan istek doğmaz.
+      const warm = () => loadRecommendedTerms();
+      inp.addEventListener('pointerenter', warm, { once: true });
+      inp.addEventListener('pointerdown', warm, { once: true });
     });
   }
   window.wireNavSearch = wireNavSearch;

@@ -363,7 +363,13 @@ async function withSingleFlight(key, fn) {
 //     adının yanında küçük bir önizleme çiziyor. v5-v14'ün AYNI tuzağı, burada daha da keskin: bu
 //     uç bir ARAMA yolu (isSearchPath) ve listFingerprint TAŞIMIYOR, yani sürüm artırılmazsa daha
 //     önce aynı sorguyu yapmış istemciler eski ETag'le 304 alır ve görselsiz gövdede süresiz kalır.
-const API_PAYLOAD_VERSION = 'v15';
+// v16 (kullanıcı bildirimi, 2026-09-06): /api/architects'in "Ödül" filtresi artık kişinin KENDİ
+//     architects.awards değerlerini de sayıyor (eskiden yalnızca bağlı ofisin ödülleri — bkz.
+//     src/routes/architect.js#fetchArchitectPool'daki gerçek bulgu). v5-v15'in AYNI tuzağı ve
+//     burada özellikle keskin: bu değişiklik HİÇBİR satırın updated_at'ini değiştirmiyor, yani
+//     listFingerprint aynı kalıyor — sürüm artırılmazsa /kisi'yi daha önce açmış ziyaretçiler eski
+//     ETag'le 304 alıp yeni ödül seçeneklerini HİÇ görmezdi.
+const API_PAYLOAD_VERSION = 'v16';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

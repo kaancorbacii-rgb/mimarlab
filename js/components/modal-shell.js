@@ -268,6 +268,26 @@ const ModalShell = (function () {
         padding:64px 32px 32px; border-right:1px solid var(--line-soft);
       }
       .modal-shell-right{padding:32px 32px 48px; min-width:0;}
+      /* Dar masaüstünde buton satırı İKİNCİ SÜTUNA taşmasın, ALT SATIRA insin (kullanıcı isteği,
+         2026-09-06). Yalnızca mimar/firma/marka popup'larında: bunlar metinli "Takip Et" +
+         "Danışmanlık Al" butonlarını taşıdığından tek satıra sığmayan tek modaller. Sınır sol
+         sütunun kendisi — .modal-shell-body grid'i 32%/68% (bkz. yukarısı) ve header left:32px'ten
+         başladığından kullanılabilir genişlik 32% - 32px'tir; max-width bunu 8px pay bırakarak
+         kilitler, flex-wrap ise sığmayanı ikinci satıra indirir. ≤860px'te bu kural @media içinde
+         nowrap'e geri alınır (tablet/mobilde ASLA 2 satır olmaz — kullanıcı isteği). */
+      .modal-shell-overlay[data-owner="architect"] .modal-shell-header,
+      .modal-shell-overlay[data-owner="office"] .modal-shell-header{
+        flex-wrap:wrap; max-width:calc(32% - 40px); row-gap:6px;
+      }
+      .modal-shell-overlay[data-owner="architect"] .modal-shell-header-actions,
+      .modal-shell-overlay[data-owner="office"] .modal-shell-header-actions{flex-wrap:wrap; row-gap:6px;}
+      /* İki satıra çıkan başlık, sol sütunun ilk içeriğinin (fotoğraf/logo) üstüne binmesin diye
+         o bandda sol sütunun üst boşluğu bir satır kadar (36px + 6px row-gap) büyütülür. Üst sınır
+         1180px: bu genişliğin üzerinde dört buton zaten tek satıra sığıyor (yerel ölçümle). */
+      @media (min-width:861px) and (max-width:1180px){
+        .modal-shell-overlay[data-owner="architect"] .modal-shell-left,
+        .modal-shell-overlay[data-owner="office"] .modal-shell-left{padding-top:106px;}
+      }
       @media (max-width:860px){
         /* Panel kenarlarda hala %92-95 genişlik/yükseklik bırakır (bkz. kullanıcı isteği: mobil/
            tablette de blurlu overlay alanı görünsün, panel ekranın kenarlarına yapışmasın) — eski
@@ -289,10 +309,24 @@ const ModalShell = (function () {
            Puanla-butonu → Puanla-ortalaması (bkz. project-modal.js/product-modal.js#renderItem);
            row-reverse bu satırı görsel olarak tersine çevirir, istenen sıra bire bir çıkar ve
            ortalama/oy sayısı ("4.8 (312)") da otomatik olarak Puanla butonunun SOLUNA geçer.
-           Yalnızca bu iki modal kapsanır — mimar/firma popup'larının Paylaş/Takip Et/Mesaj sırası
-           (bkz. office-modal.js/architect-modal.js) DEĞİŞMEZ, oraya dair bir istek yok. */
+           architect/office ARTIK DAHİL (kullanıcı isteği, 2026-09-06: "tüm görünümlerde X butonunun
+           yanından başlayacak şekilde AYNI sıralama"). ≤860px'te dış .modal-shell-header zaten
+           row-reverse olup X'i sağa alıyor; iç satır da ters çevrilmezse ilk DOM çocuğu (Takip Et)
+           X'ten EN UZAK uca düşerdi — masaüstünde X'in yanında Takip Et, mobilde Paylaş görünürdü.
+           Bu kural iç satırı da çevirerek DOM sırasını her iki yönde de X'ten başlatır. */
         .modal-shell-overlay[data-owner="project"] .modal-shell-header-actions,
-        .modal-shell-overlay[data-owner="product"] .modal-shell-header-actions{flex-direction:row-reverse;}
+        .modal-shell-overlay[data-owner="product"] .modal-shell-header-actions,
+        .modal-shell-overlay[data-owner="architect"] .modal-shell-header-actions,
+        .modal-shell-overlay[data-owner="office"] .modal-shell-header-actions{flex-direction:row-reverse;}
+        /* Tablet/mobilde buton satırı ASLA 2 satıra çıkmaz (kullanıcı isteği, 2026-09-06) — masaüstü
+           sarma kuralı (bkz. yukarısı, .modal-shell-overlay[data-owner=...] .modal-shell-header)
+           burada geri alınır. SEÇİCİ AYNI ÖZGÜLLÜKTE olmak ZORUNDA: @media özgüllük EKLEMEZ, çıplak
+           .modal-shell-header{flex-wrap:nowrap} yazmak (0,1,0) kalıp (0,3,0)'lık masaüstü kuralına
+           YENİLİRDİ — yerel ölçümle doğrulanan gerçek bulgu: tablette satır yine sarılıyordu. */
+        .modal-shell-overlay[data-owner="architect"] .modal-shell-header,
+        .modal-shell-overlay[data-owner="office"] .modal-shell-header{flex-wrap:nowrap; max-width:calc(100% - 32px);}
+        .modal-shell-overlay[data-owner="architect"] .modal-shell-header-actions,
+        .modal-shell-overlay[data-owner="office"] .modal-shell-header-actions{flex-wrap:nowrap;}
         .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
         /* Admin/sahip aksiyonları — X'in KARŞI kenarı mobilde de değişmez: X sağda olduğundan burası
            SOLA taşınır (bkz. kullanıcı isteği). flex-direction row (reverse DEĞİL): ilk DOM çocuğu

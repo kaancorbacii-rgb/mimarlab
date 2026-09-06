@@ -39,7 +39,13 @@ export async function fetchArchitectPool(env) {
       // a.school — kisi.html'in "Üniversite" filtre grubu (kullanıcı isteği, 2026-09-04). Sayaçlar
       // TÜM havuzdan hesaplandığından (bkz. aşağıdaki schoolCounts) bu kolon havuzda olmak
       // ZORUNDA; kart listesine sızmaz, items'a çıkmadan önce ayıklanır (bkz. items .map()).
-      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, o.name AS office_name, o.awards AS office_awards,
+      // a.awards — GERÇEK BULGU (kullanıcı bildirimi, 2026-09-06: "Nevzat Sayın kişi profiline
+      // TürkSMD Ödülü ekledim ama kişi sayfasındaki filtrelerdeki ödül kısmında bu ödül
+      // gözükmüyor"): "Ödül" filtresi yalnızca BAĞLI OFİSİN ödüllerini (o.awards) sayıyordu,
+      // kişinin KENDİ architects.awards kolonu havuz projeksiyonunda hiç yoktu — popup kişinin
+      // kendi ödüllerini gösterirken (bkz. buildArchitectPayload) filtre onları hiç görmüyordu.
+      // Artık ikisinin BİRLEŞİMİ kullanılır (bkz. aşağıdaki awards alanı).
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, a.awards, o.name AS office_name, o.awards AS office_awards,
          (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
           WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
@@ -50,10 +56,15 @@ export async function fetchArchitectPool(env) {
       const a = parseCanonicalRow('architects', row);
       let officeAwards = [];
       if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
+      // Kişinin KENDİ ödülleri + bağlı ofisin ödülleri (tekrarsız birleşim) — filtre/sayaç artık
+      // bunun üzerinden çalışır (bkz. yukarıdaki SELECT yorumu). parseCanonicalRow `awards`ı zaten
+      // diziye çevirir (bkz. src/lib/canonicalRead.js#JSON kolonları).
+      const ownAwards = Array.isArray(a.awards) ? a.awards : [];
+      const awards = [...new Set([...ownAwards, ...officeAwards])];
       // positionRaw: kisi.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: (a.school || '').trim() || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: (a.school || '').trim() || null, awards, projectCount: row.project_count || 0, badges: [] };
     });
   });
 }
@@ -290,7 +301,9 @@ export async function handleArchitectListRoute(request, env, url) {
 
     function passes(a) {
       if (dobParams.length && !dobParams.includes(String(a.dob))) return false;
-      if (awardParams.length && !awardParams.some(w => a.officeAwards.includes(w))) return false;
+      // (a.awards || []) — professions/school'daki AYNI "deploy anında KV'de bu alanı taşımayan
+      // ESKİ havuz" koruması (bu alan officeAwards'ın yerini aldı, bkz. fetchArchitectPool).
+      if (awardParams.length && !awardParams.some(w => (a.awards || []).includes(w))) return false;
       if (positionParams.length && !positionParams.includes(a.position)) return false;
       // (a.professions || []) — bkz. aşağıdaki professionCounts'taki AYNI gerekçe: deploy anında
       // KV'de duran ESKİ havuz (bu alan eklenmeden önce yazılmış) bu alanı taşımaz.
@@ -332,7 +345,9 @@ export async function handleArchitectListRoute(request, env, url) {
     const dobCounts = {}, awardCounts = {}, positionCounts = {}, professionCounts = {}, schoolCounts = {};
     pool.forEach(a => {
       if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
-      a.officeAwards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
+      // (a.awards || []) — professions'takiyle AYNI eski-havuz koruması (bu alan officeAwards'ın
+      // yerini aldı, artık kişinin KENDİ ödüllerini de içerir, bkz. fetchArchitectPool).
+      (a.awards || []).forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
       if (a.position) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
       // Okul adları serbest metin ama canlıda ölçüldü: 313 kişi / 66 farklı okul, büyük-küçük harf
       // varyantı YOK (COUNT(DISTINCT school) === COUNT(DISTINCT LOWER(school))) — bu yüzden ekstra
@@ -350,10 +365,10 @@ export async function handleArchitectListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    // school da (officeAwards/projectCount/professions gibi) YALNIZCA filtre/sayaç için havuzda
+    // school da (awards/projectCount/professions gibi) YALNIZCA filtre/sayaç için havuzda
     // duruyor — kisi.html kartı okulu hiç render etmiyor, bu yüzden kart yüküne sızmasın diye
     // burada ayıklanır (bkz. Faz 4A Projection Optimization yorumu).
-    const items = filtered.slice(start, start + limit).map(({ officeAwards, projectCount, professions, school, ...rest }) => rest);
+    const items = filtered.slice(start, start + limit).map(({ awards, projectCount, professions, school, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,

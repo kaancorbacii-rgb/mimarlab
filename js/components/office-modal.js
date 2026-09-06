@@ -738,18 +738,11 @@ const OfficeModal = (function () {
     const adminActions = ModalShell.getAdminActionsSlot();
     if (adminActions) adminActions.innerHTML = '<span id="profile-edit-slot"></span>';
     const officeKey = slugify(o.name);
-    if (typeof ShareWidget !== 'undefined' && headerActions) {
-      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('om-share-btn'));
-      // bkz. js/components/project-actions.js'teki AYNI ek alanlar/gerekçe — firma/mimar tarafında
-      // anahtar konvansiyonu slugify(name) (save-widget.js ile AYNI, bkz. canonicalSync.js#
-      // findCanonicalRowByNaturalKey'in slug fallback'i).
-      ShareWidget.wire('om-share-btn', () => ({
-        title: o.name,
-        url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}`,
-        type: 'office', key: slugify(o.name),
-        image: logoUrl(o) || '', meta: o.loc || '',
-      }));
-    }
+    // SIRA (kullanıcı isteği, 2026-09-06): Takip Et → Mesaj → Paylaş; yani X'in HEMEN yanında
+    // Takip Et. Paylaş eskiden İLK sıradaydı, artık SONA alındı (aşağıya, mesaj yuvasından sonra).
+    // Bu sıra masaüstü/tablet/mobilde AYNI görünsün diye modal-shell.js'in ≤860px row-reverse
+    // kuralına artık [data-owner="office"] de dahil (bkz. oradaki AYNI gerekçe). Marka popup'ı da
+    // BU dosyayı kullandığından (bkz. marka.html) aynı sırayı otomatik alır.
     // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
     // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#
     // paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
@@ -772,6 +765,21 @@ const OfficeModal = (function () {
     // (rozetler hazır olduğunda) yerleştirilir/kaldırılır.
     if (typeof MessageWidget !== 'undefined' && headerActions) {
       headerActions.insertAdjacentHTML('beforeend', '<span id="om-message-slot"></span>');
+    }
+    // Paylaş — SIRADA SON (kullanıcı isteği, 2026-09-06; eskiden ilk sıradaydı). Mesaj yuvası
+    // yukarıda SENKRON eklendiği için (gerçek ikon sonradan içine yazılır) buradaki 'beforeend'
+    // her zaman mesajın SAĞINA düşer, rozet fetch'i geç dönse bile sıra bozulmaz.
+    if (typeof ShareWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('om-share-btn'));
+      // bkz. js/components/project-actions.js'teki AYNI ek alanlar/gerekçe — firma/mimar tarafında
+      // anahtar konvansiyonu slugify(name) (save-widget.js ile AYNI, bkz. canonicalSync.js#
+      // findCanonicalRowByNaturalKey'in slug fallback'i).
+      ShareWidget.wire('om-share-btn', () => ({
+        title: o.name,
+        url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}`,
+        type: 'office', key: slugify(o.name),
+        image: logoUrl(o) || '', meta: o.loc || '',
+      }));
     }
     const socialLinksEl = document.getElementById('om-social-links');
     if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(o.socialPlatform, o.socialUrl) : '';

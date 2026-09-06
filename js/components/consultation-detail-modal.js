@@ -29,7 +29,10 @@ const ConsultationDetailModal = (function () {
   // "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" (kullanıcı isteği, 2026-09-06) — hem alıcı HEM
   // danışman aynı üç aksiyona erişir, tıklayınca bir sebep kutusu açılır ve admin değerlendirmesine
   // gider (bkz. src/routes/consultations.js#createConsultationAction).
-  const ACTION_LABELS = { completed: 'Görüşme Gerçekleşti', review: 'Değerlendir', cancel: 'İptal Et' };
+  // Sıra kullanıcı isteği (2026-09-06): İptal Et → Görüşme Gerçekleşti → Değerlendir. "Tarihi
+  // Değiştir" bunların ÖNÜNE, aynı ızgaranın ilk hücresine girer (bkz. actionsHtml) — ayrı bir
+  // buton değil, aksiyon ızgarasının parçası.
+  const ACTION_LABELS = { cancel: 'İptal Et', completed: 'Görüşme Gerçekleşti', review: 'Değerlendir' };
 
   // consultation-modal.js (takvim/yeniden planlama akışı) her sayfada statik <script> ile
   // yüklenmez — auth-modal.js#ensureConsultationDetailModalLoaded İLE AYNI tembel yükleme deseni,
@@ -69,12 +72,10 @@ const ConsultationDetailModal = (function () {
         .cnd-note-value{white-space:pre-wrap;}
         .cnd-state{font-size:13px; color:var(--ink-soft); padding:24px 0; text-align:center;}
         .cnd-state.error{color:#B84C4C;}
-        .cnd-reschedule-btn{width:100%; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:11px; border-radius:100px; font-weight:600; font-size:13.5px; cursor:pointer; margin-top:16px; font-family:inherit;}
-        .cnd-reschedule-btn:hover{border-color:var(--walnut); color:var(--walnut);}
-        .cnd-reschedule-btn:disabled{opacity:0.5; cursor:default;}
         .cnd-actions-title{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin:20px 0 8px;}
         .cnd-actions-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
         .cnd-action-btn{padding:11px 8px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;}
+        .cnd-action-btn:disabled{opacity:0.5; cursor:default;}
         .cnd-action-btn:hover{border-color:var(--walnut); color:var(--walnut);}
         .cnd-action-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
         .cnd-action-form{display:none; margin-top:10px; border:1px dashed var(--line); border-radius:10px; padding:12px;}
@@ -118,10 +119,15 @@ const ConsultationDetailModal = (function () {
       return `<div class="cnd-row"><div class="cnd-row-label">${esc(label)}</div><div class="cnd-row-value${extraClass ? ' ' + extraClass : ''}">${esc(value)}</div></div>`;
     }
 
-    function actionsHtml() {
+    // canReschedule ise "Tarihi Değiştir" ızgaranın İLK hücresi olur (kullanıcı isteği, 2026-09-06:
+    // 1-Tarihi Değiştir 2-İptal Et 3-Görüşme Gerçekleşti 4-Değerlendir) — data-action-type YOK,
+    // bu yüzden sebep formunu açan delege dinleyicisi (wireActions) onu görmezden gelir; kendi
+    // ayrı id'li dinleyicisi (cnd-reschedule-btn) takvimi açar.
+    function actionsHtml(canReschedule) {
       return `
         <div class="cnd-actions-title">Görüşme Aksiyonları</div>
         <div class="cnd-actions-grid">
+          ${canReschedule ? '<button type="button" class="cnd-action-btn" id="cnd-reschedule-btn">Tarihi Değiştir</button>' : ''}
           ${Object.entries(ACTION_LABELS).map(([type, label]) => `<button type="button" class="cnd-action-btn" data-action-type="${esc(type)}">${esc(label)}</button>`).join('')}
         </div>
         <div class="cnd-action-form" id="cnd-action-form">
@@ -146,6 +152,9 @@ const ConsultationDetailModal = (function () {
         const btn = e.target.closest('.cnd-action-btn');
         if (!btn) return;
         const type = btn.dataset.actionType;
+        // "Tarihi Değiştir" aynı ızgarada ve AYNI .cnd-action-btn sınıfında ama data-action-type'ı
+        // YOK — sebep formunu açmamalı, kendi dinleyicisi takvimi açar (bkz. cnd-reschedule-btn).
+        if (!type) return;
         const opening = activeType !== type;
         grid.querySelectorAll('.cnd-action-btn').forEach(b => b.classList.toggle('active', opening && b === btn));
         activeType = opening ? type : null;
@@ -205,9 +214,8 @@ const ConsultationDetailModal = (function () {
         ].join('')
           // "Tarihi Değiştir" (kullanıcı isteği, 2026-09-06) — yalnızca alıcıda VE sunucunun izin
           // verdiği durumda (bkz. getConsultationDetail#canReschedule: pending + değiştirilmemiş +
-          // görüşmeye en az 2 gün kalmış) görünür.
-          + (data.canReschedule ? '<button type="button" class="cnd-reschedule-btn" id="cnd-reschedule-btn">Tarihi Değiştir</button>' : '')
-          + actionsHtml();
+          // görüşmeye en az 2 gün kalmış) görünür; artık aksiyon ızgarasının İLK hücresinde.
+          + actionsHtml(data.canReschedule);
 
         const rescheduleBtn = bodyEl.querySelector('#cnd-reschedule-btn');
         if (rescheduleBtn) {
