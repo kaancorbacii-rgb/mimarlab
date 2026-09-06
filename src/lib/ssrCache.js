@@ -109,7 +109,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // (b) canonical/og:url etiketleri, (c) marka.html/firma.html kart bağlantıları (`o.brand` bayrağına
 // göre önek). v110-v118'deki AYNI tuzak: sürüm artırılmazsa daha önce ziyaret edilmiş marka
 // sayfaları s-maxage boyunca ESKİ kabukla (yanlış regex → popup hiç açılmaz) servis edilirdi.
-export const SSR_CACHE_VERSION = 'v119';
+// v120 (kullanıcı isteği, 2026-09-07): Gündem SSR kartının İŞARETLEMESİ değişti — ayrı "Kaynağa
+// git" satırı kaldırıldı, kaynak adı meta satırında bağlantı oldu, başlık liste dışında bağlantı
+// değil. v110-v119'un AYNI tuzağı: gövde önbelleğe GÖMÜLÜ olduğundan, sürüm artırılmazsa /gundem'i
+// daha önce açmış ziyaretçiler s-maxage boyunca ESKİ kart işaretlemesini görmeye devam ederdi
+// (canlıda doğrulandı: arşivleme sonrası SSR hâlâ 9 kart ve "Kaynağa git" metnini gösteriyordu).
+export const SSR_CACHE_VERSION = 'v120';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',
