@@ -16,7 +16,7 @@
 // aynı desende (wrangler OAuth token'ı ile Cloudflare REST API), yeni bir secret gerektirmez.
 //
 // KULLANIM:
-//   node scripts/gundem-backfill.mjs [--days=1] [--per-source=8] [--max=25] [--dry-run]
+//   node scripts/gundem-backfill.mjs [--days=1] [--per-source=8] [--max=25] [--daily-cap=50] [--dry-run]
 //
 // GÜVENLİK: --dry-run ile hiçbir şey yazılmaz (D1 yazma çağrıları atlanır, sonuç raporlanır).
 // Kill switch (site_settings.gundem_automation_enabled) burada da GEÇERLİDİR — kapalıysa betik
@@ -55,6 +55,11 @@ const DRY_RUN = !!args['dry-run'];
 const DAYS = Number(args.days ?? 1);
 const PER_SOURCE = Number(args['per-source'] ?? 8);
 const MAX_TOTAL = Number(args.max ?? 25);
+// Günlük yayın tavanı (GUNDEM_LIMITS.maxPublishPerDay = 50) SON 24 SAATİ sayar. 7 günlük bir geri
+// doldurma tek turda 7 günün içeriğini işlediği için bu tavan turu ortasında kesebilir; --daily-cap
+// yalnızca bu tek seferlik işlem için tavanı --max'a göre açar. --max ZATEN mutlak tavandır, yani
+// kontrolsüz bir yayın olmaz — sadece hangi sayacın kestiği netleşir.
+const DAILY_CAP = Number(args['daily-cap'] ?? 50);
 
 // ---------------------------------------------------------------------------------------------
 // env.DB adaptörü — D1 REST API. Workers'taki prepare/bind/first/all/run/batch sözleşmesini taklit
@@ -154,11 +159,32 @@ const stats = await runGundemIngestion(env, deps, {
   // Kaynak bekleme penceresini atla — bu tek seferlik bir işlem, cron ızgarasını beklemesi anlamsız.
   ignoreSourceSchedule: true,
   maxAgeDays: DAYS,
+  // Tarihi olmayan girdiyi ALMA, gelecek tarihli girdiyi ALMA (geri doldurma isteği madde 3).
+  strictDateWindow: true,
   maxItemsPerSource: PER_SOURCE,
   maxItemsPerRun: MAX_TOTAL,
+  maxPublishPerDay: DAILY_CAP,
   // Yerelde Worker'ın duvar-saati sınırı yok; AI çağrısı başına ~4sn ve içerik başına ~2 çağrı
   // olduğundan 25 içerik için cömert bir bütçe.
   runBudgetMs: 15 * 60 * 1000,
+});
+
+console.log('');
+console.log('KAYNAK KIRILIMI');
+const cols = ['Kaynak', 'Bulunan', `Son ${DAYS}g`, 'Aday', 'Proje', 'Mükerrer', 'AI red', 'Kalite red', 'Yayın'];
+const rows = Object.entries(stats.bySource || {}).map(([id, r]) => ([
+  id, r.found, r.fresh, r.candidates, r.projectPrefilter, r.duplicate, r.aiRejected, r.qualityRejected, r.published,
+]));
+const totals = ['TOPLAM', ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => rows.reduce((s, r) => s + (r[i] || 0), 0))];
+const widths = cols.map((c, i) => Math.max(c.length, ...[...rows, totals].map(r => String(r[i]).length)));
+const line = r => r.map((v, i) => i === 0 ? String(v).padEnd(widths[i]) : String(v).padStart(widths[i])).join('  ');
+console.log('  ' + line(cols));
+console.log('  ' + widths.map(w => '-'.repeat(w)).join('  '));
+rows.forEach(r => console.log('  ' + line(r)));
+console.log('  ' + line(totals));
+Object.entries(stats.bySource || {}).forEach(([id, r]) => {
+  if (Object.keys(r.skipped || {}).length) console.log(`    ${id} eleme nedenleri: ${JSON.stringify(r.skipped)}`);
+  if (r.error) console.log(`    ${id} HATA: ${r.error}`);
 });
 
 console.log('');

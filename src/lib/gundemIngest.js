@@ -213,6 +213,18 @@ async function allocateSlug(env, title) {
 // Tek bir kaynağın feed'inden aday listesi
 // ---------------------------------------------------------------------------------------------
 
+// Bir kaynaktan bu turda alınacak azami içerik.
+//   * Cron turu (opts.maxItemsPerSource YOK): kaynağın kendi maxItemsPerRun'ı, GUNDEM_LIMITS
+//     tavanıyla kırpılır — 2026-09-07 öncesindeki davranışın BİREBİR aynısı.
+//   * Geri doldurma (opts.maxItemsPerSource VERİLMİŞ): verilen değer kaynağın kendi değerinin
+//     YERİNE geçer. Kaynak yapılandırmasındaki 3-6 aralığı 3 SAATLİK cron turu için ölçüldü; 7
+//     günlük tek seferlik bir tarama o pencereye sığmaz ve eski davranışta kaynağın 7 günlük
+//     içeriğinin çoğu sessizce düşerdi. Kalite/mükerrer/görsel kapıları bundan ETKİLENMEZ.
+function sourceItemCap(source, opts = {}) {
+  if (opts.maxItemsPerSource !== undefined && opts.maxItemsPerSource !== null) return opts.maxItemsPerSource;
+  return Math.min(source.maxItemsPerRun || GUNDEM_LIMITS.maxItemsPerSource, GUNDEM_LIMITS.maxItemsPerSource);
+}
+
 async function collectCandidates(source, now, opts = {}) {
   // extraListUrls — çok kategorili siteler (bkz. mimdap) tek kaynak kaydı altında birden çok liste
   // sayfası taşır. Sayfalar SIRAYLA okunur (paralel değil): aynı siteye aynı anda birden çok istek
@@ -229,12 +241,16 @@ async function collectCandidates(source, now, opts = {}) {
     for (const it of batch) items.push({ ...it, listCategory: entry.category || source.defaultCategory });
   }
   const maxAge = (opts.maxAgeDays ?? GUNDEM_LIMITS.maxItemAgeDays) * DAY_MS;
-  const perSourceCap = opts.maxItemsPerSource ?? GUNDEM_LIMITS.maxItemsPerSource;
-  const perSource = Math.min(source.maxItemsPerRun || perSourceCap, perSourceCap);
+  const perSource = sourceItemCap(source, opts);
 
   const fresh = items.filter(it => {
-    // Tarihi hiç olmayan girdi kabul edilir (bazı feed'lerde eksik) ama tarihi VARSA ve eskiyse elenir.
-    if (it.publishedAt === null) return true;
+    // Tarihi hiç olmayan girdi cron turunda kabul edilir (bazı feed'lerde eksik) ama tarihi VARSA
+    // ve eskiyse elenir.
+    // strictDateWindow: geri doldurma betiği için — "tarih güvenilir biçimde belirlenemiyorsa
+    // otomatik yayınlama" (kullanıcı isteği 2026-09-07 geri doldurma, madde 3) ve gelecek tarihli
+    // içerik alınmaz. Cron turu bu seçeneği GEÇMEZ, davranışı değişmez.
+    if (it.publishedAt === null) return !opts.strictDateWindow;
+    if (opts.strictDateWindow && it.publishedAt > now) return false;
     return now - it.publishedAt <= maxAge;
   });
   // En yeniden eskiye — feed sırası her kaynakta güvenilir değil.
@@ -269,6 +285,9 @@ async function collectCandidates(source, now, opts = {}) {
     });
   }
   if (skippedProject) out.projectSkipped = skippedProject;
+  // Kaynak kırılımlı rapor için ham sayaçlar (yalnızca gözlem — hiçbir kapıyı etkilemez).
+  out.rawCount = items.length;
+  out.freshCount = fresh.length;
   return out;
 }
 
@@ -346,6 +365,35 @@ function lazyEntityIndex(env, deps) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// KAYNAK KIRILIMLI SAYAÇLAR (yalnızca gözlem)
+// ---------------------------------------------------------------------------------------------
+// Toplam sayaçlar "hangi kaynak hangi kapıda kaç içerik kaybetti" sorusunu cevaplayamıyordu; bir
+// kaynağın feed'i bozulduğunda bu toplamların içinde görünmez oluyor. Buradaki kırılım hiçbir kapıyı
+// ETKİLEMEZ, yalnızca sayar.
+function srcStat(stats, sourceId) {
+  let row = stats.bySource[sourceId];
+  if (!row) {
+    row = {
+      found: 0, fresh: 0, candidates: 0, projectPrefilter: 0,
+      duplicate: 0, aiRejected: 0, qualityRejected: 0, published: 0, skipped: {},
+    };
+    stats.bySource[sourceId] = row;
+  }
+  return row;
+}
+
+// Bir eleme nedeni AI kararı mı (model içeriği reddetti) yoksa kalite kapısı mı (çıktı biçimi/
+// görsel/slug) — rapor tablosundaki iki ayrı sütunun ayrımı.
+const AI_REJECT_REASONS = /^(is_project|ai_)/;
+
+function noteSkip(stats, sourceId, reason) {
+  const row = srcStat(stats, sourceId);
+  row.skipped[reason] = (row.skipped[reason] || 0) + 1;
+  if (AI_REJECT_REASONS.test(reason)) row.aiRejected += 1;
+  else row.qualityRejected += 1;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Tek bir adayı işleyip yayınla
 // ---------------------------------------------------------------------------------------------
 
@@ -359,12 +407,14 @@ async function publishCandidate(env, candidate, ctx) {
     resolved = await resolveImage(candidate);
   } catch (err) {
     stats.skipped.image_fetch_failed = (stats.skipped.image_fetch_failed || 0) + 1;
+    noteSkip(stats, source.id, 'image_fetch_failed');
     return null;
   }
   if (!resolved.image) {
     // Görselsiz içerik bu tasarımda yayınlanamaz (kart görsel zorunlu) ve hukuki belirsizlik
     // durumunda da atlama kuralı geçerli (madde 6).
     stats.skipped.no_valid_image = (stats.skipped.no_valid_image || 0) + 1;
+    noteSkip(stats, source.id, 'no_valid_image');
     return null;
   }
 
@@ -375,6 +425,7 @@ async function publishCandidate(env, candidate, ctx) {
     if (ctx.existing.urls.has(resolved.canonical) || ctx.seenInRun.urls.has(resolved.canonical)) {
       stats.duplicate += 1;
       stats.duplicateBy.canonical_late = (stats.duplicateBy.canonical_late || 0) + 1;
+      srcStat(stats, source.id).duplicate += 1;
       return null;
     }
   }
@@ -440,6 +491,7 @@ async function publishCandidate(env, candidate, ctx) {
   if (!validated) {
     stats.qualityFailed += 1;
     stats.skipped[lastReason] = (stats.skipped[lastReason] || 0) + 1;
+    noteSkip(stats, source.id, lastReason);
     return null;
   }
 
@@ -451,6 +503,7 @@ async function publishCandidate(env, candidate, ctx) {
   if (crossDup) {
     stats.duplicate += 1;
     stats.duplicateBy.cross_source = (stats.duplicateBy.cross_source || 0) + 1;
+    srcStat(stats, source.id).duplicate += 1;
     return null;
   }
 
@@ -465,6 +518,7 @@ async function publishCandidate(env, candidate, ctx) {
   const slug = await allocateSlug(env, validated.title);
   if (!slug) {
     stats.skipped.slug_unavailable = (stats.skipped.slug_unavailable || 0) + 1;
+    noteSkip(stats, source.id, 'slug_unavailable');
     return null;
   }
 
@@ -509,6 +563,7 @@ async function publishCandidate(env, candidate, ctx) {
 
   stats.published += 1;
   stats.entitiesLinked += entities.length;
+  srcStat(stats, source.id).published += 1;
   return { id, slug };
 }
 
@@ -523,6 +578,14 @@ async function publishCandidate(env, candidate, ctx) {
 // bunları kullanır: "bugün yayımlanan her şeyi şimdi çek" gibi bir istek, kaynak zamanlamasını ve
 // tur başına düşük tavanları geçici olarak esnetmeyi gerektirir. Kalite/mükerrer/görsel kapıları
 // bu override'lardan ETKİLENMEZ — onlar her koşulda aynı çalışır.
+//   ignoreSourceSchedule  kaynak başına bekleme penceresini atla
+//   maxAgeDays            tazelik penceresi (varsayılan GUNDEM_LIMITS.maxItemAgeDays)
+//   strictDateWindow      tarihsiz girdileri REDDET + gelecek tarihli girdileri REDDET
+//   maxItemsPerSource     kaynağın kendi maxItemsPerRun'ının YERİNE geçer (bkz. sourceItemCap)
+//   maxItemsPerRun        tur toplam yayın tavanı
+//   maxPublishPerDay      24 saatlik yayın tavanı (geri doldurma 7 günü tek turda işlediği için
+//                         günlük tavanın turu kesmemesi gerekebilir)
+//   runBudgetMs           turun duvar-saati bütçesi
 export async function runGundemIngestion(env, deps, options = {}) {
   const startedAt = Date.now();
   const runBudgetMs = options.runBudgetMs ?? GUNDEM_LIMITS.runBudgetMs;
@@ -530,7 +593,7 @@ export async function runGundemIngestion(env, deps, options = {}) {
     sourcesTried: 0, sourcesOk: 0, sourcesFailed: 0,
     fetched: 0, candidates: 0, duplicate: 0, published: 0,
     qualityFailed: 0, aiCalls: 0, entitiesLinked: 0,
-    duplicateBy: {}, skipped: {}, errors: [],
+    duplicateBy: {}, skipped: {}, errors: [], bySource: {},
   };
 
   // --- KILL SWITCH (madde 17) -------------------------------------------------------------------
@@ -588,12 +651,17 @@ export async function runGundemIngestion(env, deps, options = {}) {
         await recordSourceResult(env, source.id, true);
         stats.sourcesOk += 1;
         stats.fetched += candidates.length;
+        const row = srcStat(stats, source.id);
+        row.found += candidates.rawCount || 0;
+        row.fresh += candidates.freshCount || 0;
         if (candidates.projectSkipped) {
           stats.skipped.project_prefilter = (stats.skipped.project_prefilter || 0) + candidates.projectSkipped;
+          row.projectPrefilter += candidates.projectSkipped;
         }
         return candidates;
       } catch (err) {
         const message = (err && err.message) || String(err);
+        srcStat(stats, source.id).error = message.slice(0, 120);
         stats.sourcesFailed += 1;
         stats.errors.push(`${source.id}:${message}`);
         await recordSourceResult(env, source.id, false, message);
@@ -614,6 +682,7 @@ export async function runGundemIngestion(env, deps, options = {}) {
     }
   }
   stats.candidates = ordered.length;
+  ordered.forEach(c => { srcStat(stats, c.source.id).candidates += 1; });
   if (!ordered.length) {
     logRun(stats, startedAt);
     return stats;
@@ -643,14 +712,13 @@ export async function runGundemIngestion(env, deps, options = {}) {
       stats.skipped.run_budget_exhausted = (stats.skipped.run_budget_exhausted || 0) + 1;
       break;
     }
-    const perSourceCap = options.maxItemsPerSource ?? GUNDEM_LIMITS.maxItemsPerSource;
-    const sourceCap = Math.min(candidate.source.maxItemsPerRun || perSourceCap, perSourceCap);
-    if ((perSourcePublished.get(candidate.source.id) || 0) >= sourceCap) continue;
+    if ((perSourcePublished.get(candidate.source.id) || 0) >= sourceItemCap(candidate.source, options)) continue;
 
     const dupReason = isDuplicate(candidate, existing, seenInRun);
     if (dupReason) {
       stats.duplicate += 1;
       stats.duplicateBy[dupReason] = (stats.duplicateBy[dupReason] || 0) + 1;
+      srcStat(stats, candidate.source.id).duplicate += 1;
       continue;
     }
 
@@ -661,6 +729,7 @@ export async function runGundemIngestion(env, deps, options = {}) {
       const message = (err && err.message) || String(err);
       stats.errors.push(`${candidate.source.id}:publish:${message}`);
       stats.skipped.publish_failed = (stats.skipped.publish_failed || 0) + 1;
+      noteSkip(stats, candidate.source.id, 'publish_failed');
     }
     if (published) {
       budget -= 1;
