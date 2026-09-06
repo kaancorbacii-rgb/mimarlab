@@ -149,37 +149,12 @@
     }
   });
 
-  // ---------------------------------------------------------------------------------------------
-  // "Giriş Yap"a HOVER ile anında açılış (kullanıcı isteği, 2026-09-06 madde 6: "giriş yap butonunun
-  // üzerine mouse imlecini getirince yandan çekmece şeklinde giriş yap popupı hemen açılsın").
-  //
-  // NEDEN BURADA: auth-modal.js sitedeki çoğu sayfada henüz YÜKLENMEMİŞTİR (bu dosyanın tüm varlık
-  // sebebi bu) — dinleyici orada olsaydı ilk hover'da hiç çalışmazdı. Bu dosya her sayfada yüklü ve
-  // modülü indirmenin tek yolunu (loadModule) zaten biliyor.
-  //
-  // "Masaüstü" ayrımı pencere genişliğiyle DEĞİL hover yeteneğiyle yapılır — auth-nav.js'teki avatar
-  // menüsünün AYNI gerekçesi: dokunmatik cihazlarda ilk dokunuş sentetik bir mouseenter üretir,
-  // genişliğe bakılsaydı geniş ekranlı bir tablette tek dokunuş çekmeceyi açıp hemen ardından
-  // tıklama-toggle'ı (bkz. auth-modal.js#click dinleyicisi) onu geri kapatırdı.
-  //
-  // mouseenter BALONLANMADIĞINDAN (bubble etmez) delegasyon 'mouseover' ile yapılır: .nav-rate
-  // düğmesi auth-nav.js tarafından oturum açılınca DOM'dan tamamen kaldırılıp avatar menüsüyle
-  // değiştirilir, yani sabit bir elemana doğrudan bağlanmak güvenli değil.
-  const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)');
-  let hoverOpenPending = false;
-  document.addEventListener('mouseover', (e) => {
-    if (!hoverCapable.matches || hoverOpenPending) return;
-    const target = e.target && e.target.closest ? e.target.closest('a.nav-rate, a.nav-mobile-cta') : null;
-    if (!target) return;
-    if (viewForAnchor(MODULES.auth, target) !== 'login') return;
-    const Modal = window.AuthModal;
-    if (Modal && Modal.isOpen && Modal.isOpen()) return; // zaten açık — yeniden render etme
-    hoverOpenPending = true;
-    loadModule('auth')
-      .then((M) => { if (M && !(M.isOpen && M.isOpen())) M.open('login', { triggerEl: target }); })
-      .catch(() => {})
-      .then(() => { hoverOpenPending = false; });
-  });
+  // GERİ ALINDI (kullanıcı isteği, 2026-09-06: "Giriş Yap butonunun üzerine mouse imleci gelince
+  // açılmasını iptal et, tıklayınca açılsın"). Burada kısa bir süre 'mouseover' delegasyonuyla
+  // hover'da çekmeceyi açan bir dinleyici vardı; kaldırıldı. Giriş Yap artık YALNIZCA tıklamayla
+  // açılır — o tıklama (modül henüz yüklenmemişse) yukarıdaki click dinleyicisi, yüklüyse
+  // auth-modal.js'in kendi click dinleyicisi tarafından işlenir. Aynı düğmeye açıkken tekrar
+  // tıklamanın çekmeceyi KAPATMASI (aç/kapat) korunuyor, bkz. auth-modal.js#click dinleyicisi.
 
   // bkz. yukarısı "Doğrudan URL ile açılış" — kullanıcı popup'ı hiç tetiklemeden geri/ileri tuşuyla
   // bu URL'lerden birine dönerse modül henüz yüklenmemiş olabilir; yüklenince kendi initialView
