@@ -782,6 +782,15 @@ const ModalShell = (function () {
   // Kaydet → popup'ı kapat" dönüşünü de karşılar: *-ekle sayfaları hiç kaydedilmediğinden,
   // kaydetten sonra açılan popup kapatılınca forma değil zincirin başındaki sayfaya dönülür.)
   const REAL_PAGE_KEY = 'mimarlab:lastRealPage';
+  // Kayıtlı gerçek sayfanın SCROLL konumu — REAL_PAGE_KEY'den AYRI bir anahtarda tutulur (kullanıcı
+  // isteği, 2026-09-06 madde 2: "popup'ı kapattığımda kaldığım yerde olayım"). Neden ayrı: deploy
+  // sırasında bir zincirin iki belgesi modal-shell.js'in ESKİ ve YENİ kopyalarını çalıştırabilir;
+  // REAL_PAGE_KEY'in düz-URL biçimini değiştirmek o pencerede eski okuyucuyu bozardı. Ayrı anahtar
+  // eski kopyalar tarafından görmezden gelinir, davranış yalnızca scroll hassasiyeti kadar geriler.
+  const REAL_PAGE_SCROLL_KEY = 'mimarlab:lastRealPageScroll';
+  // returnToPreviousPage() location.replace ile TAM SAYFA dönüş yaptığında, hedef belgeye "yüklenince
+  // şu konuma in" mesajını taşıyan tek seferlik anahtar (bkz. aşağıdaki restorePendingScroll).
+  const RESTORE_SCROLL_KEY = 'mimarlab:restoreScroll';
   const EDIT_PAGE_RE = /^\/(proje|urun|kisi|firma|marka|mimar|haber)-ekle(\.html)?$/;
   // Varlık popup'ı URL'leri — src/index.js#CLEAN_URL_ASSETS ile AYNI dört önek (+ /mimar, artık
   // yalnızca /kisi'ye 301'lenen eski aile). Bir slug segmenti ŞART: /proje listedir, /proje/x popup.
@@ -792,11 +801,35 @@ const ModalShell = (function () {
   function isEditPageUrl(href) { const u = sameOriginUrl(href); return !!u && EDIT_PAGE_RE.test(u.pathname); }
   function isEntityPopupUrl(href) { const u = sameOriginUrl(href); return !!u && ENTITY_POPUP_RE.test(u.pathname); }
 
-  // Dışarıdan da çağrılabilir (auth-modal.js): "burası artık gerçek bir sayfa sayılsın".
+  // Kayıt bu BELGEDE yazıldı mı? (bkz. aşağıdaki pagehide dinleyicisi — yalnızca gerçek sayfanın
+  // KENDİ belgesi kendi scroll konumunu güncelleyebilir; zincirin ortasındaki popup belgeleri
+  // kaydı bozmamalı.)
+  let realPageIsThisDocument = false;
+  // Popup açıkken body position:fixed olduğundan window.scrollY 0'dır — gerçek konum lockBodyScroll'un
+  // sakladığı savedScrollY'dedir (bkz. lockBodyScroll/unlockBodyScroll).
+  function currentScrollY() {
+    return opened ? savedScrollY : (window.scrollY || window.pageYOffset || 0);
+  }
+  function writeRealPageScroll(href, y) {
+    try { sessionStorage.setItem(REAL_PAGE_SCROLL_KEY, JSON.stringify({ href, y: Math.round(y) || 0 })); } catch { /* özel mod/kota */ }
+  }
+  function readRealPageScroll(href) {
+    try {
+      const raw = sessionStorage.getItem(REAL_PAGE_SCROLL_KEY);
+      if (!raw) return 0;
+      const rec = JSON.parse(raw);
+      return (rec && rec.href === href && rec.y > 0) ? rec.y : 0;
+    } catch { return 0; }
+  }
+
+  // Dışarıdan da çağrılabilir (auth-modal.js, ayrıca proje/kisi/firma/marka/urun liste sayfalarının
+  // syncBrowserUrl'i): "burası artık gerçek bir sayfa sayılsın".
   function markRealPage(href) {
     const u = sameOriginUrl(href || location.href);
     if (!u || isEntityPopupUrl(u.href) || isEditPageUrl(u.href)) return;
+    realPageIsThisDocument = true;
     try { sessionStorage.setItem(REAL_PAGE_KEY, u.href); } catch { /* özel mod/kota — dönüş history davranışına düşer */ }
+    writeRealPageScroll(u.href, currentScrollY());
   }
   function readRealPage() {
     try {
@@ -823,6 +856,43 @@ const ModalShell = (function () {
   // geri hareketleri kaydı BOZMAZ — yalnızca gerçek bir sayfaya dönüldüğünde tazelenir.
   window.addEventListener('pageshow', () => markRealPage(location.href));
   window.addEventListener('popstate', () => markRealPage(location.href));
+
+  // Gerçek sayfanın scroll konumunu, kullanıcı ORADAN AYRILIRKEN tazele (kullanıcı isteği,
+  // 2026-09-06 madde 2). markRealPage çoğu zaman sayfa yüklenirken ya da pushState'ten hemen sonra
+  // (scroll ~0) çalışır; asıl önemli değer, kullanıcının popup'ı açıp başka bir belgeye geçtiği
+  // ANDAKİ konumdur. pagehide hem gerçek unload'da hem bfcache'e alınırken tetiklenir.
+  // realPageIsThisDocument kapısı şart: zincirin ortasındaki /kisi/:slug gibi popup belgeleri de
+  // pagehide üretir, onların scroll'u kaydı EZMEMELİ.
+  window.addEventListener('pagehide', () => {
+    if (!realPageIsThisDocument) return;
+    const href = readRealPage();
+    if (href) writeRealPageScroll(href, currentScrollY());
+  });
+
+  // location.replace ile geri dönülen gerçek sayfada, ayrılırken kaydedilen konuma in. Liste
+  // sayfaları grid'lerini ASENKRON çeker (bkz. js/pages/proje.js#render) — belge yüklendiği anda
+  // doküman yüksekliği hedefe yetmez, bu yüzden yeterli yükseklik oluşana kadar kısa aralıklarla
+  // yoklanır. Kullanıcı bu arada kendi kaydırma/tuş girdisini yaparsa geri yükleme İPTAL edilir,
+  // aksi halde okuduğu yerden zıplatılmış olurdu.
+  (function restorePendingScroll() {
+    let raw = null;
+    try { raw = sessionStorage.getItem(RESTORE_SCROLL_KEY); sessionStorage.removeItem(RESTORE_SCROLL_KEY); } catch { return; }
+    if (!raw) return;
+    let rec = null;
+    try { rec = JSON.parse(raw); } catch { return; }
+    if (!rec || !rec.y || rec.href !== location.href) return;
+    let cancelled = false;
+    const cancel = () => { cancelled = true; };
+    ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, cancel, { once: true, passive: true }));
+    const deadline = Date.now() + 4000;
+    (function tick() {
+      if (cancelled) return;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max >= rec.y) { window.scrollTo({ top: rec.y, left: 0, behavior: 'instant' }); return; }
+      if (Date.now() > deadline) { if (max > 0) window.scrollTo({ top: max, left: 0, behavior: 'instant' }); return; }
+      setTimeout(tick, 100);
+    })();
+  })();
 
   // TÜR-BAĞIMSIZ popup zinciri derinliği (kullanıcı isteği, 2026-09-01 madde 4: "bir popup'tan
   // diğer popup'a geçtiğimizde, sonrakini kapatınca bir önceki popup değil EN SON KALDIĞIMIZ SAYFA
@@ -856,7 +926,14 @@ const ModalShell = (function () {
     // kullanıcıyı kapattığı popup'ın bir öncekine / az önce kaydettiği forma atardı. Bunun yerine
     // doğrudan zincirin başladığı gerçek sayfaya gidilir (bkz. yukarıdaki REAL_PAGE_KEY yorumu).
     const real = readRealPage();
-    if (real && real !== location.href) { location.replace(real); return true; }
+    if (real && real !== location.href) {
+      // Ayrılırken kaydedilen konumu hedef belgeye taşı (bkz. restorePendingScroll) — location.replace
+      // TAM SAYFA bir yükleme olduğundan tarayıcının kendi scroll geri yüklemesi burada devreye girmez.
+      const y = readRealPageScroll(real);
+      if (y > 0) { try { sessionStorage.setItem(RESTORE_SCROLL_KEY, JSON.stringify({ href: real, y })); } catch { /* özel mod/kota */ } }
+      location.replace(real);
+      return true;
+    }
     return false; // hiç kayıt yok (yeni sekme/doğrudan deep link) → çağıran liste sayfasına düşer
   }
 
@@ -936,3 +1013,18 @@ const ModalShell = (function () {
 
   return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();
+
+// KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-06 madde 2: "5. sayfadan proje popup'ı açıp
+// mimar/firma popup'ına geçip kapatınca 1. sayfaya düşüyorum").
+//
+// GERÇEK BULGU (canlıda doğrulandı): yukarıdaki `const ModalShell` KLASİK bir <script> içinde
+// top-level bir LEKSİKAL bildirimdir — `var`/function bildirimlerinin aksine `window` üzerinde bir
+// ÖZELLİK OLUŞTURMAZ. Yani `window.ModalShell` her zaman `undefined`'dı. proje.js ile kisi/firma/
+// marka/urun.html'in beşi de sayfa/filtre/sıralama değişiminde
+//   `if(window.ModalShell && ModalShell.markRealPage) ModalShell.markRealPage();`
+// yazıyor — bu koşul HİÇBİR ZAMAN sağlanmadığından ?page=N'li liste URL'i "son gerçek sayfa" olarak
+// hiç kaydedilmiyordu; sessionStorage'da belge yüklenişinden kalan çıplak /proje kalıyor, popup
+// zinciri başka bir belgeye geçtikten sonra kapanınca (bkz. returnToPreviousPage) kullanıcı 1.
+// sayfaya dönüyordu. auth-modal.js ve info-modal.js kendi sonlarında AYNI atamayı zaten yapıyor
+// (lazy-modals.js onları window üzerinden aradığı için) — modal-shell.js'te unutulmuştu.
+window.ModalShell = ModalShell;
