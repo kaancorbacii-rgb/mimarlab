@@ -17,11 +17,13 @@ import { parseFeed, stripHtml, decodeEntities, normalizeImageUrl, extractPageMet
 import {
   normalizeSourceUrl, titleKey, contentHash, isAllowedImageHost, validateAiOutput,
   wordCount, isSingleParagraph, looksTurkish, looksEnglish, englishWordHits, titleLanguageOk, titleOverlapsSource,
+  looksLikeProjectPublication, findCrossSourceDuplicate, jaccard, titleTokenSet,
 } from '../src/lib/gundemQuality.js';
 import { GUNDEM_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCategories.js';
 import { GUNDEM_SOURCES, activeGundemSources, GUNDEM_IMAGE_HOSTS } from '../src/lib/gundemSources.js';
 import { buildGundemEntityIndex, resolveGundemEntities } from '../src/lib/gundemEntities.js';
 import { _isSourceDueForTests } from '../src/lib/gundemIngest.js';
+import { hasHtmlExtractor, parseHtmlList, parseTurkishDate } from '../src/lib/gundemHtmlList.js';
 
 let passed = 0;
 let failed = 0;
@@ -538,6 +540,95 @@ await test('Üst üste hata veren kaynak soğutma penceresine alınır', () => {
 });
 
 // =================================================================================================
+section('5c) Proje içeriği filtresi (kullanıcı isteği 2026-09-07 madde 4)');
+// =================================================================================================
+await test('ArchDaily proje yayını kalıbı ("X / Y") yakalanır — AI çağrısı harcanmaz', () => {
+  assert.equal(looksLikeProjectPublication('Grava House / remyarchitects'), true);
+  assert.equal(looksLikeProjectPublication('Plaza Corporate - North Tower / Biselli Katchborian Arquitetos'), true);
+  assert.equal(looksLikeProjectPublication('The Overlook House / Migration Studios'), true);
+});
+
+await test('Makale/haber başlıkları proje sayılmaz', () => {
+  assert.equal(looksLikeProjectPublication('Building the India of the Imagination: Cinema and the Making of Place'), false);
+  assert.equal(looksLikeProjectPublication('Muğla Büyükşehir Belediyesi Yarışmasında Birincilik Açıklandı'), false);
+  assert.equal(looksLikeProjectPublication('Eski Gece Kulübü Kütüphaneye Dönüştü'), false);
+  assert.equal(looksLikeProjectPublication(''), false);
+  assert.equal(looksLikeProjectPublication(null), false);
+});
+
+await test('Makale işareti taşıyan "/" başlığı proje sayılmaz (yanlış pozitif koruması)', () => {
+  // İki nokta üst üste = makale işareti; eğik çizgi olsa bile proje yayını değildir.
+  assert.equal(looksLikeProjectPublication('Interview: Zaha Hadid Architects / gelecek üzerine'), false);
+});
+
+// =================================================================================================
+section('5d) Siteler arası mükerrer (kullanıcı isteği 2026-09-07 madde 6)');
+// =================================================================================================
+await test('AYNI olayı anlatan iki FARKLI sitenin Türkçe başlığı mükerrer sayılır', () => {
+  const recent = [{ slug: 'a', title: 'OMA imzalı kültür merkezi Seul’de ziyarete açıldı' }];
+  const dup = findCrossSourceDuplicate('Seul’de OMA kültür merkezi açıldı ziyarete', recent);
+  assert.ok(dup, 'mükerrer yakalanmalıydı');
+  assert.equal(dup.slug, 'a');
+});
+
+await test('FARKLI olaylar mükerrer sayılmaz', () => {
+  const recent = [{ slug: 'a', title: 'OMA imzalı kültür merkezi Seul’de ziyarete açıldı' }];
+  assert.equal(findCrossSourceDuplicate('Muğla’da hizmet binası yarışması sonuçlandı', recent), null);
+  // Benzer konulu ama ayrı iki yarışma birleştirilmemeli.
+  assert.equal(findCrossSourceDuplicate('Gliwice bulvarları için kentsel tasarım yarışması', [
+    { slug: 'b', title: 'Geri dönüştürülmüş malzeme pavyonu yarışması açıldı' },
+  ]), null);
+});
+
+await test('Ayırt edici token taşımayan başlık engellenmez (karar verilemez)', () => {
+  assert.equal(findCrossSourceDuplicate('Yeni bir', [{ slug: 'a', title: 'Yeni bir' }]), null);
+});
+
+await test('jaccard/titleTokenSet temel davranış', () => {
+  assert.equal(jaccard(titleTokenSet('aaa bbb'), titleTokenSet('aaa bbb')), 1);
+  assert.equal(jaccard(titleTokenSet('aaa bbb'), titleTokenSet('ccc ddd')), 0);
+  assert.equal(titleTokenSet('bir bu ve').size, 0); // durak kelimeler elenir
+});
+
+// =================================================================================================
+section('5e) HTML liste çıkarımı (mimdap)');
+// =================================================================================================
+const MIMDAP_FIXTURE = `<div>
+<article id="post-333789" class="post"><div><div class="relative">
+<img data-lazyloaded="1" src="data:image/svg+xml;base64,AAAA" data-src="https://mimdap.org/wp-content/uploads/2026/09/hamam.jpg" alt="x" />
+<noscript><img src="https://mimdap.org/wp-content/uploads/2026/09/hamam.jpg" /></noscript></div>
+<div><h3 class="mb-2"><a href="https://mimdap.org/haberler/antalyada-roma-hamami/">Antalya'da 1700 yıllık Roma Hamamı</a></h3>
+<div class="text-xs text-secondary pl-1 mb-2">6 Eylül 2026</div>
+<p class="line-clamp-3 font-sans">Antalya&#8217;nın Konyaaltı ilçesinde bulunan hamam&hellip;</p>
+</div></div></article>
+</div>`;
+
+await test('mimdap: başlık/link/görsel/tarih/özet doğru çıkarılır', () => {
+  const items = parseHtmlList('mimdap', MIMDAP_FIXTURE, 'https://mimdap.org/kategori/haberler/');
+  assert.equal(items.length, 1);
+  const it = items[0];
+  assert.equal(it.title, "Antalya'da 1700 yıllık Roma Hamamı");
+  assert.equal(it.link, 'https://mimdap.org/haberler/antalyada-roma-hamami/');
+  // data-src tercih edilir; base64 yer tutucu ASLA görsel sayılmaz.
+  assert.equal(it.image, 'https://mimdap.org/wp-content/uploads/2026/09/hamam.jpg');
+  assert.equal(it.publishedAt, Date.UTC(2026, 8, 6, 12, 0, 0));
+  assert.ok(it.excerpt.includes('Konyaaltı'));
+  assert.ok(!it.excerpt.includes('&#8217;'), 'HTML varlıkları çözülmeliydi');
+});
+
+await test('mimdap: şablon değişirse SIFIR item döner (uydurma yok)', () => {
+  assert.deepEqual(parseHtmlList('mimdap', '<div>bambaşka bir sayfa</div>', 'https://mimdap.org/'), []);
+  assert.deepEqual(parseHtmlList('bilinmeyen-kaynak', MIMDAP_FIXTURE, 'https://x.com/'), []);
+});
+
+await test('Türkçe tarih ayrıştırma', () => {
+  assert.equal(parseTurkishDate('6 Eylül 2026'), Date.UTC(2026, 8, 6, 12, 0, 0));
+  assert.equal(parseTurkishDate('1 Ocak 2026'), Date.UTC(2026, 0, 1, 12, 0, 0));
+  assert.equal(parseTurkishDate('12 Aralık 2025'), Date.UTC(2025, 11, 12, 12, 0, 0));
+  assert.equal(parseTurkishDate('bozuk tarih'), null);
+});
+
+// =================================================================================================
 section('6) TEST 6 — Kaynak yapılandırması tutarlılığı');
 // =================================================================================================
 
@@ -545,7 +636,7 @@ await test('Her kaynağın zorunlu alanları tam ve tipleri doğru', () => {
   for (const s of GUNDEM_SOURCES) {
     assert.ok(s.id && typeof s.id === 'string', `id eksik: ${s.name}`);
     assert.ok(s.name && s.domain && s.feedUrl, `temel alan eksik: ${s.id}`);
-    assert.ok(['rss', 'atom'].includes(s.type), `geçersiz type: ${s.id}`);
+    assert.ok(['rss', 'atom', 'html'].includes(s.type), `geçersiz type: ${s.id}`);
     assert.equal(typeof s.enabled, 'boolean', `enabled boolean değil: ${s.id}`);
     assert.ok(isValidGundemCategory(s.defaultCategory), `defaultCategory whitelist dışı: ${s.id}`);
     assert.ok(['feed', 'og'].includes(s.imageStrategy), `geçersiz imageStrategy: ${s.id}`);
@@ -553,6 +644,21 @@ await test('Her kaynağın zorunlu alanları tam ve tipleri doğru', () => {
     assert.ok(Number.isFinite(s.fetchIntervalMin) && s.fetchIntervalMin > 0, `fetchIntervalMin: ${s.id}`);
     assert.ok(Number.isFinite(s.maxItemsPerRun) && s.maxItemsPerRun > 0, `maxItemsPerRun: ${s.id}`);
     assert.ok(['tr', 'en'].includes(s.language), `geçersiz language: ${s.id}`);
+  }
+});
+
+await test('type:html olan her ETKİN kaynağın kayıtlı bir çıkarıcısı var', () => {
+  for (const s of activeGundemSources().filter(x => x.type === 'html')) {
+    assert.equal(hasHtmlExtractor(s.id), true, `HTML çıkarıcısı yok: ${s.id}`);
+  }
+});
+
+await test('extraListUrls girdileri geçerli URL ve whitelist kategorisi taşır', () => {
+  for (const s of GUNDEM_SOURCES) {
+    for (const e of s.extraListUrls || []) {
+      assert.doesNotThrow(() => new URL(e.url), `geçersiz extraListUrl: ${s.id}`);
+      assert.ok(isValidGundemCategory(e.category), `whitelist dışı kategori: ${s.id}/${e.category}`);
+    }
   }
 });
 

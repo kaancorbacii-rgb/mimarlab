@@ -400,7 +400,12 @@ async function withSingleFlight(key, fn) {
 //     tek kaynağı (bkz. src/lib/officeUrl.js). v5-v17'nin AYNI tuzağı: hiçbir satırın updated_at'i
 //     değişmediğinden fingerprint aynı kalır, sürüm artırılmazsa /marka'yı daha önce açmış
 //     ziyaretçiler 304 alıp kartlarda hâlâ eski /firma/:slug bağlantısını görürdü.
-const API_PAYLOAD_VERSION = 'v18';
+// v19 (kullanıcı isteği, 2026-09-07 madde 5): /api/gundem öğeleri artık `id` taşıyor (admin
+//     düzenle/arşivle/sil kontrollerinin hedefi) ve kart sözleşmesi değişti (kaynak bağlantısı
+//     meta satırına taşındı). v5-v18'in AYNI tuzağı: hiçbir satırın updated_at'i değişmediğinden
+//     fingerprint aynı kalır; sürüm artırılmazsa /gundem'i daha önce açmış ziyaretçiler 304 alıp
+//     id'siz eski gövdede takılır ve admin kontrolleri hiç görünmez.
+const API_PAYLOAD_VERSION = 'v19';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

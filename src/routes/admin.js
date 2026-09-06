@@ -21,6 +21,7 @@ import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { findR2Orphans, confirmStillOrphaned } from '../lib/r2Reconcile.js';
 import { buildMeta } from '../lib/seo.js';
 import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSettings.js';
+import { handleGundemAdminRoute } from './gundemAdmin.js';
 import { SAFE_STORAGE_BYTES, SAFE_OPS_PER_MONTH } from '../lib/r2Quota.js';
 import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
 import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
@@ -121,6 +122,9 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'r2-orphans') return await handleR2OrphansAdmin(request, env);
     if (sub === 'seo') return await handleSeoAdmin(request, env, url, segments);
     if (sub === 'settings') return await handleSiteSettingsAdmin(request, env);
+    // Gündem içerik yönetimi (kullanıcı isteği, 2026-09-07 madde 5) — düzenle/arşivle/sil.
+    // Yeni kayıt OLUŞTURMA yok: Gündem tanımı gereği otomatiktir (bkz. gundemAdmin.js kapsam notu).
+    if (sub === 'gundem') return await handleGundemAdminRoute(request, env, segments);
     if (sub === 'performance') return await handlePerformanceAdmin(request, env, segments);
     if (sub === 'top100') return await handleTop100AdminRoute(request, env, url, segments);
     if (sub === 'visual-index') return await handleVisualIndexAdmin(request, env, url);

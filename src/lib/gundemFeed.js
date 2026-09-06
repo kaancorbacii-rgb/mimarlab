@@ -207,13 +207,23 @@ export function extractPageMeta(html, baseUrl) {
 
 // Feed'i çeker ve ayrıştırır. safeFetch: SSRF koruması + her yönlendirme hop'unda yeniden doğrulama
 // + zaman aşımı (bkz. o dosya). Accept başlığı, bazı sunucuların feed yerine HTML dönmesini önler.
-export async function fetchFeed(feedUrl) {
-  const { response } = await safeFetch(feedUrl, { timeoutMs: FEED_TIMEOUT_MS, maxRedirects: 4, headers: {
-    Accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.1',
+//
+// source.type === 'html' ise (RSS'i olmayan ya da robots.txt'si feed'i kapatan kaynaklar, bkz.
+// src/lib/gundemHtmlList.js) AYNI şekilde item dizisi döner — çağıran taraf farkı görmez.
+export async function fetchFeed(feedUrl, source = null) {
+  const isHtml = source && source.type === 'html';
+  const { response, finalUrl } = await safeFetch(feedUrl, { timeoutMs: FEED_TIMEOUT_MS, maxRedirects: 4, headers: {
+    Accept: isHtml
+      ? 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1'
+      : 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.1',
   } });
   if (!response.ok) throw new Error(`feed_http_${response.status}`);
-  const xml = await limitResponseSize(response, FEED_MAX_BYTES).text();
-  return parseFeed(xml);
+  const body = await limitResponseSize(response, FEED_MAX_BYTES).text();
+  if (isHtml) {
+    const { parseHtmlList } = await import('./gundemHtmlList.js');
+    return parseHtmlList(source.id, body, finalUrl);
+  }
+  return parseFeed(body);
 }
 
 // Makale sayfasının önizleme metadata'sı (yalnızca imageStrategy:'og' olan kaynaklar için).

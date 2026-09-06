@@ -81,6 +81,81 @@ export async function contentHash(title, excerpt) {
 }
 
 // -----------------------------------------------------------------------------------------------
+// PROJE YAYINI KAPISI (kullanıcı isteği, 2026-09-07 madde 4: "bu kısımda proje içeriği
+// yayınlamanı istemiyorum")
+// -----------------------------------------------------------------------------------------------
+// MİMARLAB'ın ZATEN bir /proje bölümü var; Gündem'in tek tek yapı/proje tanıtımlarıyla dolması
+// hem o bölümü tekrarlar hem de "bugün ne oluyor?" sorusunu cevaplamaz.
+//
+// UCUZ ÖN FİLTRE — AI'DEN ÖNCE ÇALIŞIR, dolayısıyla elenen içerik için AI çağrısı HARCANMAZ.
+// ArchDaily/Archello gibi yayınlar proje gönderilerini değişmez bir kalıpla adlandırır:
+//   "Grava House / remyarchitects"           "Plaza Corporate - North Tower / Biselli Katchborian"
+// Yani "<yapı adı> / <ofis adı>". Makaleler bu kalıbı KULLANMAZ:
+//   "Building the India of the Imagination: Cinema and the Making of Place"
+// Eğik çizgi etrafında boşluk + iki tarafta da makul uzunlukta metin + başlıkta iki nokta/soru
+// işareti gibi makale işaretlerinin OLMAMASI aranır.
+//
+// Bu ön filtre YALNIZCA bariz kalıbı yakalar; asıl karar AI'nin isProject alanındadır (bkz.
+// gundemAi.js) — model, kalıba uymayan proje tanıtımlarını da işaretleyebilir.
+const ARTICLE_MARKERS = /[:?]|^\d+\s|\b(guide|roundup|how|why|what|interview|opinion|list|best|top)\b/i;
+export function looksLikeProjectPublication(title) {
+  const s = String(title || '').trim();
+  if (!s) return false;
+  const m = /^(.{4,90})\s+\/\s+(.{2,80})$/.exec(s);
+  if (!m) return false;
+  // Sağ taraf (ofis adı) çok uzunsa ya da başlıkta makale işaretleri varsa proje sayma.
+  if (ARTICLE_MARKERS.test(s)) return false;
+  return true;
+}
+
+// -----------------------------------------------------------------------------------------------
+// SİTELER ARASI MÜKERRER (kullanıcı isteği, 2026-09-07 madde 6: "Farklı sitelerde aynı içerikler
+// olabilir buna dikkat et")
+// -----------------------------------------------------------------------------------------------
+// Mevcut dört basamak (source_url / canonical / content_hash / title_key) kaynağın KENDİ dilindeki
+// metinden üretilir; bu yüzden aynı olayı farklı kelimelerle ya da farklı dilde yazan İKİ AYRI
+// SİTE yakalanamıyordu (bkz. gundemIngest.js dosya başındaki "BİLİNEN SINIR" notu).
+//
+// ÇÖZÜM: karşılaştırmayı KAYNAK metninde değil, AI'nin ürettiği TÜRKÇE BAŞLIKTA yap. İki farklı
+// site aynı olayı anlattığında Türkçe özetleri de aynı ayırt edici adları taşır ("OMA", "Seul",
+// "Bauhaus") — çünkü ikisi de aynı olguyu özetliyor. Jaccard benzerliği bu örtüşmeyi ölçer.
+//
+// Vectorize/embedding EKLENMEDİ (kullanıcı isteği madde 29'da açıkça kapsam dışı); bu yöntem
+// ek altyapı gerektirmez ve yalnızca zaten üretilmiş metni kullanır.
+//
+// EŞİK 0.55: ayırt edici token'ların yarısından fazlası ortaksa aynı olay sayılır. Daha düşük bir
+// eşik farklı ama benzer konulu haberleri (iki ayrı yarışma duyurusu) yanlışlıkla birleştirirdi.
+export const CROSS_SOURCE_SIMILARITY = 0.55;
+
+export function titleTokenSet(title) {
+  return new Set(
+    foldTr(String(title || ''))
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length >= 3 && !TITLE_STOPWORDS.has(w))
+  );
+}
+
+export function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+// Yeni Türkçe başlık, YAKIN GEÇMİŞTEKİ yayınlardan biriyle aynı olayı mı anlatıyor?
+// `recentTitles` çağıran tarafça (son N gün) verilir — tüm tabloyu taramak gereksiz.
+export function findCrossSourceDuplicate(newTitle, recentTitles) {
+  const a = titleTokenSet(newTitle);
+  if (a.size < 2) return null; // ayırt edici token yoksa karar verilemez, engelleme
+  for (const row of recentTitles || []) {
+    const score = jaccard(a, titleTokenSet(row.title));
+    if (score >= CROSS_SOURCE_SIMILARITY) return { slug: row.slug, title: row.title, score: Math.round(score * 100) / 100 };
+  }
+  return null;
+}
+
+// -----------------------------------------------------------------------------------------------
 // GÖRSEL KAPISI
 // -----------------------------------------------------------------------------------------------
 

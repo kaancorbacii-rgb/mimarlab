@@ -29,6 +29,7 @@ import { fetchFeed, fetchPageMeta, normalizeImageUrl } from './gundemFeed.js';
 import {
   normalizeSourceUrl, titleKey, contentHash, isAllowedImageHost,
   validateAiOutput, EXCERPT_MAX_CHARS,
+  looksLikeProjectPublication, findCrossSourceDuplicate,
 } from './gundemQuality.js';
 import { isValidGundemCategory } from './gundemCategories.js';
 import { generateGundemSummary, isGundemAiAvailable, AiProviderError } from './gundemAi.js';
@@ -213,7 +214,20 @@ async function allocateSlug(env, title) {
 // ---------------------------------------------------------------------------------------------
 
 async function collectCandidates(source, now, opts = {}) {
-  const items = await fetchFeed(source.feedUrl);
+  // extraListUrls — çok kategorili siteler (bkz. mimdap) tek kaynak kaydı altında birden çok liste
+  // sayfası taşır. Sayfalar SIRAYLA okunur (paralel değil): aynı siteye aynı anda birden çok istek
+  // atmamak, bu depodaki "dış kaynaklara agresif eşzamanlılık uygulama" kuralının gereği.
+  const listUrls = [
+    { url: source.feedUrl, category: source.defaultCategory },
+    ...(source.extraListUrls || []),
+  ];
+  const items = [];
+  for (const entry of listUrls) {
+    const batch = await fetchFeed(entry.url, source);
+    // Kategori, feed'in KENDİ sayfasından gelir (ör. .../kategori/yarismalar/ -> 'yarisma') —
+    // AI tahminine gerek kalmadan kesin bilinir; validateAiOutput'ta fallback olarak kullanılır.
+    for (const it of batch) items.push({ ...it, listCategory: entry.category || source.defaultCategory });
+  }
   const maxAge = (opts.maxAgeDays ?? GUNDEM_LIMITS.maxItemAgeDays) * DAY_MS;
   const perSourceCap = opts.maxItemsPerSource ?? GUNDEM_LIMITS.maxItemsPerSource;
   const perSource = Math.min(source.maxItemsPerRun || perSourceCap, perSourceCap);
@@ -227,11 +241,16 @@ async function collectCandidates(source, now, opts = {}) {
   fresh.sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0));
 
   const out = [];
+  let skippedProject = 0;
   for (const it of fresh) {
     if (out.length >= perSource * 3) break; // mükerrer eleme payı bırak; yayın tavanı ayrıca uygulanır
     let normalizedUrl;
     try { normalizedUrl = normalizeSourceUrl(it.link); } catch { continue; }
     if (!normalizedUrl) continue;
+    // PROJE ÖN FİLTRESİ (kullanıcı isteği 2026-09-07 madde 4) — burada elenen içerik için ne
+    // görsel çözümlemesi ne AI çağrısı yapılır. Bariz "<yapı> / <ofis>" kalıbını yakalar; kalıba
+    // uymayan proje tanıtımları AI'nin isProject alanında elenir (bkz. publishCandidate).
+    if (looksLikeProjectPublication(it.title)) { skippedProject++; continue; }
     const excerpt = (it.excerpt || '').slice(0, EXCERPT_MAX_CHARS);
     out.push({
       source,
@@ -242,22 +261,35 @@ async function collectCandidates(source, now, opts = {}) {
       excerpt,
       author: it.author || null,
       categories: it.categories || [],
+      listCategory: it.listCategory || source.defaultCategory,
       publishedAt: it.publishedAt,
       image: it.image,
       titleKey: titleKey(it.title),
       contentHash: await contentHash(it.title, excerpt),
     });
   }
+  if (skippedProject) out.projectSkipped = skippedProject;
   return out;
 }
 
 // Feed'in kendi <category> etiketlerinden kategori türetme — AI'den ÖNCE denenir (ucuz ve
 // yayıncının kendi sınıflandırması olduğu için AI tahmininden daha güvenilir).
-function categoryFromHints(source, categories) {
+// Kategori kaynağı ÖNCELİK SIRASI:
+//   1. Liste sayfasının kendisi (ör. .../kategori/yarismalar/ -> 'yarisma') — KESİN bilgi,
+//      yayıncının kendi sınıflandırması, AI'ye sormaya gerek yok.
+//   2. Feed'in <category> etiketleri + kaynağın categoryHints kuralları.
+//   3. AI önerisi (yalnızca whitelist içinden).
+// Bu sıra, kullanıcının kategori bazlı kaynak adresleri vermesini (2026-09-07) doğrudan
+// değerlendirir — o adresler zaten kategoriyi söylüyor.
+function categoryFromHints(source, categories, listCategory) {
+  if (listCategory && isValidGundemCategory(listCategory) && listCategory !== source.defaultCategory) {
+    return listCategory;
+  }
   for (const hint of source.categoryHints || []) {
     if (categories.some(c => hint.match.test(c))) return hint.category;
   }
-  return null;
+  // Liste sayfası kategorisi kaynağın varsayılanıyla aynıysa yine de geçerli bir sinyaldir.
+  return (listCategory && isValidGundemCategory(listCategory)) ? listCategory : null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -348,7 +380,7 @@ async function publishCandidate(env, candidate, ctx) {
   }
 
   // --- AI (kategori ipucu varsa yine de AI çağrılır: başlık+özet zaten gerekli) ------------------
-  const hintCategory = categoryFromHints(source, candidate.categories);
+  const hintCategory = categoryFromHints(source, candidate.categories, candidate.listCategory);
   const excerptForAi = [candidate.excerpt, resolved.extraExcerpt]
     .filter(Boolean).join(' ').slice(0, EXCERPT_MAX_CHARS);
 
@@ -377,6 +409,12 @@ async function publishCandidate(env, candidate, ctx) {
       lastReason = `ai_${(err && err.code) || 'error'}`;
       continue;
     }
+    // PROJE KAPISI (AI kararı) — ucuz ön filtrenin yakalayamadığı proje tanıtımları burada elenir.
+    // Yeniden denemek anlamsız: model konuyu doğru sınıflandırdı, içerik bu bölüme ait değil.
+    if (raw && raw.isProject === true) {
+      lastReason = 'is_project';
+      break;
+    }
     if (raw && raw.confident === false) {
       // Model kendi kendine "emin değilim" dedi — bu bir hata değil, doğru davranış. Tekrar
       // denemek aynı sonucu vereceğinden döngü hemen kırılır.
@@ -402,6 +440,17 @@ async function publishCandidate(env, candidate, ctx) {
   if (!validated) {
     stats.qualityFailed += 1;
     stats.skipped[lastReason] = (stats.skipped[lastReason] || 0) + 1;
+    return null;
+  }
+
+  // --- SİTELER ARASI MÜKERRER (kullanıcı isteği 2026-09-07 madde 6) --------------------------------
+  // Dört ham-metin basamağı aynı olayı FARKLI SİTELERDEN farklı kelimelerle geldiğinde yakalayamaz.
+  // Bu kapı karşılaştırmayı AI'nin ürettiği TÜRKÇE başlıkta yapar (bkz. gundemQuality.js
+  // #findCrossSourceDuplicate). AI'den SONRA olması kaçınılmaz — karşılaştırılan metni AI üretiyor.
+  const crossDup = findCrossSourceDuplicate(validated.title, ctx.recentTitles);
+  if (crossDup) {
+    stats.duplicate += 1;
+    stats.duplicateBy.cross_source = (stats.duplicateBy.cross_source || 0) + 1;
     return null;
   }
 
@@ -454,6 +503,9 @@ async function publishCandidate(env, candidate, ctx) {
   if (candidate.canonicalKey) ctx.seenInRun.urls.add(candidate.canonicalKey);
   ctx.seenInRun.hashes.add(candidate.contentHash);
   if (candidate.titleKey) ctx.seenInRun.titles.add(candidate.titleKey);
+  // Bu turda yayınlanan Türkçe başlık da karşılaştırma havuzuna girer — aynı olayı iki farklı
+  // kaynaktan AYNI turda almayı da engeller.
+  ctx.recentTitles.push({ slug, title: validated.title });
 
   stats.published += 1;
   stats.entitiesLinked += entities.length;
@@ -536,6 +588,9 @@ export async function runGundemIngestion(env, deps, options = {}) {
         await recordSourceResult(env, source.id, true);
         stats.sourcesOk += 1;
         stats.fetched += candidates.length;
+        if (candidates.projectSkipped) {
+          stats.skipped.project_prefilter = (stats.skipped.project_prefilter || 0) + candidates.projectSkipped;
+        }
         return candidates;
       } catch (err) {
         const message = (err && err.message) || String(err);
@@ -568,8 +623,16 @@ export async function runGundemIngestion(env, deps, options = {}) {
   const existing = await loadExistingKeys(env, ordered);
   const seenInRun = { urls: new Set(), hashes: new Set(), titles: new Set() };
 
+  // Siteler arası mükerrer karşılaştırması için son 14 günün yayınlanmış TÜRKÇE başlıkları.
+  // Tüm tabloyu taramak gereksiz: aynı olay farklı sitelerde günler içinde çıkar, aylar sonra değil.
+  // idx_gundem_items_published tam bu WHERE'i karşılar.
+  const { results: recentRows } = await env.DB.prepare(
+    `SELECT slug, title FROM gundem_items WHERE status = 'published' AND published_at >= ? ORDER BY published_at DESC LIMIT 300`
+  ).bind(startedAt - 14 * DAY_MS).all();
+
   const ctx = {
     existing, seenInRun, stats, abort: null,
+    recentTitles: recentRows.map(r => ({ slug: r.slug, title: r.title })),
     getEntityIndex: lazyEntityIndex(env, deps),
   };
 

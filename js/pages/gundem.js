@@ -8,8 +8,10 @@
 //   * Paylaş: MEVCUT ShareWidget (js/components/share-button.js) — Web Share API varsa o, yoksa
 //     kopyala/WhatsApp/X/LinkedIn popover'ı. Paylaşılan URL her zaman KALICI item adresidir
 //     (/gundem/:slug), sayfa hash'i değil (madde 16).
-//   * Karta tıklama: /gundem/:slug (MİMARLAB içi kalıcı route) — kaynak makaleye gitmez. Kaynağa
-//     gitmek için kartta AYRICA görünür bir "Kaynağa git →" bağlantısı vardır (madde 2).
+//   * TIKLAMA DAVRANIŞI (kullanıcı isteği, 2026-09-07): kartın kendisi ve başlık TIKLANABİLİR
+//     DEĞİLDİR. Yalnızca GÖRSEL tıklanabilir ve tıklanınca mevcut ImageLightbox'ta büyür — yeni bir
+//     lightbox yazılmadı. Kaynağa gitmek için meta satırındaki KAYNAK ADI bağlantısı kullanılır;
+//     ayrı bir "Kaynağa git" satırı YOKTUR.
 //
 // GLOBAL'LER: save-widget.js/share-button.js düz <script> (modül DEĞİL) olarak yüklenir ve global
 // leksik kapsamı paylaşır. `ShareWidget` bir `const` olduğundan window ÜZERİNDE DEĞİLDİR (bu depoda
@@ -81,13 +83,17 @@ function entitiesHtml(entities){
 // detail=true → /gundem/:slug tek içerik görünümü: özet kırpılmaz (bkz. gundem.html#
 // .gundem-card--detail), çünkü orada sayfanın KENDİSİ o içeriktir.
 function cardHtml(item, index, { detail = false } = {}){
+  // href yalnızca Kaydet/Paylaş kaydına gider — kart ARTIK tıklanabilir DEĞİL (kullanıcı isteği
+  // 2026-09-07 madde 1: yalnızca görsel tıklanabilir, tıklayınca lightbox'ta büyür).
   const href = '/gundem/' + encodeURIComponent(item.slug);
   // Referans metadata dili: "12 May 2026 News" — tarih normal/gri, kategori KALIN ve koyu,
   // kaynak adı ardından ince bir orta nokta ile. Büyük harf/harf aralığı YOK.
   const metaHtml =
     `<span class="gundem-date">${escapeHtml(formatDate(item.date))}</span>` +
     (item.category ? `<span class="gundem-cat">${escapeHtml(categoryLabel(item.category))}</span>` : '') +
-    (item.sourceName ? `<span class="gundem-src">${escapeHtml(item.sourceName)}</span>` : '');
+    (item.sourceName
+      ? `<a class="gundem-src" href="${escapeAttr(item.sourceUrl)}" rel="nofollow noopener external" target="_blank">${escapeHtml(item.sourceName)}</a>`
+      : '');
   const shareId = 'gundem-share-' + index;
   return `<article class="gundem-card${detail ? ' gundem-card--detail' : ''}" data-slug="${escapeAttr(item.slug)}">
     <div class="gundem-actions">
@@ -100,24 +106,153 @@ function cardHtml(item, index, { detail = false } = {}){
         data-href="${escapeAttr(href)}"
         aria-label="Kaydet">${ICON_SAVE}</button>
       <span class="gundem-share-slot" id="${shareId}-slot"></span>
+      <span class="gundem-admin-slot" data-id="${escapeAttr(item.id || '')}"></span>
     </div>
     <div class="gundem-photo">
-      <a class="gundem-photo-link" href="${escapeAttr(href)}" tabindex="-1" aria-hidden="true">
-        <img src="${escapeAttr(item.image)}" alt="" width="640" height="400"
+      <button class="gundem-photo-btn" type="button"
+              data-lightbox="${escapeAttr(item.image)}"
+              aria-label="${escapeAttr(item.title)} — görseli büyüt">
+        <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)}" width="640" height="400"
              loading="${index < 2 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer">
-      </a>
+      </button>
     </div>
     <div class="gundem-body">
       <p class="gundem-meta">${metaHtml}</p>
-      <h2 class="gundem-card-title"><a href="${escapeAttr(href)}">${escapeHtml(item.title)}</a></h2>
+      <h2 class="gundem-card-title">${escapeHtml(item.title)}</h2>
       <p class="gundem-summary">${escapeHtml(item.summary)}</p>
       <div class="gundem-foot">
-        <a class="gundem-source-link" href="${escapeAttr(item.sourceUrl)}"
-           rel="nofollow noopener external" target="_blank">Kaynağa git →</a>
         ${entitiesHtml(item.entities)}
       </div>
     </div>
   </article>`;
+}
+
+// GÖRSEL BÜYÜTME (kullanıcı isteği, 2026-09-07 madde 1) — mevcut js/components/image-lightbox.js
+// yeniden kullanılır (window.ImageLightbox.open(url, alt)); yeni bir büyütme katmanı YAZILMADI.
+// Delege dinleyici: kartlar sayfalama/filtreyle sürekli yeniden basıldığından her karta ayrı
+// listener bağlamak (save-widget.js'te canlıda mükerrer istek üretmiş olan hata) tekrarlanmaz.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.gundem-photo-btn');
+  if(!btn) return;
+  const url = btn.dataset.lightbox;
+  if(!url) return;
+  e.preventDefault();
+  const img = btn.querySelector('img');
+  if(window.ImageLightbox && typeof window.ImageLightbox.open === 'function'){
+    window.ImageLightbox.open(url, (img && img.alt) || '');
+  }else{
+    // Lightbox yüklenmediyse (defer sırası/ağ hatası) görsel yeni sekmede açılır — tıklama
+    // sessizce hiçbir şey yapmasın istemiyoruz.
+    window.open(url, '_blank', 'noopener');
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// ADMİN KONTROLLERİ (kullanıcı isteği, 2026-09-07 madde 5) — YALNIZCA admin görür.
+//
+// GÜVENLİK NOTU: burada gizlenen şey yalnızca ARAYÜZDÜR. Asıl yetki kontrolü sunucudadır
+// (/api/admin/* tamamı requireAdmin arkasında, bkz. src/routes/admin.js) — bu kod tarayıcıda
+// değiştirilse bile admin olmayan biri hiçbir şey düzenleyemez.
+let isAdminUser = null;
+async function ensureAdminFlag(){
+  if(isAdminUser !== null) return isAdminUser;
+  try{
+    // auth-nav.js aynı isteği zaten başlatmış olur — paylaşılan sonucu kullan, ikinci istek atma.
+    const data = window.__authMeFetch
+      ? await window.__authMeFetch
+      : await fetch('/api/auth/me').then(r => r.ok ? r.json() : { user:null }).catch(() => ({ user:null }));
+    isAdminUser = !!(data && data.user && data.user.role === 'admin');
+  }catch{ isAdminUser = false; }
+  return isAdminUser;
+}
+
+const ICON_EDIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICON_ARCHIVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>';
+const ICON_DELETE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+
+async function applyAdminControls(){
+  if(!(await ensureAdminFlag())) return;
+  document.querySelectorAll('.gundem-admin-slot:not([data-wired])').forEach(slot => {
+    if(!slot.dataset.id) return;
+    slot.dataset.wired = '1';
+    slot.innerHTML =
+      `<button type="button" class="gundem-admin-btn" data-act="edit" title="Düzenle" aria-label="Düzenle">${ICON_EDIT}</button>` +
+      `<button type="button" class="gundem-admin-btn" data-act="archive" title="Arşivle" aria-label="Arşivle">${ICON_ARCHIVE}</button>` +
+      `<button type="button" class="gundem-admin-btn danger" data-act="delete" title="Sil" aria-label="Sil">${ICON_DELETE}</button>`;
+  });
+}
+
+// Delege dinleyici — kartlar sürekli yeniden basıldığından her butona ayrı listener bağlanmaz.
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.gundem-admin-btn');
+  if(!btn) return;
+  e.preventDefault();
+  const slot = btn.closest('.gundem-admin-slot');
+  const card = btn.closest('.gundem-card');
+  const id = slot && slot.dataset.id;
+  if(!id || !card) return;
+  const act = btn.dataset.act;
+
+  if(act === 'delete'){
+    if(!confirm('Bu Gündem içeriği KALICI olarak silinsin mi?\n\nNot: silinen içerik bir sonraki taramada yeniden gelebilir. Geri gelmesini istemiyorsanız "Arşivle" kullanın.')) return;
+    const res = await fetch('/api/admin/gundem/' + encodeURIComponent(id), { method:'DELETE' });
+    if(res.ok) card.remove(); else alert('Silinemedi.');
+    return;
+  }
+  if(act === 'archive'){
+    if(!confirm('Bu içerik arşivlensin mi? Listeden kalkar ama kayıt durur (mükerrer kontrolü onu tanımaya devam eder).')) return;
+    const res = await fetch('/api/admin/gundem/' + encodeURIComponent(id) + '/archive', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ archived:true }),
+    });
+    if(res.ok) card.remove(); else alert('Arşivlenemedi.');
+    return;
+  }
+  if(act === 'edit') openAdminEditor(card, id);
+});
+
+// Satır içi düzenleyici — ayrı bir popup/sayfa yerine kartın kendi içinde açılır (düzenlenen şey
+// gözle görünürken düzeltilir). Görsel adresi CSP'ye takılırsa sunucu açıkça uyarır (bkz.
+// src/routes/gundemAdmin.js#updateGundemItem).
+function openAdminEditor(card, id){
+  if(card.querySelector('.gundem-editor')) return;
+  const titleEl = card.querySelector('.gundem-card-title');
+  const summaryEl = card.querySelector('.gundem-summary');
+  const imgEl = card.querySelector('.gundem-photo img');
+  const box = document.createElement('div');
+  box.className = 'gundem-editor';
+  box.innerHTML =
+    `<label>Başlık<input type="text" data-f="title" value="${escapeAttr(titleEl ? titleEl.textContent.trim() : '')}"></label>` +
+    `<label>Özet<textarea data-f="summary" rows="5">${escapeHtml(summaryEl ? summaryEl.textContent.trim() : '')}</textarea></label>` +
+    `<label>Görsel adresi<input type="url" data-f="image_url" value="${escapeAttr(imgEl ? imgEl.src : '')}"></label>` +
+    `<div class="gundem-editor-actions">` +
+      `<button type="button" class="gundem-editor-save">Kaydet</button>` +
+      `<button type="button" class="gundem-editor-cancel">Vazgeç</button>` +
+      `<span class="gundem-editor-msg" role="status"></span>` +
+    `</div>`;
+  card.querySelector('.gundem-body').appendChild(box);
+
+  box.querySelector('.gundem-editor-cancel').addEventListener('click', () => box.remove());
+  box.querySelector('.gundem-editor-save').addEventListener('click', async () => {
+    const msg = box.querySelector('.gundem-editor-msg');
+    const payload = {};
+    box.querySelectorAll('[data-f]').forEach(f => { payload[f.dataset.f] = f.value.trim(); });
+    msg.textContent = 'Kaydediliyor…';
+    try{
+      const res = await fetch('/api/admin/gundem/' + encodeURIComponent(id), {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok){ msg.textContent = data.error || 'Kaydedilemedi.'; return; }
+      if(titleEl) titleEl.textContent = payload.title;
+      if(summaryEl) summaryEl.textContent = payload.summary;
+      if(imgEl && payload.image_url){
+        imgEl.src = payload.image_url;
+        const pb = card.querySelector('.gundem-photo-btn');
+        if(pb) pb.dataset.lightbox = payload.image_url;
+      }
+      box.remove();
+    }catch{ msg.textContent = 'Kaydedilemedi.'; }
+  });
 }
 
 function skeletonHtml(count){
@@ -207,6 +342,7 @@ async function load({ reset } = {}){
       listEl.insertAdjacentHTML('beforeend', items.map((it, i) => cardHtml(it, offset + i)).join(''));
       renderedCount += items.length;
       wireCardActions(items, offset);
+      applyAdminControls();
     }
     if(moreWrap) moreWrap.hidden = !data.hasMore;
     document.body.classList.add('gundem-ready');
@@ -256,6 +392,7 @@ async function loadDetail(slug){
     if(crumbEl) crumbEl.textContent = item.title;
     listEl.innerHTML = cardHtml(item, 0, { detail: true });
     wireCardActions([item], 0);
+    applyAdminControls();
     document.body.classList.add('gundem-ready');
   }catch(err){
     /* SSR gövdesi ekranda kalır — bkz. yukarıdaki gerekçe. */

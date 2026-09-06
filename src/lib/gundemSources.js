@@ -11,7 +11,9 @@
 // =============================================================================================
 // UYULAN SINIRLAR (kullanıcı isteği madde 5 + 6)
 // =============================================================================================
-// 1. YALNIZCA RSS/Atom. Hiçbir kaynağın liste/kategori sayfası kazınmaz.
+// 1. RSS/Atom ÖNCELİKLİDİR. HTML liste sayfası YALNIZCA kaynağın RSS'i yoksa ya da robots.txt'si
+//    feed'i kapatmışsa kullanılır ve o durumda gerekçe kaynağın kendi yorumunda yazılıdır
+//    (bugün tek örnek: mimdap — feed'leri robots'ta `Disallow: */feed/`).
 // 2. Makale sayfasına yapılan TEK istek türü, feed'de görsel yoksa yapılan `imageStrategy:'og'`
 //    çağrısıdır ve o çağrı da SAYFA GÖVDESİNİ DEĞİL, yalnızca <head> içindeki og:image/
 //    og:description/canonical etiketlerini okur (bkz. src/lib/gundemFeed.js#extractPageMeta) —
@@ -31,14 +33,17 @@
 //  id               kararlı anahtar (gundem_items.source_id) — DEĞİŞTİRİLMEZ, mükerrer kontrolü buna bağlı
 //  name             kartta görünen kaynak adı
 //  domain           kaynağın ana alan adı (kartta ve source_domain kolonunda)
-//  feedUrl          RSS/Atom adresi
-//  type             'rss' | 'atom' (gundemFeed.js ikisini de aynı ayrıştırıcıyla okur)
+//  feedUrl          RSS/Atom adresi ya da (type:'html' ise) liste sayfası adresi
+//  extraListUrls    (ops.) AYNI kaynağın ek liste sayfaları: [{url, category}] — ayrı kaynak kaydı
+//                   açmadan çok kategorili siteleri tek kayıtta toplar
+//  type             'rss' | 'atom' (gundemFeed.js ikisini de aynı ayrıştırıcıyla okur) |
+//                   'html' (liste sayfası; çıkarıcı src/lib/gundemHtmlList.js'te kaynak id'sine kayıtlı)
 //  enabled          false ise tur sırasında hiç DOKUNULMAZ (ağ isteği bile yapılmaz)
 //  defaultCategory  AI'nin kategori önerisi whitelist dışına düşerse/emin olmazsa kullanılan değer
 //  categoryHints    feed'in kendi <category> etiketlerinden kategori türetme kuralları (AI'den ÖNCE)
-//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron 2 SAATTE BİR çalışır; bu değer
-//                   kaynak-başına ek seyreltme sağlar — bkz. gundem_source_health.last_run_at).
-//                   120 = her turda okunur; 360 = üç turda bir (az yayımlayan kaynaklar).
+//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron 3 SAATTE BİR çalışır — kullanıcı
+//                   isteği 2026-09-07; bu değer kaynak-başına ek seyreltme sağlar, bkz.
+//                   gundem_source_health.last_run_at). 180 = her turda okunur; 360 = iki turda bir.
 //  maxItemsPerRun   tek turda bu kaynaktan alınacak azami YENİ içerik
 //  imageStrategy    'feed'  → görsel yalnızca feed alanlarından (enclosure/media:*/gövdedeki ilk <img>)
 //                   'og'    → feed'de görsel yoksa makale <head>'inden og:image okunur
@@ -47,11 +52,194 @@
 //  priority         tur içinde işlenme sırası (küçük olan önce) — bütçe biterse önce düşük öncelik düşer
 
 export const GUNDEM_SOURCES = [
+  // ===========================================================================================
+  // ARKITERA — kullanıcının verdiği üç kategori (haber / etkinlik / yarışma).
+  // ÖLÇÜM (2026-09-07): üç kategori feed'i de 200, 120 item. robots.txt yalnızca /wp-admin/ kapalı.
+  // Görsel feed'de YOK; makale sayfası 200 + og:image veriyor -> imageStrategy 'og'.
+  // Kategori feed'leri kullanıldığı için kategori AI'ye sorulmadan KESİN biliniyor.
+  // ===========================================================================================
   {
-    // ÖLÇÜM (2026-09-06): https://www.archdaily.com/rss/ → 301 → https://feeds.feedburner.com/Archdaily,
-    // 200, 24 item. Yönlendirme zincirini kısaltmak için feedburner adresi doğrudan yazıldı.
-    // robots.txt: "User-agent: * / Allow: /" (yalnızca dil alt yolları ve *_ptid kapalı).
-    // Görsel: her item'da <enclosure url="https://images.adsttc.com/...">.
+    id: 'arkitera-haber',
+    name: 'Arkitera',
+    domain: 'arkitera.com',
+    feedUrl: 'https://www.arkitera.com/kategori/haber/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 6,
+    imageStrategy: 'og',
+    imageHosts: ['www.arkitera.com', 'arkitera.com'],
+    language: 'tr',
+    priority: 0, // Türkçe kaynaklar önce işlenir — tur bütçesi biterse en son onlar düşsün.
+  },
+  {
+    id: 'arkitera-etkinlik',
+    name: 'Arkitera',
+    domain: 'arkitera.com',
+    feedUrl: 'https://www.arkitera.com/kategori/etkinlik/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'etkinlik',
+    categoryHints: [],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'og',
+    imageHosts: ['www.arkitera.com', 'arkitera.com'],
+    language: 'tr',
+    priority: 0,
+  },
+  {
+    id: 'arkitera-yarisma',
+    name: 'Arkitera',
+    domain: 'arkitera.com',
+    feedUrl: 'https://www.arkitera.com/kategori/yarisma/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'yarisma',
+    categoryHints: [],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'og',
+    imageHosts: ['www.arkitera.com', 'arkitera.com'],
+    language: 'tr',
+    priority: 0,
+  },
+
+  // ===========================================================================================
+  // MİMDAP — kullanıcının verdiği altı kategori. TEK HTML KAYNAĞI.
+  //
+  // NEDEN HTML (RSS varken): mimdap.org'un kategori feed'leri teknik olarak ÇALIŞIYOR (200, 10
+  // item) ama sitenin robots.txt'si AÇIKÇA `Disallow: */feed/` diyor. Feed'i kullanmak robots'u
+  // çiğnemek olurdu. Kategori SAYFALARI ise robots'ta kapalı DEĞİL (yalnızca /wp-admin/, /wp-json/
+  // vb. kapalı) ve kullanıcının verdiği adresler zaten bunlar — bu yüzden HTML'den okunur.
+  // Çıkarıcı: src/lib/gundemHtmlList.js#extractMimdap (şablon değişirse 0 item döner, uydurmaz).
+  // Görsel: <img data-src="https://mimdap.org/wp-content/uploads/..."> — liste sayfasında hazır,
+  // makale sayfasına AYRICA gidilmesine gerek yok.
+  // ===========================================================================================
+  {
+    id: 'mimdap',
+    name: 'Mimdap',
+    domain: 'mimdap.org',
+    feedUrl: 'https://mimdap.org/kategori/haberler/',
+    type: 'html',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 5,
+    imageStrategy: 'feed',
+    imageHosts: ['mimdap.org', 'www.mimdap.org'],
+    language: 'tr',
+    priority: 0,
+    // extraListUrls — AYNI kaynağın diğer kategori sayfaları. Ayrı kaynak kaydı açmak yerine tek
+    // kayıt altında toplanır: hepsi aynı site, aynı çıkarıcı, aynı görsel host'u ve aynı sağlık
+    // sayacı. Kategori, sayfanın kendi yoluna göre atanır (bkz. listUrlCategory).
+    extraListUrls: [
+      { url: 'https://mimdap.org/kategori/mimarlik-gundemi/', category: 'haber' },
+      { url: 'https://mimdap.org/kategori/ic-mekan/', category: 'haber' },
+      { url: 'https://mimdap.org/kategori/yarismalar/', category: 'yarisma' },
+      { url: 'https://mimdap.org/kategori/etkinlikler/', category: 'etkinlik' },
+      { url: 'https://mimdap.org/kategori/mimarlik-dunyasindan/', category: 'haber' },
+    ],
+  },
+
+  // ===========================================================================================
+  // DEZEEN — kullanıcının verdiği dört bölüm. Bölüm feed'lerinin dördü de 200 + 50 item (ölçüm
+  // 2026-09-07). robots.txt yalnızca /wp-admin/ kapalı. Görsel feed'de <enclosure> ile hazır.
+  // Bölümler arası çakışma (aynı yazının iki bölümde görünmesi) mükerrer kontrolünün 1. basamağı
+  // (source_url) tarafından zaten yakalanır.
+  // ===========================================================================================
+  {
+    id: 'dezeen-architecture',
+    name: 'Dezeen',
+    domain: 'dezeen.com',
+    feedUrl: 'https://www.dezeen.com/architecture/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [
+      { match: /^(competitions?)$/i, category: 'yarisma' },
+      { match: /^(jobs?|dezeen jobs)$/i, category: 'kariyer' },
+      { match: /^(exhibitions?|events?|dezeen events guide|design events)$/i, category: 'etkinlik' },
+      { match: /^(opinion|interviews?|comment)$/i, category: 'gorus' },
+    ],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 5,
+    imageStrategy: 'feed',
+    imageHosts: ['static.dezeen.com'],
+    language: 'en',
+    priority: 1,
+  },
+  {
+    id: 'dezeen-interiors',
+    name: 'Dezeen',
+    domain: 'dezeen.com',
+    feedUrl: 'https://www.dezeen.com/interiors/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [
+      { match: /^(exhibitions?|events?)$/i, category: 'etkinlik' },
+      { match: /^(opinion|interviews?)$/i, category: 'gorus' },
+    ],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'feed',
+    imageHosts: ['static.dezeen.com'],
+    language: 'en',
+    priority: 2,
+  },
+  {
+    id: 'dezeen-design',
+    name: 'Dezeen',
+    domain: 'dezeen.com',
+    feedUrl: 'https://www.dezeen.com/design/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [
+      { match: /^(exhibitions?|events?)$/i, category: 'etkinlik' },
+      { match: /^(opinion|interviews?)$/i, category: 'gorus' },
+    ],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'feed',
+    imageHosts: ['static.dezeen.com'],
+    language: 'en',
+    priority: 2,
+  },
+  {
+    id: 'dezeen-technology',
+    name: 'Dezeen',
+    domain: 'dezeen.com',
+    feedUrl: 'https://www.dezeen.com/technology/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [
+      { match: /^(exhibitions?|events?)$/i, category: 'etkinlik' },
+      { match: /^(opinion|interviews?)$/i, category: 'gorus' },
+    ],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 3,
+    imageStrategy: 'feed',
+    imageHosts: ['static.dezeen.com'],
+    language: 'en',
+    priority: 3,
+  },
+
+  // ===========================================================================================
+  // ARCHDAILY — kullanıcı /articles adresini verdi.
+  //
+  // ÖNEMLİ ÖLÇÜM (2026-09-07): https://www.archdaily.com/articles/feed, ana feed ile BİREBİR AYNI
+  // içeriği döndürüyor (ilk 6 başlık birebir aynı, proje yayınları dahil) — ArchDaily'nin
+  // "yalnızca makaleler" diye ayrı bir feed'i YOK. Bu yüzden proje yayınlarını feed SEÇİMİYLE
+  // ayıklamak mümkün değil; ayıklama içerik sınıflandırmasıyla yapılır (bkz.
+  // gundemQuality.js#looksLikeProjectPublication + AI'nin isProject alanı, kullanıcı isteği madde 4).
+  // ===========================================================================================
+  {
     id: 'archdaily',
     name: 'ArchDaily',
     domain: 'archdaily.com',
@@ -60,168 +248,60 @@ export const GUNDEM_SOURCES = [
     enabled: true,
     defaultCategory: 'haber',
     categoryHints: [],
-    fetchIntervalMin: 120,
-    maxItemsPerRun: 6,
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 5,
     imageStrategy: 'feed',
     imageHosts: ['images.adsttc.com'],
     language: 'en',
     priority: 1,
   },
-  {
-    // ÖLÇÜM (2026-09-06): 200, 50 item. robots.txt yalnızca /wp-admin/ kapalı.
-    // Görsel: <enclosure url="http(s)://static.dezeen.com/...">. Feed http:// ile veriyor, kart
-    // her zaman https'e yükseltilir (bkz. gundemFeed.js#normalizeImageUrl).
-    id: 'dezeen',
-    name: 'Dezeen',
-    domain: 'dezeen.com',
-    feedUrl: 'https://www.dezeen.com/feed/',
-    type: 'rss',
-    enabled: true,
-    defaultCategory: 'haber',
-    // Dezeen kategorilerini kendi <category> etiketlerinden okur — AI'ye sormadan önce.
-    categoryHints: [
-      { match: /^(competitions?)$/i, category: 'yarisma' },
-      { match: /^(jobs?|dezeen jobs)$/i, category: 'kariyer' },
-      { match: /^(exhibitions?|events?|dezeen events guide|design events)$/i, category: 'etkinlik' },
-      { match: /^(opinion|interviews?|comment)$/i, category: 'gorus' },
-    ],
-    fetchIntervalMin: 120,
-    maxItemsPerRun: 6,
-    imageStrategy: 'feed',
-    imageHosts: ['static.dezeen.com'],
-    language: 'en',
-    priority: 1,
-  },
-  {
-    // ÖLÇÜM (2026-09-06): 200, 120 item. robots.txt yalnızca /wp-admin/ kapalı.
-    // Görsel: feed'de YOK (ne enclosure ne media:* ne gövde <img>) — makale sayfası 200 dönüyor ve
-    // og:image veriyor (test: /proje/1-odul-mugla-... → www.arkitera.com/wp-content/uploads/...).
-    // TEK Türkçe kaynak: yerel gündem için kritik, bu yüzden 'og' stratejisi burada gerekli ve haklı.
-    id: 'arkitera',
-    name: 'Arkitera',
-    domain: 'arkitera.com',
-    feedUrl: 'https://www.arkitera.com/feed/',
-    type: 'rss',
-    enabled: true,
-    defaultCategory: 'haber',
-    categoryHints: [
-      { match: /^yarışma$/i, category: 'yarisma' },
-      { match: /^(etkinlik|sergi|söyleşi|konferans)$/i, category: 'etkinlik' },
-      { match: /^(görüş|söyleşi|röportaj|yazı)$/i, category: 'gorus' },
-      { match: /^(iş ilanı|kariyer|ilan)$/i, category: 'kariyer' },
-    ],
-    fetchIntervalMin: 120,
-    maxItemsPerRun: 6,
-    imageStrategy: 'og',
-    imageHosts: ['www.arkitera.com', 'arkitera.com'],
-    language: 'tr',
-    priority: 0, // Türkçe kaynak önce işlenir — tur bütçesi biterse en son o düşsün.
-  },
-  {
-    // ÖLÇÜM (2026-09-06): 200, 50 item. robots.txt: Crawl-Delay 20 + /ajax_* kapalı; /rss/ açık.
-    // Crawl-Delay'e uyum: bu kaynağa tur başına TEK istek (feed) yapılır, makale sayfasına hiç
-    // gidilmez (imageStrategy 'feed'), yani 20sn'lik gecikme sınırı zaten hiç zorlanmıyor.
-    // Görsel: <media:content url='https://worldarchitecture.org/cdnimgfiles/...' medium="image"/>.
-    // KAPALI (ölçüm, 2026-09-06): feed teknik olarak SAĞLAM (200, 50 item, media:content görselleri
-    // kalite kapısından geçiyor) ama İÇERİĞİ BAYAT — en yeni girdi 2026-04-05, yani beş aydan eski.
-    // maxItemAgeDays=21 filtresi feed'in TAMAMINI eliyor: kaynak her 120 dakikada bir çekilir,
-    // her seferinde 50 item ayrıştırılır ve SIFIR içerik üretir. Etkin bırakmak saf bir israf
-    // (kendi Crawl-Delay:20 isteğine rağmen düzenli istek atmak dahil) olurdu.
-    // Yayıncı feed'ini tazelerse tek yapılacak enabled:true — diğer her şey (görsel stratejisi,
-    // host beyanı, kategori ipuçları) doğrulanmış durumda.
-    id: 'worldarchitecture',
-    name: 'World Architecture Community',
-    domain: 'worldarchitecture.org',
-    feedUrl: 'https://worldarchitecture.org/rss/',
-    type: 'rss',
-    enabled: false,
-    disabledReason: 'Feed teknik olarak sağlam ama içeriği bayat: en yeni girdi 2026-04-05 (ölçüm 2026-09-06). 21 günlük tazelik filtresi feed\'in tamamını eliyor, kaynak sıfır içerik üretiyor.',
-    defaultCategory: 'haber',
-    categoryHints: [
-      { match: /competition/i, category: 'yarisma' },
-      { match: /(award|exhibition|event)/i, category: 'etkinlik' },
-    ],
-    fetchIntervalMin: 120,
-    maxItemsPerRun: 4,
-    imageStrategy: 'feed',
-    imageHosts: ['worldarchitecture.org'],
-    language: 'en',
-    priority: 2,
-  },
-  {
-    // ÖLÇÜM (2026-09-06): 200, 25 item. Görsel feed'de yok; makale sayfası 200 + og:image
-    // (competitions.archi/wp-content/uploads/...). robots.txt: "User-agent: * / Allow: /" +
-    // Content-Signal "search=yes, ai-train=no, use=reference".
-    //
-    // Content-Signal UYUMU (bu kaynak, archpaper ve yapi.com.tr'de aynı Cloudflare şablonu var):
-    //   * ai-train=no  → UYULUYOR. Bu sistem hiçbir model EĞİTMEZ/fine-tune ETMEZ; içerik yalnızca
-    //     tek seferlik bir özetleme çağrısının girdisidir ve hiçbir yerde eğitim verisi olarak
-    //     saklanmaz.
-    //   * use=reference → TAM OLARAK bu sistemin modeli: içerik kaynak gösterilerek REFERANS
-    //     verilir (kaynak adı + tarih + "Kaynağa git →" bağlantısı her kartta zorunlu), tam metin
-    //     yeniden yayımlanmaz.
-    //   * ai-input belirtilmemiş → sinyal "ne izin verir ne yasaklar". Belirsizlik lehine değil
-    //     aleyhine karar verildi: bu kaynaklardan makale GÖVDESİ hiç alınmıyor, AI'ye yalnızca
-    //     feed'in kendi kamuya açık özeti/başlığı veriliyor.
-    id: 'competitions-archi',
-    name: 'competitions.archi',
-    domain: 'competitions.archi',
-    feedUrl: 'https://competitions.archi/feed/',
-    type: 'rss',
-    enabled: true,
-    // Bu kaynak tamamen yarışma duyurusu yayımlar — AI'nin kategori önerisine gerek yok.
-    defaultCategory: 'yarisma',
-    categoryHints: [],
-    fetchIntervalMin: 360,
-    maxItemsPerRun: 4,
-    imageStrategy: 'og',
-    imageHosts: ['competitions.archi'],
-    language: 'en',
-    priority: 3,
-  },
-  {
-    // ÖLÇÜM (2026-09-06): 200, 10 item. Görsel feed'de yok; makale sayfası 200 + og:image
-    // (cdn.ca.emap.com). robots.txt: "User-agent: * / Disallow: /wp-admin" — geri kalan açık;
-    // uzun bir AI-crawler engel listesi var ama hiçbiri genel erişimi kapatmıyor.
-    // Ağırlıklı olarak deneme/eleştiri yayımladığı için varsayılan kategori 'gorus'.
-    id: 'architectural-review',
-    name: 'The Architectural Review',
-    domain: 'architectural-review.com',
-    feedUrl: 'https://www.architectural-review.com/feed',
-    type: 'rss',
-    enabled: true,
-    defaultCategory: 'gorus',
-    categoryHints: [
-      { match: /(competition|awards?)/i, category: 'yarisma' },
-      { match: /(exhibition|event)/i, category: 'etkinlik' },
-    ],
-    fetchIntervalMin: 360,
-    maxItemsPerRun: 4,
-    imageStrategy: 'og',
-    imageHosts: ['cdn.ca.emap.com'],
-    language: 'en',
-    priority: 3,
-  },
 
   // ===========================================================================================
-  // ELENEN KAYNAKLAR — enabled:false. Hiç ağ isteği yapılmaz; buradaki gerekçe, aynı kaynağın
-  // ileride tekrar tekrar denenmemesi içindir (ölçümler 2026-09-06).
+  // KAPALI KAYNAKLAR — enabled:false. Hiç ağ isteği yapılmaz; gerekçeler ileride aynı kaynağın
+  // tekrar tekrar denenmemesi için burada durur.
   // ===========================================================================================
   {
+    // KULLANICI İSTEDİ AMA KAPALI BIRAKILDI — KARAR SİZİN (2026-09-07 ölçümü):
+    //   * RSS YOK: /rss 403 veriyor, /haberler/feed ise RSS değil HTML sayfası döndürüyor.
+    //     Yani tek yol kategori sayfalarının HTML'ini kazımak.
+    //   * robots.txt bizim UA'mızı (MimarlabBot) engellemiyor (`User-agent: * / Allow: /`) VE
+    //     Content-Signal `use=reference` bizim modelimize (kaynak göstererek kısa özet) uyuyor.
+    //   * ANCAK site, YAPAY ZEKA tarayıcılarını TEK TEK isimle engelliyor: ClaudeBot, GPTBot,
+    //     CCBot, Google-Extended, Applebot-Extended, Amazonbot, Bytespider, meta-externalagent.
+    //     Bu sistem içeriği bir dil modeline veriyor (özet üretimi) — yayıncının bu konudaki
+    //     itirazı isim isim yazılmış durumda. Teknik olarak "izinli" olmakla yayıncının açık
+    //     iradesine uygun davranmak burada ayrışıyor.
+    // Bu ikisi arasındaki tercih editoryal/hukuki bir karardır ve sizindir; kapatmak yerine
+    // enabled:true yapmak tek satırlık iştir ve kaynak yapılandırması hazır bekliyor.
+    id: 'mimarizm',
+    name: 'Mimarizm',
+    domain: 'mimarizm.com',
+    feedUrl: 'https://www.mimarizm.com/haberler',
+    type: 'html',
+    enabled: false,
+    disabledReason: 'RSS yok (kategori HTML kazınması gerekir) ve site ClaudeBot/GPTBot/CCBot/Google-Extended dahil tüm AI tarayıcılarını isimle engelliyor — AI ile içerik işlenmesine açık itiraz. Karar kullanıcıya bırakıldı (2026-09-07).',
+    defaultCategory: 'haber',
+    categoryHints: [],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'og',
+    imageHosts: [],
+    language: 'tr',
+    priority: 4,
+  },
+  {
     // Feed 200 + 10 item DÖNÜYOR, ama makale sayfası MimarlabBot'a 403 veriyor ve feed'de hiç
-    // görsel alanı yok → görselsiz içerik bu sayfada yayınlanamaz (görsel zorunlu). 403'ü aşmak
-    // (UA değiştirmek) kullanıcı isteğinde AÇIKÇA yasak. Kaynak, feed'ine görsel eklerse ya da
-    // makale sayfası erişilebilir olursa enabled:true yapmak yeterlidir.
+    // görsel alanı yok → görselsiz içerik bu sayfada yayınlanamaz (görsel zorunlu).
     id: 'archpaper',
     name: "The Architect's Newspaper",
     domain: 'archpaper.com',
     feedUrl: 'https://www.archpaper.com/feed/',
     type: 'rss',
     enabled: false,
-    disabledReason: 'Feed görsel taşımıyor; makale sayfası bot erişimine 403 veriyor (2026-09-06 ölçümü). Görselsiz içerik yayınlanmıyor.',
+    disabledReason: 'Feed görsel taşımıyor; makale sayfası bot erişimine 403 veriyor (2026-09-06 ölçümü).',
     defaultCategory: 'haber',
     categoryHints: [],
-    fetchIntervalMin: 180,
+    fetchIntervalMin: 360,
     maxItemsPerRun: 3,
     imageStrategy: 'og',
     imageHosts: [],
@@ -229,9 +309,6 @@ export const GUNDEM_SOURCES = [
     priority: 4,
   },
   {
-    // archpaper ile BİREBİR aynı durum: feed 200 + 50 item, ama item'lar yalnızca başlık/link/
-    // description taşıyor ve makale sayfası 403. Türkçe bir kaynak olduğu için tekrar denemeye
-    // değer — erişim açılırsa imageStrategy:'og' ile doğrudan çalışır.
     id: 'yapi-com-tr',
     name: 'Yapı.com.tr',
     domain: 'yapi.com.tr',
@@ -241,7 +318,7 @@ export const GUNDEM_SOURCES = [
     disabledReason: 'Feed görsel taşımıyor; makale sayfası bot erişimine 403 veriyor (2026-09-06 ölçümü).',
     defaultCategory: 'haber',
     categoryHints: [],
-    fetchIntervalMin: 120,
+    fetchIntervalMin: 360,
     maxItemsPerRun: 4,
     imageStrategy: 'og',
     imageHosts: [],
@@ -249,32 +326,77 @@ export const GUNDEM_SOURCES = [
     priority: 4,
   },
   {
-    // TLS el sıkışması bu ağdan hiç tamamlanamadı (curl exit 35, üç denemenin üçünde de) —
-    // robots.txt bile okunamadı. "Kaynak erişilemiyorsa o kaynağı atla" kuralı gereği kapalı;
-    // erişim doğrulanmadan (robots.txt + feed + görsel alanı) açılmamalı.
     id: 'designboom',
     name: 'designboom',
     domain: 'designboom.com',
     feedUrl: 'https://www.designboom.com/architecture/feed/',
     type: 'rss',
     enabled: false,
-    disabledReason: 'Feed ve robots.txt bu ortamdan hiç okunamadı (TLS handshake hatası, 3/3 deneme, 2026-09-06). Erişim ve şartlar doğrulanmadan açılmamalı.',
+    disabledReason: 'Feed ve robots.txt bu ortamdan hiç okunamadı (TLS handshake hatası, 3/3 deneme, 2026-09-06).',
     defaultCategory: 'haber',
     categoryHints: [],
-    fetchIntervalMin: 120,
+    fetchIntervalMin: 360,
     maxItemsPerRun: 4,
     imageStrategy: 'feed',
     imageHosts: [],
     language: 'en',
     priority: 4,
   },
-  // HİÇ EKLENMEYENLER (satır bile açılmadı — feed'leri bot korumasının arkasında):
-  //   * Archinect (archinect.com/feed/1/news) → 403, Cloudflare "Just a moment..." challenge.
-  //   * Domus (domusweb.it/en/news.rss)       → 403 "Access Denied".
-  //   * mimarizm.com (/rss)                   → 403.
-  //   * world-architects.com (/pages/rss)     → 403.
-  //   * Archello                              → RSS/Atom feed'i YOK (/rss 404).
-  // Dördünde de engel BİLİNÇLİ bir erişim kısıtıdır; aşmak kullanıcı isteğinde açıkça yasaklandı.
+  {
+    id: 'worldarchitecture',
+    name: 'World Architecture Community',
+    domain: 'worldarchitecture.org',
+    feedUrl: 'https://worldarchitecture.org/rss/',
+    type: 'rss',
+    enabled: false,
+    disabledReason: 'Feed teknik olarak saglam ama icerigi bayat: en yeni girdi 2026-04-05 (olcum 2026-09-06). 21 gunluk tazelik filtresi feed\'in tamamini eliyor.',
+    defaultCategory: 'haber',
+    categoryHints: [],
+    fetchIntervalMin: 360,
+    maxItemsPerRun: 4,
+    imageStrategy: 'feed',
+    imageHosts: [],
+    language: 'en',
+    priority: 4,
+  },
+  {
+    id: 'architectural-review',
+    name: 'The Architectural Review',
+    domain: 'architectural-review.com',
+    feedUrl: 'https://www.architectural-review.com/feed',
+    type: 'rss',
+    enabled: false,
+    disabledReason: 'Kullanicinin 2026-09-07 kaynak listesinde YOK — liste o istekle yeniden tanimlandi. Teknik olarak calisiyor (200, 10 item, og:image), geri acmak icin enabled:true yeterli.',
+    defaultCategory: 'gorus',
+    categoryHints: [],
+    fetchIntervalMin: 360,
+    maxItemsPerRun: 3,
+    imageStrategy: 'og',
+    imageHosts: ['cdn.ca.emap.com'],
+    language: 'en',
+    priority: 4,
+  },
+  {
+    id: 'competitions-archi',
+    name: 'competitions.archi',
+    domain: 'competitions.archi',
+    feedUrl: 'https://competitions.archi/feed/',
+    type: 'rss',
+    enabled: false,
+    disabledReason: 'Kullanicinin 2026-09-07 kaynak listesinde YOK — liste o istekle yeniden tanimlandi. Teknik olarak calisiyor (200, 25 item, og:image), geri acmak icin enabled:true yeterli.',
+    defaultCategory: 'yarisma',
+    categoryHints: [],
+    fetchIntervalMin: 360,
+    maxItemsPerRun: 4,
+    imageStrategy: 'og',
+    imageHosts: ['competitions.archi'],
+    language: 'en',
+    priority: 4,
+  },
+  // HİÇ EKLENMEYENLER (feed'leri bot korumasının arkasında):
+  //   * Archinect (403 Cloudflare challenge) · Domus (403) · world-architects.com (403)
+  //   * Archello (RSS/Atom feed'i YOK)
+  // Engelleri aşmak kullanıcı isteğinde açıkça yasaklandı.
 ];
 
 // Tur sırasında gerçekten işlenecek kaynaklar.

@@ -121,6 +121,9 @@ const PREFIX_BY_TYPE = {
   // aşağıdaki döngü zaten destekliyor.
   office: ['/firma/', '/marka/'],
   product: '/urun/',
+  // Gündem (kullanıcı isteği, 2026-09-07 madde 5): admin bir içeriği düzenlediğinde/arşivlediğinde
+  // o kaydın SSR sayfası da temizlenmeli — liste purge'ü (gundemCache.js) tekil sayfaya DOKUNMAZ.
+  gundem: '/gundem/',
 };
 
 // D1 audit (2026-08-25) P0-1 — publicCache.js#CACHEABLE_DETAIL_PREFIXES ile BİREBİR aynı 4 yol.
@@ -134,6 +137,7 @@ const API_DETAIL_PREFIX_BY_TYPE = {
   architect: '/api/architect/',
   office: '/api/office/',
   product: '/api/product/',
+  gundem: '/api/gundem/',
 };
 
 // architect/office temiz URL'leri isimden slugify edilir (bkz. src/index.js#CLEAN_URL_REDIRECTS

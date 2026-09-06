@@ -34,6 +34,10 @@ const LIST_COLUMNS = `id, slug, title, summary, image_url, source_name, source_d
 
 function shapeItem(row, entitiesByItem) {
   return {
+    // id — YALNIZCA admin kontrollerinin hedefi (bkz. js/pages/gundem.js#applyAdminControls).
+    // Hassas değil (rastgele UUID) ve yetki bu alanla DEĞİL, sunucudaki requireAdmin ile verilir;
+    // admin olmayan biri id'yi bilse de /api/admin/gundem/* uçlarından 401 alır.
+    id: row.id,
     slug: row.slug,
     title: row.title,
     summary: row.summary,

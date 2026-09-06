@@ -198,7 +198,13 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     display:block; width:100%; height:auto; aspect-ratio:3/2;
     object-fit:cover; object-position:center;
   }
-  .gundem-photo-link{display:block;}
+  /* Görsel tıklanabilir TEK öğe (madde 1) — <button> olduğu için tarayıcı varsayılanları
+     sıfırlanır; görünüm eskisiyle birebir aynı kalır, yalnızca davranış değişir. */
+  .gundem-photo-btn{
+    display:block; width:100%; padding:0; margin:0; border:none; background:none;
+    cursor:zoom-in; line-height:0; border-radius:8px; overflow:hidden;
+  }
+  .gundem-photo-btn:focus-visible{box-shadow:0 0 0 3px var(--brass);}
 
   .gundem-body{display:flex; flex-direction:column; min-width:0; padding:0;}
 
@@ -210,8 +216,10 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     margin:0 0 10px; letter-spacing:0; text-transform:none;
   }
   .gundem-meta .gundem-cat{color:var(--ink); font-weight:700;}
-  .gundem-meta .gundem-src{color:var(--ink-soft);}
-  .gundem-meta .gundem-src::before{content:'·'; margin-right:6px; opacity:0.5;}
+  /* Kaynak adı = kaynağa giden TEK bağlantı (madde 3; ayrı "Kaynağa git" satırı kaldırıldı). */
+  .gundem-meta .gundem-src{color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; text-decoration-color:var(--line);}
+  .gundem-meta .gundem-src:hover{color:var(--walnut); text-decoration-color:var(--walnut);}
+  .gundem-meta .gundem-src::before{content:'·'; margin-right:6px; opacity:0.5; text-decoration:none; display:inline-block;}
 
   /* Referansta kart başlığı SAYFA başlığından büyük — hiyerarşinin ağırlık merkezi kartta.
      Inter, referanstaki serif'ten daha geniş olduğu için aynı optik boyut biraz daha küçük
@@ -222,15 +230,14 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   }
   .gundem-card-title a:hover{color:var(--walnut);}
 
-  /* Referansta özet 4 satırda kırpılıyor ve kartın sağ alt köşesinde belirgin bir beyaz alan
-     bırakıyor — editoryal ferahlığın asıl kaynağı bu. -webkit-line-clamp SALT GÖRSEL bir kırpmadır:
-     metnin tamamı DOM'da kalır, yani SSR/SEO çıktısı ve ekran okuyucular etkilenmez.
-     DETAY görünümünde (/gundem/:slug) kırpma KALDIRILIR — orada sayfanın kendisi o içeriktir. */
+  /* ÖZET KIRPILMAZ (kullanıcı isteği, 2026-09-07 madde 2: "yarıda kesilmesinler").
+     Referans görselde özet 4 satırda kırpılıyordu ve ilk sürüm bunu -webkit-line-clamp ile
+     taklit ediyordu; kullanıcı kararı bunun yerine özetin TAMAMININ görünmesi yönünde.
+     Özet zaten tek paragraf ve 36-88 kelimeyle sınırlı (bkz. gundemQuality.js), yani kart
+     yüksekliği kontrolden çıkmaz. */
   .gundem-summary{
-    font-size:15px; line-height:1.55; color:var(--ink-soft); margin:0 0 16px;
-    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:5; overflow:hidden;
+    font-size:15px; line-height:1.6; color:var(--ink-soft); margin:0 0 14px;
   }
-  .gundem-card--detail .gundem-summary{display:block; -webkit-line-clamp:none; overflow:visible;}
   /* Detay görünümünde başlık ZATEN sayfanın H1'idir (injectMeta onu kayda göre doldurur) — kart
      kendi başlığını da basarsa aynı metin ekranda iki kez görünür. */
   .gundem-card--detail .gundem-card-title{display:none;}
@@ -238,12 +245,9 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   /* margin-top:auto KALDIRILDI: kaynak bağlantısını kartın DİBİNE itiyordu ve özetle arasında
      büyük bir boşluk açıyordu. Referansta metin bloğu kendi içinde sıkı akar, artan yer kartın
      ALTINDA beyaz alan olarak kalır — bağlantı da bu yüzden doğrudan özetin ardından gelir. */
+  /* Yalnızca bilgi grafiği rozetlerini taşır; rozet yoksa :empty ile hiç yer kaplamaz. */
   .gundem-foot{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
-  .gundem-source-link{
-    font-size:13px; font-weight:600; color:var(--walnut);
-    display:inline-flex; align-items:center; gap:5px;
-  }
-  .gundem-source-link:hover{text-decoration:underline;}
+  .gundem-foot:empty{display:none;}
 
   /* Bilgi grafiği rozetleri — yalnızca GERÇEK bir MİMARLAB kaydına eşleşen adlar için basılır
      (bkz. src/lib/gundemEntities.js). Eşleşme yoksa satır hiç render edilmez. */
@@ -272,6 +276,39 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   }
   .card-save-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .card-save-btn.saved{background:var(--accent); border-color:var(--accent); color:var(--ink);}
+
+  /* ---------- ADMİN KONTROLLERİ (yalnızca admin'e render edilir) ----------
+     Kaydet/Paylaş ile aynı satırda, aynı pil dilinde; görünürlük istemcide gizlense bile asıl
+     yetki sunucudadır (bkz. js/pages/gundem.js#applyAdminControls notu). */
+  .gundem-admin-slot{display:inline-flex; align-items:center; gap:6px;}
+  .gundem-admin-slot:empty{display:none;}
+  .gundem-admin-btn{
+    width:32px; height:32px; border-radius:100px; flex-shrink:0;
+    background:var(--paper-card); border:1px solid var(--line); color:var(--ink-soft);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .gundem-admin-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .gundem-admin-btn.danger:hover{border-color:var(--bad, #C0504D); color:var(--bad, #C0504D);}
+
+  /* Satır içi düzenleyici — ayrı bir popup/sayfa açmak yerine kartın kendi gövdesinde. */
+  .gundem-editor{
+    margin-top:14px; padding:14px; border:1px solid var(--line); border-radius:12px;
+    background:var(--paper); display:flex; flex-direction:column; gap:10px;
+  }
+  .gundem-editor label{display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--ink-soft);}
+  .gundem-editor input, .gundem-editor textarea{
+    font-family:inherit; font-size:14px; color:var(--ink);
+    background:var(--paper-card); border:1px solid var(--line); border-radius:8px; padding:9px 11px;
+    width:100%; box-sizing:border-box; resize:vertical;
+  }
+  .gundem-editor-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .gundem-editor-save, .gundem-editor-cancel{
+    border-radius:100px; padding:8px 18px; font-size:13px; font-weight:600; font-family:inherit;
+    border:1.5px solid var(--ink);
+  }
+  .gundem-editor-save{background:var(--ink); color:var(--paper-card);}
+  .gundem-editor-cancel{background:none; color:var(--ink);}
+  .gundem-editor-msg{font-size:12.5px; color:var(--ink-soft); flex:1; min-width:0;}
 
   /* ---------- DURUMLAR ---------- */
   .gundem-status{
@@ -369,7 +406,6 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     }
     .gundem-wrap{padding:34px 22px 70px;}
     .gundem-list, .gundem-ssr-list{gap:24px;}
-    .gundem-summary{-webkit-line-clamp:4;}
   }
 
   @media (max-width:960px){
@@ -405,9 +441,6 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     .gundem-photo img,
     .gundem-ssr-img{aspect-ratio:3/2; height:auto;}
     .gundem-skeleton > div:first-child{aspect-ratio:3/2;}
-    /* Mobilde kolon tam genişlik olduğundan aynı kelime sayısı daha az satıra sığar; kırpma
-       sınırı gevşetilir ki özetin anlamlı bir bölümü görünsün. */
-    .gundem-summary{-webkit-line-clamp:6;}
     /* Kaydet/Paylaş mobilde GÖRSELİN ÜSTÜNE biner — metin sütununa taşarsa başlıkla çakışırdı.
        top/right, kart padding'inden (16px) 10px içeride: butonlar görselin sağ üst köşesinde durur.
        Buton boyutları share-button.js'in kendi @media(max-width:860px) kuralıyla 48px'e çıkar
@@ -418,7 +451,8 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
        da kullanmak İKİ ŞEY için gerekli: (a) Apple/Google dokunma hedefi standardı (bu depodaki
        mevcut kural), (b) iki buton yan yana duruyor, farklı boyutta olurlarsa hizasız görünürler
        (canlıda 44 vs 48 ölçüldü, bu yüzden eşitlendi). */
-    .card-save-btn{
+    .card-save-btn,
+    .gundem-admin-btn{
       width:48px; height:48px;
       background:rgba(248,250,251,0.92); border-color:rgba(27,42,61,0.18);
     }
@@ -444,7 +478,6 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     .gundem-body,
     .gundem-ssr-body{padding:18px 16px 18px;}
     .gundem-meta,
-    .gundem-source-link,
     .gundem-card-title,
     .gundem-summary{overflow-wrap:anywhere;}
     .gundem-chip{font-size:12.5px; padding:7px 13px;}

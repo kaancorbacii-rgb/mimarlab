@@ -52,10 +52,16 @@ export function gundemSsrCard(row, { linkTitle = true, showTitle = true } = {}) 
   const date = formatTrDate(row.source_published_at || row.published_at);
   // js/pages/gundem.js#cardHtml ile AYNI metadata dili (tarih gri / kategori kalın-koyu / kaynak
   // orta noktadan sonra) — ikisi ayrışırsa JS yüklendiği anda görünür bir sıçrama olurdu.
+  // Kaynak adı = kaynağa giden TEK bağlantı (kullanıcı isteği 2026-09-07 madde 3). Ayrı bir
+  // "Kaynağa git" satırı YOK; atıf yine her kartta görünür ve tıklanabilir durumda.
+  // rel="nofollow noopener external": otomatik toplanan dış bağlantı için doğru sinyal.
   const meta =
     `<span class="gundem-date">${escapeHtml(date)}</span>` +
     `<span class="gundem-cat">${escapeHtml(gundemCategoryLabel(row.category))}</span>` +
-    `<span class="gundem-src">${escapeHtml(row.source_name)}</span>`;
+    `<a class="gundem-src" href="${escapeAttr(row.source_url)}" rel="nofollow noopener external" target="_blank">${escapeHtml(row.source_name)}</a>`;
+  // linkTitle artık YALNIZCA liste SSR'ında (JS kapalıyken içeriğe ulaşmanın tek yolu) kullanılır.
+  // JS açıkken kart başlığı tıklanabilir DEĞİLDİR (madde 1) — istemci kartı kendi işaretlemesini
+  // basar ve orada başlık düz metindir.
   const href = `/gundem/${encodeURIComponent(row.slug)}`;
   const titleHtml = linkTitle
     ? `<a href="${escapeAttr(href)}">${escapeHtml(row.title)}</a>`
@@ -66,10 +72,6 @@ export function gundemSsrCard(row, { linkTitle = true, showTitle = true } = {}) 
       `<p class="gundem-ssr-meta">${meta}</p>` +
       (showTitle ? `<h2 class="gundem-ssr-title">${titleHtml}</h2>` : '') +
       `<p class="gundem-ssr-summary">${escapeHtml(row.summary)}</p>` +
-      // rel="nofollow noopener external": otomatik toplanan dış bağlantılar için doğru sinyal —
-      // bağlantı ziyaretçi için gerçek ve görünürdür ama bir editoryal onay/PageRank aktarımı
-      // değildir (madde 14: kaynak bağlantısı her kartta AÇIKÇA bulunmalı).
-      `<p class="gundem-ssr-source"><a href="${escapeAttr(row.source_url)}" rel="nofollow noopener external" target="_blank">Kaynağa git → ${escapeHtml(row.source_name)}</a></p>` +
     `</div>` +
   `</article>`;
 }

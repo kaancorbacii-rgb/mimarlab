@@ -79,12 +79,12 @@
   // 6 saatte bir: yeni/değişmiş proje ve ürünlerin embedding'i üretilip dizin yeniden paketlenir;
   // değişiklik yoksa hiçbir AI çağrısı yapılmaz ve KV'ye yazılmaz.
   //
-  // "0 */2 * * *" — GÜNDEM otomatik toplama turu (kullanıcı isteği, 2026-09-06 madde 21).
+  // "0 */3 * * *" — GÜNDEM otomatik toplama turu (kullanıcı isteği, 2026-09-06 madde 21).
   //
-  // SIKLIK 30dk -> 2 SAAT (kullanıcı isteği, 2026-09-07): "bu sitelere bu saatte yeni içerik
-  // yüklenmez, 2 saatte bir yapabilirsin". Doğru gözlem — bu yayıncılar günde 5-20 içerik
-  // yayımlıyor, yarım saatlik tarama çoğu turda hiç yeni içerik bulmuyordu. 2 saatlik ızgara hem
-  // yayıncılara gereksiz istek yükünü kaldırıyor hem de gündemin tazeliğini koruyor (günde 12 tur).
+  // SIKLIK 30dk -> 3 SAAT (kullanıcı isteği, 2026-09-07): "bu sitelere bu saatte yeni içerik
+  // yüklenmez, 3 saatte bir yapabilirsin". Doğru gözlem — bu yayıncılar günde 5-20 içerik
+  // yayımlıyor, yarım saatlik tarama çoğu turda hiç yeni içerik bulmuyordu. 3 saatlik ızgara hem
+  // yayıncılara gereksiz istek yükünü kaldırıyor hem de gündemin tazeliğini koruyor (günde 8 tur).
   // Kaynak başına seyreltme AYRICA devam ediyor (bkz. gundemSources.js#fetchIntervalMin) — az
   // yayımlayan kaynaklar 2 saatlik turların hepsinde değil, kendi aralıklarında okunur.
   //
@@ -94,7 +94,7 @@
   // kapılarından GEÇEN içerik için yapılır (madde 18).
   // İki ifadeyi de AYNI scheduled handler karşılar (dispatcher, bkz. src/index.js#scheduled) —
   // "23 */6 * * *" ifadesi src/index.js#VISUAL_INDEX_CRON ile birebir aynı kalmalıdır.
-  "triggers": { "crons": ["23 */6 * * *", "0 */2 * * *"] },
+  "triggers": { "crons": ["23 */6 * * *", "0 */3 * * *"] },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler
