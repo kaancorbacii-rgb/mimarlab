@@ -399,6 +399,17 @@ const AuthModal = (function () {
     #am-panel .col-btn-primary:hover{background:var(--walnut); border-color:var(--walnut);}
     #am-panel .col-btn-danger{border-color:#B84C4C; color:#B84C4C;}
     #am-panel .col-btn-danger:hover{background:#B84C4C; color:var(--paper-card);}
+    /* Kebab (⋮) menüler — pano araç çubuğundaki "Paylaş/Dışa Aktar/Panoyu Sil" VE görünüm satırındaki
+       "+ Ekle" ekleme seçenekleri artık ayrı buton sıraları yerine tek bir açılır menüde (kullanıcı
+       isteği, 2026-09-06). İkisi de AYNI .col-kebab-wrap/.col-kebab-menu iskeletini paylaşır. */
+    #am-panel .col-kebab-wrap{position:relative;}
+    #am-panel .col-kebab-toggle{width:34px; height:34px; border-radius:50%; border:1.5px solid var(--ink); background:none; color:var(--ink); font-size:18px; font-weight:700; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; font-family:inherit;}
+    #am-panel .col-kebab-toggle:hover{background:var(--ink); color:var(--paper-card);}
+    #am-panel .col-kebab-menu{position:absolute; top:calc(100% + 6px); left:0; z-index:40; min-width:190px; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,0.18); padding:6px; display:flex; flex-direction:column; gap:2px;}
+    #am-panel .col-kebab-item{display:block; width:100%; text-align:left; padding:9px 12px; border-radius:8px; border:none; background:none; color:var(--ink); font-weight:600; font-size:12.5px; font-family:inherit; cursor:pointer;}
+    #am-panel .col-kebab-item:hover{background:var(--paper-alt);}
+    #am-panel .col-kebab-item-danger{color:#B84C4C;}
+    #am-panel .col-kebab-item-danger:hover{background:#B84C4C; color:#fff;}
     #am-panel .col-new-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px;}
     #am-panel .col-new-row input{flex:1; min-width:180px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13.5px; font-family:inherit;}
     /* ---------- Serbest Tuval / Moodboard (kullanıcı isteği, 2026-09-05 madde 1) ----------
@@ -409,7 +420,11 @@ const AuthModal = (function () {
        değişiminde konumlar bozulmadan ölçeklenir). touch-action:none sürükleme sırasında sayfanın
        kaymasını engeller (bkz. image-crop.js#injectStyles'daki AYNI kural). */
     /* ---------- Liste/Izgara görünüm geçişi + Liste Modu (kullanıcı isteği) ---------- */
-    #am-panel .col-view-toggle{display:inline-flex; border:1px solid var(--line); border-radius:100px; overflow:hidden; margin:8px 0 2px;}
+    /* .col-view-row: görünüm geçişi VE "+ Ekle" menüsü aynı satırda (kullanıcı isteği, 2026-09-06) —
+       margin artık burada, .col-view-toggle'ın kendi margin'i sıfırlandı (aksi halde iki kez boşluk
+       birikip satır hizası kayardı). */
+    #am-panel .col-view-row{display:flex; align-items:center; gap:10px; margin:8px 0 2px; flex-wrap:wrap;}
+    #am-panel .col-view-toggle{display:inline-flex; border:1px solid var(--line); border-radius:100px; overflow:hidden; margin:0;}
     #am-panel .col-view-toggle button{padding:6px 16px; border:none; background:var(--paper-card); color:var(--ink); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
     #am-panel .col-view-toggle button + button{border-left:1px solid var(--line);}
     #am-panel .col-view-toggle button.active{background:var(--ink); color:var(--paper-card);}
@@ -458,6 +473,11 @@ const AuthModal = (function () {
     #am-panel .col-canvas.pen-active .canvas-stroke-obj path{pointer-events:none !important;}
     #am-panel .canvas-stroke-obj path.selected{filter:drop-shadow(0 0 0.5px #fff) drop-shadow(0 0 2.5px var(--walnut)) drop-shadow(0 0 2.5px var(--walnut));}
     #am-panel .canvas-item{position:absolute; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; background:var(--paper); box-sizing:border-box; touch-action:none; cursor:grab;}
+    /* Notlar artık kartsız — dış .canvas-item sarmalayıcısının kendi kart görünümü (border+arka
+       plan) kaldırılır, metin doğrudan ızgaranın/paftanın üzerinde durur (kullanıcı isteği,
+       2026-09-06). İç .canvas-item-note zaten transparent'tı (bkz. aşağıdaki yorum) — asıl arka
+       planı VEREN dış kutuydu. */
+    #am-panel .canvas-item.canvas-item-note-host{background:transparent; border-color:transparent;}
     #am-panel .canvas-item.dragging{cursor:grabbing; z-index:9999 !important; box-shadow:0 12px 30px rgba(0,0,0,0.22);}
     #am-panel .canvas-item.readonly{cursor:default;}
     #am-panel .canvas-item-media{display:block; width:100%; height:100%; object-fit:cover; background:var(--paper-alt); pointer-events:none;}
@@ -1376,23 +1396,30 @@ const AuthModal = (function () {
 
       <div id="am-col-detail-view" style="display:none;">
         <div class="dash-section">
-          <!-- Buton sırası kullanıcı isteği (2026-09-02 madde 5): Paylaş, Dışa Aktar, Panoyu Sil.
-               "Yeniden Adlandır" buradan KALDIRILDI — artık pano adının sağındaki kalem ikonu. -->
+          <!-- Buton sırası kullanıcı isteği (2026-09-06 madde 1): Paylaş/Dışa Aktar/Panoyu Sil
+               artık "← Panolarım"ın yanındaki TEK bir "⋮" menüsünün içinde, üç ayrı buton yerine
+               (bkz. am-col-kebab-toggle dinleyicisi). "Yeniden Adlandır" buradan da KALDIRILDI —
+               artık pano adının sağındaki kalem ikonu. -->
           <div class="col-toolbar">
             <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
-            <!-- Paylaş ARTIK hem herkese açık bağlantıyı hem ortak çalışma davetlerini barındıran
-                 bir panel açar (kullanıcı isteği, 2026-09-05 madde 3) — ikisi de rozet şartlı,
-                 tıklama anında kontrol edilir (bkz. am-col-share-btn dinleyicisi, export butonuyla
-                 AYNI fetchBadgeAccess deseni). Yalnızca pano SAHİBİNDE görünür (bkz. renderDetail). -->
-            <button type="button" class="col-btn" id="am-col-share-btn">Paylaş</button>
-            <!-- Dışa Aktar rozetli üyelere özel (kullanıcı isteği). Buton BİLEREK devre dışı
-                 (disabled) DEĞİL: devre dışı bir buton hiç click olayı üretmez, dolayısıyla
-                 rozetsiz kullanıcıya "rozet al" yönlendirmesini gösteremezdik (kullanıcı isteği,
-                 2026-09-02). Yetki kontrolü tıklama anında yapılır.
-                 NOT: bu blok bir template literal içindedir - ters tırnak KULLANMA (bkz. proje
-                 belleği: sekme içi ters tırnak şablonu sessizce bozar). -->
-            <button type="button" class="col-btn" id="am-col-export-btn">Dışa Aktar</button>
-            <button type="button" class="col-btn col-btn-danger" id="am-col-delete-btn">Panoyu Sil</button>
+            <div class="col-kebab-wrap" id="am-col-kebab-wrap">
+              <button type="button" class="col-kebab-toggle" id="am-col-kebab-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Diğer işlemler" title="Diğer işlemler">⋮</button>
+              <div class="col-kebab-menu" id="am-col-kebab-menu" style="display:none;">
+                <!-- Paylaş ARTIK hem herkese açık bağlantıyı hem ortak çalışma davetlerini barındıran
+                     bir panel açar (kullanıcı isteği, 2026-09-05 madde 3) — ikisi de rozet şartlı,
+                     tıklama anında kontrol edilir (bkz. am-col-share-btn dinleyicisi, export butonuyla
+                     AYNI fetchBadgeAccess deseni). Yalnızca pano SAHİBİNDE görünür (bkz. renderDetail). -->
+                <button type="button" class="col-kebab-item" id="am-col-share-btn">Paylaş</button>
+                <!-- Dışa Aktar rozetli üyelere özel (kullanıcı isteği). Buton BİLEREK devre dışı
+                     (disabled) DEĞİL: devre dışı bir buton hiç click olayı üretmez, dolayısıyla
+                     rozetsiz kullanıcıya "rozet al" yönlendirmesini gösteremezdik (kullanıcı isteği,
+                     2026-09-02). Yetki kontrolü tıklama anında yapılır.
+                     NOT: bu blok bir template literal içindedir - ters tırnak KULLANMA (bkz. proje
+                     belleği: sekme içi ters tırnak şablonu sessizce bozar). -->
+                <button type="button" class="col-kebab-item" id="am-col-export-btn">Dışa Aktar</button>
+                <button type="button" class="col-kebab-item col-kebab-item-danger" id="am-col-delete-btn">Panoyu Sil</button>
+              </div>
+            </div>
           </div>
           <h2 id="am-col-detail-title" style="display:inline-flex; align-items:center; gap:8px;">
             <span id="am-col-detail-title-text"></span>
@@ -1403,10 +1430,24 @@ const AuthModal = (function () {
           </h2>
           <p class="section-hint" id="am-col-detail-count"></p>
           <!-- Liste/Izgara görünüm geçişi (kullanıcı isteği madde 1) — ikisi de AYNI openCollection.
-               items dizisinden beslenir (bkz. renderDetail). -->
-          <div class="col-view-toggle" id="am-col-view-toggle">
-            <button type="button" class="active" data-view="grid">Izgara</button>
-            <button type="button" data-view="list">Liste</button>
+               items dizisinden beslenir (bkz. renderDetail). Liste artık SOLDA ve VARSAYILAN
+               (kullanıcı isteği, 2026-09-06): kelime sırası değişti VE boardViewMode başlangıç
+               değeri 'list' oldu (bkz. openDetail). Ekleme butonları (Kaydettiklerimden Ekle vb.)
+               ARTIK bu satırdaki "+ Ekle" menüsünün içinde — ayrı bir araç çubuğu satırı yok. -->
+          <div class="col-view-row">
+            <div class="col-view-toggle" id="am-col-view-toggle">
+              <button type="button" class="active" data-view="list">Liste</button>
+              <button type="button" data-view="grid">Izgara</button>
+            </div>
+            <div class="col-kebab-wrap" id="am-col-add-menu-wrap">
+              <button type="button" class="col-btn" id="am-col-add-menu-toggle" aria-haspopup="true" aria-expanded="false">+ Ekle</button>
+              <div class="col-kebab-menu" id="am-col-add-menu" style="display:none;">
+                <button type="button" class="col-kebab-item" data-col-add="saved">Kaydettiklerimden Ekle</button>
+                <button type="button" class="col-kebab-item" data-col-add="follow">Takip Ettiklerimden Ekle</button>
+                <button type="button" class="col-kebab-item" data-col-add="image">Görsel Yükle</button>
+                <button type="button" class="col-kebab-item" data-col-add="note">Not Ekle</button>
+              </div>
+            </div>
           </div>
 
           <!-- Paylaş/İşbirliği paneli — kullanıcı isteği madde 3. Herkese açık bağlantı aç/kapat +
@@ -1428,13 +1469,6 @@ const AuthModal = (function () {
               </div>
             </div>
             <div id="am-col-collaborator-list" style="margin-top:14px;"></div>
-          </div>
-
-          <div class="col-toolbar">
-            <button type="button" class="col-btn" data-col-add="saved">Kaydettiklerimden Ekle</button>
-            <button type="button" class="col-btn" data-col-add="follow">Takip Ettiklerimden Ekle</button>
-            <button type="button" class="col-btn" data-col-add="image">Görsel Yükle</button>
-            <button type="button" class="col-btn" data-col-add="note">Not Ekle</button>
           </div>
 
           <div class="col-add-panel" id="am-col-add-saved" style="display:none;">
@@ -3844,8 +3878,9 @@ const AuthModal = (function () {
     let styleTargetItemId = null;
     // "Not Ekle" akışının ön-seçili stili (kullanıcı isteği madde 2: önce stil, sonra metin).
     let newNoteColor = STANDARD_PEN_COLORS[0], newNoteSize = 14, newNoteBold = false;
-    // Liste/Izgara görünüm anahtarı (kullanıcı isteği madde 1) — 'grid' | 'list'.
-    let boardViewMode = 'grid';
+    // Liste/Izgara görünüm anahtarı (kullanıcı isteği madde 1) — 'grid' | 'list'. Varsayılan
+    // artık 'list' (kullanıcı isteği, 2026-09-06) — bkz. openDetail'deki AYNI atama.
+    let boardViewMode = 'list';
     // Seçili vektörel çizim objesi (kullanıcı isteği) — tuval her yeniden çizildiğinde sıfırlanır.
     let selectedStrokeId = null;
 
@@ -4086,6 +4121,10 @@ const AuthModal = (function () {
       const deleteBtn = document.getElementById('am-col-delete-btn');
       if (deleteBtn) deleteBtn.style.display = isOwner() ? '' : 'none';
       document.querySelectorAll('#am-col-detail-view [data-col-add]').forEach(btn => { btn.style.display = canEdit() ? '' : 'none'; });
+      // Görüntüleyicide "+ Ekle" tetikleyicisinin kendisi de gizlenir — aksi halde menü açıldığında
+      // içindeki dört seçenek de gizli olduğundan bomboş bir açılır pencere görünürdü.
+      const addMenuWrap = document.getElementById('am-col-add-menu-wrap');
+      if (addMenuWrap) addMenuWrap.style.display = canEdit() ? '' : 'none';
       const penToggleBtn = document.getElementById('am-col-pen-toggle');
       if (penToggleBtn) penToggleBtn.style.display = canEdit() ? '' : 'none';
       document.querySelectorAll('.col-canvas-tbtn[data-orientation]').forEach(btn => {
@@ -4128,7 +4167,7 @@ const AuthModal = (function () {
         const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(c => `<span class="canvas-item-handle ${c}" data-handle="${c}"></span>`).join('');
         const style = `left:${it.x}%; top:${it.y}%; width:${it.width}%; height:${it.height}%; z-index:${it.zIndex || 0};`;
         return `
-        <div class="canvas-item${readonly ? ' readonly' : ''}" data-item-id="${escapeAttr(it.id)}" data-href="${escapeAttr(href || '')}" data-image="${image ? '1' : ''}" style="${style}">
+        <div class="canvas-item${readonly ? ' readonly' : ''}${it.kind === 'note' ? ' canvas-item-note-host' : ''}" data-item-id="${escapeAttr(it.id)}" data-href="${escapeAttr(href || '')}" data-image="${image ? '1' : ''}" style="${style}">
           ${media}${body}${openLink}${editBtn}${removeBtn}${handles}
         </div>`;
       }).join('');
@@ -4232,15 +4271,21 @@ const AuthModal = (function () {
           row.classList.add('dragging');
           handle.setPointerCapture(e.pointerId);
 
+          // GERÇEK BULGU (kullanıcı bildirimi: "liste görünümünde maddeleri kaydırmada problem
+          // var"): eski sürüm compareDocumentPosition ile satırın SÜRÜKLENEN satıra göre ÖNCE/
+          // SONRA olduğunu kontrol edip buna göre dal seçiyordu — ama koşullar ters kutuplanmıştı,
+          // bu yüzden hem yukarı hem aşağı sürüklemede satır çoğu zaman hiç yer değiştirmiyordu.
+          // Doğru/standart yaklaşım: konumdan BAĞIMSIZ, her hareket adımında imlecin dikey
+          // konumuna göre "hangi satırın önüne gitmeli" sorusu yeniden hesaplanır.
           function onMove(ev) {
             const rows = Array.from(container.querySelectorAll('.col-list-row')).filter(r => r !== row);
+            let target = null;
             for (const other of rows) {
               const rect = other.getBoundingClientRect();
-              const mid = rect.top + rect.height / 2;
-              const otherIsAfter = !!(other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_PRECEDING);
-              if (ev.clientY < mid && otherIsAfter) { container.insertBefore(row, other); break; }
-              if (ev.clientY > mid && !otherIsAfter) { container.insertBefore(row, other.nextSibling); break; }
+              if (ev.clientY < rect.top + rect.height / 2) { target = other; break; }
             }
+            if (target) container.insertBefore(row, target);
+            else container.appendChild(row);
           }
           function onUp(ev) {
             handle.releasePointerCapture(ev.pointerId);
@@ -4549,7 +4594,7 @@ const AuthModal = (function () {
     async function openDetail(id) {
       document.getElementById('am-col-list-view').style.display = 'none';
       document.getElementById('am-col-detail-view').style.display = '';
-      ['am-col-add-saved', 'am-col-add-follow', 'am-col-add-image', 'am-col-add-note', 'am-col-share-panel', 'am-col-note-style-panel', 'am-col-palette-panel'].forEach(panelId => {
+      ['am-col-add-saved', 'am-col-add-follow', 'am-col-add-image', 'am-col-add-note', 'am-col-share-panel', 'am-col-note-style-panel', 'am-col-palette-panel', 'am-col-kebab-menu', 'am-col-add-menu'].forEach(panelId => {
         document.getElementById(panelId).style.display = 'none';
       });
       notice('am-col-detail-notice', '');
@@ -4557,7 +4602,7 @@ const AuthModal = (function () {
       canvasInitialized = false;
       setPenActive(false);
       styleTargetItemId = null;
-      boardViewMode = 'grid';
+      boardViewMode = 'list';
       try {
         const res = await fetch(`/api/collections/${encodeURIComponent(id)}`);
         if (!res.ok) { showList(); return; }
@@ -4606,6 +4651,26 @@ const AuthModal = (function () {
       if (btn.dataset.view === boardViewMode) return;
       boardViewMode = btn.dataset.view;
       renderDetail();
+    });
+
+    // Kebab (⋮) menüler — "Paylaş/Dışa Aktar/Panoyu Sil" ve "+ Ekle" (kullanıcı isteği, 2026-09-06).
+    // İki menü karşılıklı dışlar: biri açılırken diğeri kapanır. Dışarı tıklayınca kapanma, aşağıdaki
+    // am-col-detail-view delege dinleyicisinin başında ele alınır (bkz. orada .col-kebab-wrap kontrolü).
+    on('am-col-kebab-toggle', 'click', () => {
+      const menu = document.getElementById('am-col-kebab-menu');
+      const addMenu = document.getElementById('am-col-add-menu');
+      if (addMenu) addMenu.style.display = 'none';
+      const opening = menu.style.display === 'none';
+      menu.style.display = opening ? '' : 'none';
+      document.getElementById('am-col-kebab-toggle').setAttribute('aria-expanded', String(opening));
+    });
+    on('am-col-add-menu-toggle', 'click', () => {
+      const menu = document.getElementById('am-col-add-menu');
+      const kebabMenu = document.getElementById('am-col-kebab-menu');
+      if (kebabMenu) kebabMenu.style.display = 'none';
+      const opening = menu.style.display === 'none';
+      menu.style.display = opening ? '' : 'none';
+      document.getElementById('am-col-add-menu-toggle').setAttribute('aria-expanded', String(opening));
     });
 
     on('am-col-rename-btn', 'click', async () => {
@@ -4933,6 +4998,18 @@ const AuthModal = (function () {
     // view':'click' için İKİNCİ bir on(...) çağrısı sessizce YOK SAYILIRDI — bu yüzden aşağıdaki
     // öğe-ekleme-paneli anahtarlamasıyla AYNI dinleyiciye eklendi.
     on('am-col-detail-view', 'click', async (e) => {
+      // Kebab menülerini kapat (kullanıcı isteği, 2026-09-06): menü dışına tıklanırsa OTOMATİK
+      // kapanır; menünün İÇİNDEKİ bir öğeye (Paylaş/Dışa Aktar/Panoyu Sil/Ekle seçenekleri)
+      // tıklanınca da kapanır — o öğenin kendi ayrı dinleyicisi zaten bu ile AYNI tıklamada
+      // bubble ile tetiklenir, biz yalnızca menüyü görsel olarak gizleriz. Menünün kendi açma/
+      // kapama tuşuna (.col-kebab-toggle) tıklanınca BURADA dokunulmaz — o kendi dinleyicisinde
+      // yönetilir (bkz. am-col-kebab-toggle/am-col-add-menu-toggle).
+      if (e.target.closest('.col-kebab-item') || !e.target.closest('.col-kebab-wrap')) {
+        const kebabMenu = document.getElementById('am-col-kebab-menu');
+        const addMenu = document.getElementById('am-col-add-menu');
+        if (kebabMenu) kebabMenu.style.display = 'none';
+        if (addMenu) addMenu.style.display = 'none';
+      }
       const orientBtn = e.target.closest('[data-orientation]');
       if (orientBtn && openCollection && canEdit()) {
         const val = orientBtn.dataset.orientation;
