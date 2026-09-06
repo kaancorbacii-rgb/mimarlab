@@ -954,3 +954,65 @@ CREATE INDEX IF NOT EXISTS idx_pht_creator ON project_hotspot_tags(created_by_us
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pht_pending_unique
   ON project_hotspot_tags(project_slug, image_url, product_slug)
   WHERE status = 'pending';
+
+-- ===================== GÜNDEM (0099) =====================
+-- Otomatik toplanan mimarlık/tasarım gündemi (kullanıcı isteği, 2026-09-06).
+-- Tam gerekçe + alan alan tasarım notları: migrations/0099_gundem.sql.
+-- Yazıcı: src/lib/gundemIngest.js (cron). Okuyucu: src/routes/gundem.js, src/lib/seo.js.
+-- ÖNEMLİ: bu tablo bir MAKALE ARŞİVİ DEĞİLDİR — kaynak makale gövdesi hiçbir zaman saklanmaz,
+-- yalnızca MİMARLAB'ın kendi ürettiği Türkçe başlık/özet + kaynağa götüren metadata tutulur.
+CREATE TABLE IF NOT EXISTS gundem_items (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  original_title TEXT,
+  summary TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  image_host TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  source_domain TEXT NOT NULL,
+  source_url TEXT NOT NULL UNIQUE,
+  canonical_url TEXT,
+  source_published_at INTEGER,
+  published_at INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  language TEXT NOT NULL DEFAULT 'tr',
+  original_language TEXT,
+  author TEXT,
+  content_hash TEXT NOT NULL,
+  title_key TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'published',
+  ai_model TEXT,
+  ai_generated_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_published ON gundem_items(status, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_category ON gundem_items(status, category, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_content_hash ON gundem_items(content_hash);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_title_key ON gundem_items(title_key);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_canonical ON gundem_items(canonical_url);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_source ON gundem_items(source_id, published_at DESC);
+
+-- Gündem -> bilgi grafiği kenarı. YALNIZCA D1'de zaten var olan kayıtlara işaret eder; AI'nin
+-- uydurduğu bir isim buraya ASLA yazılmaz (bkz. src/lib/gundemEntities.js).
+CREATE TABLE IF NOT EXISTS gundem_entities (
+  item_id TEXT NOT NULL REFERENCES gundem_items(id),
+  entity_type TEXT NOT NULL,
+  entity_key TEXT NOT NULL,
+  entity_name TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (item_id, entity_type, entity_key)
+);
+CREATE INDEX IF NOT EXISTS idx_gundem_entities_target ON gundem_entities(entity_type, entity_key);
+
+CREATE TABLE IF NOT EXISTS gundem_source_health (
+  source_id TEXT PRIMARY KEY,
+  last_success_at INTEGER,
+  last_error_at INTEGER,
+  last_error TEXT,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  last_run_at INTEGER,
+  updated_at INTEGER NOT NULL
+);

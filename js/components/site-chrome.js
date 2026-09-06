@@ -25,6 +25,12 @@
     { key: 'firma', href: '/firma', label: 'Firma' },
     { key: 'urun', href: '/urun', label: 'Ürün', mega: true },
     { key: 'marka', href: '/marka', label: 'Marka' },
+    // 'gundem' (kullanıcı isteği, 2026-09-06) — beş İÇERİK listesinin ardından altıncı sıraya
+    // eklendi. "Neden MİMARLAB?"in bilerek dışarıda bırakılmasıyla (aşağıdaki not) ÇELİŞMEZ: o bir
+    // kurumsal anlatım sayfası, bu ise sitenin altıncı içerik akışıdır ve gündelik olarak değişir —
+    // yalnızca footer'dan erişilebilir olsaydı ziyaretçinin her gün geri geleceği tek sayfa
+    // pratikte keşfedilemez olurdu.
+    { key: 'gundem', href: '/gundem', label: 'Gündem' },
     // "Neden MİMARLAB?" (bkz. neden-mimarlab.html) BİLEREK burada DEĞİL — kullanıcı isteği
     // (2026-09-01): sayfaya yalnızca footer'ın Kurumsal sütunundan girilir, üst menü beş içerik
     // listesiyle sınırlı kalır. Nav'a eklenmiş, sonra aynı gün kaldırılmıştır; geri eklenmeden önce
@@ -358,7 +364,7 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a><a href="/gundem">Gündem</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/hakkinda">Hakkında</a><a href="/iletisim">İletişim</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
     </div>

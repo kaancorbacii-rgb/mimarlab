@@ -24,6 +24,9 @@ import ilIlceJs from '../../il-ilce-data.js';
 // meta'sı popup'ın gösterdiğini yansıtacaksa AYNI kaynaktan karar vermek zorunda (bkz. src/index.js#
 // loadHubPool ve src/routes/office.js'teki AYNI import).
 import officeKindJs from '../../office-kind.js';
+// Gündem detay sayfasının SSR gövdesi — /gundem liste sayfasıyla AYNI kart üreticisi (bkz. o
+// dosyanın başındaki "neden ayrı bir lib" notu).
+import { gundemSsrCard } from './gundemSsr.js';
 
 const { parseLocationFull } = ilIlceJs;
 const { isBrandOffice, officeCatList } = officeKindJs;
@@ -203,6 +206,7 @@ const CATALOG_CRUMB = {
   office: { label: 'Firmalar', path: '/firma' },
   project: { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },
+  gundem: { label: 'Gündem', path: '/gundem' },
 };
 // crumbOverride: saf marka profillerinde ikinci basamak "Firmalar › /firma" değil "Markalar ›
 // /marka" olmalı — kanonik URL de /marka/:slug (bkz. src/lib/officeUrl.js), aksi halde
@@ -1091,7 +1095,59 @@ async function buildProductMeta(key, env) {
   }, canonicalUrl);
 }
 
-const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta };
+// GÜNDEM DETAY META'SI (kullanıcı isteği, 2026-09-06 madde 14).
+//
+// ÖNEMLİ SEO KARARI — JSON-LD tipi `NewsArticle`/`Article` DEĞİL, `WebPage` + `isBasedOn`:
+// bu sayfa haberin KENDİSİ değildir, haberin MİMARLAB tarafından yazılmış kısa bir özetidir ve
+// asıl eser başka bir yayında durur. `NewsArticle` işaretlemek Google'a "özgün haber içeriği
+// buradadır" demek olurdu — hem yanlış hem de kaynak yayınla duplicate-content çekişmesi yaratırdı.
+// `isBasedOn` + `citation` ile asıl kaynak makineye okunur biçimde işaret edilir; `author`
+// MİMARLAB'dır çünkü sayfadaki metin (özet) gerçekten MİMARLAB'ın ürünüdür.
+async function buildGundemMeta(slug, env) {
+  if (!env || !env.DB) return null;
+  const row = await env.DB.prepare(
+    `SELECT slug, title, summary, image_url, source_name, source_url, source_domain,
+            source_published_at, published_at, category
+       FROM gundem_items WHERE slug = ? AND status = 'published'`
+  ).bind(slug).first();
+  if (!row) return null;
+
+  const canonicalUrl = `${SITE_ORIGIN}/gundem/${encodeURIComponent(row.slug)}`;
+  const publishedMs = row.source_published_at || row.published_at;
+  return {
+    title: pageTitle(row.title),
+    description: truncate(row.summary, 200),
+    canonicalUrl,
+    // OG görseli kaynağın kendi CDN'indeki önizleme görselidir (bkz. migrations/0099: görsel
+    // R2'ye kopyalanmaz). safeHttpUrl ile doğrulanır; geçersizse site varsayılanına düşülür.
+    image: safeHttpUrl(row.image_url) || DEFAULT_IMAGE,
+    ogType: 'article',
+    publishedTime: publishedMs ? new Date(publishedMs).toISOString() : null,
+    h1: row.title,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: row.title,
+      url: canonicalUrl,
+      description: row.summary,
+      inLanguage: 'tr-TR',
+      datePublished: publishedMs ? new Date(publishedMs).toISOString() : undefined,
+      author: { '@type': 'Organization', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` },
+      isBasedOn: { '@type': 'CreativeWork', url: row.source_url, publisher: { '@type': 'Organization', name: row.source_name } },
+      citation: row.source_url,
+      isPartOf: { '@type': 'WebSite', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` },
+    },
+    breadcrumbJsonLd: breadcrumbJsonLd('gundem', row.title, canonicalUrl),
+    // #ssr-entity-body gövdesi — liste sayfasıyla PAYLAŞILAN kart üreticisi (bkz. gundemSsr.js).
+    // bodyImage BİLEREK verilmiyor: injectMeta'nın bodyImage dalı görseli derivedImageUrl()'den
+    // geçirir, o da bu depodaki R2 türev şemasına göre yol kurar — Gündem görselleri BAŞKA bir
+    // sitenin CDN'inde durduğundan o dönüşüm bozuk bir URL üretirdi. Görsel bu yüzden kartın
+    // kendi HTML'inin içinde, olduğu gibi yer alır.
+    bodyHtml: gundemSsrCard(row, { linkTitle: false }),
+  };
+}
+
+const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta, gundem: buildGundemMeta };
 
 // type: 'architect' | 'office' | 'project' | 'product'; slugOrId: URL'den çözülen slug/id.
 // Kayıt bulunamazsa (veya D1 sorgusu hata verirse, bkz. aşağıdaki try/catch) null döner — çağıran
@@ -1176,6 +1232,15 @@ const HIDDEN_CHECK_CONFIG = {
 // varsa true — yani bu anahtar GERÇEKTEN bir kayda karşılık geliyordu, yalnızca artık görünür değil.
 export async function isKnownButHidden(type, key, env) {
   if (!env || !env.DB || !key) return false;
+  // gundem_items'ta deleted_at/hidden_at kolonları YOK — görünürlük tek bir `status` kolonuyla
+  // yönetilir (bkz. migrations/0099_gundem.sql). Aşağıdaki jenerik sorgu bu tabloda hata verirdi
+  // (catch bunu yutar ama 410 sinyali de sessizce kaybolurdu), bu yüzden ayrı ele alınır.
+  if (type === 'gundem') {
+    try {
+      const row = await env.DB.prepare(`SELECT 1 FROM gundem_items WHERE slug = ? AND status != 'published' LIMIT 1`).bind(key).first();
+      return !!row;
+    } catch { return false; }
+  }
   const config = HIDDEN_CHECK_CONFIG[type];
   if (!config) return false;
   try {

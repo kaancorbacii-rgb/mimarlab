@@ -18,6 +18,15 @@ export const DEFAULT_SETTINGS = {
   announcement_link: '',
   featured_project_slugs: '',
   robots_txt: '',
+  // GÜNDEM KILL SWITCH (kullanıcı isteği, 2026-09-06 madde 17). '1' = otomasyon açık (varsayılan),
+  // başka her değer = KAPALI: cron çalışır ama hiçbir kaynağa gidilmez ve hiçbir içerik yayınlanmaz
+  // (bkz. src/lib/gundemIngest.js#runGundemIngestion'ın ilk kapısı). Yeni bir yapılandırma
+  // mekanizması kurulmadı — admin panelinin Site Ayarları sekmesi (PATCH /api/admin/settings)
+  // DEFAULT_SETTINGS'in anahtarları üzerinde jenerik çalıştığından bu satır tek başına anahtarı
+  // yönetilebilir kılar. Yayındaki içerik kill switch'ten ETKİLENMEZ (kapatmak sayfayı boşaltmaz,
+  // yalnızca yeni içerik akışını durdurur) — bilinçli: acil durumda "akışı durdur" ile "sayfayı
+  // kaldır" farklı kararlardır.
+  gundem_automation_enabled: '1',
 };
 
 export async function getSiteSettings(env) {

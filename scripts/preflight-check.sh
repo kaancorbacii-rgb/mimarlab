@@ -153,7 +153,67 @@ for f in kisi.html firma.html marka.html; do
 done
 
 echo ""
-echo "5) schema.sql sözdizimi (varsa sqlite3 ile)"
+echo "5) GÜNDEM (kullanıcı isteği, 2026-09-06)"
+
+# Birim testler — feed ayrıştırma, mükerrer anahtarları, kalite kapısı, entity eşleştirme, kaynak
+# yapılandırması. Tamamen yerel/saf (ağ ve D1 yok), bkz. scripts/test-gundem.mjs dosya başı.
+if node scripts/test-gundem.mjs >/tmp/preflight_gundem 2>&1; then
+  ok "gundem birim testleri geçti ($(grep -c '^  ok ' /tmp/preflight_gundem) test)"
+else
+  bad "gundem birim testleri BAŞARISIZ:"
+  tail -20 /tmp/preflight_gundem >&2
+fi
+
+# PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
+# erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
+# (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve
+# SSR ile istemci render'ı farklı sayıda kart gösterir — bu depodaki klasik "iki yerde tutulan sabit
+# sessizce ayrıştı" tuzağı (bkz. yukarıdaki check_prefetch_limit).
+gundem_head_limit=$(grep -o "limit=[0-9]\+" gundem.html | head -1 | cut -d= -f2)
+gundem_page_size=$(grep -o "^const PAGE_SIZE = [0-9]\+" js/pages/gundem.js | grep -o "[0-9]\+")
+gundem_api_size=$(grep -o "^export const GUNDEM_PAGE_SIZE = [0-9]\+" src/routes/gundem.js | grep -o "[0-9]\+")
+if [ -z "$gundem_head_limit" ] || [ -z "$gundem_page_size" ] || [ -z "$gundem_api_size" ]; then
+  bad "gundem sayfa boyutu okunamadı (head='$gundem_head_limit' page='$gundem_page_size' api='$gundem_api_size')"
+elif [ "$gundem_head_limit" != "$gundem_page_size" ] || [ "$gundem_page_size" != "$gundem_api_size" ]; then
+  bad "gundem sayfa boyutu ayrışmış: gundem.html=$gundem_head_limit, js/pages/gundem.js=$gundem_page_size, src/routes/gundem.js=$gundem_api_size"
+else
+  ok "gundem sayfa boyutu üç yerde de hizalı (=$gundem_page_size)"
+fi
+
+# SSR konteyneri — yukarıdaki dört liste sayfasıyla AYNI gerekçe (src/index.js#serveGundemListPage
+# ve #injectMeta bu id'yi hedefliyor; kaybolursa SSR gövdesi sessizce hiçbir yere basılmaz).
+if grep -q 'id="ssr-entity-body"' gundem.html; then
+  ok "gundem.html — #ssr-entity-body konteyneri mevcut"
+else
+  bad "gundem.html — #ssr-entity-body konteyneri kayıp (SSR body enjeksiyonu bozulmuş olabilir)"
+fi
+
+# Cron dispatcher — src/index.js#VISUAL_INDEX_CRON, wrangler.jsonc'taki görsel-dizin ifadesiyle
+# BİREBİR aynı olmalı. Ayrışırsa dispatcher o ifadeyi tanımaz ve 6 saatlik görsel dizin turu her
+# 30 dakikada bir çalışmaya başlar (12 kat maliyet), üstelik sessizce.
+wrangler_cron=$(grep -o '"23 \*/6 \* \* \*"' wrangler.jsonc | head -1 | tr -d '"')
+index_cron=$(grep -o "^const VISUAL_INDEX_CRON = '[^']*'" src/index.js | sed "s/.*'\(.*\)'/\1/")
+if [ -z "$wrangler_cron" ] || [ -z "$index_cron" ]; then
+  bad "cron ifadesi okunamadı (wrangler='$wrangler_cron' index='$index_cron')"
+elif [ "$wrangler_cron" != "$index_cron" ]; then
+  bad "VISUAL_INDEX_CRON ayrışmış: wrangler.jsonc='$wrangler_cron', src/index.js='$index_cron'"
+else
+  ok "cron dispatcher ifadesi wrangler.jsonc ile hizalı ($index_cron)"
+fi
+
+# Gündem görselleri kaynağın kendi CDN'inden gelir; CSP img-src listesi kaynak yapılandırmasından
+# TÜRETİLMELİ. Biri elle sabit bir host listesi yazarsa (ör. kaynak eklerken CSP'yi unutup satırı
+# kopyalarsa) kart canlıda sessizce görselsiz kalır.
+if grep -q 'GUNDEM_IMAGE_HOSTS.map' src/index.js; then
+  ok "src/index.js — CSP img-src hâlâ GUNDEM_IMAGE_HOSTS'tan türetiliyor"
+else
+  bad "src/index.js — CSP img-src artık GUNDEM_IMAGE_HOSTS'tan türetilmiyor (Gündem görselleri engellenir)"
+fi
+
+rm -f /tmp/preflight_gundem
+
+echo ""
+echo "6) schema.sql sözdizimi (varsa sqlite3 ile)"
 if command -v sqlite3 >/dev/null 2>&1; then
   if sqlite3 ":memory:" < schema.sql >/tmp/preflight_err 2>&1; then
     ok "schema.sql temiz bir SQLite veritabanında hatasız çalışıyor"

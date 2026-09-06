@@ -1,0 +1,73 @@
+// GÜNDEM SSR GÖVDESİ (kullanıcı isteği, 2026-09-06 madde 14: "JS kapalıyken Gündem içerikleri HTML
+// içinde görünür olmalı").
+//
+// KAPSAM SINIRI — aynı maddenin AÇIK uyarısı: "Gündem kartlarının kaynak makalelerin kopyası gibi
+// görünmesine neden olacak full-text içerik üretme." Bu yüzden buradan çıkan HTML, ekranda görünen
+// kartın BİREBİR aynısıdır ve yalnızca şunları içerir: MİMARLAB'ın kendi Türkçe başlığı, MİMARLAB'ın
+// kendi tek paragraflık özeti, tarih/kategori/kaynak adı, önizleme görseli ve KAYNAĞA GİDEN GÖRÜNÜR
+// BAĞLANTI. Kaynak makalenin metninden tek cümle bile buraya girmez.
+//
+// NEDEN AYRI BİR lib DOSYASI: iki tüketicisi var — /gundem liste sayfası (src/routes/gundem.js) ve
+// /gundem/:slug detay meta'sı (src/lib/seo.js). seo.js'in bir route dosyasından import etmesi
+// (lib → route yönünde bir bağımlılık) bu depodaki katman düzenini bozardı; ortak parça buraya alındı.
+//
+// ESCAPING: her değer escapeHtml/escapeAttr'dan geçer. Bu içeriğin kaynağı ÜÇÜNCÜ TARAF feed'lerdir
+// (başlık/özet AI'den geçse de kaynak metni etkileyebilir), yani burada escaping isteğe bağlı bir
+// nezaket değil, gerçek bir XSS savunmasıdır — bkz. bu depodaki escapeAttr kuralı.
+
+import { GUNDEM_CATEGORIES } from './gundemCategories.js';
+
+export function escapeHtml(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+export function formatTrDate(ms) {
+  if (!ms) return '';
+  try {
+    return new Date(ms).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch { return ''; }
+}
+
+export function gundemCategoryLabel(key) {
+  const found = GUNDEM_CATEGORIES.find(c => c.key === key);
+  return found ? found.label : '';
+}
+
+// Tek bir kart. `linkTitle=false` (detay sayfası) başlığı bağlantıya sarmaz — sayfa zaten o içeriğin
+// kendisidir, kendine link vermek anlamsız olurdu.
+//
+// GÖRSEL: kaynağın kendi CDN'inden gelir (bkz. migrations/0099 dosya başı). width/height ÖZNİTELİKLERİ
+// zorunlu — kaynak görselinin gerçek oranını bilmiyoruz ve CSS aspect-ratio ile kırpıyoruz, ama bu
+// iki öznitelik olmadan JS'siz görünümde CLS oluşur (madde 19). referrerpolicy="no-referrer":
+// ziyaretçinin hangi MİMARLAB sayfasında olduğu bilgisi üçüncü taraf sunucularına sızmaz.
+export function gundemSsrCard(row, { linkTitle = true } = {}) {
+  if (!row) return '';
+  const date = formatTrDate(row.source_published_at || row.published_at);
+  const meta = [date, gundemCategoryLabel(row.category), row.source_name].filter(Boolean).map(escapeHtml).join(' · ');
+  const href = `/gundem/${encodeURIComponent(row.slug)}`;
+  const titleHtml = linkTitle
+    ? `<a href="${escapeAttr(href)}">${escapeHtml(row.title)}</a>`
+    : escapeHtml(row.title);
+  return `<article class="gundem-ssr-card">` +
+    `<img class="gundem-ssr-img" src="${escapeAttr(row.image_url)}" alt="" width="640" height="400" loading="lazy" decoding="async" referrerpolicy="no-referrer">` +
+    `<div class="gundem-ssr-body">` +
+      `<p class="gundem-ssr-meta">${meta}</p>` +
+      `<h2 class="gundem-ssr-title">${titleHtml}</h2>` +
+      `<p class="gundem-ssr-summary">${escapeHtml(row.summary)}</p>` +
+      // rel="nofollow noopener external": otomatik toplanan dış bağlantılar için doğru sinyal —
+      // bağlantı ziyaretçi için gerçek ve görünürdür ama bir editoryal onay/PageRank aktarımı
+      // değildir (madde 14: kaynak bağlantısı her kartta AÇIKÇA bulunmalı).
+      `<p class="gundem-ssr-source"><a href="${escapeAttr(row.source_url)}" rel="nofollow noopener external" target="_blank">Kaynağa git → ${escapeHtml(row.source_name)}</a></p>` +
+    `</div>` +
+  `</article>`;
+}
+
+export function gundemSsrList(rows) {
+  if (!rows || !rows.length) return '';
+  return `<div class="gundem-ssr-list">${rows.map(r => gundemSsrCard(r)).join('')}</div>`;
+}

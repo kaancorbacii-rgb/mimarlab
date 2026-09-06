@@ -46,8 +46,19 @@ import { resolveSlugRedirect } from './lib/slugRedirects.js';
 import { getSessionUser } from './lib/auth.js';
 import { getSiteSettings } from './lib/siteSettings.js';
 import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
+// GÜNDEM (kullanıcı isteği, 2026-09-06) — otomatik toplanan mimarlık/tasarım gündemi.
+import { handleGundemRoute, gundemSsrListBody, listGundemSitemapUrls } from './routes/gundem.js';
+import { runGundemIngestion } from './lib/gundemIngest.js';
+// CSP img-src'nin Gündem bölümü, kaynak yapılandırmasından TÜRETİLİR (elle yazılan ikinci bir liste
+// yok) — bkz. src/lib/gundemSources.js#GUNDEM_IMAGE_HOSTS ve aşağıdaki CONTENT_SECURITY_POLICY.
+import { GUNDEM_IMAGE_HOSTS } from './lib/gundemSources.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
+
+// wrangler.jsonc#triggers.crons'taki görsel-arama dizini ifadesiyle BİREBİR aynı olmalı (bkz.
+// scheduled dispatcher). Ayrışırsa görsel dizin turu 30 dakikada bir çalışmaya başlar — bu yüzden
+// scripts/preflight-check.sh iki dosyadaki değeri statik olarak karşılaştırır.
+const VISUAL_INDEX_CRON = '23 */6 * * *';
 
 // X-Frame-Options bilerek DENY olarak korunuyor (spec Faz 5'in önerdiği SAMEORIGIN yerine) — sitede
 // hiçbir yerde <iframe>/<frame> kullanılmıyor (bkz. depo çapında arama), yani kendi kendini
@@ -108,7 +119,16 @@ const CONTENT_SECURITY_POLICY = [
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com https://static.cloudflareinsights.com https://unpkg.com",
   "style-src 'self' 'unsafe-inline' https://unpkg.com",
   "font-src 'self'",
-  "img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.tile.openstreetmap.org",
+  // GÜNDEM GÖRSELLERİ (kullanıcı isteği, 2026-09-06): Gündem kartlarındaki görseller kaynağın KENDİ
+  // CDN'inden gösterilir, R2'ye kopyalanmaz (bkz. migrations/0099_gundem.sql dosya başı: kaynak
+  // açıkça izin vermediği sürece yeniden host etme yasağı). Bu, tarayıcının o host'lara <img>
+  // isteği atması demektir — CSP'de beyan edilmezse görsel SESSİZCE engellenir ve her Gündem kartı
+  // boş kalır. Liste ELLE yazılmaz, GUNDEM_IMAGE_HOSTS'tan (yalnızca ETKİN kaynakların beyan
+  // ettiği host'lar) üretilir; ingest tarafı da AYNI listeye karşı doğrulama yapıp tanımadığı
+  // host'tan gelen içeriği hiç yayınlamaz (bkz. gundemQuality.js#isAllowedImageHost) — yani liste
+  // ile gerçek trafik birbirinden sapamaz. Yeni bir kaynak eklendiğinde yapılacak TEK şey o
+  // kaynağın imageHosts alanını doldurmaktır.
+  `img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.tile.openstreetmap.org ${GUNDEM_IMAGE_HOSTS.map(h => `https://${h}`).join(' ')}`,
   "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com",
   "object-src 'none'",
   "base-uri 'self'",
@@ -169,6 +189,11 @@ const CLEAN_URL_ASSETS = [
   // arasındaki düzeltme serveDetailPage'te 301 ile yapılır — yani /firma/:slug ile gelen eski/dış
   // bağlantılar kırılmaz, kanonik adrese yönlendirilir.
   { prefix: '/marka/', asset: '/marka', type: 'office' },
+  // /gundem/:slug — tek bir Gündem içeriğinin kalıcı adresi (paylaşım URL'i, madde 16). Diğer beş
+  // girdiyle AYNI mekanizma: statik /gundem kabuğu servis edilir, injectMeta o kaydın title/OG/
+  // JSON-LD'sini ve #ssr-entity-body gövdesini enjekte eder, sayfanın kendi JS'i yolu görüp aynı
+  // içeriği tek kart olarak gösterir. type:'gundem' → src/lib/seo.js#BUILDERS.gundem.
+  { prefix: '/gundem/', asset: '/gundem', type: 'gundem' },
 ];
 // Bir ofis kaydının İKİ olası önekinden hangisi olduğu buildMeta'nın ürettiği canonicalUrl'den
 // okunur (bkz. src/lib/seo.js#officeMetaFromRecord) — serveDetailPage bu ikisi arasında 301 atar.
@@ -406,6 +431,9 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   // marka.html — bkz. o dosyanın başındaki yorum (firma.html'in ?brands=1 ile daraltılmış kopyası).
   { loc: '/marka', changefreq: 'weekly', priority: '0.7' },
+  // Gündem (kullanıcı isteği, 2026-09-06) — içeriği cron ile günde birkaç kez değiştiği için
+  // 'daily'; tekil /gundem/:slug URL'leri buildSitemapUrlBlocks'ta ayrıca listelenir.
+  { loc: '/gundem', changefreq: 'daily', priority: '0.8' },
   { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
   // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı ana sunum
   // sayfası; kurumsal sayfalardan daha yüksek öncelik, içeriği (canlı sayaçlar) haftalık değişir.
@@ -514,7 +542,14 @@ const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
 // Sorgu dizesi (ör. /arama?q=...) bu eşleşmeyi ETKİLEMEZ (yalnızca url.pathname'e bakılır) ve
 // sorun da çıkarmaz: kabuk her `q` için birebir aynı bayttır, arama sonucu HTML'e hiç girmez.
 // isHubPath ikisi için de false döner, yani ItemList JSON-LD dalı çalışmaz — SEO çıktısı değişmez.
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/arama', '/en-iyi-100']);
+// '/gundem' burada YALNIZCA sorgu dizesi TAŞIYAN varyantlar için geçerlidir (ör. /gundem?kategori=
+// — kategori çipi history.replaceState ile bunu yazar, bkz. js/pages/gundem.js). Sorgu dizesiz
+// /gundem bu satıra HİÇ ULAŞMAZ: yukarıdaki özel dal onu serveGundemListPage'e alır (SSR gövdesi +
+// sürümlenmiş Cache API anahtarı). Sorgu taşıyan varyantta SSR yapılmaz — o görünüm her zaman bir
+// KULLANICI ETKİLEŞİMİNİN sonucudur (JS zaten çalışıyor), doğrudan bir giriş/bot yolu değildir;
+// burada olmasının tek sebebi kabuğun Cloudflare Assets varsayılanı `max-age=0, must-revalidate`
+// yerine diğer liste sayfalarıyla aynı 60sn/300sn başlığını almasıdır (performans denetimi madde 6).
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/arama', '/en-iyi-100', '/gundem']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -583,18 +618,64 @@ export default {
   //
   // MALİYET: değişiklik yoksa AI çağrısı ve KV yazımı SIFIRDIR (bkz. rebuildIndex). Tur başına
   // en fazla 400 embedding sınırı, kötü bir durumda (toplu import) maliyeti de süreyi de kelepçeler.
+  //
+  // ---------------------------------------------------------------------------------------------
+  // 2026-09-06'DAN İTİBAREN: CRON DISPATCHER (kullanıcı isteği madde 21: "Mevcut cron/scheduled
+  // handler varsa onu bozma; aynı scheduled handler içinde dispatcher pattern kullan").
+  //
+  // Artık İKİ cron ifadesi var (bkz. wrangler.jsonc#triggers.crons):
+  //   "23 *&#47;6 * * *"  → görsel arama varlık dizininin artımlı bakımı (ESKİ, DEĞİŞMEDİ)
+  //   "*&#47;30 * * * *"  → Gündem toplama turu (YENİ)
+  // event.cron hangi ifadenin tetiklendiğini söyler; iş seçimi buna göre yapılır. Altı saatte bir
+  // İKİSİ de tetiklenir (30dk ifadesi her yarım saatte, 6 saat ifadesi ayrıca) — o durumda ikisi
+  // de çalışır ama BİRBİRİNİ BEKLEMEZ (Promise.allSettled), böylece yavaş bir görsel dizin turu
+  // Gündem'in kendi zaman bütçesini yemez.
+  //
+  // İkisi de ctx.waitUntil içinde: scheduled handler'ın dönmesi, işlerin bitmesini beklemez.
   // ---------------------------------------------------------------------------------------------
   async scheduled(event, env, ctx) {
-    ctx.waitUntil((async () => {
-      for (const type of ['project', 'product']) {
+    const cron = (event && event.cron) || '';
+    const jobs = [];
+
+    // Gündem — yalnızca 30 dakikalık ifadede. (Bir cron ifadesi tanınmazsa — ör. ileride biri
+    // wrangler.jsonc'u değiştirir ve buradaki dizeler ayrışırsa — Gündem yine de çalışsın diye
+    // "bilinen görsel-dizin ifadesi DEĞİLSE" mantığı kullanılır; sessizce hiç çalışmamak, bu
+    // depodaki tekrar eden "iki yerde tutulan sabit ayrıştı, özellik sessizce öldü" tuzağıdır.)
+    if (cron !== VISUAL_INDEX_CRON) {
+      jobs.push((async () => {
         try {
-          const res = await rebuildIndex(env, type, { maxEmbeds: 400 });
-          console.log('visualIndex cron', JSON.stringify(res));
+          const res = await runGundemIngestion(env, {
+            // Havuz okuyucuları enjekte edilir — src/lib/gundemIngest.js'in bir route dosyasına
+            // bağımlı olmaması için (bkz. o dosyadaki `deps` notu).
+            fetchOfficePool,
+            fetchArchitectPool,
+            fetchProductPool,
+            fetchProjectPool: (e) => fetchActiveProjectPoolCached(e, 'built'),
+          });
+          console.log('gundem cron', JSON.stringify({ published: res.published, duplicate: res.duplicate, aiCalls: res.aiCalls }));
         } catch (err) {
-          console.error('visualIndex cron başarısız', type, err && err.message);
+          console.error('gundem cron başarısız', err && err.message);
         }
-      }
-    })());
+      })());
+    }
+
+    // Görsel arama dizini — DEĞİŞMEDİ, yalnızca kendi ifadesinde çalışır (önceden tek cron olduğu
+    // için koşulsuzdu; 30dk'lık Gündem ifadesinde de çalışsaydı 6 saatlik maliyet varsayımı
+    // 12 katına çıkardı).
+    if (cron === VISUAL_INDEX_CRON || !cron) {
+      jobs.push((async () => {
+        for (const type of ['project', 'product']) {
+          try {
+            const res = await rebuildIndex(env, type, { maxEmbeds: 400 });
+            console.log('visualIndex cron', JSON.stringify(res));
+          } catch (err) {
+            console.error('visualIndex cron başarısız', type, err && err.message);
+          }
+        }
+      })());
+    }
+
+    ctx.waitUntil(Promise.allSettled(jobs));
   },
 };
 
@@ -701,6 +782,18 @@ async function routeAsset(request, env, url, ctx) {
   const isSunumMode = url.pathname === '/neden-mimarlab' && url.searchParams.has('sunum');
   const infoMeta = isSunumMode ? null : (AUTH_MODAL_META[url.pathname] || INFO_MODAL_META[url.pathname]);
   if (infoMeta) return serveInfoModalPage(request, env, url, infoMeta);
+
+  // /gundem (SORGU DİZESİZ) — diğer liste sayfalarından AYRILIR: gövdesi D1'e bağlı gerçek bir SSR
+  // enjeksiyonu taşır (kullanıcı isteği madde 14: "JS kapalıyken Gündem içerikleri HTML içinde
+  // görünür olmalı"), diğerleri ise veriyi yalnızca istemcide çeken sabit kabuklardır. Bu yüzden
+  // aşağıdaki jenerik LIST_PAGE_PATHS dalı değil, serveDetailPage ile AYNI sözleşme kullanılır:
+  // sürümlenmiş Cache API anahtarı + SSR_PAGE_CACHE_HEADERS + yeni içerik yayınlandığında aktif
+  // purge (bkz. src/lib/gundemCache.js).
+  // Sorgu TAŞIYAN varyantlar (/gundem?kategori=...) bilerek buraya girmez ve aşağıdaki jenerik
+  // dala düşer — gerekçesi LIST_PAGE_PATHS'in yanındaki notta.
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/gundem' && !url.search) {
+    return serveGundemListPage(request, env, url, ctx);
+  }
 
   const response = await env.ASSETS.fetch(request);
   if (request.method === 'GET' && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
@@ -953,6 +1046,42 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   return finalResponse;
 }
 
+// /gundem liste sayfası — statik kabuk + D1'den gelen ilk sayfa kartlarının #ssr-entity-body'ye
+// enjeksiyonu (kullanıcı isteği madde 14). serveDetailPage'in SSR/cache sözleşmesinin liste
+// karşılığı; farkı, buildMeta yerine doğrudan liste gövdesini üretmesi (sayfanın <head>'i zaten
+// gundem.html'de doğru statik meta'yı taşıyor — liste sayfasının başlığı/açıklaması kayda göre
+// değişmez, bu yüzden burada meta enjeksiyonuna gerek yok).
+//
+// D1 hatası sayfayı DÜŞÜRMEZ: gövde enjeksiyonu atlanır ve kabuk olduğu gibi servis edilir —
+// istemci JS'i içeriği zaten /api/gundem'den çekiyor (hubItemListJsonLd'deki AYNI "SEO
+// iyileştirmesi sayfayı asla düşürmemeli" ilkesi).
+async function serveGundemListPage(request, env, url, ctx) {
+  const isGet = request.method === 'GET';
+  const cacheKeyRequest = isGet ? withVersionedCacheKey(request, url) : null;
+  if (cacheKeyRequest) {
+    const cached = await cacheMatch(cacheKeyRequest);
+    if (cached) return cached;
+  }
+
+  const [assetResponse, ssrBody] = await Promise.all([
+    env.ASSETS.fetch(new Request(url, request)),
+    gundemSsrListBody(env).catch(() => ''),
+  ]);
+  if (assetResponse.status !== 200) return assetResponse;
+
+  const headers = new Headers(assetResponse.headers);
+  for (const [k, v] of Object.entries(SSR_PAGE_CACHE_HEADERS)) headers.set(k, v);
+  let out = assetResponse;
+  if (ssrBody) {
+    out = new HTMLRewriter()
+      .on('#ssr-entity-body', { element(el) { el.setInnerContent(ssrBody, { html: true }); } })
+      .transform(assetResponse);
+  }
+  const finalResponse = new Response(out.body, { status: 200, statusText: out.statusText, headers });
+  if (cacheKeyRequest && ctx) ctx.waitUntil(cachePut(cacheKeyRequest, finalResponse.clone()));
+  return finalResponse;
+}
+
 function withVersionedCacheKey(request, url) {
   const keyUrl = new URL(url);
   keyUrl.searchParams.set('__cv', SSR_CACHE_VERSION);
@@ -1077,11 +1206,23 @@ const SITEMAP_CHUNK_PATH_RE = /^\/sitemap-(\d+)\.xml$/;
 // üretilir — listEntityUrls() lastmod taşımadığından (statik/build-zamanlı) null ile eklenir,
 // canonical D1 kaynağı kendi updated_at'ini taşır (audit bulgusu: <lastmod> daha önce hiç yoktu).
 async function buildSitemapUrlBlocks(env) {
-  const entityUrls = new Map([...listEntityUrls().map(loc => [loc, null]), ...await listCanonicalEntityUrls(env)]);
+  // listGundemSitemapUrls TAM URL döner (diğer iki kaynağın aksine — onlar yol döner), çünkü
+  // Gündem URL'leri tek bir yerde (src/routes/gundem.js) kurulur. Hata durumunda Gündem bölümü
+  // sessizce atlanır: sitemap'in geri kalanı (3.500+ URL) tek bir tablo yüzünden kaybolmamalı.
+  const [entityPairs, gundemPairs] = await Promise.all([
+    listCanonicalEntityUrls(env),
+    listGundemSitemapUrls(env).catch(() => []),
+  ]);
+  const entityUrls = new Map([...listEntityUrls().map(loc => [loc, null]), ...entityPairs]);
   const lastmodTag = lastmod => lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : '';
+  // Gündem kayıtlarının lastmod'u epoch-ms (INTEGER) — sitemaps.org W3C tarih biçimi ister.
+  const isoOrNull = ms => (ms ? new Date(ms).toISOString() : null);
   return [
     ...SITEMAP_STATIC_PAGES.map(p => `  <url>\n    <loc>${SITE_ORIGIN}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`),
     ...[...entityUrls].map(([loc, lastmod]) => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>${lastmodTag(lastmod)}\n    <changefreq>monthly</changefreq>\n  </url>`),
+    // Gündem içerikleri yayınlandıktan sonra DEĞİŞMEZ (özet yeniden üretilmez) — changefreq
+    // 'never' Google'a gereksiz yeniden tarama yaptırmamak için doğru sinyaldir.
+    ...gundemPairs.map(([loc, lastmod]) => `  <url>\n    <loc>${loc}</loc>${lastmodTag(isoOrNull(lastmod))}\n    <changefreq>never</changefreq>\n  </url>`),
   ];
 }
 
@@ -1194,6 +1335,10 @@ async function routeApi(request, env, url, ctx) {
   // /api/architects, /api/offices, /api/projects, /api/products ÇOĞUL gönderi CRUD uçlarıyla
   // (handleSubmissionRoute) ÇAKIŞMAZ — yalnızca /api/projects/filters, /api/projects prefix'iyle
   // başladığından o genel eşleşmeden ÖNCE burada özel olarak yakalanmalı.
+  // GÜNDEM (kullanıcı isteği, 2026-09-06) — /api/gundem (liste) ve /api/gundem/:slug (tek içerik).
+  // startsWith kullanılır çünkü iki biçim de aynı handler'a düşer; başka hiçbir uç bu önekle
+  // çakışmaz (gündem yalnızca OKUNUR bir uçtur, gönderi CRUD'u yoktur).
+  if (path === '/api/gundem' || path.startsWith('/api/gundem/')) return handleGundemRoute(request, env, url);
   if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
   // proje.html/kisi.html/firma.html/urun.html'in yeni sayfalanmış (?page=&limit=) liste uçları —
   // BARE /api/projects/architects/offices/products, method GET iken buraya düşer; aynı path'lere

@@ -106,7 +106,17 @@ const BADGE_NO_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, must-reval
 // '/api/news' KALDIRILDI (denetim, 2026-09-04): yorumun işaret ettiği src/routes/public.js#
 // handleNewsListRoute HİÇ YOK, uç canlıda 404 dönüyor ve `news` tablosu 0 satır (haber özelliği
 // kaldırıldı, bkz. DISABLED_PAGE_PATHS'teki '/haber-detay'). Zararsızdı ama ölü yapılandırmaydı.
-const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products'];
+// '/api/gundem' EKLENDİ (kullanıcı isteği, 2026-09-06): diğer dördüyle BİREBİR aynı profil — auth
+// yok, oturuma özel hiçbir alan yok, anahtar zaten `url.pathname + url.search`, kendi
+// listFingerprint'ini geçiriyor (bkz. src/routes/gundem.js#gundemListFingerprint). Buraya
+// girmeseydi `!cacheable` dalında kalır, PUBLIC_LIST_CACHE_HEADERS yerine kısa ANON başlığını alır
+// ve caches.default'a HİÇ yazılmazdı — /gundem her ziyaretinde D1'e inerdi.
+//
+// NOT — invalidatePublicCache() bunu da (BARE_LIST_PATHS üzerinden) temizler; bu ZARARSIZ ama
+// GEREKLİ DEĞİLDİR: Gündem içeriği admin yazma yollarından değil, cron'dan gelir ve o taraf kendi
+// dar purge'ünü çağırır (bkz. src/lib/gundemCache.js#purgeGundemCache — neden site geneli purge
+// KULLANILMADIĞI orada açıklanıyor).
+const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/gundem'];
 
 // D1 audit (2026-08-25) P0-1 — tekil kayıt (detay) uçları: /api/project/:slug, /api/architect/:key,
 // /api/office/:key, /api/product/:key. Önceden bu 4 uç `isListPath`'in yalnızca ÇOĞUL path'leri
@@ -119,7 +129,10 @@ const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offic
 // tarafından karşılanıyor, hiçbiri cachedPublicJson'ı bu path'lerle ÇAĞIRMIYOR) YANLIŞLIKLA cache'e
 // girmez — `isListPath`'i gevşetmek yerine ayrı, dar bir kontrol tercih edildi (kullanıcı isteği:
 // "sadece isListPath() kontrolünü gevşetip yanlışlıkla tüm dinamik API'leri cache'leme").
-const CACHEABLE_DETAIL_PREFIXES = ['/api/project/', '/api/architect/', '/api/office/', '/api/product/'];
+// '/api/gundem/' (SONDAKİ EĞİK ÇİZGİ ÖNEMLİ) — tek Gündem içeriği. Çoğul/tekil ayrımının bu dört
+// uçtaki gibi olmadığına dikkat: liste '/api/gundem', detay '/api/gundem/:slug'. isListPath tam
+// eşleşme ya da '?' araması yaptığından ikisi çakışmaz.
+const CACHEABLE_DETAIL_PREFIXES = ['/api/project/', '/api/architect/', '/api/office/', '/api/product/', '/api/gundem/'];
 function isDetailPath(pathname) {
   const prefix = CACHEABLE_DETAIL_PREFIXES.find(p => pathname.startsWith(p));
   if (!prefix) return false;

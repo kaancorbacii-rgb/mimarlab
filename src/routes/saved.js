@@ -9,7 +9,11 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 // ilgili tablolar migrations/0090_drop_dead_feature_tables.sql ile düşürüldü. Canlıda bu iki
 // tipte TEK BİR saved_items satırı bile yoktu (doğrulandı), yani mevcut hiçbir kayıt etkilenmez;
 // bu yalnızca yeni yazımlar için geçerli bir doğrulama daralmasıdır.
-export const ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
+// 'gundem' EKLENDİ (kullanıcı isteği, 2026-09-06 madde 15): Gündem kartındaki Kaydet butonu YENİ
+// bir kaydetme altyapısı kurmaz — mevcut saved_items tablosunu ve mevcut /api/saved uçlarını aynen
+// kullanır, yalnızca yeni bir item_type olarak katılır. Böylece "Benim Alanım > Kaydedilenler"
+// listesi, panolar (collection_items) ve save-widget.js'in buton durumu hiç değiştirilmeden çalışır.
+export const ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office', 'gundem']);
 
 // saved_items görsel/başlık alanlarını kaydedildiği andaki haliyle tutar (bkz. createSaved) — hedef
 // sonradan gizlenir/silinirse bu satır D1'de bozulmadan kalır ve "Kaydettiklerim" bunu göstermeye
@@ -28,6 +32,10 @@ function shapeSavedTargetInfo(itemType, row) {
   if (itemType === 'product' || itemType === 'material') {
     return { live: !!row && !row.deleted_at && !row.hidden_at, buildStatus: null };
   }
+  // gundem_items'ta deleted_at/hidden_at YOK, görünürlük tek bir `status` kolonuyla yönetilir
+  // (bkz. migrations/0099_gundem.sql) — satır `status='published'` filtresiyle zaten çözüldüğü
+  // için (bkz. listSaved) burada varlığı yeterli.
+  if (itemType === 'gundem') return { live: !!row, buildStatus: null };
   return {
     live: !!row && !row.deleted_at && !row.hidden_at,
     buildStatus: (itemType === 'project' && row) ? row.build_status : null,
@@ -62,10 +70,23 @@ export async function listSaved(env, user) {
     .map(r => r.item_key);
   const productRows = await findProductsByKeys(env, productKeys);
 
+  // Gündem içerikleri de TOPLU çözülür (ürünlerdeki AYNI N+1 gerekçesi) — kaydedilen her Gündem
+  // kartı için ayrı bir SELECT atmak yerine tek sorgu.
+  const gundemKeys = results.filter(r => r.item_type === 'gundem').map(r => r.item_key);
+  const gundemRows = new Map();
+  if (gundemKeys.length) {
+    const placeholders = gundemKeys.map(() => '?').join(',');
+    const { results: rows } = await env.DB.prepare(
+      `SELECT slug FROM gundem_items WHERE status = 'published' AND slug IN (${placeholders})`
+    ).bind(...gundemKeys).all();
+    rows.forEach(r => gundemRows.set(r.slug, r));
+  }
+
   const info = await Promise.all(results.map(r => {
     if (r.item_type === 'product' || r.item_type === 'material') {
       return shapeSavedTargetInfo(r.item_type, productRows.get(r.item_key) || null);
     }
+    if (r.item_type === 'gundem') return shapeSavedTargetInfo('gundem', gundemRows.get(r.item_key) || null);
     const canonicalType = CANONICAL_TYPE_BY_ITEM[r.item_type];
     if (!canonicalType) return { live: true, buildStatus: null }; // beklenmedik/eski bir item_type — satırı gizleme
     return findCanonicalRowByNaturalKey(env, canonicalType, r.item_key).then(row => shapeSavedTargetInfo(r.item_type, row));

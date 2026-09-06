@@ -78,7 +78,17 @@
   // visualIndexStore.js#rebuildIndex). Cron Triggers Workers planına DAHİLDİR, ek ücreti yoktur.
   // 6 saatte bir: yeni/değişmiş proje ve ürünlerin embedding'i üretilip dizin yeniden paketlenir;
   // değişiklik yoksa hiçbir AI çağrısı yapılmaz ve KV'ye yazılmaz.
-  "triggers": { "crons": ["23 */6 * * *"] },
+  //
+  // "*/30 * * * *" — GÜNDEM otomatik toplama turu (kullanıcı isteği, 2026-09-06 madde 21). Cron
+  // Triggers Workers planına DAHİLDİR, ek ücreti yoktur. Her tur güvenlik limitleriyle kelepçelidir
+  // (bkz. src/lib/gundemIngest.js#GUNDEM_LIMITS: tur başına en fazla 20 yayın, kaynak başına 5,
+  // günde 50, duvar-saati bütçesi 60sn) ve kaynaklar kendi fetchIntervalMin'lerine göre seyreltilir
+  // — yani 30 dakikalık ifade "her yarım saatte 6 siteye gidilir" DEMEK DEĞİLDİR; çoğu turda
+  // yalnızca süresi dolmuş kaynaklar okunur, hiçbiri dolmamışsa tur hiçbir ağ isteği yapmadan biter.
+  // AI çağrısı yalnızca mükerrer ve görsel kapılarından GEÇEN içerik için yapılır (madde 18).
+  // İki ifadeyi de AYNI scheduled handler karşılar (dispatcher, bkz. src/index.js#scheduled) —
+  // "23 */6 * * *" ifadesi src/index.js#VISUAL_INDEX_CRON ile birebir aynı kalmalıdır.
+  "triggers": { "crons": ["23 */6 * * *", "*/30 * * * *"] },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler

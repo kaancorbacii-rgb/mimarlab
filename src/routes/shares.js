@@ -12,7 +12,13 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 // 'news'/'job' KALDIRILDI (2026-09-05) — bkz. src/routes/saved.js#ITEM_TYPES'taki AYNI daraltma
 // ve gerekçe (özellikler yayından çekildi, tablolar migrations/0090 ile düşürüldü, canlıda bu
 // iki tipte tek bir shared_items satırı bile yoktu).
-export const SHARE_ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
+// 'gundem' EKLENDİ (kullanıcı isteği, 2026-09-06 madde 16) — src/routes/saved.js#ITEM_TYPES'la
+// birlikte, aynı gerekçeyle: Gündem kartındaki Paylaş butonu mevcut ShareWidget componentini ve
+// mevcut /api/shares kaydını aynen kullanır, yeni bir paylaşım altyapısı yazılmaz.
+// listShares'teki CANONICAL_TYPE_BY_ITEM'a EKLENMEZ: orada tanınmayan bir tip `undefined` döner ve
+// satır FİLTRELENMEDEN geçer — Gündem için doğrusu budur, çünkü paylaşılan içerik yayından
+// kaldırılsa bile "bunu paylaşmıştım" kaydı kullanıcının kendi geçmişidir.
+export const SHARE_ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office', 'gundem']);
 // share-button.js'in gönderdiği kanallar; whitelist dışı bir değer sessizce null'a düşürülür (ham
 // kullanıcı/istemci girdisi Aktivitelerim satırının alt metnine basıldığından serbest metin olamaz).
 const SHARE_CHANNELS = new Set(['copy', 'whatsapp', 'x', 'linkedin', 'native']);
