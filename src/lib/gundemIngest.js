@@ -116,6 +116,21 @@ async function recordSourceResult(env, sourceId, ok, errorMessage) {
 // (b) üst üste çok hata verdiyse soğutma penceresi geçmiş mi. İkincisi kaynağı KALICI olarak
 // kapatmaz — pencere dolunca kendiliğinden tekrar dener (kaynak düzelirse sistem kendi kendini
 // onarır, elle müdahale gerekmez).
+// DUE_GRACE_MS — cron ızgarası ile işlenme anı arasındaki kaçınılmaz kaymayı soğurur.
+//
+// GERÇEK BULGU (canlı, 2026-09-06 21:30): kaynaklar 20:30:40-47'de İŞLENİYOR (cron 20:30:00'da
+// tetiklendi, feed'lere ulaşmak ~40sn sürdü ve last_run_at o an yazıldı). Bir sonraki uygun tur
+// 21:30:00'da tetikleniyor — aradan 59 dk 20 sn geçmiş oluyor ve `>= 60 dk` kontrolü YEDİ SANİYEYLE
+// kaçıyordu. Sonuç: 60 dakikalık aralık pratikte 90 dakikaya çıkıyordu (kaynak her seferinde kendi
+// penceresini ıskalayıp bir sonraki tura kalıyordu) — sistem tasarlandığından kalıcı olarak yavaş
+// çalışıyordu, üstelik hiçbir hata vermeden.
+//
+// 5 dakikalık pay bu kaymayı fazlasıyla kapsar ve hızı ARTIRMAZ: cron ızgarası 30 dakikalık
+// olduğundan, 60 dakikalık bir aralık "55 dakikadan sonra due" olsa bile bir sonraki fiili tur
+// yine 60. dakikadaki turdur (55. dakikada tur yoktur). Yani kaynaklara gidiş sıklığı değişmez,
+// yalnızca ıskalanan pencere düzelir.
+const DUE_GRACE_MS = 5 * 60000;
+
 function isSourceDue(source, health, now) {
   if (!health) return true;
   const failing = (health.consecutive_failures || 0) >= GUNDEM_LIMITS.maxSourceFailures;
@@ -123,8 +138,9 @@ function isSourceDue(source, health, now) {
     ? Math.max(source.fetchIntervalMin, GUNDEM_LIMITS.failureCooldownMin)
     : source.fetchIntervalMin;
   if (!health.last_run_at) return true;
-  return now - health.last_run_at >= waitMin * 60000;
+  return now - health.last_run_at >= waitMin * 60000 - DUE_GRACE_MS;
 }
+export { isSourceDue as _isSourceDueForTests };
 
 // ---------------------------------------------------------------------------------------------
 // Mükerrer kontrolü

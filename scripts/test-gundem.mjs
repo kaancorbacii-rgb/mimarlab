@@ -21,6 +21,7 @@ import {
 import { GUNDEM_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCategories.js';
 import { GUNDEM_SOURCES, activeGundemSources, GUNDEM_IMAGE_HOSTS } from '../src/lib/gundemSources.js';
 import { buildGundemEntityIndex, resolveGundemEntities } from '../src/lib/gundemEntities.js';
+import { _isSourceDueForTests } from '../src/lib/gundemIngest.js';
 
 let passed = 0;
 let failed = 0;
@@ -493,6 +494,47 @@ await test('Saf marka kaydı /marka/ önekine bağlanır (officeUrl tek kaynağ�
   });
   const out = resolveGundemEntities(brandIndex, [{ name: 'Ersa Mobilya', kind: 'office' }]);
   assert.equal(out[0].href, '/marka/ersa');
+});
+
+// =================================================================================================
+section('5b) Kaynak zamanlaması (cron ızgarası kayması)');
+// =================================================================================================
+// CANLI REGRESYON (2026-09-06 21:30): kaynak 20:30:40'ta işlenmişti, bir sonraki tur 21:30:00'da
+// tetiklendi — aradan 59 dk 20 sn geçti ve sert `>= 60 dk` kontrolü 7 SANİYEYLE kaçtı. 60 dakikalık
+// aralık böylece pratikte 90 dakikaya çıkıyordu, sessizce.
+const MIN = 60000;
+await test('CRON KAYMASI: 59 dk 20 sn geçmiş 60 dakikalık kaynak DUE sayılır', () => {
+  const src = { fetchIntervalMin: 60 };
+  const now = 1000 * MIN;
+  const health = { last_run_at: now - (59 * MIN + 20000), consecutive_failures: 0 };
+  assert.equal(_isSourceDueForTests(src, health, now), true);
+});
+
+await test('CRON KAYMASI: 30 dk geçmiş 60 dakikalık kaynak HÂLÂ due DEĞİL (hız artmıyor)', () => {
+  const src = { fetchIntervalMin: 60 };
+  const now = 1000 * MIN;
+  assert.equal(_isSourceDueForTests(src, { last_run_at: now - 30 * MIN, consecutive_failures: 0 }, now), false);
+});
+
+await test('CRON KAYMASI: 180 dakikalık kaynak 150 dk sonra due DEĞİL, 179 dk sonra due', () => {
+  const src = { fetchIntervalMin: 180 };
+  const now = 1000 * MIN;
+  assert.equal(_isSourceDueForTests(src, { last_run_at: now - 150 * MIN, consecutive_failures: 0 }, now), false);
+  assert.equal(_isSourceDueForTests(src, { last_run_at: now - 179 * MIN, consecutive_failures: 0 }, now), true);
+});
+
+await test('Hiç çalışmamış kaynak her zaman due', () => {
+  assert.equal(_isSourceDueForTests({ fetchIntervalMin: 60 }, null, Date.now()), true);
+  assert.equal(_isSourceDueForTests({ fetchIntervalMin: 60 }, { last_run_at: null }, Date.now()), true);
+});
+
+await test('Üst üste hata veren kaynak soğutma penceresine alınır', () => {
+  const src = { fetchIntervalMin: 60 };
+  const now = 1000 * MIN;
+  const failing = { last_run_at: now - 90 * MIN, consecutive_failures: 4 };
+  // 90 dk geçti ama soğutma 240 dk — henüz due değil.
+  assert.equal(_isSourceDueForTests(src, failing, now), false);
+  assert.equal(_isSourceDueForTests(src, { ...failing, last_run_at: now - 240 * MIN }, now), true);
 });
 
 // =================================================================================================
