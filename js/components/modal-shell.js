@@ -25,7 +25,14 @@ const ModalShell = (function () {
   let pendingGoBack = null; // bkz. goBackAndWait/waitForPendingNav
   let pendingGoBackSuperseded = false; // bkz. waitForPendingNav/wasCurrentPopSuperseded
   let contentOwner = null; // bkz. claimContent — panelleri en son hangi modal (auth/office/architect/project/product) doldurdu
-  let ssrDefaults = null; // bkz. setSsrDefaults/resetSsrEntity — sayfa kendi jenerik liste meta'sını burada bir kez kaydeder
+  // bkz. setSsrDefaults/resetSsrEntity — sayfa kendi jenerik liste meta'sını burada bir kez kaydeder.
+  // İLK DEĞER window.__mlSsrDefaults'tan okunur (performans denetimi, 2026-09-06 madde 4): kişi/
+  // firma/marka liste sayfaları bu modülü artık TEMBEL yüklüyor, yani kendi inline script'leri
+  // çalışırken `ModalShell` henüz yok ve setSsrDefaults() çağıramıyorlar. Onlar değeri bu global'e
+  // yazıyor, burası da yüklenir yüklenmez alıyor — çağrı sırasından bağımsız, tek yönlü ve küçük bir
+  // sözleşme. Modülü doğrudan yükleyen sayfalar (urun.html, js/pages/proje.js) eskisi gibi
+  // setSsrDefaults() çağırır ve bu satırdan etkilenmez.
+  let ssrDefaults = (typeof window !== 'undefined' && window.__mlSsrDefaults) || null;
   // gerçek bulgu (denetim, 2026-08-16): setupOneGridScrollArrows() her .related-grid-scroll/
   // .catalog-grid-scroll elemanına bir ResizeObserver + bir MutationObserver bağlıyordu ama hiçbiri
   // asla disconnect() edilmiyordu. claimContent() sahip DEĞİŞTİĞİNDE (ör. proje popup'ından firma

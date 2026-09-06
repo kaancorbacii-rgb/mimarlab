@@ -2,7 +2,19 @@
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
-<script>(function(){try{if(/^\/proje\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
+<!-- (a) DETAY yolu: pm-boot-loading "boot veil"i — mevcut davranış, değişmedi. Burada modül
+     preload'ı YOK: proje popup'ının bağımlılık zinciri bu sayfada zaten <script defer> ile
+     yükleniyor (bkz. lazy-modals.js#ENTITY_MODULES.project preloadedOnly notu).
+     (b) LİSTE yolu (/proje): proje listesi isteğini HTML ayrıştırmasının en başında başlatır —
+     eskiden js/pages/proje.js (defer) çalışıp DOMContentLoaded tetiklenene kadar beklerdi
+     (performans denetimi, 2026-09-06 madde 3). Yalnızca sorgu dizesi YOKKEN çalışır; o durumda
+     render()'ın üreteceği URL kesindir (currentQueryParams her zaman buildStatus=built ile
+     başlar, sıralama <select>'inin varsayılanı boş, görünüm Liste). URL birebir eşleşmezse
+     listFetch() normal fetch'e düşer — kazanç kaybolur, ikinci istek DOĞMAZ. -->
+<script>(function(){try{var p=location.pathname;
+if(/^\/proje\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);return;}
+if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?buildStatus=built&page=1&limit=24';var f=fetch(u);f.catch(function(){});(window.__mlPrefetch=window.__mlPrefetch||{})[u]=f;}
+}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -39,9 +51,7 @@
      o iç içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, eski
      proje-detay.html'deki AYNI gerekçe). -->
 <base href="/">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/fonts/inter.css">
 <style>
   :root{
     color-scheme: light;

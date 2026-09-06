@@ -56,8 +56,12 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // risk taşır (preload listesine girmek ayları bulan bir kaldırma süreci gerektirir, includeSubDomains
 // HTTPS'siz bir alt alan adını anında kırar).
 // Enforce CSP — repo çapında origin taraması (script/link/fetch/iframe) sonucu: Google
-// Fonts (fonts.googleapis.com/fonts.gstatic.com), Google Tag Manager (gtag.js + GA4 collect
-// uçları), ve site genelindeki HTML sayfalarının kendi inline <script>/<style> bloklarından
+// Tag Manager (gtag.js + GA4 collect uçları) ve site genelindeki HTML sayfalarının kendi
+// inline <script>/<style> bloklarından
+// GOOGLE FONTS ARTIK YOK (performans denetimi, 2026-09-06 madde 7): Inter kendi sunucumuzdan
+// servis ediliyor (bkz. fonts/inter.css), bu yüzden style-src'den fonts.googleapis.com ve
+// font-src'den fonts.gstatic.com KALDIRILDI. İkisi de artık hiçbir sayfada referans edilmiyor
+// (doğrulandı) — listede kalmaları yalnızca gereksiz bir saldırı yüzeyi olurdu.
 // (bu depoda henüz nonce/hash altyapısı yok, script-src/style-src bu yüzden 'unsafe-inline'
 // içeriyor). Google/LinkedIn OAuth ve iyzico ödeme sayfası ikisi de düz <a href>/window.location
 // İLE üst seviye yönlendirme (top-level navigation) — CSP bunu kısıtlamaz, bu yüzden connect-src/
@@ -101,8 +105,8 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com https://static.cloudflareinsights.com https://unpkg.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://unpkg.com",
+  "font-src 'self'",
   "img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.tile.openstreetmap.org",
   "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com",
   "object-src 'none'",
@@ -428,6 +432,19 @@ const STATIC_SCRIPT_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-ma
 // tekrar tekrar koşullu-GET'e zorlanırdı. `immutable` tarayıcıya revalidate'i TAMAMEN atlatır.
 const LARGE_BINARY_EXT_RE = /\.(wasm|onnx)$/i;
 const LARGE_BINARY_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=31536000, immutable' };
+// KENDİ BARINDIRDIĞIMIZ YAZITİPLERİ (performans denetimi, 2026-09-06 madde 7). fonts/inter/*.woff2
+// ile ONNX/WASM dosyaları AYNI sözleşmeyi paylaşır: içerik gerçekten değişmezdir — Inter'in yeni
+// bir sürümü gelirse dosyalar yeniden üretilir ve o zaman ADLARI/altkümeleri değişir, aynı yol asla
+// farklı bayt döndürmez. Bu yüzden `immutable`: tarayıcı her ziyarette koşullu-GET yapmaz.
+// Google Fonts'un gstatic'te kullandığı politika da tam olarak budur (max-age=31536000), yani
+// self-host'a geçerken tarayıcı önbelleği davranışında hiçbir gerileme olmaz.
+// fonts/inter.css bilerek BURADA DEĞİL: onun içeriği (dosya adları/unicode-range'ler) yeniden
+// üretimde AYNI yolda değişebilir, bu yüzden aşağıdaki .css dalının kısa TTL'ini alır.
+const FONT_EXT_RE = /\.(woff2?|ttf|otf)$/i;
+// .css — bu depoda tek harici stylesheet fonts/inter.css'tir (diğer tüm stil sayfa içi <style>
+// bloklarındadır). STATIC_SCRIPT_CACHE_HEADERS ile AYNI 60sn/300sn: .js dosyalarıyla aynı yayın
+// döngüsüne tabidir ve aynı tazelik/round-trip dengesini ister.
+const STYLE_EXT_RE = /\.css$/i;
 
 // GET /models/<dosya> — GERÇEK GÖRSEL EMBEDDING (kullanıcı isteği, 2026-09-03 ikinci tur, bkz.
 // image-clip-embed.js dosya başı yorumu) için self-host edilen CLIP görsel kodlayıcısı (88,6 MB).
@@ -478,7 +495,16 @@ const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
 // serveInfoModalPage üzerinden ana sayfa gövdesi + kendi meta'sıyla servis ediliyor (bkz.
 // INFO_MODAL_META) ve buraya hiç ulaşmıyor; sunum modundaki (?sunum=1) statik dosya ise sorgu
 // dizesi taşıdığından zaten bu tam-yol eşleşmesine girmiyordu.
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka']);
+// '/arama' ve '/en-iyi-100' EKLENDİ (performans denetimi, 2026-09-06 madde 6). İkisi de yukarıdaki
+// altı sayfayla BİREBİR aynı profilde: tamamen statik bir HTML kabuğu dönerler ve gerçek veriyi
+// istemci tarafında çekerler (/arama -> /api/public/search, /en-iyi-100 -> /api/public/top100),
+// yani D1'e bağlı hiçbir enjeksiyon/purge gereksinimleri yok. Listede olmadıkları için Cloudflare
+// Assets'in varsayılan `max-age=0, must-revalidate` başlığıyla serviliyorlardı — canlıda doğrulandı
+// (2026-09-06): GET /proje -> `max-age=60, s-maxage=300`, GET /arama -> `max-age=0, must-revalidate`.
+// Sorgu dizesi (ör. /arama?q=...) bu eşleşmeyi ETKİLEMEZ (yalnızca url.pathname'e bakılır) ve
+// sorun da çıkarmaz: kabuk her `q` için birebir aynı bayttır, arama sonucu HTML'e hiç girmez.
+// isHubPath ikisi için de false döner, yani ItemList JSON-LD dalı çalışmaz — SEO çıktısı değişmez.
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/arama', '/en-iyi-100']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -636,7 +662,20 @@ async function routeAsset(request, env, url, ctx) {
     const panoUrl = new URL(url);
     panoUrl.pathname = '/pano';
     const panoRes = await env.ASSETS.fetch(new Request(panoUrl, request));
-    return withStaticAssetCacheHeaders(url, panoRes);
+    // withStaticAssetCacheHeaders bir HTML yolu için HİÇBİR başlık yazmaz (yalnızca görsel/binary/
+    // .js uzantılarını tanır), bu yüzden burası Cloudflare Assets'in `max-age=0, must-revalidate`
+    // varsayılanıyla kalıyordu — canlıda doğrulandı (2026-09-06). LIST_PAGE_CACHE_HEADERS'a
+    // geçirilir (performans denetimi madde 6).
+    //
+    // KULLANICI VERİSİ ÖNBELLEĞE GİRMEZ — bu, önbelleklenebilirliğin ön koşulu ve tek gerekçesi:
+    // burada servis edilen gövde pano.html'in KABUĞUDUR ve her token için BİREBİR AYNI bayttır.
+    // Panonun başlığı/öğeleri HTML'e HİÇ girmez; sayfa token'ı kendi JS'inde URL'den okuyup
+    // GET /api/collections/shared/:token ile ayrı bir istekte doldurur (bkz. pano.html
+    // DOMContentLoaded) ve O UÇ burada değişmeden kalır. Yani `public` doğrudur: paylaşılan
+    // önbellekteki girdi, kişisel hiçbir şey içermez. Sahibi paylaşımı geri alırsa kabuk yine
+    // servis edilir ama API 404 döner ve sayfa "paylaşımı kaldırılmış" durumunu gösterir —
+    // davranış bugünküyle aynıdır. Sayfa ayrıca noindex, nofollow taşır (bkz. pano.html).
+    return withListPageCacheHeaders(panoRes);
   }
 
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
@@ -763,11 +802,23 @@ function notFoundDetailPageResponse(assetResponse, status = 404) {
 // eskiden yalnızca görselleri kapsıyordu (withStaticImageCacheHeaders) — artık .js dosyalarını da
 // (bkz. STATIC_SCRIPT_CACHE_HEADERS yukarısı) kapsadığından adı genelleştirildi; iki çağıran taraf da
 // (aşağısı) güncellendi.
+// LIST_PAGE_CACHE_HEADERS'ı bir yanıta uygular — gövde/durum aynen korunur. routeAsset'teki liste
+// sayfası dalı bu başlıkları zaten satır içinde yazıyordu; /pano/:token AYRI bir dalda servis
+// edildiğinden (bkz. oradaki yorum) aynı iki satır ikinci bir yere kopyalanmasın diye çıkarıldı.
+function withListPageCacheHeaders(response) {
+  if (response.status !== 200) return response;
+  const headers = new Headers(response.headers);
+  for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 function withStaticAssetCacheHeaders(url, response) {
   if (response.status !== 200) return response;
   const extHeaders = IMAGE_EXT_RE.test(url.pathname) ? STATIC_IMAGE_CACHE_HEADERS
     : LARGE_BINARY_EXT_RE.test(url.pathname) ? LARGE_BINARY_CACHE_HEADERS
+    : FONT_EXT_RE.test(url.pathname) ? LARGE_BINARY_CACHE_HEADERS
     : SCRIPT_EXT_RE.test(url.pathname) ? STATIC_SCRIPT_CACHE_HEADERS
+    : STYLE_EXT_RE.test(url.pathname) ? STATIC_SCRIPT_CACHE_HEADERS
     : null;
   if (!extHeaders) return response;
   const headers = new Headers(response.headers);

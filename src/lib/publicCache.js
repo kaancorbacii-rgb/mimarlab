@@ -137,9 +137,17 @@ function isDetailPath(pathname) {
 // farklı `q`/`name` kendi cache girdisini alır). Kısa ANON_CACHE_HEADERS TTL'i (max-age=5/
 // s-maxage=15) BİLİNÇLİ tercih — otomatik tamamlama sonuçları liste sayfalarından daha sık
 // değişebilir (yeni onaylanan bir kayıt hemen aranabilir olmalı).
+// '/api/public/search-suggest' (performans denetimi, 2026-09-06 madde 2): üst navigasyondaki arama
+// popup'ının canlı öneri listesi — yukarıdaki beş uçla BİREBİR aynı profil (auth yok, oturuma/
+// kullanıcıya özel hiçbir alan yok, anahtar zaten `url.pathname + url.search`, bkz.
+// legacyContent.js#handlePublicSearchSuggest). Buraya girmediği için `!cacheable` dalında kalıyordu:
+// yanıt AYNI kısa ANON başlığını taşıyor ama caches.default'a hiç YAZILMIYOR, yani her ziyaretçinin
+// her tuş vuruşu D1'e kadar iniyordu. Listeye eklemek TTL semantiğini değiştirmez (headers hesabı
+// bu yolu yine ANON_CACHE_HEADERS'a düşürür — max-age=5/s-maxage=15), yalnızca aynı öneki yazan
+// ziyaretçilerin edge'de buluşmasını sağlar.
 const CACHEABLE_SEARCH_PATHS = [
   '/api/architects/search', '/api/offices/search', '/api/products/search',
-  '/api/photographers/search', '/api/public/check-name',
+  '/api/photographers/search', '/api/public/check-name', '/api/public/search-suggest',
 ];
 function isSearchPath(pathname) {
   return CACHEABLE_SEARCH_PATHS.some(p => pathname === p || pathname.startsWith(p + '?'));

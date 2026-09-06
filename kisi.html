@@ -2,7 +2,24 @@
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
-<script>(function(){try{if(/^\/kisi\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
+<!-- İki işi olan tek bir senkron <head> betiği (performans denetimi, 2026-09-06 madde 3 ve 4).
+     BURADA olmasının sebebi ikisinin de HTML ayrıştırmasının EN BAŞINDA olması gerekmesidir:
+     (a) DETAY yolu (/kisi/:slug) — pm-boot-loading "boot veil"i (mevcut davranış, değişmedi) +
+         popup zincirinin İKİ EN BÜYÜK dosyası için <link rel="preload">. Modüller artık liste
+         sayfasında <script> etiketiyle yüklenmiyor (bkz. </body> yakınındaki not); preload,
+         baytların eski etiketlerden bile ERKEN yola çıkmasını sağlar, asıl yükleme sırasını
+         lazy-modals.js yürütür.
+     (b) LİSTE yolu (/kisi) — kişi listesi isteğini ŞİMDİ başlatır. Eskiden bu istek sayfanın tüm
+         defer script'leri çalışıp DOMContentLoaded tetiklenene kadar (canlıda ~2 sn) beklerdi.
+         YALNIZCA sorgu dizesi YOKKEN çalışır, çünkü tam o durumda render()'ın üreteceği URL
+         kesin olarak bilinir; filtreli/sayfalı girişlerde hiçbir şey yapılmaz. URL birebir
+         eşleşmezse listFetch() aşağıda normal fetch'e düşer — yani en kötü ihtimalle kazanç
+         kaybolur, ASLA ikinci bir istek doğmaz (promise tüketildiğinde sözlükten silinir). -->
+<script>(function(){try{var p=location.pathname;
+if(/^\/kisi\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
+['js/components/architect-modal.js','js/components/modal-shell.js'].forEach(function(s){var l=document.createElement('link');l.rel='preload';l.as='script';l.href=s;document.head.appendChild(l);});return;}
+if(p.replace(/\/+$/,'')==='/kisi'&&!location.search){var u='/api/architects?page=1&limit=24';var f=fetch(u);f.catch(function(){});(window.__mlPrefetch=window.__mlPrefetch||{})[u]=f;}
+}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -34,9 +51,7 @@
      içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
      gerekçe). -->
 <base href="/">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/fonts/inter.css">
 <style>
   :root{
     color-scheme: light;
@@ -508,18 +523,20 @@
 
   <footer id="site-footer-mount"></footer>
 
-<script src="badge-shared.js"></script>
-<script src="js/components/claim-correction-box.js"></script>
-<script src="js/components/modal-shell.js"></script>
-<script src="js/components/share-button.js"></script>
-<script src="js/components/message-button.js"></script>
-<script src="js/components/social-links.js"></script>
+<!-- PERFORMANS DENETİMİ, 2026-09-06 madde 4 — burada eskiden 11 <script> etiketi vardı ve BİRİ
+     HARİÇ HEPSİ senkron (defer'sız) yükleniyordu: claim-correction-box + modal-shell + share-button
+     + message-button + social-links + related-strip + project-group-filter + image-lightbox +
+     consultation-modal + architect-modal ≈ 265 KB. Hiçbiri KİŞİ LİSTESİNİ çizmek için gerekli
+     değil — hepsi ancak bir kişi popup'ı açılınca devreye giriyor. Onunu birden
+     js/components/lazy-modals.js'in ZATEN VAR OLAN 'architect' varlık modülü zincirine taşındı
+     (bkz. ENTITY_UI_DEPS + ENTITY_MODULES.architect); consultation-modal.js orada deferredDeps'te,
+     yani yalnızca "Danışmanlık Al" düğmesi için, popup'ı hiç bekletmeden indirilir.
+     Geriye kalan ikisi listenin KENDİSİ için gerçekten gerekli (badge-shared.js -> initials/
+     officeColor/verifiedBadgeHtml, bkz. aşağıdaki render()) ve artık defer ile yüklenir: defer
+     çalışma sırasını ve "DOMContentLoaded'dan önce biter" garantisini korur, yalnızca HTML
+     ayrıştırmasını bloklamayı bırakır. -->
+<script src="badge-shared.js" defer></script>
 <script src="js/analytics-beacon.js" defer></script>
-<script src="js/components/related-strip.js"></script>
-<script src="js/components/project-group-filter.js"></script>
-<script src="js/components/image-lightbox.js"></script>
-<script src="js/components/consultation-modal.js"></script>
-<script src="js/components/architect-modal.js"></script>
 <script>
 // Faz 3 sonrası: kisi.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
 // sayfalama, filtreleme ve sıralama backend'de (/api/architects) canonical D1 tablosu üzerinden
@@ -534,7 +551,15 @@ let searchQuery = '';
 // resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /kisi/:slug
 // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK mimar içeriğinin üzerine ArchitectModal
 // kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
-ModalShell.setSsrDefaults({
+//
+// GLOBAL'E YAZILIR, ModalShell.setSsrDefaults() ÇAĞRILMAZ (performans denetimi, 2026-09-06 madde 4):
+// modal-shell.js bu sayfada artık TEMBEL yükleniyor, yani bu satır çalışırken `ModalShell` henüz
+// TANIMLI DEĞİL. (Gerçek bulgu — ilk denemede tam olarak burada ReferenceError alındı ve inline
+// script'in GERİ KALANI hiç çalışmadı: liste boş, popup ölü.) modal-shell.js yüklendiğinde bu
+// değeri kendi başlangıcında okur (bkz. o dosyadaki ssrDefaults ilk değeri) — sıra ne olursa olsun
+// sonuç aynıdır. modal-shell.js'i doğrudan yükleyen sayfalar (urun.html, js/pages/proje.js)
+// eskisi gibi ModalShell.setSsrDefaults() çağırmaya devam eder.
+window.__mlSsrDefaults = ({
   title: 'Kişiler — MİMARLAB',
   h1: 'Kişiler',
   description: "Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.",
@@ -784,6 +809,19 @@ function applyStateFromUrl(){
 // render() artık yalnızca mevcut sayfanın kartlarını /api/architects'ten çeker (bkz. kullanıcı
 // isteği: her sayfa geçişinde sadece o sayfadaki veriyi çek) — tüm mimar listesi hiçbir zaman
 // tarayıcıya inmiyor.
+// <head>'deki senkron betiğin ÖNCEDEN başlattığı liste isteğini (varsa) devralır; yoksa normal
+// fetch. Kayıt TEK KULLANIMLIKTIR: okunur okunmaz silinir, böylece kullanıcı filtreleri değiştirip
+// başlangıç durumuna geri döndüğünde bayat bir yanıt DEĞİL, taze bir istek alır.
+// URL, render()'ın kendi ürettiği dize ile birebir eşleşmek zorundadır — eşleşmezse (ör. ileride
+// PAGE_SIZE değişirse) sessizce normal fetch'e düşülür; bu yüzden bir drift en fazla kazancı
+// kaybettirir, davranışı bozmaz. scripts/preflight-check.sh bu iki değerin ayrışmasını ayrıca
+// statik olarak kontrol eder.
+function listFetch(url){
+  const store = window.__mlPrefetch;
+  if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
+  return fetch(url);
+}
+
 let renderRequestId = 0;
 async function render(){
   const myRequest = ++renderRequestId;
@@ -797,7 +835,7 @@ async function render(){
 
   let data = null;
   try{
-    const res = await fetch(`/api/architects?${params.toString()}`);
+    const res = await listFetch(`/api/architects?${params.toString()}`);
     if(res.ok) data = await res.json();
   }catch(err){ console.error('Kişi listesi alınamadı:', err); }
   if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
@@ -857,7 +895,15 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   const m = (a.getAttribute('href') || '').match(/^\/kisi\/([^/?#]+)/);
   if(!m) return;
   e.preventDefault();
-  ArchitectModal.open(decodeURIComponent(m[1]), { triggerEl: a });
+  // architect-modal.js artık bu sayfada <script> etiketiyle YÜKLENMİYOR (bkz. yukarıdaki
+  // performans notu) — ilk kart tıklamasında lazy-modals.js zincirinden indirilir, sonraki
+  // tıklamalar aynı çözülmüş promise'e düşer (loadModule kendi içinde tekilleştiriyor).
+  // Yükleme başarısız olursa (offline/timeout) kullanıcı elleri boş kalmasın diye tarayıcının
+  // normal gezinmesine düşülür — lazy-modals.js'teki AYNI güvenlik ağı.
+  const href = a.href;
+  LazyModals.load('architect')
+    .then(Modal => { if (Modal) Modal.open(decodeURIComponent(m[1]), { triggerEl: a }); else window.location.href = href; })
+    .catch(() => { window.location.href = href; });
 });
 
 let searchDebounce = null;
@@ -893,8 +939,16 @@ window.addEventListener('popstate', ()=>{
   // popup'ı hemen kapatırdı). Aynı gerekçe js/pages/proje.js'te de var.
   if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
   const m = location.pathname.match(/^\/kisi\/([^/]+)\/?$/);
-  if(m){ ArchitectModal.handlePopState(decodeURIComponent(m[1])); return; }
-  if(ArchitectModal.isOpen()){ ArchitectModal.handlePopState(null); return; }
+  // Modül henüz yüklenmemişken (kullanıcı hiç kart açmadan geri/ileri bastı) iki durum da
+  // güvenlidir: bir /kisi/:slug yoluna GİDİLİYORSA modül indirilip popup açılır; modül yüklü
+  // değilse AÇIK bir popup da olamayacağından "açık popup'ı kapat" dalı hiç çalıştırılmamalıdır.
+  // (Yukarıdaki LazyModals.ownsPath kapısı yalnızca modül ZATEN yüklüyken true döner, bu yüzden
+  // buraya kadar gelmiş olmak "yüklü değil" demektir.)
+  if(m){
+    LazyModals.load('architect').then(Modal => { if (Modal) Modal.handlePopState(decodeURIComponent(m[1])); }).catch(() => {});
+    return;
+  }
+  if(LazyModals.isLoaded('architect') && ArchitectModal.isOpen()){ ArchitectModal.handlePopState(null); return; }
   applyStateFromUrl();
   render();
 });
@@ -930,15 +984,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // dek takılı kalmaması için (bkz. proje.js'teki AYNI gerçek bulgu).
   const clearBootVeil = () => document.documentElement.classList.remove('pm-boot-loading');
   const bootVeilSafety = setTimeout(clearBootVeil, 8000);
-  try {
-    ArchitectModal.open(decodeURIComponent(m[1]), { pushHistory:false }).finally(() => {
-      clearTimeout(bootVeilSafety);
-      clearBootVeil();
-    });
-  } catch (e) {
-    clearTimeout(bootVeilSafety);
-    clearBootVeil();
-  }
+  const done = () => { clearTimeout(bootVeilSafety); clearBootVeil(); };
+  // Modül artık tembel yüklendiğinden (bkz. yukarıdaki performans notu) burada bir promise
+  // beklenir. DOĞRUDAN URL'DE REGRESYON YOK: <head>'deki senkron script bu yolu zaten tanıyor ve
+  // modül zincirinin baytlarını <link rel="preload"> ile HTML ayrıştırmasının en başında kuyruğa
+  // alıyor — yani indirme, eski <script> etiketlerinden bile ERKEN başlar; burada kalan tek ek
+  // adım parse/exec'tir. Ağ hatasında (loadModule#onerror) .catch veil'i açar ve ziyaretçi
+  // sunucunun bastığı SSR içeriğiyle (#ssr-entity-body) baş başa kalır — eski catch dalıyla aynı.
+  LazyModals.load('architect')
+    .then(Modal => { if (Modal) return Modal.open(decodeURIComponent(m[1]), { pushHistory:false }); })
+    .then(done, done);
 });
 window.addEventListener('mimarlab-badges-ready', render);
 </script>

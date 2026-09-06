@@ -1096,6 +1096,43 @@
       acceptImageFile(file);
     });
 
+    // CLIP ISITMA ARTIK "GÖRSEL ARAMA NİYETİ"NE BAĞLI (performans denetimi, 2026-09-06 madde 1).
+    //
+    // ÖLÇÜLEN SORUN: warmup() navSearchModalApi.open() içinde çağrılıyordu — yani üst navigasyondaki
+    // arama kutusuna SADECE METİN yazmak için odaklanan (ezici çoğunluk) her ziyaretçi de ~89 MB'lık
+    // CLIP modelini + ~11 MB WASM çalışma zamanını indirmeye başlıyordu. Metin araması bu baytların
+    // HİÇBİRİNE ihtiyaç duymaz.
+    //
+    // YENİ TETİKLEYİCİ: yalnızca kullanıcı görsel bırakma kutusuna GERÇEKTEN yaklaştığında
+    // (pointerenter/pointerdown/focus) ya da bir dosyayı kutunun üzerine sürüklediğinde. Bu, dosya
+    // seçicinin açık kaldığı ya da sürüklemenin tamamlandığı süreyi kazanç olarak korur — "Görsel
+    // seç"e basıldığında model çoğu zaman yine hazırdır — ama metin arayan hiç kimseye maliyet
+    // çıkarmaz. İlk gerçek aramada model hâlâ hazır değilse runVisualSearch zaten aynı
+    // loadClipEmbedModule() promise'ine bağlanır (tekilleştirme loadClipEmbedModule/loadSession
+    // içinde), ikinci bir indirme oluşmaz; hiç yüklenemezse akış metin kanalı yedeğine düşer.
+    //
+    // AĞ KAPISI: Save-Data açıksa ya da bağlantı 2g/slow-2g ise ÖNCEDEN indirme YAPILMAZ (kullanıcı
+    // açıkça veri tasarrufu istiyor / 89 MB bu bağlantıda zaten anlamsız). Bu yalnızca ISITMAYI
+    // kapatır — kullanıcı gerçekten bir görsel seçerse runVisualSearch modülü yine yükler.
+    function clipWarmupAllowed(){
+      const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if(!c) return true;
+      if(c.saveData === true) return false;
+      if(c.effectiveType === '2g' || c.effectiveType === 'slow-2g') return false;
+      return true;
+    }
+    let clipWarmStarted = false;
+    function warmClipOnIntent(){
+      if(clipWarmStarted) return;
+      clipWarmStarted = true;
+      if(!clipWarmupAllowed()) return;
+      loadClipEmbedModule().then(m => { if(m) m.warmup(); });
+    }
+    imageDrop.addEventListener('pointerenter', warmClipOnIntent);
+    imageDrop.addEventListener('pointerdown', warmClipOnIntent);
+    imageDrop.addEventListener('focus', warmClipOnIntent);
+    imageDrop.addEventListener('dragover', warmClipOnIntent);
+
     function renderRecommended(){
       body.innerHTML = `
         <div class="nav-search-modal-section-title">Önerilen Aramalar</div>
@@ -1189,12 +1226,9 @@
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
         setTimeout(() => modalInput.focus(), 0);
-        // GERÇEK GÖRSEL EMBEDDING ISITMA (kullanıcı isteği, 2026-09-03 ikinci tur): 89 MB'lık CLIP
-        // modelini + ~11 MB WASM çalışma zamanını, kullanıcı bir görsel SEÇMEDEN ÖNCE, arka planda
-        // indirmeye başlar. Böylece "Görsel seç"e tıklandığında model çoğunlukla zaten hazırdır —
-        // bkz. image-clip-embed.js#warmup. Başarısız olursa (WASM desteklenmiyor/ağ hatası) sessizce
-        // yutulur; runVisualSearch yine de metin-kanalı yedeğine sorunsuz düşer.
-        loadClipEmbedModule().then(m => { if(m) m.warmup(); });
+        // BURADA CLIP ISITMA YOK — bilinçli. Popup'ın açılması "görsel arama yapacağım" demek
+        // değildir; ziyaretçilerin ezici çoğunluğu buraya metin yazmak için gelir. Isıtma, görsel
+        // bırakma kutusuna gerçekten yaklaşıldığında tetiklenir (bkz. yukarıdaki warmClipOnIntent).
       },
     };
     return navSearchModalApi;

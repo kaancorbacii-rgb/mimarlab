@@ -13,6 +13,30 @@
 //     kaynak projeyle YALNIZCA bu 3 alan karşılaştırılarak hesaplanır (hangi sorgunun adayı
 //     getirdiğinden bağımsız); son liste her mount()'ta ağırlıklı-rastgele karıştırılır (bkz.
 //     weightedSample) — popup her açıldığında birebir aynı sıralama/liste çıkmaz.
+
+// UÇUŞTAKİ İSTEK BİRLEŞTİRME (performans denetimi, 2026-09-06 madde 5). Üç bölüm (ArchitectProjects/
+// RelatedProjects/CityProjects) aday havuzlarını AYNI ANDA, aynı /api/projects ucundan toplar ve
+// parametre kümeleri kısmen örtüşür (ör. şehir sorgusu hem RelatedProjects'in aday listesinde hem
+// CityProjects'te doğabilir; tek tasarımcılı bir projede designer sorgusu iki bölümden de gelebilir).
+// Aynı URL aynı anda iki kez istenirse ikinci çağrı BİRİNCİNİN promise'ine bağlanır — tek ağ isteği,
+// tek D1 turu.
+//
+// KASITEN ÖNBELLEK DEĞİL: girdi, promise çözülür çözülmez (bir sonraki mikro/makro görevde) silinir.
+// Kalıcı bir önbellek `sort=random` semantiğini bozardı — bir sonraki popup açılışının YENİ bir
+// rastgele örnek alması bu bölümlerin tasarım gereğidir (bkz. weightedSample / "Kural 3" yorumları).
+// Yani birleştirme yalnızca TEK bir yükleme dalgasının içindeki çakışmaları kapsar.
+const projectQueryInflight = new Map();
+function fetchProjectQuery(url) {
+  const hit = projectQueryInflight.get(url);
+  if (hit) return hit;
+  const p = fetch(url)
+    .then(res => (res.ok ? res.json() : null))
+    .catch(() => null);
+  projectQueryInflight.set(url, p);
+  p.then(() => { if (projectQueryInflight.get(url) === p) projectQueryInflight.delete(url); });
+  return p;
+}
+
 const ArchitectProjects = (function () {
   // filterTitle/filterToggle/filterChips — "gruba göre filtrele" çentiği (kullanıcı isteği,
   // 2026-09-04 madde 2), bkz. js/components/project-group-filter.js. Bu üçü OPSİYONELDİR: id'ler
@@ -94,9 +118,8 @@ const ArchitectProjects = (function () {
     let totalPages = 1;
     try {
       do {
-        const res = await fetch(`/api/projects?${key}=${encodeURIComponent(name)}&buildStatus=${encodeURIComponent(buildStatus)}&limit=96&page=${page}`);
-        if (!res.ok) break;
-        const data = await res.json();
+        const data = await fetchProjectQuery(`/api/projects?${key}=${encodeURIComponent(name)}&buildStatus=${encodeURIComponent(buildStatus)}&limit=96&page=${page}`);
+        if (!data) break;
         items.push(...(data.items || []));
         totalPages = data.totalPages || 1;
         page++;
@@ -285,10 +308,8 @@ const RelatedProjects = (function () {
     paramList.forEach(([k, v]) => params.append(k, v));
     params.set('limit', String(limit));
     try {
-      const res = await fetch(`/api/projects?${params.toString()}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.items || [];
+      const data = await fetchProjectQuery(`/api/projects?${params.toString()}`);
+      return (data && data.items) || [];
     } catch { return []; }
   }
 
@@ -557,8 +578,8 @@ const CityProjects = (function () {
     params.set('limit', '96');
     let items = [];
     try {
-      const res = await fetch(`/api/projects?${params.toString()}`);
-      if (res.ok) { const data = await res.json(); items = data.items || []; }
+      const data = await fetchProjectQuery(`/api/projects?${params.toString()}`);
+      if (data) items = data.items || [];
     } catch { /* boş listeyle devam edilir, bölüm aşağıda gizlenir */ }
     const excludeSlugs = await excludeSlugsPromise;
     if (mySeq !== mountSeq) return;

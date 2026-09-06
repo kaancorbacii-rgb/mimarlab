@@ -90,6 +90,21 @@
   // kayıtlı olması ŞART: proje.html'de bir kişi/firma popup'ı açıkken oradaki `/proje/:slug`
   // bağlantısı, ProjectModal'ın kendi (sahip kontrollü) dinleyicisi tarafından ele alınmaz ve
   // ZATEN YÜKLÜ bir modül dururken gereksiz bir tam sayfa yeniden yüklemesine düşerdi.
+  // VARLIK POPUP'LARININ PAYLAŞTIĞI ARAYÜZ MODÜLLERİ (performans denetimi, 2026-09-06 madde 4).
+  // Bu dört dosya kişi/firma/marka liste sayfalarında <script> etiketiyle SENKRON yükleniyordu —
+  // yalnızca modal-shell.js 71 KB, dördü birlikte ~100 KB — oysa hiçbiri LİSTE görünümü için
+  // gerekli değil; hepsi ancak bir varlık popup'ı açıldığında devreye giriyor. Etiketleri o
+  // sayfalardan kaldırıldı ve bağımlılık olarak buraya taşındı.
+  //
+  // proje.html/urun.html/en-iyi-100.html'de DAVRANIŞ DEĞİŞMEZ: o sayfalar dördünü kendi <script
+  // defer> etiketleriyle zaten yüklüyor ve loadDep aynı src'li bir etiket varsa hiç enjekte etmiyor
+  // (bkz. loadDep#querySelector) — yani orada bu liste tamamen no-op'tur.
+  const ENTITY_UI_DEPS = [
+    'js/components/modal-shell.js',       // popup kabuğunun kendisi (ModalShell) — KORUMASIZ kullanılır
+    'js/components/related-strip.js',     // RelatedStrip — "Diğer Projeler"/"İlgili" şeritleri
+    'js/components/project-group-filter.js', // ProjectGroupFilter — şeritlerin gruba göre çentiği
+    'js/components/share-button.js',      // ShareWidget — başlıktaki Paylaş düğmesi
+  ];
   const ENTITY_MODULES = {
     architect: {
       src: 'js/components/architect-modal.js', globalName: 'ArchitectModal',
@@ -100,8 +115,12 @@
       // görünmez); createClaimCorrectionBox ise KORUMASIZ çağrılıyor — o olmadan popup
       // ReferenceError verirdi. Dördü de yüklenerek popup, /kisi listesinden açılanla BİREBİR aynı
       // olur (kullanıcı isteği: mevcut UI/UX değişmesin).
-      deps: ['js/components/claim-correction-box.js', 'js/components/message-button.js',
-        'js/components/social-links.js'],
+      // image-lightbox.js: architect-modal.js onu bir GLOBAL olarak çağırmaz (bu yüzden isim
+      // taraması boş çıkar) — popup'ın profil fotoğrafına `.img-zoomable` sınıfını basar ve modülün
+      // kendi delege click dinleyicisi devreye girer. Yani bağımlılık MARKUP üzerindendir; dosya
+      // yoksa fotoğrafa tıklamak sessizce hiçbir şey yapmaz.
+      deps: [...ENTITY_UI_DEPS, 'js/components/claim-correction-box.js', 'js/components/message-button.js',
+        'js/components/social-links.js', 'js/components/image-lightbox.js'],
       // consultation-modal.js (39 KB — bu grubun EN BÜYÜĞÜ; canlıda ölçüldü: tek başına 663 ms,
       // diğer üç bağımlılığın tamamı ~135 ms) popup'ın RENDER'ı için gerekli DEĞİL: architect-modal.js
       // ona yalnızca "Danışmanlık Al" düğmesinin TIKLAMA dinleyicisi içinde dokunuyor ve o düğme de
@@ -114,9 +133,10 @@
       src: 'js/components/office-modal.js', globalName: 'OfficeModal',
       owner: 'office', pathRe: /^\/firma\/([^/?#]+)/, parallelDeps: true,
       // firma.html/marka.html'in office-modal.js'ten önce yüklediği aynı üçlü (ConsultationModal
-      // firma popup'ında kullanılmıyor).
-      deps: ['js/components/claim-correction-box.js', 'js/components/message-button.js',
-        'js/components/social-links.js'],
+      // firma popup'ında kullanılmıyor) + logoyu büyüten image-lightbox (bkz. architect'teki AYNI
+      // markup-üzerinden-bağımlılık notu).
+      deps: [...ENTITY_UI_DEPS, 'js/components/claim-correction-box.js', 'js/components/message-button.js',
+        'js/components/social-links.js', 'js/components/image-lightbox.js'],
     },
     product: {
       src: 'js/components/product-modal.js', globalName: 'ProductModal',
@@ -124,7 +144,11 @@
       // product-modal.js initDetailGallery (gallery.js) ve mountRateButton (rating-widget.js)
       // çağırıyor; ilki KORUMASIZ. Diğer bağımlılıkları (RelatedStrip/ProjectGroupFilter/
       // ShareWidget/cdnImg/savedWidgetReady) kişi/firma/marka sayfalarında zaten yüklü.
-      deps: ['js/components/gallery.js', 'rating-widget.js'],
+      // ARTIK DEĞİL (2026-09-06 madde 4): RelatedStrip/ProjectGroupFilter/ShareWidget/ModalShell
+      // etiketleri o üç sayfadan kaldırıldığından ENTITY_UI_DEPS burada da açıkça listelenmeli —
+      // aksi halde bir firma popup'ından tıklanan `/urun/:slug` bağlantısı ModalShell'siz açılmaya
+      // çalışıp ReferenceError verirdi. urun.html/proje.html'de dördü de zaten etiketli, no-op.
+      deps: [...ENTITY_UI_DEPS, 'js/components/gallery.js', 'rating-widget.js'],
     },
     project: {
       src: 'js/components/project-modal.js', globalName: 'ProjectModal',
@@ -239,6 +263,23 @@
     if (viewForPath(MODULES[key], location.pathname)) loadModule(key).catch(() => {});
   }
 
+  // AYNI ŞEY VARLIK MODÜLLERİ İÇİN (performans denetimi, 2026-09-06 madde 4). kişi/firma/marka
+  // liste sayfaları artık architect-modal.js/office-modal.js'i <script> etiketiyle yüklemediğinden,
+  // `/kisi/:slug` ya da `/firma/:slug` adresine DOĞRUDAN girildiğinde (paylaşılan link, F5, bot
+  // olmayan gerçek ziyaret) modülün indirilmesi sayfanın kendi DOMContentLoaded'ını beklerdi. Bu
+  // satır indirmeyi bu betik çalışır çalışmaz — yani eski <script> etiketlerinin bulunduğu noktayla
+  // pratikte aynı anda — başlatır; sayfanın DOMContentLoaded'daki open() çağrısı aynı pending[key]
+  // promise'ine bağlanır, ikinci bir indirme OLUŞMAZ. Sayfaların <head>'indeki senkron betik ayrıca
+  // iki büyük dosya için <link rel="preload"> bastığından baytlar bundan da önce yola çıkar.
+  //
+  // preloadedOnly modüller (project) ATLANIR: onların sözleşmesi "sayfada zaten varsa kullan, yoksa
+  // indirme"dir (bkz. ENTITY_MODULES.project) — burada indirmek o kararı sessizce bozardı.
+  for (const key in ENTITY_MODULES) {
+    const mod = ENTITY_MODULES[key];
+    if (mod.preloadedOnly) continue;
+    if (mod.pathRe.test(location.pathname)) loadModule(key).catch(() => {});
+  }
+
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -336,5 +377,19 @@
   });
 
   // Sayfaların popstate dinleyicilerinin sorduğu tek soru (bkz. yukarısı).
-  window.LazyModals = { ownsPath: (pathname) => !!entityModuleForPath(pathname) };
+  //
+  // load(key): kişi/firma/marka LİSTE sayfalarının kendi kart tıklamaları/popstate/doğrudan-URL
+  // yolları için (performans denetimi, 2026-09-06 madde 4). O sayfalar artık architect-modal.js/
+  // office-modal.js'i <script> etiketiyle YÜKLEMİYOR, bu yüzden `ArchitectModal.open(...)`ı
+  // doğrudan çağıramazlar — aynı loadModule() zincirinden geçerler. YENİ BİR PARALEL SİSTEM
+  // DEĞİLDİR: tıklamayı yakalayan, bağımlılıkları çözen, tekilleştiren ve hata durumunda tam sayfa
+  // gezinmeye düşen kod tek bir yerde, burada kalır.
+  //
+  // isLoaded(key): sayfaların "popup şu an açık olabilir mi?" sorusu — modül hiç yüklenmemişse
+  // açık bir popup da olamaz, o dallara hiç girilmemelidir.
+  window.LazyModals = {
+    ownsPath: (pathname) => !!entityModuleForPath(pathname),
+    load: (key) => (ALL_MODULES[key] ? loadModule(key) : Promise.resolve(null)),
+    isLoaded: (key) => !!(ALL_MODULES[key] && window[ALL_MODULES[key].globalName]),
+  };
 })();

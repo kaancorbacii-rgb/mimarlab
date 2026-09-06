@@ -40,7 +40,10 @@ ok "kök seviyesi .js dosyaları kontrol edildi"
 
 echo ""
 echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/kisi-ekle/firma-ekle/urun-ekle/index/admin/hesabim)"
-for f in index.html admin.html hesabim.html proje.html kisi.html firma.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html; do
+# marka.html EKLENDİ (2026-09-06): kisi/firma ile birebir aynı iskelete sahip ve aynı elle yazılmış
+# inline render mantığını taşıyor, ama bu listede yoktu — yani onun inline script'i hiç kontrol
+# edilmiyordu.
+for f in index.html admin.html hesabim.html proje.html kisi.html firma.html marka.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html; do
   [ -f "$f" ] || continue
   node -e "
     const fs = require('fs');
@@ -87,6 +90,67 @@ if grep -q "#ssr-entity-body" src/index.js; then
 else
   bad "src/index.js — #ssr-entity-body handler'ı kayıp görünüyor"
 fi
+
+# Erken liste fetch'i (performans denetimi, 2026-09-06 madde 3) — liste sayfalarının <head>'indeki
+# senkron betik, render()'ın ÜRETECEĞİ API URL'sini elle kurar; listFetch() o URL'yi birebir
+# eşleştirebilirse önceden başlatılmış isteği devralır. İki taraf ayrışırsa hiçbir şey KIRILMAZ
+# (listFetch normal fetch'e düşer) ama kazanç sessizce kaybolur — bu tam olarak bu depodaki tekrar
+# eden "iki yerin birlikte güncellenmesi gereken sabit" tuzağıdır, o yüzden statik olarak kontrol
+# edilir. Kontrol edilen: <head>'deki limit=N ile sayfanın kendi PAGE_SIZE sabiti aynı mı.
+check_prefetch_limit() {
+  local page="$1" src="$2"
+  local head_limit page_size
+  head_limit=$(grep -o "limit=[0-9]\+" "$page" | head -1 | cut -d= -f2)
+  page_size=$(grep -o "^const PAGE_SIZE = [0-9]\+" "$src" | head -1 | grep -o "[0-9]\+")
+  if [ -z "$head_limit" ] || [ -z "$page_size" ]; then
+    bad "$page — erken liste fetch'i için limit/PAGE_SIZE okunamadı (head_limit='$head_limit', PAGE_SIZE='$page_size')"
+  elif [ "$head_limit" != "$page_size" ]; then
+    bad "$page — <head> prefetch limit=$head_limit ile $src PAGE_SIZE=$page_size ayrışmış (erken fetch boşa gidiyor)"
+  else
+    ok "$page — erken liste fetch'i PAGE_SIZE=$page_size ile hizalı"
+  fi
+}
+check_prefetch_limit kisi.html kisi.html
+check_prefetch_limit firma.html firma.html
+check_prefetch_limit marka.html marka.html
+check_prefetch_limit proje.html js/pages/proje.js
+# Aynı denetimin ikinci yarısı: prefetch'i TÜKETEN taraf hâlâ yerinde mi (biri silinirse istek
+# yapılır ama hiç kullanılmaz — sessiz bir israf).
+for f in kisi.html firma.html marka.html js/pages/proje.js; do
+  if grep -q "function listFetch(url)" "$f" && grep -q "await listFetch(" "$f"; then
+    ok "$f — listFetch() tanımlı ve render() içinde kullanılıyor"
+  else
+    bad "$f — listFetch() tanımı ya da kullanımı kayıp (erken liste fetch'i tüketilmiyor)"
+  fi
+done
+
+# Tembel varlık modalleri (performans denetimi, 2026-09-06 madde 4) — kişi/firma/marka liste
+# sayfaları architect-modal.js/office-modal.js'i ARTIK <script> etiketiyle yüklememeli; yüklerlerse
+# hem ~250 KB blocking JS geri gelir hem de lazy-modals zinciri gereksizleşir.
+for f in kisi.html firma.html marka.html; do
+  if grep -qE '<script src="js/components/(architect|office)-modal\.js"' "$f"; then
+    bad "$f — varlık modalı yeniden <script> etiketiyle yükleniyor (tembel yükleme regresyonu)"
+  elif grep -q "LazyModals.load(" "$f"; then
+    ok "$f — varlık modalı lazy-modals üzerinden tembel yükleniyor"
+  else
+    bad "$f — LazyModals.load() çağrısı kayıp (popup hiç açılmayabilir)"
+  fi
+done
+
+# GERÇEK BULGU (2026-09-06, bu denetimin kendisi sırasında): modal-shell.js bu üç sayfadan
+# kaldırıldıktan sonra inline script'in TEPESİNDE duran `ModalShell.setSsrDefaults({...})` çağrısı
+# ReferenceError fırlattı ve script'in GERİ KALANI hiç çalışmadı — liste bomboş kaldı, popup hiç
+# açılmadı, konsolda tek satır uyarı yoktu. Sözdizimi kontrolü bunu YAKALAYAMAZ (geçerli JS'tir).
+# Kural: bu üç sayfada `ModalShell` yalnızca `window.ModalShell &&` koruması ile aynı satırda
+# geçebilir; korumasız her kullanım aynı sessiz ölüme yol açar.
+for f in kisi.html firma.html marka.html; do
+  unguarded=$(grep -n 'ModalShell' "$f" | grep -v 'window.ModalShell &&' | grep -vE '^\s*[0-9]+:\s*(//|\*|<!--)' | grep -vE '^[0-9]+:.*(bkz\.|ile AYNI|yorum)' || true)
+  if [ -n "$unguarded" ]; then
+    bad "$f — korumasız ModalShell kullanımı (modal-shell.js tembel yükleniyor, bu satır ReferenceError verir): $(echo "$unguarded" | head -2 | tr '\n' ' ')"
+  else
+    ok "$f — ModalShell kullanımlarının tamamı window.ModalShell guard'lı"
+  fi
+done
 
 echo ""
 echo "5) schema.sql sözdizimi (varsa sqlite3 ile)"

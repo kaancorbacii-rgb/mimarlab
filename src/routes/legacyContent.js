@@ -14,6 +14,7 @@ import {
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
+import { foldedMultiFieldSearch, foldSqlExpr } from '../lib/searchFold.js';
 
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
 const FACET_TYPES = new Set(['projects']);
@@ -250,6 +251,10 @@ export async function handlePublicHidden(request, env) {
 // TAMAMINI kapsayan tek kaynak) arar, statik dizi taramasına gerek kalmadı.
 const SEARCH_SUGGEST_PER_GROUP = 3;
 const SEARCH_SUGGEST_TOTAL = 8;
+// Grup başına Worker'a taşınacak EN FAZLA satır. Eski kod da tam olarak bu sayıda satırla
+// (`.filter(...).slice(0, 20)`) devam ediyordu — fark, 20'ye indirgemenin artık SQL'de (LIMIT ile)
+// yapılması: `total` alanı eskiden de bu üst sınırla kırpılıydı, yani yanıt sözleşmesi aynı kalır.
+const SEARCH_SUGGEST_MATCH_LIMIT = 20;
 
 // projects/products `images` JSON dizisinin İLK öğesi — bozuk/boş değerlerde sessizce null.
 // Arama önerisi satırındaki küçük önizleme için (kullanıcı isteği, 2026-09-02).
@@ -275,26 +280,60 @@ export async function handlePublicSearchSuggest(request, env, url) {
   // açılır pencerede görünen satırlar o yüzden yazılan metinle alakasız olabiliyordu.
   // handlePublicSearchFull (aşağısı) zaten `url.pathname + url.search` kullanıyor — bu uç sapmıştı.
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    // SQL LIKE Türkçe diakritik foldlamasını (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) bilmediğinden ve
-    // kelime-parçalamalı eşleşme (bkz. fuzzyMatch) tek bir LIKE deseniyle ifade edilemediğinden,
-    // her tablo TAMAMEN çekilip fuzzyMatch ile JS tarafında filtrelenir — tablolar küçük olduğundan
-    // (mimar/ofis/proje ~600-800, ürün ~80 satır, bkz. src/routes/architect.js#handleArchitectSearchRoute
-    // ile AYNI "tablo küçük, tam tarama ucuz" gerekçesi) bu tam tarama ucuzdur.
-    const [archRes, officeRes, projRes, prodRes] = await Promise.all([
+    // ESKİDEN (bkz. bu satırdaki eski yorum: "tablolar küçük, tam tarama ucuz") dört tablonun
+    // TAMAMI — 1.804 proje + 959 mimar + 717 firma + 644 ürün, üstelik projects.images/
+    // products.images JSON'larıyla birlikte — HER TUŞ VURUŞUNDA Worker'a çekilip fuzzyMatch ile
+    // JS'te filtreleniyordu. Gerekçe SQL LIKE'ın Türkçe katlamayı bilmemesiydi; migration 0079'un
+    // fold kolonları + src/lib/searchFold.js bu engeli zaten kaldırmıştı, bu uç sadece taşınmamıştı
+    // (performans denetimi, 2026-09-06 madde 2).
+    //
+    // ARTIK: eşleştirme SQLite'ın içinde, foldTr()'nin birebir SQL karşılığı üzerinde yapılır ve
+    // Worker'a grup başına en fazla SEARCH_SUGGEST_MATCH_LIMIT satır taşınır. `images` yalnızca o
+    // satırlar için gelir — 1.804 JSON yerine en fazla 20 tane. Semantik korunur: aynı iki aşamalı
+    // (indexli önek + substring geri düşüşü) yapı, aynı "bir alanın TÜM kelimeleri içermesi" kuralı,
+    // aynı gruplar/sınırlar/JSON sözleşmesi. Yanlış pozitif üretmemesi için dönen satırlar ayrıca
+    // ORİJİNAL fuzzyMatch'ten geçirilir (en fazla 20 satır — SQL'e sığmayan fazladan kelimeler de
+    // böylece uygulanmış olur, bkz. searchFold.js#SQL_MAX_WORDS).
+    const foldedQ = foldTr(rawQ);
+    const runQuery = (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results);
+    // 3. argüman = 1. aşamada (indexli önek araması) kullanılabilecek kolonlar; verilmezse hepsi.
+    // bkz. searchFold.js#foldedMultiFieldSearch'teki EXPLAIN gerekçesi.
+    const suggestSearch = (sqlFor, foldColumns, indexedFoldColumns) => foldedMultiFieldSearch({
+      runQuery, sqlFor, foldColumns, indexedFoldColumns, q: foldedQ, words: queryWords,
+      limit: SEARCH_SUGGEST_MATCH_LIMIT, keyOf: r => r.id,
+    }).then(r => r.rows);
+
+    const [archMatchesRaw, officeMatchesRaw, projMatchesRaw, prodMatchesRaw] = await Promise.all([
       // photo_url/logo_url/images: kullanıcı isteği (2026-09-02) — öneri satırlarında küçük bir
       // önizleme görseli gösterilecek. `images` TAM metin olarak çekilip aşağıda JS'te ilk öğeye
       // indirgenir (SQL json_extract KULLANILMADI: bozuk bir images JSON'ı tüm sorguyu 500'letirdi,
       // bkz. src/lib/projectPool.js'teki AYNI gerekçe).
-      env.DB.prepare(`SELECT name, office_id, photo_url FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(`SELECT name, loc, logo_url FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(`SELECT slug, title, location, project_date, images FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(`SELECT slug, title, category, brand_name_raw, images FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      suggestSearch(
+        (cond, limit) => `SELECT id, name, office_id, photo_url FROM architects
+          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
+        ['name_fold']
+      ),
+      suggestSearch(
+        (cond, limit) => `SELECT id, name, loc, logo_url FROM offices
+          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
+        ['name_fold']
+      ),
+      suggestSearch(
+        (cond, limit) => `SELECT id, slug, title, location, project_date, images FROM projects
+          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
+        ['title_fold', foldSqlExpr('location')], ['title_fold']
+      ),
+      suggestSearch(
+        (cond, limit) => `SELECT id, slug, title, category, brand_name_raw, images FROM products
+          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
+        ['title_fold', foldSqlExpr('category'), 'brand_fold'], ['title_fold', 'brand_fold']
+      ),
     ]);
 
-    const archMatches = archRes.results.filter(a => fuzzyMatch(a.name, queryWords)).slice(0, 20);
-    const officeMatches = officeRes.results.filter(o => fuzzyMatch(o.name, queryWords)).slice(0, 20);
-    const projMatches = projRes.results.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords)).slice(0, 20);
-    const prodMatches = prodRes.results.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand_name_raw, queryWords)).slice(0, 20);
+    const archMatches = archMatchesRaw.filter(a => fuzzyMatch(a.name, queryWords));
+    const officeMatches = officeMatchesRaw.filter(o => fuzzyMatch(o.name, queryWords));
+    const projMatches = projMatchesRaw.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords));
+    const prodMatches = prodMatchesRaw.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand_name_raw, queryWords));
 
     const officeNameById = new Map();
     const officeIds = archMatches.map(r => r.office_id).filter(Boolean);

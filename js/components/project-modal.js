@@ -219,22 +219,61 @@ const ProjectModal = (function () {
   // (görünürlük ya da süre) yükleme O ZAMAN tetiklenir, diğeri iptal edilir. Bu, bölümün ekranda asla
   // sonsuza dek boş kalmamasını GARANTİ eder, ekstra bir maliyeti yoktur (küçük JSON istekleri,
   // görsel indirme değil).
-  function observeOnce(el, loadFn, timeoutMs) {
+  //
+  // ZAMAN AŞIMI YEDEĞİ ARTIK "GÖRÜNÜRLÜĞÜ YOKLAYAN" BİR DÖNGÜ (performans denetimi, 2026-09-06
+  // madde 5). Yukarıdaki yedek KOŞULSUZDU: bölüm ekranın çok altında olsa, kullanıcı ona hiç
+  // kaydırmasa bile 600/1200 ms sonra yükleme yine tetikleniyordu. Yani IntersectionObserver
+  // pratikte hiçbir şey ertelemiyordu — canlıda ölçülen üçüncü istek dalgası (proje popup'ında
+  // ~11 paralel /api/projects çağrısı, ~2 sn ek gecikme) tam olarak bu yüzden HER açılışta oluşuyordu.
+  //
+  // NEDEN SADECE IO'YA GÜVENİLMİYOR (yerelde ÖLÇÜLDÜ, yukarıdaki eski gerçek bulguyu doğrular):
+  // popup açıkken bu bölümlere bağlanan bir IntersectionObserver, bölüm görünür alana KAYDIRILDIKTAN
+  // sonra bile hiçbir entry teslim etmeyebiliyor — modal panelinin ata zincirinde `opacity` geçişi
+  // sürerken tarayıcı hedefi "boyanmıyor" sayıp gözlemi hiç planlamıyor. Yedek kaldırılıp saf IO'ya
+  // bırakılsaydı "İlgili Projeler" kalıcı olarak iskelet hâlinde donabilirdi — eski koddaki koşulsuz
+  // zaman aşımının var oluş nedeni de tam olarak buydu.
+  //
+  // ÇÖZÜM, iki özelliği BİRDEN tutan tek bir yapı: zamanlayıcı kalır ama ATEŞLENDİĞİNDE ÖNCE
+  // GÖRÜNÜRLÜĞE BAKAR. Bölüm hâlâ ekranın dışındaysa yüklemez, yalnızca kendini yeniden kurar.
+  //   * kullanıcı hiç kaydırmazsa   -> hiçbir istek yapılmaz (asıl kazanç),
+  //   * bölüm zaten görünürse       -> eski davranışla BİREBİR aynı gecikmede yüklenir,
+  //   * kullanıcı sonradan kaydırırsa -> IO tetiklerse hemen, tetiklemezse en geç bir yoklama
+  //     aralığı içinde yüklenir — yani doğruluk IO'nun çalışmasına BAĞLI DEĞİL.
+  // Maliyet: popup açıkken bölüm başına ~0,6-1,2 sn'de bir getBoundingClientRect. Ölçülemeyecek kadar
+  // küçük; karşılığında her açılışta atılan ~11 gereksiz API isteği ortadan kalkıyor.
+  //
+  // isStale: yoklama döngüsünün ömrünü render sırasına bağlar. Şablon sayfa ömrü boyunca TEK SEFER
+  // mount edildiğinden (bkz. ensureTemplate#mountedOnce) bölüm elemanları popup'lar arasında
+  // PAYLAŞILIR — bu kanca olmasa her açılış/swap bir yoklama döngüsü daha bırakır ve bunlar birikirdi.
+  const IO_ROOT_MARGIN_PX = 200;
+  function isNearViewport(el) {
+    const r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return false; // display:none / henüz düzeni yok
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    return r.top < vh + IO_ROOT_MARGIN_PX && r.bottom > -IO_ROOT_MARGIN_PX;
+  }
+
+  function observeOnce(el, loadFn, pollMs, isStale) {
     if (!el) return;
     let done = false;
     let timer = null;
-    const trigger = () => {
+    let obs = null;
+    const stop = () => { done = true; if (obs) obs.disconnect(); if (timer) clearTimeout(timer); };
+    const trigger = () => { if (done) return; stop(); loadFn(); };
+    if ('IntersectionObserver' in window) {
+      obs = new IntersectionObserver((entries) => {
+        entries.forEach(entry => { if (entry.isIntersecting) trigger(); });
+      }, { rootMargin: `${IO_ROOT_MARGIN_PX}px` });
+      obs.observe(el);
+    }
+    if (!pollMs) return;
+    const poll = () => {
       if (done) return;
-      done = true;
-      obs.disconnect();
-      if (timer) clearTimeout(timer);
-      loadFn();
+      if (isStale && isStale()) { stop(); return; } // başka bir proje açıldı — bu döngü artık ölü
+      if (isNearViewport(el)) { trigger(); return; }
+      timer = setTimeout(poll, pollMs);
     };
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(entry => { if (entry.isIntersecting) trigger(); });
-    }, { rootMargin: '200px' });
-    obs.observe(el);
-    if (timeoutMs) timer = setTimeout(trigger, timeoutMs);
+    timer = setTimeout(poll, pollMs);
   }
 
   // "Bilgi Kaynağı & Geri Bildirim" kutusu — js/components/claim-correction-box.js#loadCorrectionCard
@@ -282,10 +321,13 @@ const ProjectModal = (function () {
   }
 
   function armDeferredSections(item, mySeq) {
+    // bkz. observeOnce#isStale — bu render sırası aşıldıysa (başka bir proje açıldı/swap edildi)
+    // o açılışa ait yoklama döngüleri kendilerini sonlandırır.
+    const isStale = () => mySeq !== requestSeq;
     const commentsSection = document.getElementById('pm-comments-section');
     document.getElementById('pm-comments-list').innerHTML = '';
     document.getElementById('pm-comment-form-wrap').innerHTML = `<div class="comment-form"><div class="skeleton-line" style="height:90px;border-radius:12px;"></div></div>`;
-    observeOnce(commentsSection, () => { if (mySeq === requestSeq) ProjectComments.mount(commentsSection, item.slug); }, 1200);
+    observeOnce(commentsSection, () => { if (mySeq === requestSeq) ProjectComments.mount(commentsSection, item.slug); }, 1200, isStale);
     document.getElementById('pm-feedback-body').innerHTML = '';
     savedWidgetReady.then(() => { if (mySeq === requestSeq) wireFeedbackBox(item); });
 
@@ -311,7 +353,7 @@ const ProjectModal = (function () {
       const cityExcludePromise = Promise.all([architectSlugsPromise, relatedSlugsPromise]).then(([a, r]) => new Set([...a, ...r]));
       const cityPromise = CityProjects.mount(item, cityExcludePromise);
       Promise.allSettled([architectSlugsPromise, relatedSlugsPromise, cityPromise]);
-    }, 600);
+    }, 600, isStale);
 
     // Şablon sayfa ömrü boyunca TEK SEFER mount edildiğinden (bkz. ensureTemplate#mountedOnce) bir
     // önceki projede ürünsüz/markasız kalan hücreler display:none'da takılı kalır — iskeleti
@@ -324,7 +366,7 @@ const ProjectModal = (function () {
     // İskelet kartlar da artık .related-card (bkz. project-products.js dosya başı yorumu — .catalog-*
     // sınıflarının hiçbir CSS karşılığı yoktu, iskeletler de stilsiz/dev görünüyordu).
     document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4);
-    observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200);
+    observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200, isStale);
   }
 
   // Önceki/Sonraki Proje — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
@@ -856,10 +898,18 @@ const ProjectModal = (function () {
     if (result.status !== 'ok') { renderNotFound(result.status); return; }
     const item = result.item;
     await renderItem(item, mySeq);
+    // ...ve artık render zincirinden büsbütün çıkarılıp BOŞTA ZAMANA ertelenir (performans denetimi,
+    // 2026-09-06 madde 5). Önceki hâli renderItem'dan hemen sonra tetiklendiğinden, 100 kayıtlık
+    // top100 JSON'ı popup'ın kendi galeri görselleriyle AYNI dalgada ağ/ana iş parçacığı için
+    // yarışıyordu — oysa çıktısı yalnızca küçük, dekoratif bir sıra rozetidir. requestIdleCallback
+    // yoksa (Safari) kısa bir setTimeout'a düşülür; ikisinde de rozet gözle görülür bir gecikme
+    // olmadan, ama kritik içerik boyandıktan SONRA gelir.
     if (!topRank) {
-      fetchTop100Map().then(map => {
+      const loadBadge = () => fetchTop100Map().then(map => {
         if (mySeq === requestSeq && currentSlug === slug) { currentTopRank = map.get(slug) || null; renderTopRankBadge(); }
       });
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(loadBadge, { timeout: 2000 });
+      else setTimeout(loadBadge, 300);
     }
   }
 

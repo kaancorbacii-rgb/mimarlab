@@ -333,7 +333,25 @@ const ImageHotspots = (function () {
     }
     hostEl.addEventListener('click', onHostClick);
 
-    const onResize = () => { reposition(); if (openCard) closeCard(); };
+    // rAF BİRLEŞTİRME (performans denetimi, 2026-09-06 madde 8). reposition() her çağrıda
+    // getBoundingClientRect/offsetWidth okuyup ardından katmanın style'ını YAZAR — yani her çağrı
+    // bir layout okuma/yazma turudur. Aşağıdaki üç kaynak (window resize, visualViewport resize,
+    // visualViewport scroll) tek bir pinch-zoom ya da adres çubuğu hareketinde onlarca olay
+    // üretebilir ve her biri doğrudan reposition() çağırdığından aynı karede defalarca layout
+    // zorlanıyordu. scheduleReposition() bunları KAREYE BİR taneye indirir: sonuç aynıdır (ekrana
+    // zaten kare başına bir kez boyanır) ama arada yapılan gereksiz layout işi ortadan kalkar.
+    //
+    // İLK/TEK SEFERLİK tetikleyiciler (mount, img load, orientationchange) BİLEREK senkron kalır —
+    // orada gecikme yok, doğruluk var: işaretçiler ilk karede tam yerinde olmalı.
+    let repositionRaf = 0;
+    const scheduleReposition = () => {
+      if (repositionRaf) return;
+      repositionRaf = requestAnimationFrame(() => { repositionRaf = 0; reposition(); });
+    };
+    // closeCard() BİRLEŞTİRİLMEZ: açık bir kartın yanlış yerde asılı kalmaması bir doğruluk
+    // meselesidir ve bir kare bile beklemesi gerekmez (zaten en fazla bir kez çalışır — kart
+    // kapandıktan sonra openCard null olur).
+    const onResize = () => { scheduleReposition(); if (openCard) closeCard(); };
     window.addEventListener('resize', onResize);
     // TABLET/MOBİL SAĞLAMLAŞTIRMASI (kullanıcı isteği, 2026-09-05 madde 4).
     // Katman, görselin BOYANDIĞI dikdörtgene px olarak oturtulur; o dikdörtgen değişip katman
@@ -356,7 +374,10 @@ const ImageHotspots = (function () {
     imgEl.addEventListener('load', onImgLoad);
     let ro = null;
     if (window.ResizeObserver) {
-      ro = new ResizeObserver(() => reposition());
+      // ResizeObserver geri çağrısı da birleştirilir — burada ek bir kazanç daha var: gözlemcinin
+      // içinden SENKRON layout yazmak tarayıcıda "ResizeObserver loop completed with undelivered
+      // notifications" uyarısına yol açabilen desendir; bir sonraki kareye ertelemek bunu da keser.
+      ro = new ResizeObserver(scheduleReposition);
       // HEM host HEM görselin kendisi gözlenir. Host (lightbox: position:fixed, inset:0) viewport
       // ile birlikte değişir, ama katmanın eşleşmesi gereken kutu GÖRSELİNKİDİR: görsel
       // max-width/max-height ile küçüldüğünden host değişmeden de (ör. srcset ile farklı en-boy
@@ -375,6 +396,10 @@ const ImageHotspots = (function () {
       if (vv) { vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); }
       imgEl.removeEventListener('load', onImgLoad);
       if (ro) ro.disconnect();
+      // Bekleyen kare iptal edilir: aksi halde unmount'tan SONRA çalışıp DOM'dan koparılmış bir
+      // katmanın style'ını yazmaya çalışırdı (zararsız ama ölü iş; asıl mesele, cleanup'ın
+      // "bundan sonra hiçbir şey çalışmaz" sözünü gerçekten tutması).
+      if (repositionRaf) { cancelAnimationFrame(repositionRaf); repositionRaf = 0; }
       layer._ihApi = null;
     };
     layer._ihApi = { openFor, closeCard };

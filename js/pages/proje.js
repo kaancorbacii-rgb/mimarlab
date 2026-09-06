@@ -881,6 +881,17 @@ if(typeof savedWidgetReady !== 'undefined'){
 // tüm liste hafızada) sol filtre çubuğu/arama/sıralama ile istemci tarafında filtreleyip AYNI
 // PAGE_SIZE'lık sayfalara böler — iki dal da AYNI renderCards()/renderPagination()/renderActiveChips()
 // paylaşılan yardımcılarını kullanır, yalnızca veri kaynağı değişir.
+// proje.html'in <head>'indeki senkron betiğin ÖNCEDEN başlattığı liste isteğini (varsa) devralır;
+// yoksa normal fetch. Kayıt TEK KULLANIMLIKTIR: okunur okunmaz silinir, böylece kullanıcı
+// filtreleri değiştirip başlangıç durumuna geri döndüğünde bayat bir yanıt DEĞİL, taze bir istek
+// alır. URL birebir eşleşmezse sessizce normal fetch'e düşülür (bkz. o betikteki not);
+// scripts/preflight-check.sh iki taraftaki PAGE_SIZE'ın ayrışmasını statik olarak kontrol eder.
+function listFetch(url){
+  const store = window.__mlPrefetch;
+  if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
+  return fetch(url);
+}
+
 let renderRequestId = 0;
 async function render(){
   const myRequest = ++renderRequestId;
@@ -915,7 +926,7 @@ async function render(){
 
   let data = null;
   try{
-    const res = await fetch(`/api/projects?${params.toString()}`);
+    const res = await listFetch(`/api/projects?${params.toString()}`);
     if(res.ok) data = await res.json();
   }catch(err){
     console.error('Proje listesi alınamadı:', err);
