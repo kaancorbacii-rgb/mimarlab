@@ -24,6 +24,7 @@
 
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { runGundemIngestion } from '../src/lib/gundemIngest.js';
 
 const ACCOUNT_ID = '2e3cd3c1a471552e19436913b2368c4f';
@@ -31,21 +32,80 @@ const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
 const AI_MODEL_PATH = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
 // wrangler'ın OAuth token'ı — macOS'ta ~/Library/Preferences/.wrangler, Linux'ta ~/.wrangler.
-function oauthToken() {
-  const candidates = [
-    `${homedir()}/Library/Preferences/.wrangler/config/default.toml`,
-    `${homedir()}/.wrangler/config/default.toml`,
-    `${homedir()}/.config/.wrangler/config/default.toml`,
-  ];
-  for (const p of candidates) {
-    try {
-      const m = readFileSync(p, 'utf8').match(/oauth_token\s*=\s*"([^"]+)"/);
-      if (m) return m[1];
-    } catch { /* sıradaki yolu dene */ }
+const TOKEN_PATHS = [
+  `${homedir()}/Library/Preferences/.wrangler/config/default.toml`,
+  `${homedir()}/.wrangler/config/default.toml`,
+  `${homedir()}/.config/.wrangler/config/default.toml`,
+];
+
+function readTokenFile() {
+  for (const p of TOKEN_PATHS) {
+    try { return readFileSync(p, 'utf8'); } catch { /* sıradaki yolu dene */ }
   }
   throw new Error('wrangler OAuth token bulunamadı — `npx wrangler login` çalıştırın.');
 }
-const TOKEN = oauthToken();
+
+function oauthToken() {
+  const m = readTokenFile().match(/oauth_token\s*=\s*"([^"]+)"/);
+  if (!m) throw new Error('wrangler OAuth token bulunamadı — `npx wrangler login` çalıştırın.');
+  return m[1];
+}
+
+function tokenExpiresAt() {
+  const m = readTokenFile().match(/expiration_time\s*=\s*"([^"]+)"/);
+  const ms = m ? Date.parse(m[1]) : NaN;
+  return Number.isFinite(ms) ? ms : null;
+}
+
+// TOKEN TAZELEME — GERÇEK BULGU (2026-09-07 geri doldurma turu): wrangler'ın OAuth ERİŞİM token'ı
+// yalnızca 1 SAAT geçerli ve dosyaya SADECE bir wrangler komutu çalıştığında yenilenir. Bu betik
+// token'ı açılışta BİR KEZ okuyup 8-15 dakikalık bir tur boyunca elinde tutuyordu; token turun
+// ortasında dolunca Cloudflare TÜM isteklere 7403 ("not authorized") döndürdü ve tur SIFIR yayınla
+// bitti — üstelik 90 aday için ağa çıkılıp 170 AI çağrısı harcandıktan SONRA. Kaynak sağlığı
+// yazımları turun BAŞINDA yapıldığı için 9/9 "başarılı" görünüyordu; hata yalnızca AI ve gundem_items
+// yazımında ortaya çıktı, yani sessiz değil ama geç fark edilen bir bozulmaydı.
+//
+// ÇÖZÜM: (a) turdan önce token'ın ömrünü kontrol et, kısaysa yenile; (b) tur sırasında bir istek
+// yetki hatası alırsa BİR KEZ yenileyip aynı isteği tekrarla. Yenileme, wrangler'ın kendi refresh
+// akışını tetikleyen ucuz bir komutla yapılır — burada yeni bir kimlik doğrulama mantığı yazılmaz.
+let TOKEN = oauthToken();
+const TOKEN_MIN_REMAINING_MS = 20 * 60 * 1000;
+
+function refreshToken(reason) {
+  try {
+    execFileSync('npx', ['wrangler', 'whoami'], { stdio: 'ignore', timeout: 90000 });
+  } catch { /* yenileme başarısızsa aşağıdaki okuma eski token'ı döndürür, çağıran hata alır */ }
+  const before = TOKEN;
+  TOKEN = oauthToken();
+  const expiry = tokenExpiresAt();
+  console.log(`  [token] ${reason} -> ${TOKEN === before ? 'DEĞİŞMEDİ' : 'yenilendi'}` +
+    `${expiry ? `, geçerlilik ${new Date(expiry).toISOString()}` : ''}`);
+  return TOKEN !== before;
+}
+
+// Yetki hatası mı? (7403 = "account not valid / not authorized" — süresi dolmuş token'ın imzası.)
+function isAuthFailure(status, json) {
+  if (status === 401 || status === 403) return true;
+  const codes = (json && json.errors || []).map(e => e && e.code);
+  return codes.includes(7403) || codes.includes(10000);
+}
+
+// Cloudflare REST çağrısı — yetki hatasında token'ı BİR KEZ yenileyip tekrar dener.
+async function cfFetch(url, body) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (json.success) return json;
+    if (attempt === 0 && isAuthFailure(res.status, json) && refreshToken('istek yetki hatası aldı')) continue;
+    const err = new Error(JSON.stringify(json.errors).slice(0, 300));
+    err.httpStatus = res.status;
+    throw err;
+  }
+}
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const [k, v] = a.replace(/^--/, '').split('=');
@@ -70,16 +130,15 @@ let d1Writes = 0;
 
 async function d1(sql, params = []) {
   d1Queries++;
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql, params }),
-    }
-  );
-  const json = await res.json();
-  if (!json.success) throw new Error(`D1: ${JSON.stringify(json.errors).slice(0, 300)}`);
+  let json;
+  try {
+    json = await cfFetch(
+      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`,
+      { sql, params }
+    );
+  } catch (err) {
+    throw new Error(`D1: ${err.message}`);
+  }
   return json.result[0];
 }
 
@@ -115,17 +174,10 @@ let aiCalls = 0;
 const AI = {
   async run(model, opts) {
     aiCalls++;
-    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/${model || AI_MODEL_PATH}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(opts),
-    });
-    const json = await res.json();
-    if (!json.success) {
-      const err = new Error(JSON.stringify(json.errors).slice(0, 200));
-      err.httpStatus = res.status;
-      throw err;
-    }
+    const json = await cfFetch(
+      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/${model || AI_MODEL_PATH}`,
+      opts
+    );
     return json.result;
   },
 };
@@ -153,6 +205,15 @@ const deps = {
 // ---------------------------------------------------------------------------------------------
 console.log(`GÜNDEM geri doldurma — son ${DAYS} gün, kaynak başına ${PER_SOURCE}, toplam en fazla ${MAX_TOTAL}${DRY_RUN ? '  [DRY-RUN: yazma YOK]' : ''}`);
 console.log('');
+
+// Tur başlamadan ÖNCE token ömrünü kontrol et — 8-15 dakikalık bir turun ortasında dolan token
+// turu sıfır yayınla bitirir (bkz. refreshToken'daki bulgu). Yenileme ucuz, kaybedilen tur değil.
+const expiry = tokenExpiresAt();
+if (expiry === null || expiry - Date.now() < TOKEN_MIN_REMAINING_MS) {
+  refreshToken(expiry === null ? 'geçerlilik süresi okunamadı' : `token ${Math.round((expiry - Date.now()) / 60000)} dk sonra doluyor`);
+} else {
+  console.log(`  [token] geçerlilik ${new Date(expiry).toISOString()} (${Math.round((expiry - Date.now()) / 60000)} dk)`);
+}
 
 const started = Date.now();
 const stats = await runGundemIngestion(env, deps, {
