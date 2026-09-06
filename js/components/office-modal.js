@@ -365,22 +365,30 @@ const OfficeModal = (function () {
   // projelerini pinleyen dinamik bir harita). Veri her renderItem() çağrısında /api/office/:slug'tan
   // (bkz. fetchItem) taze geldiğinden — bir proje bu firmaya eklenip/çıkarıldığında
   // payload.relatedProjects da değişir — harita da otomatik güncellenir.
-  let omMapLeafletPromise = null;
   function loadOmMapLeaflet() {
-    if (omMapLeafletPromise) return omMapLeafletPromise;
-    omMapLeafletPromise = new Promise((resolve, reject) => {
+    // TEK PAYLAŞILAN LEAFLET YÜKLEYİCİSİ (kullanıcı isteği, 2026-09-06 madde 6): aynı belgede artık
+    // proje/kişi/firma/ürün popup'ları birbirinin üstüne açılabiliyor (bkz. js/components/
+    // lazy-modals.js#ENTITY_MODULES), dolayısıyla iki farklı modülün haritası AYNI ANDA istenebilir.
+    // Her modül KENDİ promise'ini tutsaydı, window.L henüz tanımlı değilken ikisi de birer <script>
+    // enjekte edip Leaflet'i iki kez indirip parse ederdi. Promise ve CSS <link> artık belge
+    // genelinde paylaşılır; her modülün kendi harita kurulumu (initialization) değişmeden kalır.
+    if (window.__mimarlabLeafletPromise) return window.__mimarlabLeafletPromise;
+    window.__mimarlabLeafletPromise = new Promise((resolve, reject) => {
       if (window.L) { resolve(window.L); return; }
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+      if (!document.getElementById('mimarlab-leaflet-css')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.id = 'mimarlab-leaflet-css';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
       script.onload = () => resolve(window.L);
       script.onerror = reject;
       document.head.appendChild(script);
     });
-    return omMapLeafletPromise;
+    return window.__mimarlabLeafletPromise;
   }
   let omProjectsMap = null;
   let omMapRequestSeq = 0;
@@ -1062,6 +1070,8 @@ const OfficeModal = (function () {
     if (!panels || panels.bodyEl.dataset.omNavWired) return;
     panels.bodyEl.dataset.omNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
+      // bkz. js/components/architect-modal.js#wireInternalNav — BİREBİR aynı gerekçe.
+      if (ModalShell.getContentOwner() !== 'office') return;
       const a = e.target.closest('a[href^="/firma/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const m = a.getAttribute('href').match(/^\/firma\/([^/?#]+)/);
@@ -1131,7 +1141,10 @@ const OfficeModal = (function () {
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
-    if (slug === currentSlug) return;
+    // bkz. js/components/project-modal.js#handlePopState — BİREBİR aynı sahip kontrolü gerekçesi.
+    const ownsContent = ModalShell.getContentOwner() === 'office';
+    if (ownsContent && slug === currentSlug) return;
+    if (!ownsContent) { injectStyles(); ModalShell.open({ onRequestClose: close }); ensureTemplate(); }
     currentSlug = slug;
     (async () => {
       const mySeq = ++requestSeq;
@@ -1147,3 +1160,8 @@ const OfficeModal = (function () {
 
   return { open, swap, close, handlePopState, isOpen, getCurrentSlug };
 })();
+
+// window.OfficeModal — üstteki `const OfficeModal` klasik <script> global scope'unda kalır ve top-level leksikal
+// bildirim olduğundan window üzerinde bir ÖZELLİK OLUŞTURMAZ (bkz. modal-shell.js sonundaki AYNI not).
+// js/components/lazy-modals.js bu modülü TEMBEL yükleyip window üzerinden bulabilsin diye eklenir.
+window.OfficeModal = OfficeModal;

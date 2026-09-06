@@ -26,32 +26,31 @@ let currentPage = 1;
 let currentItems = [];
 let leafletMap = null;
 let mapMarkers = [];
-let leafletPromise = null;
-// mapViewActive: kullanıcı şu an Harita sekmesinde mi (bkz. wireViewToggle#setView) — render()
-// bunu okuyarak Harita GÖRÜNMÜYORKEN gereksiz "tüm filtrelenmiş projeler" isteği atmaz; Liste'den
-// Harita'ya her dönüşte (mapLoaded olsa bile, çünkü aradan filtre değişmiş olabilir) refreshMap()
-// yeniden çağrılır.
-let mapViewActive = false;
-let mapRequestId = 0;
-
-// proje.html Leaflet CSS/JS'i sayfa yüklenişinde HİÇ içermiyor (proje-ekle.html'in aksine) — script
-// tag'ı yalnızca kullanıcı Harita'ya İLK kez geçtiğinde dinamik eklenir, her /proje ziyaretinde değil.
-function loadLeaflet(){
-  if (leafletPromise) return leafletPromise;
-  leafletPromise = new Promise((resolve, reject) => {
-    if (window.L) { resolve(window.L); return; }
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = () => resolve(window.L);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-  return leafletPromise;
-}
+  function loadLeaflet(){
+    // TEK PAYLAŞILAN LEAFLET YÜKLEYİCİSİ (kullanıcı isteği, 2026-09-06 madde 6): aynı belgede artık
+    // proje/kişi/firma/ürün popup'ları birbirinin üstüne açılabiliyor (bkz. js/components/
+    // lazy-modals.js#ENTITY_MODULES), dolayısıyla iki farklı modülün haritası AYNI ANDA istenebilir.
+    // Her modül KENDİ promise'ini tutsaydı, window.L henüz tanımlı değilken ikisi de birer <script>
+    // enjekte edip Leaflet'i iki kez indirip parse ederdi. Promise ve CSS <link> artık belge
+    // genelinde paylaşılır; her modülün kendi harita kurulumu (initialization) değişmeden kalır.
+    if (window.__mimarlabLeafletPromise) return window.__mimarlabLeafletPromise;
+    window.__mimarlabLeafletPromise = new Promise((resolve, reject) => {
+      if (window.L) { resolve(window.L); return; }
+      if (!document.getElementById('mimarlab-leaflet-css')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.id = 'mimarlab-leaflet-css';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => resolve(window.L);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return window.__mimarlabLeafletPromise;
+  }
 
 // mapWrap henüz kurulmamışsa (Harita sekmesi hiç açılmadıysa) no-op — wireViewToggle map'i ilk
 // kurduğunda zaten currentItems'ın en güncel halini kendisi geçiriyor, burada TEKRAR çağırmaya
@@ -1095,6 +1094,11 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 // (ör. /proje?filtre=...) eski davranış aynen korunur; modal açıksa önce (URL zaten doğru olduğundan
 // history'e TEKRAR yazmadan) kapatılır.
 window.addEventListener('popstate', ()=>{
+  // bkz. js/components/lazy-modals.js#ENTITY_MODULES — bu yol, yüklü bir varlık modalına (proje/
+  // ürün/kişi/firma popup'ı) aitse geçişi ORASI üstlenir. Kenara çekilmezsek: (a) tanımadığımız
+  // /kisi/:slug gibi bir yolda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan popup'ı hemen
+  // kapatırdı; (b) tanıdığımız yollarda aynı handlePopState iki kez çağrılırdı.
+  if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
   const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
   if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
   // kullanıcı isteği (2026-09-01 madde 2): bu sayfa artık ürün popup'ını da barındırıyor (bkz.

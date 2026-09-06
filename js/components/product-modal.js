@@ -1389,7 +1389,10 @@ const ProductModal = (function () {
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
-    if (slug === currentSlug) return;
+    // bkz. js/components/project-modal.js#handlePopState — BİREBİR aynı sahip kontrolü gerekçesi.
+    const ownsContent = ModalShell.getContentOwner() === 'product';
+    if (ownsContent && slug === currentSlug) return;
+    if (!ownsContent) { injectStyles(); ModalShell.open({ onRequestClose: close }); ensureTemplate(); }
     currentSlug = slug;
     (async () => {
       const mySeq = ++requestSeq;
@@ -1405,3 +1408,8 @@ const ProductModal = (function () {
 
   return { open, swap, close, handlePopState, isOpen, getCurrentSlug };
 })();
+
+// window.ProductModal — üstteki `const ProductModal` klasik <script> global scope'unda kalır ve top-level leksikal
+// bildirim olduğundan window üzerinde bir ÖZELLİK OLUŞTURMAZ (bkz. modal-shell.js sonundaki AYNI not).
+// js/components/lazy-modals.js bu modülü TEMBEL yükleyip window üzerinden bulabilsin diye eklenir.
+window.ProductModal = ProductModal;

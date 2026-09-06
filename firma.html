@@ -914,6 +914,11 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
 // Tarayıcı geri/ileri tuşu: /firma/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca firma modalını
 // güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
 window.addEventListener('popstate', ()=>{
+  // bkz. js/components/lazy-modals.js#ENTITY_MODULES — bu yol, yüklü bir varlık modalına
+  // (proje/ürün/kişi/firma popup'ı) aitse geçişi ORASI üstlenir; burada karışmayız (aksi halde
+  // tanımadığımız bir varlık yolunda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan
+  // popup'ı hemen kapatırdı). Aynı gerekçe js/pages/proje.js'te de var.
+  if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
   const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
   if(m){ OfficeModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(OfficeModal.isOpen()){ OfficeModal.handlePopState(null); return; }

@@ -1824,23 +1824,31 @@ const InfoModal = (function () {
     /* ---------- Firma profili önizlemesi: CANLI (ekran görüntüsü DEĞİL) ----------
        TEK istek yeterli: /api/office/:slug hem item'ı hem founders'ı hem relatedProjects'i döndürür.
        Slug elle yazılmaz, /api/public/platform#officeShowcaseSlug'tan gelir. */
-    let nmLeafletPromise = null;
-    function loadNmLeaflet() {
-      if (nmLeafletPromise) return nmLeafletPromise;
-      nmLeafletPromise = new Promise((resolve, reject) => {
-        if (window.L) { resolve(window.L); return; }
+  function loadNmLeaflet() {
+    // TEK PAYLAŞILAN LEAFLET YÜKLEYİCİSİ (kullanıcı isteği, 2026-09-06 madde 6): aynı belgede artık
+    // proje/kişi/firma/ürün popup'ları birbirinin üstüne açılabiliyor (bkz. js/components/
+    // lazy-modals.js#ENTITY_MODULES), dolayısıyla iki farklı modülün haritası AYNI ANDA istenebilir.
+    // Her modül KENDİ promise'ini tutsaydı, window.L henüz tanımlı değilken ikisi de birer <script>
+    // enjekte edip Leaflet'i iki kez indirip parse ederdi. Promise ve CSS <link> artık belge
+    // genelinde paylaşılır; her modülün kendi harita kurulumu (initialization) değişmeden kalır.
+    if (window.__mimarlabLeafletPromise) return window.__mimarlabLeafletPromise;
+    window.__mimarlabLeafletPromise = new Promise((resolve, reject) => {
+      if (window.L) { resolve(window.L); return; }
+      if (!document.getElementById('mimarlab-leaflet-css')) {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
+        link.id = 'mimarlab-leaflet-css';
         link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
         document.head.appendChild(link);
-        const sc = document.createElement('script');
-        sc.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        sc.onload = () => resolve(window.L);
-        sc.onerror = reject;
-        document.head.appendChild(sc);
-      });
-      return nmLeafletPromise;
-    }
+      }
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => resolve(window.L);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return window.__mimarlabLeafletPromise;
+  }
     function mountFirmMap(projects) {
       const wrap = $('nm-pop-map');
       if (!wrap) return;

@@ -356,7 +356,7 @@
         <a class="footer-logo" href="/">
           <img class="footer-logo-img" id="footer-logo-img" src="${currentFooterLogoSrc()}" alt="MimarLab" loading="lazy" decoding="async">
         </a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı ve fotoğrafçılık gibi disiplinleri ve çeşitli üreticileri bir araya getiren çok disiplinli bir platform.</p>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>

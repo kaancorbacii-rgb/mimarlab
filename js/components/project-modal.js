@@ -513,22 +513,30 @@ const ProjectModal = (function () {
   // kez açıldığında dinamik eklenir — bu bileşen index/proje/mimar/firma/urun gibi Leaflet YÜKLEMEYEN
   // birçok sayfadan açılabildiğinden, kendi kendine yeten bir yükleyicisi olması gerekir (proje.js'in
   // sayfa-özel loadLeaflet'ine bağımlı kalınamaz).
-  let leafletPromise = null;
   function loadLeaflet() {
-    if (leafletPromise) return leafletPromise;
-    leafletPromise = new Promise((resolve, reject) => {
+    // TEK PAYLAŞILAN LEAFLET YÜKLEYİCİSİ (kullanıcı isteği, 2026-09-06 madde 6): aynı belgede artık
+    // proje/kişi/firma/ürün popup'ları birbirinin üstüne açılabiliyor (bkz. js/components/
+    // lazy-modals.js#ENTITY_MODULES), dolayısıyla iki farklı modülün haritası AYNI ANDA istenebilir.
+    // Her modül KENDİ promise'ini tutsaydı, window.L henüz tanımlı değilken ikisi de birer <script>
+    // enjekte edip Leaflet'i iki kez indirip parse ederdi. Promise ve CSS <link> artık belge
+    // genelinde paylaşılır; her modülün kendi harita kurulumu (initialization) değişmeden kalır.
+    if (window.__mimarlabLeafletPromise) return window.__mimarlabLeafletPromise;
+    window.__mimarlabLeafletPromise = new Promise((resolve, reject) => {
       if (window.L) { resolve(window.L); return; }
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+      if (!document.getElementById('mimarlab-leaflet-css')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.id = 'mimarlab-leaflet-css';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
       script.onload = () => resolve(window.L);
       script.onerror = reject;
       document.head.appendChild(script);
     });
-    return leafletPromise;
+    return window.__mimarlabLeafletPromise;
   }
 
   function buildLeafletMap(container, item) {
@@ -782,7 +790,15 @@ const ProjectModal = (function () {
     if (mapWrap) mapWrap.innerHTML = '';
     mapLoadedSlug = null;
     const mapSection = document.getElementById('pm-map-section');
-    if (mapSection && mapSection.open) loadMapForCurrentItem();
+    // KRİTİK YOLDAN ÇIKARILDI (kullanıcı isteği, 2026-09-06 madde 6): harita kutucuğu varsayılan
+    // olarak AÇIK (bkz. LEFT_TEMPLATE'teki <details ... open>) olduğundan bu satır her popup
+    // açılışında unpkg.com'dan Leaflet CSS+JS ve Esri döşeme isteklerini HEMEN kuyruğa alıyordu —
+    // popup'ın kendi görselleriyle aynı anda ağ/ana iş parçacığı için yarışıyorlardı. setTimeout(0)
+    // ile bir sonraki makro göreve ertelenince tarayıcı önce hazır DOM'u boyar, harita hemen
+    // ardından yüklenir. GÖRÜNÜM DEĞİŞMEZ: kutucuk yine açık, harita yine aynı yerde, tek fark bir
+    // kare gecikme. requestAnimationFrame KULLANILMAZ — arka plan sekmesinde hiç tetiklenmez ve
+    // harita sonsuza kadar yüklenmemiş kalırdı.
+    if (mapSection && mapSection.open) setTimeout(() => { if (mySeq === requestSeq) loadMapForCurrentItem(); }, 0);
     ModalShell.scrollToTop();
   }
 
@@ -924,7 +940,15 @@ const ProjectModal = (function () {
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
-    if (slug === currentSlug) return;
+    // SAHİP KONTROLÜ (kullanıcı isteği, 2026-09-06: aynı belgede popup türleri arası geçiş) —
+    // geri/ileri tuşu bizi bir proje URL'ine getirdiğinde ekrandaki popup BAŞKA bir modalın
+    // (kişi/firma/ürün) olabilir; o durumda paneller onun DOM'unu taşır ve renderItem'ın aradığı
+    // #pm-* düğümleri yoktur. Şablonu geri almak (ensureTemplate → claimContent) ve kapatma
+    // isteğini bu modala yeniden bağlamak (ModalShell.open) ŞART. Slug aynı olsa bile erken
+    // dönülemez: içerik başka bir modalın, yeniden çizilmeli.
+    const ownsContent = ModalShell.getContentOwner() === 'project';
+    if (ownsContent && slug === currentSlug) return;
+    if (!ownsContent) { ModalShell.open({ onRequestClose: close }); ensureTemplate(); }
     currentSlug = slug;
     renderLoading(); // bkz. open()/swap()'taki AYNI gerçek bulgu — geri/ileri ile geçişte de eski proje içeriği bir an bayat kalmasın
     (async () => {
@@ -942,3 +966,8 @@ const ProjectModal = (function () {
 
   return { open, swap, close, handlePopState, isOpen, getCurrentSlug };
 })();
+
+// window.ProjectModal — üstteki `const ProjectModal` klasik <script> global scope'unda kalır ve top-level leksikal
+// bildirim olduğundan window üzerinde bir ÖZELLİK OLUŞTURMAZ (bkz. modal-shell.js sonundaki AYNI not).
+// js/components/lazy-modals.js bu modülü TEMBEL yükleyip window üzerinden bulabilsin diye eklenir.
+window.ProjectModal = ProjectModal;

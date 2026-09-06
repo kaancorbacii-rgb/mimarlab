@@ -1160,6 +1160,11 @@ document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage =
 // Tarayıcı geri/ileri tuşu: /urun/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca ürün modalını
 // güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
 window.addEventListener('popstate', ()=>{
+  // bkz. js/components/lazy-modals.js#ENTITY_MODULES — bu yol, yüklü bir varlık modalına
+  // (proje/ürün/kişi/firma popup'ı) aitse geçişi ORASI üstlenir; burada karışmayız (aksi halde
+  // tanımadığımız bir varlık yolunda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan
+  // popup'ı hemen kapatırdı). Aynı gerekçe js/pages/proje.js'te de var.
+  if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
   const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
   if(m){ ProductModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(ProductModal.isOpen()){ ProductModal.handlePopState(null); return; }

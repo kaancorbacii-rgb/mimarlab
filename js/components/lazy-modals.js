@@ -63,6 +63,81 @@
     },
   };
 
+  // ---------------------------------------------------------------------------------------------
+  // VARLIK POPUP'LARI ARASI GEÇİŞ (kullanıcı isteği, 2026-09-06)
+  //
+  // ÖLÇÜLEN SORUN (canlı, mimarlab.com): proje/ürün popup'ındaki bir `/kisi/:slug` ya da
+  // `/firma/:slug` bağlantısı GERÇEK bir tam sayfa gezinmesiydi — proje.html/urun.html
+  // architect-modal.js/office-modal.js YÜKLEMEZ (bilinçli bir ilk-yük bütçesi kararı), bu yüzden
+  // tarayıcı yeni bir belge açıyordu: TTFB ~844 ms, DOMContentLoaded ~2097 ms, varlık API'si ancak
+  // ~2097 ms'de BAŞLIYOR (~2,5 sn'de bitiyor), üstelik arkadaki liste sayfası da baştan çiziliyor.
+  // Aynı belgede açılan bir popup ise ~250-350 ms.
+  //
+  // ÇÖZÜM, yukarıdaki auth/info deseninin BİREBİR AYNISI (yeni bir paralel sistem DEĞİL): modül
+  // yalnızca ilk ihtiyaç anında — bağlantıya tıklanınca — indirilir, ilk sayfa yüküne hiçbir şey
+  // eklenmez, sonra popup AYNI belgede açılır. Yan kazanç: kapanış artık zaten var olan
+  // goBackAndWait(N) yoluna düşer, yani liste sayfası hiç yeniden yüklenmez (scroll/filtre/sayfa
+  // durumu bfcache'e bile ihtiyaç duymadan yerinde kalır).
+  //
+  // SEO'da HİÇBİR ŞEY DEĞİŞMEZ: URL'ler yine aynı kanonik yollara history.pushState ile yazılır;
+  // `/kisi/:slug`'a doğrudan, paylaşılan bir linkle ya da bir botla gelindiğinde sunucu yine
+  // SSR meta + #ssr-entity-body + JSON-LD üretir (bkz. src/index.js#injectMeta). Değişen tek şey,
+  // SİTE İÇİ bir tıklamanın tarayıcıyı yeni bir belge yüklemeye zorlamaması.
+  //
+  // preloadedOnly: modül SAYFADA ZATEN VARSA kullan, YOKSA indirme (tarayıcının normal gezinmesine
+  // bırak). 'project' için böyle: project-modal.js'in bağımlılık zinciri (galeri/künye/aksiyon/
+  // yorum/ilgili/ürünler/hotspot/rating — 10+ dosya) tembel indirilecek kadar küçük değil. Yine de
+  // kayıtlı olması ŞART: proje.html'de bir kişi/firma popup'ı açıkken oradaki `/proje/:slug`
+  // bağlantısı, ProjectModal'ın kendi (sahip kontrollü) dinleyicisi tarafından ele alınmaz ve
+  // ZATEN YÜKLÜ bir modül dururken gereksiz bir tam sayfa yeniden yüklemesine düşerdi.
+  const ENTITY_MODULES = {
+    architect: {
+      src: 'js/components/architect-modal.js', globalName: 'ArchitectModal',
+      owner: 'architect', pathRe: /^\/kisi\/([^/?#]+)/, parallelDeps: true,
+      // kisi.html'in architect-modal.js'ten ÖNCE yüklediği ama proje/urun/firma/marka.html'de
+      // BULUNMAYAN modüller. MessageWidget/SocialLinks/ConsultationModal architect-modal.js içinde
+      // `typeof … !== 'undefined'` ile korunuyor (eksik olsalar çökmez, yalnızca o bölümler
+      // görünmez); createClaimCorrectionBox ise KORUMASIZ çağrılıyor — o olmadan popup
+      // ReferenceError verirdi. Dördü de yüklenerek popup, /kisi listesinden açılanla BİREBİR aynı
+      // olur (kullanıcı isteği: mevcut UI/UX değişmesin).
+      deps: ['js/components/claim-correction-box.js', 'js/components/message-button.js',
+        'js/components/social-links.js', 'js/components/consultation-modal.js'],
+    },
+    office: {
+      src: 'js/components/office-modal.js', globalName: 'OfficeModal',
+      owner: 'office', pathRe: /^\/firma\/([^/?#]+)/, parallelDeps: true,
+      // firma.html/marka.html'in office-modal.js'ten önce yüklediği aynı üçlü (ConsultationModal
+      // firma popup'ında kullanılmıyor).
+      deps: ['js/components/claim-correction-box.js', 'js/components/message-button.js',
+        'js/components/social-links.js'],
+    },
+    product: {
+      src: 'js/components/product-modal.js', globalName: 'ProductModal',
+      owner: 'product', pathRe: /^\/urun\/([^/?#]+)/, parallelDeps: true,
+      // product-modal.js initDetailGallery (gallery.js) ve mountRateButton (rating-widget.js)
+      // çağırıyor; ilki KORUMASIZ. Diğer bağımlılıkları (RelatedStrip/ProjectGroupFilter/
+      // ShareWidget/cdnImg/savedWidgetReady) kişi/firma/marka sayfalarında zaten yüklü.
+      deps: ['js/components/gallery.js', 'rating-widget.js'],
+    },
+    project: {
+      src: 'js/components/project-modal.js', globalName: 'ProjectModal',
+      owner: 'project', pathRe: /^\/proje\/([^/?#]+)/, preloadedOnly: true,
+    },
+  };
+
+  // Bir yol, TEMBEL YÜKLENMİŞ (ya da zaten yüklü) bir varlık modalına mı ait? Sayfaların kendi
+  // popstate dinleyicileri bunu sorup kenara çekilir (bkz. aşağıdaki popstate dinleyicisi ve
+  // proje.js/kisi.html/firma.html/marka.html/urun.html'deki tek satırlık kapı). Modül yüklü
+  // DEĞİLSE false döner — o zaman sayfanın eski davranışı aynen sürer.
+  function entityModuleForPath(pathname) {
+    for (const key in ENTITY_MODULES) {
+      const mod = ENTITY_MODULES[key];
+      const m = (pathname || '').match(mod.pathRe);
+      if (m && window[mod.globalName]) return { key, mod, slug: decodeURIComponent(m[1]) };
+    }
+    return null;
+  }
+
   // Bir yol (pathname) hangi modülün hangi görünümüne karşılık geliyor? Sondaki '/' yok sayılır —
   // auth-modal.js/info-modal.js#pathToView ile AYNI normalizasyon.
   function viewForPath(mod, pathname) {
@@ -87,24 +162,38 @@
     return null;
   }
 
+  // auth/info + varlık modalleri TEK bir tabloda toplanır ki loadModule() ikisi için de çalışsın
+  // (anahtarlar çakışmıyor). Yukarıdaki auth/info döngüleri hâlâ yalnızca MODULES'ü gezer — o
+  // davranış hiç değişmez.
+  const ALL_MODULES = Object.assign({}, MODULES, ENTITY_MODULES);
+
   const pending = {};
   // src'si zaten sayfada varsa (ör. bu betik iki kez dahil edilmişse) tekrar enjekte etmez —
   // window.AuthModal/InfoModal (bkz. o dosyaların sonundaki AYNI not) hazır olana kadar bekler.
   function loadModule(key) {
     if (pending[key]) return pending[key];
-    const mod = MODULES[key];
+    const mod = ALL_MODULES[key];
     if (window[mod.globalName]) { pending[key] = Promise.resolve(window[mod.globalName]); return pending[key]; }
     // Bağımlılıklar modülden ÖNCE ve sırayla yüklenir. Bir bağımlılık yüklenemezse modül YİNE DE
     // yüklenir (bkz. auth-modal.js'teki yedek liste) — yardımcı bir veri dosyası yüzünden tüm
     // Hesabım popup'ını kaybetmek çok daha kötü olurdu.
-    const depsReady = (mod.deps || []).reduce((chain, src) => chain.then(() => new Promise(res => {
+    const loadDep = (src) => new Promise(res => {
       if (document.querySelector(`script[src="${src}"]`)) return res();
       const dep = document.createElement('script');
       dep.src = src;
       dep.onload = () => res();
       dep.onerror = () => { dep.remove(); res(); };
       document.head.appendChild(dep);
-    })), Promise.resolve());
+    });
+    // parallelDeps: bağımlılıklar BİRBİRİNDEN bağımsızsa hepsi AYNI ANDA indirilir. Varlık
+    // modallerinin bağımlılıkları (claim-correction-box/message-button/social-links/
+    // consultation-modal/gallery/rating-widget) birbirine hiç dokunmayan ayrı IIFE'ler; sıralı
+    // zincir her biri için AYRI bir gidiş-dönüş demekti (yerelde ölçüldü: 4 bağımlılık + modül =
+    // 5 ardışık istek, ~57 ms; canlıdaki RTT ile bu birkaç yüz ms'ye çıkardı). auth/info bu
+    // bayrağı TAŞIMAZ — orada profession-shared.js → profession-drawer.js sırası korunur.
+    const depsReady = mod.parallelDeps
+      ? Promise.all((mod.deps || []).map(loadDep))
+      : (mod.deps || []).reduce((chain, src) => chain.then(() => loadDep(src)), Promise.resolve());
 
     pending[key] = depsReady.then(() => new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -164,4 +253,66 @@
       if (viewForPath(MODULES[key], location.pathname)) loadModule(key).catch(() => {});
     }
   });
+
+  // ---------------------------------------------------------------------------------------------
+  // Varlık bağlantısı tıklaması (bkz. ENTITY_MODULES dosya-içi yorumu).
+  //
+  // KAPSAM BİLEREK DAR: yalnızca AÇIK bir ModalShell popup'ının İÇİNDEN gelen tıklamalar yakalanır.
+  // Liste sayfalarının kendi kart davranışı (her sayfanın kendi kart dinleyicisi) hiç değişmez —
+  // orada modül zaten yüklü ve zaten aynı belgede açılıyor.
+  //
+  // e.defaultPrevented kapısı: AYNI TÜR içindeki gezinmeyi (proje→proje, kişi→kişi) ilgili modalın
+  // KENDİ bodyEl dinleyicisi swap() ile hâlâ işler ve preventDefault eder — o tıklamalar buraya
+  // hiç düşmez. Buraya yalnızca TÜR DEĞİŞTİREN tıklamalar gelir ve onlar open() ile açılır
+  // (open(), ensureTemplate/claimContent üzerinden şablonu doğru modala geçirir).
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest('a[href]');
+    if (!a || (a.target && a.target !== '_self')) return;
+    if (!a.closest('.modal-shell-overlay.open')) return;
+    let path;
+    try {
+      const u = new URL(a.getAttribute('href'), document.baseURI);
+      if (u.origin !== location.origin) return; // dış bağlantılara dokunma
+      path = u.pathname;
+    } catch { return; }
+    for (const key in ENTITY_MODULES) {
+      const mod = ENTITY_MODULES[key];
+      const m = path.match(mod.pathRe);
+      if (!m) continue;
+      // Zaten bu türün popup'ı ekrandaysa tıklamayı o modalın kendi swap()'ı işlemiş olmalıydı;
+      // işlememişse (ör. beklenmedik bir DOM yolu) tarayıcının normal gezinmesine bırakmak
+      // buradan open() çağırmaktan daha güvenli — çift history girdisi yazmayalım.
+      if (window.ModalShell && ModalShell.getContentOwner() === mod.owner) return;
+      if (mod.preloadedOnly && !window[mod.globalName]) return; // indirme, tarayıcı gitsin
+      e.preventDefault();
+      const slug = decodeURIComponent(m[1]);
+      const href = a.href;
+      // Yükleme başarısız olursa (offline/timeout, bkz. loadModule#onerror) kullanıcıyı elleri boş
+      // bırakmamak için normal tam sayfa gezinmesine düşülür — auth/info dalındaki AYNI güvenlik ağı.
+      loadModule(key)
+        .then((Modal) => { if (Modal && Modal.open) Modal.open(slug, { triggerEl: a }); else window.location.href = href; })
+        .catch(() => { window.location.href = href; });
+      return;
+    }
+  });
+
+  // Geri/ileri tuşu. Sayfaların KENDİ popstate dinleyicisi yalnızca kendi "yerli" türünü tanır
+  // (ör. js/pages/proje.js /proje/ ve /urun/ bilir, /kisi/ bilmez) ve tanımadığı bir yolda son
+  // dalına düşüp AÇIK popup'ı kapatırdı. Bu yüzden yerli olsun olmasın, yüklü bir varlık modalına
+  // ait TÜM yolları burası üstlenir; sayfalar da `LazyModals.ownsPath()` ile kenara çekilir (bkz.
+  // o dosyalardaki tek satırlık kapı). İki dinleyicinin sırası (defer/inline) sayfadan sayfaya
+  // değiştiğinden çözüm stopImmediatePropagation gibi sıraya BAĞLI bir yöntem DEĞİL.
+  //
+  // Yerli türlerde davranış birebir aynıdır: o sayfaların dinleyicisi de tam olarak
+  // `Modal.handlePopState(slug)` çağırıp return ediyordu.
+  window.addEventListener('popstate', () => {
+    const hit = entityModuleForPath(location.pathname);
+    if (!hit) return;
+    const Modal = window[hit.mod.globalName];
+    if (Modal && Modal.handlePopState) Modal.handlePopState(hit.slug);
+  });
+
+  // Sayfaların popstate dinleyicilerinin sorduğu tek soru (bkz. yukarısı).
+  window.LazyModals = { ownsPath: (pathname) => !!entityModuleForPath(pathname) };
 })();

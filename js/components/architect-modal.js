@@ -340,22 +340,30 @@ const ArchitectModal = (function () {
   // "canlı senkron" mekanizmasına gerek yok. js/pages/proje.js#loadLeaflet İLE AYNI Leaflet + Esri
   // World Imagery yığını (anahtarsız/ücretsiz) — bu modül kisi.html'de Leaflet YÜKLEMEYEN diğer
   // sayfalardan bağımsız kendi yükleyicisini taşır (proje.js'in sayfa-özel global'ine bağımlı kalınamaz).
-  let amMapLeafletPromise = null;
   function loadAmMapLeaflet() {
-    if (amMapLeafletPromise) return amMapLeafletPromise;
-    amMapLeafletPromise = new Promise((resolve, reject) => {
+    // TEK PAYLAŞILAN LEAFLET YÜKLEYİCİSİ (kullanıcı isteği, 2026-09-06 madde 6): aynı belgede artık
+    // proje/kişi/firma/ürün popup'ları birbirinin üstüne açılabiliyor (bkz. js/components/
+    // lazy-modals.js#ENTITY_MODULES), dolayısıyla iki farklı modülün haritası AYNI ANDA istenebilir.
+    // Her modül KENDİ promise'ini tutsaydı, window.L henüz tanımlı değilken ikisi de birer <script>
+    // enjekte edip Leaflet'i iki kez indirip parse ederdi. Promise ve CSS <link> artık belge
+    // genelinde paylaşılır; her modülün kendi harita kurulumu (initialization) değişmeden kalır.
+    if (window.__mimarlabLeafletPromise) return window.__mimarlabLeafletPromise;
+    window.__mimarlabLeafletPromise = new Promise((resolve, reject) => {
       if (window.L) { resolve(window.L); return; }
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+      if (!document.getElementById('mimarlab-leaflet-css')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.id = 'mimarlab-leaflet-css';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
       script.onload = () => resolve(window.L);
       script.onerror = reject;
       document.head.appendChild(script);
     });
-    return amMapLeafletPromise;
+    return window.__mimarlabLeafletPromise;
   }
   let amProjectsMap = null;
   let amMapRequestSeq = 0;
@@ -1014,6 +1022,14 @@ const ArchitectModal = (function () {
     if (!panels || panels.bodyEl.dataset.amNavWired) return;
     panels.bodyEl.dataset.amNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
+      // bkz. modal-shell.js#getContentOwner — bu dinleyici PAYLAŞILAN bodyEl'e KALICI olarak bağlı.
+      // Aynı belgede artık firma/ürün/proje popup'ları da açılabildiğinden (bkz. lazy-modals.js#
+      // ENTITY_MODULES), ekranda bir FİRMA popup'ı varken buradaki swap() çalışırsa #am-* düğümleri
+      // hiç var olmayan bir şablona render etmeye çalışırdı. Sahip bu modal DEĞİLSE tıklama
+      // dokunulmadan bırakılır; lazy-modals.js'in belge seviyesindeki dinleyicisi onu doğru modalın
+      // open()'ına (ensureTemplate ile şablonu geri alan yol) yönlendirir. project-modal.js/
+      // product-modal.js'teki AYNI koruma.
+      if (ModalShell.getContentOwner() !== 'architect') return;
       const a = e.target.closest('a[href^="/kisi/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const m = a.getAttribute('href').match(/^\/kisi\/([^/?#]+)/);
@@ -1083,7 +1099,10 @@ const ArchitectModal = (function () {
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
-    if (slug === currentSlug) return;
+    // bkz. js/components/project-modal.js#handlePopState — BİREBİR aynı sahip kontrolü gerekçesi.
+    const ownsContent = ModalShell.getContentOwner() === 'architect';
+    if (ownsContent && slug === currentSlug) return;
+    if (!ownsContent) { injectStyles(); ModalShell.open({ onRequestClose: close }); ensureTemplate(); }
     currentSlug = slug;
     (async () => {
       const mySeq = ++requestSeq;
@@ -1099,3 +1118,8 @@ const ArchitectModal = (function () {
 
   return { open, swap, close, handlePopState, isOpen, getCurrentSlug };
 })();
+
+// window.ArchitectModal — üstteki `const ArchitectModal` klasik <script> global scope'unda kalır ve top-level leksikal
+// bildirim olduğundan window üzerinde bir ÖZELLİK OLUŞTURMAZ (bkz. modal-shell.js sonundaki AYNI not).
+// js/components/lazy-modals.js bu modülü TEMBEL yükleyip window üzerinden bulabilsin diye eklenir.
+window.ArchitectModal = ArchitectModal;
