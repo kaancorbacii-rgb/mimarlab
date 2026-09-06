@@ -1143,7 +1143,7 @@ async function buildGundemMeta(slug, env) {
     // geçirir, o da bu depodaki R2 türev şemasına göre yol kurar — Gündem görselleri BAŞKA bir
     // sitenin CDN'inde durduğundan o dönüşüm bozuk bir URL üretirdi. Görsel bu yüzden kartın
     // kendi HTML'inin içinde, olduğu gibi yer alır.
-    bodyHtml: gundemSsrCard(row, { linkTitle: false }),
+    bodyHtml: gundemSsrCard(row, { linkTitle: false, showTitle: false }),
   };
 }
 

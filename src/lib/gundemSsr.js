@@ -39,16 +39,23 @@ export function gundemCategoryLabel(key) {
 }
 
 // Tek bir kart. `linkTitle=false` (detay sayfası) başlığı bağlantıya sarmaz — sayfa zaten o içeriğin
-// kendisidir, kendine link vermek anlamsız olurdu.
+// kendisidir, kendine link vermek anlamsız olurdu. `showTitle=false` başlığı TAMAMEN atlar: detay
+// sayfasında başlık zaten sayfanın H1'idir (src/index.js#injectMeta onu kayda göre doldurur), kart
+// içinde ikinci kez basmak aynı metni ekranda iki kez gösterirdi.
 //
 // GÖRSEL: kaynağın kendi CDN'inden gelir (bkz. migrations/0099 dosya başı). width/height ÖZNİTELİKLERİ
 // zorunlu — kaynak görselinin gerçek oranını bilmiyoruz ve CSS aspect-ratio ile kırpıyoruz, ama bu
 // iki öznitelik olmadan JS'siz görünümde CLS oluşur (madde 19). referrerpolicy="no-referrer":
 // ziyaretçinin hangi MİMARLAB sayfasında olduğu bilgisi üçüncü taraf sunucularına sızmaz.
-export function gundemSsrCard(row, { linkTitle = true } = {}) {
+export function gundemSsrCard(row, { linkTitle = true, showTitle = true } = {}) {
   if (!row) return '';
   const date = formatTrDate(row.source_published_at || row.published_at);
-  const meta = [date, gundemCategoryLabel(row.category), row.source_name].filter(Boolean).map(escapeHtml).join(' · ');
+  // js/pages/gundem.js#cardHtml ile AYNI metadata dili (tarih gri / kategori kalın-koyu / kaynak
+  // orta noktadan sonra) — ikisi ayrışırsa JS yüklendiği anda görünür bir sıçrama olurdu.
+  const meta =
+    `<span class="gundem-date">${escapeHtml(date)}</span>` +
+    `<span class="gundem-cat">${escapeHtml(gundemCategoryLabel(row.category))}</span>` +
+    `<span class="gundem-src">${escapeHtml(row.source_name)}</span>`;
   const href = `/gundem/${encodeURIComponent(row.slug)}`;
   const titleHtml = linkTitle
     ? `<a href="${escapeAttr(href)}">${escapeHtml(row.title)}</a>`
@@ -57,7 +64,7 @@ export function gundemSsrCard(row, { linkTitle = true } = {}) {
     `<img class="gundem-ssr-img" src="${escapeAttr(row.image_url)}" alt="" width="640" height="400" loading="lazy" decoding="async" referrerpolicy="no-referrer">` +
     `<div class="gundem-ssr-body">` +
       `<p class="gundem-ssr-meta">${meta}</p>` +
-      `<h2 class="gundem-ssr-title">${titleHtml}</h2>` +
+      (showTitle ? `<h2 class="gundem-ssr-title">${titleHtml}</h2>` : '') +
       `<p class="gundem-ssr-summary">${escapeHtml(row.summary)}</p>` +
       // rel="nofollow noopener external": otomatik toplanan dış bağlantılar için doğru sinyal —
       // bağlantı ziyaretçi için gerçek ve görünürdür ama bir editoryal onay/PageRank aktarımı

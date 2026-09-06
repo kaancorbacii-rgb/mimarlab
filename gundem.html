@@ -102,6 +102,8 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   .breadcrumb-bar a:hover{color:var(--brass-soft);}
   .breadcrumb-bar .sep{opacity:0.4;}
   .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+  /* Detay görünümünde açılan orta basamak — [hidden] flex çocuklarında güvenilir olsun diye açıkça. */
+  .breadcrumb-bar [hidden]{display:none;}
 
   /* =============================================================================================
      GÜNDEM — EDİTORYAL KART DÜZENİ
@@ -117,16 +119,42 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
      (letter-spacing:-0.02em) + sıkı satır yüksekliği (1.15) başlıkta; küçük punto + geniş harf
      aralığı + büyük harf meta satırında.
      ============================================================================================= */
-  .gundem-wrap{max-width:1080px; margin:0 auto; padding:48px 32px 90px;}
+  /* Kart geometrisinin TEK KAYNAĞI (referans görsel ölçümlerinden türetildi, 2026-09-06).
+     Yatay padding YÜZDE'dir: yüzdesel padding kartın KENDİ genişliğine göre çözülür, bu yüzden
+     container genişliği değişse de görsel/metin/boşluk oranları referanstaki gibi sabit kalır
+     (vw tabanlı bir değer, container max-width'e dayandığı anda bozulurdu).
+     Referans: kart 1440 px iken sol 150 / sağ 140 px => %10,4. */
+  :root{
+    --gcard-pad-x: 10.4%;
+    --gcard-pad-top: 54px;
+    --gcard-pad-bottom: 38px;
+    --gcard-gap: 28px;
+    --gcard-radius: 26px;
+  }
 
-  .gundem-head{margin-bottom:30px;}
-  .gundem-eyebrow{font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:10px;}
-  .gundem-title{font-size:clamp(32px, 5vw, 46px); font-weight:700; margin:0 0 12px; letter-spacing:-0.025em; line-height:1.05;}
-  .gundem-lead{font-size:16px; line-height:1.65; color:var(--ink-soft); margin:0 0 26px; max-width:620px;}
+  /* Referansta kart, viewport'un ~%83'ünü kaplıyor — mevcut 1080 px'lik container o editoryal
+     genişliği veremiyordu. 1400 px, siteyle tutarlı kalırken referansın geniş kart hissini verir. */
+  .gundem-wrap{max-width:1400px; margin:0 auto; padding:40px 32px 90px;}
+
+  /* BAŞLIK SATIRI — referansta başlık+alt başlık SOLDA, kategori çipleri AYNI SATIRDA sağda.
+     Önceki sürümde çipler başlığın ALTINDAydı ve üst blok gereksiz yer kaplıyordu. */
+  /* Üç kolonlu grid (1fr auto 1fr): başlık solda kalırken çipler CONTAINER'A GÖRE ortalanır.
+     flex + space-between denendi ve referanstan saptı — başlık kısa olduğu için çipler sağ kenara
+     yapışıyordu; referansta çipler kartların orta ekseninde duruyor (ölçüm: çip bloğunun merkezi
+     881 px, container merkezi 870 px). Üçüncü kolon bilerek boştur, yalnızca simetriyi kurar. */
+  .gundem-head{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:24px 32px;
+    margin-bottom:26px;
+  }
+  .gundem-head-text{min-width:0; grid-column:1;}
+  /* Referansta sayfa başlığı (~31 px) kart başlıklarıyla neredeyse AYNI boyutta — editoryal
+     hiyerarşi sayfayı değil KARTLARI öne çıkarır. Önceki 46 px bunu tersine çeviriyordu. */
+  .gundem-title{font-size:clamp(26px, 2.6vw, 32px); font-weight:700; margin:0 0 5px; letter-spacing:-0.025em; line-height:1.1;}
+  .gundem-lead{font-size:13.5px; line-height:1.5; color:var(--ink-soft); margin:0; max-width:520px;}
 
   /* Kategori çipleri — js/components/project-group-filter.js#.pgf-chip ile BİREBİR aynı pil dili
-     (seçili = dolu var(--ink)); yeni bir çip tasarımı icat edilmedi. */
-  .gundem-chips{display:flex; flex-wrap:wrap; gap:8px;}
+     (seçili = dolu var(--ink)); yeni bir çip tasarımı icat edilmedi. Referansla da örtüşüyor. */
+  .gundem-chips{display:flex; flex-wrap:wrap; gap:8px; flex-shrink:0; grid-column:2; justify-content:center;}
   .gundem-chip{
     display:inline-flex; align-items:center; gap:6px;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
@@ -137,49 +165,80 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   .gundem-chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
 
   /* ---------- KART LİSTESİ ---------- */
-  .gundem-list{display:flex; flex-direction:column; gap:22px;}
+  /* Referansta kartlar arası boşluk kart genişliğinin ~%2,4'ü (1440 px kartta ~34 px). */
+  .gundem-list{display:flex; flex-direction:column; gap:32px;}
 
+  /* Referansta kartın ÇERÇEVESİ YOK — açık gri zemin üzerinde yalnızca beyaz yüzey ve çok hafif
+     bir gölge var. Önceki 1px'lik çizgi kartları "kutu" gibi gösteriyor, editoryal hissi kırıyordu. */
   .gundem-card{
     position:relative;
-    display:grid; grid-template-columns:minmax(0, 420px) minmax(0, 1fr); gap:0;
-    background:var(--paper-card); border:1px solid var(--line-soft); border-radius:20px;
-    overflow:hidden; transition:box-shadow .18s, border-color .18s, transform .18s;
+    display:grid;
+    /* Referans: görsel 657 px : metin 465 px = 1,41 : 1. */
+    grid-template-columns:minmax(0, 1.41fr) minmax(0, 1fr);
+    gap:var(--gcard-gap);
+    padding:var(--gcard-pad-top) var(--gcard-pad-x) var(--gcard-pad-bottom);
+    background:var(--paper-card); border:none; border-radius:var(--gcard-radius);
+    box-shadow:0 1px 2px rgba(27,42,61,0.04);
+    transition:box-shadow .18s;
   }
-  .gundem-card:hover{box-shadow:0 14px 34px rgba(27,42,61,0.10); border-color:var(--line);}
+  .gundem-card:hover{box-shadow:0 14px 34px rgba(27,42,61,0.10);}
 
-  /* Görsel: referanstaki ~16:10 oran. aspect-ratio + width/height öznitelikleri BİRLİKTE kullanılır
-     — kaynak görselinin gerçek boyutunu bilmiyoruz, ikisi olmadan görsel yüklenirken CLS oluşurdu
-     (madde 19). Görsel KAYNAĞIN KENDİ CDN'inden gelir (R2'ye kopyalanmaz, bkz.
+  /* Görsel referansta kartın KENARINA YAPIŞMAZ — kart padding'inin içinde, kendi küçük köşe
+     yarıçapıyla durur. Oran 3:2 (657x430). aspect-ratio + width/height öznitelikleri BİRLİKTE
+     kullanılır: kaynak görselinin gerçek boyutunu bilmiyoruz, ikisi olmadan görsel yüklenirken
+     CLS oluşurdu (madde 19). Görsel KAYNAĞIN KENDİ CDN'inden gelir (R2'ye kopyalanmaz, bkz.
      migrations/0099_gundem.sql) — bu yüzden bu depodaki w400/w800 türev sistemi burada
      UYGULANAMAZ; onun yerine loading="lazy" + decoding="async" + sabit oran kullanılır. */
-  .gundem-photo{position:relative; background:var(--paper-alt);}
+  /* align-self:start ŞART — grid varsayılanı stretch olduğundan, metin kolonu uzun olan kartlarda
+     (3 satırlık başlık) görsel satır yüksekliğine kadar UZAYIP 3:2 oranını bozuyordu. Referansta
+     görsel oranı HER kartta sabittir; kart yüksekliği görselin değil, iki kolondan uzun olanın
+     yüksekliğidir ve metin kısaysa altta beyaz alan kalır. */
+  .gundem-photo{position:relative; align-self:start; background:var(--paper-alt); border-radius:8px; overflow:hidden;}
   .gundem-photo img{
-    display:block; width:100%; height:100%; aspect-ratio:16/10;
+    display:block; width:100%; height:auto; aspect-ratio:3/2;
     object-fit:cover; object-position:center;
   }
-  .gundem-photo-link{display:block; height:100%;}
+  .gundem-photo-link{display:block;}
 
-  .gundem-body{padding:26px 28px 24px; display:flex; flex-direction:column; min-width:0;}
-  /* Kaydet/Paylaş kontrollerine yer bırakır — başlıkla ÇAKIŞMAMALI (madde 23). */
+  .gundem-body{display:flex; flex-direction:column; min-width:0; padding:0;}
+
+  /* Referans metadata: "12 May 2026 News" — BÜYÜK HARF DEĞİL, harf aralığı YOK, kategori turuncu
+     değil KOYU ve KALIN. Önceki uppercase+turuncu kurgu referanstan belirgin şekilde sapıyordu. */
   .gundem-meta{
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-    font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; font-weight:600;
-    color:var(--sage); margin:0 96px 12px 0; min-height:20px;
+    display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;
+    font-size:12.5px; font-weight:500; color:var(--ink-soft);
+    margin:0 0 10px; letter-spacing:0; text-transform:none;
   }
-  .gundem-meta .sep{opacity:0.45;}
-  .gundem-meta .gundem-cat{color:var(--accent);}
+  .gundem-meta .gundem-cat{color:var(--ink); font-weight:700;}
+  .gundem-meta .gundem-src{color:var(--ink-soft);}
+  .gundem-meta .gundem-src::before{content:'·'; margin-right:6px; opacity:0.5;}
 
+  /* Referansta kart başlığı SAYFA başlığından büyük — hiyerarşinin ağırlık merkezi kartta.
+     Inter, referanstaki serif'ten daha geniş olduğu için aynı optik boyut biraz daha küçük
+     px değeriyle elde edilir (serif ~36 px ≈ Inter ~30 px). */
   .gundem-card-title{
-    font-size:clamp(20px, 2.2vw, 26px); font-weight:700; line-height:1.18;
-    letter-spacing:-0.02em; margin:0 0 12px;
+    font-size:clamp(21px, 2.15vw, 30px); font-weight:700; line-height:1.14;
+    letter-spacing:-0.025em; margin:0 0 11px;
   }
   .gundem-card-title a:hover{color:var(--walnut);}
 
+  /* Referansta özet 4 satırda kırpılıyor ve kartın sağ alt köşesinde belirgin bir beyaz alan
+     bırakıyor — editoryal ferahlığın asıl kaynağı bu. -webkit-line-clamp SALT GÖRSEL bir kırpmadır:
+     metnin tamamı DOM'da kalır, yani SSR/SEO çıktısı ve ekran okuyucular etkilenmez.
+     DETAY görünümünde (/gundem/:slug) kırpma KALDIRILIR — orada sayfanın kendisi o içeriktir. */
   .gundem-summary{
-    font-size:14.5px; line-height:1.7; color:var(--ink-soft); margin:0 0 18px;
+    font-size:15px; line-height:1.55; color:var(--ink-soft); margin:0 0 16px;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:5; overflow:hidden;
   }
+  .gundem-card--detail .gundem-summary{display:block; -webkit-line-clamp:none; overflow:visible;}
+  /* Detay görünümünde başlık ZATEN sayfanın H1'idir (injectMeta onu kayda göre doldurur) — kart
+     kendi başlığını da basarsa aynı metin ekranda iki kez görünür. */
+  .gundem-card--detail .gundem-card-title{display:none;}
 
-  .gundem-foot{margin-top:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  /* margin-top:auto KALDIRILDI: kaynak bağlantısını kartın DİBİNE itiyordu ve özetle arasında
+     büyük bir boşluk açıyordu. Referansta metin bloğu kendi içinde sıkı akar, artan yer kartın
+     ALTINDA beyaz alan olarak kalır — bağlantı da bu yüzden doğrudan özetin ardından gelir. */
+  .gundem-foot{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
   .gundem-source-link{
     font-size:13px; font-weight:600; color:var(--walnut);
     display:inline-flex; align-items:center; gap:5px;
@@ -198,9 +257,12 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
 
   /* Kaydet + Paylaş — kartın sağ üstü (madde 2). ShareWidget kendi .share-btn stilini enjekte eder
      (bkz. js/components/share-button.js), .card-save-btn ise proje.html'dekiyle AYNI dairesel
-     ikon düğmesidir; burada yalnızca konumlandırılır, yeniden tasarlanmaz. */
+     ikon düğmesidir; burada yalnızca konumlandırılır, yeniden tasarlanmaz.
+     Konum: kartın sağ üst köşesindeki BOŞ padding alanı (referansta o alan tamamen beyaz), ama
+     `right` değeri kartın yatay padding'iyle AYNI değişkene bağlanır — böylece butonlar metin
+     kolonunun sağ kenarına hizalanır, kenarda yalnız başına asılı kalmazlar. */
   .gundem-actions{
-    position:absolute; top:16px; right:16px; z-index:3;
+    position:absolute; top:14px; right:var(--gcard-pad-x); z-index:3;
     display:flex; align-items:center; gap:8px;
   }
   .card-save-btn{
@@ -217,6 +279,11 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     background:var(--paper-card); border:1px solid var(--line-soft); border-radius:20px;
   }
   .gundem-more-wrap{display:flex; justify-content:center; margin-top:30px;}
+  /* GERÇEK BULGU: `display:flex`, [hidden] özniteliğinin UA varsayılanı olan display:none'ı EZİYOR —
+     buton hem detay görünümünde hem de hasMore:false olan liste görünümlerinde (ör. tek sayfalık
+     bir kategori) yanlışlıkla görünüyordu. Öznitelik doğru set ediliyordu, yalnızca CSS onu
+     geçersiz kılıyordu. */
+  .gundem-more-wrap[hidden]{display:none;}
   .gundem-more{
     background:none; border:1.5px solid var(--ink); color:var(--ink);
     padding:11px 30px; border-radius:100px; font-size:14px; font-weight:600;
@@ -242,16 +309,31 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
      basar — JS kapalıyken/yüklenmeden ÖNCE görünen içerik budur (madde 14). İstemci render'ı
      tamamlanınca body.gundem-ready ile gizlenir (proje.html#body.grid-ready ile AYNI desen), böylece
      aynı içerik iki kez görünmez. */
-  .gundem-ssr-list{display:flex; flex-direction:column; gap:22px;}
+  /* Geometri istemci kartıyla BİREBİR aynı değişkenlerden gelir — ayrışırlarsa JS yüklenirken
+     görünür bir sıçrama (layout shift) olurdu. */
+  .gundem-ssr-list{display:flex; flex-direction:column; gap:32px;}
   .gundem-ssr-card{
-    display:grid; grid-template-columns:minmax(0, 420px) minmax(0, 1fr);
-    background:var(--paper-card); border:1px solid var(--line-soft); border-radius:20px; overflow:hidden;
+    display:grid; grid-template-columns:minmax(0, 1.41fr) minmax(0, 1fr); gap:var(--gcard-gap);
+    padding:var(--gcard-pad-top) var(--gcard-pad-x) var(--gcard-pad-bottom);
+    background:var(--paper-card); border:none; border-radius:var(--gcard-radius);
+    box-shadow:0 1px 2px rgba(27,42,61,0.04);
   }
-  .gundem-ssr-img{display:block; width:100%; height:100%; aspect-ratio:16/10; object-fit:cover;}
-  .gundem-ssr-body{padding:26px 28px 24px;}
-  .gundem-ssr-meta{font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; font-weight:600; color:var(--sage); margin:0 0 12px;}
-  .gundem-ssr-title{font-size:clamp(20px, 2.2vw, 26px); font-weight:700; line-height:1.18; letter-spacing:-0.02em; margin:0 0 12px;}
-  .gundem-ssr-summary{font-size:14.5px; line-height:1.7; color:var(--ink-soft); margin:0 0 16px;}
+  /* align-self:start + height:auto — istemci kartındaki AYNI gerekçe (görsel satır yüksekliğine
+     uzayıp 3:2'yi bozmasın). */
+  .gundem-ssr-img{display:block; align-self:start; width:100%; height:auto; aspect-ratio:3/2; object-fit:cover; border-radius:8px;}
+  .gundem-ssr-body{padding:0; min-width:0;}
+  .gundem-ssr-meta{
+    display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;
+    font-size:12.5px; font-weight:500; letter-spacing:0; text-transform:none; color:var(--ink-soft); margin:0 0 10px;
+  }
+  /* Meta parçalarının rengi/ağırlığı iki kart türünde de TEK kuraldan gelir (istemci .gundem-meta,
+     sunucu .gundem-ssr-meta) — ayrışırlarsa hydration anında görünür bir renk sıçraması olurdu. */
+  .gundem-meta .gundem-date, .gundem-ssr-meta .gundem-date{color:var(--ink-soft);}
+  .gundem-ssr-meta .gundem-cat{color:var(--ink); font-weight:700;}
+  .gundem-ssr-meta .gundem-src{color:var(--ink-soft);}
+  .gundem-ssr-meta .gundem-src::before{content:'·'; margin-right:6px; opacity:0.5;}
+  .gundem-ssr-title{font-size:clamp(21px, 2.15vw, 30px); font-weight:700; line-height:1.14; letter-spacing:-0.025em; margin:0 0 11px;}
+  .gundem-ssr-summary{font-size:15px; line-height:1.55; color:var(--ink-soft); margin:0 0 16px;}
   .gundem-ssr-source a{font-size:13px; font-weight:600; color:var(--walnut);}
   body.gundem-ready #ssr-entity-body{display:none;}
   /* injectMeta detay yolunda gövdeyi .ssr-entity-text sarmalayıcısına koyar (bkz. src/index.js#
@@ -275,41 +357,63 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   /* =============================================================================================
      RESPONSIVE (madde 3 + 23)
      ============================================================================================= */
-  /* TABLET — aynı editoryal yapı korunur, oranlar küçülür. */
+  /* TABLET — aynı editoryal yapı (görsel solda, metin sağda) KORUNUR, yalnızca oranlar küçülür:
+     kartın kendi yüzdesel padding'i daralır, kolon oranı referanstakine yakın kalır. */
+  @media (max-width:1100px){
+    :root{
+      --gcard-pad-x: 6%;
+      --gcard-pad-top: 34px;
+      --gcard-pad-bottom: 28px;
+      --gcard-gap: 22px;
+      --gcard-radius: 22px;
+    }
+    .gundem-wrap{padding:34px 22px 70px;}
+    .gundem-list, .gundem-ssr-list{gap:24px;}
+    .gundem-summary{-webkit-line-clamp:4;}
+  }
+
   @media (max-width:960px){
     .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
-    .gundem-wrap{padding:36px 22px 70px;}
-    .gundem-card,
-    .gundem-skeleton,
-    .gundem-ssr-card{grid-template-columns:minmax(0, 300px) minmax(0, 1fr);}
-    .gundem-body,
-    .gundem-ssr-body{padding:20px 22px 20px;}
-    .gundem-card-title,
-    .gundem-ssr-title{font-size:20px;}
-    .gundem-summary,
-    .gundem-ssr-summary{font-size:14px;}
+    /* Dar ekranda üç kolonlu ortalama anlamını yitirir (çipler başlığı sıkıştırır) — başlık ve
+       çipler alt alta, ikisi de sola hizalı akar. */
+    .gundem-head{grid-template-columns:1fr; align-items:start; gap:16px;}
+    .gundem-head-text, .gundem-chips{grid-column:1;}
+    .gundem-chips{justify-content:flex-start;}
   }
 
   /* MOBİL — tek kolon: görsel üstte, metin altta (madde 3/23). */
   @media (max-width:720px){
+    :root{
+      --gcard-pad-x: 16px;
+      --gcard-pad-top: 16px;
+      --gcard-pad-bottom: 20px;
+      --gcard-gap: 14px;
+      --gcard-radius: 18px;
+    }
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
-    .gundem-wrap{padding:28px 16px 64px;}
-    .gundem-list{gap:18px;}
+    .gundem-wrap{padding:24px 14px 60px;}
+    .gundem-list, .gundem-ssr-list{gap:16px;}
+    /* Tek kolon: görsel üstte, metin altta (madde 3/23). Görsel kart padding'inin İÇİNDE kalır —
+       referanstaki "yüzen fotoğraf" dili mobilde de korunur. */
     .gundem-card,
     .gundem-skeleton,
     .gundem-ssr-card{grid-template-columns:1fr;}
     .gundem-photo img,
-    .gundem-ssr-img{aspect-ratio:16/10; height:auto;}
-    .gundem-skeleton > div:first-child{aspect-ratio:16/10;}
-    /* Kaydet/Paylaş mobilde görselin ÜSTÜNDE durur — metin sütununa taşarsa başlıkla çakışırdı.
+    .gundem-ssr-img{aspect-ratio:3/2; height:auto;}
+    .gundem-skeleton > div:first-child{aspect-ratio:3/2;}
+    /* Mobilde kolon tam genişlik olduğundan aynı kelime sayısı daha az satıra sığar; kırpma
+       sınırı gevşetilir ki özetin anlamlı bir bölümü görünsün. */
+    .gundem-summary{-webkit-line-clamp:6;}
+    /* Kaydet/Paylaş mobilde GÖRSELİN ÜSTÜNE biner — metin sütununa taşarsa başlıkla çakışırdı.
+       top/right, kart padding'inden (16px) 10px içeride: butonlar görselin sağ üst köşesinde durur.
        Buton boyutları share-button.js'in kendi @media(max-width:860px) kuralıyla 48px'e çıkar
        (Apple/Google dokunma hedefi standardı, bkz. o dosyadaki not); .card-save-btn de aynı
        boyuta getirilir ki ikisi hizalı kalsın. */
-    .gundem-actions{top:12px; right:12px;}
+    .gundem-actions{top:26px; right:26px;}
     /* 48px — share-button.js'in kendi mobil kuralı .share-btn'i 48x48'e çıkarır; aynı değeri burada
        da kullanmak İKİ ŞEY için gerekli: (a) Apple/Google dokunma hedefi standardı (bu depodaki
        mevcut kural), (b) iki buton yan yana duruyor, farklı boyutta olurlarsa hizasız görünürler
@@ -318,13 +422,17 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
       width:48px; height:48px;
       background:rgba(248,250,251,0.92); border-color:rgba(27,42,61,0.18);
     }
-    /* Meta satırının sağ boşluğu kalkar — butonlar artık görselin üstünde, metnin değil. */
+    /* Meta satırının sağ boşluğu kalkar — butonlar artık görselin üstünde, metnin değil.
+       Harf aralığı/büyük harf yok (referans metadata dili, masaüstüyle aynı). */
     .gundem-meta,
-    .gundem-ssr-meta{margin-right:0; font-size:11px; letter-spacing:0.06em;}
+    .gundem-ssr-meta{margin-right:0; font-size:12px; letter-spacing:0;}
     .gundem-card-title,
-    .gundem-ssr-title{font-size:19px;}
-    .gundem-title{font-size:30px;}
-    .gundem-lead{font-size:15px;}
+    .gundem-ssr-title{font-size:21px;}
+    .gundem-summary,
+    .gundem-ssr-summary{font-size:14.5px;}
+    /* .gundem-title/.gundem-lead için override YOK: yeni clamp() değerleri (26-32px / 13,5px)
+       mobilde zaten doğru alt sınıra oturuyor, ayrıca bir kural onları masaüstünden BÜYÜK
+       gösterirdi (önceki sürümdeki hata buydu). */
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -377,17 +485,25 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   <div id="site-header-mount" data-nav-active="gundem"></div>
   <script src="js/components/site-chrome.js"></script>
 
+  <!-- Orta basamak (Gündem) YALNIZCA /gundem/:slug detay görünümünde açılır — bkz.
+       js/pages/gundem.js#loadDetail. Başlık bloğundaki eski "← Gündem" dönüş bağlantısı, başlık
+       satırı referansa göre yeniden düzenlenince kaldırıldı; listeye dönüş yolu bu yüzden
+       breadcrumb'a taşındı (sitenin diğer detay sayfalarındaki AYNI kalıp). -->
   <div class="breadcrumb-bar">
     <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
+    <a href="/gundem" id="gundem-crumb-parent" hidden>Gündem</a>
+    <span class="sep" id="gundem-crumb-parent-sep" hidden>›</span>
     <span class="current" id="gundem-crumb">Gündem</span>
   </div>
 
   <main class="gundem-wrap">
+    <!-- Referans düzeni: başlık + alt başlık SOLDA, kategori çipleri AYNI SATIRDA sağda. -->
     <header class="gundem-head" id="gundem-head">
-      <div class="gundem-eyebrow">MİMARLAB</div>
-      <h1 class="gundem-title" id="entity-h1">Gündem</h1>
-      <p class="gundem-lead">Mimarlık, tasarım ve yapı dünyasından güncel gelişmeler.</p>
+      <div class="gundem-head-text">
+        <h1 class="gundem-title" id="entity-h1">Gündem</h1>
+        <p class="gundem-lead">Mimarlık, tasarım ve yapı dünyasından güncel gelişmeler.</p>
+      </div>
       <div class="gundem-chips" id="gundem-chips" role="group" aria-label="Kategori filtresi"></div>
     </header>
 

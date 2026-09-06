@@ -78,15 +78,18 @@ function entitiesHtml(entities){
   return badges ? `<span class="gundem-entities">${badges}</span>` : '';
 }
 
-function cardHtml(item, index){
+// detail=true → /gundem/:slug tek içerik görünümü: özet kırpılmaz (bkz. gundem.html#
+// .gundem-card--detail), çünkü orada sayfanın KENDİSİ o içeriktir.
+function cardHtml(item, index, { detail = false } = {}){
   const href = '/gundem/' + encodeURIComponent(item.slug);
-  const meta = [formatDate(item.date), categoryLabel(item.category), item.sourceName]
-    .filter(Boolean);
-  const metaHtml = meta.map((part, i) =>
-    (i === 1 ? `<span class="gundem-cat">${escapeHtml(part)}</span>` : escapeHtml(part))
-  ).join('<span class="sep">·</span>');
+  // Referans metadata dili: "12 May 2026 News" — tarih normal/gri, kategori KALIN ve koyu,
+  // kaynak adı ardından ince bir orta nokta ile. Büyük harf/harf aralığı YOK.
+  const metaHtml =
+    `<span class="gundem-date">${escapeHtml(formatDate(item.date))}</span>` +
+    (item.category ? `<span class="gundem-cat">${escapeHtml(categoryLabel(item.category))}</span>` : '') +
+    (item.sourceName ? `<span class="gundem-src">${escapeHtml(item.sourceName)}</span>` : '');
   const shareId = 'gundem-share-' + index;
-  return `<article class="gundem-card" data-slug="${escapeAttr(item.slug)}">
+  return `<article class="gundem-card${detail ? ' gundem-card--detail' : ''}" data-slug="${escapeAttr(item.slug)}">
     <div class="gundem-actions">
       <button class="card-save-btn" type="button"
         data-type="gundem"
@@ -242,11 +245,16 @@ async function loadDetail(slug){
       if(h1) h1.textContent = item.title;
       const lead = headEl.querySelector('.gundem-lead');
       if(lead) lead.remove();
-      const eyebrow = headEl.querySelector('.gundem-eyebrow');
-      if(eyebrow) eyebrow.innerHTML = '<a href="/gundem">← Gündem</a>';
     }
+    // Listeye dönüş yolu: breadcrumb'ın orta basamağı açılır ("Ana Sayfa › Gündem › <başlık>").
+    // Başlık bloğundaki eski "← Gündem" bağlantısı, başlık satırı referans düzenine göre yeniden
+    // kurulunca kaldırıldı — dönüş yolunun tek sahibi artık burasıdır.
+    const crumbParent = document.getElementById('gundem-crumb-parent');
+    const crumbSep = document.getElementById('gundem-crumb-parent-sep');
+    if(crumbParent) crumbParent.hidden = false;
+    if(crumbSep) crumbSep.hidden = false;
     if(crumbEl) crumbEl.textContent = item.title;
-    listEl.innerHTML = cardHtml(item, 0);
+    listEl.innerHTML = cardHtml(item, 0, { detail: true });
     wireCardActions([item], 0);
     document.body.classList.add('gundem-ready');
   }catch(err){
