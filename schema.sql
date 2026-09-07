@@ -1043,3 +1043,71 @@ CREATE TABLE IF NOT EXISTS gundem_source_health (
   last_run_at INTEGER,
   updated_at INTEGER NOT NULL
 );
+
+-- =================================================================================================
+-- PARİTE DÜZELTMESİ (production denetimi, 2026-09-07)
+-- =================================================================================================
+-- Aşağıdaki dört tablo canlı D1'de VARDI ama bu dosyada YOKTU. Hepsinin bir migration'ı var
+-- (0080/0083/0094/0095) — yalnızca bu dosyaya yansıtılmaları atlanmış. Bu, dosya başındaki
+-- "production'ın gerçek sqlite_master dökümüyle eşleştirilmiştir" iddiasını sessizce bozuyordu ve
+-- bu dosya felaket kurtarmanın kaynağı olduğundan (bkz. docs/disaster-recovery.md) gerçek bir risk:
+-- veritabanı buradan yeniden kurulsaydı dört özellik birden hiç çalışmazdı — pano paylaşımı, pano
+-- çizimleri, türev kuyruğu ve proje fotoğrafçı künyeleri (canlıda 596 satır).
+-- DDL, canlı sqlite_master'dan birebir alındı; SADECE bu dosya değişti, production D1'e
+-- DOKUNULMADI. scripts/preflight-check.sh bu dosyayı temiz bir sqlite3'te çalıştırarak doğrular.
+
+-- Pano paylaşımı (migrations/0094_board_canvas_and_sharing.sql) — bir koleksiyonu (panoyu) başka
+-- kullanıcılara görüntüleyici/düzenleyici olarak açar.
+CREATE TABLE IF NOT EXISTS board_shares (
+  id TEXT PRIMARY KEY,
+  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'viewer', -- 'viewer' | 'editor'
+  invited_by_user_id TEXT NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL,
+  UNIQUE(collection_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_board_shares_collection ON board_shares(collection_id);
+CREATE INDEX IF NOT EXISTS idx_board_shares_user ON board_shares(user_id, created_at DESC);
+
+-- Pano serbest çizimleri (migrations/0095_board_a4_canvas_and_strokes.sql). z_index canlıda
+-- ALTER TABLE ile eklendiği için sqlite_master dökümünde satır sonuna yapışık görünür; burada
+-- normal biçimde yazıldı — kolon adı/tipi/varsayılanı birebir aynıdır.
+CREATE TABLE IF NOT EXISTS board_strokes (
+  id TEXT PRIMARY KEY,
+  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  points TEXT NOT NULL,
+  color TEXT NOT NULL,
+  stroke_width REAL NOT NULL,
+  created_by_user_id TEXT NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL,
+  z_index INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_board_strokes_collection ON board_strokes(collection_id, created_at);
+
+-- Tarayıcının üretemediği responsive türevlerin bekleyen-iş kuyruğu
+-- (migrations/0083_image_derivative_queue.sql, bkz. src/lib/derivativeIngest.js ve
+-- scripts/drain-derivative-queue.py). wrangler.jsonc'daki "görsel dönüşümü" notu bu tabloya
+-- dayanır — dosyada olmaması, o notun anlattığı hattı belgesiz bırakıyordu.
+CREATE TABLE IF NOT EXISTS image_derivative_queue (
+  -- Orijinalin R2 anahtarı, "/media/" öneki OLMADAN: "u/<userId>/<uuid>.webp".
+  r2_key     TEXT    NOT NULL,
+  -- 400 / 800 / 1600 — image-cdn.js#DERIVATIVE_WIDTHS ile aynı merdiven.
+  width      INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  -- Bileşik birincil anahtar: aynı (kaynak, basamak) çifti iki kez kuyruğa giremez; bu sayede
+  -- derivativeIngest.js "INSERT OR IGNORE" ile idempotent yazabilir (eşzamanlı iki yükleme ya da
+  -- betiğin yarım kalmış bir koşusu mükerrer iş üretmez).
+  PRIMARY KEY (r2_key, width)
+);
+CREATE INDEX IF NOT EXISTS idx_image_derivative_queue_created ON image_derivative_queue (created_at);
+
+-- Proje fotoğrafçı künyesi (migrations/0080_project_photographers.sql) — projeye bağlı fotoğrafçı
+-- kenarı; fotoğrafçılar ayrı bir tablo değil, `architects` satırlarıdır (bkz. proje belleği:
+-- "Masaüstü çekmece + fotoğrafçı profilleri"). Canlıda 596 satır taşıyor.
+CREATE TABLE IF NOT EXISTS project_photographers (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  architect_id INTEGER NOT NULL REFERENCES architects(id) ON DELETE CASCADE,
+  PRIMARY KEY (project_id, architect_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_photographers_architect ON project_photographers(architect_id);
