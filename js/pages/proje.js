@@ -26,6 +26,17 @@ let currentPage = 1;
 let currentItems = [];
 let leafletMap = null;
 let mapMarkers = [];
+// GERÇEK BULGU (canlı hata, 2026-09-07): bu iki değişken hiç TANIMLANMAMIŞTI, yalnızca
+// kullanılıyorlardı — top100ViewActive'in (bkz. aşağısı) aksine kimse `let` ile bildirmemişti.
+// mapViewActive setView() içinde atandığından örtük bir global doğuruyor ve okunabiliyordu, ama
+// mapRequestId'e HİÇBİR yerde atama yapılmıyor; refreshMap()'in ilk satırındaki `++mapRequestId`
+// bu yüzden her Harita açılışında "ReferenceError: mapRequestId is not defined" fırlatıyor,
+// fonksiyon /api/projects?all=1 isteğine hiç ULAŞAMADAN ölüyor ve syncMapMarkers hiç
+// çağrılmadığı için haritada TEK BİR pin bile görünmüyordu (karolar Leaflet tarafından
+// çizildiğinden harita "çalışıyor" gibi duruyordu). Veri tarafı sağlamdı: all=1 yanıtı 1785
+// projenin 1684'ünü koordinatlı döndürüyor.
+let mapViewActive = false;
+let mapRequestId = 0;
   function loadLeaflet(){
     // TEK PAYLAŞILAN LEAFLET YÜKLEYİCİSİ (kullanıcı isteği, 2026-09-06 madde 6): aynı belgede artık
     // proje/kişi/firma/ürün popup'ları birbirinin üstüne açılabiliyor (bkz. js/components/
