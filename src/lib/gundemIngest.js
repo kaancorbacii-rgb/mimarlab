@@ -893,9 +893,47 @@ export async function runGundemIngestion(env, deps, options = {}) {
 
 // Cron logu (madde 18'deki alanlar). Tek satır JSON — `wrangler tail`de filtrelenebilir olsun diye
 // (bkz. src/lib/logger.js'teki aynı yaklaşım) ayrıca insan okunur bir özet satırı da basılır.
+// =============================================================================================
+// TURUN SAĞLIK SINIFLANDIRMASI (hardening denetimi, 2026-09-07)
+// =============================================================================================
+// 1ff0e1b7 olayının asıl dersi "log yoktu" DEĞİL: publishCandidate her adayda ReferenceError
+// fırlatırken `skipped.publish_failed = 20` ZATEN bu payload'un içindeydi. Sorun, satırın
+// console.log (INFO) seviyesinde basılmasıydı — Workers Logs'ta sağlıklı bir turdan ayırt
+// edilemiyordu ve kimse 20 satırlık JSON'un içine bakmıyordu.
+//
+// Bu yüzden düzeltme yeni bir servis/uyarı kanalı EKLEMEZ (maliyet yok, bağımlılık yok): turun
+// ŞEKLİ anormalse aynı payload console.error ile basılır, yani `wrangler tail --status=error` ve
+// Workers Logs'un hata filtresi onu kendiliğinden yüzeye çıkarır.
+//
+// "0 yayın" TEK BAŞINA anormal DEĞİLDİR — her aday mükerrer çıkmış ya da kalite kapısından
+// dönmüş olabilir; bu hattın normal çalışmasıdır ve uyarıya dönüşürse gürültü olur. Anormal olan,
+// adayların HESAPLANMAYAN biçimde kaybolmasıdır:
+const GUNDEM_RUN_ANOMALIES = [
+  // 1ff0e1b7'nin BİREBİR imzası: aday yazma aşamasına geldi ve orada patladı.
+  ['publish_failed', (s) => (s.skipped.publish_failed || 0) > 0],
+  // Aday vardı; ne yayınlandı, ne mükerrer sayıldı, ne kaliteden döndü — yani hiçbir kapı sahiplenmedi.
+  ['candidates_vanished', (s) => s.candidates > 0 && s.published === 0 && s.duplicate === 0 && s.qualityFailed === 0],
+  // Denenen her kaynak düştü: ağ/DNS kesintisi ya da toplu bir kaynak bozulması.
+  ['all_sources_failed', (s) => s.sourcesTried > 0 && s.sourcesFailed === s.sourcesTried],
+];
+
+// Saf fonksiyon — birim testten çağrılabilsin diye export (bkz. scripts/test-gundem.mjs).
+export function classifyGundemRun(stats) {
+  const s = {
+    candidates: stats.candidates || 0, published: stats.published || 0,
+    duplicate: stats.duplicate || 0, qualityFailed: stats.qualityFailed || 0,
+    sourcesTried: stats.sourcesTried || 0, sourcesFailed: stats.sourcesFailed || 0,
+    skipped: stats.skipped || {},
+  };
+  return GUNDEM_RUN_ANOMALIES.filter(([, test]) => test(s)).map(([name]) => name);
+}
+
 function logRun(stats, startedAt) {
+  const anomalies = classifyGundemRun(stats);
   const payload = {
     event: 'gundem_run',
+    // Sağlıklı turlarda bu alan boş dizidir; doluysa satır AYRICA console.error ile basılır.
+    anomalies,
     sources: stats.sourcesTried,
     sourcesOk: stats.sourcesOk,
     sourcesFailed: stats.sourcesFailed,
@@ -911,10 +949,14 @@ function logRun(stats, startedAt) {
     errors: stats.errors.slice(0, 5),
     ms: Date.now() - startedAt,
   };
-  console.log(JSON.stringify(payload));
+  // Anormal turlar hata seviyesine YÜKSELTİLİR (yalnızca seviye değişir — aynı payload, aynı
+  // alanlar; hiçbir kontrol akışı etkilenmez, tur zaten bitmiştir).
+  if (anomalies.length) console.error(JSON.stringify(payload));
+  else console.log(JSON.stringify(payload));
   console.log(
     `[GUNDEM] sources=${stats.sourcesTried} fetched=${stats.fetched} new=${stats.candidates} ` +
     `duplicate=${stats.duplicate} published=${stats.published} skipped=${stats.qualityFailed} ` +
-    `ai=${stats.aiCalls} errors=${stats.sourcesFailed}`
+    `ai=${stats.aiCalls} errors=${stats.sourcesFailed}` +
+    (anomalies.length ? ` ANOMALI=${anomalies.join(',')}` : '')
   );
 }

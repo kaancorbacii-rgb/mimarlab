@@ -23,7 +23,7 @@ import {
 import { GUNDEM_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCategories.js';
 import { GUNDEM_SOURCES, activeGundemSources, GUNDEM_IMAGE_HOSTS } from '../src/lib/gundemSources.js';
 import { buildGundemEntityIndex, resolveGundemEntities } from '../src/lib/gundemEntities.js';
-import { _isSourceDueForTests } from '../src/lib/gundemIngest.js';
+import { _isSourceDueForTests, classifyGundemRun } from '../src/lib/gundemIngest.js';
 import { hasHtmlExtractor, parseHtmlList, parseTurkishDate } from '../src/lib/gundemHtmlList.js';
 
 let passed = 0;
@@ -736,6 +736,58 @@ await test('gundemIngest.js: `options` yalnızca runGundemIngestion içinde kull
   });
   assert.equal(offenders.length, 0,
     `\`options\` runGundemIngestion dışında kullanılmış (ReferenceError olur): ${offenders.join(' | ')}`);
+});
+
+// =================================================================================================
+// TUR SAĞLIK SINIFLANDIRMASI (hardening denetimi, 2026-09-07)
+// =================================================================================================
+// classifyGundemRun, "cron başarılı göründü ama içerik üretilmedi" sınıfını yakalayan tek yerdir;
+// yanlış negatifi 1ff0e1b7'yi tekrar görünmez kılar, yanlış pozitifi ise hata logunu gürültüye
+// boğup uyarıyı işe yaramaz hale getirir. İkisi de burada kilitleniyor.
+const RUN = (o) => ({ candidates:0, published:0, duplicate:0, qualityFailed:0, sourcesTried:13, sourcesFailed:0, skipped:{}, ...o });
+
+await test('classifyGundemRun: sağlıklı tur (yayın var) anomali üretmez', () => {
+  assert.deepEqual(classifyGundemRun(RUN({ candidates:20, published:12, duplicate:8 })), []);
+});
+
+await test('classifyGundemRun: 0 yayın ama hepsi mükerrer -> anomali YOK (normal davranış)', () => {
+  // Bu tam da uyarıya dönüşMEMESİ gereken durum: hat çalışıyor, sadece yeni içerik yok.
+  assert.deepEqual(classifyGundemRun(RUN({ candidates:14, published:0, duplicate:14 })), []);
+});
+
+await test('classifyGundemRun: 0 yayın ama hepsi kalite kapısından döndü -> anomali YOK', () => {
+  assert.deepEqual(classifyGundemRun(RUN({ candidates:6, published:0, qualityFailed:6 })), []);
+});
+
+await test('classifyGundemRun: hiç aday yoksa anomali YOK', () => {
+  assert.deepEqual(classifyGundemRun(RUN({ candidates:0 })), []);
+});
+
+await test('classifyGundemRun: 1ff0e1b7 imzası (publish_failed) yakalanır', () => {
+  // Gerçek olayın şekli: 20 aday yazma aşamasına geldi, hepsi ReferenceError ile düştü.
+  const got = classifyGundemRun(RUN({ candidates:20, published:0, skipped:{ publish_failed:20 } }));
+  assert.ok(got.includes('publish_failed'), `publish_failed yakalanmadı: ${JSON.stringify(got)}`);
+});
+
+await test('classifyGundemRun: publish_failed yayın olsa BİLE yakalanır', () => {
+  // Kısmi bozulma da görünür olmalı — 3 yayın geçmiş olması 9 hatayı gizlememeli.
+  const got = classifyGundemRun(RUN({ candidates:12, published:3, duplicate:0, skipped:{ publish_failed:9 } }));
+  assert.ok(got.includes('publish_failed'));
+});
+
+await test('classifyGundemRun: aday hiçbir kapı tarafından sahiplenilmezse yakalanır', () => {
+  const got = classifyGundemRun(RUN({ candidates:9, published:0, duplicate:0, qualityFailed:0 }));
+  assert.ok(got.includes('candidates_vanished'), JSON.stringify(got));
+});
+
+await test('classifyGundemRun: tüm kaynaklar düşerse yakalanır', () => {
+  const got = classifyGundemRun(RUN({ sourcesTried:13, sourcesFailed:13 }));
+  assert.ok(got.includes('all_sources_failed'), JSON.stringify(got));
+});
+
+await test('classifyGundemRun: kaynakların bir kısmı düşerse anomali YOK (izolasyon çalışıyor)', () => {
+  // Tek bir kaynağın bozulması diğerlerini durdurmuyor; bu beklenen dayanıklılık davranışıdır.
+  assert.deepEqual(classifyGundemRun(RUN({ sourcesTried:13, sourcesFailed:2, candidates:11, published:7, duplicate:4 })), []);
 });
 
 // =================================================================================================
