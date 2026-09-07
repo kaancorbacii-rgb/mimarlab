@@ -25,6 +25,33 @@
 // Kalıcı bir önbellek `sort=random` semantiğini bozardı — bir sonraki popup açılışının YENİ bir
 // rastgele örnek alması bu bölümlerin tasarım gereğidir (bkz. weightedSample / "Kural 3" yorumları).
 // Yani birleştirme yalnızca TEK bir yükleme dalgasının içindeki çakışmaları kapsar.
+// =============================================================================================
+// BU 11 SORGUYU TEK BİR "BATCH" UCUNDA BİRLEŞTİRMEYİN (hardening denetimi, 2026-09-07 — ölçüldü)
+// =============================================================================================
+// İlk bakışta bariz bir optimizasyon gibi görünüyor ("11 istek yerine 1"), ama ölçüm bunun
+// DAHA KÖTÜ olacağını gösteriyor. Sebep, buradaki sorguların CACHE YERELLİĞİ:
+//
+// Aşağıdaki geniş yedek havuz sorguları (limit 80/96 — transfer edilen baytların büyük kısmı)
+// KAYNAK PROJEDEN BAĞIMSIZDIR; yalnızca buildStatus/discipline/category'ye bakarlar. Canlı veride
+// sayıldı (1.785 proje):
+//     sort=random&buildStatus=built&limit=96          ->     1 cache girdisi (TÜM projeler paylaşır)
+//     ...&discipline=X&limit=80                       ->    21 girdi
+//     ...&discipline=X&category=Y&limit=80            ->   115 girdi
+// Yani hangi projenin popup'ı açılırsa açılsın aynı birkaç yüz girdi yeniden kullanılıyor. Canlıda
+// doğrulandı: bu isteklerin 9'undan 7'si cf-cache-status HIT, kalanları da Worker'ın kendi
+// caches.default katmanından geliyor — sunucu tarafı maliyeti pratikte SIFIR.
+//
+// Tek bir batch ucu bu anahtarı PROJE BAŞINA benzersiz hale getirirdi (9 filtre kümesi tek URL'de,
+// ya da hiç cache'lenemeyen bir POST). 1 + 21 + 115 paylaşılan girdi yerine 1.785 ayrı girdi:
+// isabet oranı çöker, her popup açılışı D1 havuzuna iner. Ayrıca /api/projects
+// CACHEABLE_LIST_PREFIXES'te olduğu için edge cache'i bedavaya geliyor; yeni bir uç bunu kaybeder.
+//
+// İstek SAYISI da düşünüldüğü kadar pahalı değil: hepsi zaten açık olan TEK bir HTTP/2 bağlantısı
+// üzerinde çoğullanıyor ve yalnızca kullanıcı bölüme kaydırdığında atılıyor (popup açılışında
+// SIFIR ek istek — bkz. project-modal.js#observeOnce, ölçüldü). Toplam ~45 KB sıkıştırılmış.
+//
+// Gerçek bir kazanç aranıyorsa doğru yer istek sayısı değil, aşağıdaki limitlerdir (80/96 aday
+// toplanıp bir avuç kart gösteriliyor) — ama onlar "seen" rotasyonunu besliyor, bkz. Kural 3.
 const projectQueryInflight = new Map();
 function fetchProjectQuery(url) {
   const hit = projectQueryInflight.get(url);

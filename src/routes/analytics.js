@@ -317,6 +317,17 @@ async function senderOrgTypes(env, senderIds) {
   const ids = uniq(senderIds);
   if (!ids.length) return [];
   const placeholders = ids.map(() => '?').join(',');
+  // BU ALT SORGUYU src/lib/officeProductCounts.js İLE DEĞİŞTİRMEYİN — ölçüldü, EŞDEĞER DEĞİLLER
+  // (hardening denetimi, 2026-09-07). İkisi ilk bakışta aynı görünür ama buradaki `hidden_at IS NULL`
+  // koşulunu TAŞIMAZ, o modüldeki taşır. Canlı veride fark iki ofiste ortaya çıkıyor
+  // (+MURAT TABANLIOĞLU STUDIO ve Marshall: burada 1, havuzda 0) ve fark tam da isPureBrandOffice'in
+  // eşiğine denk geliyor — yani naif bir "tek kaynağa taşıyalım" refactor'ü bu iki ofisin analitik
+  // etiketini sessizce "Marka"dan "Firma"ya çevirirdi. Hangi davranışın DOĞRU olduğu ayrı bir ürün
+  // kararıdır (gizli bir ürün markalığa sayılmalı mı?); burada bilerek DEĞİŞTİRİLMEDİ.
+  //
+  // Performans gerekçesi de yok: officeProductCounts.js'teki toplu biçim ofis havuzu için şarttı
+  // (orada ofis BAŞINA tam tarama = 598.715 satır / 1.048 ms), ama bu sorgu yalnızca ONAYLI
+  // profile_claims satırlarıyla sınırlı — canlıda ölçüldü: 4.565 satır / 9,5 ms (6 claim).
   const { results } = await env.DB.prepare(
     `SELECT pc.user_id, pc.profile_type, o.cats AS cats,
             (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL
