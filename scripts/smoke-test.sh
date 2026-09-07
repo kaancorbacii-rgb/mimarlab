@@ -260,25 +260,37 @@ echo "12) Detay sayfalarında ARTIK liste sayfasının CollectionPage şeması O
 # diyen bir CollectionPage taşıyordu (sayfa düzeyinde, farklı `url`'li iki varlık düğümü).
 # src/index.js#injectMeta artık bu bloğu detay görünümünde kaldırıyor. Aşağısı hem KALDIRMANIN
 # gerçekleştiğini hem de LİSTE sayfasında bloğun KORUNDUĞUNU (aşırı-kaldırma regresyonu) doğrular.
+# DİKKAT — `curl ... | grep -q` KULLANMAYIN. Bu betik `set -o pipefail` ile çalışıyor ve `grep -q`
+# ilk eşleşmede hemen çıkıp boruyu kapatıyor; curl SIGPIPE alıp 141 ile ölüyor ve pipefail bunu
+# pipeline'ın çıkış koduna taşıyor. Sonuç: "eşleşme VAR" durumu `if` tarafından "başarısız" okunur —
+# yani kontrol tam TERS çalışır. (Gerçek bulgu: bu kontrolün ilk hâli tam olarak böyle yazılmıştı ve
+# canlıda DOĞRU olan hub sayfaları için "şema kaybolmuş" diye yanlış alarm verdi.) `grep -c` girdiyi
+# sonuna kadar okur, boruyu erken kapatmaz — sayıyı önce bir değişkene alıp onu karşılaştırıyoruz.
+has_list_jsonld() { curl -s "$BASE_URL$1" | grep -c 'id="list-jsonld"' || true; }
 for pair in "/proje/bil-s-magaza:/proje" "/kisi/emre-arolat:/kisi" "/firma/eaa-emre-arolat-architecture:/firma" "/urun/vivi-outdoor-masa-b-t-design:/urun"; do
   detail_path="${pair%%:*}"; hub_path="${pair#*:}"
-  if curl -s "$BASE_URL$detail_path" | grep -q 'id="list-jsonld"'; then
-    bad "$detail_path — liste CollectionPage şeması hâlâ detay sayfasında (injectMeta#list-jsonld kuralı çalışmıyor)"
-  else
+  if [ "$(has_list_jsonld "$detail_path")" = "0" ]; then
     ok "$detail_path — liste CollectionPage şeması kaldırılmış"
-  fi
-  if curl -s "$BASE_URL$hub_path" | grep -q 'id="list-jsonld"'; then
-    ok "$hub_path — liste sayfası kendi CollectionPage şemasını KORUYOR"
   else
+    bad "$detail_path — liste CollectionPage şeması hâlâ detay sayfasında (injectMeta#list-jsonld kuralı çalışmıyor)"
+  fi
+  if [ "$(has_list_jsonld "$hub_path")" = "0" ]; then
     bad "$hub_path — liste sayfasının CollectionPage şeması da kaybolmuş (aşırı-kaldırma regresyonu!)"
+  else
+    ok "$hub_path — liste sayfası kendi CollectionPage şemasını KORUYOR"
   fi
 done
 gundem_slug=$(curl -s "$BASE_URL/api/gundem?limit=1" | sed -n 's/.*"slug":"\([^"]*\)".*/\1/p')
 if [ -n "$gundem_slug" ]; then
-  if curl -s "$BASE_URL/gundem/$gundem_slug" | grep -q 'id="list-jsonld"'; then
-    bad "/gundem/$gundem_slug — liste CollectionPage şeması hâlâ detay sayfasında"
-  else
+  if [ "$(has_list_jsonld "/gundem/$gundem_slug")" = "0" ]; then
     ok "/gundem/$gundem_slug — liste CollectionPage şeması kaldırılmış"
+  else
+    bad "/gundem/$gundem_slug — liste CollectionPage şeması hâlâ detay sayfasında"
+  fi
+  if [ "$(has_list_jsonld "/gundem")" = "0" ]; then
+    bad "/gundem — liste sayfasının CollectionPage şeması da kaybolmuş (aşırı-kaldırma regresyonu!)"
+  else
+    ok "/gundem — liste sayfası kendi CollectionPage şemasını KORUYOR"
   fi
 fi
 
