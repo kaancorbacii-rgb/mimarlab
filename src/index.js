@@ -41,6 +41,7 @@ import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 // Hub sayfalarının SSR iç link grafiği (SEO denetimi, 2026-09-05) — bkz. o dosyanın başındaki ölçüm.
 import { isHubPath, hubItemListJsonLd } from './lib/hubLinks.js';
 import { officePath } from './lib/officeUrl.js';
+import { fetchOfficeProductCounts } from './lib/officeProductCounts.js';
 // office-kind.js — FİRMA/MARKA ayrımının tek kaynağı (bkz. loadHubPool).
 import officeKindJs from '../office-kind.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
@@ -330,6 +331,33 @@ const PATH_RENAME_REDIRECTS = {
   // statik dosya (neden-mimarlab.html) yalnızca sunum modu (?sunum=1) için duruyor. Buradaki satır
   // eskisi gibi ".html"li biçimi kanonik yola 301'ler.
   '/neden-mimarlab.html': '/neden-mimarlab',
+  // ---------------------------------------------------------------------------------------------
+  // ADI DEĞİŞMEMİŞ SAYFALARIN ".html" BİÇİMİ (SEO denetimi, 2026-09-07)
+  // ---------------------------------------------------------------------------------------------
+  // Yukarıdaki girdilerin hepsi bir YENİDEN ADLANDIRMAdan doğdu (/ofis -> /firma gibi). Adı hiç
+  // değişmemiş sayfalar (proje/kisi/firma/urun/marka/gundem/arama/en-iyi-100 ve ana sayfa) bu
+  // tabloda yoktu; onların ".html" biçimi hiçbir kurala takılmadan Cloudflare Assets'e düşüyor ve
+  // Assets kendi html_handling (auto-trailing-slash) davranışıyla 307 GEÇİCİ yönlendirme üretiyordu
+  // (canlıda ölçüldü: /proje.html -> 307, /hakkinda.html -> 301 — iki farklı davranış, çünkü ikincisi
+  // yukarıdaki tabloda vardı).
+  // Bu URL'ler ölü değil: site 2026-09-01'e kadar ".html" ile geziliyordu (bkz. proje belleği:
+  // "İç bağlantılar temiz URL'lere" — 230 iç bağlantı o gün dönüştürüldü), yani indekslenmiş ve
+  // dış backlink almış olma ihtimalleri yüksek. 307, arama motorlarına "eski adres kalıcı adres
+  // OLMAYABİLİR" der: kaynak URL indekste tutulabilir ve link değeri kanonik adrese aktarılmaz.
+  // Doğru sinyal 301'dir; içerik zaten yıllardır aynı temiz yolda.
+  '/index.html': '/',
+  '/proje.html': '/proje',
+  '/kisi.html': '/kisi',
+  '/firma.html': '/firma',
+  '/urun.html': '/urun',
+  '/marka.html': '/marka',
+  '/gundem.html': '/gundem',
+  '/arama.html': '/arama',
+  '/pano.html': '/pano',
+  '/en-iyi-100.html': '/en-iyi-100',
+  // '/kariyer.html' BİLEREK YOK: /kariyer yayında değil (bkz. DISABLED_PAGE_PATHS) ve
+  // isDisabledPagePath() zaten ".html" ekini soyarak her iki biçimi de doğrudan 404'e düşürüyor.
+  // Buraya eklemek 301 -> 404 zinciri üretirdi (bkz. '/haber-detay' girdisindeki AYNI gerekçe).
 };
 
 // Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
@@ -1162,6 +1190,21 @@ function injectMeta(response, meta) {
   };
   return new HTMLRewriter()
     .on('title', { element(el) { el.setInnerContent(meta.title); } })
+    // SEO denetimi (2026-09-07) — GERÇEK BULGU, ~4.500 URL'i etkiliyordu. proje/kisi/firma/marka/
+    // urun/gundem.html'in <head>'inde, o LİSTE sayfasını tanımlayan statik bir CollectionPage
+    // bloğu var (id="list-jsonld", ör. {"@type":"CollectionPage","name":"Projeler — MİMARLAB",
+    // "url":"https://mimarlab.com/proje"}). Bu şablonlar detay görünümünde de (/proje/:slug ...)
+    // aynen servis edildiğinden blok sayfada KALIYORDU: /proje/bil-s-magaza belgesinde hem
+    // "url: /proje" diyen bir CollectionPage hem de "url: /proje/bil-s-magaza" diyen CreativeWork
+    // vardı. O şablonlardaki eski yorum "çakışmaz" diyordu; canlıda doğrulandı ki ÇAKIŞIYOR —
+    // sayfa düzeyinde, birbirinden FARKLI `url` taşıyan iki varlık düğümü, tam olarak arama
+    // motorlarının sayfa kimliğini yanlış çözmesine yol açan desendir.
+    // injectMeta YALNIZCA detay sayfaları (serveDetailPage) ve bilgi sayfaları (serveInfoModalPage)
+    // için çalışır — hub sayfaları ItemList'i AYRI bir HTMLRewriter ile ekler (bkz. isHubPath dalı)
+    // ve buradan hiç geçmez, yani /proje, /kisi ... kendi CollectionPage'ini KORUR. Bilgi sayfaları
+    // index.html'i servis eder ve orada `list-jsonld` id'li bir blok yoktur (oradaki Organization +
+    // WebSite blokları site geneli varlıklardır, her sayfada doğrudur) — kural orada no-op'tur.
+    .on('script#list-jsonld', { element(el) { el.remove(); } })
     .on('h1#entity-h1', h1Handler)
     .on('h1#page-title', h1Handler)
     .on('#ssr-entity-body', bodyHandler)
@@ -1287,22 +1330,22 @@ async function listCanonicalEntityUrls(env) {
   if (!env || !env.DB) return [];
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
   // offices: cats + ürün sayısı da okunur — sitemap KANONİK URL'i vermeli, saf markalar /marka/:slug
-  // altında yaşıyor (bkz. src/lib/officeUrl.js). Alt sorgu src/routes/office.js#fetchOfficePool'daki
-  // eşleşme kuralının (brand_office_id VEYA marka adı) BİREBİR aynısıdır.
-  const [archRes, officeRes, projRes, prodRes] = await Promise.all([
+  // altında yaşıyor (bkz. src/lib/officeUrl.js). Ürün sayısı, /api/offices havuzuyla AYNI tek
+  // kaynaktan (src/lib/officeProductCounts.js) gelir; eskiden burada ve fetchOfficePool'da ELLE
+  // yazılmış, birebir aynı korelasyonlu alt sorgu duruyordu — ikisi ayrışırsa sitemap'teki önek
+  // (/firma mı /marka mı) listedekiyle sessizce çelişirdi. O alt sorgu ayrıca ofis BAŞINA products
+  // tablosunun tamamını tarıyordu (canlıda ölçüldü: 606.751 satır / 1.900 ms); toplu biçim aynı
+  // sonucu ~7 ms'de üretir (eşdeğerlik kanıtı ve parite testi o modülün başında).
+  const [archRes, officeRes, projRes, prodRes, productCounts] = await Promise.all([
     env.DB.prepare(`SELECT slug, updated_at FROM architects WHERE ${where}`).all(),
-    env.DB.prepare(
-      `SELECT o.slug, o.cats, o.updated_at,
-         (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-            AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count
-       FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL`
-    ).all(),
+    env.DB.prepare(`SELECT id, slug, cats, updated_at FROM offices WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug, updated_at FROM projects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug, updated_at FROM products WHERE ${where}`).all(),
+    fetchOfficeProductCounts(env),
   ]);
   return [
     ...archRes.results.map(r => [`/kisi/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
-    ...officeRes.results.map(r => [officePath(r.slug, r.cats, r.product_count), toLastmod(r.updated_at)]),
+    ...officeRes.results.map(r => [officePath(r.slug, r.cats, productCounts.get(r.id) || 0), toLastmod(r.updated_at)]),
     ...projRes.results.map(r => [`/proje/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
     ...prodRes.results.map(r => [`/urun/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
   ];

@@ -39,10 +39,12 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
 <meta name="twitter:title" content="Projeler — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
-<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
-     sayfalarının <head>'ine ... application/ld+json ekle") — /proje/:slug detay görünümü
-     src/index.js#injectMeta ile SSR'da AYRI CreativeWork + BreadcrumbList şeması ekler, bu ikisiyle
-     çakışmaz. -->
+<!-- YALNIZCA LİSTE SAYFASI İÇİN. Bu blok detay görünümünde (/proje/:slug) SSR'da
+     KALDIRILIR (bkz. src/index.js#injectMeta 'script#list-jsonld' kuralı): orada sayfayı
+     tanımlayan varlık, injectMeta'nın eklediği kayda özel şemadır. İkisi birlikte
+     kalırsa sayfada FARKLI `url` taşıyan iki sayfa-düzeyi düğüm olur ve arama motoru
+     sayfa kimliğini yanlış çözebilir (SEO denetimi, 2026-09-07 — canlıda ~4.500 URL'de
+     bu durumdaydı). -->
 <script type="application/ld+json" id="list-jsonld">
 {"@context":"https://schema.org","@type":"CollectionPage","name":"Projeler — MİMARLAB","url":"https://mimarlab.com/proje","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>

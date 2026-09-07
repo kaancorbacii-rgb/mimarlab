@@ -11,6 +11,7 @@ import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 // bkz. src/routes/product.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
 // sınıflandırma referansı (hangi hizmet alanı firmaya, hangisi markaya ait).
 import { isBrandUrlOffice } from '../lib/officeUrl.js';
+import { fetchOfficeProductCounts } from '../lib/officeProductCounts.js';
 import officeKindJs from '../../office-kind.js';
 
 const { isBrandOffice, isPureBrandOffice, officeCatList, OFFICE_SERVICE_CATS, BRAND_CATS, LEGACY_BRAND_CAT } = officeKindJs;
@@ -52,18 +53,23 @@ function latestProjectCover(imagesRaw) {
 
 export async function fetchOfficePool(env) {
   return getCachedPool(env, 'offices', async () => {
-    const { results } = await env.DB.prepare(
-      `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url,
-         (SELECT p.images FROM project_designers pd2 JOIN projects p ON p.id = pd2.project_id
-          WHERE pd2.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
-            AND p.images IS NOT NULL AND p.images != '' AND p.images != '[]'
-          ORDER BY COALESCE(p.project_date, '') DESC, p.id DESC LIMIT 1) AS latest_project_images,
-         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-          WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count,
-         (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-          AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count
-       FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
-    ).all();
+    // product_count artık satır-başına korelasyonlu alt sorgu DEĞİL, tek toplu sorgu (bkz.
+    // src/lib/officeProductCounts.js — orada eşdeğerlik kanıtı ve canlı ölçüm var: bu alt sorgu
+    // tek başına havuzun D1 maliyetinin ~%98'iydi, 1.900 ms -> ~38 ms). Sonuç ve `?brands=1`
+    // filtresinin davranışı DEĞİŞMEZ.
+    const [{ results }, productCounts] = await Promise.all([
+      env.DB.prepare(
+        `SELECT o.id, o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url,
+           (SELECT p.images FROM project_designers pd2 JOIN projects p ON p.id = pd2.project_id
+            WHERE pd2.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+              AND p.images IS NOT NULL AND p.images != '' AND p.images != '[]'
+            ORDER BY COALESCE(p.project_date, '') DESC, p.id DESC LIMIT 1) AS latest_project_images,
+           (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+            WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
+         FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
+      ).all(),
+      fetchOfficeProductCounts(env),
+    ]);
     return results.map(row => {
       const o = parseCanonicalRow('offices', row);
       // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
@@ -82,7 +88,7 @@ export async function fetchOfficePool(env) {
       // ÖNCELİK: elle yüklenen cover_url (marka-ekle.html / firma-ekle.html) her zaman kazanır;
       // boşsa firmanın EN YENİ projesinin İLK görseline düşülür (latestProjectCover), o da yoksa
       // istemci adından türeyen sabit renge düşer. Detay ucunda da (buildOfficePayload) AYNI sıra.
-      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || latestProjectCover(row.latest_project_images), projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
+      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || latestProjectCover(row.latest_project_images), projectCount: row.project_count || 0, productCount: productCounts.get(row.id) || 0, badges: [] };
     });
   });
 }

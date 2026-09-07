@@ -33,9 +33,14 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
 <meta name="twitter:title" content="Gündem — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Mimarlık, tasarım ve yapı dünyasından güncel gelişmeler." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
-<!-- Liste sayfası için jenerik yapısal veri; /gundem/:slug detayı src/index.js#injectMeta ile
-     AYRI bir WebPage + BreadcrumbList şeması ekler (bkz. src/lib/seo.js#buildGundemMeta) — o şema
-     bilinçli olarak NewsArticle DEĞİLDİR, gerekçesi orada. -->
+<!-- YALNIZCA LİSTE SAYFASI İÇİN. Bu blok detay görünümünde (/gundem/:slug) SSR'da
+     KALDIRILIR (bkz. src/index.js#injectMeta 'script#list-jsonld' kuralı): orada sayfayı
+     tanımlayan varlık, injectMeta'nın eklediği kayda özel şemadır. İkisi birlikte
+     kalırsa sayfada FARKLI `url` taşıyan iki sayfa-düzeyi düğüm olur ve arama motoru
+     sayfa kimliğini yanlış çözebilir (SEO denetimi, 2026-09-07 — canlıda ~4.500 URL'de
+     bu durumdaydı).
+     injectMeta'nın eklediği Gündem detay şeması bilinçli olarak NewsArticle DEĞİL WebPage'dir
+     (gerekçesi src/lib/seo.js#buildGundemMeta'da). -->
 <script type="application/ld+json" id="list-jsonld">
 {"@context":"https://schema.org","@type":"CollectionPage","name":"Gündem — MİMARLAB","url":"https://mimarlab.com/gundem","description":"Mimarlık, tasarım ve yapı dünyasından güncel gelişmeler.","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>

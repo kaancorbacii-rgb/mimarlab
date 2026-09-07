@@ -116,6 +116,39 @@ else
   echo "         s-maxage (en fazla 5 dk) kadar geç görünebilir."
 fi
 
+echo "5) GÜNDEM otomatik toplama hattının TAZELİĞİ"
+# Production denetimi (2026-09-07) — bu kontrol, canlıda BİR KEZ GERÇEKLEŞMİŞ bir sessiz bozulma
+# sınıfı içindir (bkz. commit 1ff0e1b7): publishCandidate içindeki bir ReferenceError yüzünden her
+# yayın denemesi düşüyor, hat SIFIR içerik üretiyordu — ama kaynak sağlığı tablosu 13/13 "başarılı"
+# gösterdiğinden hiçbir sinyal yoktu. Feed'ler okunuyordu, yalnızca hiçbir şey yayınlanmıyordu.
+# En üstteki kaydın yaşına bakmak bu sınıfın TAMAMINI yakalar: hangi adımda kırılırsa kırılsın
+# (feed, AI, kalite kapısı, D1 yazımı) sonuç aynıdır — yeni kayıt gelmez.
+#
+# EŞİK 30 SAAT: cron ızgarası TR saatiyle 4 saatte bir (bkz. wrangler.jsonc#triggers.crons). Tek bir
+# turun yayın üretmemesi NORMALDİR (mükerrer/görselsiz/proje içeriği elenmiş olabilir), bu yüzden
+# eşik tek tura göre değil, arka arkaya ~7 tura göre seçildi — böylece kontrol gerçek bir bozulmayı
+# gösterir, gündelik dalgalanmada gürültü yapmaz. Yeni bir kaynak eklerken/kaynaklar toptan
+# kapatılırken bu satır BEKLENEN şekilde uyarır.
+#
+# UYARIDIR, BAŞARISIZLIK DEĞİL: Gündem'in bayatlaması sitenin geri kalanını etkilemez ve deploy'u
+# geri almak için bir gerekçe olmamalıdır (deploy.sh bu betiğin çıkış kodunu okur).
+GUNDEM_STALE_HOURS=30
+gundem_json=$(curl -s "$BASE_URL/api/gundem?limit=1")
+gundem_published_at=$(echo "$gundem_json" | jq -r '.items[0].publishedAt // empty')
+if [ -z "$gundem_published_at" ]; then
+  echo "  UYARI: /api/gundem en üstteki kaydı okunamadı (uç bozuk ya da liste tamamen boş)" >&2
+else
+  now_ms=$(( $(date +%s) * 1000 ))
+  age_h=$(( (now_ms - gundem_published_at) / 3600000 ))
+  if [ "$age_h" -gt "$GUNDEM_STALE_HOURS" ]; then
+    echo "  UYARI: Gündem'in en yeni kaydı $age_h saatlik (eşik ${GUNDEM_STALE_HOURS}s) — toplama hattı" >&2
+    echo "         sessizce içerik üretmiyor olabilir. Teşhis: npx wrangler tail --format=pretty ile" >&2
+    echo "         bir sonraki cron turunun 'gundem_run' satırına bakın (published/skipped alanları)." >&2
+  else
+    echo "  OK: Gündem'in en yeni kaydı $age_h saatlik (eşik ${GUNDEM_STALE_HOURS}s)"
+  fi
+fi
+
 if [ "$fail" -eq 1 ]; then
   echo "Sağlık kontrolü BAŞARISIZ oldu." >&2
   exit 1

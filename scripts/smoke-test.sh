@@ -253,6 +253,50 @@ for pair in "/hakkinda:Hakkında" "/iletisim:İletişim" "/gizlilik-politikasi:G
 done
 
 echo ""
+echo "12) Detay sayfalarında ARTIK liste sayfasının CollectionPage şeması OLMAMALI"
+# Production denetimi (2026-09-07) — proje/kisi/firma/marka/urun/gundem.html'in <head>'indeki
+# statik <script id="list-jsonld"> bloğu, aynı şablon detay görünümünde servis edildiğinde de
+# sayfada kalıyordu: ~4.500 detay URL'i, kendi kaydını tanımlayan şemanın YANINDA "url: /proje"
+# diyen bir CollectionPage taşıyordu (sayfa düzeyinde, farklı `url`'li iki varlık düğümü).
+# src/index.js#injectMeta artık bu bloğu detay görünümünde kaldırıyor. Aşağısı hem KALDIRMANIN
+# gerçekleştiğini hem de LİSTE sayfasında bloğun KORUNDUĞUNU (aşırı-kaldırma regresyonu) doğrular.
+for pair in "/proje/bil-s-magaza:/proje" "/kisi/emre-arolat:/kisi" "/firma/eaa-emre-arolat-architecture:/firma" "/urun/vivi-outdoor-masa-b-t-design:/urun"; do
+  detail_path="${pair%%:*}"; hub_path="${pair#*:}"
+  if curl -s "$BASE_URL$detail_path" | grep -q 'id="list-jsonld"'; then
+    bad "$detail_path — liste CollectionPage şeması hâlâ detay sayfasında (injectMeta#list-jsonld kuralı çalışmıyor)"
+  else
+    ok "$detail_path — liste CollectionPage şeması kaldırılmış"
+  fi
+  if curl -s "$BASE_URL$hub_path" | grep -q 'id="list-jsonld"'; then
+    ok "$hub_path — liste sayfası kendi CollectionPage şemasını KORUYOR"
+  else
+    bad "$hub_path — liste sayfasının CollectionPage şeması da kaybolmuş (aşırı-kaldırma regresyonu!)"
+  fi
+done
+gundem_slug=$(curl -s "$BASE_URL/api/gundem?limit=1" | sed -n 's/.*"slug":"\([^"]*\)".*/\1/p')
+if [ -n "$gundem_slug" ]; then
+  if curl -s "$BASE_URL/gundem/$gundem_slug" | grep -q 'id="list-jsonld"'; then
+    bad "/gundem/$gundem_slug — liste CollectionPage şeması hâlâ detay sayfasında"
+  else
+    ok "/gundem/$gundem_slug — liste CollectionPage şeması kaldırılmış"
+  fi
+fi
+
+echo ""
+echo "13) Adı değişmemiş sayfaların .html biçimi KALICI (301) yönlendirmeli"
+# Production denetimi (2026-09-07): bunlar PATH_RENAME_REDIRECTS'te olmadığından Cloudflare
+# Assets'in kendi html_handling davranışına düşüyor ve 307 (GEÇİCİ) dönüyordu — site 2026-09-01'e
+# kadar bu URL'lerle geziliyordu, yani indekslenmiş/backlink almış olabilirler.
+for legacy in /index.html /proje.html /kisi.html /firma.html /urun.html /marka.html /gundem.html /arama.html /en-iyi-100.html; do
+  legacy_code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$legacy")
+  if [ "$legacy_code" = "301" ]; then
+    ok "$legacy -> 301"
+  else
+    bad "$legacy -> $legacy_code (301 bekleniyordu; PATH_RENAME_REDIRECTS girdisi kaybolmuş olabilir)"
+  fi
+done
+
+echo ""
 if [ "$fail" -eq 1 ]; then
   echo "Smoke test BAŞARISIZ oldu." >&2
   exit 1
