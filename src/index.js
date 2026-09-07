@@ -56,7 +56,7 @@ import { GUNDEM_IMAGE_HOSTS } from './lib/gundemSources.js';
 const SITE_ORIGIN = 'https://mimarlab.com';
 
 // wrangler.jsonc#triggers.crons'taki görsel-arama dizini ifadesiyle BİREBİR aynı olmalı (bkz.
-// scheduled dispatcher). Ayrışırsa görsel dizin turu 30 dakikada bir çalışmaya başlar — bu yüzden
+// scheduled dispatcher). Ayrışırsa görsel dizin turu Gündem ızgarasında da çalışmaya başlar — bu yüzden
 // scripts/preflight-check.sh iki dosyadaki değeri statik olarak karşılaştırır.
 const VISUAL_INDEX_CRON = '23 */6 * * *';
 
@@ -624,12 +624,12 @@ export default {
   // handler varsa onu bozma; aynı scheduled handler içinde dispatcher pattern kullan").
   //
   // Artık İKİ cron ifadesi var (bkz. wrangler.jsonc#triggers.crons):
-  //   "23 *&#47;6 * * *"  → görsel arama varlık dizininin artımlı bakımı (ESKİ, DEĞİŞMEDİ)
-  //   "*&#47;30 * * * *"  → Gündem toplama turu (YENİ)
-  // event.cron hangi ifadenin tetiklendiğini söyler; iş seçimi buna göre yapılır. Altı saatte bir
-  // İKİSİ de tetiklenir (30dk ifadesi her yarım saatte, 6 saat ifadesi ayrıca) — o durumda ikisi
-  // de çalışır ama BİRBİRİNİ BEKLEMEZ (Promise.allSettled), böylece yavaş bir görsel dizin turu
-  // Gündem'in kendi zaman bütçesini yemez.
+  //   "23 *&#47;6 * * *"   → görsel arama varlık dizininin artımlı bakımı (ESKİ, DEĞİŞMEDİ)
+  //   "0 1,9,17 * * *"  → Gündem toplama turu (UTC; = 04:00/12:00/20:00 Türkiye saati, UTC+3 sabit)
+  // event.cron hangi ifadenin tetiklendiğini söyler; iş seçimi buna göre yapılır. İki ifade artık
+  // aynı dakikaya hiç denk gelmiyor (biri :23, diğeri :00), ama denk gelseler bile ikisi de çalışır
+  // ve BİRBİRİNİ BEKLEMEZ (Promise.allSettled), böylece yavaş bir görsel dizin turu Gündem'in kendi
+  // zaman bütçesini yemez.
   //
   // İkisi de ctx.waitUntil içinde: scheduled handler'ın dönmesi, işlerin bitmesini beklemez.
   // ---------------------------------------------------------------------------------------------
@@ -637,7 +637,7 @@ export default {
     const cron = (event && event.cron) || '';
     const jobs = [];
 
-    // Gündem — yalnızca 30 dakikalık ifadede. (Bir cron ifadesi tanınmazsa — ör. ileride biri
+    // Gündem — yalnızca kendi ifadesinde. (Bir cron ifadesi tanınmazsa — ör. ileride biri
     // wrangler.jsonc'u değiştirir ve buradaki dizeler ayrışırsa — Gündem yine de çalışsın diye
     // "bilinen görsel-dizin ifadesi DEĞİLSE" mantığı kullanılır; sessizce hiç çalışmamak, bu
     // depodaki tekrar eden "iki yerde tutulan sabit ayrıştı, özellik sessizce öldü" tuzağıdır.)
@@ -660,8 +660,7 @@ export default {
     }
 
     // Görsel arama dizini — DEĞİŞMEDİ, yalnızca kendi ifadesinde çalışır (önceden tek cron olduğu
-    // için koşulsuzdu; 30dk'lık Gündem ifadesinde de çalışsaydı 6 saatlik maliyet varsayımı
-    // 12 katına çıkardı).
+    // için koşulsuzdu; Gündem ifadesinde de çalışsaydı 6 saatlik maliyet varsayımı bozulurdu).
     if (cron === VISUAL_INDEX_CRON || !cron) {
       jobs.push((async () => {
         for (const type of ['project', 'product']) {

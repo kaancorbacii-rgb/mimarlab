@@ -41,9 +41,13 @@
 //  enabled          false ise tur sırasında hiç DOKUNULMAZ (ağ isteği bile yapılmaz)
 //  defaultCategory  AI'nin kategori önerisi whitelist dışına düşerse/emin olmazsa kullanılan değer
 //  categoryHints    feed'in kendi <category> etiketlerinden kategori türetme kuralları (AI'den ÖNCE)
-//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron 3 SAATTE BİR çalışır — kullanıcı
-//                   isteği 2026-09-07; bu değer kaynak-başına ek seyreltme sağlar, bkz.
-//                   gundem_source_health.last_run_at). 180 = her turda okunur; 360 = iki turda bir.
+//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron artık GÜNDE 3 SABİT TUR: 04:00,
+//                   12:00, 20:00 Türkiye saati — kullanıcı isteği 2026-09-07; bkz. wrangler.jsonc
+//                   #triggers.crons). Turlar arası 480 dakika olduğu için aşağıdaki TÜM değerler
+//                   (180 ve 360) her turda dolmuş olur: pratikte her etkin kaynak her turda okunur.
+//                   Bu alan artık ancak 480'den BÜYÜK bir değer verilirse seyreltme yapar (ör. 960
+//                   = iki turda bir). Değerler, ızgara ileride yeniden sıklaştırılırsa anlamlarını
+//                   koruduğu için olduğu gibi bırakıldı (bkz. gundem_source_health.last_run_at).
 //  maxItemsPerRun   tek turda bu kaynaktan alınacak azami YENİ içerik
 //  imageStrategy    'feed'  → görsel yalnızca feed alanlarından (enclosure/media:*/gövdedeki ilk <img>)
 //                   'og'    → feed'de görsel yoksa makale <head>'inden og:image okunur
@@ -304,7 +308,7 @@ export const GUNDEM_SOURCES = [
   // SAYFALAMA: feed'in tek sayfası yalnızca ~2-3 GÜN geriye gidiyor (10 item, günde ~4 haber).
   // 2 haftalık pencereyi kapatmak için WordPress'in ?paged=N sayfaları extraListUrls olarak
   // eklendi (ölçüm: paged=4 21 Ağustos'a ulaşıyor, paged=5 tamamen pencerenin dışında kalıyor).
-  // Bu sayfalar cron turunda da okunur; 3 saatlik tur için tek sayfa yeterli olurdu ama yayıncı
+  // Bu sayfalar cron turunda da okunur; sık turlarda tek sayfa yeterli olurdu ama yayıncı
   // yoğun bir gün yaşarsa ya da bir tur kaçarsa derinlik güvenlik payı sağlıyor (4 istek/tur,
   // sıralı — bkz. collectCandidates'in listUrls döngüsü paralel DEĞİLDİR).
   //

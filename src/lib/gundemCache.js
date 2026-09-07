@@ -9,7 +9,7 @@
 // NEDEN invalidatePublicCache() DOĞRUDAN ÇAĞRILMIYOR: o fonksiyon proje/kişi/firma/ürün havuzlarını
 // ve fingerprint'lerini de düşürür. Gündem yayını bu dört varlığın HİÇBİRİNİ değiştirmediğinden,
 // her cron turunda site genelindeki tüm sıcak önbellekleri düşürmek saf bir maliyet olurdu
-// (30 dakikada bir, günde 48 kez). Bu yüzden yalnızca Gündem'in kendi anahtarları hedeflenir.
+// (Gündem cron turlarında, günde 3 kez). Bu yüzden yalnızca Gündem'in kendi anahtarları hedeflenir.
 //
 // TAZELİK GARANTİSİ AYRICA ETag'DEN GELİR: /api/gundem, cachedPublicJson'a bir listFingerprint
 // geçirir (bkz. src/routes/gundem.js) — purge bir PoP'u atlasa bile o PoP'taki girdi, fingerprint

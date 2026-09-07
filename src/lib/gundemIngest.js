@@ -49,7 +49,7 @@ import { purgeGundemCache } from './gundemCache.js';
 export const GUNDEM_LIMITS = {
   maxItemsPerRun: 20,
   // Kaynak yapılandırmasındaki maxItemsPerRun bundan BÜYÜK olamaz (tavan burada).
-  // 5 -> 6 (2026-09-07): cron 30dk'dan 2 SAATE indi, yani tur başına daha fazla birikmiş içerik
+  // 5 -> 6 (2026-09-07): cron 30dk'dan seyreldi (bugün günde 3 tur), yani tur başına daha fazla birikmiş içerik
   // oluyor. Tavan kaynak yapılandırmasındaki değerlerle (6) hizalandı — aksi halde oradaki 6
   // sessizce 5'e kırpılırdı.
   maxItemsPerSource: 6,
@@ -130,8 +130,8 @@ async function recordSourceResult(env, sourceId, ok, errorMessage) {
 // çalışıyordu, üstelik hiçbir hata vermeden.
 //
 // 5 dakikalık pay bu kaymayı fazlasıyla kapsar ve hızı ARTIRMAZ: cron ızgarası (2026-09-07'den
-// beri 2 SAATLİK) her zaman bu paydan çok daha geniştir — 120 dakikalık bir aralık "115 dakikadan
-// sonra due" olsa bile bir sonraki fiili tur yine 120. dakikadaki turdur. Yani kaynaklara gidiş
+// beri günde 3 sabit tur, aralarında 480 dakika) her zaman bu paydan çok daha geniştir — bir aralık
+// 5 dakika erken "due" olsa bile bir sonraki fiili tur yine ızgaradaki turdur. Yani kaynaklara gidiş
 // sıklığı değişmez, yalnızca ıskalanan pencere düzelir.
 const DUE_GRACE_MS = 5 * 60000;
 
@@ -225,7 +225,7 @@ async function allocateSlug(env, title) {
 //   * Cron turu (opts.maxItemsPerSource YOK): kaynağın kendi maxItemsPerRun'ı, GUNDEM_LIMITS
 //     tavanıyla kırpılır — 2026-09-07 öncesindeki davranışın BİREBİR aynısı.
 //   * Geri doldurma (opts.maxItemsPerSource VERİLMİŞ): verilen değer kaynağın kendi değerinin
-//     YERİNE geçer. Kaynak yapılandırmasındaki 3-6 aralığı 3 SAATLİK cron turu için ölçüldü; 7
+//     YERİNE geçer. Kaynak yapılandırmasındaki 3-6 aralığı seyrek cron turu için ölçüldü; 7
 //     günlük tek seferlik bir tarama o pencereye sığmaz ve eski davranışta kaynağın 7 günlük
 //     içeriğinin çoğu sessizce düşerdi. Kalite/mükerrer/görsel kapıları bundan ETKİLENMEZ.
 function sourceItemCap(source, opts = {}) {
