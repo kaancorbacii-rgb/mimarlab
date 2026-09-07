@@ -9,7 +9,7 @@ import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeNamesRoute, han
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute, fetchActiveProjectPoolCached } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute, fetchProductPool } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
-import { handleVisualSearchRoute, handleImageEmbedAppendRoute } from './routes/visualSearch.js';
+import { handleVisualSearchRoute, handleImageEmbedAppendRoute, handleImageProxyRoute } from './routes/visualSearch.js';
 import { rebuildIndex } from './lib/visualIndexStore.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
@@ -1452,6 +1452,8 @@ async function routeApi(request, env, url, ctx) {
   // /api/ai/search gibi (bkz. o satırın gerekçesi).
   if (path === '/api/ai/visual-search') return handleVisualSearchRoute(request, env, url);
   if (path === '/api/ai/image-embed') return handleImageEmbedAppendRoute(request, env, url);
+  // "Görsel URL'si yapıştır" kutusunun SSRF-korumalı görsel borusu (bkz. handleImageProxyRoute).
+  if (path === '/api/ai/image-proxy') return handleImageProxyRoute(request, env, url);
   if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));

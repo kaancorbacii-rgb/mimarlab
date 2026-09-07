@@ -989,30 +989,38 @@
           ? 'Ürün görseliyle birebir eşleşme' : '',
       });
 
+      const projectParts = [];
       if(match.project){
-        parts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen proje</div>');
-        parts.push(`<div class="nav-vs-match">${projectRow(match.project)}</div>`);
+        projectParts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen proje</div>');
+        projectParts.push(`<div class="nav-vs-match">${projectRow(match.project)}</div>`);
       }
       if(projects.length){
-        parts.push(`<div class="nav-vs-group-title">${match.project ? 'Benzer projeler' : 'Görseline en yakın projeler'}</div>`);
-        parts.push(projects.map(projectRow).join(''));
+        projectParts.push(`<div class="nav-vs-group-title">${match.project ? 'Benzer projeler' : 'Görseline en yakın projeler'}</div>`);
+        projectParts.push(projects.map(projectRow).join(''));
       } else if(!data.message && !match.project){
-        parts.push('<div class="nav-vs-group-title">Görseline en yakın projeler</div><div class="nav-vs-empty">Eşleşen proje bulunamadı.</div>');
+        projectParts.push('<div class="nav-vs-group-title">Görseline en yakın projeler</div><div class="nav-vs-empty">Eşleşen proje bulunamadı.</div>');
       }
 
+      const productParts = [];
       if(match.product){
-        parts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen ürün</div>');
-        parts.push(`<div class="nav-vs-match">${productRow(match.product)}</div>`);
+        productParts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen ürün</div>');
+        productParts.push(`<div class="nav-vs-match">${productRow(match.product)}</div>`);
       }
       if(products.length){
-        parts.push(`<div class="nav-vs-group-title">${match.product ? 'Benzer ürünler' : 'Görseline en yakın ürünler'}</div>`);
-        parts.push(products.map(productRow).join(''));
+        productParts.push(`<div class="nav-vs-group-title">${match.product ? 'Benzer ürünler' : 'Görseline en yakın ürünler'}</div>`);
+        productParts.push(products.map(productRow).join(''));
       } else if(!data.message && !data.productsSuppressed && !match.product){
         // productsSuppressed: görselde hiç ürün tespit edilmedi — o zaman "bulunamadı" bile YAZMA,
         // bölüm hiç açılmaz (kullanıcı isteği madde 11/20: "Eğer güvenilir ürün eşleşmesi yoksa
         // ürün bölümünü hiç gösterme"). Zorla sonuç üretmemek, yanlış ürün göstermekten iyidir.
-        parts.push('<div class="nav-vs-group-title">Görseline en yakın ürünler</div><div class="nav-vs-empty">Eşleşen ürün bulunamadı.</div>');
+        productParts.push('<div class="nav-vs-group-title">Görseline en yakın ürünler</div><div class="nav-vs-empty">Eşleşen ürün bulunamadı.</div>');
       }
+      // SIRA KONUYA GÖRE (2026-09-07): bir ürün fotoğrafı yüklendiğinde (vision subject=product ya da
+      // sonuç türü ürün) ürün bölümü ÜSTTE gelir — eskiden her durumda önce "en yakın projeler"
+      // basılıyor, katalogdaki ürünün birebir eşleşmesi alakasız bir proje listesinin altında
+      // kalıyordu (canlı yoklamada ölçüldü). Mimari fotoğrafta sıra eskisi gibi proje → ürün.
+      const productFirst = a.subject === 'product' || data.matchType === 'EXACT_PRODUCT' || data.matchType === 'SIMILAR_PRODUCT';
+      parts.push(...(productFirst ? [...productParts, ...projectParts] : [...projectParts, ...productParts]));
       vsResults.innerHTML = parts.join('');
       vsResults.hidden = false;
       // Sonuca tıklanınca TAM SAYFA gidilir (proje/ürün popup'ı o sayfada açılır). Kullanıcı o
@@ -1116,6 +1124,54 @@
       acceptImageFile(file);
     });
 
+    // "Görsel URL'si yapıştır" kutusu — GERÇEK BULGU (arama denetimi, 2026-09-07): bu kutu
+    // arayüzde vardı ama hiçbir dinleyicisi YOKTU; yapıştırılan adres sessizce hiçbir şey
+    // yapmıyordu. Tarayıcı üçüncü taraf bir görselin PİKSELLERİNİ CORS yüzünden okuyamaz (CLIP
+    // imzası çıkarılamaz), bu yüzden görsel sunucudaki SSRF-korumalı /api/ai/image-proxy
+    // üzerinden çekilir (bkz. src/routes/visualSearch.js#handleImageProxyRoute) ve dosya
+    // seçilmiş gibi AYNI akışa (acceptImageFile → CLIP → /api/ai/visual-search) verilir.
+    const imageUrlInput = overlay.querySelector('#nav-search-modal-image-url');
+    let lastImageUrl = '';
+    async function acceptImageUrl(raw){
+      const url = String(raw || '').trim();
+      if(!url || url === lastImageUrl) return;
+      if(!/^https?:\/\//i.test(url)){ showImageError('Görsel adresi http:// ya da https:// ile başlamalı.'); return; }
+      lastImageUrl = url;
+      imageError.hidden = true;
+      vsClear();
+      vsSetStatus('Görsel adresten alınıyor…');
+      let res;
+      try{
+        res = await fetch('/api/ai/image-proxy?url=' + encodeURIComponent(url));
+      } catch(e){
+        vsSetStatus('');
+        showImageError('Görsel adresine ulaşılamadı.');
+        lastImageUrl = '';
+        return;
+      }
+      if(!res.ok){
+        vsSetStatus('');
+        let msg = 'Bu adresten görsel alınamadı.';
+        try { const d = await res.json(); if(d && d.error) msg = d.error; } catch(e) {}
+        showImageError(msg);
+        lastImageUrl = '';   // aynı adres tekrar denenebilsin (geçici ağ hatası olabilir)
+        return;
+      }
+      const blob = await res.blob();
+      vsSetStatus('');
+      const name = (url.split('/').pop() || 'gorsel').split('?')[0].slice(0, 80) || 'gorsel';
+      acceptImageFile(new File([blob], name, { type: blob.type || 'image/jpeg' }));
+    }
+    if(imageUrlInput){
+      imageUrlInput.addEventListener('keydown', (e) => {
+        // Bazı sanal klavyeler/otomasyon araçları key olarak 'Return' ya da keyCode 13 gönderir.
+        if(e.key === 'Enter' || e.key === 'Return' || e.keyCode === 13){ e.preventDefault(); acceptImageUrl(imageUrlInput.value); }
+      });
+      // Yapıştırma: değer olay anında henüz kutuya yazılmamıştır, bir sonraki döngüde okunur.
+      imageUrlInput.addEventListener('paste', () => setTimeout(() => acceptImageUrl(imageUrlInput.value), 0));
+      imageUrlInput.addEventListener('change', () => acceptImageUrl(imageUrlInput.value));
+    }
+
     // CLIP ISITMA ARTIK "GÖRSEL ARAMA NİYETİ"NE BAĞLI (performans denetimi, 2026-09-06 madde 1).
     //
     // ÖLÇÜLEN SORUN: warmup() navSearchModalApi.open() içinde çağrılıyordu — yani üst navigasyondaki
@@ -1188,8 +1244,12 @@
         </a>`;
       }).join('');
       const moreHref = '/arama?q=' + encodeURIComponent(query);
+      // total artık GERÇEK eşleşme sayısı (eskiden grup başına 20'de kırpılıyordu: "cami" için
+      // pencere 21 derken sayfa 70 buluyordu). Sunucu aday sınırına takıldıysa (capped) sayı bir
+      // alt sınırdır ve "+" ile gösterilir — uydurma bir kesinlik verilmez.
+      const totalLabel = data.capped ? `${data.total}+` : String(data.total);
       body.innerHTML = `<div class="nav-search-modal-results">${rows}</div>
-        <a class="nav-search-modal-more" href="${escapeAttr(moreHref)}">"${escapeHtml(query)}" için tüm sonuçları gör (${data.total})</a>`;
+        <a class="nav-search-modal-more" href="${escapeAttr(moreHref)}">"${escapeHtml(query)}" için tüm sonuçları gör (${totalLabel})</a>`;
     }
 
     modalInput.addEventListener('input', () => {

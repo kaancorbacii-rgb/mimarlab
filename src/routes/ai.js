@@ -43,7 +43,8 @@ import { fetchProductPool } from './product.js';
 import {
   deterministicParse, mergePlans, normalizePlan, searchProjectPool, searchArchitects,
   searchOffices, searchProducts, computeFacets, relatedProjectsForBrandOrProduct,
-  nameMatches, sideOfIstanbul, RESULTS_PER_TYPE, buildVocabulary, unresolvableTerms,
+  nameMatches, nameCoverage, sideOfIstanbul, RESULTS_PER_TYPE, buildVocabulary, unresolvableTerms,
+  correctPlanTerms,
 } from '../lib/searchEngine.js';
 import { DISCIPLINE_VALUES, CATEGORY_VALUES } from '../lib/searchConcepts.js';
 import ilIlceJs from '../../il-ilce-data.js';
@@ -168,11 +169,19 @@ function detectEntityName(query, pools, plan) {
     if (!n.includes(' ') && conceptWords.has(n)) continue;
     if (folded.includes(n)) return c;
   }
-  // Tam içerme yoksa: sorgunun TAMAMI tek bir ada çok yakınsa (yazım hatası senaryosu).
+  // Tam içerme yoksa: sorgu, tek bir adın BÜYÜK KISMINI söylüyorsa (yazım hatası ya da eksik
+  // kelime senaryosu: "emre arolat architectur"). GERÇEK BULGU (2026-09-07): burada eskiden
+  // nameMatches(c.name, raw) vardı ve o fonksiyonun "aday ad sorguyu içeriyor" dalı, "koltuk" gibi
+  // tek kelimelik jenerik bir sorguyu adında o kelime geçen İLK ürüne ("Rego Koltuk ve Sandalye
+  // Serisi") bağlıyordu — plan bir ürün adı araması sanılıyor, sonuçlar o ürünün kullanıldığı
+  // 18 ofis projesine daralıyor, arayüzde "İsim: Rego Koltuk…" etiketi çıkıyordu. Kapsama ölçütü
+  // (adın kelimelerinin en az %60'ı sorguda) bunu keser; iki kelimelik gerçek adlar geçer.
+  let best = null, bestCov = 0;
   for (const c of candidates) {
-    if (nameMatches(c.name, raw)) return c;
+    const cov = nameCoverage(c.name, raw);
+    if (cov >= 0.6 && cov > bestCov) { best = c; bestCov = cov; }
   }
-  return null;
+  return best;
 }
 
 // LLM planı — eski extractFilters'ın yerine geçer. Şema genişledi: entity/type/district eklendi.
@@ -361,6 +370,11 @@ export async function handleAiSearchRoute(request, env, url) {
   // 4b) Çözülemeyen ayırt edici terim var mı? (bkz. searchEngine.js#unresolvableTerms)
   // Varsa sorgu karşılanamaz — genel bir aramaya İNDİRGEMEK yanıltıcı olurdu.
   const vocab = buildVocabulary({ projects: projectPool, architects: architectPool, offices: officePool, products: productPool });
+  // Sorgu tarafı yazım düzeltmesi — belge tarafındaki yazım toleransı kaldırıldığından (bkz.
+  // searchConcepts.js#termInTokens) "mermr" gibi bir yazım hatası burada, korpusa karşı bir kez
+  // düzeltilir; aşağıdaki kanallar düzeltilmiş terimi arar. Yalnızca sözlükte HİÇ geçmeyen terimler
+  // düzeltilir, gerçek bir kelime asla "düzeltilmez".
+  const corrections = correctPlanTerms(plan, vocab);
   const unknown = relatedProjectSlugs.size ? [] : unresolvableTerms(plan, vocab);
   if (unknown.length) {
     const emptyTotals = { projects: 0, architects: 0, offices: 0, products: 0, brands: 0 };
@@ -415,6 +429,12 @@ export async function handleAiSearchRoute(request, env, url) {
   // 6) Özet — önce deterministik cümle, LLM varsa onu iyileştirmeye çalışır ama SADECE
   // topraklanmışsa (summaryIsGrounded) kabul edilir.
   let summary = deterministicSummary(query, totals, facets);
+  // Uygulanan yazım düzeltmesi kullanıcıya açıkça söylenir — sessizce başka bir kelime aramak,
+  // "neden bu sonuçlar geldi" sorusunu cevapsız bırakırdı. LLM özeti de bu notu korur (aşağıda
+  // özetin sonuna eklenir), çünkü düzeltme bir sayı değil bir olgudur.
+  const correctionNote = corrections.length
+    ? ` (${corrections.map(c => `"${c.from}" yerine "${c.to}" arandı`).join(', ')})`
+    : '';
   if (aiAvailable && totalCount) {
     const allowed = new Set([
       ...Object.values(totals), totalCount,
@@ -434,6 +454,8 @@ export async function handleAiSearchRoute(request, env, url) {
       console.error('ai.js summary failed', err);
     }
   }
+
+  if (correctionNote) summary = summary.replace(/\s*$/, '') + correctionNote;
 
   const shapeProject = r => ({
     slug: r.item.slug, title: r.item.title, location: r.item.location, date: r.item.date,

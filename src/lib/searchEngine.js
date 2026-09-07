@@ -17,7 +17,8 @@
 
 import { foldTr } from './textMatch.js';
 import { expandQuery, textOverlapScore, tokenize, stemTr, editDistance, textTokens,
-         termInTokens, matchesTextGroups, DISCIPLINE_VALUES, CATEGORY_VALUES } from './searchConcepts.js';
+         termInTokens, termGrade, matchesTextGroups, phraseInHay, correctTerm, conceptVocabulary,
+         DISCIPLINE_VALUES, CATEGORY_VALUES } from './searchConcepts.js';
 import ilIlceJs from '../../il-ilce-data.js';
 import projectTaxonomyJs from '../../project-taxonomy.js';
 
@@ -39,9 +40,11 @@ export function emptyPlan() {
     name: null,            // kişi/firma/marka adı — ilişki aramasının girişi
     keywords: [],          // ham sorgu terimleri (tam eşleşme kanalı)
     expand: [],            // kavram genişletmesi (semantik kanal, skorlama sinyali)
+    textExpand: [],        // yalnızca malzeme/üslup genişletmesi (ürün kanalının semantik sinyali)
     textGroups: [],        // ZORUNLU metin filtreleri (malzeme/üslup — D1'de kolonu yok)
     residual: [],          // YAPILANDIRILMIŞ bir filtreye dönüşMEYEN terimler (kişi/firma/marka adı adayı)
     concepts: [],          // hangi kavram neden eşleşti (observability)
+    corrected: [],         // sorgu tarafı yazım düzeltmeleri [{from,to}] (bkz. correctPlanTerms)
   };
 }
 
@@ -72,6 +75,9 @@ export function normalizePlan(raw, rawQuery) {
   }
   if (Array.isArray(r.expand)) {
     p.expand = r.expand.filter(k => typeof k === 'string' && k.trim()).map(k => k.trim().slice(0, 60)).slice(0, 24);
+  }
+  if (Array.isArray(r.textExpand)) {
+    p.textExpand = r.textExpand.filter(k => typeof k === 'string' && k.trim()).map(k => k.trim().slice(0, 60)).slice(0, 24);
   }
   if (Array.isArray(r.textGroups)) {
     p.textGroups = r.textGroups.filter(g => Array.isArray(g) && g.length).slice(0, 6)
@@ -137,6 +143,7 @@ export function deterministicParse(query) {
   plan.category = ex.category;
   plan.discipline = ex.discipline;
   plan.expand = ex.expand;
+  plan.textExpand = ex.textExpand;
   plan.textGroups = ex.textGroups;
   plan.concepts = ex.matched;
 
@@ -195,9 +202,11 @@ export function mergePlans(base, delta) {
     name: pick(base.name, delta.name),
     keywords: pickArr(base.keywords, delta.keywords),
     expand: [...new Set([...(base.expand || []), ...(delta.expand || [])])],
+    textExpand: [...new Set([...(base.textExpand || []), ...(delta.textExpand || [])])],
     textGroups: (base.textGroups && base.textGroups.length) ? base.textGroups : (delta.textGroups || []),
     residual: (base.residual && base.residual.length) ? base.residual : (delta.residual || []),
     concepts: base.concepts || [],
+    corrected: base.corrected || [],
   };
 }
 
@@ -248,7 +257,8 @@ function keywordScore(text, keywords) {
   if (!hay) return 0;
   const tokens = textTokens(text);
   let hit = 0;
-  for (const k of keywords) if (termInTokens(k, tokens, hay)) hit++;
+  // Kademeli (bkz. searchConcepts.js#termGrade): tam kelime/kök 1, yalnızca önek 0,75.
+  for (const k of keywords) hit += termGrade(k, tokens, hay);
   return hit / keywords.length;
 }
 
@@ -256,12 +266,26 @@ function keywordScore(text, keywords) {
 function scoreOf(signals) {
   return (
     signals.exact * 5.0 +          // tam eşleşme (başlık/isim)
+    // title: sorgu terimlerinin BAŞLIKTAKİ kısmi örtüşmesi (0..1). GERÇEK BULGU (2026-09-07):
+    // bu sinyal olmadan "cam cephe" gibi 200+ sonuçlu sorgularda sıralama fiilen alfabetikti —
+    // başlığında "cephe" geçen bir proje, kavramı yalnızca açıklamasının bir yerinde anan projeyle
+    // aynı puanı alıyordu. Başlık, bir kaydın en güvenilir kimlik metnidir; açıklamadan çok, tam
+    // eşleşmeden az ağırlık alır.
+    (signals.title || 0) * 2.0 +
     signals.structured * 3.0 +     // yapılandırılmış filtre isabeti (tipoloji/şehir/yıl)
     signals.semantic * 2.0 +       // kavram genişletmesi isabeti
     signals.keyword * 1.5 +        // ham terim örtüşmesi
     signals.relation * 2.5 +       // varlık ilişkisi üzerinden gelmiş
     signals.completeness * 0.5     // veri doluluğu (görsel/açıklama/künye)
   );
+}
+
+// Sorgunun tamamı (kelimeler bitişik) başlıkta KELİME SINIRINDA geçiyor mu? GERÇEK BULGU
+// (2026-09-07): eski `foldTr(title).includes(keywords.join(' '))` düz alt-dize eşleşmesiydi — "taş"
+// sorgusu ("tas") "EspressoLab Beşiktaş"ı ("besiktas") TAM EŞLEŞME sayıp en üste taşıyordu.
+function titleHasPhrase(titleText, keywords) {
+  if (!keywords.length) return false;
+  return phraseInHay(foldTr(titleText || ''), foldTr(keywords.join(' ')));
 }
 
 function completenessOf(p) {
@@ -305,8 +329,9 @@ export function searchProjectPool(pool, plan, parseYear, relatedSlugs) {
       : 0;
     const semantic = textOverlapScore(bodyText, plan.expand);
     const keyword = keywordScore(bodyText, plan.keywords);
-    const exact = plan.keywords.length && foldTr(titleText).includes(foldTr(plan.keywords.join(' '))) ? 1
-      : (nameHit ? 1 : (keywordScore(titleText, plan.keywords) >= 0.999 ? 1 : 0));
+    const title = keywordScore(titleText, plan.keywords);
+    const exact = titleHasPhrase(titleText, plan.keywords) ? 1
+      : (nameHit ? 1 : (title >= 0.999 ? 1 : 0));
 
     // ---- KABUL KURALI ----
     // GERÇEK BULGU (1698 satırlık üretim havuzuyla test): "herhangi bir zayıf sinyal varsa kabul et"
@@ -362,8 +387,13 @@ export function searchProjectPool(pool, plan, parseYear, relatedSlugs) {
       else if (keyword < 0.6 && semantic < 0.6 && !exact) continue;
     }
 
+    // Kavram sözlüğünden gelen terimlerin ("mermer", "ahşap", "otel"…) BAŞLIKTA geçmesi de başlık
+    // sinyalidir: "taş" sorgusunda "Damda Taş Ev" ve "Fener Taş Evleri", taşı yalnızca açıklamasında
+    // anan bir projeden önce gelmeli.
+    const conceptInTitle = plan.expand.length ? textOverlapScore(titleText, plan.expand) : 0;
     const signals = {
       exact, structured, semantic, keyword,
+      title: Math.max(title, conceptInTitle > 0 ? 0.6 : 0),
       relation: isRelated ? 1 : 0,
       completeness: completenessOf(p),
     };
@@ -387,7 +417,10 @@ function genericSearch(pool, plan, opts) {
   // 2 harfli terimler ("ay") ad araması için kullanılmaz: tek başlarına ayırt edici değiller ve
   // 131 alakasız kişiyi eşleştiriyorlardı (gerçek bulgu, "Ay'da yapılmış konut projeleri" testi).
   const terms = (plan.residual || []).filter(t => foldTr(t).length >= 3);
-  const expand = opts.allowSemantic ? plan.expand : [];
+  // Ürün kanalının semantik sinyali YALNIZCA malzeme/üslup genişletmesidir (plan.textExpand) —
+  // yapı tipolojisi genişletmesi ("cami" -> cami/mescit) ürün kataloğunda anlamsızdır (bkz.
+  // searchConcepts.js#expandQuery textExpand notu).
+  const expand = opts.allowSemantic ? (plan.textExpand || []) : [];
   const wanted = plan.name;
   const out = [];
   // Ne bir isim ne de kalan bir terim var (ör. "İstanbul'da ofis projeleri") — bu sorgu bu kanalı
@@ -405,15 +438,22 @@ function genericSearch(pool, plan, opts) {
     // Terimler KİMLİĞE karşı aranır; adres/kategori metni tek başına kabul için yeterli DEĞİLDİR.
     const nameScore = keywordScore(identity, terms);
     const keyword = keywordScore(body, terms);
+    // KATEGORİ eşleşmesi (yalnızca categoryOf veren kanallar, yani ürün): "koltuk" sorgusunda
+    // kategorisi "Koltuk & Kanepe" olan her ürün gerçek bir sonuçtur — bu bir alt-dize tesadüfü
+    // değil, yapılandırılmış bir alanın tam isabetidir. GERÇEK BULGU (2026-09-07): kategori kabul
+    // ölçütü olmadığından AI kanalı "koltuk" için 18 ürün sayarken klasik katalog araması 169
+    // buluyordu — aynı sayfada iki çelişkili sayı.
+    const categoryHit = (opts.categoryOf && terms.length && keywordScore(opts.categoryOf(it), terms) >= 0.999) ? 1 : 0;
     // Malzeme/üslup grupları ürün kanalında bir ELEME değil bir EŞLEŞME ölçütüdür: "mermer"
     // sorgusunda mermer ürünleri dönmeli.
     const groupHit = (opts.allowSemantic && plan.textGroups.length && matchesTextGroups(body, plan.textGroups)) ? 1 : 0;
     const semantic = Math.max(textOverlapScore(body, expand), groupHit);
-    if (!nameHit && !exactName && nameScore < 0.6 && !groupHit && semantic < 0.5) continue;
+    if (!nameHit && !exactName && nameScore < 0.6 && !categoryHit && !groupHit && semantic < 0.5) continue;
     if (wanted && !nameHit && !exactName) continue;
     const signals = {
       exact: Math.max(nameHit, exactName),
-      structured: opts.structured ? opts.structured(it, plan) : 0,
+      title: nameScore,
+      structured: Math.max(opts.structured ? opts.structured(it, plan) : 0, categoryHit),
       semantic, keyword, relation: 0,
       completeness: completenessOf(it),
     };
@@ -446,6 +486,7 @@ export function searchProducts(pool, plan) {
     nameOf: p => p.title,
     identityOf: p => `${p.title || ''} ${p.brand || ''}`,
     textOf: p => `${p.title || ''} ${p.brand || ''} ${p.category || ''} ${p.group || ''} ${(p.designers || []).join(' ')}`,
+    categoryOf: p => `${p.category || ''} ${p.group || ''}`,
     allowSemantic: true,
   });
 }
@@ -505,14 +546,85 @@ export async function relatedProjectsForBrandOrProduct(env, { brandName, product
 // Çözüm: sorguda ayırt edici (5+ harf) ama TÜM korpusta (proje başlıkları + kişi/firma/ürün/marka
 // adları) hiç geçmeyen bir terim varsa, o sorgu karşılanamaz. Bu bir tahmin değil, doğrulanabilir
 // bir olgudur: kelime veritabanında yok. Bu durumda dürüst yanıt "bulunamadı"dır.
+// GERÇEK BULGU (2026-09-07, üretim havuzuyla ölçüldü): sözlük yalnızca BAŞLIK/AD tokenlarından
+// kurulunca iki tür sorgu yanlış yere "bulunamadı"ya düşüyordu:
+//   * "deniz manzaralı ev" — "manzaralı" hiçbir başlıkta yok ama 80+ proje açıklamasında var;
+//   * "tabanlıoğlu" — firma satırı havuzda değil ama 1 projenin künyesinde (designer) geçiyor.
+// Sözlük artık açıklama, künye, konum, ürün kategorisi/tasarımcı metinlerini ve kavram sözlüğünü
+// de kapsar. Her tokenın KÖKÜ de eklenir ki "kütüphaneler" sorgusu "kütüphanesi" içeren bir
+// korpusta çözülebilsin (unresolvableTerms sorgunun kökünü sözlükte arar).
+// buildVocabulary ölçüldü: 30 bin tokenlık sözlük ~70 ms'de kurulur (1.785 proje açıklaması
+// dahil). Havuzlar zaten KV'den 5 dakikalık pencereyle geliyor; sözlük de aynı pencerede, havuz
+// boyutları + uç slug'lardan türeyen bir parmak iziyle isolate belleğinde tutulur. Yanlış negatif
+// riski yok: sözlük yalnızca yazım düzeltmesi/çözülemeyen terim kararında kullanılır, sonuç
+// üretmez — bayat kaldığı 5 dakikada en kötü ihtimalle yeni eklenmiş tek bir kelime "çözülemedi"
+// sayılır.
+const VOCAB_TTL_MS = 5 * 60 * 1000;
+let vocabCache = { key: null, at: 0, vocab: null };
+function poolsFingerprint(pools) {
+  const part = list => (list && list.length) ? `${list.length}:${list[0].slug || list[0].name || ''}:${list[list.length - 1].slug || list[list.length - 1].name || ''}` : '0';
+  return [part(pools.projects), part(pools.architects), part(pools.offices), part(pools.products)].join('|');
+}
 export function buildVocabulary(pools) {
-  const vocab = new Set();
-  const add = text => { for (const t of textTokens(text)) if (t.length >= 3) vocab.add(t); };
-  for (const p of pools.projects || []) add(p.title);
-  for (const a of pools.architects || []) add(a.name);
-  for (const o of pools.offices || []) add(o.name);
-  for (const pr of pools.products || []) { add(pr.title); add(pr.brand); }
+  const key = poolsFingerprint(pools);
+  if (vocabCache.vocab && vocabCache.key === key && Date.now() - vocabCache.at < VOCAB_TTL_MS) return vocabCache.vocab;
+  const vocab = buildVocabularyUncached(pools);
+  vocabCache = { key, at: Date.now(), vocab };
   return vocab;
+}
+function buildVocabularyUncached(pools) {
+  const vocab = new Set(conceptVocabulary());
+  const add = text => {
+    for (const t of textTokens(text)) {
+      if (t.length < 3) continue;
+      vocab.add(t);
+      const st = stemTr(t);
+      if (st !== t) vocab.add(st);
+    }
+  };
+  for (const p of pools.projects || []) {
+    add(p.title); add(p.description); add(p.location); add(p.locationDetail);
+    for (const d of (p.designer || [])) add(d);
+    for (const o of (p.officeNames || [])) add(o);
+  }
+  for (const a of pools.architects || []) { add(a.name); add(a.office); }
+  for (const o of pools.offices || []) { add(o.name); add(o.loc); add(o.cats); }
+  for (const pr of pools.products || []) { add(pr.title); add(pr.brand); add(pr.category); for (const d of (pr.designers || [])) add(d); }
+  return vocab;
+}
+
+// Plandaki ham terimleri korpus sözlüğüne karşı düzeltir (bkz. searchConcepts.js#correctTerm).
+// Düzeltme YALNIZCA sözlükte hiç geçmeyen terimlere uygulanır; plan.corrected'e [{from,to}]
+// yazılır ki arayüz "'mermr' yerine 'mermer' arandı" diyebilsin (uydurulmuş değil, uygulanan).
+export function correctPlanTerms(plan, vocab) {
+  const corrected = [];
+  const fix = list => list.map(t => {
+    const to = correctTerm(t, vocab);
+    if (!to) return t;
+    if (!corrected.some(c => c.from === t)) corrected.push({ from: t, to });
+    return to;
+  });
+  plan.keywords = fix(plan.keywords || []);
+  plan.residual = fix(plan.residual || []);
+  plan.corrected = corrected;
+  return corrected;
+}
+
+// Bir varlık adının sorgu tarafından ne ölçüde KAPSANDIĞI (0..1): adın 3+ harfli kelimelerinden
+// kaçı sorguda geçiyor. detectEntityName bunu kullanır — nameMatches'in "aday ad sorguyu İÇERİYOR"
+// dalı tersine çalışıyordu: GERÇEK BULGU (2026-09-07) "koltuk" sorgusu, adında "koltuk" geçen ilk
+// ürünü ("Rego Koltuk ve Sandalye Serisi") bir VARLIK ADI sanıp planı o ürünün ilişki aramasına
+// çeviriyordu. Bir ad ancak sorgu onun büyük kısmını söylüyorsa "kastedilen varlık" sayılabilir.
+export function nameCoverage(candidate, query) {
+  const cw = foldTr(candidate || '').split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+  if (!cw.length) return 0;
+  const qw = new Set(foldTr(query || '').split(/[^a-z0-9]+/).filter(Boolean));
+  let hit = 0;
+  for (const w of cw) {
+    if (qw.has(w) || qw.has(stemTr(w))) { hit++; continue; }
+    if (w.length >= 5) for (const q of qw) { if (q.length >= 5 && editDistance(q, w) <= 1) { hit++; break; } }
+  }
+  return hit / cw.length;
 }
 
 export function unresolvableTerms(plan, vocab) {

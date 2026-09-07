@@ -395,34 +395,29 @@ async function runSearch(){
   // malzemeler-data.js dizileri kaldırıldı (kullanıcı isteği). İkisi de zaten hidden_at IS NULL
   // filtresini D1 tarafında uyguladığından ayrı bir gizleme kontrolüne gerek yok. Paralel çalıştırılır,
   // aksi halde ürün sorgusu toplam gecikmeyi ikiye katlardı.
-  let full = { architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } };
-  let urunResults = [];
-  let urunTotal = 0;
-  // Firma ve Marka AYRI uçlardan çekilir (bkz. dosya başındaki FİRMA/MARKA ayrımı notu) — /api/
-  // public/search bu ayrımı uygulamadığından tek başına doğru bir bölümleme üretemez.
-  let firmaResults = []; let firmaTotal = 0;
-  let markaResults = []; let markaTotal = 0;
-  const [fullRes, productsRes, officesRes, brandsRes] = await Promise.allSettled([
-    fetch('/api/public/search?q=' + encodeURIComponent(query)),
-    fetch('/api/products?search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
-    fetch('/api/offices?search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
-    fetch('/api/offices?brands=1&search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
-  ]);
-  if(fullRes.status === 'fulfilled' && fullRes.value.ok) full = await fullRes.value.json();
-  if(productsRes.status === 'fulfilled' && productsRes.value.ok){
-    const data = await productsRes.value.json();
-    urunResults = data.items || [];
-    urunTotal = data.total || 0;
-  }
-  if(officesRes.status === 'fulfilled' && officesRes.value.ok){
-    const data = await officesRes.value.json();
-    firmaResults = data.items || []; firmaTotal = data.total || 0;
-  }
-  if(brandsRes.status === 'fulfilled' && brandsRes.value.ok){
-    const data = await brandsRes.value.json();
-    markaResults = data.items || []; markaTotal = data.total || 0;
-  }
+  // ARTIK TEK İSTEK (arama denetimi, 2026-09-07): /api/public/search dört varlık türünü de AYNI
+  // getirme + AYNI sıralamayla döner (bkz. src/lib/classicSearch.js). Eskiden ürün için
+  // /api/products?search, firma/marka için /api/offices?search (×2) ayrı ayrı çekiliyor ve her
+  // uç kendi (farklı) alt-dize eşleştirmesini yapıyordu — üst nav'daki öneri penceresi ile bu
+  // sayfa aynı sorguya farklı listeler gösteriyordu. Firma/Marka ayrımı sunucudan gelen `brand`/
+  // `pureBrand` bayraklarıyla yapılır (bkz. office-kind.js: marka bölümü isBrandOffice, firma
+  // bölümü !isPureBrandOffice — bir ofis her ikisinde de görünebilir, Autoban gibi).
+  let full = { architects: [], offices: [], projects: [], products: [], totals: { architects: 0, offices: 0, projects: 0, products: 0 }, capped: {} };
+  try {
+    const res = await fetch('/api/public/search?q=' + encodeURIComponent(query));
+    if(res.ok) full = await res.json();
+  } catch(e) { /* ağ hatası — boş durum aşağıda ele alınır */ }
   if(runToken !== searchRunToken) return; // yarış durumu — daha yeni bir çağrı zaten başladı
+  const urunResults = full.products || [];
+  const urunTotal = full.totals.products || 0;
+  const allOffices = full.offices || [];
+  const firmaResults = allOffices.filter(o => !o.pureBrand);
+  const markaResults = allOffices.filter(o => o.brand);
+  // Firma/marka toplamı: sunucu toplamı tüm ofisleri sayar; gösterilen listedeki bölünme oranı
+  // toplama uygulanır ki "+N sonuç daha var" notu abartmasın.
+  const officeTotal = full.totals.offices || 0;
+  const firmaTotal = allOffices.length ? Math.round(officeTotal * firmaResults.length / allOffices.length) : 0;
+  const markaTotal = allOffices.length ? Math.round(officeTotal * markaResults.length / allOffices.length) : 0;
 
   // AI sonuçları (varsa, AYNI sorgu için) klasik bölümlerin içine karıştırılır — ayrı bir tablo
   // seti oluşturulmaz (bkz. dosya başındaki kök neden notu).
@@ -484,7 +479,9 @@ async function runSearch(){
   // `o.brand` bayrağı /api/offices'ten gelir; taşımayan kaynaklarda (AI kanalı, arama uçları)
   // eski /firma/:slug üretilir ve sunucu 301 ile kanonik adrese yönlendirir.
   const officeRow = o => rowHtml({
-    href: `${o.brand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug)}`,
+    // Sunucu kanonik yolu (`href`) zaten veriyor (bkz. src/lib/officeUrl.js); vermeyen kaynaklar
+    // (AI kanalı) için saf marka bayrağına göre üretilir, sunucu gerekirse 301 ile düzeltir.
+    href: o.href || `${o.pureBrand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug)}`,
     avatarStyle: `background:${officeColor(o.name)}`,
     avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
     title: o.name,

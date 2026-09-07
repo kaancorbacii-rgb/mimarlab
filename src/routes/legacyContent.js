@@ -14,7 +14,7 @@ import {
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
-import { foldedMultiFieldSearch, foldSqlExpr } from '../lib/searchFold.js';
+import { classicSearch } from '../lib/classicSearch.js';
 
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
 const FACET_TYPES = new Set(['projects']);
@@ -58,27 +58,6 @@ function shapeCanonicalCard(type, row) {
   // products/materials
   const p = parseCanonicalRow('products', row);
   return { title: p.title, subtitle: [p.brand_name_raw, p.category].filter(Boolean).join(' · '), image: (p.images && p.images[0]) || null };
-}
-
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-
-// trLower zaten BÜYÜK->küçük Türkçe eşlemesini doğru yapıyor (İ/I/Ş/Ğ/Ü/Ö/Ç) — foldTr onun üstüne
-// Türkçe harflerin ASCII benzerlerine de indirger (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) ki kullanıcı Türkçe
-// karakter olmadan yazsa da ("sirket") ya da tam tersi eşleşsin (bkz. kullanıcı isteği: "Türkçe
-// karakter toleransı"). Sorgu VE hedef metin AYNI foldTr'den geçirilerek tutarlı karşılaştırılır.
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
-
-// Sorgu kelimelere bölünür, hedef metin HER kelimeyi (bitişik olmasına gerek kalmadan, herhangi bir
-// sırada) içeriyorsa eşleşme sayılır (bkz. kullanıcı isteği: "kelime parçalamalı esnek arama") — ör.
-// "sefik mimarlik" sorgusu aralarında başka kelime geçse de "Şefik Birkiye Mimarlık" başlığıyla eşleşir.
-function fuzzyMatch(text, queryWords) {
-  if (!queryWords.length) return false;
-  const folded = foldTr(text || '');
-  return queryWords.every(w => folded.includes(w));
 }
 
 // /api/admin/legacy?type=<tip>&q=<arama>  (GET: kayıtlarda başlık/isim araması)
@@ -246,30 +225,20 @@ export async function handlePublicHidden(request, env) {
   return cachedPublicJson(request, env, '/api/public/hidden', () => fetchHiddenMap(env));
 }
 
-// GET /api/public/search-suggest?q=<metin> — auth gerektirmez. Üst navigasyondaki arama kutusunun
-// canlı öneri açılır penceresini besler — artık canonical tablolardan (statik + üye içeriğinin
-// TAMAMINI kapsayan tek kaynak) arar, statik dizi taramasına gerek kalmadı.
+// GET /api/public/search-suggest?q=<metin> — auth gerektirmez. Üst navigasyondaki arama
+// penceresinin canlı öneri listesini besler.
+//
+// ARTIK (arama denetimi, 2026-09-07): /api/public/search ile AYNI getirme + AYNI sıralama
+// (src/lib/classicSearch.js) — pencere o listenin grup başına ilk 3'ünü, sayfa ilk 20'sini
+// gösterir; ikisi de aynı gerçek toplamı söyler. Eski uygulama (bkz. git geçmişi) ayrı bir
+// fuzzyMatch/alt-dize yoluydu, sıralama yapmıyordu ve toplamı 20'de kırpıyordu ("cami" için
+// pencere 21, sayfa 70 diyordu).
 const SEARCH_SUGGEST_PER_GROUP = 3;
 const SEARCH_SUGGEST_TOTAL = 8;
-// Grup başına Worker'a taşınacak EN FAZLA satır. Eski kod da tam olarak bu sayıda satırla
-// (`.filter(...).slice(0, 20)`) devam ediyordu — fark, 20'ye indirgemenin artık SQL'de (LIMIT ile)
-// yapılması: `total` alanı eskiden de bu üst sınırla kırpılıydı, yani yanıt sözleşmesi aynı kalır.
-const SEARCH_SUGGEST_MATCH_LIMIT = 20;
-
-// projects/products `images` JSON dizisinin İLK öğesi — bozuk/boş değerlerde sessizce null.
-// Arama önerisi satırındaki küçük önizleme için (kullanıcı isteği, 2026-09-02).
-function firstImage(raw) {
-  if (!raw) return null;
-  try {
-    const arr = JSON.parse(raw);
-    return (Array.isArray(arr) && typeof arr[0] === 'string' && arr[0]) ? arr[0] : null;
-  } catch { return null; }
-}
 
 export async function handlePublicSearchSuggest(request, env, url) {
   const rawQ = (url.searchParams.get('q') || '').trim();
   if (!rawQ) return json({ items: [], total: 0 });
-  const queryWords = foldTr(rawQ).split(/\s+/).filter(Boolean);
 
   // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4 — "canlı arama sonuçlarında bazı URL'ler
   // bulunamadı gösteriyor"): anahtar `url.pathname` idi, yani ?q= HARİÇ. Bu uç cacheable
@@ -278,144 +247,47 @@ export async function handlePublicSearchSuggest(request, env, url) {
   // (her tuş vuruşunda bir tane) tek bir in-flight Promise'e bağlanıp BAŞKA bir sorgunun (ör. üç
   // harf önceki ön ekin, hatta aynı isolate'teki BAŞKA bir ziyaretçinin) sonuçlarını alıyordu;
   // açılır pencerede görünen satırlar o yüzden yazılan metinle alakasız olabiliyordu.
-  // handlePublicSearchFull (aşağısı) zaten `url.pathname + url.search` kullanıyor — bu uç sapmıştı.
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    // ESKİDEN (bkz. bu satırdaki eski yorum: "tablolar küçük, tam tarama ucuz") dört tablonun
-    // TAMAMI — 1.804 proje + 959 mimar + 717 firma + 644 ürün, üstelik projects.images/
-    // products.images JSON'larıyla birlikte — HER TUŞ VURUŞUNDA Worker'a çekilip fuzzyMatch ile
-    // JS'te filtreleniyordu. Gerekçe SQL LIKE'ın Türkçe katlamayı bilmemesiydi; migration 0079'un
-    // fold kolonları + src/lib/searchFold.js bu engeli zaten kaldırmıştı, bu uç sadece taşınmamıştı
-    // (performans denetimi, 2026-09-06 madde 2).
-    //
-    // ARTIK: eşleştirme SQLite'ın içinde, foldTr()'nin birebir SQL karşılığı üzerinde yapılır ve
-    // Worker'a grup başına en fazla SEARCH_SUGGEST_MATCH_LIMIT satır taşınır. `images` yalnızca o
-    // satırlar için gelir — 1.804 JSON yerine en fazla 20 tane. Semantik korunur: aynı iki aşamalı
-    // (indexli önek + substring geri düşüşü) yapı, aynı "bir alanın TÜM kelimeleri içermesi" kuralı,
-    // aynı gruplar/sınırlar/JSON sözleşmesi. Yanlış pozitif üretmemesi için dönen satırlar ayrıca
-    // ORİJİNAL fuzzyMatch'ten geçirilir (en fazla 20 satır — SQL'e sığmayan fazladan kelimeler de
-    // böylece uygulanmış olur, bkz. searchFold.js#SQL_MAX_WORDS).
-    const foldedQ = foldTr(rawQ);
-    const runQuery = (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results);
-    // 3. argüman = 1. aşamada (indexli önek araması) kullanılabilecek kolonlar; verilmezse hepsi.
-    // bkz. searchFold.js#foldedMultiFieldSearch'teki EXPLAIN gerekçesi.
-    const suggestSearch = (sqlFor, foldColumns, indexedFoldColumns) => foldedMultiFieldSearch({
-      runQuery, sqlFor, foldColumns, indexedFoldColumns, q: foldedQ, words: queryWords,
-      limit: SEARCH_SUGGEST_MATCH_LIMIT, keyOf: r => r.id,
-    }).then(r => r.rows);
-
-    const [archMatchesRaw, officeMatchesRaw, projMatchesRaw, prodMatchesRaw] = await Promise.all([
-      // photo_url/logo_url/images: kullanıcı isteği (2026-09-02) — öneri satırlarında küçük bir
-      // önizleme görseli gösterilecek. `images` TAM metin olarak çekilip aşağıda JS'te ilk öğeye
-      // indirgenir (SQL json_extract KULLANILMADI: bozuk bir images JSON'ı tüm sorguyu 500'letirdi,
-      // bkz. src/lib/projectPool.js'teki AYNI gerekçe).
-      suggestSearch(
-        (cond, limit) => `SELECT id, name, office_id, photo_url FROM architects
-          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
-        ['name_fold']
-      ),
-      suggestSearch(
-        (cond, limit) => `SELECT id, name, loc, logo_url FROM offices
-          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
-        ['name_fold']
-      ),
-      suggestSearch(
-        (cond, limit) => `SELECT id, slug, title, location, project_date, images FROM projects
-          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
-        ['title_fold', foldSqlExpr('location')], ['title_fold']
-      ),
-      suggestSearch(
-        (cond, limit) => `SELECT id, slug, title, category, brand_name_raw, images FROM products
-          WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} LIMIT ${limit}`,
-        ['title_fold', foldSqlExpr('category'), 'brand_fold'], ['title_fold', 'brand_fold']
-      ),
-    ]);
-
-    const archMatches = archMatchesRaw.filter(a => fuzzyMatch(a.name, queryWords));
-    const officeMatches = officeMatchesRaw.filter(o => fuzzyMatch(o.name, queryWords));
-    const projMatches = projMatchesRaw.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords));
-    const prodMatches = prodMatchesRaw.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand_name_raw, queryWords));
-
-    const officeNameById = new Map();
-    const officeIds = archMatches.map(r => r.office_id).filter(Boolean);
-    if (officeIds.length) {
-      const { results } = await env.DB.prepare(`SELECT id, name FROM offices WHERE id IN (${officeIds.map(() => '?').join(', ')})`).bind(...officeIds).all();
-      results.forEach(o => officeNameById.set(o.id, o.name));
-    }
-
+    const r = await classicSearch(env, rawQ, { perGroup: SEARCH_SUGGEST_PER_GROUP });
+    // href'ler artık kanonik slug kolonundan (eskiden slugify(name) — ad ile slug ayrışmış
+    // kayıtlarda "bulunamadı"ya götürüyordu) ve saf markalar için /marka/ önekiyle (bkz.
+    // src/lib/officeUrl.js) üretilir.
     const groups = [
-      { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/kisi/${encodeURIComponent(slugify(a.name))}`, image: a.photo_url || null })) },
-      { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}`, image: o.logo_url || null })) },
-      { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/proje/${encodeURIComponent(p.slug)}`, image: firstImage(p.images) })) },
-      { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}`, image: firstImage(p.images) })) },
+      { label: 'Kişi', items: r.architects.map(a => ({ title: a.name, meta: a.office || 'Kişi', href: `/kisi/${encodeURIComponent(a.slug)}`, image: a.photo || null, score: a.score })) },
+      { label: 'Firma', items: r.offices.map(o => ({ title: o.name, meta: o.loc || '', href: o.href, image: o.logo || null, label: o.pureBrand ? 'Marka' : 'Firma', score: o.score })) },
+      { label: 'Proje', items: r.projects.map(p => ({ title: p.title, meta: [p.location, p.date].filter(Boolean).join(' · '), href: `/proje/${encodeURIComponent(p.slug)}`, image: p.image, score: p.score })) },
+      { label: 'Ürün', items: r.products.map(p => ({ title: p.title, meta: [p.category, p.brand].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}`, image: p.image, score: p.score })) },
     ];
-
+    // Gruplar EN İYİ EŞLEŞMESİNE göre sıralanır (sabit Kişi→Firma→Proje→Ürün sırası DEĞİL):
+    // "ofis" yazınca "Ofis MPU" firması, ofisinin adında "Ofis" geçen kişilerden önce; "galata"
+    // yazınca projeler en üstte. Ölçülen gerçek durum: sabit sırada ilk üç satır hep ikincil
+    // alanla eşleşen kişilerdi (yerel test, 2026-09-07).
+    groups.sort((a, b) => (b.items[0] ? b.items[0].score : 0) - (a.items[0] ? a.items[0].score : 0));
     const items = [];
     for (const g of groups) {
-      for (const it of g.items.slice(0, SEARCH_SUGGEST_PER_GROUP)) items.push({ ...it, label: g.label });
+      for (const { score, ...it } of g.items.slice(0, SEARCH_SUGGEST_PER_GROUP)) items.push({ label: g.label, ...it });
     }
-    const total = groups.reduce((sum, g) => sum + g.items.length, 0);
-    return { items: items.slice(0, SEARCH_SUGGEST_TOTAL), total };
+    const total = Object.values(r.totals).reduce((a, b) => a + b, 0);
+    const capped = Object.keys(r.capped).length > 0;
+    return { items: items.slice(0, SEARCH_SUGGEST_TOTAL), total, capped };
   });
 }
 
-// GET /api/public/search?q=<metin> — arama.html'in tam sonuç sayfası için, handlePublicSearchSuggest
-// (üst nav'ın küçük açılır penceresi, 3/grup + 8 toplam sınırı) ile AYNI D1 sorgu/fuzzyMatch
-// altyapısını paylaşır ama grup başına daha yüksek bir sınırla (bkz. SEARCH_FULL_PER_GROUP) ham
-// alanları (fotoğraf/logo/görsel dahil) döner — arama.html kendi avatar/kart render mantığını
-// (officeColor/initials/logoUrl, bkz. badge-shared.js) bu alanlar üzerinde çalıştırır. Yalnızca
-// mimar/firma/proje kapsanır — ürün araması arama.html'de ayrı bir /api/products?search= çağrısıyla
-// yapılır (kullanıcı isteği: statik urunler-data.js/malzemeler-data.js kaldırıldı); haber özelliği
-// (haberler-data.js/haber-detay.html) tamamen kaldırıldığından (bkz. src/index.js#DISABLED_PAGE_PATHS)
-// haber araması artık hiç yok — bu satırdaki eski "istemci tarafında statik haberler-data.js
-// üzerinde yapılıyor" notu güncelliğini yitirmişti (denetim bulgusu, 2026-08-14).
+// GET /api/public/search?q=<metin> — arama.html'in tam sonuç sayfası. search-suggest ile AYNI
+// getirme/sıralama (src/lib/classicSearch.js), yalnızca grup başına daha yüksek sınır. Dört
+// varlık türünü BİRDEN döner (kişi/firma+marka/proje/ürün) — arama.html eskiden ürün ve
+// firma/marka için üç ek isteği (/api/products?search, /api/offices?search, ?brands=1) ayrı
+// ayrı atıyor ve her biri kendi (farklı) alt-dize eşleştirmesini yapıyordu.
 const SEARCH_FULL_PER_GROUP = 20;
-
-const PROJECT_DESIGNER_JOIN_SQL = `
-  LEFT JOIN project_designers pd ON pd.project_id = p.id
-  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
-  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
-`;
-const DESIGNER_SEP = '';
 
 export async function handlePublicSearchFull(request, env, url) {
   const rawQ = (url.searchParams.get('q') || '').trim();
-  if (!rawQ) return json({ architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } });
-  const queryWords = foldTr(rawQ).split(/\s+/).filter(Boolean);
-
+  if (!rawQ) {
+    return json({ architects: [], offices: [], projects: [], products: [],
+      totals: { architects: 0, offices: 0, projects: 0, products: 0 }, capped: {} });
+  }
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const [archRes, officeRes, projRes] = await Promise.all([
-      env.DB.prepare(
-        `SELECT a.name, a.slug, a.photo_url, o.name AS office_name FROM architects a
-         LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-         WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`
-      ).all(),
-      env.DB.prepare(`SELECT name, slug, loc, logo_url FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(
-        `SELECT p.slug, p.title, p.location, p.project_date, p.images,
-                GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
-         FROM projects p ${PROJECT_DESIGNER_JOIN_SQL}
-         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
-      ).all(),
-    ]);
-
-    const archMatches = archRes.results.filter(a => fuzzyMatch(a.name, queryWords) || fuzzyMatch(a.office_name, queryWords));
-    const officeMatches = officeRes.results.filter(o => fuzzyMatch(o.name, queryWords) || fuzzyMatch(o.loc, queryWords));
-    const projMatches = projRes.results.filter(p => {
-      if (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords)) return true;
-      const designers = p.designer_names ? p.designer_names.split(DESIGNER_SEP) : [];
-      return designers.some(d => fuzzyMatch(d, queryWords));
-    });
-
-    return {
-      architects: archMatches.slice(0, SEARCH_FULL_PER_GROUP).map(a => ({ name: a.name, slug: a.slug, photo: a.photo_url, office: a.office_name || null })),
-      offices: officeMatches.slice(0, SEARCH_FULL_PER_GROUP).map(o => ({ name: o.name, slug: o.slug, loc: o.loc, logo: o.logo_url })),
-      projects: projMatches.slice(0, SEARCH_FULL_PER_GROUP).map(p => {
-        let images = [];
-        try { images = p.images ? JSON.parse(p.images) : []; } catch { images = []; }
-        return { slug: p.slug, title: p.title, location: p.location, date: p.project_date, image: images[0] || null };
-      }),
-      totals: { architects: archMatches.length, offices: officeMatches.length, projects: projMatches.length },
-    };
+    return classicSearch(env, rawQ, { perGroup: SEARCH_FULL_PER_GROUP });
   });
 }
 

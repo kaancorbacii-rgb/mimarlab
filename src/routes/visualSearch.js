@@ -80,6 +80,7 @@ import { loadIndex, embedTexts } from '../lib/visualIndexStore.js';
 import { aggregateImageIndex, aggregateRowScores, imageCosineScoresFromRow, IMAGE_EMBED_DIM, IMAGE_EMBED_MODEL } from '../lib/imageEmbedIndex.js';
 import { loadImageIndex, addEntityImageEmbedding } from '../lib/imageEmbedStore.js';
 import { getSessionUser } from '../lib/auth.js';
+import { safeFetch, limitResponseSize, UnsafeUrlError } from '../lib/safeFetch.js';
 // bkz. src/lib/projectPool.js'teki AYNI import — il/ilçe çözümlemesi TEK kaynaktan (~970 ilçelik
 // veri). geoScore İLÇE adını (ör. "Fatih") ŞEHRE ("İstanbul") çözmek için bunu kullanır; aksi
 // halde vision'ın "İstanbul" tahmini, projelerin ezici çoğunluğunda location alanı İLÇE adı olarak
@@ -485,7 +486,15 @@ function rankProjects(pool, poolBySlug, vision, visual, nameIndex) {
     // HAM kosinüs (sem01 ÖNCESİ) — near-duplicate kararı tavanla düzleştirilmiş `sem`e göre
     // VERİLEMEZ (bkz. NEAR_DUP_MIN notu: 0.80 ve 0.99 ikisi de sem=1.0 üretir).
     const rawSim = (visual && visual.channel === 'image') ? (visual.map.get(slug) || 0) : 0;
-    const nearDup = slug === dupSlug;
+    // KONU KAPISI (canlı uçtan uca yoklama, 2026-09-07 — scripts/visual-search-live-probe.py):
+    // bir ÜRÜN kataloğu fotoğrafı (vision: subject=product, hiç mekân tipi yok) proje dizininde
+    // 0,88–0,95 bandında rastgele bir ofis iç mekânını (AC Ofisi 0,906) "görsel kimlik" bonusuyla
+    // listenin en üstüne taşıyordu — oysa o bant "aynı görselin kendisi" (>= NEAR_DUP_MIN, ölçülen
+    // yanlış pozitif 0) değil, yalnızca "benzer" demektir ve vision'ın konusu bunu doğrulamıyor.
+    // Kural: banttaki (0,88–0,95) bonus yalnızca vision görseli bir YAPI/MEKÂN olarak görüyorsa
+    // verilir; gerçek near-duplicate (>= 0,95) her durumda kimlik kanıtıdır. vs2-benchmark
+    // (vision boş, subject='other') bundan etkilenmez.
+    const nearDup = slug === dupSlug && (rawSim >= NEAR_DUP_MIN || vision.subject !== 'product');
     const sem = visual ? sem01(visual.map.get(slug) || 0, visual) : 0;
     const tax = projectTaxScore(item, vision);
     const geo = geoScore(item, vision);
@@ -497,7 +506,10 @@ function rankProjects(pool, poolBySlug, vision, visual, nameIndex) {
     const visualEvidence = (visual && visual.channel === 'image' && visual.agg) ? visual.agg.get(slug) || null : null;
     scored.push({ item, name, sem, tax, geo, nearDup, rawSim, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
   }
-  scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
+  // Eşit birleşik skorda HAM görsel benzerliği (sem01 tavanında düzleşmeden önceki kosinüs) eşitlik
+  // bozucudur — "benzer ürünler" listesinde IMG_SEM_CEIL'e dayanan adaylar eskiden ALFABETİK
+  // sıralanıyordu (Albalonga, Albarella, Alcove… — çevrimdışı doğrulama, 2026-09-07). Deterministik.
+  scored.sort((a, b) => (b.score - a.score) || (b.rawSim - a.rawSim) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
 }
 
@@ -546,7 +558,11 @@ function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
     // tarafındaki başarılı sistemi gereksiz yere değiştirme". Bu yalnızca "yüklenen görsel
     // zaten katalogdaki ürün fotoğrafının kendisi" durumunu kimlik kanıtı sayar.
     const rawSim = (visual && visual.channel === 'image') ? (visual.map.get(slug) || 0) : 0;
-    const nearDup = slug === dupSlug;
+    // rankProjects'teki KONU KAPISININ simetriği: bir cephe/mekân fotoğrafı (vision hiç ürün
+    // görmemiş) ürün dizininde 0,88–0,95 bandındaki bir katalog fotoğrafına bonus alamaz —
+    // sandalyeler birbirine benzer; gerçek near-duplicate (>= 0,95) yine her durumda geçer.
+    const productSubject = vision.subject === 'product' || (vision.products && vision.products.length > 0);
+    const nearDup = slug === dupSlug && (rawSim >= NEAR_DUP_MIN || productSubject);
     const sem = visual ? sem01(visual.map.get(slug) || 0, visual) : 0;
     const cat = productCategoryScore(item, vision);
     const brand = brandFold && foldTr(item.brand || '') === brandFold ? 1 : 0;
@@ -558,7 +574,10 @@ function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
     const visualEvidence = (visual && visual.channel === 'image' && visual.agg) ? visual.agg.get(slug) || null : null;
     scored.push({ item, name, sem, cat, brand, nearDup, rawSim, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
   }
-  scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
+  // Eşit birleşik skorda HAM görsel benzerliği (sem01 tavanında düzleşmeden önceki kosinüs) eşitlik
+  // bozucudur — "benzer ürünler" listesinde IMG_SEM_CEIL'e dayanan adaylar eskiden ALFABETİK
+  // sıralanıyordu (Albalonga, Albarella, Alcove… — çevrimdışı doğrulama, 2026-09-07). Deterministik.
+  scored.sort((a, b) => (b.score - a.score) || (b.rawSim - a.rawSim) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
 }
 
@@ -595,6 +614,13 @@ function hasCorroboration(r) {
 function decideExact(scored, nameMin) {
   if (!scored.length) return null;
   const top = scored[0];
+  // GERÇEK NEAR-DUPLICATE = KİMLİK (canlı yoklama, 2026-09-07): kullanıcı kataloğun kendi ürün
+  // fotoğrafını yüklediğinde (kosinüs ~1,0, dizinde o dosyanın kendisi var) sistem ürünü #1'e
+  // koyuyor ama vision bir AD üretmediği için (identity=[]) "eşleşme" İLAN ETMİYOR, "en yakın
+  // ürünler" diye sunuyordu. NEAR_DUP_MIN üstündeki tablo bu eşiğin ölçülen yanlış pozitifinin 0
+  // olduğunu söylüyor ve dosya başı yorumu bunu zaten "kimlik kanıtı" sayıyor — karar kapısı da
+  // aynı kanıtı tanımalı. Ad eşleşmesi gerektiren yol (aşağısı) DEĞİŞMEDİ.
+  if (top.nearDup && top.rawSim >= NEAR_DUP_MIN) return top;
   const runnerUpName = scored.length > 1 ? scored[1].name : 0;
   const margin = top.name - runnerUpName;
   const strong = top.name >= nameMin && top.conf >= EXACT_CONF_MIN && margin >= EXACT_MARGIN;
@@ -959,6 +985,58 @@ export async function handleVisualSearchRoute(request, env, url) {
     projects: resolved.projects,
     products: resolved.products,
     productsSuppressed: resolved.productsSuppressed,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// GET /api/ai/image-proxy?url=<https://…> — arama penceresindeki "Görsel URL'si yapıştır" kutusu
+// için (bkz. js/components/site-chrome.js#acceptImageUrl). Tarayıcı üçüncü taraf bir görselin
+// piksellerini CORS yüzünden okuyamadığından CLIP imzası çıkaramaz; görsel burada, SSRF-korumalı
+// safeFetch ile (private/loopback ağ engeli, yönlendirme sınırı, zaman aşımı) çekilip OLDUĞU GİBİ
+// istemciye geri verilir — istemci sonra dosya seçilmiş gibi normal akışı izler. Sunucu görseli
+// SAKLAMAZ ve analiz ETMEZ; bu uç yalnızca bir boru. Boyut (MAX_BYTES) ve magic-byte kuralları
+// /api/ai/visual-search ile BİREBİR aynı — bir yükleme yoluyla girmeyen hiçbir şey buradan da
+// giremez. Cache-Control: private — Cloudflare edge'i başkasının yapıştırdığı görseli önbelleğe
+// almasın.
+// ---------------------------------------------------------------------------------------------
+export async function handleImageProxyRoute(request, env, url) {
+  if (url.pathname !== '/api/ai/image-proxy' || request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  if (!(await checkRateLimit(env, 'image-proxy', clientIp(request), 12, 5 * 60 * 1000))) {
+    return errorJson('Çok fazla görsel adresi denedin. Lütfen birkaç dakika sonra tekrar dene.', 429, { 'Retry-After': '300' });
+  }
+  const target = (url.searchParams.get('url') || '').trim();
+  if (!target || target.length > 2048) return errorJson('Geçerli bir görsel adresi gir.');
+
+  let fetched;
+  try {
+    fetched = await safeFetch(target, { headers: { Accept: 'image/*' } });
+  } catch (err) {
+    if (err instanceof UnsafeUrlError) return errorJson('Bu adres desteklenmiyor.');
+    return errorJson('Görsel adresine ulaşılamadı.', 424);
+  }
+  const { response } = fetched;
+  if (!response.ok) return errorJson(response.status === 404 ? 'Bu adreste bir görsel bulunamadı.' : 'Görsel adresine ulaşılamadı.', 424);
+  const declared = Number(response.headers.get('content-length') || 0);
+  if (declared > MAX_BYTES) return errorJson("Görsel 10mb'tan küçük olmalı.", 413);
+  let bytes;
+  try {
+    bytes = new Uint8Array(await limitResponseSize(response, MAX_BYTES).arrayBuffer());
+  } catch {
+    return errorJson("Görsel 10mb'tan küçük olmalı.", 413);
+  }
+  // İçerik türü BEYANA değil MAGIC BYTE'a göre doğrulanır — HTML sayfası, SVG ya da başka bir
+  // şey yapıştırıldıysa (ör. bir ürün SAYFASININ adresi) burada net bir mesajla durur.
+  const mime = sniffImageMime(bytes);
+  if (!mime) return errorJson('Bu adres doğrudan bir PNG, JPG ya da WEBP görseline gitmiyor. Görselin kendi adresini yapıştır.');
+  if (imagePixels(bytes) > MAX_PIXELS) return errorJson('Görselin çözünürlüğü çok yüksek, lütfen daha küçük bir dosya dene.');
+  return new Response(bytes, {
+    headers: {
+      'Content-Type': mime,
+      'Content-Length': String(bytes.length),
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Disposition': 'inline',
+    },
   });
 }
 

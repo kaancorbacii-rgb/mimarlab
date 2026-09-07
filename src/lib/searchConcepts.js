@@ -151,12 +151,30 @@ function fuzzyEqual(a, b) {
 
 // Türkçe çoğul/hâl eklerinin kaba ama güvenli bir kırpması. Sözlükte hem tekil hem çoğul biçimleri
 // zaten yazdık; bu yalnızca yazmadığımız çekimler ("ofisleri", "otellerde") için bir emniyet ağı.
-const SUFFIXES = ['lerinde', 'larında', 'lerini', 'larını', 'lerde', 'larda', 'leri', 'ları', 'ler', 'lar', 'nin', 'nın', 'in', 'ın', 'de', 'da', 'te', 'ta', 'i', 'ı'];
+// GERÇEK BULGU (2026-09-07 arama denetimi): bu liste eskiden 'ları'/'larını'/'nın'/'ın'/'ı' gibi
+// NOKTASIZ-I'lı biçimleri içeriyordu — oysa stemTr'ye gelen her kelime foldTr'den geçmiş (ı->i)
+// olduğundan bu girdiler HİÇBİR ZAMAN eşleşmiyordu ("konutlari" hiçbir zaman "konut"a inmiyordu).
+// Liste artık KATLANMIŞ biçimde yazılır; ayrıca iyelik ('si'/'su': "kulesi"->"kule") ve yuvarlak
+// ünlülü ('u'/'un'/'nun': "koltuğu"->"koltug") ekler eklendi. Uzundan kısaya sıralı.
+const SUFFIXES = ['lerinde', 'larinda', 'lerini', 'larini', 'lerinin', 'larinin', 'lerine', 'larina',
+  'lerde', 'larda', 'leri', 'lari', 'ler', 'lar', 'nin', 'nun', 'in', 'un', 'de', 'da', 'te', 'ta',
+  'si', 'su', 'i', 'u'];
 export function stemTr(w) {
   for (const s of SUFFIXES) {
     if (w.length > s.length + 3 && w.endsWith(s)) return w.slice(0, -s.length);
   }
   return w;
+}
+
+// Ünsüz yumuşamasının GERİ alınması: "koltuğu" -> (fold) "koltugu" -> (stem) "koltug" -> "koltuk";
+// "kanadı" -> "kanad" -> "kanat"; "kitabı" -> "kitab" -> "kitap". Yalnızca kelime SONUNDA ve yalnızca
+// ek atıldıktan sonra uygulanır (bkz. termInTokens) — "tuğla" gibi ortada ğ taşıyan kelimelere
+// dokunmaz. ç zaten foldTr'de c'ye indiği için c->ç dönüşümü ayrıca gerekmez.
+const HARDEN = { g: 'k', d: 't', b: 'p' };
+export function hardenFinal(w) {
+  if (w.length < 4) return w;
+  const last = w[w.length - 1];
+  return HARDEN[last] ? w.slice(0, -1) + HARDEN[last] : w;
 }
 
 const STOPWORDS = new Set(['ve', 'ile', 'için', 'icin', 'bir', 'bu', 'su', 'şu', 'o', 'da', 'de', 'ki',
@@ -210,7 +228,13 @@ export function expandQuery(query) {
   // değil ZORUNLU metin filtresidir: "mermer kullanılan oteller" sorgusunda otel tipolojisi
   // yetmez, metinde mermer/marble/doğal taş grubundan EN AZ BİRİ de geçmelidir. Grup içi OR,
   // gruplar arası AND (gerçek bulgu: bu ayrım olmadan sorgu TÜM otelleri döndürüyordu, 622 kayıt).
-  const out = { type: [], category: [], discipline: [], expand: [], textGroups: [], matched: [] };
+  // textExpand — YALNIZCA malzeme/üslup (textOnly) kavramlarının genişletmesi. Ürün kanalı anlamsal
+  // sinyal olarak bunu kullanır, `expand`in tamamını DEĞİL: yapı tipolojisi kavramlarının ("cami" ->
+  // cami/mescit) ürün kataloğunda anlamı yok — GERÇEK BULGU (2026-09-07): "cami" sorgusu "Şişecam
+  // Çerçeve Camı" ürününü döndürüyordu, çünkü "camı" katlanınca "cami" oluyor ve tipoloji
+  // genişletmesi ürün metninde de aranıyordu. Malzeme terimleri ("mermer" -> mermer ürünleri) ise
+  // ürün kataloğunun doğal evi olmaya devam eder.
+  const out = { type: [], category: [], discipline: [], expand: [], textExpand: [], textGroups: [], matched: [] };
   const seen = new Set();
 
   const add = (concept, via) => {
@@ -220,6 +244,7 @@ export function expandQuery(query) {
     for (const v of (concept.category || [])) if (!out.category.includes(v)) out.category.push(v);
     for (const v of (concept.discipline || [])) if (!out.discipline.includes(v)) out.discipline.push(v);
     for (const v of (concept.expand || [])) if (!out.expand.includes(v)) out.expand.push(v);
+    if (concept.textOnly) for (const v of (concept.expand || [])) if (!out.textExpand.includes(v)) out.textExpand.push(v);
     if (concept.textOnly && (concept.expand || []).length) out.textGroups.push(concept.expand.slice());
     out.matched.push({ via, type: concept.type || [], category: concept.category || [], discipline: concept.discipline || [] });
   };
@@ -251,21 +276,96 @@ export function textTokens(text) {
   return new Set(foldTr(text || '').split(/[^a-z0-9ğüşıöç]+/i).filter(Boolean));
 }
 
-// Bir terim metinde "kelime olarak" geçiyor mu?
-export function termInTokens(term, tokens, hay) {
-  const t = foldTr(term);
-  if (!t) return false;
-  if (t.includes(' ')) return hay.includes(t);       // çok kelimeli ifade
-  if (tokens.has(t)) return true;
-  const st = stemTr(t);
-  if (tokens.has(st)) return true;
-  for (const w of tokens) {
-    // Türkçe eklerini yakalamak için önek eşleşmesi ("mermerden" -> "mermer"), ama yalnızca
-    // 4+ harfli terimlerde: kısa terimlerde önek eşleşmesi tam da yukarıdaki hatayı geri getirirdi.
-    if (t.length >= 4 && (w.startsWith(t) || (st.length >= 4 && w.startsWith(st)))) return true;
-    if (t.length >= 5 && w.length >= 5 && editDistance(w, t) <= 1) return true;
+// Çok kelimeli bir ifade metinde KELİME SINIRINDA başlıyor mu? Düz `hay.includes(phrase)` "iş merkezi"
+// gibi uzun ifadelerde sorun çıkarmıyordu ama "cam cephe"nin "sisecam cephe..." içinde eşleşmesi gibi
+// kelime ORTASINDAN başlayan yanlış pozitifler üretebiliyordu. Bitiş serbesttir: "galata kulesi" ifadesi
+// "galata kulesinin" içinde de eşleşmeli (Türkçe ek).
+export function phraseInHay(hay, phrase) {
+  if (!phrase) return false;
+  let from = 0;
+  for (;;) {
+    const i = hay.indexOf(phrase, from);
+    if (i < 0) return false;
+    if (i === 0 || !/[a-z0-9]/.test(hay[i - 1])) return true;
+    from = i + 1;
   }
-  return false;
+}
+
+// Bir terim metinde "kelime olarak" geçiyor mu?
+//
+// YAZIM HATASI TOLERANSI BURADAN KALDIRILDI (2026-09-07 arama denetimi, üretim verisiyle ölçüldü):
+// belge tarafında editDistance<=1 eşleşmesi "mermer" sorgusunu "Merter" ve "Mercer" başlıklarıyla,
+// "tuğla"yı "Tuzla" ile, "bazalt"ı "bazalı yatak" ile eşleştiriyordu — yani en üst sıradaki
+// sonuçlar yanlış pozitifti. Yazım toleransı artık yalnızca SORGU tarafında, korpus sözlüğüne karşı
+// bir düzeltme olarak uygulanır (bkz. correctTerm): "mermr" -> "mermer" düzeltilir ve metinde
+// yalnızca düzeltilmiş terim aranır. Belge tarafındaki tolerans Türkçe ekler içindir ve bunu
+// kök (stemTr) + ünsüz sertleştirme (hardenFinal) + önek eşleşmesi karşılar.
+export function termInTokens(term, tokens, hay) {
+  return termGrade(term, tokens, hay) > 0;
+}
+
+// Kademeli eşleşme: 1 = tam kelime / kök eşleşmesi ("ofis"~"ofisi", "koltuk"~"koltuğu"), 0,75 = yalnızca
+// önek ("galata" ⊂ "galatasaray"), 0 = eşleşmiyor. Skorlamada "Galata Kulesi"nin "Galatasaray
+// Lisesi"nden önce gelmesini sağlayan fark budur; kabul kararlarında (termInTokens) ikisi de eşleşir.
+export function termGrade(term, tokens, hay) {
+  const t = foldTr(term);
+  if (!t) return 0;
+  if (t.includes(' ')) return phraseInHay(hay, t) ? 1 : 0;  // çok kelimeli ifade
+  if (tokens.has(t)) return 1;
+  const st = stemTr(t);
+  if (tokens.has(st)) return 1;
+  const hd = hardenFinal(st);
+  if (hd !== st && tokens.has(hd)) return 1;
+  let best = 0;
+  for (const w of tokens) {
+    // Belge kelimesi de KÖKLENİR ve karşılaştırılır: "kuleleri" -> "kule" == stem("kulesi");
+    // "koltuğu" -> "koltug" -> "koltuk" == "koltuk". Bu, kısa köklerde önek eşleşmesine gerek
+    // bırakmaz — ve önek eşleşmesi kısa köklerde tehlikelidir: "galata" -> stem "gala" -> önek
+    // olarak "Galaxy"/"Gallery" ile eşleşiyordu (gerçek bulgu, 2026-09-07).
+    if (w.length <= t.length + 6 && w.length >= 4) {
+      const sw = stemTr(w);
+      if (sw === t || sw === st || sw === hd) return 1;
+      const hw = hardenFinal(sw);
+      if (hw !== sw && (hw === t || hw === st || hw === hd)) return 1;
+    }
+    // Türkçe eklerini yakalamak için önek eşleşmesi ("mermerden" -> "mermer"), yalnızca 5+ harfli
+    // terim/köklerde: 4 harflik bir kök ("gala", "ersa") önek olarak alakasız kelimeleri toplar.
+    if (best < 0.75 && ((t.length >= 5 && w.startsWith(t)) || (st.length >= 5 && w.startsWith(st))
+        || (hd !== st && hd.length >= 5 && w.startsWith(hd)))) best = 0.75;
+  }
+  return best;
+}
+
+// SORGU TARAFI YAZIM DÜZELTMESİ — bir sorgu terimi korpus sözlüğünde (bkz. searchEngine.js#
+// buildVocabulary) hiç geçmiyor ama 1 harf farkla geçen bir kelime varsa o kelime döner; aksi
+// halde null. Yalnızca 5+ harfli terimlerde (kısa kelimelerde 1 harf "ev"->"el" gibi bambaşka bir
+// kelimeye götürür) ve ilk harf korunarak (tarama maliyetini ve saçma düzeltmeleri azaltır).
+// Adaylar arasında EN KISA olan seçilir: "mermr" için "mermer" (6) "mermeri" (7) yerine — kök biçim
+// daha geneldir ve önek eşleşmesi zaten çekimli biçimleri de yakalar.
+export function correctTerm(term, vocab) {
+  const f = foldTr(term);
+  if (f.length < 5) return null;
+  if (vocab.has(f) || vocab.has(stemTr(f))) return null;
+  let best = null;
+  for (const v of vocab) {
+    if (v[0] !== f[0] || Math.abs(v.length - f.length) > 1 || v.length < 4) continue;
+    if (editDistance(v, f) <= 1 && (!best || v.length < best.length)) best = v;
+  }
+  return best;
+}
+
+// Kavram sözlüğündeki TÜM ifadelerin kelimeleri — korpus sözlüğüne eklenir ki "ahşap", "sürdürülebilir"
+// gibi başlıklarda geçmese de aranabilir bir kavram olan terimler "çözülemeyen özel isim" sayılmasın.
+let CONCEPT_VOCAB = null;
+export function conceptVocabulary() {
+  if (CONCEPT_VOCAB) return CONCEPT_VOCAB;
+  CONCEPT_VOCAB = new Set();
+  for (const c of CONCEPTS) {
+    for (const t of [...(c.terms || []), ...(c.expand || [])]) {
+      for (const w of foldTr(t).split(/[^a-z0-9]+/)) if (w.length >= 3) CONCEPT_VOCAB.add(w);
+    }
+  }
+  return CONCEPT_VOCAB;
 }
 
 // Bir metnin sorgu terimlerinden kaçını içerdiğini sayar (0..1). Skorlamada "metin sinyali".
