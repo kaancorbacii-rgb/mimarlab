@@ -333,6 +333,13 @@ const ModalShell = (function () {
            kaydırma öncesi tam bu bölgenin ALTINDA başlamazsa başlık/görseller X ile çakışıyordu (bkz.
            kullanıcı isteği). 16+36=52px'lik buton alanına en az 16-24px pay eklenir. */
         .modal-shell-body{grid-template-columns:1fr; display:flex; flex-direction:column; padding:72px 18px 28px;}
+        /* Kaynak ibaresi (kullanici istegi 2026-09-07): masaustunde Onceki/Sonraki-nin hemen
+           altinda kalir, ancak tablet/mobilde iki panel display:contents ile TEK dikey akisa
+           dondugunden ibare akisin EN ALTINA - popup-in en dibine - tasinir. order:100, bu akistaki
+           en yuksek degerin (claim/geri bildirim kutulari, office/architect modallerinde order:99)
+           uzerindedir; 768-860px arasinda diger ogeler henuz kendi order kurallarini almadigindan
+           (onlar 767px sorgusunda) varsayilan 0 ile kalir, 100 yine en sona koyar. */
+        .source-disclaimer{order:100; margin-top:22px;}
         /* display:contents: sol/sağ panel kapsayıcıları kendi kutularını üretmez, çocukları
            doğrudan .modal-shell-body'nin flex bağlamına katılır — böylece proje.html'in kendi CSS'i
            (bkz. #pm-* id'lerine order ataması) galeri/başlık/aksiyon/künye/yorum/carousel'leri TEK

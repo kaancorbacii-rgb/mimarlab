@@ -371,10 +371,6 @@ const ProductModal = (function () {
         #pr-company-section{order:9;}
         #pr-related-section{order:10;}
         #pr-prevnext{order:11;}
-        /* Kaynak ibaresi prevnext ile AYNI order degerini alir: esit order degerlerinde DOM
-           sirasi korunur, boylece mobil birlesik akista da Onceki/Sonraki-nin hemen
-           ardinda kalir. */
-        .modal-shell-overlay[data-owner="product"] .source-disclaimer{order:11;}
         #pr-info-divider{order:12;}
         #pr-files-card{order:13;}
         #pr-feedback-card{order:14;}
