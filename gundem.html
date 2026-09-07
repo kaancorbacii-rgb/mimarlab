@@ -308,7 +308,15 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   /* ---------- ADMİN KONTROLLERİ (yalnızca admin'e render edilir) ----------
      Kaydet/Paylaş ile aynı satırda, aynı pil dilinde; görünürlük istemcide gizlense bile asıl
      yetki sunucudadır (bkz. js/pages/gundem.js#applyAdminControls notu). */
-  .gundem-admin-slot{display:inline-flex; align-items:center; gap:6px;}
+  /* Konum: kartın SOL ÜST köşesi (kullanıcı isteği, 2026-09-07) — Okundu/Kaydet/Paylaş üçlüsü sağ
+     üstte kalır. `top` değeri .gundem-actions ile AYNI (14px) ki iki köşedeki butonlar aynı hizada
+     dursun; `left` de aynı --gcard-pad-x değişkenine bağlanır, böylece metin kolonunun sol kenarına
+     hizalanır. Admin değilse slot boş kalır ve :empty kuralı onu tamamen kaldırır (boş bir kutu
+     görselin üstünde tıklanamaz bir alan bırakmasın). */
+  .gundem-admin-slot{
+    position:absolute; top:14px; left:var(--gcard-pad-x); z-index:3;
+    display:inline-flex; align-items:center; gap:6px;
+  }
   .gundem-admin-slot:empty{display:none;}
   .gundem-admin-btn{
     width:32px; height:32px; border-radius:100px; flex-shrink:0;
@@ -475,6 +483,8 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
        (Apple/Google dokunma hedefi standardı, bkz. o dosyadaki not); .card-save-btn de aynı
        boyuta getirilir ki ikisi hizalı kalsın. */
     .gundem-actions{top:26px; right:26px;}
+    /* Admin kontrolleri karşı köşede, AYNI dikey hizada (bkz. masaüstü kuralındaki gerekçe). */
+    .gundem-admin-slot{top:26px; left:26px;}
     /* 48px — share-button.js'in kendi mobil kuralı .share-btn'i 48x48'e çıkarır; aynı değeri burada
        da kullanmak İKİ ŞEY için gerekli: (a) Apple/Google dokunma hedefi standardı (bu depodaki
        mevcut kural), (b) iki buton yan yana duruyor, farklı boyutta olurlarsa hizasız görünürler

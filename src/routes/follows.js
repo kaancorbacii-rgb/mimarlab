@@ -243,6 +243,57 @@ async function followFeed(env, user) {
     }
   }
 
+  // GÜNDEM (kullanıcı isteği, 2026-09-07: "Takip Ettiklerim kutusuna Gündem butonu ekle").
+  //
+  // NE DÖNER: takip edilen mimar/firma/marka HAKKINDA çıkan Gündem içerikleri. Bağ, Gündem hattının
+  // zaten ürettiği bilgi grafiği kenarından gelir (gundem_entities — bkz. src/lib/gundemEntities.js);
+  // burada yeni bir eşleştirme mantığı YAZILMAZ, var olan kenar okunur.
+  //
+  // NEDEN BU KUTUYA AİT: kutunun tanımı "takip ettiğin profiller ve onlarla ilgili YENİ içerik".
+  // Bir firmayı takip eden kullanıcı, o firmanın yeni projesi kadar o firma hakkında çıkan haberi de
+  // görmek ister. Filtre butonu eklenip akışa hiç Gündem girmeseydi buton her zaman boş liste
+  // gösterirdi — bu depoda "buton var, arkasında veri yok" tam olarak kaçınılan durumdur.
+  //
+  // TAKİPTEN SONRA KURALI aynen geçerli: içerik, o profili takip etmeye başladığı andan SONRA
+  // yayınlanmış olmalı (kutunun geri kalanıyla aynı sözleşme).
+  //
+  // SORGU BİÇİMİ: `entity_key IN (...)` DÜZ bir liste olarak kurulur; `(tip=? AND anahtar=?) OR ...`
+  // zinciri SQLite'ın 100 terimli ifade-ağacı derinlik sınırına takılabilirdi (bu depoda bilinen
+  // tuzak). IN yalnızca ucuz bir ÖN-filtredir — (tip, anahtar) TAM eşleşmesi ve tarih kontrolü
+  // aşağıda JS'te yapılır, yani farklı tipte aynı slug'ı taşıyan bir kayıt sızamaz.
+  const entityFollows = follows.filter(f => f.followed_type === 'architect' || f.followed_type === 'office');
+  if (entityFollows.length) {
+    const keys = [...new Set(entityFollows.map(f => f.followed_key).filter(Boolean))];
+    if (keys.length) {
+      const { results: gundemRows } = await env.DB.prepare(
+        `SELECT gi.id, gi.slug, gi.title, gi.image_url, gi.published_at, ge.entity_type, ge.entity_key
+         FROM gundem_entities ge JOIN gundem_items gi ON gi.id = ge.item_id
+         WHERE gi.status = 'published' AND ge.entity_key IN (${keys.map(() => '?').join(',')})
+         ORDER BY gi.published_at DESC LIMIT 200`
+      ).bind(...keys).all();
+      const followedAtByTypeKey = new Map(entityFollows.map(f => [`${f.followed_type}:${f.followed_key}`, f.created_at]));
+      // Bir Gündem içeriği birden fazla takip edilen profile bağlı olabilir (ör. hem mimar hem ofis
+      // etiketliyse) — aynı kart iki kez listelenmesin.
+      const seen = new Set();
+      for (const row of gundemRows) {
+        const followedAt = followedAtByTypeKey.get(`${row.entity_type}:${row.entity_key}`);
+        if (followedAt === undefined || !(row.published_at > followedAt)) continue;
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        items.push({
+          type: 'gundem',
+          title: row.title,
+          image: row.image_url || null,
+          href: `/gundem/${encodeURIComponent(row.slug)}`,
+          // Kutunun geri kalanı SQLite datetime METNİ taşıyor ve aşağıdaki sıralama METİN
+          // karşılaştırmasıdır; gundem_items.published_at ise epoch ms'tir. Aynı biçime çevrilmezse
+          // Gündem satırları sıralamada her zaman en sona düşerdi.
+          created_at: toSqliteDatetime(row.published_at),
+        });
+      }
+    }
+  }
+
   items.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
   return json({ items });
 }

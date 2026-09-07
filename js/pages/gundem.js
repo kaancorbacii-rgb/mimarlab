@@ -120,8 +120,15 @@ function cardHtml(item, index, { detail = false } = {}){
         data-href="${escapeAttr(href)}"
         aria-label="Kaydet">${ICON_SAVE}</button>
       <span class="gundem-share-slot" id="${shareId}-slot"></span>
-      <span class="gundem-admin-slot" data-id="${escapeAttr(item.id || '')}"></span>
     </div>
+    <!-- Admin kontrolleri kartın SOL ÜST köşesinde (kullanıcı isteği, 2026-09-07). Okundu/Kaydet/
+         Paylaş sağ üstte kalır; düzenle/arşivle/sil karşı köşeye alındı — biri her ziyaretçinin
+         kullandığı, diğeri yalnızca yöneticinin gördüğü ve yıkıcı olabilen bir eylem kümesi.
+         Yan yana dururken yanlış butona basma riski vardı, artık karışmıyorlar.
+         .gundem-admin-slot artık .gundem-actions'ın İÇİNDE DEĞİL, article'ın doğrudan çocuğu ve
+         kendi konumlandırmasını taşıyor (bkz. gundem.html). Admin değilse boş kalır ve :empty
+         kuralıyla hiç yer kaplamaz. -->
+    <span class="gundem-admin-slot" data-id="${escapeAttr(item.id || '')}"></span>
     <div class="gundem-photo">
       <button class="gundem-photo-btn" type="button"
               data-lightbox="${escapeAttr(item.image)}"

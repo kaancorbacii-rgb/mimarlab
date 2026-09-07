@@ -54,6 +54,54 @@
 //  language         kaynak dili ('en' | 'tr') — AI'ye "çeviri değil, özgün Türkçe özet" derken bağlam
 //  priority         tur içinde işlenme sırası (küçük olan önce) — bütçe biterse önce düşük öncelik düşer
 
+// =============================================================================================
+// PAYLAŞILAN KATEGORİ KURALLARI (kullanıcı isteği, 2026-09-07: "categoryHints yaz, kategoriler
+// düzelsin")
+//
+// NEDEN GEREKLİ — canlıda ölçülen davranış: bir kaynağın kategorisi pratikte ŞU SIRAYLA belirlenir
+//   1. Kategoriye özel liste adresi (ör. mimdap .../yarismalar/) — kesin
+//   2. BURADAKİ kurallar
+//   3. kaynağın defaultCategory'si
+// AI'nin kategori önerisi 2. ve 3. adım TARAFINDAN EZİLİR (bkz. gundemIngest.js#categoryFromHints
+// ve onun hemen altındaki `validated.category = hintCategory` satırı). Yani kuralı olmayan bir
+// kaynakta İÇERİĞİN TAMAMI defaultCategory'ye düşer — AI doğru bilse bile. Canlıda archiproducts'ın
+// 40 içeriğinin 40'ı bu yüzden 'haber' oldu, aralarında bir fuar duyurusu da vardı.
+// Kural yazmak bu yüzden "AI'ye yardım" değil, kategoriyi belirleyen TEK gerçek koldur.
+//
+// SIRA ÖNEMLİ: ilk eşleşen kural kazanır. Etiket kuralları başlık kurallarından ÖNCE gelir —
+// yayıncının kendi sınıflandırması, başlık metninden çıkarılan tahminden daha güveniliridir.
+// =============================================================================================
+
+// Türkçe kaynakların feed <category> ETİKETLERİ. Ölçüm (arkitera, 2026-09-07): 120 içeriğin 10'u
+// "Yarışma Sonuçları" etiketi taşıyor ve kural olmadığı için hepsi 'haber' olarak yayınlanıyordu.
+const TR_TAG_HINTS = [
+  { match: /^(yarışma|yarışmalar|yarışma sonuçları|ödül|ödüller|ödülleri)/i, category: 'yarisma' },
+  { match: /^(etkinlik|etkinlikler|sergi|sergiler|festival|bienal|fuar|konferans|sempozyum|panel|atölye)/i, category: 'etkinlik' },
+  { match: /^(görüş|söyleşi|röportaj|eleştiri|deneme|makale)/i, category: 'gorus' },
+  { match: /^(iş ilanı|iş ilanları|kariyer|istihdam|burs)/i, category: 'kariyer' },
+];
+
+// Türkçe kaynakların BAŞLIKLARI — etiket yoksa/eşleşmezse. Kelime sonu `\b` yerine ek alabilen
+// kökler kullanılır (Türkçe eklemeli bir dildir: "festivali", "fuarında", "sergisi").
+const TR_TITLE_HINTS = [
+  { on: 'title', match: /(yarışma|ödülleri|ödül töreni|jürisi)/i, category: 'yarisma' },
+  { on: 'title', match: /(festival|bienal|fuar|sergisi|sergi açılıyor|sempozyum|konferans|mimarlık haftası)/i, category: 'etkinlik' },
+];
+
+// İngilizce kaynakların BAŞLIKLARI. 74 gerçek archiproducts başlığına karşı denendi: 10 doğru
+// eşleşme, SIFIR yanlış pozitif.
+//
+// BİLİNÇLİ OLARAK YOK — "opens in/at", "is set to open": İngilizce mimarlık başlıklarında bu
+// kalıp neredeyse her zaman bir BİNA AÇILIŞINI anlatır ("New Museum Opens in Tokyo"), yani haber;
+// etkinlik sanılırsa ArchDaily/Dezeen'de çok sayıda proje haberi yanlış etiketlenirdi. Fuar
+// duyuruları zaten fuarın KENDİ ADIYLA yakalanıyor, bu kalıba ihtiyaç yok.
+// "award" tek başına da YOK — "Award-Winning Chair" bir ürün haberidir, yarışma değil; bu yüzden
+// yalnızca yıl ekli ("Awards 2026"), "design award", jüri/finalist/kısa liste gibi kesin sinyaller.
+const EN_TITLE_HINTS = [
+  { on: 'title', match: /\b(competitions?|call for (entries|submissions|proposals|papers)|shortlists?|finalists?|jury|winners? announced|awards? \d{4}|design awards?|prize)\b/i, category: 'yarisma' },
+  { on: 'title', match: /\b(fairs?|trade shows?|exhibitions?|biennale|biennial|triennale|design week|design festival|festival|symposium|conferences?|salone del mobile|maison\s*&\s*objet|maison shanghai|cersaie|furniture china|london design festival|milan design week|on show at)\b/i, category: 'etkinlik' },
+];
+
 export const GUNDEM_SOURCES = [
   // ===========================================================================================
   // ARKITERA — kullanıcının verdiği üç kategori (haber / etkinlik / yarışma).
@@ -69,7 +117,7 @@ export const GUNDEM_SOURCES = [
     type: 'rss',
     enabled: true,
     defaultCategory: 'haber',
-    categoryHints: [],
+    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
     fetchIntervalMin: 180,
     maxItemsPerRun: 6,
     imageStrategy: 'og',
@@ -85,7 +133,7 @@ export const GUNDEM_SOURCES = [
     type: 'rss',
     enabled: true,
     defaultCategory: 'etkinlik',
-    categoryHints: [],
+    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
     imageStrategy: 'og',
@@ -101,7 +149,7 @@ export const GUNDEM_SOURCES = [
     type: 'rss',
     enabled: true,
     defaultCategory: 'yarisma',
-    categoryHints: [],
+    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
     imageStrategy: 'og',
@@ -129,7 +177,7 @@ export const GUNDEM_SOURCES = [
     type: 'html',
     enabled: true,
     defaultCategory: 'haber',
-    categoryHints: [],
+    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
     fetchIntervalMin: 180,
     maxItemsPerRun: 5,
     imageStrategy: 'feed',
@@ -167,6 +215,7 @@ export const GUNDEM_SOURCES = [
       { match: /^(jobs?|dezeen jobs)$/i, category: 'kariyer' },
       { match: /^(exhibitions?|events?|dezeen events guide|design events)$/i, category: 'etkinlik' },
       { match: /^(opinion|interviews?|comment)$/i, category: 'gorus' },
+      ...EN_TITLE_HINTS,
     ],
     fetchIntervalMin: 180,
     maxItemsPerRun: 5,
@@ -186,6 +235,7 @@ export const GUNDEM_SOURCES = [
     categoryHints: [
       { match: /^(exhibitions?|events?)$/i, category: 'etkinlik' },
       { match: /^(opinion|interviews?)$/i, category: 'gorus' },
+      ...EN_TITLE_HINTS,
     ],
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
@@ -205,6 +255,7 @@ export const GUNDEM_SOURCES = [
     categoryHints: [
       { match: /^(exhibitions?|events?)$/i, category: 'etkinlik' },
       { match: /^(opinion|interviews?)$/i, category: 'gorus' },
+      ...EN_TITLE_HINTS,
     ],
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
@@ -224,6 +275,7 @@ export const GUNDEM_SOURCES = [
     categoryHints: [
       { match: /^(exhibitions?|events?)$/i, category: 'etkinlik' },
       { match: /^(opinion|interviews?)$/i, category: 'gorus' },
+      ...EN_TITLE_HINTS,
     ],
     fetchIntervalMin: 180,
     maxItemsPerRun: 3,
@@ -250,7 +302,7 @@ export const GUNDEM_SOURCES = [
     type: 'rss',
     enabled: true,
     defaultCategory: 'haber',
-    categoryHints: [],
+    categoryHints: EN_TITLE_HINTS,
     fetchIntervalMin: 180,
     maxItemsPerRun: 5,
     imageStrategy: 'feed',
@@ -282,6 +334,7 @@ export const GUNDEM_SOURCES = [
     categoryHints: [
       { match: /^(a\+?awards?|awards?|competitions?)$/i, category: 'yarisma' },
       { match: /^(events?|exhibitions?)$/i, category: 'etkinlik' },
+      ...EN_TITLE_HINTS,
     ],
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
@@ -333,6 +386,7 @@ export const GUNDEM_SOURCES = [
       { match: /^(competitions?)$/i, category: 'yarisma' },
       { match: /^(jobs?|careers?)$/i, category: 'kariyer' },
       { match: /^(events?|exhibitions?)$/i, category: 'etkinlik' },
+      ...EN_TITLE_HINTS,
     ],
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
@@ -382,13 +436,49 @@ export const GUNDEM_SOURCES = [
     type: 'rss',
     enabled: true,
     defaultCategory: 'haber',
-    categoryHints: [],
+    categoryHints: EN_TITLE_HINTS,
     fetchIntervalMin: 180,
     maxItemsPerRun: 4,
     imageStrategy: 'feed',
     imageHosts: ['img.edilportale.com'],
     language: 'en',
     priority: 2,
+  },
+
+  // ===========================================================================================
+  // BIGUMIGU — kullanıcının verdiği kaynak (2026-09-07): https://bigumigu.com/
+  //
+  // ÖLÇÜM (2026-09-07, gerçek istekle): ana sayfa kendi RSS'ini bildiriyor (/feed/) — 200,
+  // application/rss+xml, 10 item, feed ~6 gün geriye gidiyor (yayın hızı günde ~1,7 içerik).
+  // 10 item'ın 10'unda görsel feed'in İÇİNDE ve tek host'tan (bigumigu.com/wp-content/uploads).
+  // robots.txt: `User-agent: * / Disallow:` — yani TAMAMEN açık, hiçbir yol kapalı değil.
+  //
+  // KAPSAM UYARISI (bilerek eklendi, karar kullanıcının): Bigumigu bir MİMARLIK yayını değil,
+  // genel yaratıcı endüstriler yayınıdır — feed'deki bölüm etiketleri Tasarım / Reklam / Teknoloji.
+  // Yani buradan gelen içeriğin bir kısmı reklam kampanyası, ürün tasarımı ya da illüstrasyon
+  // olacak; Gündem'in mimarlık odağına her içerik birebir oturmayabilir. Sistemdeki kalite kapıları
+  // KONU filtresi DEĞİLDİR (title_unrelated yalnızca AI halüsinasyonunu yakalar), dolayısıyla
+  // konu dışı içerik elenmez. Dar tutmak istenirse iki yol var: kaynağı enabled:false yapmak ya da
+  // bigumigu'nun kategori feed'lerinden (ör. /kategori/tasarim/feed/) beslenmek.
+  //
+  // FEED SIĞ AMA RİSKSİZ: 10 item ~6 gün kapsıyor; 4 saatlik cron ızgarasında iki tur arasında
+  // feed'in dolup içerik kaybetmesi için yayın hızının ~36 katına çıkması gerekirdi.
+  // ===========================================================================================
+  {
+    id: 'bigumigu',
+    name: 'Bigumigu',
+    domain: 'bigumigu.com',
+    feedUrl: 'https://bigumigu.com/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'feed',
+    imageHosts: ['bigumigu.com', 'www.bigumigu.com'],
+    language: 'tr',
+    priority: 0, // Türkçe kaynaklar önce işlenir (arkitera/mimdap ile aynı gerekçe).
   },
 
   // ===========================================================================================

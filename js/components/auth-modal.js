@@ -1423,6 +1423,10 @@ const AuthModal = (function () {
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <!-- Gündem (kullanıcı isteği, 2026-09-07). Kaydedilen Gündem kartları saved_items'a
+                 item_type='gundem' ile yazılıyor (bkz. src/routes/saved.js#ITEM_TYPES), yani filtre
+                 mantığında (colMatchesCatalogFilter) hiçbir değişiklik gerekmedi. -->
+            <button type="button" class="saved-filter-btn" data-filter="gundem">Gündem</button>
           </div>
           <div id="am-col-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-col-saved-pagination"></div>
@@ -1444,6 +1448,11 @@ const AuthModal = (function () {
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <!-- Gündem (kullanıcı isteği, 2026-09-07) — takip edilen profil HAKKINDA çıkan Gündem
+                 içerikleri. Akışa eklenmesi sunucu tarafında yapıldı (bkz. src/routes/follows.js
+                 #followFeed'in gundem_entities bloğu); buton olmasaydı içerik "Tümü"nde görünür ama
+                 ayrıca süzülemezdi. -->
+            <button type="button" class="saved-filter-btn" data-filter="gundem">Gündem</button>
             <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
             <button type="button" class="saved-filter-btn" data-filter="brand">Marka</button>
@@ -1662,7 +1671,7 @@ const AuthModal = (function () {
   }
   // brand: gerçek bir saved/follow tipi DEĞİL — Takip Ettiklerim'in marka satırları için
   // istemcide türetilen görüntüleme tipi (bkz. mountCollections#loadFollowFeed).
-  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', brand: 'Marka' };
+  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', brand: 'Marka', gundem: 'Gündem' };
   // Paylaştıklarım satırının alt metnindeki kanal etiketi — js/components/share-button.js'in
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer

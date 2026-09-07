@@ -308,12 +308,27 @@ async function collectCandidates(source, now, opts = {}) {
 //   3. AI önerisi (yalnızca whitelist içinden).
 // Bu sıra, kullanıcının kategori bazlı kaynak adresleri vermesini (2026-09-07) doğrudan
 // değerlendirir — o adresler zaten kategoriyi söylüyor.
-function categoryFromHints(source, categories, listCategory) {
+// hint.on === 'title' — kural feed'in <category> etiketlerine DEĞİL, içeriğin KENDİ BAŞLIĞINA
+// bakar (kullanıcı isteği, 2026-09-07: "categoryHints yaz, kategoriler düzelsin").
+//
+// NEDEN GEREKLİ: bazı feed'ler hiç <category> etiketi taşımıyor (archiproducts birebir böyle,
+// 150 item'ın 150'sinde yok). O kaynaklarda etiket tabanlı kural HİÇBİR ZAMAN tetiklenmez ve
+// içeriğin tamamı kaynağın defaultCategory'sine düşer — canlıda tam olarak bu oldu, bir fuar
+// duyurusu ("Maison&Objet 2026 Is Set to Open in Paris") 'haber' olarak yayınlandı.
+//
+// BAŞLIK, AI ÖZETİNİN DEĞİL KAYNAĞIN dilindedir (bu fonksiyon AI çağrısından ÖNCE çalışır), yani
+// İngilizce kaynağa İngilizce, Türkçe kaynağa Türkçe kalıp yazılır.
+function hintMatches(hint, categories, title) {
+  if (hint.on === 'title') return !!title && hint.match.test(title);
+  return categories.some(c => hint.match.test(c));
+}
+
+function categoryFromHints(source, categories, listCategory, title) {
   if (listCategory && isValidGundemCategory(listCategory) && listCategory !== source.defaultCategory) {
     return listCategory;
   }
   for (const hint of source.categoryHints || []) {
-    if (categories.some(c => hint.match.test(c))) return hint.category;
+    if (hintMatches(hint, categories, title)) return hint.category;
   }
   // Liste sayfası kategorisi kaynağın varsayılanıyla aynıysa yine de geçerli bir sinyaldir.
   return (listCategory && isValidGundemCategory(listCategory)) ? listCategory : null;
@@ -439,7 +454,7 @@ async function publishCandidate(env, candidate, ctx) {
   }
 
   // --- AI (kategori ipucu varsa yine de AI çağrılır: başlık+özet zaten gerekli) ------------------
-  const hintCategory = categoryFromHints(source, candidate.categories, candidate.listCategory);
+  const hintCategory = categoryFromHints(source, candidate.categories, candidate.listCategory, candidate.title);
   const excerptForAi = [candidate.excerpt, resolved.extraExcerpt]
     .filter(Boolean).join(' ').slice(0, EXCERPT_MAX_CHARS);
 
