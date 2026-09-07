@@ -7,6 +7,7 @@ import { sendConsultationMessage } from './messages.js';
 // Güvenli Görüşme Gateway'i / Google Meet (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import {
   ROOM_UUID_RE, roomPath, meetingWindow, resolveConsultationAccess, ensureRoomUuid, maybeRetryMeetOnAccess,
+  consultationStartMs, rescheduleMeetForConsultation,
   CONSULTATION_DURATION_MIN, JOIN_EARLY_MIN, CONSULTATION_TIMEZONE,
 } from '../lib/consultationMeet.js';
 
@@ -67,11 +68,14 @@ function isValidDate(s) {
 // karşılaştırma sağlar; consultation-modal.js#isSlotTooSoon istemci tarafında AYNI mantığı uygular
 // (yalnızca kullanıcı deneyimi için — asıl doğrulama HER ZAMAN burada, sunucuda yapılır).
 const MIN_NOTICE_MS = 24 * 60 * 60 * 1000;
-// Yeniden planlama kapanış eşiği (kullanıcı isteği, 2026-09-06): "1 kereye mahsus... görüşmeden
-// en az 2 gün öncesine kadar" — bu, MIN_NOTICE_MS'den (yeni tarih için 24 saat) FARKLI bir kontrol:
-// ORİJİNAL randevu anına göre hesaplanır (updateConsultationRequest'te row.requested_date/time),
-// yeni seçilecek tarihe göre DEĞİL.
-const RESCHEDULE_MIN_NOTICE_MS = 2 * 24 * 60 * 60 * 1000;
+// İptal kapanış eşiği (kullanıcı isteği, 2026-09-06): "görüşmeden en az 2 gün öncesine kadar" —
+// bu, MIN_NOTICE_MS'den (yeni tarih için 24 saat) FARKLI bir kontrol: ORİJİNAL randevu anına göre
+// hesaplanır, yeni seçilecek tarihe göre DEĞİL. DEĞİŞMEDİ.
+const CANCEL_MIN_NOTICE_MS = 2 * 24 * 60 * 60 * 1000;
+// Yeniden planlama kapanış eşiği AYRI ve DAHA UZUN: 3 gün (kullanıcı isteği, 2026-09-08: "sadece
+// 1 kez görüşmeden en az 3 gün önce tarih değiştirilebilsin"). Önceden iptalle AYNI sabiti
+// paylaşıyordu (2 gün); ayrıştırıldı ki biri değişince diğeri sessizce kaymasın.
+const RESCHEDULE_MIN_NOTICE_MS = 3 * 24 * 60 * 60 * 1000;
 // 'completed' ("Görüşme Gerçekleşti") KALDIRILDI (kullanıcı isteği, 2026-09-06) — yerini 'message'
 // ("Mesaj Gönder") aldı ve bu tür admin kuyruğuna DÜŞMEZ, doğrudan karşı tarafın mesaj kutusuna
 // gider (bkz. createConsultationAction'ın 'message' dalı). 'cancel' ve 'review' eskisi gibi
@@ -79,20 +83,27 @@ const RESCHEDULE_MIN_NOTICE_MS = 2 * 24 * 60 * 60 * 1000;
 const CONSULTATION_ACTION_TYPES = new Set(['message', 'review', 'cancel']);
 const MAX_ACTION_NOTE_LEN = 2000;
 
-// Aksiyon zaman kapıları (kullanıcı isteği, 2026-09-06):
-//   * Tarihi Değiştir (1 kez) VE İptal Et -> yalnızca görüşmeye 2 GÜNDEN FAZLA varken,
-//   * Değerlendir                          -> yalnızca görüşme ANINDAN SONRA,
-//   * Mesaj Gönder                         -> her zaman (kapısı yok).
+// Aksiyon zaman kapıları (kullanıcı isteği, 2026-09-06, yeniden planlama 2026-09-08'de güncellendi):
+//   * Tarihi Değiştir (1 kez) -> yalnızca görüşmeye 3 GÜNDEN FAZLA varken,
+//   * İptal Et                -> yalnızca görüşmeye 2 GÜNDEN FAZLA varken,
+//   * Değerlendir             -> yalnızca görüşme ANINDAN SONRA,
+//   * Mesaj Gönder            -> her zaman (kapısı yok).
 // Tek kaynak burasıdır; istemci aynı bayrakları getConsultationDetail'den okuyup butonları
 // pasifleştirir (yalnızca UX), sunucu her POST'ta TEKRAR doğrular.
-function consultationSlotMs(row) {
-  return new Date(`${row.requested_date}T${row.requested_time}:00Z`).getTime();
+//
+// "Görüşme ne zaman başlıyor" sorusunun TEK yanıtı consultationMeet.js#consultationStartMs'tir
+// (İstanbul, sabit +03:00 — bkz. o dosyanın başındaki gerekçe). Burada eskiden slot ayrı olarak
+// `...T HH:MM:00Z` ile, yani UTC sayılarak ayrıştırılıyordu; görüşme odasının katılım penceresiyle
+// 3 saat ayrışıyordu. İki farklı "başlangıç anı" tanımı bu depodaki klasik sessiz ayrışma
+// tuzağıdır, bu yüzden tek kaynağa bağlandı.
+function isBeforeCancelCutoff(row) {
+  return consultationStartMs(row) - Date.now() >= CANCEL_MIN_NOTICE_MS;
 }
-function isBeforeCutoff(row) {
-  return consultationSlotMs(row) - Date.now() >= RESCHEDULE_MIN_NOTICE_MS;
+function isBeforeRescheduleCutoff(row) {
+  return consultationStartMs(row) - Date.now() >= RESCHEDULE_MIN_NOTICE_MS;
 }
 function isAfterMeeting(row) {
-  return Date.now() >= consultationSlotMs(row);
+  return Date.now() >= consultationStartMs(row);
 }
 
 function isAllowedSlot(dateStr, timeStr) {
@@ -152,14 +163,23 @@ async function getConsultationDetail(env, user, id) {
   // Yeniden planlama gösterge kapısı (kullanıcı isteği, 2026-09-06) — istemci "Tarihi Değiştir"
   // butonunu bu üç koşulla gizler/gösterir; sunucu updateConsultationRequest'te AYNI kontrolleri
   // tek gerçek kaynak olarak TEKRAR uygular (istemci burada yalnızca UX içindir).
-  const beforeCutoff = isBeforeCutoff(row);   // görüşmeye 2 günden fazla var mı
   const openStatus = row.status === 'pending' || row.status === 'approved';
-  // Tarihi Değiştir: yalnızca ALICIDA, henüz değiştirilmemişse, talep hâlâ 'pending' iken ve
-  // 2 gün kapısı açıkken. İptal Et: iki tarafta da, talep hâlâ açıkken ve 2 gün kapısı açıkken.
+  // Tarihi Değiştir: yalnızca ALICIDA, henüz değiştirilmemişse, talep hâlâ AÇIKKEN (pending VEYA
+  // approved — kullanıcı isteği, 2026-09-08: onaylanmış randevuda da buton görünür) ve 3 gün
+  // kapısı açıkken. İptal Et: iki tarafta da, talep açıkken ve 2 gün kapısı açıkken.
   // Değerlendir: iki tarafta da, YALNIZCA görüşme anı geçtikten sonra.
-  const canReschedule = isBuyer && row.status === 'pending' && !row.has_rescheduled && beforeCutoff;
-  const canCancel = openStatus && beforeCutoff;
+  const canReschedule = isBuyer && openStatus && !row.has_rescheduled && isBeforeRescheduleCutoff(row);
+  const canCancel = openStatus && isBeforeCancelCutoff(row);
   const canReview = isAfterMeeting(row);
+  // Buton artık ızgarada HER ZAMAN görünür (kullanıcı isteği, 2026-09-08) — pasifse SEBEBİ de
+  // gösterilmeli. Metin tek kaynak burada üretilir; istemci yalnızca gösterir (bkz.
+  // consultation-detail-modal.js#actionsHtml) ve sunucu updateConsultationRequest'te AYNI sırayla
+  // tekrar doğrular.
+  const rescheduleReason = canReschedule ? null
+    : !isBuyer ? 'Tarih değişikliğini yalnızca görüşmeyi satın alan kişi yapabilir.'
+    : !openStatus ? 'Bu talep artık değiştirilemez.'
+    : row.has_rescheduled ? 'Görüşme tarihi yalnızca bir kez değiştirilebilir.'
+    : 'Görüşmeye 3 günden az kaldığı için tarih değiştirilemez.';
   // Görüşme odası (Google Meet gateway'i, 2026-09-08): oda kimliği bu özellikten önce açılmış
   // satırlara burada tembel atanır; bağlantı yalnızca ONAYLI rezervasyonda döner. Meet adresinin
   // KENDİSİ bu uçtan HİÇ çıkmaz — yalnızca gateway ucu, yalnızca katılım penceresinde döndürür.
@@ -187,9 +207,11 @@ async function getConsultationDetail(env, user, id) {
     isBuyer,
     isHost,
     canReschedule,
+    rescheduleReason,
     canCancel,
     canReview,
     roomUrl,
+    roomUuid: row.status === 'approved' ? (row.room_uuid || null) : null,
     meetStatus,
   });
 }
@@ -339,13 +361,14 @@ async function createConsultationRequest(request, env, user) {
 async function updateConsultationRequest(request, env, user, id) {
   const row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE id = ? AND user_id = ?`).bind(id, user.id).first();
   if (!row) return errorJson('Bulunamadı', 404);
-  if (row.status !== 'pending') return errorJson('Bu talep artık değiştirilemez.');
+  // 'approved' de değiştirilebilir (kullanıcı isteği, 2026-09-08) — onaylı randevunun Google Meet
+  // odası KORUNUR, yalnızca takvimdeki saati güncellenir (bkz. aşağıdaki rescheduleMeetForConsultation).
+  if (row.status !== 'pending' && row.status !== 'approved') return errorJson('Bu talep artık değiştirilemez.');
   if (row.has_rescheduled) return errorJson('Görüşme tarihi yalnızca bir kez değiştirilebilir.');
-  // "en az 2 gün öncesine kadar" (kullanıcı isteği, 2026-09-06) — ORİJİNAL randevu anına göre,
+  // "en az 3 gün öncesine kadar" (kullanıcı isteği, 2026-09-08) — ORİJİNAL randevu anına göre,
   // yeni seçilecek tarihe göre DEĞİL (bkz. dosya başı RESCHEDULE_MIN_NOTICE_MS yorumu).
-  const originalSlotMs = new Date(`${row.requested_date}T${row.requested_time}:00Z`).getTime();
-  if (originalSlotMs - Date.now() < RESCHEDULE_MIN_NOTICE_MS) {
-    return errorJson('Görüşmeye 2 günden az kaldığı için tarih değiştirilemez.');
+  if (!isBeforeRescheduleCutoff(row)) {
+    return errorJson('Görüşmeye 3 günden az kaldığı için tarih değiştirilemez.');
   }
 
   const body = await readJson(request);
@@ -357,6 +380,13 @@ async function updateConsultationRequest(request, env, user, id) {
   await env.DB.prepare(
     `UPDATE consultation_requests SET requested_date = ?, requested_time = ?, has_rescheduled = 1, updated_at = ? WHERE id = ? AND user_id = ?`
   ).bind(body.date, body.time, Date.now(), id, user.id).run();
+
+  // Google Takvim etkinliğinin saatini yeni randevuya taşı (kullanıcı isteği, 2026-09-08 —
+  // onaylı randevu da değiştirilebildiğinden). Meet ADRESİ ve oda kimliği DEĞİŞMEZ; yalnızca
+  // etkinliğin start/end'i güncellenir. Best-effort: başarısız olursa tarih değişikliği GEÇERLİDİR
+  // (gateway'in katılım penceresi zaten D1'deki tarihten hesaplanır, takvimden değil) — hata
+  // yalnızca meet_error'a yazılır. ASLA fırlatmaz (bkz. rescheduleMeetForConsultation).
+  await rescheduleMeetForConsultation(env, id);
 
   // Danışmana bildirim (kullanıcı isteği, 2026-09-06): "danışmana tarih değiştirilirse tarih
   // değiştirildi diye bildirim gitsin" — host_request bildirimiyle AYNI architects.claimed_by_
@@ -396,7 +426,7 @@ async function createConsultationAction(request, env, user, consultationId) {
 
   // Zaman kapıları — istemcinin butonu pasifleştirmesinden BAĞIMSIZ, tek gerçek kaynak (bkz.
   // dosya başındaki isBeforeCutoff/isAfterMeeting yorumu).
-  if (actionType === 'cancel' && !isBeforeCutoff(row)) {
+  if (actionType === 'cancel' && !isBeforeCancelCutoff(row)) {
     return errorJson('Görüşmeye 2 günden az kaldığı için iptal edilemez.');
   }
   if (actionType === 'review' && !isAfterMeeting(row)) {

@@ -180,16 +180,29 @@ fi
 rm -f /tmp/preflight_meet
 # Bildirim linki /gorusme/:uuid'e gidebilmeli — auth-modal.js#NOTIF_ENTITY_PATH_RE 'gorusme'
 # içermezse "görüşmen hazır" bildirimi tıklanınca hiçbir yere gitmez (sessiz regresyon).
-if grep -q "NOTIF_ENTITY_PATH_RE = .*marka|gorusme)" js/components/auth-modal.js; then
-  ok "auth-modal.js — bildirim yolu regex'i /gorusme/ içeriyor"
+if grep -q "function meetingRoomUuidFromLink" js/components/auth-modal.js && grep -q "MeetingRoom.open(meetingRoomUuid)" js/components/auth-modal.js; then
+  ok "auth-modal.js — Meet bildirimi görüşme odası popup'ını açıyor"
 else
-  bad "auth-modal.js — NOTIF_ENTITY_PATH_RE 'gorusme' içermiyor (Meet bildirimi tıklanınca gitmez)"
+  bad "auth-modal.js — meetingRoomUuidFromLink/MeetingRoom.open dalı kayıp (Meet bildirimi tıklanınca hiçbir şey açmaz)"
+fi
+# Bildirim linki /gorusme/ olduğu için NOTIF_ENTITY_PATH_RE'ye de eklenmemeli — iki dal aynı linki
+# sahiplenirse biri sessizce ölü kod olur (bu depodaki klasik ayrışma tuzağı).
+if grep -q "NOTIF_ENTITY_PATH_RE = .*|gorusme)" js/components/auth-modal.js; then
+  bad "auth-modal.js — 'gorusme' hem NOTIF_ENTITY_PATH_RE'de hem popup dalında (ikili yol)"
+else
+  ok "auth-modal.js — görüşme odası linki için tek yol var (popup dalı)"
 fi
 # Sayfa rotası + kabuk + API ucu üçü birlikte var olmalı (bu depodaki "parça taşınınca sessizce öldü" tuzağı).
 gw_missing=""
 grep -q "serveMeetingRoomPage" src/index.js || gw_missing="$gw_missing src/index.js(route)"
 [ -f gorusme.html ] || gw_missing="$gw_missing gorusme.html(kabuk)"
 grep -q "getRoomState" src/routes/consultations.js || gw_missing="$gw_missing consultations.js(api)"
+[ -f js/components/meeting-room.js ] || gw_missing="$gw_missing meeting-room.js(ortak render)"
+grep -q "MeetingRoom.mount" gorusme.html || gw_missing="$gw_missing gorusme.html(mount)"
+# <base href="/"> — sayfa /gorusme/:uuid altında servis edilir; yoksa nav logosu dahil TÜM göreli
+# kaynak yolları o iç içe yola göre çözümlenip 404 olur (2026-09-08'de canlıda görülen hata).
+grep -q '<base href="/">' gorusme.html || gw_missing="$gw_missing gorusme.html(base-href)"
+grep -q '<base href="/">' pano.html || gw_missing="$gw_missing pano.html(base-href)"
 grep -q "room_uuid" schema.sql || gw_missing="$gw_missing schema.sql(kolon)"
 if [ -n "$gw_missing" ]; then bad "Görüşme gateway'i eksik parça(lar):$gw_missing"; else ok "Görüşme gateway'i — route + kabuk + api + şema dördü de yerinde"; fi
 

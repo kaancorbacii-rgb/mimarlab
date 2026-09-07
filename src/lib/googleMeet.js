@@ -226,3 +226,19 @@ export async function createMeetEvent(env, {
   }
   return { eventId: event.id, meetLink };
 }
+
+// Var olan bir etkinliğin YALNIZCA saatini taşır (randevu tarihi değiştirildiğinde — bkz.
+// src/routes/consultations.js#updateConsultationRequest). PATCH kullanılır: conferenceData'ya
+// DOKUNULMAZ, dolayısıyla Meet adresi ve konferans kimliği AYNEN korunur — katılımcıların elindeki
+// bağlantı geçersizleşmez. conferenceDataVersion GÖNDERİLMEZ (1 gönderilirse Google gövdedeki
+// conferenceData'yı yetkili sayar ve alan yokken konferansı SİLEBİLİR).
+export async function patchEventTime(env, { eventId, startIso, endIso, timeZone }, { fetchImpl = fetch, now = Date.now } = {}) {
+  const token = await getServiceAccountToken(env, { fetchImpl, now });
+  const calendarId = encodeURIComponent(env.GOOGLE_CALENDAR_ID.trim());
+  const url = `${CALENDAR_API}/calendars/${calendarId}/events/${encodeURIComponent(eventId)}?sendUpdates=none`;
+  const event = await googleJson(fetchImpl, token, url, {
+    method: 'PATCH',
+    body: JSON.stringify({ start: { dateTime: startIso, timeZone }, end: { dateTime: endIso, timeZone } }),
+  });
+  return { eventId: event.id || eventId };
+}

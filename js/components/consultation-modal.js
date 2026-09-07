@@ -461,7 +461,11 @@ const ConsultationModal = (function () {
     function showSuccessScreen() {
       successSummaryEl.textContent = `Randevu: ${formatDateTr(state.date)} · ${state.time}`;
       // Kullanıcı isteği, 2026-09-06 — metin BİREBİR bu kalıpla eşleşmeli.
-      successTextEl.textContent = `${state.hostName} ile ${formatDateTr(state.date)} saat ${state.time}'te görüşmeniz onaylanmıştır. Görüşmeye katılabileceğiniz toplantı linki e-posta adresinize iletilecektir.`;
+      // GÜNCELLENDİ (2026-09-08): görüşme bağlantısı artık E-POSTAYLA GÖNDERİLMİYOR — ödeme
+      // onaylandığında Google Meet odası otomatik oluşturulur ve bildirimle gelen güvenli görüşme
+      // odasından (/gorusme/:room_uuid) katılınır (bkz. src/lib/consultationMeet.js). Eski metin
+      // hiç gerçekleşmeyen bir e-posta vaat ediyordu.
+      successTextEl.textContent = `${state.hostName} ile ${formatDateTr(state.date)} saat ${state.time}'te görüşmeniz onaylanmıştır. Görüşme odanız hazır olduğunda bildirim alacaksınız; görüşmeye Hesabım > Bildirimler'deki görüşme odasından katılabilirsiniz.`;
       // "yalnızca 1 kez" limiti (kullanıcı isteği, 2026-09-06) — sunucu zaten reddeder, burası
       // yalnızca UI'da butonu gizler ki kullanıcı boşuna denemesin.
       rescheduleBtn.style.display = state.hasRescheduled ? 'none' : '';

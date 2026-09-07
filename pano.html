@@ -13,6 +13,11 @@
      verir, arama motorlarına girmemeli (bkz. src/routes/collections.js#getSharedCollection —
      bağlantı tahmin edilemez bir token taşır ve sahibi paylaşımı geri alabilir). -->
 <meta name="robots" content="noindex, nofollow">
+<!-- Bu sayfa /pano/:token altında, BİR SEVİYE İÇERİDE servis edilir; <base> olmadan göreli kaynak
+     yolları o iç içe yola göre çözümlenir ve nav logosu (site-chrome.js'in göreli
+     'logos/site/mimarlab-logo.png' yolu) /pano/logos/... olarak istenip kırık görünürdü — 2026-09-08'de
+     /gorusme/:room_uuid'de doğrulanan AYNI hata (bkz. proje.html'deki aynı çözüm). -->
+<base href="/">
 <link rel="stylesheet" href="/fonts/inter.css">
 <style>
   :root{

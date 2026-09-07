@@ -16,12 +16,16 @@
 //   9 aynı onay iki kez / eşzamanlı -> tek Meet       10 geçersiz room_uuid -> 404
 //   12 refresh = her istek sunucuda yeniden yetki     13 yetkisiz yanıtta Meet adresi sızmaz
 //   (11 mobil düzen: tarayıcıda, bkz. son rapor)
+//
+// 2026-09-08 İKİNCİ TUR: "Tarihi Değiştir" kuralı (yalnızca 1 kez, görüşmeden en az 3 GÜN önce,
+// onaylı randevuda da geçerli) ve tarih değişince Google Takvim etkinliğinin saatinin taşınması
+// (Meet adresi DEĞİŞMEDEN) — bkz. bölüm 9.
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
-import { meetingWindow, createMeetForConsultation, retryPendingMeets, maybeRetryMeetOnAccess, ensureRoomUuid, resolveConsultationAccess, ROOM_UUID_RE } from '../src/lib/consultationMeet.js';
+import { meetingWindow, createMeetForConsultation, retryPendingMeets, maybeRetryMeetOnAccess, ensureRoomUuid, resolveConsultationAccess, rescheduleMeetForConsultation, consultationStartMs, ROOM_UUID_RE } from '../src/lib/consultationMeet.js';
 import { safeErrorMessage, getServiceAccountToken, _resetTokenCacheForTests, missingMeetSecrets } from '../src/lib/googleMeet.js';
 import { handleConsultationsRoute, buildRoomState } from '../src/routes/consultations.js';
 import { handleAdminRoute } from '../src/routes/admin.js';
@@ -82,7 +86,7 @@ function b64urlDecode(s) { return Buffer.from(s.replace(/-/g, '+').replace(/_/g,
 
 // fakeGoogle: token + events uçlarını taklit eder; çağrıları kaydeder; davranışı seçeneklerle değişir.
 function fakeGoogle(opts = {}) {
-  const calls = { token: 0, insert: 0, get: 0, bodies: [], urls: [], assertions: [] };
+  const calls = { token: 0, insert: 0, get: 0, patch: 0, bodies: [], patchBodies: [], urls: [], assertions: [] };
   let eventCounter = 0;
   const fetchImpl = async (url, init = {}) => {
     calls.urls.push(url);
@@ -103,6 +107,12 @@ function fakeGoogle(opts = {}) {
         return new Response(JSON.stringify({ id, conferenceData: { createRequest: { status: { statusCode: 'pending' } } } }), { status: 200 });
       }
       return new Response(JSON.stringify({ id, hangoutLink: `https://meet.google.com/abc-defg-${eventCounter}` }), { status: 200 });
+    }
+    if (url.includes('/calendar/v3/calendars/') && init.method === 'PATCH') {
+      calls.patch++;
+      calls.patchBodies.push(JSON.parse(init.body));
+      if (opts.patchFails) return new Response(JSON.stringify({ error: { code: 404, message: 'Not Found', status: 'NOT_FOUND' } }), { status: 404 });
+      return new Response(JSON.stringify({ id: decodeURIComponent(url.split('/events/')[1].split('?')[0]) }), { status: 200 });
     }
     if (url.includes('/calendar/v3/calendars/') && init.method === 'GET') {
       calls.get++;
@@ -531,6 +541,7 @@ section('8) Detay ucu — roomUrl yalnızca onaylı rezervasyonda, Meet adresi h
     const r = req('/api/consultations/c1', { user: BUYER });
     const res = await handleConsultationsRoute(r, env, new URL(r.url)); const body = await res.json();
     assert.equal(res.status, 200); assert.equal(body.roomUrl, `/gorusme/${uuid}`); assert.equal(body.meetStatus, 'ready');
+    assert.equal(body.roomUuid, uuid, 'popup için roomUuid dönmeli');
     assert.equal(JSON.stringify(body).includes('meet.google.com'), false);
   });
   await test('8.b) pending rezervasyonda roomUrl null', async () => {
@@ -540,6 +551,140 @@ section('8) Detay ucu — roomUrl yalnızca onaylı rezervasyonda, Meet adresi h
     assert.equal(body.roomUrl, null);
   });
 }
+
+// =================================================================================================
+section('9) Tarihi Değiştir — yalnızca 1 kez, en az 3 GÜN önce, onaylıda da geçerli (2026-09-08)');
+// =================================================================================================
+// Kullanıcı isteği (2026-09-08): buton ızgarada HER ZAMAN görünür; kural sunucuda tek kaynaktır.
+// Yeni slot da mevcut kurallara uymalı (Pzt/Çar/Cum + 18/19/20 + en az 24 saat sonra).
+const NEW_SLOT = { date: '2026-09-16', time: '19:00' }; // Çarşamba 19:00
+async function patchDate(env, id, user, body) {
+  const r = req(`/api/consultations/${id}`, { user, method: 'PATCH', body });
+  const res = await handleConsultationsRoute(r, env, new URL(r.url));
+  return { status: res.status, body: await res.json() };
+}
+
+await test('9.a) onaylı randevu 3 günden fazla varken değiştirilebilir; has_rescheduled=1 olur, danışmana bildirim gider', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  const out = await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+  assert.equal(out.status, 200, JSON.stringify(out.body));
+  const r = row(db);
+  assert.equal(r.requested_date, NEW_SLOT.date); assert.equal(r.requested_time, NEW_SLOT.time); assert.equal(r.has_rescheduled, 1);
+  assert.equal(r.status, 'approved');
+  assert.equal(notifs(db).filter((n) => n.type === 'consultation_rescheduled').length, 1);
+});
+await test('9.b) İKİNCİ değişiklik reddedilir (yalnızca 1 kez)', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+  const out = await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', BUYER, { date: '2026-09-18', time: '18:00' }));
+  assert.equal(out.status, 400); assert.match(out.body.error, /yalnızca bir kez/);
+  assert.equal(row(db).requested_date, NEW_SLOT.date);
+});
+await test('9.c) görüşmeye 3 GÜNDEN AZ kalmışsa reddedilir (2 gün 23 saat) — eski 2 günlük eşik ARTIK GEÇMEZ', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  const out = await withClock(START - (3 * 86400e3 - 3600e3), () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+  assert.equal(out.status, 400); assert.match(out.body.error, /3 günden az/);
+  assert.equal(row(db).requested_date, SLOT.date); assert.equal(row(db).has_rescheduled, 0);
+});
+await test('9.d) tam 3 gün kala DEĞİŞTİRİLEBİLİR (sınır dahil)', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  const out = await withClock(START - 3 * 86400e3, () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+  assert.equal(out.status, 200, JSON.stringify(out.body));
+});
+await test('9.e) danışman (alıcı olmayan) tarih değiştiremez -> 404 (satır user_id ile aranır)', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  const out = await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', HOST, NEW_SLOT));
+  assert.equal(out.status, 404); assert.equal(row(db).requested_date, SLOT.date);
+});
+await test('9.f) iptal edilmiş randevu değiştirilemez', async () => {
+  const db = freshDb(); await seed(db);
+  db.prepare("UPDATE consultation_requests SET status='cancelled' WHERE id='c1'").run();
+  const env = { DB: d1(db) };
+  const out = await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+  assert.equal(out.status, 400); assert.match(out.body.error, /artık değiştirilemez/);
+});
+await test('9.g) detay ucu: canReschedule + rescheduleReason (buton her zaman görünür, sebebi title\'da)', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  const detail = async (user, atMs) => withClock(atMs, async () => {
+    const r = req('/api/consultations/c1', { user });
+    return (await handleConsultationsRoute(r, env, new URL(r.url))).json();
+  });
+  const far = await detail(BUYER, START - 5 * 86400e3);
+  assert.equal(far.canReschedule, true); assert.equal(far.rescheduleReason, null);
+  const near = await detail(BUYER, START - 2 * 86400e3);
+  assert.equal(near.canReschedule, false); assert.match(near.rescheduleReason, /3 günden az/);
+  const hostView = await detail(HOST, START - 5 * 86400e3);
+  assert.equal(hostView.canReschedule, false); assert.match(hostView.rescheduleReason, /satın alan kişi/);
+  db.prepare("UPDATE consultation_requests SET has_rescheduled=1 WHERE id='c1'").run();
+  const used = await detail(BUYER, START - 5 * 86400e3);
+  assert.equal(used.canReschedule, false); assert.match(used.rescheduleReason, /yalnızca bir kez/);
+});
+await test('9.h) İPTAL kapısı 2 günde KALDI (yeniden planlamanın 3 günü onu kaydırmadı)', async () => {
+  const db = freshDb(); await seed(db);
+  const env = { DB: d1(db) };
+  const at = async (atMs) => withClock(atMs, async () => {
+    const r = req('/api/consultations/c1', { user: BUYER });
+    return (await handleConsultationsRoute(r, env, new URL(r.url))).json();
+  });
+  assert.equal((await at(START - 2.5 * 86400e3)).canCancel, true, '2,5 gün kala iptal AÇIK olmalı');
+  assert.equal((await at(START - 2.5 * 86400e3)).canReschedule, false, '2,5 gün kala tarih değişikliği KAPALI olmalı');
+  assert.equal((await at(START - 1 * 86400e3)).canCancel, false);
+});
+await test('9.i) tarih değişince Google Takvim etkinliği PATCH ile taşınır; Meet adresi/oda kimliği DEĞİŞMEZ', async () => {
+  _resetTokenCacheForTests();
+  const db = freshDb(); const uuid = await seed(db, { meet: { link: 'https://meet.google.com/keep-this-link', status: 'ready', eventId: 'evt_keep' } });
+  const g = fakeGoogle();
+  const env = { DB: d1(db), ...googleEnv() };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = g.fetchImpl;
+  try {
+    const out = await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+    assert.equal(out.status, 200, JSON.stringify(out.body));
+  } finally { globalThis.fetch = realFetch; }
+  const patchUrl = g.calls.urls.find((u) => u.includes('/events/evt_keep'));
+  assert.ok(patchUrl, 'takvim etkinliği PATCH edilmedi');
+  // conferenceDataVersion GÖNDERİLMEMELİ — gövdede conferenceData yokken konferansı silebilirdi.
+  assert.equal(patchUrl.includes('conferenceDataVersion'), false);
+  assert.deepEqual(g.calls.patchBodies[0].start, { dateTime: '2026-09-16T19:00:00', timeZone: 'Europe/Istanbul' });
+  assert.deepEqual(g.calls.patchBodies[0].end, { dateTime: '2026-09-16T19:45:00', timeZone: 'Europe/Istanbul' });
+  assert.equal(g.calls.insert, 0, 'yeni Meet oluşturulmamalı');
+  const r = row(db);
+  assert.equal(r.meet_link, 'https://meet.google.com/keep-this-link'); assert.equal(r.meet_event_id, 'evt_keep');
+  assert.equal(r.room_uuid, uuid); assert.equal(r.meet_status, 'ready');
+});
+await test('9.j) takvim PATCH\'i başarısız olsa bile tarih değişikliği GEÇERLİ kalır (meet_link korunur)', async () => {
+  _resetTokenCacheForTests();
+  const db = freshDb(); await seed(db, { meet: { link: 'https://meet.google.com/keep-this-link', status: 'ready', eventId: 'evt_keep' } });
+  const g = fakeGoogle({ patchFails: true });
+  const env = { DB: d1(db), ...googleEnv() };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = g.fetchImpl;
+  try {
+    const out = await withClock(START - 5 * 86400e3, () => patchDate(env, 'c1', BUYER, NEW_SLOT));
+    assert.equal(out.status, 200, JSON.stringify(out.body));
+  } finally { globalThis.fetch = realFetch; }
+  const r = row(db);
+  assert.equal(r.requested_date, NEW_SLOT.date); assert.equal(r.has_rescheduled, 1);
+  assert.equal(r.meet_link, 'https://meet.google.com/keep-this-link'); assert.equal(r.meet_status, 'ready');
+  assert.match(r.meet_error, /takvim saati güncellenemedi/);
+});
+await test('9.k) Meet\'i olmayan (failed) randevuda takvim çağrısı hiç yapılmaz', async () => {
+  _resetTokenCacheForTests();
+  const db = freshDb(); await seed(db);
+  const g = fakeGoogle();
+  const res = await rescheduleMeetForConsultation({ DB: d1(db), ...googleEnv() }, 'c1', { fetchImpl: g.fetchImpl });
+  assert.equal(res.status, 'skipped'); assert.equal(res.reason, 'no_event'); assert.equal(g.calls.urls.length, 0);
+});
+await test('9.l) zaman kapıları artık İstanbul (+03:00) tabanlı — consultationStartMs ile AYNI an', () => {
+  assert.equal(consultationStartMs({ requested_date: SLOT.date, requested_time: SLOT.time }), START);
+  assert.equal(new Date(START).toISOString(), '2026-09-14T17:00:00.000Z');
+});
 
 // =================================================================================================
 console.log(`\n${passed} geçti, ${failed} başarısız`);

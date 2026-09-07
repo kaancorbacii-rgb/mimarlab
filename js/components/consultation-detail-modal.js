@@ -44,10 +44,33 @@ const ConsultationDetailModal = (function () {
     cancel: 'Görüşmeye 2 günden az kaldığı için iptal edilemez.',
     review: 'Değerlendirme yalnızca görüşme gerçekleştikten sonra yapılabilir.',
   };
+  // "Tarihi Değiştir" (kullanıcı isteği, 2026-09-08): artık KOŞULSUZ olarak ızgaranın 1. satır
+  // 1. sütununda durur — kapısı kapalıysa gizlenmez, PASİFLEŞTİRİLİR ve sebebi title'da görünür
+  // (diğer üç butonla AYNI davranış). Kural: yalnızca 1 kez ve görüşmeden en az 3 gün önce; tek
+  // gerçek kaynak sunucudur (bkz. src/routes/consultations.js#canReschedule/rescheduleReason,
+  // updateConsultationRequest aynı kontrolleri POST'ta tekrar uygular).
+  const RESCHEDULE_FALLBACK_TITLE = 'Görüşme tarihi yalnızca bir kez, görüşmeden en az 3 gün önce değiştirilebilir.';
 
   // consultation-modal.js (takvim/yeniden planlama akışı) her sayfada statik <script> ile
   // yüklenmez — auth-modal.js#ensureConsultationDetailModalLoaded İLE AYNI tembel yükleme deseni,
   // yalnızca "Tarihi Değiştir" tıklanınca devreye girer.
+  // Görüşme odası popup'ı (kullanıcı isteği, 2026-09-08) — consultation-modal.js ile AYNI tembel
+  // yükleme deseni; betik yüklenemezse tam sayfa yola düşülür (bkz. wireRoomButton'daki catch).
+  let meetingRoomLoad = null;
+  function ensureMeetingRoomLoaded() {
+    if (typeof MeetingRoom !== 'undefined') return Promise.resolve();
+    if (!meetingRoomLoad) {
+      meetingRoomLoad = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/js/components/meeting-room.js';
+        script.onload = () => resolve();
+        script.onerror = () => { script.remove(); meetingRoomLoad = null; reject(new Error('meeting-room yüklenemedi')); };
+        document.head.appendChild(script);
+      });
+    }
+    return meetingRoomLoad;
+  }
+
   let consultationModalLoad = null;
   function ensureConsultationModalLoaded() {
     if (typeof ConsultationModal !== 'undefined') return Promise.resolve();
@@ -99,7 +122,7 @@ const ConsultationDetailModal = (function () {
         .cnd-room{margin-top:16px; padding:14px; border:1px solid var(--line); border-radius:12px; background:var(--paper);}
         .cnd-room-title{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin-bottom:6px;}
         .cnd-room-text{font-size:13px; color:var(--ink-soft); line-height:1.5; margin-bottom:10px;}
-        .cnd-room-btn{display:inline-block; background:var(--ink); color:var(--paper-card); padding:10px 18px; border-radius:100px; font-size:12.5px; font-weight:600;}
+        .cnd-room-btn{display:inline-block; background:var(--ink); color:var(--paper-card); border:none; padding:10px 18px; border-radius:100px; font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer;}
         .cnd-room-btn:hover{background:var(--walnut);}
       `;
       document.head.appendChild(style);
@@ -148,31 +171,37 @@ const ConsultationDetailModal = (function () {
     function roomHtml(data) {
       if (!data.roomUrl) return '';
       const text = MEET_STATUS_TEXT[data.meetStatus] || MEET_STATUS_TEXT.pending;
+      // Buton bir <a> DEĞİL <button>: görüşme odası artık site içinde POPUP olarak açılır
+      // (kullanıcı isteği, 2026-09-08). href korunmuş bir tam sayfa yolu olarak DA gerekli
+      // olmadığı için verilmez — aynı oda /gorusme/:room_uuid adresinden doğrudan da açılabilir
+      // (bildirim linki, paylaşılan adres, F5) ve orada AYNI bileşen tam sayfa olarak çizilir.
       return `
         <div class="cnd-room">
           <div class="cnd-room-title">Görüşme Odası</div>
           <div class="cnd-room-text">${esc(text)}</div>
-          <a class="cnd-room-btn" href="${esc(data.roomUrl)}">Görüşme Odasına Git</a>
+          <button type="button" class="cnd-room-btn" id="cnd-room-btn" data-room-uuid="${esc(data.roomUuid || '')}" data-room-url="${esc(data.roomUrl)}">Görüşme Odasına Git</button>
         </div>`;
     }
 
-    // canReschedule ise "Tarihi Değiştir" ızgaranın İLK hücresi olur (kullanıcı isteği, 2026-09-06:
-    // 1-Tarihi Değiştir 2-İptal Et 3-Görüşme Gerçekleşti 4-Değerlendir) — data-action-type YOK,
-    // bu yüzden sebep formunu açan delege dinleyicisi (wireActions) onu görmezden gelir; kendi
-    // ayrı id'li dinleyicisi (cnd-reschedule-btn) takvimi açar.
-    // "Tarihi Değiştir" data.canReschedule false ise (zaten değiştirilmiş / 2 gün kapısı kapanmış /
-    // kullanıcı danışman) ızgaraya HİÇ eklenmez — diğer üçü her zaman görünür ama kapısı kapalıysa
-    // pasifleştirilip sebebi title'da açıklanır (kullanıcı isteği: butonlar "aktif olsun/olmasın").
+    // "Tarihi Değiştir" ızgaranın 1. satır 1. sütunudur (kullanıcı isteği, 2026-09-06:
+    // 1-Tarihi Değiştir 2-İptal Et 3-Mesaj Gönder 4-Değerlendir) — data-action-type YOK, bu yüzden
+    // sebep formunu açan delege dinleyicisi (wireActions) onu görmezden gelir; kendi ayrı id'li
+    // dinleyicisi (cnd-reschedule-btn) takvimi açar.
+    // DEĞİŞTİ (kullanıcı isteği, 2026-09-08): buton artık canReschedule false iken ızgaradan
+    // KALDIRILMAZ, diğer üçüyle AYNI şekilde pasifleştirilir ve sebebi title'da görünür (sunucudan
+    // gelen rescheduleReason; yoksa genel kural metni). Kapı: yalnızca 1 kez + görüşmeden en az
+    // 3 GÜN önce + alıcı + talep açık (pending ya da approved).
     function actionsHtml(data) {
       const gated = Object.entries(ACTION_LABELS).map(([type, label]) => {
         const gate = ACTION_GATES[type];
         const disabled = gate ? !data[gate] : false;
         return `<button type="button" class="cnd-action-btn" data-action-type="${esc(type)}"${disabled ? ` disabled title="${esc(ACTION_DISABLED_TITLES[type] || '')}"` : ''}>${esc(label)}</button>`;
       }).join('');
+      const rescheduleTitle = data.rescheduleReason || RESCHEDULE_FALLBACK_TITLE;
       return `
         <div class="cnd-actions-title">Görüşme Aksiyonları</div>
         <div class="cnd-actions-grid">
-          ${data.canReschedule ? '<button type="button" class="cnd-action-btn" id="cnd-reschedule-btn">Tarihi Değiştir</button>' : ''}
+          <button type="button" class="cnd-action-btn" id="cnd-reschedule-btn"${data.canReschedule ? '' : ` disabled title="${esc(rescheduleTitle)}"`}>Tarihi Değiştir</button>
           ${gated}
         </div>
         <div class="cnd-action-form" id="cnd-action-form">
@@ -263,13 +292,25 @@ const ConsultationDetailModal = (function () {
           row('Görüşme İsteği Hakkında Not', data.note, 'cnd-note-value'),
         ].join('')
           + roomHtml(data)
-          // "Tarihi Değiştir" (kullanıcı isteği, 2026-09-06) — yalnızca alıcıda VE sunucunun izin
-          // verdiği durumda (bkz. getConsultationDetail#canReschedule: pending + değiştirilmemiş +
-          // görüşmeye en az 2 gün kalmış) görünür; artık aksiyon ızgarasının İLK hücresinde.
+          // "Tarihi Değiştir" HER ZAMAN ızgaranın ilk hücresindedir; tıklanabilirliği sunucunun
+          // canReschedule bayrağına bağlıdır (bkz. getConsultationDetail: alıcı + açık talep +
+          // değiştirilmemiş + görüşmeye en az 3 gün kalmış).
           + actionsHtml(data);
 
+        const roomBtn = bodyEl.querySelector('#cnd-room-btn');
+        if (roomBtn) {
+          roomBtn.addEventListener('click', () => {
+            const uuid = roomBtn.dataset.roomUuid;
+            const url = roomBtn.dataset.roomUrl;
+            if (!uuid) { window.location.href = url; return; }
+            ensureMeetingRoomLoaded()
+              .then(() => { close(); MeetingRoom.open(uuid); })
+              .catch(() => { window.location.href = url; });
+          });
+        }
+
         const rescheduleBtn = bodyEl.querySelector('#cnd-reschedule-btn');
-        if (rescheduleBtn) {
+        if (rescheduleBtn && !rescheduleBtn.disabled) {
           rescheduleBtn.addEventListener('click', async () => {
             rescheduleBtn.disabled = true;
             rescheduleBtn.textContent = 'Yükleniyor…';

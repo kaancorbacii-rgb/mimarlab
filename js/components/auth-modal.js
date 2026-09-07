@@ -3527,6 +3527,24 @@ const AuthModal = (function () {
       }
       return consultationDetailModalLoad;
     }
+    // Görüşme odası popup'ı (kullanıcı isteği, 2026-09-08: "görüşme odası da popup şeklinde
+    // açılsın") — "Danışmanlık görüşmen hazır" bildirimi artık tam sayfaya GİTMEZ, aynı odayı site
+    // içinde popup olarak açar. Betik yüklenemezse /gorusme/:room_uuid tam sayfasına düşülür
+    // (bkz. notifActionFor'daki catch) — o sayfa da AYNI bileşeni kullanır.
+    let meetingRoomLoad = null;
+    function ensureMeetingRoomLoaded() {
+      if (typeof MeetingRoom !== 'undefined') return Promise.resolve();
+      if (!meetingRoomLoad) {
+        meetingRoomLoad = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = '/js/components/meeting-room.js';
+          script.onload = () => resolve();
+          script.onerror = () => { script.remove(); meetingRoomLoad = null; reject(new Error('meeting-room yüklenemedi')); };
+          document.head.appendChild(script);
+        });
+      }
+      return meetingRoomLoad;
+    }
     // ---------- BİLDİRİM AKSİYONLARI (kullanıcı isteği, 2026-09-06 madde 2) ----------
     // "Hesabım sayfasında bildirimler kutusuna gelen bildirimler aktif butonlar olsun. Bir bildirime
     // tıklayınca bildirim doğrultusunda bir aksiyon ekranı çıksın — örneğin bir proje gönderin
@@ -3545,9 +3563,15 @@ const AuthModal = (function () {
     //       js/components/lazy-modals.js dosya başı yorumu: bilinçli yükleme bütçesi kararı), bu
     //       yüzden doğru davranış o URL'e GİTMEKTİR — sunucu kaydın SSR gövdesini döner ve sayfanın
     //       kendi modalı popup'ı açar (sitedeki her iç bağlantının zaten yaptığı şey).
-    // 'gorusme' EKLENDİ (2026-09-08): "Danışmanlık görüşmen hazır" bildirimi /gorusme/:room_uuid'e
-    // gider (bkz. src/lib/consultationMeet.js#notifyMeetReady) — Meet adresi bildirimde HİÇ yer almaz.
-    const NOTIF_ENTITY_PATH_RE = /^\/(proje|kisi|firma|urun|marka|gorusme)\/[^/?#]+/;
+    const NOTIF_ENTITY_PATH_RE = /^\/(proje|kisi|firma|urun|marka)\/[^/?#]+/;
+    // "Danışmanlık görüşmen hazır" bildirimi /gorusme/:room_uuid'e gider (bkz. src/lib/
+    // consultationMeet.js#notifyMeetReady — Meet adresi bildirimde HİÇ yer almaz). Bu yol
+    // NOTIF_ENTITY_PATH_RE'ye EKLENMEZ: o dal tam sayfa navigasyon yapar, oysa oda artık popup
+    // olarak açılır (kullanıcı isteği, 2026-09-08). Tek yol aşağıdaki daldır.
+    function meetingRoomUuidFromLink(link) {
+      const m = typeof link === 'string' ? link.match(/^\/gorusme\/([0-9a-f-]{36})$/i) : null;
+      return m ? m[1] : null;
+    }
     function notifEntityPath(link) {
       return typeof link === 'string' && NOTIF_ENTITY_PATH_RE.test(link) ? link : null;
     }
@@ -3611,6 +3635,14 @@ const AuthModal = (function () {
             const box = document.getElementById('am-dash-submissions');
             if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
           },
+        };
+      }
+      const meetingRoomUuid = meetingRoomUuidFromLink(item.link);
+      if (meetingRoomUuid) {
+        return {
+          run: () => ensureMeetingRoomLoaded()
+            .then(() => MeetingRoom.open(meetingRoomUuid))
+            .catch(() => { window.location.href = item.link; }),
         };
       }
       const entityPath = notifEntityPath(item.link);

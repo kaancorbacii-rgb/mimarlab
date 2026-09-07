@@ -19,7 +19,7 @@
 // odayı açtığında (5 dk'da en fazla 1 deneme) ve (c) admin panelindeki düğmeyle yeniden denenir.
 // Bu fonksiyonlar ASLA fırlatmaz (onay isteği ya da gateway isteği bu yüzden 500'e düşmemeli).
 
-import { createMeetEvent, isGoogleMeetConfigured, missingMeetSecrets, safeErrorMessage } from './googleMeet.js';
+import { createMeetEvent, patchEventTime, isGoogleMeetConfigured, missingMeetSecrets, safeErrorMessage } from './googleMeet.js';
 import { createNotification } from './notify.js';
 import { checkRateLimit } from './rateLimit.js';
 
@@ -192,6 +192,39 @@ export async function createMeetForConsultation(env, consultationId, {
     // D1 gibi beklenmeyen bir hata — çağıran akışı (admin onayı / gateway) KESİNLİKLE düşürmez.
     const message = safeErrorMessage(err);
     console.error('meet orchestration failed', JSON.stringify({ consultation_id: consultationId, error: message }));
+    return { status: 'failed', error: message };
+  }
+}
+
+// Randevu tarihi değiştirildiğinde (bkz. src/routes/consultations.js#updateConsultationRequest)
+// Google Takvim etkinliğinin saatini yeni randevuya taşır. Meet ADRESİ ve oda kimliği DEĞİŞMEZ.
+// ASLA fırlatmaz: tarih değişikliği D1'de ZATEN yazılmış olur ve gateway'in katılım penceresi
+// takvimden değil D1'den hesaplanır — bu yüzden Google hatası tarih değişikliğini geçersiz kılmaz,
+// yalnızca meet_error'a not düşülür (meet_status 'ready' KALIR, bağlantı çalışmaya devam eder).
+// Henüz Meet'i olmayan (failed/oluşmamış) satırda hiçbir şey yapmaz — cron zaten YENİ tarihle
+// yeniden deneyecektir.
+export async function rescheduleMeetForConsultation(env, consultationId, { fetchImpl = fetch, now = Date.now } = {}) {
+  try {
+    const row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE id = ?`).bind(consultationId).first();
+    if (!row) return { status: 'skipped', reason: 'not_found' };
+    if (!row.meet_event_id || !row.meet_link) return { status: 'skipped', reason: 'no_event' };
+    if (!isGoogleMeetConfigured(env)) return { status: 'skipped', reason: 'config_missing' };
+    await patchEventTime(env, {
+      eventId: row.meet_event_id,
+      startIso: localWallClock(row, 0),
+      endIso: localWallClock(row, CONSULTATION_DURATION_MIN),
+      timeZone: CONSULTATION_TIMEZONE,
+    }, { fetchImpl, now });
+    await env.DB.prepare(
+      `UPDATE consultation_requests SET meet_error = NULL, updated_at = ? WHERE id = ?`
+    ).bind(now(), consultationId).run();
+    return { status: 'updated' };
+  } catch (err) {
+    const message = safeErrorMessage(err, 'takvim saati güncellenemedi');
+    console.error('meet reschedule failed', JSON.stringify({ consultation_id: consultationId, error: message }));
+    try {
+      await env.DB.prepare(`UPDATE consultation_requests SET meet_error = ? WHERE id = ?`).bind(message, consultationId).run();
+    } catch { /* yut — tarih değişikliği zaten geçerli */ }
     return { status: 'failed', error: message };
   }
 }
