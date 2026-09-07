@@ -824,15 +824,31 @@ async function routeAsset(request, env, url, ctx) {
   }
 
   const response = await env.ASSETS.fetch(request);
-  if (request.method === 'GET' && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
+  // HEAD DE BU DALA GİRER (hardening denetimi, 2026-09-07). Koşul eskiden yalnızca 'GET'ti; HEAD
+  // istekleri buradan düşüp aşağıdaki withStaticAssetCacheHeaders'a gidiyor ve Cloudflare Assets'in
+  // varsayılanını alıyordu. Canlıda ölçüldü — sekiz hub yolunda (/, /proje, /kisi, /firma, /urun,
+  // /marka, /arama, /en-iyi-100) GET ile HEAD FARKLI cache semantiği dönüyordu:
+  //     GET  -> "public, max-age=60, s-maxage=300"
+  //     HEAD -> "public, max-age=0, must-revalidate"
+  // (/gundem ve tüm detay/bilgi sayfaları zaten kendi serve* fonksiyonlarından geçtiği için
+  // etkilenmiyordu — bu yüzden fark yalnızca bu sekiz yolda görünüyordu.)
+  // RFC 9110: HEAD, GET'in DÖNECEĞİ başlıkların aynısını dönmelidir. Pratikte HEAD'i kullanan
+  // tarayıcı değil bağlantı denetleyicileri, önbellek/izleme probları ve bazı crawler'lardır; bir
+  // ara katman probu HEAD'e bakıp sayfayı "önbelleklenemez" sayabiliyordu.
+  const isReadRequest = request.method === 'GET' || request.method === 'HEAD';
+  if (isReadRequest && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
     // HUB SAYFALARINA ItemList YAPILANDIRILMIŞ VERİSİ (SEO). Bu beş sayfanın ham HTML'inde detay
     // sayfalarına dair HİÇBİR sinyal yoktu — 4.000 detay sayfasının keşfi tamamen sitemap'e
     // bağlıydı. Sinyal artık sayfanın GÖVDESİNE değil, sayfanın kendi SEO meta bloğuna (<head>
     // içindeki JSON-LD, detay sayfalarındaki injectMeta ile AYNI mekanizma) yazılır; görünen
     // tasarım hiç değişmez. Tam gerekçe + veri kaynağı: src/lib/hubLinks.js. Hata durumunda null
     // döner ve sayfa eskisi gibi servis edilir — SEO iyileştirmesi sayfayı ASLA düşürmemeli.
+    // JSON-LD enjeksiyonu BİLEREK yalnızca GET'te: HEAD yanıtının gövdesi zaten boştur, yani
+    // enjeksiyon hiçbir şey üretmez — ama hubItemListJsonLd bir havuz okuması yapar. HEAD için o
+    // okumayı atlamak, bu dala HEAD'i eklemenin ek bir D1/KV maliyeti getirmemesini sağlar.
+    // Düzeltilen şey başlıklardı; onlar aşağıda her iki metot için de uygulanıyor.
     let hubJsonLd = null;
-    if (isHubPath(url.pathname)) {
+    if (request.method === 'GET' && isHubPath(url.pathname)) {
       hubJsonLd = await hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname));
     }
     const headers = new Headers(response.headers);
