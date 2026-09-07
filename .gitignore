@@ -23,3 +23,10 @@ scripts/output/
 # onnxruntime ile yeniden üretilebilir, commit edilmesine GEREK YOK (ve gereksiz yere büyük/
 # değişken bir dosya deposu şişirmesin diye BİLEREK commit edilmiyor).
 scratch-test-vecs*.json
+
+# Firma davet e-postalari (2026-09-07): docs/eposta-davet-sablonu.md disindaki bu iki dosya,
+# firmalarin web sitelerinden derlenmis iletisim adreslerini icerir. Bu repo GitHub'da PUBLIC
+# oldugundan commit edilmeleri, toplanmis e-posta adreslerini kalici olarak (git gecmisinde)
+# yayinlamak anlamina gelir. Yerelde tutulur, repoya girmez.
+docs/epostalar-*.md
+docs/gonderim-listesi.csv

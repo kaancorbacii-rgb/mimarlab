@@ -108,6 +108,7 @@ const ProjectModal = (function () {
     </div>
 
     <div class="prevnext" id="pm-prevnext"></div>
+    <p class="source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
 
     <div class="lightbox" id="pm-lightbox">
       <button class="lightbox-close" id="pm-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>

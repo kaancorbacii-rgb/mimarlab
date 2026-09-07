@@ -337,6 +337,7 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
+    <p class="source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
     <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;

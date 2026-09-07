@@ -275,6 +275,15 @@ const ModalShell = (function () {
         padding:64px 32px 32px; border-right:1px solid var(--line-soft);
       }
       .modal-shell-right{padding:32px 32px 48px; min-width:0;}
+      /* Kaynak ibaresi (kullanici istegi 2026-09-07): proje/kisi/urun/firma/marka popup'larinda
+         Onceki/Sonraki butonlarindan HEMEN SONRA, bulundugu sutunu ortalayan kucuk bir not. Kayitlarin
+         kamuya acik kaynaklardan derlendigini ve dogrulanmadigini belirtir; hatali bilgi bildirimi
+         icin zaten Geri Bildirim kutusu var. Ortak kural burada, cunku dort modal dosyasi da kendi
+         stilini ayri enjekte ediyor. */
+      .source-disclaimer{
+        margin:14px 0 0; text-align:center;
+        font-size:11.5px; line-height:1.5; color:var(--ink-soft); opacity:0.75;
+      }
       /* KALDIRILDI (kullanıcı isteği, 2026-09-06 madde 1): mimar/firma popup'larında buton satırı
          dar masaüstünde İKİNCİ SATIRA iniyordu (flex-wrap:wrap + sol sütun genişliğine kilitlenmiş
          bir max-width, ayrıca 861-1180px arasında sol sütuna eklenen 106px'lik telafi padding'i).

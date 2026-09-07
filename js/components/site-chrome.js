@@ -384,6 +384,7 @@
         <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z"/></svg></span>
       </button>
     </div>
+    <p class="footer-archive-note">MİMARLAB, açık kaynaklardan derlenen bilgilerle oluşturulmuş bir arşivdir. Profilinizdeki bilgilerde hata, eksiklik veya güncellenmesi gereken bir durum olduğunu düşünüyorsanız lütfen <a href="/iletisim">bizimle iletişime geçin</a>.</p>
   </footer>`;
   }
 
@@ -465,6 +466,19 @@
       .footer-bottom{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; max-width:1080px; margin:0 auto; box-sizing:border-box;}
       .footer-bottom .footer-social{justify-self:start;}
       .footer-copyright{justify-self:center; text-align:center;}
+      /* Arsiv ibaresi (kullanici istegi 2026-09-07): footer'in EN ALTINDA, sayfayi ortalayan
+         tek satirlik not. Sitedeki kayitlarin kamuya acik kaynaklardan derlendigini ve hata
+         bildiriminin nasil yapilacagini soyler. Renkler footer'in kendi sabit paletinden gelir
+         (bkz. .footer-bottom'un sayfa CSS'indeki AYNI rgba degerleri) - footer zemini temadan
+         bagimsiz hep koyu kaldigindan degisken yerine sabit rgba kullanilir. */
+      .footer-archive-note{
+        max-width:1080px; margin:0 auto; padding:16px 32px 22px;
+        border-top:1px solid rgba(237,240,243,0.12);
+        text-align:center; font-size:11.5px; line-height:1.7;
+        color:rgba(237,240,243,0.45); box-sizing:border-box;
+      }
+      .footer-archive-note a{color:rgba(237,240,243,0.72); text-decoration:underline; text-underline-offset:2px;}
+      .footer-archive-note a:hover{color:rgba(237,240,243,0.95);}
       /* kullanıcı isteği (2026-09-01): gece/gündüz düğmesi artık sağ kenara YAPIŞMAZ, kendi
          (sağdaki 1fr) sütununun ortasına oturur — telif metniyle sağ kenar arasında duran daha
          dengeli bir konum. Sütun 1fr olduğundan bu konum pencere genişliğiyle birlikte kayar. */

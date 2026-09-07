@@ -360,6 +360,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-city-grid"></div>
     </div>
     <div class="prevnext" id="om-prevnext"></div>
+    <p class="source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
     <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;
