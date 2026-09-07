@@ -258,6 +258,14 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     font-size:11.5px; font-weight:600; color:var(--ink-soft);
   }
   .gundem-entity:hover{border-color:var(--brass); color:var(--ink);}
+  /* Etiket logosu (kullanıcı isteği, 2026-09-07). Rozet zaten satır içi bir pil; logo onun soluna
+     küçük ve DAİRESEL girer. object-fit:cover — logolar kare değil, oranı bozmadan kırpılır.
+     flex: rozetin metniyle dikey ortalanması için (satır yüksekliği tek başına hizalamıyordu). */
+  .gundem-entity{display:inline-flex; align-items:center; gap:6px;}
+  .gundem-entity-logo{
+    width:18px; height:18px; border-radius:100px; object-fit:cover;
+    background:var(--paper); flex-shrink:0;
+  }
 
   /* Kaydet + Paylaş — kartın sağ üstü (madde 2). ShareWidget kendi .share-btn stilini enjekte eder
      (bkz. js/components/share-button.js), .card-save-btn ise proje.html'dekiyle AYNI dairesel
@@ -485,16 +493,37 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
     .gundem-actions{top:26px; right:26px;}
     /* Admin kontrolleri karşı köşede, AYNI dikey hizada (bkz. masaüstü kuralındaki gerekçe). */
     .gundem-admin-slot{top:26px; left:26px;}
-    /* 48px — share-button.js'in kendi mobil kuralı .share-btn'i 48x48'e çıkarır; aynı değeri burada
-       da kullanmak İKİ ŞEY için gerekli: (a) Apple/Google dokunma hedefi standardı (bu depodaki
-       mevcut kural), (b) iki buton yan yana duruyor, farklı boyutta olurlarsa hizasız görünürler
-       (canlıda 44 vs 48 ölçüldü, bu yüzden eşitlendi). */
+    /* BOYUT 48 -> 40px (kullanıcı isteği, 2026-09-07: "mobil görünümdeki gündem sayfası
+       gönderilerindeki butonların büyüklüklerini biraz küçült"). 48px, kartın görselinin üstünde
+       üç buton yan yana dururken (Okundu/Kaydet/Paylaş, artık sol üstte ayrıca üç admin butonu)
+       görselin görünen kısmını yiyordu.
+       40px ALT SINIR OLARAK SEÇİLDİ, keyfi değil: Apple 44pt, Google Material 48dp önerir; 40px
+       (kenarlıkla 42px) bunun hemen altında kalan, parmakla rahat isabet edilebilen son ölçüdür.
+       Daha da küçültmek dokunma hatalarını gerçekten artırırdı.
+       DENENİP VAZGEÇİLDİ: "40px görünür daire + 4px şeffaf dolguyla 48px hedef" numarası. Dolgu
+       kutusu da arka planla boyandığı için buton ekranda 50px ölçüldü — yani hiç küçülmedi,
+       yalnızca soldaki admin butonlarıyla hizasız hale geldi (tarayıcıda ölçüldü).
+       .share-btn'in kendi mobil kuralı 48px yazdığı için o da burada AÇIKÇA ezilir — aksi halde
+       üç buton hizasız kalırdı (canlıda 44 vs 48 ölçülmüştü, o yüzden eşitlenmişti). */
     .card-save-btn,
     .gundem-read-btn,
     .gundem-admin-btn{
-      width:48px; height:48px;
+      width:40px; height:40px;
       background:rgba(248,250,251,0.92); border-color:rgba(27,42,61,0.18);
     }
+    /* Paylaş butonu !important İLE ezilir. share-button.js kendi mobil kuralını
+       `width:48px !important` olarak enjekte ediyor (bkz. o dosyadaki dokunma hedefi notu), yani
+       daha yüksek özgüllük yetmez — tarayıcıda ölçüldü: üç buton 40px olurken paylaş 48px kalıyor
+       ve satır hizasız görünüyordu. Bu, o dosyanın kuralına BU SAYFA İÇİN bilinçli bir istisnadır;
+       genel kural (diğer tüm sayfalarda 48px) değişmedi. */
+    .gundem-actions .share-btn{
+      width:40px !important; height:40px !important; min-width:40px !important;
+      background:rgba(248,250,251,0.92); border-color:rgba(27,42,61,0.18);
+    }
+    /* Butonların arası da daralır — üç buton + (admin ise) üç buton daha aynı kart genişliğini
+       paylaşıyor. 375px'lik bir ekranda ölçüldü: sağ küme 128px, sol küme 128px, çakışma yok. */
+    .gundem-actions{gap:8px;}
+    .gundem-admin-slot{gap:6px;}
     /* İşaretli hali mobilde de ayırt edilebilsin — yukarıdaki kural arka planı/kenarı ezdiği için
        .read kuralı burada tekrar edilir (aksi halde mobilde okundu/okunmadı aynı görünürdü). */
     .gundem-read-btn.read{border-color:var(--walnut); color:var(--walnut);}
@@ -559,6 +588,7 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
 <!-- image-lightbox.js — kullanıcı isteği (2026-09-07 madde 1): kart görseline tıklanınca popup'ta
      büyür. Bu sayfada TEK tıklanabilir öğe görsel olduğu için bu betik ZORUNLUDUR; yoksa tıklama
      yeni sekme fallback'ine düşer ve o da popup engelleyicilere takılır (canlıda doğrulandı). -->
+<script src="image-cdn.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="gundem"></div>

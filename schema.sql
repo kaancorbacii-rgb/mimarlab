@@ -1000,7 +1000,15 @@ CREATE TABLE IF NOT EXISTS gundem_items (
   ai_model TEXT,
   ai_generated_at INTEGER,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  -- bkz. migrations/0102_gundem_dedupe_and_sources.sql (gerekçelerin tamamı orada).
+  -- embedding: başlık+özetin bge-m3 vektörü, int8 nicelenmiş + base64. Siteler arası ANLAMSAL
+  -- mükerrer kapısı bunu kullanır (kelime örtüşmesi bu iş için ölçülerek yetersiz bulundu).
+  embedding TEXT,
+  -- extra_sources: aynı haberi yazan İKİNCİL kaynaklar, JSON [{"name","domain","url"}].
+  extra_sources TEXT,
+  -- ingest_mode: 'cron' | 'backfill'. Günlük yayın tavanı yalnızca 'cron' satırlarını sayar.
+  ingest_mode TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_gundem_items_published ON gundem_items(status, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gundem_items_category ON gundem_items(status, category, published_at DESC);

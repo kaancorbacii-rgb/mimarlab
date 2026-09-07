@@ -30,7 +30,7 @@ const MAX_LIMIT = 24;
 // Liste kartında dönen alanlar. Kaynak makale metninden HİÇBİR ŞEY dönmez — yalnızca MİMARLAB'ın
 // kendi ürettiği başlık/özet ve kaynağa götüren metadata (bkz. migrations/0099 dosya başı notu).
 const LIST_COLUMNS = `id, slug, title, summary, image_url, source_name, source_domain, source_url,
-  source_published_at, published_at, category, source_id`;
+  source_published_at, published_at, category, source_id, extra_sources`;
 
 // SIRALAMA EKSENİ — kullanıcı isteği (2026-09-07): "Gündem içeriklerini her zaman en yakın
 // tarihten en eskiye doğru sırala."
@@ -71,21 +71,65 @@ function shapeItem(row, entitiesByItem) {
     publishedAt: row.published_at,
     category: row.category,
     sourceId: row.source_id,
+    // Aynı haberi yazan İKİNCİL kaynaklar (kullanıcı isteği, 2026-09-07: "tek bir gönderide iki
+    // farklı kaynak belirterek paylaş"). Bozuk/eksik JSON sessizce boş diziye düşer — kart yine
+    // birincil kaynağıyla basılır.
+    extraSources: parseExtraSources(row.extra_sources),
     entities: (entitiesByItem && entitiesByItem.get(row.id)) || [],
   };
 }
 
+export function parseExtraSources(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(x => x && typeof x.name === 'string' && typeof x.url === 'string')
+      .slice(0, 4)
+      .map(x => ({ name: x.name, domain: x.domain || '', url: x.url }));
+  } catch { return []; }
+}
+
 // Bir içerik kümesinin bilgi-grafiği kenarları — TEK sorguda (N+1 yok).
+//
+// LOGO (kullanıcı isteği, 2026-09-07: "etiketlemelerde logolar da gözüksün"): rozetin görseli
+// gundem_entities'te SAKLANMAZ — orada saklamak, bir firma logosunu değiştirdiğinde eski logonun
+// haber kartlarında donup kalması demek olurdu. Bunun yerine kanonik tablodan CANLI okunur:
+// firma/marka -> offices.logo_url, kişi -> architects.photo_url. Proje/ürün rozetlerinde logo
+// yoktur (onların görseli kartın kendi kapağıdır, küçük bir rozet için anlamlı değil).
+//
+// İKİ EK SORGU, kart başına DEĞİL küme başına: tüm sayfanın office/architect anahtarları toplanıp
+// tek IN(...) ile okunur. Eşleşmeyen anahtar sessizce logosuz kalır.
 async function loadEntities(env, ids) {
   if (!ids.length) return new Map();
   const placeholders = ids.map(() => '?').join(',');
   const { results } = await env.DB.prepare(
     `SELECT item_id, entity_type, entity_key, entity_name FROM gundem_entities WHERE item_id IN (${placeholders})`
   ).bind(...ids).all();
+  if (!results || !results.length) return new Map();
+
+  const officeKeys = [...new Set(results.filter(r => r.entity_type === 'office').map(r => r.entity_key))];
+  const architectKeys = [...new Set(results.filter(r => r.entity_type === 'architect').map(r => r.entity_key))];
+  const logoByKey = new Map();
+  if (officeKeys.length) {
+    const { results: rows } = await env.DB.prepare(
+      `SELECT slug, logo_url FROM offices WHERE slug IN (${officeKeys.map(() => '?').join(',')})`
+    ).bind(...officeKeys).all();
+    for (const r of rows || []) if (r.logo_url) logoByKey.set(`office:${r.slug}`, r.logo_url);
+  }
+  if (architectKeys.length) {
+    const { results: rows } = await env.DB.prepare(
+      `SELECT slug, photo_url FROM architects WHERE slug IN (${architectKeys.map(() => '?').join(',')})`
+    ).bind(...architectKeys).all();
+    for (const r of rows || []) if (r.photo_url) logoByKey.set(`architect:${r.slug}`, r.photo_url);
+  }
+
   const map = new Map();
   for (const r of results) {
     if (!map.has(r.item_id)) map.set(r.item_id, []);
-    map.get(r.item_id).push({ type: r.entity_type, key: r.entity_key, name: r.entity_name });
+    const logo = logoByKey.get(`${r.entity_type}:${r.entity_key}`) || null;
+    map.get(r.item_id).push({ type: r.entity_type, key: r.entity_key, name: r.entity_name, logo });
   }
   return map;
 }
@@ -115,12 +159,30 @@ async function handleGundemList(request, env, url) {
   const sourceParam = (params.get('source') || '').trim();
   const source = GUNDEM_SOURCES.some(s => s.id === sourceParam) ? sourceParam : null;
   const search = (params.get('search') || '').trim().slice(0, 80);
+  // ENTITY FİLTRESİ (kullanıcı isteği, 2026-09-07): "Kişi, Firma ve Marka popup'larında ... Gündem
+  // kısmı aç ve burada etiketlenen Gündem gönderileri paylaşılsın." Pop-up'lar bu ucu
+  // ?entityType=office&entityKey=<slug> ile çağırır.
+  //
+  // NEDEN AYRI BİR UÇ DEĞİL: filtreleme dışında hiçbir şey değişmiyor — aynı şekil, aynı
+  // önbellek sarmalayıcısı, aynı parmak izi. Ayrı bir uç, aynı sorgunun ikinci bir kopyasını
+  // (ve ayrışma riskini) doğururdu. `/api/gundem/entity/...` yolu da bilinçli olarak SEÇİLMEDİ:
+  // orada `/api/gundem/:slug` eşleşmesi var ve "entity" adlı bir slug ikisini çakıştırabilirdi.
+  const entityTypeParam = (params.get('entityType') || '').trim();
+  const entityType = ['office', 'architect', 'project', 'product'].includes(entityTypeParam) ? entityTypeParam : null;
+  const entityKey = entityType ? (params.get('entityKey') || '').trim().slice(0, 200) : '';
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const where = [`status = 'published'`];
     const binds = [];
     if (category) { where.push('category = ?'); binds.push(category); }
     if (source) { where.push('source_id = ?'); binds.push(source); }
+    // EXISTS — JOIN yerine: bir içerik birden fazla entity taşıyabilir, JOIN aynı satırı birden
+    // çok kez döndürüp COUNT(*) toplamını da bozardı. idx_gundem_entities_target tam bu aramayı
+    // karşılar (entity_type, entity_key).
+    if (entityType && entityKey) {
+      where.push('EXISTS (SELECT 1 FROM gundem_entities ge WHERE ge.item_id = gundem_items.id AND ge.entity_type = ? AND ge.entity_key = ?)');
+      binds.push(entityType, entityKey);
+    }
     // Arama: Türkçe katlamalı LIKE. Bu tablo (yüzler mertebesinde satır) için ayrı bir fold kolonu/
     // FTS kurmak gereksiz karmaşıklık olurdu — arama zaten ikincil bir filtre (madde 13:
     // "Gerekli değilse fazla filtre ekleme"). Katlama SQL'de yapılamadığından JS tarafında

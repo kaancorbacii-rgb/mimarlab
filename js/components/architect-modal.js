@@ -320,6 +320,15 @@ const ArchitectModal = (function () {
         <div class="related-grid-scroll" id="am-used-products-grid"></div>
       </div>
     </div>
+    <!-- GÜNDEM (kullanıcı isteği, 2026-09-07): "Şehirdeki Diğer Projeler / Mimarlar / Markalar
+         satırının ÜZERİNDE ayrı bir satır olarak ama AYNI yatay tasarımla Gündem kısmı aç ve burada
+         etiketlenen Gündem gönderileri paylaşılsın (sadece önizleme görseli ve başlık)."
+         Aynı .related-section + .related-grid-scroll + .related-card yapısı; yeni bir şerit tasarımı
+         icat EDİLMEDİ. Kart altyazısı yok — istek açıkça "sadece görsel ve başlık" diyor. -->
+    <div class="related-section" id="am-gundem-section" style="display:none;">
+      <h2 class="related-title">Gündem<span id="am-gundem-count"></span></h2>
+      <div class="related-grid-scroll" id="am-gundem-grid"></div>
+    </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
       <!-- Sayaç (kullanıcı isteği, 2026-09-02): bölüm zaten en fazla 9 kişi gösteriyordu (bkz.
            src/routes/architect.js#relatedArchitects, .slice(0, 9) — tüm öneri şeritlerinin ORTAK
@@ -508,6 +517,39 @@ const ArchitectModal = (function () {
       </div>
       <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(title)}${badgeHtml || ''}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
+  }
+
+  const GUNDEM_STRIP_IDS = { section: 'am-gundem-section', grid: 'am-gundem-grid', count: 'am-gundem-count' };
+
+  // --- GÜNDEM ŞERİDİ (kullanıcı isteği, 2026-09-07) ---------------------------------------------
+  // Bu profile ETİKETLENMİŞ Gündem içerikleri. Etiketler Gündem hattının kendi bilgi grafiğinden
+  // gelir (gundem_entities, bkz. src/lib/gundemEntities.js) — burada yeni bir eşleştirme YAPILMAZ.
+  // Hiç etiket yoksa bölüm HİÇ gösterilmez (boş bir başlık bırakmak yerine). Hata durumunda da
+  // sessizce gizli kalır: yan bir şerit yüzünden profilin tamamı bozulmamalı.
+  let gundemStripSeq = 0;
+  async function loadGundemStrip(entityType, entityKey) {
+    const section = document.getElementById(GUNDEM_STRIP_IDS.section);
+    const grid = document.getElementById(GUNDEM_STRIP_IDS.grid);
+    if (!section || !grid || !entityKey) return;
+    const seq = ++gundemStripSeq;
+    section.style.display = 'none';
+    grid.innerHTML = '';
+    try {
+      const res = await fetch(`/api/gundem?entityType=${encodeURIComponent(entityType)}&entityKey=${encodeURIComponent(entityKey)}&limit=24`);
+      if (!res.ok) return;
+      const data = await res.json();
+      // Şerit yüklenirken kullanıcı başka bir profile geçmiş olabilir — bu depodaki standart
+      // "isStale" koruması (bkz. claimBox#isStale gerekçesi).
+      if (seq !== gundemStripSeq) return;
+      const items = (data && data.items) || [];
+      if (!items.length) return;
+      const countEl = document.getElementById(GUNDEM_STRIP_IDS.count);
+      if (countEl) countEl.textContent = ` (${items.length})`;
+      section.style.display = '';
+      RelatedStrip.render(grid, items, g =>
+        cardHtml(`/gundem/${encodeURIComponent(g.slug)}`, g.title, g.image, null, '')
+      );
+    } catch (e) { /* şerit gizli kalır */ }
   }
 
   // Mimar profiline yazılmış ama offices tablosunda karşılığı olmayan (bkz. src/routes/
@@ -853,6 +895,11 @@ const ArchitectModal = (function () {
       );
     }
     renderRelatedArchitectsGrid();
+
+    // Gündem şeridi — profil yükünden BAĞIMSIZ, kendi ucundan gelir (bkz. src/routes/gundem.js
+    // ?entityType/&entityKey). Ayrı istek olması bilinçli: /api/architect/:slug yükü zaten büyük ve
+    // Gündem etiketi çoğu profilde YOKTUR; oraya eklemek her profil açılışına boş bir alan eklerdi.
+    loadGundemStrip('architect', a.slug || slugify(a.name));
 
     const PROFILE_TYPE = 'architect';
     // gerçek bulgu (denetim, 2026-08-24, bkz. claim-correction-box.js#config.isStale yorumu):

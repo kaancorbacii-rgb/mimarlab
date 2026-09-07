@@ -415,7 +415,7 @@ async function withSingleFlight(key, fn) {
 //     v5-v20'nin AYNI tuzağı ve burada ÖZELLİKLE sinsi: sıralama değişikliği hiçbir SATIRI
 //     değiştirmez, yani listFingerprint (COUNT + MAX(updated_at)) BİREBİR aynı kalır. Sürüm
 //     artırılmazsa önbellekteki gövde "taze" sayılır ve ziyaretçiler eski sırada takılırdı.
-const API_PAYLOAD_VERSION = 'v21';
+const API_PAYLOAD_VERSION = 'v22';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

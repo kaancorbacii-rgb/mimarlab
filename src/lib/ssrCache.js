@@ -114,7 +114,11 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // değil. v110-v119'un AYNI tuzağı: gövde önbelleğe GÖMÜLÜ olduğundan, sürüm artırılmazsa /gundem'i
 // daha önce açmış ziyaretçiler s-maxage boyunca ESKİ kart işaretlemesini görmeye devam ederdi
 // (canlıda doğrulandı: arşivleme sonrası SSR hâlâ 9 kart ve "Kaynağa git" metnini gösteriyordu).
-export const SSR_CACHE_VERSION = 'v120';
+// v121 (2026-09-07): gundem.html'in kart işaretlemesi/stili değişti — çoklu kaynak atfı, etiket
+// rozetlerinde logo, admin kontrollerinin sol üste taşınması, mobil buton boyutları. Yukarıdaki
+// v110-v119 ile AYNI gerekçe: /gundem'in SSR gövdesi önbelleğe gömülü olduğundan sürüm
+// artırılmazsa sayfayı daha önce açmış ziyaretçiler s-maxage boyunca ESKİ işaretlemeyi görür.
+export const SSR_CACHE_VERSION = 'v121';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

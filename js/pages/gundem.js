@@ -76,6 +76,21 @@ const ICON_READ = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" s
 // Bilgi grafiği rozetleri — sunucu YALNIZCA gerçek bir MİMARLAB kaydına eşleşen adları döndürür
 // (bkz. src/lib/gundemEntities.js), bu yüzden burada ek bir doğrulama gerekmez; boşsa hiç basılmaz.
 const ENTITY_PATH = { office: '/firma/', architect: '/kisi/', project: '/proje/', product: '/urun/' };
+// Rozetin görseli (kullanıcı isteği, 2026-09-07: "etiketlemelerde logolar da gözüksün").
+// Sunucu logo/foto adresini entity satırıyla birlikte döndürür (bkz. src/routes/gundem.js
+// #loadEntities). Yoksa rozet ESKİSİ GİBİ yalnızca metin basılır — logosu olmayan kayıt yüzünden
+// boş bir kutu görünmesin diye.
+function entityLogoHtml(e){
+  if(!e || !e.logo) return '';
+  // cdnImg bir function DECLARATION'dır (window'da bulunur), ama image-cdn.js yüklenmemişse
+  // diye bu depodaki standart `typeof ... === 'function'` guard'ı kullanılır — `const` global'ler
+  // window'a YAZILMADIĞI için `window.X` kontrolü bu depoda bilinen bir tuzaktır.
+  const src = (typeof cdnImg === 'function' ? cdnImg(e.logo, 96) : e.logo);
+  // onerror="this.remove()": logo adresi ölüyse rozet metniyle çalışmaya devam eder, kırık
+  // görsel ikonu göstermez (site-chrome.js'teki AYNI desen).
+  return `<img class="gundem-entity-logo" src="${escapeAttr(src)}" alt="" width="18" height="18" loading="lazy" decoding="async" onerror="this.remove()">`;
+}
+
 function entitiesHtml(entities){
   if(!entities || !entities.length) return '';
   const badges = entities.map(e => {
@@ -84,7 +99,7 @@ function entitiesHtml(entities){
     // NOT: saf markaların kanonik adresi /marka/:slug'tır; /firma/:slug ile gelen istek sunucuda
     // 301 ile oraya yönlendirilir (bkz. src/index.js#serveDetailPage) — yani burada 'office' için
     // tek önek kullanmak güvenli, kırık bağlantı üretmez.
-    return `<a class="gundem-entity" href="${escapeAttr(base + encodeURIComponent(e.key))}">${escapeHtml(e.name)}</a>`;
+    return `<a class="gundem-entity" href="${escapeAttr(base + encodeURIComponent(e.key))}">${entityLogoHtml(e)}${escapeHtml(e.name)}</a>`;
   }).join('');
   return badges ? `<span class="gundem-entities">${badges}</span>` : '';
 }
@@ -97,12 +112,19 @@ function cardHtml(item, index, { detail = false } = {}){
   const href = '/gundem/' + encodeURIComponent(item.slug);
   // Referans metadata dili: "12 May 2026 News" — tarih normal/gri, kategori KALIN ve koyu,
   // kaynak adı ardından ince bir orta nokta ile. Büyük harf/harf aralığı YOK.
+  // KAYNAKLAR: birincil + birleştirilmiş ikincil kaynaklar (kullanıcı isteği, 2026-09-07 — aynı
+  // haberi birden fazla yayıncı yazdığında tek kart, ama HER yayıncıya atıf ve bağlantı).
+  // Her biri ayrı bir dış bağlantı; ayraç ince bir orta nokta (meta satırının kendi dili).
+  const allSources = [];
+  if (item.sourceName) allSources.push({ name: item.sourceName, url: item.sourceUrl });
+  (item.extraSources || []).forEach(sx => { if (sx && sx.name && sx.url) allSources.push(sx); });
+  const srcHtml = allSources.map(sx =>
+    `<a class="gundem-src" href="${escapeAttr(sx.url)}" rel="nofollow noopener external" target="_blank">${escapeHtml(sx.name)}</a>`
+  ).join('');
   const metaHtml =
     `<span class="gundem-date">${escapeHtml(formatDate(item.date))}</span>` +
     (item.category ? `<span class="gundem-cat">${escapeHtml(categoryLabel(item.category))}</span>` : '') +
-    (item.sourceName
-      ? `<a class="gundem-src" href="${escapeAttr(item.sourceUrl)}" rel="nofollow noopener external" target="_blank">${escapeHtml(item.sourceName)}</a>`
-      : '');
+    srcHtml;
   const shareId = 'gundem-share-' + index;
   return `<article class="gundem-card${detail ? ' gundem-card--detail' : ''}" data-slug="${escapeAttr(item.slug)}">
     <div class="gundem-actions">

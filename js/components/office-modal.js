@@ -346,6 +346,15 @@ const OfficeModal = (function () {
         <div class="related-grid-scroll" id="om-preferring-architects-grid"></div>
       </div>
     </div>
+    <!-- GÜNDEM (kullanıcı isteği, 2026-09-07): "Şehirdeki Diğer Projeler / Mimarlar / Markalar
+         satırının ÜZERİNDE ayrı bir satır olarak ama AYNI yatay tasarımla Gündem kısmı aç ve burada
+         etiketlenen Gündem gönderileri paylaşılsın (sadece önizleme görseli ve başlık)."
+         Bu dosya HEM Firma HEM Marka pop-up'ını basar (markalar da offices satırıdır, bkz.
+         office-kind.js), yani tek ekleme iki isteği birden karşılar. -->
+    <div class="related-section" id="om-gundem-section" style="display:none;">
+      <h2 class="related-title">Gündem<span id="om-gundem-count"></span></h2>
+      <div class="related-grid-scroll" id="om-gundem-grid"></div>
+    </div>
     <div class="related-section" id="om-city-section" style="display:none;">
       <h2 class="related-title" id="om-city-title">Şehirdeki Diğer Firmalar</h2>
       <div class="related-grid-scroll" id="om-city-grid"></div>
@@ -505,6 +514,35 @@ const OfficeModal = (function () {
   // badgeHtml: yalnızca kurucu/ortak kartlarında geçilir (bkz. kullanıcı isteği: mavi onay rozetinin
   // ilişkili TÜM alanlarda görünmesi) — proje/ürün/malzeme kartlarında rozet anlamsız olduğundan
   // çağıranlar orada bu parametreyi hiç geçmez.
+  const GUNDEM_STRIP_IDS = { section: 'om-gundem-section', grid: 'om-gundem-grid', count: 'om-gundem-count' };
+
+  // --- GÜNDEM ŞERİDİ (kullanıcı isteği, 2026-09-07) ---------------------------------------------
+  // js/components/architect-modal.js#loadGundemStrip ile AYNI sözleşme ve aynı gerekçe (etiketler
+  // gundem_entities'ten gelir, boşsa bölüm hiç gösterilmez, hata sessizce yutulur, isStale koruması).
+  let gundemStripSeq = 0;
+  async function loadGundemStrip(entityType, entityKey) {
+    const section = document.getElementById(GUNDEM_STRIP_IDS.section);
+    const grid = document.getElementById(GUNDEM_STRIP_IDS.grid);
+    if (!section || !grid || !entityKey) return;
+    const seq = ++gundemStripSeq;
+    section.style.display = 'none';
+    grid.innerHTML = '';
+    try {
+      const res = await fetch(`/api/gundem?entityType=${encodeURIComponent(entityType)}&entityKey=${encodeURIComponent(entityKey)}&limit=24`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (seq !== gundemStripSeq) return;
+      const items = (data && data.items) || [];
+      if (!items.length) return;
+      const countEl = document.getElementById(GUNDEM_STRIP_IDS.count);
+      if (countEl) countEl.textContent = ` (${items.length})`;
+      section.style.display = '';
+      RelatedStrip.render(grid, items, g =>
+        cardHtml(`/gundem/${encodeURIComponent(g.slug)}`, g.title, g.image, null, '')
+      );
+    } catch (e) { /* şerit gizli kalır */ }
+  }
+
   function cardHtml(href, title, image, subtitle, badgeHtml) {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
     return `<a class="related-card" href="${href}">
@@ -884,6 +922,10 @@ const OfficeModal = (function () {
     // kısımda sadece markalar gösterilsin") — listenin KENDİSİ zaten sunucuda süzülüyor (bkz.
     // src/routes/office.js#relatedOffices), burada yalnızca başlık metni ayarlanır.
     document.getElementById('om-city-title').textContent = isBrandProfile ? 'Şehirdeki Diğer Markalar' : 'Şehirdeki Diğer Firmalar';
+    // Gündem şeridi — profil yükünden bağımsız, kendi ucundan (bkz. loadGundemStrip).
+    // o.slug eski/legacy satırlarda boş olabilir — dosyanın geri kalanındaki AYNI fallback.
+    loadGundemStrip('office', o.slug || slugify(o.name));
+
     document.getElementById('om-city-section').style.display = relatedOfficesData.length ? '' : 'none';
     RelatedStrip.render(document.getElementById('om-city-grid'), relatedOfficesData, o2 =>
       cardHtml(`/firma/${encodeURIComponent(o2.slug)}`, o2.name, logoUrl(o2), o2.loc)

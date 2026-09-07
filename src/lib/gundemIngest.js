@@ -33,12 +33,16 @@ import {
 } from './gundemQuality.js';
 import { isValidGundemCategory } from './gundemCategories.js';
 import { generateGundemSummary, isGundemAiAvailable, AiProviderError } from './gundemAi.js';
-import { buildGundemEntityIndex, resolveGundemEntities } from './gundemEntities.js';
+import { buildGundemEntityIndex, resolveGundemEntitiesWithScan } from './gundemEntities.js';
 import { AI_MODEL } from './aiConfig.js';
 import { getSiteSettings } from './siteSettings.js';
 import { newId } from './crypto.js';
 import { slugify } from './slugify.js';
 import { purgeGundemCache } from './gundemCache.js';
+import {
+  gundemEmbedText, embedGundemText, quantizeEmbedding, findSemanticDuplicate,
+  GUNDEM_EMBED_WINDOW_DAYS,
+} from './gundemEmbedding.js';
 
 // =============================================================================================
 // GÜVENLİK LİMİTLERİ (madde 17)
@@ -530,11 +534,77 @@ async function publishCandidate(env, candidate, ctx) {
     return null;
   }
 
-  // --- ENTITY EŞLEŞTİRME (yalnızca mevcut kayıtlar; yeni entity YARATILMAZ) ----------------------
+  // --- ANLAMSAL MÜKERRER + KAYNAK BİRLEŞTİRME (kullanıcı isteği, 2026-09-07) ---------------------
+  // Yukarıdaki kelime tabanlı kapı aynı olayı FARKLI KELİMELERLE anlatan iki metni yakalayamaz
+  // (canlıda ölçüldü: Foster + Partners robot haberi dört kaynaktan dört kart oldu, ikili kelime
+  // benzerlikleri 0,23-0,30). Bu kapı karşılaştırmayı ANLAM düzeyinde yapar — gerekçe, ölçüm ve
+  // eşiğin nasıl seçildiği: src/lib/gundemEmbedding.js dosya başı.
+  //
+  // DAVRANIŞ FARKI — İSTEĞİN ÖZÜ: eşleşen içerik ATILMAZ. Var olan kartın üzerine bu kaynak
+  // İKİNCİL KAYNAK olarak eklenir ("tek bir gönderide iki farklı kaynak belirterek paylaş").
+  // Böylece okuyucu tek kart görür ama haberi yazan her yayıncıya atıf ve bağlantı korunur.
+  const embedVec = await embedGundemText(env, gundemEmbedText(validated.title, validated.summary));
+  if (embedVec) {
+    const semDup = findSemanticDuplicate(embedVec, ctx.recentEmbeddings);
+    // Aynı yayıncının kendi iki yazısı birleştirilmez — o bir mükerrer değil, aynı kaynağın
+    // konuyu iki kez işlemesidir (ör. Dezeen'in festival duyurusu + festival rehberi).
+    if (semDup && semDup.row.source_domain !== source.domain) {
+      await mergeSourceIntoItem(env, semDup.row, source, sourceUrlOf(candidate));
+      stats.duplicate += 1;
+      stats.duplicateBy.semantic_merged = (stats.duplicateBy.semantic_merged || 0) + 1;
+      srcStat(stats, source.id).duplicate += 1;
+      // Aynı turda üçüncü bir kaynak da gelirse yine bu satıra eklensin diye havuzda KALIR.
+      ctx.seenInRun.urls.add(sourceUrlOf(candidate));
+      return null;
+    }
+  }
+
+  // Aday satırının kanonik kaynak adresi — INSERT'te de aynı değer yazılır, iki yerde ayrışmasın
+// diye tek fonksiyon.
+function sourceUrlOf(candidate) {
+  return candidate.normalizedUrl;
+}
+
+// Bulunan mükerrere bu kaynağı İKİNCİL kaynak olarak ekler (kullanıcı isteği: "tek bir gönderide
+// iki farklı kaynak belirterek paylaş").
+//
+// AYNI DOMAIN İKİ KEZ EKLENMEZ: bir yayıncı aynı haberi farklı URL'lerle yeniden yayımlarsa kartın
+// altında adı iki kez görünmemeli.
+//
+// updated_at DA tazelenir — /api/gundem'in edge önbelleği tazeliği COUNT(*) + MAX(updated_at)
+// parmak iziyle doğruluyor (bkz. src/routes/gundem.js#gundemListFingerprint). Yalnızca
+// extra_sources yazılsaydı yeni kaynak adı kartta HİÇ görünmezdi.
+async function mergeSourceIntoItem(env, row, source, sourceUrl) {
+  let list = [];
+  try { const parsed = JSON.parse(row.extra_sources || '[]'); if (Array.isArray(parsed)) list = parsed; }
+  catch { list = []; }
+  if (row.source_domain === source.domain) return;
+  if (list.some(x => x && x.domain === source.domain)) return;
+  // Kart altında makul sayıda atıf: birincil + en fazla 4 ikincil.
+  if (list.length >= 4) return;
+  list.push({ name: source.name, domain: source.domain, url: sourceUrl });
+  await env.DB.prepare(
+    'UPDATE gundem_items SET extra_sources = ?, updated_at = ? WHERE id = ?'
+  ).bind(JSON.stringify(list), Date.now(), row.id).run();
+  // Bellekteki kopya da güncellenir; aynı turda gelen üçüncü bir kaynak mükerrer yazmasın.
+  row.extra_sources = JSON.stringify(list);
+}
+
+// --- ENTITY EŞLEŞTİRME (yalnızca mevcut kayıtlar; yeni entity YARATILMAZ) ----------------------
+  // AI önerisi + METİN TARAMASI (kullanıcı isteği, 2026-09-07: "ilgili olan TÜM gönderilere
+  // etiketlemeler yap"). Ölçüm: yalnızca AI önerisine bakan eski sürüm 205 yayının 10'unu
+  // etiketleyebilmişti — darboğaz eşleştirme değil, modelin çoğu özette hiç ad ÖNERMEMESİYDİ.
+  // Tarama, yayınlanan başlık+özet metninde D1'de GERÇEKTEN var olan adları tam kelime olarak
+  // arar (bkz. gundemEntities.js#scanTextForEntities); kural aynı kalır: yeni entity yaratılmaz.
+  // Artık AI hiç öneri vermese de çalışır, bu yüzden koşul `validated.entities.length`den çıkarıldı.
   let entities = [];
-  if (validated.entities.length) {
+  {
     const index = await ctx.getEntityIndex();
-    if (index) entities = resolveGundemEntities(index, validated.entities);
+    if (index) {
+      entities = resolveGundemEntitiesWithScan(
+        index, validated.entities, `${validated.title} ${validated.summary}`
+      );
+    }
   }
 
   // --- YAZ ---------------------------------------------------------------------------------------
@@ -557,8 +627,9 @@ async function publishCandidate(env, candidate, ctx) {
          id, slug, title, original_title, summary, image_url, image_host,
          source_id, source_name, source_domain, source_url, canonical_url,
          source_published_at, published_at, category, language, original_language, author,
-         content_hash, title_key, status, ai_model, ai_generated_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tr', ?, ?, ?, ?, 'published', ?, ?, ?, ?)`
+         content_hash, title_key, status, ai_model, ai_generated_at, created_at, updated_at,
+         embedding, ingest_mode
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tr', ?, ?, ?, ?, 'published', ?, ?, ?, ?, ?, ?)`
     ).bind(
       id, slug, validated.title, candidate.title.slice(0, 400), validated.summary,
       resolved.image, imageHost,
@@ -566,7 +637,9 @@ async function publishCandidate(env, candidate, ctx) {
       candidate.publishedAt || resolved.sourcePublishedAt || null, now,
       validated.category, source.language, candidate.author,
       candidate.contentHash, candidate.titleKey,
-      AI_MODEL, now, now, now
+      AI_MODEL, now, now, now,
+      embedVec ? quantizeEmbedding(embedVec) : null,
+      options.ingestMode || 'cron'
     ),
     ...entities.map(e => env.DB.prepare(
       `INSERT OR IGNORE INTO gundem_entities (item_id, entity_type, entity_key, entity_name, created_at)
@@ -583,6 +656,13 @@ async function publishCandidate(env, candidate, ctx) {
   // Bu turda yayınlanan Türkçe başlık da karşılaştırma havuzuna girer — aynı olayı iki farklı
   // kaynaktan AYNI turda almayı da engeller.
   ctx.recentTitles.push({ slug, title: validated.title });
+  // Vektör de havuza girer — aynı olayı ÜÇ farklı kaynaktan AYNI turda almak da engellenir
+  // (Foster haberi canlıda tam olarak böyle çoğalmıştı).
+  if (embedVec) {
+    ctx.recentEmbeddings.push({
+      id, slug, source_domain: source.domain, embedding: quantizeEmbedding(embedVec),
+    });
+  }
 
   stats.published += 1;
   stats.entitiesLinked += entities.length;
@@ -636,8 +716,14 @@ export async function runGundemIngestion(env, deps, options = {}) {
 
   // --- GÜNLÜK YAYIN TAVANI ----------------------------------------------------------------------
   const dayStart = startedAt - DAY_MS;
+  // YALNIZCA 'cron' satırları sayılır (kullanıcı isteğinden doğan gerçek bulgu, 2026-09-07):
+  // tavanın amacı OTOMATİK hattın kaçmasını engellemektir. Elle çalıştırılan bir geri doldurma
+  // (yeni kaynak eklerken bir haftalık geçmişi çekmek) bilinçli bir insan kararıdır; onun bu kotayı
+  // yemesi, sistemin bir sonraki ~24 saat boyunca hiç içerik toplamamasına yol açıyordu — canlıda
+  // tam olarak bu yaşandı (40+9 satırlık iki geri doldurma tavanı doldurdu, 12:00 turu hiçbir
+  // kaynağa dokunmadan döndü). COALESCE: kolon eklenmeden önceki satırlar 'cron' sayılır.
   const dayRow = await env.DB.prepare(
-    'SELECT COUNT(*) AS c FROM gundem_items WHERE published_at >= ?'
+    "SELECT COUNT(*) AS c FROM gundem_items WHERE published_at >= ? AND COALESCE(ingest_mode, 'cron') = 'cron'"
   ).bind(dayStart).first();
   const publishedToday = (dayRow && dayRow.c) || 0;
   let budget = Math.min(
@@ -733,9 +819,20 @@ export async function runGundemIngestion(env, deps, options = {}) {
     `SELECT slug, title FROM gundem_items WHERE status = 'published' AND published_at >= ? ORDER BY published_at DESC LIMIT 300`
   ).bind(startedAt - 14 * DAY_MS).all();
 
+  // Anlamsal mükerrer karşılaştırması için son GUNDEM_EMBED_WINDOW_DAYS günün vektörleri.
+  // Başlık penceresinden (14 gün) DAHA DAR: aynı haberi farklı yayıncılar günler içinde yazar ve
+  // her satır ~1,4 KB vektör taşır — pencereyi dar tutmak tur başına okunan veriyi kelepçeler.
+  // embedding IS NOT NULL: kolon eklenmeden önce yazılmış satırlar burada hiç yer kaplamaz.
+  const { results: embRows } = await env.DB.prepare(
+    `SELECT id, slug, source_domain, extra_sources, embedding FROM gundem_items
+     WHERE status = 'published' AND embedding IS NOT NULL AND published_at >= ?
+     ORDER BY published_at DESC LIMIT 300`
+  ).bind(startedAt - GUNDEM_EMBED_WINDOW_DAYS * DAY_MS).all();
+
   const ctx = {
     existing, seenInRun, stats, abort: null,
     recentTitles: recentRows.map(r => ({ slug: r.slug, title: r.title })),
+    recentEmbeddings: embRows || [],
     getEntityIndex: lazyEntityIndex(env, deps),
   };
 
