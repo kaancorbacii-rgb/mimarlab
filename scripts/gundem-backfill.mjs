@@ -239,6 +239,13 @@ const stats = await runGundemIngestion(env, deps, {
   maxItemsPerSource: PER_SOURCE,
   maxItemsPerRun: MAX_TOTAL,
   maxPublishPerDay: DAILY_CAP,
+  // Satırlar 'backfill' olarak işaretlenir — cron turunun günlük tavan sayacı (bkz.
+  // gundemIngest.js#publishedToday) yalnızca 'cron' satırlarını sayar. BU SATIRI SİLMEYİN:
+  // migrations/0102 kolonu tam olarak bunun için ekledi, ama betik değeri geçmediği sürece
+  // muafiyet ölü koddur ve elle çekilen arşiv tavanı doldurur. 2026-09-07'de canlıda böyle oldu:
+  // Archiproducts (40) + Bigumigu (9) geri doldurması sayacı 60/50'ye çıkardı ve sonraki BEŞ tur
+  // hiçbir kaynağa dokunmadan `daily_cap_reached` ile döndü (Gündem ~5 saat yeni içerik almadı).
+  ingestMode: 'backfill',
   // Yerelde Worker'ın duvar-saati sınırı yok; AI çağrısı başına ~4sn ve içerik başına ~2 çağrı
   // olduğundan 25 içerik için cömert bir bütçe.
   runBudgetMs: BUDGET_MIN * 60 * 1000,

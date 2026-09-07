@@ -689,6 +689,10 @@ async function mergeSourceIntoItem(env, row, source, sourceUrl) {
 //   maxPublishPerDay      24 saatlik yayın tavanı (geri doldurma 7 günü tek turda işlediği için
 //                         günlük tavanın turu kesmemesi gerekebilir)
 //   runBudgetMs           turun duvar-saati bütçesi
+//   ingestMode            satırların gundem_items.ingest_mode değeri; geri doldurma 'backfill'
+//                         GEÇMEK ZORUNDADIR (varsayılan 'cron'). Geçilmezse elle çekilen arşiv
+//                         günlük cron tavanını yer ve otomatik hat ~24 saat susar — canlıda tam
+//                         olarak bu yaşandı (2026-09-07, 49 satırlık iki geri doldurma).
 export async function runGundemIngestion(env, deps, options = {}) {
   const startedAt = Date.now();
   const runBudgetMs = options.runBudgetMs ?? GUNDEM_LIMITS.runBudgetMs;
