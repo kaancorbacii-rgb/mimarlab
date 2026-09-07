@@ -155,6 +155,18 @@ done
 echo ""
 echo "5) GÜNDEM (kullanıcı isteği, 2026-09-06)"
 
+# SSRF koruması birim testleri (hardening denetimi, 2026-09-07). Gündem testleriyle AYNI desen:
+# saf, ağsız, npm bağımlılığı yok. Kapsam: engelleme matrisi (IPv4 alternatif yazımları, RFC1918,
+# link-local/metadata, IPv4-eşlemeli IPv6, NAT64, sondaki noktalı localhost), AŞIRI engelleme
+# regresyonu (gerçek kaynak host'ları + engellenen blokların sınır komşuları) ve yönlendirme
+# zinciri. Bu testler düşerse deploy HİÇ BAŞLAMAZ — bkz. scripts/test-safefetch.mjs dosya başı.
+if node scripts/test-safefetch.mjs >/tmp/preflight_ssrf 2>&1; then
+  ok "SSRF koruması birim testleri geçti ($(grep -c '^  ok ' /tmp/preflight_ssrf) test)"
+else
+  bad "SSRF koruması birim testleri BAŞARISIZ:"
+  tail -20 /tmp/preflight_ssrf >&2
+fi
+
 # Birim testler — feed ayrıştırma, mükerrer anahtarları, kalite kapısı, entity eşleştirme, kaynak
 # yapılandırması. Tamamen yerel/saf (ağ ve D1 yok), bkz. scripts/test-gundem.mjs dosya başı.
 if node scripts/test-gundem.mjs >/tmp/preflight_gundem 2>&1; then
