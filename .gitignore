@@ -28,5 +28,9 @@ scratch-test-vecs*.json
 # firmalarin web sitelerinden derlenmis iletisim adreslerini icerir. Bu repo GitHub'da PUBLIC
 # oldugundan commit edilmeleri, toplanmis e-posta adreslerini kalici olarak (git gecmisinde)
 # yayinlamak anlamina gelir. Yerelde tutulur, repoya girmez.
+# 2026-09-07: desen once tam ad (docs/gonderim-listesi.csv) idi; ikinci parti
+# docs/gonderim-listesi-125-200.csv olarak yazilinca desene TAKILMADI ve public repoda
+# commit'lenmeyi bekleyen izlenmeyen bir dosya olarak durdu (deploy.sh'in temiz-working-tree
+# guard'i sayesinde fark edildi). Yildiz, bundan sonraki partileri de kapsar.
 docs/epostalar-*.md
-docs/gonderim-listesi.csv
+docs/gonderim-listesi*.csv
