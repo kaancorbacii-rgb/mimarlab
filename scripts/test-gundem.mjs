@@ -12,6 +12,7 @@
 // doğrulamayla test edilir (bkz. scripts/smoke-test.sh'e eklenen Gündem bölümü).
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { parseFeed, stripHtml, decodeEntities, normalizeImageUrl, extractPageMeta } from '../src/lib/gundemFeed.js';
 import {
@@ -706,6 +707,35 @@ await test('categoryHints yalnızca whitelist kategorilerine işaret eder', () =
       assert.ok(isValidGundemCategory(hint.category), `hint kategorisi whitelist dışı: ${s.id}/${hint.category}`);
     }
   }
+});
+
+await test('gundemIngest.js: `options` yalnızca runGundemIngestion içinde kullanılır', () => {
+  // GERÇEK BULGU (canlı, 2026-09-07): INSERT satırına `options.ingestMode` yazılmıştı, ama o satır
+  // `publishCandidate` gövdesindeydi ve `options` YALNIZCA `runGundemIngestion`'ın parametresi.
+  // Sonuç: HER yayın denemesi ReferenceError ile düştü, `publish_failed` diye sayıldı ve hat
+  // saatlerce SIFIR içerik üretti — kaynak sağlığı 13/13 "başarılı" göründüğü için hiç alarm
+  // vermedi. Bu sınıf hata yalnızca gerçek AI + D1 ile dönen bir turda ortaya çıkar, saf birim
+  // testleriyle YAKALANAMAZ; bu yüzden statik kapsam kontrolü olarak eklendi. (Depoda eslint/
+  // no-undef yok ve tek bir kural için npm bağımlılığı eklenmedi.)
+  //
+  // NOT: fonksiyon sınırı, gövdeleri brace sayarak DEĞİL, 0. sütundaki `function` başlıklarıyla
+  // bulunur. Bu dosyada `sourceUrlOf` ve `mergeSourceIntoItem` publishCandidate'in İÇİNDE ama
+  // 0. sütunda yazılmıştır; brace saymaya dayanan bir tarama bu yüzden hatalı bölge çıkarır.
+  const src = readFileSync(new URL('../src/lib/gundemIngest.js', import.meta.url), 'utf8').split('\n');
+  const heads = [];
+  src.forEach((line, i) => { if (/^(export )?(async )?function \w+/.test(line)) heads.push(i); });
+  const runIdx = heads.findIndex(i => /function runGundemIngestion\b/.test(src[i]));
+  assert.ok(runIdx >= 0, 'runGundemIngestion bulunamadı — dosya biçimi değişmiş olabilir');
+  const allowFrom = heads[runIdx];
+  const allowTo = runIdx + 1 < heads.length ? heads[runIdx + 1] : src.length;
+  const offenders = [];
+  src.forEach((line, i) => {
+    if (i >= allowFrom && i < allowTo) return;
+    if (/^\s*(\/\/|\*|\/\*)/.test(line)) return; // yorum satırı
+    if (/(?<![.\w$])options\b/.test(line)) offenders.push(`satır ${i + 1}: ${line.trim()}`);
+  });
+  assert.equal(offenders.length, 0,
+    `\`options\` runGundemIngestion dışında kullanılmış (ReferenceError olur): ${offenders.join(' | ')}`);
 });
 
 // =================================================================================================

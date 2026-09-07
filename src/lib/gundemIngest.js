@@ -639,7 +639,7 @@ async function mergeSourceIntoItem(env, row, source, sourceUrl) {
       candidate.contentHash, candidate.titleKey,
       AI_MODEL, now, now, now,
       embedVec ? quantizeEmbedding(embedVec) : null,
-      options.ingestMode || 'cron'
+      ctx.ingestMode || 'cron'
     ),
     ...entities.map(e => env.DB.prepare(
       `INSERT OR IGNORE INTO gundem_entities (item_id, entity_type, entity_key, entity_name, created_at)
@@ -838,6 +838,12 @@ export async function runGundemIngestion(env, deps, options = {}) {
     recentTitles: recentRows.map(r => ({ slug: r.slug, title: r.title })),
     recentEmbeddings: embRows || [],
     getEntityIndex: lazyEntityIndex(env, deps),
+    // gundem_items.ingest_mode — publishCandidate `options`u GÖRMEZ (ayrı fonksiyon, ayrı kapsam).
+    // 2026-09-07: INSERT'e doğrudan `options.ingestMode` yazılmıştı; her yayın denemesi
+    // ReferenceError ile düşüp `publish_failed` sayılıyordu, yani hat SIFIR içerik üretiyordu —
+    // kaynak sağlığı 13/13 "başarılı" göründüğü için sessiz bir bozulmaydı. Değer, kapsamı olan
+    // TEK yerden (burası) ctx ile taşınır.
+    ingestMode: options.ingestMode || 'cron',
   };
 
   const perSourcePublished = new Map();
