@@ -18,6 +18,7 @@ import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './ro
 import { derivedImageUrl } from './lib/imageDerivative.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
+import { handleReadsRoute } from './routes/reads.js';
 import { handleSharesRoute } from './routes/shares.js';
 import { handleCollectionsRoute } from './routes/collections.js';
 import { handleFollowRoute } from './routes/follows.js';
@@ -1411,6 +1412,11 @@ async function routeApi(request, env, url, ctx) {
   }
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
+  // Okundu işareti (bkz. src/routes/reads.js, kullanıcı isteği 2026-09-07) — /api/saved ile AYNI
+  // desen ve AYNI gerekçe: tamamen oturum korumalı, herkese açık hiçbir okuma ucu yok. AYRI bir
+  // yol seçildi (Gündem'in altına /api/gundem/reads olarak DEĞİL): oradaki /api/gundem/:slug
+  // eşleşmesi public önbellekli bir uçtur ve "reads" adlı bir slug ileride ikisini çakıştırabilirdi.
+  if (path.startsWith('/api/reads')) return handleReadsRoute(request, env, url);
   // Paylaştıklarım (bkz. src/routes/shares.js) — /api/saved ile AYNI desen ve AYNI gerekçe:
   // tamamen oturum korumalı, herkese açık hiçbir okuma ucu yok.
   if (path.startsWith('/api/shares')) return handleSharesRoute(request, env, url);

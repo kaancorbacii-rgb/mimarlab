@@ -197,6 +197,21 @@ else
   bad "gundem.html — #ssr-entity-body konteyneri kayıp (SSR body enjeksiyonu bozulmuş olabilir)"
 fi
 
+# OKUNDU İŞARETİ (kullanıcı isteği, 2026-09-07) — ÜÇ parça birlikte çalışmak zorunda ve biri
+# eksilirse hata SESSİZDİR: buton basılır ama tıklama 404 alır (route kayıp), ya da hiç basılmaz
+# (kart işaretlemesi kayıp), ya da işaretli/işaretsiz hali aynı görünür (stil kayıp). Bu depoda
+# "parçalardan biri taşınınca özellik sessizce öldü" tekrar eden kök nedendir.
+reads_missing=""
+grep -q "'/api/reads'" src/index.js || reads_missing="$reads_missing src/index.js(route)"
+grep -q 'gundem-read-btn' js/pages/gundem.js || reads_missing="$reads_missing js/pages/gundem.js(buton)"
+grep -q 'gundem-read-btn' gundem.html || reads_missing="$reads_missing gundem.html(stil)"
+grep -q 'read_items' schema.sql || reads_missing="$reads_missing schema.sql(tablo)"
+if [ -n "$reads_missing" ]; then
+  bad "Okundu işareti eksik parça(lar):$reads_missing"
+else
+  ok "Okundu işareti — route + buton + stil + tablo dördü de yerinde"
+fi
+
 # Cron dispatcher — src/index.js#VISUAL_INDEX_CRON, wrangler.jsonc'taki görsel-dizin ifadesiyle
 # BİREBİR aynı olmalı. Ayrışırsa dispatcher o ifadeyi tanımaz ve 6 saatlik görsel dizin turu her
 # 30 dakikada bir çalışmaya başlar (12 kat maliyet), üstelik sessizce.

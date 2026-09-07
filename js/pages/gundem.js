@@ -8,6 +8,12 @@
 //   * Paylaş: MEVCUT ShareWidget (js/components/share-button.js) — Web Share API varsa o, yoksa
 //     kopyala/WhatsApp/X/LinkedIn popover'ı. Paylaşılan URL her zaman KALICI item adresidir
 //     (/gundem/:slug), sayfa hash'i değil (madde 16).
+//   * Okundu (kullanıcı isteği, 2026-09-07): Kaydet/Paylaş'ın SOLUNDAKİ üçüncü buton. Durum
+//     kullanıcı HESABINDA tutulur (GET/POST/DELETE /api/reads, bkz. src/routes/reads.js) —
+//     localStorage DEĞİL, çünkü telefonda okunan içerik masaüstünde de okunmuş görünmeli.
+//     Giriş yapılmamışsa tıklama /giris'e yönlendirir (Kaydet ile AYNI davranış). İşaretli kartın
+//     kendisi de soluklaşır (.gundem-card--read) — asıl fayda "hangisini görmedim"i tek bakışta
+//     ayırt etmek olduğu için buton rengi tek başına yeterli olmazdı.
 //   * TIKLAMA DAVRANIŞI (kullanıcı isteği, 2026-09-07): kartın kendisi ve başlık TIKLANABİLİR
 //     DEĞİLDİR. Yalnızca GÖRSEL tıklanabilir ve tıklanınca mevcut ImageLightbox'ta büyür — yeni bir
 //     lightbox yazılmadı. Kaynağa gitmek için meta satırındaki KAYNAK ADI bağlantısı kullanılır;
@@ -63,6 +69,9 @@ function listFetch(url){
 }
 
 const ICON_SAVE = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
+// Okundu — daire içinde tik. Kaydet'in yer imi ikonuyla karışmayacak kadar farklı, "tamamlandı"
+// anlamı evrensel. Boyutlar ICON_SAVE ile aynı (15px) ki üç buton hizalı görünsün.
+const ICON_READ = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.4 2.4 4.6-4.9"/></svg>';
 
 // Bilgi grafiği rozetleri — sunucu YALNIZCA gerçek bir MİMARLAB kaydına eşleşen adları döndürür
 // (bkz. src/lib/gundemEntities.js), bu yüzden burada ek bir doğrulama gerekmez; boşsa hiç basılmaz.
@@ -97,6 +106,11 @@ function cardHtml(item, index, { detail = false } = {}){
   const shareId = 'gundem-share-' + index;
   return `<article class="gundem-card${detail ? ' gundem-card--detail' : ''}" data-slug="${escapeAttr(item.slug)}">
     <div class="gundem-actions">
+      <button class="gundem-read-btn" type="button"
+        data-key="${escapeAttr(item.slug)}"
+        aria-pressed="false"
+        title="Okundu olarak işaretle"
+        aria-label="Okundu olarak işaretle">${ICON_READ}</button>
       <button class="card-save-btn" type="button"
         data-type="gundem"
         data-key="${escapeAttr(item.slug)}"
@@ -144,6 +158,103 @@ document.addEventListener('click', (e) => {
     // Lightbox yüklenmediyse (defer sırası/ağ hatası) görsel yeni sekmede açılır — tıklama
     // sessizce hiçbir şey yapmasın istemiyoruz.
     window.open(url, '_blank', 'noopener');
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// OKUNDU İŞARETİ (kullanıcı isteği, 2026-09-07)
+//
+// Durum SUNUCUDA, kullanıcının hesabında tutulur (bkz. src/routes/reads.js) — isteğin açık şartı
+// buydu ("veri kullanıcı hesabında kayıtlı olabilsin"). localStorage kullanılsaydı işaret cihaz
+// başına kalırdı; telefonda okunan içerik masaüstünde okunmamış görünürdü.
+//
+// AĞ TRAFİĞİ: sayfa başına EN FAZLA BİR ek istek (GET /api/reads). Kart başına istek atmak (N+1)
+// bu depodaki bilinen tuzaktır; kimlik isteği de auth-nav.js'in zaten başlattığı
+// window.__authMeFetch'ten devralınır, ikinci bir /api/auth/me atılmaz.
+//
+// GİRİŞ YAPMAMIŞ ZİYARETÇİ: buton yine BASILIR ama tıklayınca /giris'e gider (save-widget.js'in
+// Kaydet butonuyla BİREBİR aynı davranış — kullanıcı iki butonun farklı davranmasını beklemez).
+// Butonu hiç basmamak, giriş yapınca özelliğin var olduğunu keşfetmeyi imkânsız kılardı.
+// ---------------------------------------------------------------------------------------------
+const readKeys = new Set();
+let readUser = null;
+let readStatePromise = null;
+
+function loadReadState(){
+  if(readStatePromise) return readStatePromise;
+  readStatePromise = (async () => {
+    try{
+      const data = window.__authMeFetch
+        ? await window.__authMeFetch
+        : await fetch('/api/auth/me').then(r => r.ok ? r.json() : { user:null }).catch(() => ({ user:null }));
+      readUser = (data && data.user) || null;
+    }catch{ readUser = null; }
+    if(!readUser) return;
+    try{
+      const res = await fetch('/api/reads');
+      if(res.ok){
+        const data = await res.json();
+        (data.keys || []).forEach(k => readKeys.add(k));
+      }
+    }catch{ /* okundu boyaması yapılamaz; sayfanın geri kalanı etkilenmez */ }
+  })();
+  return readStatePromise;
+}
+
+function paintReadBtn(btn){
+  const isRead = readKeys.has('gundem:' + btn.dataset.key);
+  btn.classList.toggle('read', isRead);
+  btn.setAttribute('aria-pressed', String(isRead));
+  const label = isRead ? 'Okundu — işareti kaldırmak için tıkla' : 'Okundu olarak işaretle';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  // Kartın kendisi de soluklaşır: isteğin amacı "hangi bildirimleri görüp görmediğini anlamak",
+  // yani ayrım kartlar ARASINDA göz gezdirirken fark edilmeli — 32px'lik bir butonun rengi bunu
+  // tek başına taşımaz.
+  const card = btn.closest('.gundem-card');
+  if(card) card.classList.toggle('gundem-card--read', isRead);
+}
+
+// Kartlar her sayfalama/filtre turunda yeniden basıldığından render sonrası çağrılır
+// (bkz. wireCardActions). Zaten boyanmış butonlar tekrar boyanır — işlem saf ve ucuzdur.
+async function applyReadState(){
+  await loadReadState();
+  document.querySelectorAll('.gundem-read-btn').forEach(paintReadBtn);
+}
+
+// Delege dinleyici — kartlara tek tek listener bağlamak, save-widget.js'te canlıda mükerrer istek
+// üretmiş olan hatadır (bkz. o dosyadaki dataset.saveWired notu).
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.gundem-read-btn');
+  if(!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  await loadReadState();
+  if(!readUser){ window.location.href = '/giris'; return; }
+
+  const key = btn.dataset.key;
+  if(!key) return;
+  const mapKey = 'gundem:' + key;
+  const wasRead = readKeys.has(mapKey);
+
+  // İYİMSER BOYAMA: tık anında görünüm değişir, istek arkada gider. Başarısız olursa ESKİ HALİNE
+  // döner — kullanıcı işaretlediğini sanıp aslında kaydedilmemiş bir durumla kalmasın.
+  if(wasRead) readKeys.delete(mapKey); else readKeys.add(mapKey);
+  paintReadBtn(btn);
+  btn.disabled = true;
+  try{
+    const res = wasRead
+      ? await fetch('/api/reads/gundem/' + encodeURIComponent(key), { method:'DELETE' })
+      : await fetch('/api/reads', {
+          method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ type:'gundem', key }),
+        });
+    if(!res.ok) throw new Error('http_' + res.status);
+  }catch{
+    if(wasRead) readKeys.add(mapKey); else readKeys.delete(mapKey);
+    paintReadBtn(btn);
+  }finally{
+    btn.disabled = false;
   }
 });
 
@@ -266,6 +377,10 @@ function skeletonHtml(count){
 // slotlarını ShareWidget ile doldurur. İkisi de yüklenmemişse (defer sırası/ağ hatası) sessizce
 // atlanır — sayfanın geri kalanı çalışmaya devam eder.
 function wireCardActions(items, offset){
+  // Okundu boyaması — tıklama zaten delege dinleyicide, burada yalnızca yeni basılan butonların
+  // görünümü mevcut duruma göre güncellenir (await EDİLMEZ: ilk turda /api/reads yanıtı gelene
+  // kadar kartlar beklememelidir, boyama yanıt gelince kendiliğinden uygulanır).
+  applyReadState();
   if(typeof wireSaveButtons === 'function') wireSaveButtons('gundem');
   if(typeof ShareWidget === 'undefined') return;
   items.forEach((item, i) => {

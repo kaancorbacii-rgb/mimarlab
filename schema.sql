@@ -258,6 +258,20 @@ CREATE INDEX IF NOT EXISTS idx_saved_user ON saved_items(user_id);
 -- bkz. migrations/0059_saved_items_type_key_index.sql
 CREATE INDEX IF NOT EXISTS idx_saved_items_type_key ON saved_items(item_type, item_key);
 
+-- OKUNDU İŞARETİ — bkz. migrations/0101_read_items.sql (kullanıcı isteği, 2026-09-07).
+-- Gündem kartındaki "Okundu" butonunun durumu. saved_items'tan AYRI tablodur ve bu bilinçlidir:
+-- "Kaydet" (sonra döneceğim) ile "Okundu" (işim bitti) zıt anlamlardır, aynı tabloda toplamak
+-- Kaydedilenler listesini ve saved_items'ı okuyan her sayacı kirletirdi. Gerekçenin tamamı
+-- migration dosyasının başındadır.
+CREATE TABLE IF NOT EXISTS read_items (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  item_type TEXT NOT NULL,
+  item_key TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE(user_id, item_type, item_key)
+);
+
 -- PAYLAŞTIKLARIM — bkz. migrations/0074_shared_items.sql (kullanıcı isteği, 2026-08-31):
 -- Aktivitelerim'in "kullanıcıların paylaş butonuna tıklayarak başkalarına ilettikleri gönderiler"
 -- kutusu. saved_items ile AYNI anlık-görüntü deseni, ama UNIQUE kısıtı YOK (paylaşım bir bayrak

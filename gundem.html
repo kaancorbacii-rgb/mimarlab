@@ -277,6 +277,34 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
   .card-save-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .card-save-btn.saved{background:var(--accent); border-color:var(--accent); color:var(--ink);}
 
+  /* OKUNDU (kullanıcı isteği, 2026-09-07) — üçlünün EN SOLU. Kaydet ile birebir aynı dairesel
+     ikon düğmesi; ayrı bir görsel dil icat edilmedi, yalnızca işaretli hali farklı renklenir.
+     Kaydet'in dolgusu --accent (sarımsı vurgu, "bunu ayırdım"); Okundu ise --walnut kenarlı ve
+     içi boş kalır ("bu iş bitti") — ikisi yan yana dururken karışmasınlar diye bilinçli olarak
+     AYNI dolguyu paylaşmıyorlar. */
+  .gundem-read-btn{
+    width:32px; height:32px; border-radius:100px;
+    background:var(--paper-card); border:1px solid var(--line); color:var(--ink-soft);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .gundem-read-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .gundem-read-btn.read{border-color:var(--walnut); color:var(--walnut); background:var(--paper-card);}
+
+  /* İşaretli KART — asıl fayda burada: kullanıcı listede gezerken okumadıklarını tek bakışta
+     ayırt eder. Kart gizlenmez/küçülmez (yeri değişirse "kaybettim" hissi doğar), yalnızca
+     soluklaşır ve fareyle üstüne gelince tam netliğine döner. Butonun kendisi ve odaklanılan
+     her öğe soluklaşmanın DIŞINDA tutulur — aksi halde işareti geri almak için tıklanacak buton
+     da soluk olurdu ve klavyeyle gezinen kullanıcı odağı kaybederdi.
+     Detay sayfasında (.gundem-card--detail) UYGULANMAZ: orada tek kart vardır, karşılaştırılacak
+     bir şey yoktur ve sayfanın kendi içeriğini soluk göstermek anlamsız olurdu. */
+  .gundem-card--read:not(.gundem-card--detail){opacity:.55; transition:opacity .18s ease;}
+  .gundem-card--read:not(.gundem-card--detail):hover,
+  .gundem-card--read:not(.gundem-card--detail):focus-within{opacity:1;}
+  .gundem-card--read:not(.gundem-card--detail) .gundem-actions{opacity:1;}
+  @media (prefers-reduced-motion: reduce){
+    .gundem-card--read:not(.gundem-card--detail){transition:none;}
+  }
+
   /* ---------- ADMİN KONTROLLERİ (yalnızca admin'e render edilir) ----------
      Kaydet/Paylaş ile aynı satırda, aynı pil dilinde; görünürlük istemcide gizlense bile asıl
      yetki sunucudadır (bkz. js/pages/gundem.js#applyAdminControls notu). */
@@ -452,10 +480,14 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fe
        mevcut kural), (b) iki buton yan yana duruyor, farklı boyutta olurlarsa hizasız görünürler
        (canlıda 44 vs 48 ölçüldü, bu yüzden eşitlendi). */
     .card-save-btn,
+    .gundem-read-btn,
     .gundem-admin-btn{
       width:48px; height:48px;
       background:rgba(248,250,251,0.92); border-color:rgba(27,42,61,0.18);
     }
+    /* İşaretli hali mobilde de ayırt edilebilsin — yukarıdaki kural arka planı/kenarı ezdiği için
+       .read kuralı burada tekrar edilir (aksi halde mobilde okundu/okunmadı aynı görünürdü). */
+    .gundem-read-btn.read{border-color:var(--walnut); color:var(--walnut);}
     /* Meta satırının sağ boşluğu kalkar — butonlar artık görselin üstünde, metnin değil.
        Harf aralığı/büyük harf yok (referans metadata dili, masaüstüyle aynı). */
     .gundem-meta,
