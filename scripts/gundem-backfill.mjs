@@ -112,6 +112,10 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
   return [k, v === undefined ? true : v];
 }));
 const DRY_RUN = !!args['dry-run'];
+// --only=archiproducts (virgülle birden fazla). Boşsa tüm etkin kaynaklar.
+const ONLY = typeof args.only === 'string'
+  ? args.only.split(',').map(s => s.trim()).filter(Boolean)
+  : null;
 const DAYS = Number(args.days ?? 1);
 const PER_SOURCE = Number(args['per-source'] ?? 8);
 const MAX_TOTAL = Number(args.max ?? 25);
@@ -225,6 +229,10 @@ const started = Date.now();
 const stats = await runGundemIngestion(env, deps, {
   // Kaynak bekleme penceresini atla — bu tek seferlik bir işlem, cron ızgarasını beklemesi anlamsız.
   ignoreSourceSchedule: true,
+  // --only=id1,id2 — turu yalnızca bu kaynaklarla sınırlar. Yeni bir kaynak eklenip onun geçmişi
+  // çekilirken şart: aksi halde 7 günlük pencere TÜM kaynaklara uygulanır ve diğerlerinin bir
+  // haftalık arşivi de toptan yayına girer.
+  onlySources: ONLY,
   maxAgeDays: DAYS,
   // Tarihi olmayan girdiyi ALMA, gelecek tarihli girdiyi ALMA (geri doldurma isteği madde 3).
   strictDateWindow: true,

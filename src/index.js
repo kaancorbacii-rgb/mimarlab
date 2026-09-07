@@ -626,7 +626,7 @@ export default {
   //
   // Artık İKİ cron ifadesi var (bkz. wrangler.jsonc#triggers.crons):
   //   "23 *&#47;6 * * *"   → görsel arama varlık dizininin artımlı bakımı (ESKİ, DEĞİŞMEDİ)
-  //   "0 1,9,17 * * *"  → Gündem toplama turu (UTC; = 04:00/12:00/20:00 Türkiye saati, UTC+3 sabit)
+  //   "0 1,5,9,13,17,21 * * *" → Gündem toplama turu (UTC; = TR 00/04/08/12/16/20, UTC+3 sabit)
   // event.cron hangi ifadenin tetiklendiğini söyler; iş seçimi buna göre yapılır. İki ifade artık
   // aynı dakikaya hiç denk gelmiyor (biri :23, diğeri :00), ama denk gelseler bile ikisi de çalışır
   // ve BİRBİRİNİ BEKLEMEZ (Promise.allSettled), böylece yavaş bir görsel dizin turu Gündem'in kendi

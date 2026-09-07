@@ -130,11 +130,26 @@ function extractFeedImage(itemXml, linkUrl) {
 }
 
 // Atom <link rel="alternate" href="..."> ya da RSS <link>metin</link>.
+//
+// AD ALANI ÖNEKİ (gerçek bulgu, 2026-09-07 — archiproducts kaynağı eklenirken): bazı RSS 2.0
+// feed'leri item bağlantısını düz <link> yerine Atom ad alanından, <atom:link href="..."> olarak
+// verir (archiproducts.com/en/news/feed birebir böyle: item'da HİÇ <link> yok). Eski desen
+// `<link\s` ile başladığı için `<atom:link` ile EŞLEŞMİYORDU ve parseFeed sonundaki
+// `.filter(it => it.title && it.link)` bu feed'in 150 item'ının TAMAMINI eliyordu — kaynak
+// "çalışıyor" görünüp (feed 200, sağlık tablosunda başarı) sıfır içerik üretirdi. Bu depodaki
+// tekrar eden sessiz-başarısızlık kalıbı; bu yüzden önek OPSİYONEL hale getirildi ve düzeltme
+// tek bir kaynağa özel değil, aynı biçimi kullanan her feed için geçerli.
+//
+// rel="self" DIŞLANIR: Atom'da o, kaynağın KENDİ adresidir. Item içinde çıkarsa (bazı üreticiler
+// kanal düzeyindeki etiketi item'a da kopyalar) makale bağlantısı yerine feed adresini yazardık;
+// o URL de mükerrer kontrolünden geçerdi ve TEK bir sahte kart üretirdi.
+const LINK_ALTERNATE_RE = /<(?:[a-z0-9-]+:)?link\s[^>]*rel\s*=\s*["']alternate["'][^>]*href\s*=\s*["']([^"']+)["']/i;
+const LINK_ANY_RE = /<(?:[a-z0-9-]+:)?link\s(?![^>]*rel\s*=\s*["']self["'])[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/i;
+
 function extractLink(itemXml) {
   const plain = tagContent(itemXml, 'link');
   if (plain && /^https?:\/\//i.test(plain.trim())) return decodeEntities(plain.trim());
-  const alternate = /<link\s[^>]*rel\s*=\s*["']alternate["'][^>]*href\s*=\s*["']([^"']+)["']/i.exec(itemXml)
-    || /<link\s[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/i.exec(itemXml);
+  const alternate = LINK_ALTERNATE_RE.exec(itemXml) || LINK_ANY_RE.exec(itemXml);
   return alternate ? decodeEntities(alternate[1]) : '';
 }
 

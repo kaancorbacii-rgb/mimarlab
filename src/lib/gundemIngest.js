@@ -49,7 +49,7 @@ import { purgeGundemCache } from './gundemCache.js';
 export const GUNDEM_LIMITS = {
   maxItemsPerRun: 20,
   // Kaynak yapılandırmasındaki maxItemsPerRun bundan BÜYÜK olamaz (tavan burada).
-  // 5 -> 6 (2026-09-07): cron 30dk'dan seyreldi (bugün günde 3 tur), yani tur başına daha fazla birikmiş içerik
+  // 5 -> 6 (2026-09-07): cron 30dk'dan seyreldi (bugün 4 saatlik ızgara), yani tur başına daha fazla birikmiş içerik
   // oluyor. Tavan kaynak yapılandırmasındaki değerlerle (6) hizalandı — aksi halde oradaki 6
   // sessizce 5'e kırpılırdı.
   maxItemsPerSource: 6,
@@ -130,7 +130,7 @@ async function recordSourceResult(env, sourceId, ok, errorMessage) {
 // çalışıyordu, üstelik hiçbir hata vermeden.
 //
 // 5 dakikalık pay bu kaymayı fazlasıyla kapsar ve hızı ARTIRMAZ: cron ızgarası (2026-09-07'den
-// beri günde 3 sabit tur, aralarında 480 dakika) her zaman bu paydan çok daha geniştir — bir aralık
+// beri dört saatlik sabit ızgara, turlar arası 240 dakika) her zaman bu paydan çok daha geniştir — bir aralık
 // 5 dakika erken "due" olsa bile bir sonraki fiili tur yine ızgaradaki turdur. Yani kaynaklara gidiş
 // sıklığı değişmez, yalnızca ıskalanan pencere düzelir.
 const DUE_GRACE_MS = 5 * 60000;
@@ -639,9 +639,20 @@ export async function runGundemIngestion(env, deps, options = {}) {
   const now = Date.now();
   // ignoreSourceSchedule: yalnızca geri doldurma betiği için — kaynak başına bekleme penceresini
   // atlar. Cron turu bunu ASLA geçmez (aksi halde yayıncılara her turda gidilirdi).
-  const due = options.ignoreSourceSchedule
+  //
+  // onlySources: yine YALNIZCA geri doldurma için — turu belirli kaynak id'leriyle sınırlar
+  // (kullanıcı isteği 2026-09-07: "şimdi bu YENİ linkin son 1 haftalık verisini çek"). Yeni bir
+  // kaynak eklendiğinde 7 günlük geri doldurmayı TÜM kaynaklara uygulamak, diğer on kaynağın bir
+  // haftalık arşivini de toptan yayına sokardı. Cron turu bu seçeneği hiç geçmez; geçilmediğinde
+  // davranış birebir eskisi gibidir. Bilinmeyen bir id verilirse aşağıdaki `!due.length` dalı
+  // devreye girer ve tur sessizce değil, açık bir "no_source_due" ile biter.
+  const onlyIds = Array.isArray(options.onlySources) && options.onlySources.length
+    ? new Set(options.onlySources)
+    : null;
+  const scheduled = options.ignoreSourceSchedule
     ? activeGundemSources()
     : activeGundemSources().filter(s => isSourceDue(s, health.get(s.id), now));
+  const due = onlyIds ? scheduled.filter(s => onlyIds.has(s.id)) : scheduled;
   if (!due.length) {
     console.log(JSON.stringify({ event: 'gundem_run', skipped: 'no_source_due' }));
     return stats;

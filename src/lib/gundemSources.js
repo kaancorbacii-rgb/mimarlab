@@ -41,13 +41,12 @@
 //  enabled          false ise tur sırasında hiç DOKUNULMAZ (ağ isteği bile yapılmaz)
 //  defaultCategory  AI'nin kategori önerisi whitelist dışına düşerse/emin olmazsa kullanılan değer
 //  categoryHints    feed'in kendi <category> etiketlerinden kategori türetme kuralları (AI'den ÖNCE)
-//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron artık GÜNDE 3 SABİT TUR: 04:00,
-//                   12:00, 20:00 Türkiye saati — kullanıcı isteği 2026-09-07; bkz. wrangler.jsonc
-//                   #triggers.crons). Turlar arası 480 dakika olduğu için aşağıdaki TÜM değerler
-//                   (180 ve 360) her turda dolmuş olur: pratikte her etkin kaynak her turda okunur.
-//                   Bu alan artık ancak 480'den BÜYÜK bir değer verilirse seyreltme yapar (ör. 960
-//                   = iki turda bir). Değerler, ızgara ileride yeniden sıklaştırılırsa anlamlarını
-//                   koruduğu için olduğu gibi bırakıldı (bkz. gundem_source_health.last_run_at).
+//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron DÖRT SAATTE BİR çalışır: TR
+//                   00/04/08/12/16/20 — kullanıcı isteği 2026-09-07; bkz. wrangler.jsonc
+//                   #triggers.crons). Turlar arası 240 dakika olduğu için 180 = her turda okunur,
+//                   360 = iki turda bir (bkz. gundem_source_health.last_run_at). Şu an 360 beyan
+//                   eden kaynakların TAMAMI kapalı olduğundan pratikte her etkin kaynak her turda
+//                   okunuyor.
 //  maxItemsPerRun   tek turda bu kaynaktan alınacak azami YENİ içerik
 //  imageStrategy    'feed'  → görsel yalnızca feed alanlarından (enclosure/media:*/gövdedeki ilk <img>)
 //                   'og'    → feed'de görsel yoksa makale <head>'inden og:image okunur
@@ -346,6 +345,50 @@ export const GUNDEM_SOURCES = [
       { url: 'https://www.architectsjournal.co.uk/news/feed?paged=3', category: 'haber' },
       { url: 'https://www.architectsjournal.co.uk/news/feed?paged=4', category: 'haber' },
     ],
+  },
+
+  // ===========================================================================================
+  // ARCHIPRODUCTS — kullanıcının verdiği kaynak (2026-09-07): https://www.archiproducts.com/en/news
+  //
+  // ÖLÇÜM (2026-09-07, gerçek istekle): sayfanın <head>'i kendi RSS'ini bildiriyor
+  // (/en/news/feed) — 200, application/rss+xml, 150 item. Feed 13 AYDAN fazla geriye gidiyor
+  // (en eski girdi 9727 saat), yani iki tur arasında içerik feed'den düşüp kaybolma riski YOK.
+  // Yayın hızı: son 7 günde 43, son 24 saatte 4 içerik.
+  //
+  // robots.txt: Crawl-delay 3 ve uzun bir Disallow listesi var, ama /en/news ve /en/news/feed
+  // O LİSTEDE DEĞİL — feed açık. Tur başına o kaynağa TEK istek gittiği için crawl-delay zaten
+  // fazlasıyla karşılanıyor. UA'mız (MimarlabBot) ile 200 alınıyor; tarayıcı taklidi ya da başka
+  // bir anti-bot atlatma GEREKMEDİ (bu depoda kural: 403 dönen kaynak sisteme alınmaz).
+  //
+  // GÖRSEL: feed'in KENDİSİNDE, 150 item'ın 150'sinde <enclosure> olarak var ve tek host'tan
+  // (img.edilportale.com — Archiproducts'ı yayımlayan Edilportale'nin görsel CDN'i) geliyor.
+  // Bu yüzden imageStrategy 'feed': makale sayfasına ayrıca gidip og:image okumaya gerek yok,
+  // tur başına onlarca istek tasarrufu.
+  //
+  // BAĞLANTI BİÇİMİ — DİKKAT: bu feed item bağlantısını düz <link> ile DEĞİL, <atom:link href>
+  // ile veriyor. gundemFeed.js#extractLink bunu 2026-09-07'ye kadar okuyamıyordu ve feed'in
+  // 150 item'ının TAMAMI sessizce eleniyordu (bkz. o dosyadaki ad alanı öneki notu). Kaynağı
+  // buraya eklemeden önce parser düzeltildi; ikisi birbirine bağlıdır.
+  //
+  // KATEGORİ: feed'de <category> etiketi HİÇ YOK, bu yüzden categoryHints boş bırakıldı —
+  // kategori tamamen AI'ye kalıyor, o da emin olamazsa defaultCategory kullanılır. İçerik
+  // mimarlık/tasarım haberi ve ürün-odaklı derlemeler olduğundan varsayılan 'haber'.
+  // ===========================================================================================
+  {
+    id: 'archiproducts',
+    name: 'Archiproducts',
+    domain: 'archiproducts.com',
+    feedUrl: 'https://www.archiproducts.com/en/news/feed',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'feed',
+    imageHosts: ['img.edilportale.com'],
+    language: 'en',
+    priority: 2,
   },
 
   // ===========================================================================================
