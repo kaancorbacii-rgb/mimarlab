@@ -116,37 +116,55 @@ else
   echo "         s-maxage (en fazla 5 dk) kadar geç görünebilir."
 fi
 
-echo "5) GÜNDEM otomatik toplama hattının TAZELİĞİ"
-# Production denetimi (2026-09-07) — bu kontrol, canlıda BİR KEZ GERÇEKLEŞMİŞ bir sessiz bozulma
-# sınıfı içindir (bkz. commit 1ff0e1b7): publishCandidate içindeki bir ReferenceError yüzünden her
-# yayın denemesi düşüyor, hat SIFIR içerik üretiyordu — ama kaynak sağlığı tablosu 13/13 "başarılı"
-# gösterdiğinden hiçbir sinyal yoktu. Feed'ler okunuyordu, yalnızca hiçbir şey yayınlanmıyordu.
-# En üstteki kaydın yaşına bakmak bu sınıfın TAMAMINI yakalar: hangi adımda kırılırsa kırılsın
-# (feed, AI, kalite kapısı, D1 yazımı) sonuç aynıdır — yeni kayıt gelmez.
+echo "5) GÜNDEM CRON sağlığı (/api/_health — YALNIZCA ingest_mode='cron' turları)"
+# 2026-09-07 cron observability hardening. Bu bölümün önceki hâli /api/gundem'deki EN YENİ kayda
+# bakıyordu — o kayıt bir geri doldurmadan (backfill) geliyorsa cron durmuş olsa bile "taze"
+# diyordu (canlıda tam bu oldu: 17:34'te biten backfill, düzeltme sonrası hiç çalışmamış cron'u
+# maskeleyebilirdi). Artık sinyal gundem_runs tablosundan, YALNIZCA cron satırlarından okunur
+# (bkz. src/lib/gundemRuns.js). Backfill bu bölümü hiçbir koşulda etkilemez.
 #
-# EŞİK 30 SAAT: cron ızgarası TR saatiyle 4 saatte bir (bkz. wrangler.jsonc#triggers.crons). Tek bir
-# turun yayın üretmemesi NORMALDİR (mükerrer/görselsiz/proje içeriği elenmiş olabilir), bu yüzden
-# eşik tek tura göre değil, arka arkaya ~7 tura göre seçildi — böylece kontrol gerçek bir bozulmayı
-# gösterir, gündelik dalgalanmada gürültü yapmaz. Yeni bir kaynak eklerken/kaynaklar toptan
-# kapatılırken bu satır BEKLENEN şekilde uyarır.
+# AYRIM (kullanıcı isteği): "CRON RUN GERÇEKLEŞMEDİ" ≠ "CRON RUN GERÇEKLEŞTİ AMA 0 İÇERİK".
+# İkincisi failure DEĞİLDİR — her aday mükerrer/kalite reddi olabilir. Yalnızca tur yokluğu,
+# istisna, kill switch ve pipeline anomalisi (publish_failed vb.) uyarı üretir.
 #
-# UYARIDIR, BAŞARISIZLIK DEĞİL: Gündem'in bayatlaması sitenin geri kalanını etkilemez ve deploy'u
-# geri almak için bir gerekçe olmamalıdır (deploy.sh bu betiğin çıkış kodunu okur).
-GUNDEM_STALE_HOURS=30
-gundem_json=$(curl -s "$BASE_URL/api/gundem?limit=1")
-gundem_published_at=$(echo "$gundem_json" | jq -r '.items[0].publishedAt // empty')
-if [ -z "$gundem_published_at" ]; then
-  echo "  UYARI: /api/gundem en üstteki kaydı okunamadı (uç bozuk ya da liste tamamen boş)" >&2
-else
-  now_ms=$(( $(date +%s) * 1000 ))
-  age_h=$(( (now_ms - gundem_published_at) / 3600000 ))
-  if [ "$age_h" -gt "$GUNDEM_STALE_HOURS" ]; then
-    echo "  UYARI: Gündem'in en yeni kaydı $age_h saatlik (eşik ${GUNDEM_STALE_HOURS}s) — toplama hattı" >&2
-    echo "         sessizce içerik üretmiyor olabilir. Teşhis: npx wrangler tail --format=pretty ile" >&2
-    echo "         bir sonraki cron turunun 'gundem_run' satırına bakın (published/skipped alanları)." >&2
-  else
-    echo "  OK: Gündem'in en yeni kaydı $age_h saatlik (eşik ${GUNDEM_STALE_HOURS}s)"
-  fi
+# EŞİK 30 SAAT: cron TR saatiyle 4 saatte bir; 30 saat ≈ arka arkaya 7 kaçırılmış tur.
+# UYARIDIR, BAŞARISIZLIK DEĞİL (önceki gerekçe aynen geçerli): Gündem'in durması sitenin geri
+# kalanını etkilemez, deploy'u geri almak için gerekçe olmamalı — ama stderr'e açıkça yazılır.
+GUNDEM_CRON_STALE_HOURS=30
+cron_status=$(echo "$health_json" | jq -r '.gundemCronStatus // "missing"')
+cron_last=$(echo "$health_json" | jq -r '.gundemLastCronRun // empty')
+cron_age_s=$(echo "$health_json" | jq -r '.gundemLastCronRunAge // empty')
+cron_published=$(echo "$health_json" | jq -r '.gundemLastCronPublished // 0')
+cron_failed=$(echo "$health_json" | jq -r '.gundemLastCronPublishFailed // 0')
+cron_anoms=$(echo "$health_json" | jq -r '(.gundemLastCronAnomalies // []) | join(",")')
+cron_age_h=$(( ${cron_age_s:-0} / 3600 ))
+case "$cron_status" in
+  ok)
+    echo "  OK: son cron turu $cron_age_h saat önce ($cron_last) — $cron_published içerik yayınladı" ;;
+  ok_no_content)
+    echo "  OK: son cron turu $cron_age_h saat önce ($cron_last) — ÇALIŞTI, 0 içerik yayınladı (normal olabilir: mükerrer/kalite reddi)" ;;
+  stale)
+    echo "  UYARI: CRON RUN GERÇEKLEŞMEDİ — son cron turu $cron_age_h saat önce ($cron_last), eşik ${GUNDEM_CRON_STALE_HOURS}s." >&2
+    echo "         Teşhis: Cloudflare > Workers > mimarlab > Triggers (cron aktif mi?) ve \`npx wrangler tail --status=error\`." >&2 ;;
+  no_run)
+    echo "  UYARI: gundem_runs'ta hiç cron turu YOK. Migration 0103 yeni uygulandıysa ilk turu bekleyin (4 saat);" >&2
+    echo "         aksi halde cron hiç tetiklenmiyor demektir — Triggers panelini kontrol edin." >&2 ;;
+  failed)
+    echo "  UYARI: son cron turu ($cron_last) İSTİSNAYLA bitti: $(echo "$health_json" | jq -r '.gundemLastCronError // "?"' 2>/dev/null)" >&2 ;;
+  disabled)
+    echo "  UYARI: son cron turu ($cron_last) devre dışı çalıştı (kill switch kapalı ya da AI binding yok) — bilinçliyse sorun değil." >&2 ;;
+  anomaly)
+    echo "  UYARI: CRON ÇALIŞTI ($cron_last) ama pipeline anomalisi var: [$cron_anoms] publish_failed=$cron_failed published=$cron_published" >&2
+    echo "         Bu, 1ff0e1b7 sınıfı sessiz bozulmanın imzasıdır. Teşhis: \`npx wrangler tail --status=error\` -> gundem_run satırı." >&2 ;;
+  read_error)
+    echo "  UYARI: /api/_health gundem_runs tablosunu okuyamadı (migration 0103 uygulanmamış olabilir)." >&2 ;;
+  *)
+    echo "  UYARI: /api/_health cron alanlarını döndürmedi (gundemCronStatus='$cron_status') — eski worker sürümü?" >&2 ;;
+esac
+# Bilgi satırı — SAĞLIK SİNYALİ DEĞİL (backfill dahil): yalnızca yayın tazeliğini gösterir.
+gundem_published_at=$(curl -s "$BASE_URL/api/gundem?limit=1" | jq -r '.items[0].publishedAt // empty')
+if [ -n "$gundem_published_at" ]; then
+  echo "  BİLGİ: en yeni Gündem kaydı $(( ( $(date +%s)*1000 - gundem_published_at ) / 3600000 )) saatlik (backfill dahil — sağlık sinyali değil)"
 fi
 
 if [ "$fail" -eq 1 ]; then

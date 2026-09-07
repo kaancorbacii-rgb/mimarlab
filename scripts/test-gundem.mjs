@@ -24,6 +24,8 @@ import { GUNDEM_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCa
 import { GUNDEM_SOURCES, activeGundemSources, GUNDEM_IMAGE_HOSTS } from '../src/lib/gundemSources.js';
 import { buildGundemEntityIndex, resolveGundemEntities } from '../src/lib/gundemEntities.js';
 import { _isSourceDueForTests, classifyGundemRun } from '../src/lib/gundemIngest.js';
+import { runRowFromStats, persistGundemRun, readLastGundemRun, assessGundemCronHealth, gundemCronHealthFields, GUNDEM_CRON_STALE_MS } from '../src/lib/gundemRuns.js';
+import worker, { handleScheduled } from '../src/index.js';
 import { hasHtmlExtractor, parseHtmlList, parseTurkishDate } from '../src/lib/gundemHtmlList.js';
 
 let passed = 0;
@@ -724,13 +726,16 @@ await test('gundemIngest.js: `options` yalnızca runGundemIngestion içinde kull
   const src = readFileSync(new URL('../src/lib/gundemIngest.js', import.meta.url), 'utf8').split('\n');
   const heads = [];
   src.forEach((line, i) => { if (/^(export )?(async )?function \w+/.test(line)) heads.push(i); });
-  const runIdx = heads.findIndex(i => /function runGundemIngestion\b/.test(src[i]));
-  assert.ok(runIdx >= 0, 'runGundemIngestion bulunamadı — dosya biçimi değişmiş olabilir');
-  const allowFrom = heads[runIdx];
-  const allowTo = runIdx + 1 < heads.length ? heads[runIdx + 1] : src.length;
+  // 2026-09-07: runGundemIngestion artık bir sarmalayıcı (kalıcı tur kaydı) + runGundemIngestionInner
+  // (asıl tur). `options` ikisinde de meşru; publishCandidate gibi diğer fonksiyonlarda DEĞİL.
+  const allowed = [];
+  heads.forEach((h, idx) => {
+    if (/function runGundemIngestion(Inner)?\b/.test(src[h])) allowed.push([h, idx + 1 < heads.length ? heads[idx + 1] : src.length]);
+  });
+  assert.ok(allowed.length >= 1, 'runGundemIngestion bulunamadı — dosya biçimi değişmiş olabilir');
   const offenders = [];
   src.forEach((line, i) => {
-    if (i >= allowFrom && i < allowTo) return;
+    if (allowed.some(([a, b]) => i >= a && i < b)) return;
     if (/^\s*(\/\/|\*|\/\*)/.test(line)) return; // yorum satırı
     if (/(?<![.\w$])options\b/.test(line)) offenders.push(`satır ${i + 1}: ${line.trim()}`);
   });
@@ -788,6 +793,194 @@ await test('classifyGundemRun: tüm kaynaklar düşerse yakalanır', () => {
 await test('classifyGundemRun: kaynakların bir kısmı düşerse anomali YOK (izolasyon çalışıyor)', () => {
   // Tek bir kaynağın bozulması diğerlerini durdurmuyor; bu beklenen dayanıklılık davranışıdır.
   assert.deepEqual(classifyGundemRun(RUN({ sourcesTried:13, sourcesFailed:2, candidates:11, published:7, duplicate:4 })), []);
+});
+
+// =================================================================================================
+// GÜNDEM CRON OBSERVABILITY (2026-09-07) — gundem_runs + backfill≠cron + /api/_health + dispatcher
+// =================================================================================================
+// Bellek-içi D1 taklidi: yalnızca bu modülün kullandığı prepare/bind/first/run yüzeyi. Satırlar
+// ingest_mode'a göre filtrelenir ve started_at DESC sıralanır — readLastGundemRun'un WHERE'ini
+// gerçekten uyguladığını (backfill'i ELEDİĞİNİ) kanıtlamak için bind edilen mod okunur.
+function fakeRunsDb(rows, { throwOnRead = false, throwOnWrite = false } = {}) {
+  const writes = [];
+  return {
+    writes,
+    prepare(sql) {
+      return {
+        bind(...args) {
+          return {
+            async first() {
+              if (throwOnRead) throw new Error('D1 read down');
+              const mode = args[0];
+              return rows.filter(r => r.ingest_mode === mode).sort((a, b) => b.started_at - a.started_at)[0] || null;
+            },
+            async run() {
+              if (throwOnWrite) throw new Error('D1 write down');
+              const cols = (sql.match(/\(([^)]+)\) VALUES/) || [, ''])[1].split(',').map(c => c.trim());
+              const row = {}; cols.forEach((c, i) => { row[c] = args[i]; });
+              writes.push(row); rows.push(row);
+              return { success: true };
+            },
+          };
+        },
+      };
+    },
+  };
+}
+const H = 3600 * 1000;
+const NOW = 1_800_000_000_000;
+const cronRow = (o) => ({ ingest_mode: 'cron', started_at: NOW - 2 * H, ok: 1, disabled: 0, published: 5, publish_failed: 0, anomalies: '[]', error: null, ...o });
+
+await test('runRowFromStats: mevcut payload kovalanır, yeniden hesaplanmaz', () => {
+  const stats = {
+    sourcesTried: 13, sourcesOk: 12, sourcesFailed: 1, candidates: 9, duplicate: 3, published: 4, qualityFailed: 2, aiCalls: 6,
+    skipped: { project_prefilter: 5, publish_failed: 0, ai_not_confident: 1, min_words: 1 }, anomalies: [],
+    bySource: { a: { found: 20, fresh: 11 }, b: { found: 7, fresh: 3 } },
+  };
+  const row = runRowFromStats({ id: 'x', startedAt: 1000, finishedAt: 4000, ingestMode: 'cron', stats, error: null });
+  assert.equal(row.fetched, 27); assert.equal(row.within_freshness, 14); assert.equal(row.project_filtered, 5);
+  assert.equal(row.ai_rejected, 1); assert.equal(row.quality_rejected, 1); // qualityFailed 2 - ai 1
+  assert.equal(row.published, 4); assert.equal(row.publish_failed, 0); assert.equal(row.duration_ms, 3000);
+  assert.equal(row.ok, 1); assert.equal(row.ingest_mode, 'cron');
+});
+
+await test('runRowFromStats: istisnayla biten tur ok=0 + error taşır, backfill modu korunur', () => {
+  const row = runRowFromStats({ id: 'x', startedAt: 1, finishedAt: 2, ingestMode: 'backfill', stats: null, error: new Error('boom') });
+  assert.equal(row.ok, 0); assert.equal(row.error, 'boom'); assert.equal(row.ingest_mode, 'backfill');
+});
+
+await test('persistGundemRun: D1 yazması patlasa bile FIRLATMAZ (ingestion asla engellenmez)', async () => {
+  const db = fakeRunsDb([], { throwOnWrite: true });
+  const out = await persistGundemRun({ DB: db }, { startedAt: NOW, ingestMode: 'cron', stats: { published: 1 }, error: null });
+  assert.equal(out, null);
+});
+
+await test('persistGundemRun: satır gundem_runs\'a ingest_mode ile yazılır', async () => {
+  const db = fakeRunsDb([]);
+  await persistGundemRun({ DB: db }, { startedAt: NOW, ingestMode: 'backfill', stats: { published: 2, skipped: {} }, error: null });
+  assert.equal(db.writes.length, 1); assert.equal(db.writes[0].ingest_mode, 'backfill'); assert.equal(db.writes[0].published, 2);
+});
+
+// --- İSTENEN REGRESYON TESTLERİ 1-4 ---------------------------------------------------------------
+await test('1) backfill kaydı cron tazeliğini KARŞILAMAZ (yalnızca backfill varsa -> no_run)', async () => {
+  const db = fakeRunsDb([{ ingest_mode: 'backfill', started_at: NOW - 1 * H, ok: 1, disabled: 0, published: 68, publish_failed: 0, anomalies: '[]' }]);
+  const row = await readLastGundemRun({ DB: db }, 'cron');
+  assert.equal(row, null, 'readLastGundemRun backfill satırını cron diye döndürdü');
+  const h = assessGundemCronHealth(row, NOW);
+  assert.equal(h.healthy, false); assert.equal(h.status, 'no_run');
+});
+
+await test('2) eski cron + yeni backfill -> cron UNHEALTHY (stale) kalır', async () => {
+  const db = fakeRunsDb([
+    cronRow({ started_at: NOW - 40 * H }),
+    { ingest_mode: 'backfill', started_at: NOW - 1 * H, ok: 1, disabled: 0, published: 68, publish_failed: 0, anomalies: '[]' },
+  ]);
+  const h = assessGundemCronHealth(await readLastGundemRun({ DB: db }, 'cron'), NOW);
+  assert.equal(h.healthy, false); assert.equal(h.status, 'stale'); assert.ok(h.ageMs > GUNDEM_CRON_STALE_MS);
+});
+
+await test('3) yeni cron + 0 published -> çalışmış sayılır, HEALTHY (ok_no_content)', async () => {
+  const db = fakeRunsDb([cronRow({ published: 0 })]);
+  const h = assessGundemCronHealth(await readLastGundemRun({ DB: db }, 'cron'), NOW);
+  assert.equal(h.healthy, true); assert.equal(h.status, 'ok_no_content');
+});
+
+await test('4a) yeni cron + publish_failed -> UNHEALTHY (anomaly) ve sayaç raporlanır', async () => {
+  const db = fakeRunsDb([cronRow({ published: 0, publish_failed: 20, anomalies: '["publish_failed"]' })]);
+  const h = assessGundemCronHealth(await readLastGundemRun({ DB: db }, 'cron'), NOW);
+  assert.equal(h.healthy, false); assert.equal(h.status, 'anomaly'); assert.equal(h.publishFailed, 20); assert.deepEqual(h.anomalies, ['publish_failed']);
+});
+
+await test('4b) yeni cron + istisna (ok=0) -> UNHEALTHY (failed); kill switch -> disabled', () => {
+  assert.equal(assessGundemCronHealth(cronRow({ ok: 0, error: 'TypeError' }), NOW).status, 'failed');
+  assert.equal(assessGundemCronHealth(cronRow({ disabled: 1 }), NOW).status, 'disabled');
+});
+
+await test('4c) sıra önceliği: bayatlık her şeyden önce gelir (eski + anomalili -> stale)', () => {
+  assert.equal(assessGundemCronHealth(cronRow({ started_at: NOW - 50 * H, publish_failed: 3, anomalies: '["publish_failed"]' }), NOW).status, 'stale');
+});
+
+// --- 6) /api/_health alanları ---------------------------------------------------------------------
+await test('6a) health alanları: cron satırı doğru eşlenir, backfill görmezden gelinir', async () => {
+  const db = fakeRunsDb([
+    cronRow({ started_at: NOW - 3 * H, published: 7, publish_failed: 1, anomalies: '["publish_failed"]' }),
+    { ingest_mode: 'backfill', started_at: NOW - 1 * H, ok: 1, disabled: 0, published: 99, publish_failed: 0, anomalies: '[]' },
+  ]);
+  const f = await gundemCronHealthFields({ DB: db }, NOW);
+  assert.equal(f.gundemLastCronRun, new Date(NOW - 3 * H).toISOString());
+  assert.equal(f.gundemLastCronRunAge, 3 * 3600);
+  assert.equal(f.gundemLastCronPublished, 7); assert.equal(f.gundemLastCronPublishFailed, 1);
+  assert.deepEqual(f.gundemLastCronAnomalies, ['publish_failed']);
+  assert.equal(f.gundemCronStatus, 'anomaly'); assert.equal(f.gundemCronHealthy, false);
+});
+
+await test('6b) health alanları: tablo okunamazsa FIRLATMAZ, read_error döner (uç 200 kalır)', async () => {
+  const f = await gundemCronHealthFields({ DB: fakeRunsDb([], { throwOnRead: true }) }, NOW);
+  assert.equal(f.gundemCronStatus, 'read_error'); assert.equal(f.gundemCronHealthy, false); assert.equal(f.gundemLastCronRun, null);
+});
+
+await test('6c) health alanları: hiç satır yoksa no_run + null alanlar', async () => {
+  const f = await gundemCronHealthFields({ DB: fakeRunsDb([]) }, NOW);
+  assert.equal(f.gundemCronStatus, 'no_run'); assert.equal(f.gundemLastCronRun, null); assert.equal(f.gundemLastCronRunAge, null);
+});
+
+// --- 5) scheduled() dispatcher ---------------------------------------------------------------------
+function fakeCtx() { const c = { waited: [] }; c.waitUntil = (p) => c.waited.push(p); return c; }
+const GUNDEM_CRON = '0 1,5,9,13,17,21 * * *';
+const VISUAL_CRON = '23 */6 * * *';
+
+await test('5a) scheduled(): Gündem ifadesi -> gundem işçisi { ingestMode: "cron" } ile çağrılır, görsel dizin ÇAĞRILMAZ', async () => {
+  const calls = { gundem: [], visual: [] };
+  const runners = { gundem: async (env, opts) => { calls.gundem.push(opts); return { published: 1 }; }, visualIndex: async (env, t) => { calls.visual.push(t); return {}; } };
+  const ctx = fakeCtx();
+  await handleScheduled({ cron: GUNDEM_CRON }, {}, ctx, runners);
+  assert.equal(calls.gundem.length, 1); assert.deepEqual(calls.gundem[0], { ingestMode: 'cron' });
+  assert.equal(calls.visual.length, 0); assert.equal(ctx.waited.length, 1, 'ctx.waitUntil çağrılmadı');
+});
+
+await test('5b) scheduled(): görsel-dizin ifadesi -> yalnızca visualIndex (project+product), Gündem ÇAĞRILMAZ', async () => {
+  const calls = { gundem: 0, visual: [] };
+  const runners = { gundem: async () => { calls.gundem++; }, visualIndex: async (env, t) => { calls.visual.push(t); return {}; } };
+  await handleScheduled({ cron: VISUAL_CRON }, {}, fakeCtx(), runners);
+  assert.equal(calls.gundem, 0); assert.deepEqual(calls.visual, ['project', 'product']);
+});
+
+await test('5c) scheduled(): gundem işçisi fırlatırsa dispatcher REDDETMEZ, hata yutulup loglanır', async () => {
+  const runners = { gundem: async () => { throw new Error('ingestion patladı'); }, visualIndex: async () => ({}) };
+  const errs = []; const orig = console.error; console.error = (...a) => errs.push(a.join(' '));
+  try {
+    const settled = await handleScheduled({ cron: GUNDEM_CRON }, {}, fakeCtx(), runners);
+    assert.ok(settled.every(r => r.status === 'fulfilled'), 'iş promise\'i reddedildi — Worker cron\'u düşürür');
+  } finally { console.error = orig; }
+  assert.ok(errs.some(e => e.includes('gundem cron başarısız') && e.includes('ingestion patladı')));
+});
+
+await test('5d) export default.scheduled gerçekten handleScheduled\'a bağlı (dispatcher kopmamış)', () => {
+  assert.equal(typeof worker.scheduled, 'function');
+  assert.ok(String(worker.scheduled).includes('handleScheduled'));
+});
+
+await test('5e) runGundemIngestion sarmalayıcısı: iç tur fırlatsa bile kayıt yazılır ve hata AYNEN yeniden fırlar', async () => {
+  // gerçek ingestion'ı çalıştırmadan: kill switch KAPALI bir env ile iç fonksiyon erken döner ->
+  // sarmalayıcı 'disabled' satırı yazar. Bu, "her çıkış yolu kaydedilir" iddiasının en ucuz kanıtı.
+  const { runGundemIngestion } = await import('../src/lib/gundemIngest.js');
+  const rows = [];
+  const db = fakeRunsDb(rows);
+  // getSiteSettings env.DB.prepare(...).all()/first() kullanır — burada basit bir şekil yeter:
+  db.prepare = (sql) => ({
+    bind: (...args) => ({
+      async first() { return null; },
+      async all() { return { results: [] }; },
+      async run() { const cols=(sql.match(/\(([^)]+)\) VALUES/)||[,''])[1].split(',').map(c=>c.trim()); const r={}; cols.forEach((c,i)=>{r[c]=args[i];}); rows.push(r); return {}; },
+    }),
+    async all() { return { results: [] }; },
+    async first() { return null; },
+  });
+  const stats = await runGundemIngestion({ DB: db, AI: {} }, {}, { ingestMode: 'cron' });
+  assert.equal(stats.disabled, true);
+  const run = rows.find(r => r.ingest_mode === 'cron');
+  assert.ok(run, 'devre dışı tur gundem_runs\'a yazılmadı');
+  assert.equal(run.disabled, 1); assert.equal(run.ok, 1);
 });
 
 // =================================================================================================

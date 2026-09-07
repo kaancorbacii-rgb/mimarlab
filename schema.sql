@@ -1111,3 +1111,34 @@ CREATE TABLE IF NOT EXISTS project_photographers (
   PRIMARY KEY (project_id, architect_id)
 );
 CREATE INDEX IF NOT EXISTS idx_project_photographers_architect ON project_photographers(architect_id);
+
+-- Gündem tur telemetrisi (migrations/0103_gundem_runs.sql) — her ingestion turu için bir satır;
+-- health-check cron sağlığını YALNIZCA ingest_mode='cron' satırlarından okur (backfill cron
+-- tazeliğini karşılamaz). Bkz. src/lib/gundemRuns.js.
+CREATE TABLE IF NOT EXISTS gundem_runs (
+  id TEXT PRIMARY KEY,
+  started_at INTEGER NOT NULL,
+  finished_at INTEGER NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  ingest_mode TEXT NOT NULL,
+  ok INTEGER NOT NULL,
+  disabled INTEGER NOT NULL DEFAULT 0,
+  disabled_reason TEXT,
+  sources_tried INTEGER NOT NULL DEFAULT 0,
+  sources_ok INTEGER NOT NULL DEFAULT 0,
+  sources_failed INTEGER NOT NULL DEFAULT 0,
+  fetched INTEGER NOT NULL DEFAULT 0,
+  within_freshness INTEGER NOT NULL DEFAULT 0,
+  candidates INTEGER NOT NULL DEFAULT 0,
+  duplicate INTEGER NOT NULL DEFAULT 0,
+  project_filtered INTEGER NOT NULL DEFAULT 0,
+  ai_rejected INTEGER NOT NULL DEFAULT 0,
+  quality_rejected INTEGER NOT NULL DEFAULT 0,
+  published INTEGER NOT NULL DEFAULT 0,
+  publish_failed INTEGER NOT NULL DEFAULT 0,
+  ai_calls INTEGER NOT NULL DEFAULT 0,
+  anomalies TEXT,
+  error TEXT,
+  stats TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_gundem_runs_mode_started ON gundem_runs(ingest_mode, started_at DESC);

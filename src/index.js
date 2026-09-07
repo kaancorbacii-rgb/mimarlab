@@ -51,6 +51,7 @@ import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
 // GÜNDEM (kullanıcı isteği, 2026-09-06) — otomatik toplanan mimarlık/tasarım gündemi.
 import { handleGundemRoute, gundemSsrListBody, listGundemSitemapUrls } from './routes/gundem.js';
 import { runGundemIngestion } from './lib/gundemIngest.js';
+import { gundemCronHealthFields } from './lib/gundemRuns.js';
 // CSP img-src'nin Gündem bölümü, kaynak yapılandırmasından TÜRETİLİR (elle yazılan ikinci bir liste
 // yok) — bkz. src/lib/gundemSources.js#GUNDEM_IMAGE_HOSTS ve aşağıdaki CONTENT_SECURITY_POLICY.
 import { GUNDEM_IMAGE_HOSTS } from './lib/gundemSources.js';
@@ -663,49 +664,67 @@ export default {
   // İkisi de ctx.waitUntil içinde: scheduled handler'ın dönmesi, işlerin bitmesini beklemez.
   // ---------------------------------------------------------------------------------------------
   async scheduled(event, env, ctx) {
-    const cron = (event && event.cron) || '';
-    const jobs = [];
-
-    // Gündem — yalnızca kendi ifadesinde. (Bir cron ifadesi tanınmazsa — ör. ileride biri
-    // wrangler.jsonc'u değiştirir ve buradaki dizeler ayrışırsa — Gündem yine de çalışsın diye
-    // "bilinen görsel-dizin ifadesi DEĞİLSE" mantığı kullanılır; sessizce hiç çalışmamak, bu
-    // depodaki tekrar eden "iki yerde tutulan sabit ayrıştı, özellik sessizce öldü" tuzağıdır.)
-    if (cron !== VISUAL_INDEX_CRON) {
-      jobs.push((async () => {
-        try {
-          const res = await runGundemIngestion(env, {
-            // Havuz okuyucuları enjekte edilir — src/lib/gundemIngest.js'in bir route dosyasına
-            // bağımlı olmaması için (bkz. o dosyadaki `deps` notu).
-            fetchOfficePool,
-            fetchArchitectPool,
-            fetchProductPool,
-            fetchProjectPool: (e) => fetchActiveProjectPoolCached(e, 'built'),
-          });
-          console.log('gundem cron', JSON.stringify({ published: res.published, duplicate: res.duplicate, aiCalls: res.aiCalls }));
-        } catch (err) {
-          console.error('gundem cron başarısız', err && err.message);
-        }
-      })());
-    }
-
-    // Görsel arama dizini — DEĞİŞMEDİ, yalnızca kendi ifadesinde çalışır (önceden tek cron olduğu
-    // için koşulsuzdu; Gündem ifadesinde de çalışsaydı 6 saatlik maliyet varsayımı bozulurdu).
-    if (cron === VISUAL_INDEX_CRON || !cron) {
-      jobs.push((async () => {
-        for (const type of ['project', 'product']) {
-          try {
-            const res = await rebuildIndex(env, type, { maxEmbeds: 400 });
-            console.log('visualIndex cron', JSON.stringify(res));
-          } catch (err) {
-            console.error('visualIndex cron başarısız', type, err && err.message);
-          }
-        }
-      })());
-    }
-
-    ctx.waitUntil(Promise.allSettled(jobs));
+    return handleScheduled(event, env, ctx);
   },
 };
+
+// Cron dispatcher'ının varsayılan işçileri. handleScheduled bunları PARAMETRE olarak alır ki
+// scripts/test-gundem.mjs gerçek ingestion'ı (ağ/AI/D1) çalıştırmadan dispatcher'ın kendisini
+// test edebilsin: hangi cron ifadesi hangi işi tetikliyor, Gündem 'cron' moduyla mı çağrılıyor,
+// bir işçinin hatası diğerini/Worker'ı düşürüyor mu.
+const DEFAULT_SCHEDULED_RUNNERS = {
+  gundem: (env, options) => runGundemIngestion(env, {
+    // Havuz okuyucuları enjekte edilir — src/lib/gundemIngest.js'in bir route dosyasına
+    // bağımlı olmaması için (bkz. o dosyadaki `deps` notu).
+    fetchOfficePool,
+    fetchArchitectPool,
+    fetchProductPool,
+    fetchProjectPool: (e) => fetchActiveProjectPoolCached(e, 'built'),
+  }, options),
+  visualIndex: (env, type) => rebuildIndex(env, type, { maxEmbeds: 400 }),
+};
+
+export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDULED_RUNNERS) {
+  const cron = (event && event.cron) || '';
+  const jobs = [];
+
+  // Gündem — yalnızca kendi ifadesinde. (Bir cron ifadesi tanınmazsa — ör. ileride biri
+  // wrangler.jsonc'u değiştirir ve buradaki dizeler ayrışırsa — Gündem yine de çalışsın diye
+  // "bilinen görsel-dizin ifadesi DEĞİLSE" mantığı kullanılır; sessizce hiç çalışmamak, bu
+  // depodaki tekrar eden "iki yerde tutulan sabit ayrıştı, özellik sessizce öldü" tuzağıdır.)
+  if (cron !== VISUAL_INDEX_CRON) {
+    jobs.push((async () => {
+      try {
+        // ingestMode AÇIKÇA 'cron' (2026-09-07): gundem_runs.ingest_mode ve health-check'in
+        // backfill≠cron ayrımı bu değere dayanır. Varsayılan zaten 'cron'du; açık yazmak, bir gün
+        // varsayılan değişse bile cron satırlarının yanlış etiketlenmemesini garanti eder.
+        const res = await runners.gundem(env, { ingestMode: 'cron' });
+        console.log('gundem cron', JSON.stringify({ published: res && res.published, duplicate: res && res.duplicate, aiCalls: res && res.aiCalls }));
+      } catch (err) {
+        console.error('gundem cron başarısız', err && err.message);
+      }
+    })());
+  }
+
+  // Görsel arama dizini — DEĞİŞMEDİ, yalnızca kendi ifadesinde çalışır (önceden tek cron olduğu
+  // için koşulsuzdu; Gündem ifadesinde de çalışsaydı 6 saatlik maliyet varsayımı bozulurdu).
+  if (cron === VISUAL_INDEX_CRON || !cron) {
+    jobs.push((async () => {
+      for (const type of ['project', 'product']) {
+        try {
+          const res = await runners.visualIndex(env, type);
+          console.log('visualIndex cron', JSON.stringify(res));
+        } catch (err) {
+          console.error('visualIndex cron başarısız', type, err && err.message);
+        }
+      }
+    })());
+  }
+
+  const settled = Promise.allSettled(jobs);
+  ctx.waitUntil(settled);
+  return settled;
+}
 
 async function routeAsset(request, env, url, ctx) {
   // Trailing-slash normalizasyonu (denetim bulgusu, 2026-08-14): /proje/:slug/ (sondaki eğik
@@ -1511,7 +1530,7 @@ async function routeApi(request, env, url, ctx) {
   return errorJson('Bulunamadı', 404);
 }
 
-function handleHealthRoute(env) {
+async function handleHealthRoute(env) {
   return json({
     status: 'ok',
     version: env.CF_VERSION_METADATA ? { id: env.CF_VERSION_METADATA.id, tag: env.CF_VERSION_METADATA.tag } : null,
@@ -1521,6 +1540,11 @@ function handleHealthRoute(env) {
     // secret'ların gerçekten yüklenip yüklenmediğini dışarıdan (scripts/health-check.sh) tek
     // bakışta görebilmek için — token'ın KENDİSİ değil, yalnızca var/yok bilgisi döner.
     globalCachePurge: isGlobalPurgeConfigured(env),
+    // Gündem CRON sağlığı (2026-09-07) — YALNIZCA ingest_mode='cron' turlarından; backfill bu
+    // alanları etkilemez. gundemCronStatus: no_run | stale | failed | disabled | anomaly |
+    // ok_no_content | ok | read_error. "0 içerik" sağlıklıdır; "tur yok" değildir. Tablo yoksa
+    // alanlar null/read_error döner, uç ASLA 500 olmaz (deploy doğrulaması bunu okuyor).
+    ...(await gundemCronHealthFields(env)),
     timestamp: new Date().toISOString(),
   });
 }

@@ -39,6 +39,7 @@ import { getSiteSettings } from './siteSettings.js';
 import { newId } from './crypto.js';
 import { slugify } from './slugify.js';
 import { purgeGundemCache } from './gundemCache.js';
+import { persistGundemRun } from './gundemRuns.js';
 import {
   gundemEmbedText, embedGundemText, quantizeEmbedding, findSemanticDuplicate,
   GUNDEM_EMBED_WINDOW_DAYS,
@@ -693,7 +694,28 @@ async function mergeSourceIntoItem(env, row, source, sourceUrl) {
 //                         GEÇMEK ZORUNDADIR (varsayılan 'cron'). Geçilmezse elle çekilen arşiv
 //                         günlük cron tavanını yer ve otomatik hat ~24 saat susar — canlıda tam
 //                         olarak bu yaşandı (2026-09-07, 49 satırlık iki geri doldurma).
+// KALICI TUR KAYDI (cron observability hardening, 2026-09-07). Dış sarmalayıcı, iç fonksiyonun
+// HER çıkış yolunu — normal bitiş, "kaynak sırası gelmedi", kill switch/AI yok, ve İSTİSNA —
+// tek noktadan gundem_runs'a yazar (bkz. src/lib/gundemRuns.js). Yazma hiç fırlatmaz; istisna
+// varsa kayıttan SONRA aynen yeniden fırlatılır, çağıranın (scheduled dispatcher / backfill
+// betiği) gördüğü davranış değişmez. ingest_mode burada belirlenir: options.ingestMode yoksa
+// 'cron' (backfill betiği açıkça 'backfill' geçer).
 export async function runGundemIngestion(env, deps, options = {}) {
+  const startedAt = Date.now();
+  const ingestMode = options.ingestMode || 'cron';
+  let stats = null;
+  let error = null;
+  try {
+    stats = await runGundemIngestionInner(env, deps, options);
+  } catch (err) {
+    error = err;
+  }
+  await persistGundemRun(env, { startedAt, ingestMode, stats, error });
+  if (error) throw error;
+  return stats;
+}
+
+async function runGundemIngestionInner(env, deps, options = {}) {
   const startedAt = Date.now();
   const runBudgetMs = options.runBudgetMs ?? GUNDEM_LIMITS.runBudgetMs;
   const stats = {
@@ -710,12 +732,12 @@ export async function runGundemIngestion(env, deps, options = {}) {
   const settings = await getSiteSettings(env);
   if (settings.gundem_automation_enabled !== '1') {
     console.log(JSON.stringify({ event: 'gundem_run', disabled: true, reason: 'kill_switch_off' }));
-    return { ...stats, disabled: true };
+    return { ...stats, disabled: true, disabledReason: 'kill_switch_off' };
   }
 
   if (!isGundemAiAvailable(env)) {
     console.warn(JSON.stringify({ event: 'gundem_run', disabled: true, reason: 'ai_binding_missing' }));
-    return { ...stats, disabled: true };
+    return { ...stats, disabled: true, disabledReason: 'ai_binding_missing' };
   }
 
   // --- GÜNLÜK YAYIN TAVANI ----------------------------------------------------------------------
@@ -760,6 +782,9 @@ export async function runGundemIngestion(env, deps, options = {}) {
   const due = onlyIds ? scheduled.filter(s => onlyIds.has(s.id)) : scheduled;
   if (!due.length) {
     console.log(JSON.stringify({ event: 'gundem_run', skipped: 'no_source_due' }));
+    // gundem_runs'ta da görünsün: "cron çalıştı ama hiçbir kaynağın sırası gelmemişti" ile
+    // "cron hiç çalışmadı" ayırt edilebilmeli.
+    stats.skipped.no_source_due = 1;
     return stats;
   }
 
@@ -930,6 +955,8 @@ export function classifyGundemRun(stats) {
 
 function logRun(stats, startedAt) {
   const anomalies = classifyGundemRun(stats);
+  // gundem_runs kaydı (persistGundemRun) aynı listeyi buradan okur — iki yerde hesaplanmaz.
+  stats.anomalies = anomalies;
   const payload = {
     event: 'gundem_run',
     // Sağlıklı turlarda bu alan boş dizidir; doluysa satır AYRICA console.error ile basılır.
