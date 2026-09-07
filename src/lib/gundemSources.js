@@ -257,6 +257,94 @@ export const GUNDEM_SOURCES = [
   },
 
   // ===========================================================================================
+  // ARCHITIZER — kullanıcının verdiği /blog adresi (2026-09-07).
+  // ÖLÇÜM (2026-09-07): https://architizer.com/blog/feed/ -> 200, 10 item, HEPSİ tarihli, HEPSİNDE
+  // feed içinde görsel var (architizer-prod.imgix.net) -> imageStrategy 'feed', makale sayfasına
+  // hiç gidilmez. Feed'in ilk sayfası 2 HAFTAYI ZATEN KAPSIYOR (en eski girdi 14 günden eski),
+  // bu yüzden sayfalama (?paged=N) EKLENMEDİ — gereksiz istek olurdu.
+  // robots.txt: '*' bloğu yalnızca /admin, /dashboard, /search, /login vb. kapatıyor; feed AÇIK.
+  // İsimle engellenen tek AI tarayıcısı GPTBot — bizim UA'mız (MimarlabBot) ve ClaudeBot
+  // engellenmemiş.
+  // Blog içeriği derleme/liste/analiz yazılarından oluşuyor ("25 Best...", "7 Buildings...") —
+  // yani tam olarak Gündem'in aradığı makale türü, proje tanıtımı değil.
+  // ===========================================================================================
+  {
+    id: 'architizer',
+    name: 'Architizer',
+    domain: 'architizer.com',
+    feedUrl: 'https://architizer.com/blog/feed/',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [
+      { match: /^(a\+?awards?|awards?|competitions?)$/i, category: 'yarisma' },
+      { match: /^(events?|exhibitions?)$/i, category: 'etkinlik' },
+    ],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'feed',
+    // İKİ host: Architizer görselleri İKİ ayrı yerden servis ediyor — derleme/liste yazıları
+    // imgix üzerinden, diğer yazılar doğrudan blog alt alanından. İlk ölçümde yalnızca feed'in
+    // İLK maddesine bakıldığı için (o bir imgix'ti) tek host beyan edilmişti ve 14 günlük dry-run'da
+    // 9 içeriğin 7'si `no_valid_image` ile elendi — kapı doğru çalıştı, beyan eksikti.
+    // DERS: görsel host'u feed'in TEK bir maddesinden değil, TÜM maddelerinden çıkarılmalı.
+    imageHosts: ['architizer-prod.imgix.net', 'blog.architizer.com'],
+    language: 'en',
+    priority: 2,
+  },
+
+  // ===========================================================================================
+  // THE ARCHITECTS' JOURNAL — kullanıcının verdiği /news adresi (2026-09-07).
+  //
+  // ÖLÇÜM (2026-09-07): /news/feed -> 200, 10 item, hepsi tarihli. Feed'de GÖRSEL YOK; makale
+  // sayfası MimarlabBot'a 200 dönüyor ve og:image veriyor (cdn.rt.emap.com) -> imageStrategy 'og'.
+  // DİKKAT: bu host, kapalı architectural-review kaydındaki cdn.ca.emap.com'dan FARKLIDIR (aynı
+  // yayıncı grubu, ayrı CDN alt alanı) — ikisi birbirinin yerine yazılmamalı.
+  //
+  // SAYFALAMA: feed'in tek sayfası yalnızca ~2-3 GÜN geriye gidiyor (10 item, günde ~4 haber).
+  // 2 haftalık pencereyi kapatmak için WordPress'in ?paged=N sayfaları extraListUrls olarak
+  // eklendi (ölçüm: paged=4 21 Ağustos'a ulaşıyor, paged=5 tamamen pencerenin dışında kalıyor).
+  // Bu sayfalar cron turunda da okunur; 3 saatlik tur için tek sayfa yeterli olurdu ama yayıncı
+  // yoğun bir gün yaşarsa ya da bir tur kaçarsa derinlik güvenlik payı sağlıyor (4 istek/tur,
+  // sıralı — bkz. collectCandidates'in listUrls döngüsü paralel DEĞİLDİR).
+  //
+  // ⚠ EDİTORYAL NOT — robots.txt AI TARAYICILARINI İSİMLE ENGELLİYOR:
+  // ClaudeBot, anthropic-ai, Anthropic-ClaudeBot, GPTBot, CCBot, Google-Extended,
+  // Applebot-Extended, Amazonbot, Bytespider, meta-externalagent hepsi isim isim yazılmış.
+  // '*' bloğu ise yalnızca /wp-admin'i kapatıyor, yani MimarlabBot teknik olarak İZİNLİDİR ve
+  // feed'i okumak robots'u çiğnemez. Ancak bu, mimarizm kaydının KAPALI bırakılma gerekçesinin
+  // BİREBİR AYNISIDIR (bkz. aşağıdaki mimarizm girdisi) — orada karar kullanıcıya bırakılmıştı.
+  // BU KAYNAK, kullanıcının 2026-09-07 tarihli AÇIK talimatıyla ve verdiği tam yetkiyle
+  // ETKİNLEŞTİRİLMİŞTİR. Karar sitenin sahibinindir ve enabled:false ile tek satırda geri alınır.
+  // ===========================================================================================
+  {
+    id: 'architectsjournal',
+    name: "The Architects' Journal",
+    domain: 'architectsjournal.co.uk',
+    feedUrl: 'https://www.architectsjournal.co.uk/news/feed',
+    type: 'rss',
+    enabled: true,
+    defaultCategory: 'haber',
+    categoryHints: [
+      { match: /^(opinion|comment)$/i, category: 'gorus' },
+      { match: /^(competitions?)$/i, category: 'yarisma' },
+      { match: /^(jobs?|careers?)$/i, category: 'kariyer' },
+      { match: /^(events?|exhibitions?)$/i, category: 'etkinlik' },
+    ],
+    fetchIntervalMin: 180,
+    maxItemsPerRun: 4,
+    imageStrategy: 'og',
+    imageHosts: ['cdn.rt.emap.com'],
+    language: 'en',
+    priority: 2,
+    extraListUrls: [
+      { url: 'https://www.architectsjournal.co.uk/news/feed?paged=2', category: 'haber' },
+      { url: 'https://www.architectsjournal.co.uk/news/feed?paged=3', category: 'haber' },
+      { url: 'https://www.architectsjournal.co.uk/news/feed?paged=4', category: 'haber' },
+    ],
+  },
+
+  // ===========================================================================================
   // KAPALI KAYNAKLAR — enabled:false. Hiç ağ isteği yapılmaz; gerekçeler ileride aynı kaynağın
   // tekrar tekrar denenmemesi için burada durur.
   // ===========================================================================================

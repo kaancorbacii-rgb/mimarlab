@@ -120,6 +120,9 @@ const MAX_TOTAL = Number(args.max ?? 25);
 // yalnızca bu tek seferlik işlem için tavanı --max'a göre açar. --max ZATEN mutlak tavandır, yani
 // kontrolsüz bir yayın olmaz — sadece hangi sayacın kestiği netleşir.
 const DAILY_CAP = Number(args['daily-cap'] ?? 50);
+// Turun duvar-saati bütçesi. Yerelde Worker'ın sınırı yok; içerik başına ~2 AI çağrısı ve çağrı
+// başına ~4sn olduğundan 14 günlük geniş bir tur için varsayılan 15 dakika yetmez.
+const BUDGET_MIN = Number(args['budget-min'] ?? 15);
 
 // ---------------------------------------------------------------------------------------------
 // env.DB adaptörü — D1 REST API. Workers'taki prepare/bind/first/all/run/batch sözleşmesini taklit
@@ -208,8 +211,11 @@ console.log('');
 
 // Tur başlamadan ÖNCE token ömrünü kontrol et — 8-15 dakikalık bir turun ortasında dolan token
 // turu sıfır yayınla bitirir (bkz. refreshToken'daki bulgu). Yenileme ucuz, kaybedilen tur değil.
+// Eşik SABİT değil, TURUN BÜTÇESİNE göre: 45 dakikalık bir tura 27 dakikalık token'la başlamak
+// (2026-09-07'de olan buydu) turun ortasında yenilemeye mecbur bırakır. Bütçe + 10 dk pay.
 const expiry = tokenExpiresAt();
-if (expiry === null || expiry - Date.now() < TOKEN_MIN_REMAINING_MS) {
+const needMs = Math.max(TOKEN_MIN_REMAINING_MS, (BUDGET_MIN + 10) * 60000);
+if (expiry === null || expiry - Date.now() < needMs) {
   refreshToken(expiry === null ? 'geçerlilik süresi okunamadı' : `token ${Math.round((expiry - Date.now()) / 60000)} dk sonra doluyor`);
 } else {
   console.log(`  [token] geçerlilik ${new Date(expiry).toISOString()} (${Math.round((expiry - Date.now()) / 60000)} dk)`);
@@ -227,7 +233,7 @@ const stats = await runGundemIngestion(env, deps, {
   maxPublishPerDay: DAILY_CAP,
   // Yerelde Worker'ın duvar-saati sınırı yok; AI çağrısı başına ~4sn ve içerik başına ~2 çağrı
   // olduğundan 25 içerik için cömert bir bütçe.
-  runBudgetMs: 15 * 60 * 1000,
+  runBudgetMs: BUDGET_MIN * 60 * 1000,
 });
 
 console.log('');

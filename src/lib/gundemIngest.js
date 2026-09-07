@@ -161,9 +161,17 @@ async function loadExistingKeys(env, candidates) {
   const existing = { urls: new Set(), hashes: new Set(), titles: new Set() };
   const runIn = async (column, values, target) => {
     if (!values.length) return;
-    // D1 tek ifade boyut sınırı (bkz. proje notu) — 200'lük parçalar hâlinde sorulur.
-    for (let i = 0; i < values.length; i += 200) {
-      const chunk = values.slice(i, i + 200);
+    // D1'in BAĞLI PARAMETRE sınırı sorgu başına 100'DÜR. Burada 200'lük parçalar kullanılıyordu;
+    // bu, D1'in 100 KB'lik TEK İFADE BOYUT sınırıyla (bkz. proje notu) karıştırılmış — ikisi AYRI
+    // sınırlar. 100'ü aşan her çağrı `too many SQL variables (7500)` ile TÜM turu düşürür.
+    //
+    // NEDEN BUGÜNE KADAR PATLAMADI: aday sayısı 100'ün altında kaldığı sürece tek parça yeterliydi.
+    // collectCandidates kaynak başına perSource*3 aday döndürür; 9 kaynakla bu sınıra genelde
+    // ulaşılmıyordu. 2026-09-07'de kaynak sayısı 11'e çıkınca ve 14 günlük tarama yapılınca aday
+    // sayısı 200'ü geçti ve tur ilk D1 sorgusunda çöktü. Bu, geri doldurmaya özgü DEĞİLDİR —
+    // normal cron turu da yeterince aday biriktiğinde aynı hataya düşerdi.
+    for (let i = 0; i < values.length; i += 90) {
+      const chunk = values.slice(i, i + 90);
       const placeholders = chunk.map(() => '?').join(',');
       const { results } = await env.DB.prepare(
         `SELECT ${column} AS v FROM gundem_items WHERE ${column} IN (${placeholders})`

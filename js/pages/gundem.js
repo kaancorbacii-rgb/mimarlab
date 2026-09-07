@@ -290,7 +290,9 @@ function wireCardActions(items, offset){
 function renderChips(){
   if(!chipsEl || !categories.length || chipsEl.dataset.rendered) return;
   chipsEl.dataset.rendered = '1';
-  const all = [{ key: null, label: 'Tümü' }].concat(categories);
+  // chip:false olan kategoriler çip üretmez (bkz. src/lib/gundemCategories.js). `categories`
+  // dizisinin TAMAMI burada durmaya devam eder — kart etiketi çözümü (catLabel) ona bakar.
+  const all = [{ key: null, label: 'Tümü' }].concat(categories.filter(c => c.chip !== false));
   chipsEl.innerHTML = all.map(c =>
     `<button type="button" class="gundem-chip" data-cat="${escapeAttr(c.key || '')}" aria-pressed="${c.key === activeCategory}">${escapeHtml(c.label)}</button>`
   ).join('');

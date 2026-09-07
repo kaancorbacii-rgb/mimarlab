@@ -34,9 +34,10 @@ export const GUNDEM_CACHE_PATHS = [
   '/api/gundem?page=1&limit=12',
   '/api/gundem?category=haber&page=1&limit=12',
   '/api/gundem?category=etkinlik&page=1&limit=12',
-  '/api/gundem?category=gorus&page=1&limit=12',
   '/api/gundem?category=yarisma&page=1&limit=12',
-  '/api/gundem?category=kariyer&page=1&limit=12',
+  // 'gorus' ve 'kariyer' 2026-09-07'de ÇİP OLMAKTAN ÇIKTI (bkz. gundemCategories.js#chip:false).
+  // Sayfa artık bu iki URL'yi hiç istemediğinden purge listesinde tutmak boşa istek olurdu;
+  // kategoriler whitelist'te DURUYOR, yalnızca filtre çipleri kaldırıldı.
 ];
 
 export async function purgeGundemCache(env) {

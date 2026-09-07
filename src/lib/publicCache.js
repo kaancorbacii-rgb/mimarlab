@@ -405,7 +405,12 @@ async function withSingleFlight(key, fn) {
 //     meta satırına taşındı). v5-v18'in AYNI tuzağı: hiçbir satırın updated_at'i değişmediğinden
 //     fingerprint aynı kalır; sürüm artırılmazsa /gundem'i daha önce açmış ziyaretçiler 304 alıp
 //     id'siz eski gövdede takılır ve admin kontrolleri hiç görünmez.
-const API_PAYLOAD_VERSION = 'v19';
+// v20 (kullanıcı isteği, 2026-09-07): /api/gundem'in `categories` dizisindeki öğeler artık `chip`
+//     alanı taşıyor — 'gorus' ve 'kariyer' çip ÜRETMİYOR (bkz. gundemCategories.js). v5-v19'un
+//     AYNI tuzağı: hiçbir satırın updated_at'i değişmediğinden fingerprint aynı kalır; sürüm
+//     artırılmazsa /gundem'i daha önce açmış ziyaretçiler 304 alıp eski gövdede takılır ve
+//     kaldırılan iki çipi görmeye devam ederdi.
+const API_PAYLOAD_VERSION = 'v20';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
