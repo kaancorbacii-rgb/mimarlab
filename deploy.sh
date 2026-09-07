@@ -21,6 +21,38 @@ fi
 
 echo "miras/ kontrolü geçti ($miras_count dosya)."
 
+# EŞZAMANLI DEPLOY KİLİDİ (hardening denetimi, 2026-09-07).
+# Aşağıdaki dal/working-tree kontrollerinin hepsi TEK BİR ANIN fotoğrafını çeker. İki deploy.sh
+# aynı anda çalışırsa ikisi de kendi kontrollerinden geçer, sonra ikisi de `wrangler deploy`
+# çalıştırır ve canlıya en SON bitenin kodu çıkar — hangisinin daha yeni olduğundan bağımsız.
+# Bu teorik değil: 2026-09-07 denetimi sırasında dört dakika arayla (17:38 ve 17:42) bu oturumun
+# dışından iki ayrı production deploy'u gözlendi ve depoda üç kardeş worktree var.
+# Kilit, worktree'lerin PAYLAŞTIĞI git dizinine konur (git-common-dir), yani depo geneliNDEdir.
+# `mkdir` bilerek seçildi: POSIX'te atomiktir (dosya oluşturmanın aksine "varsa başarısız ol"
+# garantisi verir) ve `flock` macOS'ta yoktur.
+LOCK_DIR="$(git rev-parse --git-common-dir 2>/dev/null || echo .git)/mimarlab-deploy.lock"
+LOCK_STALE_SECONDS=1800
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  lock_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || echo '?')"
+  # Bayat kilit temizliği: deploy'u yarıda kesilmiş (Ctrl+C/çökme) bir çalıştırma kilidi bırakmış
+  # olabilir. Süreç ARTIK YAŞAMIYORSA ya da kilit çok eskiyse devral — aksi halde tek bir kaza
+  # tüm deploy'ları kalıcı olarak bloke ederdi.
+  lock_age=$(( $(date +%s) - $(stat -f %m "$LOCK_DIR" 2>/dev/null || stat -c %Y "$LOCK_DIR" 2>/dev/null || date +%s) ))
+  if { [ "$lock_pid" != "?" ] && ! kill -0 "$lock_pid" 2>/dev/null; } || [ "$lock_age" -gt "$LOCK_STALE_SECONDS" ]; then
+    echo "UYARI: bayat deploy kilidi devralınıyor (pid=$lock_pid, yaş=${lock_age}s)." >&2
+    rm -rf "$LOCK_DIR"; mkdir "$LOCK_DIR" 2>/dev/null || { echo "DEPLOY DURDURULDU: kilit alınamadı." >&2; exit 1; }
+  else
+    echo "DEPLOY DURDURULDU: başka bir deploy.sh çalışıyor (pid=$lock_pid, yaş=${lock_age}s)." >&2
+    echo "Aynı anda iki deploy, kontrollerini ayrı ayrı geçip birbirinin kodunu canlıdan silebilir." >&2
+    echo "Diğer deploy bitince tekrar dene; gerçekten takıldıysa: rm -rf '$LOCK_DIR'" >&2
+    exit 1
+  fi
+fi
+echo $$ > "$LOCK_DIR/pid"
+# Betik nasıl biterse bitsin (başarı, hata, Ctrl+C) kilit bırakılır — `set -e` altında da çalışır.
+trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
+echo "Deploy kilidi alındı."
+
 # Gerçek bulgu (2026-08-13): main ve bir Claude oturumu worktree'si (claude/terminal-yaz-
 # sorusu-e4c8aa) aynı noktadan ayrışıp saatlerce birbirinden habersiz commit aldı; deploy hep
 # main'den (worktree'lerin GERİSİNDE kalmış bir daldan) çalıştırıldığından o günün TÜM hesabım
@@ -31,6 +63,18 @@ echo "miras/ kontrolü geçti ($miras_count dosya)."
 # .git nesnelerinden dolayı diğer worktree'lerin dallarını da (checkout edilmemiş olsalar bile)
 # görebilir.
 current_branch=$(git branch --show-current)
+# DETACHED HEAD ARTIK SESSİZCE GEÇMİYOR (hardening denetimi, 2026-09-07).
+# `git branch --show-current` detached HEAD'de BOŞ döner ve buradaki `if [ -n ... ]` yüzünden
+# aşağıdaki worktree ayrışma kontrolünün TAMAMI atlanıyordu — yani guard'ın korumak için var
+# olduğu senaryoda guard hiç çalışmıyordu. Bu, proje belleğinde zaten kayıtlı bilinen bir açıktı
+# (bkz. "Concurrent deploy race 2026-08-19": detached-HEAD worktree'ler dal guard'ını atlatır).
+# Kontrol edilemiyorsa doğru davranış "sessizce geç" değil, DURMAKTIR.
+if [ -z "$current_branch" ]; then
+  echo "DEPLOY DURDURULDU: bu worktree detached HEAD durumunda (HEAD=$(git rev-parse --short HEAD))." >&2
+  echo "Dal adı okunamadığı için diğer worktree'lerle ayrışma kontrolü YAPILAMAZ — eski/eksik kod" >&2
+  echo "deploy etme riski var. Önce bir dala geç:  git checkout <dal>" >&2
+  exit 1
+fi
 if [ -n "$current_branch" ]; then
   behind_found=0
   wt_path=""
