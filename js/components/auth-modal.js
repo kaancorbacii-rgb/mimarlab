@@ -1195,7 +1195,7 @@ const AuthModal = (function () {
           </div>
         </div>
 
-        <!-- Firma Bilgileri — kullanıcı isteği (2026-09-01 madde 2): "Profil Bilgileri kutusunun
+        <!-- Firma / Marka Bilgileri — kullanıcı isteği (2026-09-01 madde 2): "Profil Bilgileri kutusunun
              yanındaki sütuna Firma Bilgileri kutusu ekle ve bir kullanıcı bir firmada görev
              alıyorsa firma bilgileri bu kısımda gözüksün". Kullanıcının firmayla bağı zaten
              profile_claims('office') satırında duruyor (Profili Düzenle'deki "Firma" kutusu bu
@@ -1208,11 +1208,17 @@ const AuthModal = (function () {
                — yalnızca firmada YETKİLİ bir görevi olan kullanıcıya gösterilir, bkz.
                renderFirmEditBtn / OFFICE_EDIT_POSITIONS. -->
           <div class="dash-section-head">
-            <h2>Firma Bilgileri</h2>
+            <h2>Firma / Marka Bilgileri</h2>
             <a class="dash-edit-btn dash-edit-btn-sm" id="am-firm-edit-btn" href="#" style="display:none;">Profili Düzenle</a>
           </div>
           <div id="am-firm-facts"><div class="dash-empty">Yükleniyor…</div></div>
           <div id="am-claims-mine-list"></div>
+          <!-- Kullanıcının birden fazla firması/markası varsa kutu SAYFALANIR (kullanıcı isteği,
+               2026-09-07 madde 1: "birden fazla firma veya marka varsa bunlar kutunun içinde sayfa
+               sayfa ayrılsınlar ve en alt satırda bu sayfalara ait 1, 2 şeklinde butonlarla
+               belirtilsinler") — Bildirimler/Mesajlar kutularıyla AYNI .dash-pagination bileşeni
+               (bkz. renderDashPagination), tek fark sayfa başına bir KAYIT düşmesi. -->
+          <div class="dash-pagination" id="am-firm-pagination"></div>
         </div>
       </div>
 
@@ -1712,7 +1718,7 @@ const AuthModal = (function () {
   function getProfessionChecks(groupId) {
     return [...document.querySelectorAll(`#${groupId} input:checked`)].map(i => i.value).join(',');
   }
-  const CLAIM_TYPE_LABELS = { architect: 'Kişi', office: 'Firma' };
+  const CLAIM_TYPE_LABELS = { architect: 'Kişi', office: 'Firma / Marka' };
   // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
   // (kisi-ekle.html/proje-ekle.html ile ortak) geliyor, bu dosyanın <script> etiketinden HEMEN
   // önce her sayfada senkron yüklenir (bkz. o dosyanın başındaki yorum). Buradaki "Mimar Profili"
@@ -1730,6 +1736,11 @@ const AuthModal = (function () {
   const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
   const CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
+  // Saf markaların düzenleme sayfası AYRIDIR (bkz. js/components/office-modal.js#editUrlBase ile
+  // BİREBİR aynı karar): firma-ekle.html'in Hizmet Alanı kutucukları yalnızca mimarlık hizmetlerini
+  // içerir (bkz. office-kind.js#OFFICE_SERVICE_CATS), bir markayı oradan kaydetmek cats'ini sessizce
+  // boşaltıp onu marka.html listesinden düşürürdü.
+  function claimEditPageForOffice(isBrand) { return isBrand ? '/marka-ekle' : CLAIM_EDIT_PAGE.office; }
   // bkz. src/routes/submissions.js#OFFICE_EDIT_POSITIONS / js/components/claim-correction-box.js
   // (firma sayfasındaki Düzenle butonu) ile BİREBİR aynı liste — kullanıcı isteği: "Firmayı sadece
   // kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir". Hesabım'daki Firma satırı bu kontrolü
@@ -1774,15 +1785,29 @@ const AuthModal = (function () {
   // çağırarak, o ana kadar hazır olan veriyle yeniden çizilir.
   let amBadgeItems = [];
   let amClaimItems = [];
-  // #am-firm-facts kutusunda hâlihazırda gösterilen firmanın anahtarı (bkz. loadFirmInfo).
+  // "Firma / Marka Bilgileri" kutusunun sayfaları (kullanıcı isteği, 2026-09-07 madde 1). Kullanıcı
+  // birden fazla firmaya/markaya bağlı olabilir — canlıda hem birden fazla profile_claims('office')
+  // satırıyla hem de mimar kaydının VİRGÜLLE AYRILMIŞ `office` alanıyla (bkz. prefillFirmaSelect'in
+  // AYNI split(',') mantığı) — bu yüzden kutu tek bir firmayı değil, her biri kendi sayfası olan bir
+  // LİSTE gösterir. Her giriş: { key, status, approved, position, slug, role }.
+  let firmEntries = [];
+  let firmPage = 1;
+  // key -> /api/office/:key künyesi (null = çekilemedi). loadMyClaims her loadUser()'da çalıştığından
+  // aynı firma için ikinci kez ağ isteği atılmasını önler — eski tek-firmalı koddaki firmInfoKey
+  // guard'ının yerini alır.
+  const firmOfficeCache = Object.create(null);
+  // #am-firm-facts kutusunda O AN gösterilen sayfanın firması (bkz. renderFirmPage).
   // amClaimItems ile AYNI kapsamda tutulur çünkü renderClaimsList onu, loadFirmInfo'dan ÖNCE de
   // çağrılabilecek şekilde okuyor (bkz. oradaki filtre).
   let firmInfoKey = null;
-  // Firma Bilgileri kutusunun "Profili Düzenle" butonunun hedefi/görünürlüğü (bkz. renderFirmEditBtn).
-  // firmInfoSlug: /firma-ekle?claim=<slug> için gereken slug; firmInfoApproved: talep onaylı mı
-  // (bekleyen bir talep henüz düzenleme yetkisi vermez).
+  // Firma / Marka Bilgileri kutusunun "Profili Düzenle" butonunun hedefi/görünürlüğü (bkz.
+  // renderFirmEditBtn). firmInfoSlug: /firma-ekle?claim=<slug> için gereken slug; firmInfoApproved:
+  // talep onaylı mı (bekleyen bir talep henüz düzenleme yetkisi vermez); firmInfoIsBrand: saf marka
+  // ise düzenleme sayfası /marka-ekle olmalı (bkz. office-kind.js#isPureBrandOffice — kararın TEK
+  // kaynağı sunucudur, /api/office/:key yanıtındaki isBrand alanı).
   let firmInfoSlug = null;
   let firmInfoApproved = false;
+  let firmInfoIsBrand = false;
   // Onaylı firma talebinin ONAY ANINDA dondurulmuş office_position'ı (bkz. renderFirmEditBtn) —
   // /api/claims/mine artık bu alanı döndürüyor.
   let firmInfoPosition = null;
@@ -3070,15 +3095,16 @@ const AuthModal = (function () {
       // zaten yeniden 'pending' olarak burada görünür.
       // kullanıcı isteği (2026-08-30): Profil Bilgileri kutusu artık salt bilgi amaçlı — Mimar satırı
       // tamamen kaldırıldı, bu ek firma satırları da Düzenle linki OLMADAN gösterilir. Firma künyesi
-      // düzenleme artık TEK yerde: Firma Bilgileri kutusunun başlığındaki "Profili Düzenle" butonu
+      // düzenleme artık TEK yerde: Firma / Marka Bilgileri kutusunun başlığındaki "Profili Düzenle" butonu
       // (bkz. renderFirmEditBtn) — ve o buton kutuda GÖSTERİLEN firmayı hedefler, bu listeyi değil.
-      // firmInfoKey — künye kutusunda (#am-firm-facts) ZATEN tam olarak gösterilen firma; aynı adı
-      // hemen altında ikinci kez listelemek anlamsız olurdu. Bir kullanıcının birden fazla firma
-      // talebi olabildiğinden (canlıda var) geri kalanlar bu listede durmaya devam eder — durum
-      // etiketleriyle birlikte, çünkü künye kutusu yalnızca BİR firmayı gösterebilir.
+      // firmEntries — kutunun SAYFALARI (bkz. renderFirmPage). Onaylı/bekleyen her ofis talebi artık
+      // kendi sayfasında tam künyesiyle göründüğünden bu liste pratikte boştur; ileride sayfalanmayan
+      // bir talep türü eklenirse (ör. yeni bir profile_type) sessizce kaybolmasın diye güvenlik ağı
+      // olarak duruyor.
+      const pagedKeys = new Set(firmEntries.map(e => foldTrAm(e.key)));
       const visibleItems = amClaimItems.filter(c => c.status !== 'rejected' && c.profile_type !== 'architect'
-        && !(c.profile_type === 'office' && c.profile_key === firmInfoKey));
-      // Bu liste artık "Firma Bilgileri" kutusunda, #am-firm-facts'in ALTINDA duruyor (kullanıcı
+        && !(c.profile_type === 'office' && pagedKeys.has(foldTrAm(c.profile_key))));
+      // Bu liste artık "Firma / Marka Bilgileri" kutusunda, #am-firm-facts'in ALTINDA duruyor (kullanıcı
       // isteği, 2026-09-01 madde 2) — üstündeki künye satırlarından ayrılması için AYNI .profile-fact
       // çizgisi kutunun üstüne konur; künye hiç çizilmediyse (firma yoksa) çizgiye de gerek yok.
       const factsBox = document.getElementById('am-firm-facts');
@@ -3132,61 +3158,116 @@ const AuthModal = (function () {
       loadFirmInfo(items);
     }
 
-    // "Firma Bilgileri" kutusu (kullanıcı isteği, 2026-09-01 madde 2). Kullanıcının bir firmada görev
-    // alıp almadığının kaynağı profile_claims('office') satırıdır — Profili Düzenle'deki "Firma"
-    // kutusu tam olarak bu talebi oluşturur (bkz. submitFirmaClaimIfChanged), yani bu kutu formda
-    // seçilen firmayı gösterir. Onaylı talep beklemedekine tercih edilir; ikisi de yoksa kutu boş
-    // durumunu gösterir.
+    // "Firma / Marka Bilgileri" kutusu (kullanıcı isteği, 2026-09-01 madde 2; 2026-09-07 madde 1'de
+    // SAYFALANDI). Kullanıcının bir firmada/markada görev alıp almadığının kaynağı
+    // profile_claims('office') satırıdır — Profili Düzenle'deki "Firma" kutusu tam olarak bu talebi
+    // oluşturur (bkz. submitFirmaClaimIfChanged), yani bu kutu formda seçilen firmaları gösterir.
+    // Eskiden yalnızca TEK bir talep (onaylı, yoksa bekleyen) gösterilip geri kalanlar altta düz bir
+    // liste olarak sıralanıyordu; artık her bağ kutunun KENDİ sayfasıdır ve alttaki 1/2/3 düğmeleri
+    // (bkz. renderDashPagination) arasında geçiş yapılır — her firma/marka tam künyesiyle görünür.
+    //
     // İKİNCİ KAYNAK (kullanıcı isteği, 2026-09-06 madde 4: "bir kullanıcı bir firmada ortak, kurucu,
     // ekip üyesi vs. şeklinde gözüküyorsa, hesabım sayfasındaki firma bilgileri kutusunda ... bu firma
-    // bilgisi gözüksün"): profile_claims('office') satırı YOKSA sahiplenilmiş mimar kaydının `office`
-    // alanına düşülür. Bir firmanın Kurucular/Ekip listesinde görünmenin İKİ yolu var (bkz.
+    // bilgisi gözüksün"): sahiplenilmiş mimar kaydının (yoksa kullanıcının kendi yayınladığı kişi
+    // kaydının — bkz. project_profile_ownership_two_paths, prefillFirmaSelect'teki AYNI ikili kaynak)
+    // `office` alanı. Bir firmanın Kurucular/Ekip listesinde görünmenin İKİ yolu var (bkz.
     // src/lib/officeFounderCascade.js) — onaylı bir ofis talebi VEYA firma künyesindeki kutuya elle
-    // yazılmış bir isim; ikincisinde hiç claim satırı oluşmadığından bu kutu eskiden "henüz bir
-    // firmada görev almıyorsun" diyordu. Fallback yalnızca GÖRÜNTÜLEME içindir: firmInfoApproved
-    // false kalır, dolayısıyla "Profili Düzenle" butonu (bkz. renderFirmEditBtn) açılmaz — düzenleme
-    // yetkisi hâlâ yalnızca onaylı talep + yetkili pozisyon şartına bağlı.
+    // yazılmış bir isim; ikincisinde hiç claim satırı oluşmaz. Bu alan VİRGÜLLE AYRILMIŞ birden fazla
+    // firma taşıyabilir (prefillFirmaSelect ile AYNI split(',')), her biri ayrı bir sayfa olur.
+    // Fallback yalnızca GÖRÜNTÜLEME içindir: o girişte approved false kalır, dolayısıyla "Profili
+    // Düzenle" butonu (bkz. renderFirmEditBtn) açılmaz — düzenleme yetkisi hâlâ yalnızca onaylı
+    // talep + yetkili pozisyon şartına bağlı.
     async function loadFirmInfo(claimItems) {
       const box = document.getElementById('am-firm-facts');
       if (!box) return;
-      const claim = claimItems.find(c => c.profile_type === 'office' && c.status === 'approved')
-        || claimItems.find(c => c.profile_type === 'office' && c.status === 'pending');
-      // officeKey: /api/office/:key'in beklediği anahtar — ofis talebinde profile_key, mimar
-      // kaydında `office` alanı; ikisi de firmanın ADIdır, aynı uç ikisini de çözer.
-      let officeKey = claim ? claim.profile_key : null;
-      let architectRole = null;
-      if (!claim) {
-        const arch = await fetchClaimedArchitect(claimItems);
-        if (arch && arch.office) { officeKey = arch.office; architectRole = arch.role || null; }
+      // Onaylı talepler önce (kutu açıldığında kullanıcının GERÇEKTEN sahip olduğu firma ilk sayfada
+      // olsun); geri kalan sıra /api/claims/mine'ın kendi updated_at DESC sırasıdır.
+      const officeClaims = (claimItems || []).filter(c => c.profile_type === 'office' && c.status !== 'rejected');
+      const entries = [];
+      const seen = new Set();
+      const pushEntry = (key, extra) => {
+        const name = String(key || '').trim();
+        if (!name) return;
+        const folded = foldTrAm(name);
+        if (seen.has(folded)) return;
+        seen.add(folded);
+        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, ...extra });
+      };
+      for (const c of officeClaims.filter(c => c.status === 'approved')) {
+        pushEntry(c.profile_key, {
+          status: c.status, approved: true, position: c.officePosition || null,
+          // Künye çekilemese bile buton bir hedefe sahip olsun: talebin kendi slug'ı (yoksa adı).
+          slug: c.slug || c.profile_key,
+        });
       }
-      if (!officeKey) {
+      for (const c of officeClaims.filter(c => c.status !== 'approved')) {
+        pushEntry(c.profile_key, { status: c.status, approved: false, slug: c.slug || c.profile_key });
+      }
+      // fetchClaimedArchitect / fetchOwnSelfSubmission ikisi de belleklenmiş TEK istektir (bkz. o
+      // fonksiyonlar) — syncClaimedArchitectData ve prefillFirmaSelect zaten aynı yanıtı kullanıyor,
+      // burada ek bir ağ isteği doğmaz.
+      const arch = (await fetchClaimedArchitect(claimItems)) || (await fetchOwnSelfSubmission());
+      if (arch && arch.office) {
+        String(arch.office).split(',').forEach(n => pushEntry(n, { role: arch.role || null }));
+      }
+      firmEntries = entries;
+      if (firmPage > entries.length) firmPage = 1;
+      renderFirmPage();
+      ensureFirmOffice();
+    }
+
+    // O an gösterilen sayfanın firma künyesini (/api/office/:key) çeker ve gelince sayfayı yeniden
+    // çizer. Sayfa başına tek istek, sonuç firmOfficeCache'te tutulur — kullanıcı sayfalar arasında
+    // gidip gelirken ağ isteği tekrarlanmaz.
+    function ensureFirmOffice() {
+      const entry = firmEntries[firmPage - 1];
+      if (!entry || entry.key in firmOfficeCache) return;
+      const key = entry.key;
+      firmOfficeCache[key] = undefined; // aynı anahtar için ikinci bir uçuş başlamasın
+      fetch(`/api/office/${encodeURIComponent(key)}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { firmOfficeCache[key] = (d && d.item) || null; })
+        .catch(() => { firmOfficeCache[key] = null; })
+        .then(() => {
+          // Kullanıcı bu arada başka bir sayfaya geçmiş olabilir — yalnızca hâlâ bu giriş
+          // gösteriliyorsa yeniden çiz (aksi halde açık sayfanın üzerine yanlış künye yazılırdı).
+          const current = firmEntries[firmPage - 1];
+          if (current && current.key === key) renderFirmPage();
+        });
+    }
+
+    // Kutunun tek bir sayfasını (tek firma/marka) çizer. Ağ isteği YAPMAZ — künye hazır değilse
+    // (henüz uçuşta) en azından ad satırı gösterilir, kutu asla "Yükleniyor…"da takılı kalmaz.
+    function renderFirmPage() {
+      const box = document.getElementById('am-firm-facts');
+      const pager = document.getElementById('am-firm-pagination');
+      if (!box) return;
+      if (!firmEntries.length) {
         firmInfoKey = null;
         firmInfoSlug = null;
         firmInfoApproved = false;
+        firmInfoIsBrand = false;
         firmInfoPosition = null;
         renderFirmEditBtn();
-        box.innerHTML = '<div class="dash-empty">Henüz bir firmada görev almıyorsun. Profili Düzenle\'den firmanı seçebilirsin.</div>';
+        box.innerHTML = '<div class="dash-empty">Henüz bir firmada veya markada görev almıyorsun. Profili Düzenle\'den firmanı ya da markanı seçebilirsin.</div>';
+        if (pager) pager.innerHTML = '';
         renderClaimsList();
         return;
       }
-      firmInfoApproved = !!claim && claim.status === 'approved';
-      // Onay anında dondurulmuş pozisyon (bkz. renderFirmEditBtn'deki gerçek bulgu) — accountUser'ın
-      // CANLI position'ı değil, sunucunun düzenleme yetkisi için gerçekten baktığı değer.
-      firmInfoPosition = claim ? (claim.officePosition || null) : null;
-      // Künye çekilemese bile buton bir hedefe sahip olsun: talebin kendi slug'ı (yoksa adı).
-      firmInfoSlug = claim ? (claim.slug || claim.profile_key) : officeKey;
+      if (firmPage < 1 || firmPage > firmEntries.length) firmPage = 1;
+      const entry = firmEntries[firmPage - 1];
+      const office = firmOfficeCache[entry.key] || null;
+      firmInfoKey = entry.key;
+      firmInfoApproved = entry.approved;
+      firmInfoPosition = entry.position;
+      firmInfoSlug = (office && office.slug) || entry.slug;
+      // Saf marka mı? Kararın TEK kaynağı sunucudur (office-kind.js#isPureBrandOffice, /api/office/
+      // :key yanıtındaki isBrand) — istemci burada ikinci bir kategori listesi taşımaz.
+      firmInfoIsBrand = !!(office && office.isBrand);
       renderFirmEditBtn();
-      // Aynı anahtar için ikinci kez ağ isteği atma — loadMyClaims her loadUser()'da çalışıyor.
-      if (firmInfoKey === officeKey) return;
-      firmInfoKey = officeKey;
-      let office = null;
-      try {
-        const res = await fetch(`/api/office/${encodeURIComponent(officeKey)}`);
-        if (res.ok) office = (await res.json()).item;
-      } catch {}
-      // Firma künyesi çekilemediyse (ağ hatası ya da henüz canonical'a senkronlanmamış bekleyen bir
-      // talep) en azından adı gösterilir — kutu asla "Yükleniyor…"da takılı kalmaz.
-      const rows = [['Firma', office ? office.name : officeKey]];
+      // Künye çekilemediyse (ağ hatası ya da henüz canonical'a senkronlanmamış bekleyen bir talep)
+      // en azından adı gösterilir.
+      const rows = [[firmInfoIsBrand ? 'Marka' : 'Firma', office ? office.name : entry.key]];
       if (office) {
         // cats üç biçimde gelebilir (JSON dizi / ' · ' ayrımlı string / null) — office-kind.js#
         // officeCatList'in tarayıcı tarafında yüklü olduğuna güvenmek yerine (bu dosya onu <script>
@@ -3196,12 +3277,17 @@ const AuthModal = (function () {
         if (cats) rows.push(['Hizmet Alanı', cats]);
         if (office.yil) rows.push(['Kuruluş Yılı', String(office.yil)]);
       }
-      // "Görevin": önce hesabın kendi pozisyonu, o boşsa mimar kaydındaki rol (fallback kaynağıyla
-      // AYNI kayıttan gelir, bkz. yukarısı architectRole).
-      if (accountUser && accountUser.position) rows.push(['Görevin', accountUser.position]);
-      else if (architectRole) rows.push(['Görevin', architectRole]);
-      const slug = office && office.slug ? office.slug : '';
-      if (slug) { firmInfoSlug = slug; renderFirmEditBtn(); }
+      // "Görevin": önce bu talebin ONAY ANINDA dondurulmuş pozisyonu (firmaya ÖZGÜ tek doğru değer),
+      // o yoksa hesabın kendi pozisyonu, o da yoksa mimar kaydındaki rol (fallback kaynağıyla AYNI
+      // kayıttan gelir, bkz. entry.role).
+      const role = entry.position || (accountUser && accountUser.position) || entry.role;
+      if (role) rows.push(['Görevin', role]);
+      // Bekleyen talep — durum bilgisi eskiden altındaki #am-claims-mine-list satırında duruyordu;
+      // artık her firma kendi sayfasında göründüğü için durum da o sayfada yazar.
+      if (entry.status && entry.status !== 'approved') {
+        rows.push(['Durum', CLAIM_STATUS_LABELS_ACCOUNT[entry.status] || entry.status]);
+      }
+      const slug = firmInfoSlug;
       // Firma satırında, firmanın rozeti varsa adının yanında gösterilir (kullanıcı isteği,
       // 2026-09-02 madde 4). Kaynak amPublicBadges — profilde FİİLEN görünen rozet haritası; satın
       // alınan ve admin tarafından verilen rozeti sunucuda zaten birleştirir, yani buradaki rozet
@@ -3209,28 +3295,56 @@ const AuthModal = (function () {
       // Yalnızca ONAYLI sahiplenmede gösterilir: bekleyen bir talepte firma henüz kullanıcının
       // değildir.
       const firmBadgeList = firmInfoApproved
-        ? (amPublicBadges.office && amPublicBadges.office[officeKey])
+        ? (amPublicBadges.office && amPublicBadges.office[entry.key])
         : null;
       const firmBadgeType = firmBadgeList && firmBadgeList.length ? firmBadgeList[0] : null;
+      // Kanonik önek: saf markalar /marka/:slug, geri kalanlar /firma/:slug (bkz.
+      // src/lib/officeUrl.js#officePath) — yanlış önekte sunucu zaten 301 atar, ama doğrudan doğru
+      // adrese gitmek bir gereksiz gidiş-dönüşü önler.
+      const detailBase = firmInfoIsBrand ? '/marka/' : '/firma/';
       box.innerHTML = rows.map(([label, value], i) => `
         <div class="profile-fact">
           <span class="profile-fact-label">${escapeHtml(label)}</span>
           <span class="profile-fact-value">${i === 0 && slug
-            ? `<a href="/firma/${encodeURIComponent(slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(value)}</a>`
+            ? `<a href="${escapeAttr(detailBase + encodeURIComponent(slug))}" style="color:var(--walnut); font-weight:600;">${escapeHtml(value)}</a>`
             : escapeHtml(value)}${i === 0 && firmBadgeType ? accountBadgeIconHtml(firmBadgeType) : ''}</span>
         </div>`).join('');
+      renderFirmPagination();
       renderClaimsList();
     }
 
-    // "Firma Bilgileri" kutusunun kendi "Profili Düzenle" butonu (kullanıcı isteği, 2026-09-01
-    // madde 1: "Firma bilgilerini sadece firma kurucusu, kurucu ortağı, ortağı ya da ekip lideri
-    // değiştirebilsin. Ekip üyesi olanlar değiştiremesin."). Kural İçeriklerim'deki eski
+    // "1, 2 …" sayfa düğmeleri (kullanıcı isteği, 2026-09-07 madde 1). Bildirimler/Mesajlar'ın
+    // renderDashPagination'ı BİLEREK kullanılmıyor: o, sığmayan sayfaları "1 2 … 9" gibi kısaltmak
+    // için el.scrollWidth/clientWidth ölçer ve kutu HENÜZ GÖRÜNÜR DEĞİLKEN (Hesabım paneli açılırken
+    // içerik display:none'ken çizilir) clientWidth 0 ölçüldüğünden 4 sayfayı bile "1 2 … 4" diye
+    // kısaltıyordu. Bir kullanıcının firma/marka sayısı avuç içi kadar olduğundan burada TÜM sayfa
+    // numaraları basılır — kutu görünür olmadan da doğru çizilir. Görsel olarak fark yok: aynı
+    // .page-btn sınıfları (bkz. injectStyles).
+    function renderFirmPagination() {
+      const el = document.getElementById('am-firm-pagination');
+      if (!el) return;
+      const total = firmEntries.length;
+      if (total <= 1) { el.innerHTML = ''; return; }
+      el.innerHTML = Array.from({ length: total }, (_, i) => {
+        const n = i + 1;
+        return `<button type="button" class="page-btn${n === firmPage ? ' active' : ''}" data-page="${n}"${n === firmPage ? ' aria-current="true"' : ''}>${n}</button>`;
+      }).join('');
+      el.querySelectorAll('[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          firmPage = parseInt(btn.dataset.page, 10);
+          renderFirmPage();
+          ensureFirmOffice();
+        });
+      });
+    }
+
+    // "Firma / Marka Bilgileri" kutusunun kendi "Profili Düzenle" butonu (kullanıcı isteği,
+    // 2026-09-01 madde 1: "Firma bilgilerini sadece firma kurucusu, kurucu ortağı, ortağı ya da ekip
+    // lideri değiştirebilsin. Ekip üyesi olanlar değiştiremesin."). Kural İçeriklerim'deki eski
     // "Kişi/Firma Profilim" satırıyla (o kutu bu istekle KALDIRILDI, bkz. contentsTemplate) ve
     // sunucudaki src/routes/submissions.js#OFFICE_EDIT_POSITIONS ile BİREBİR aynı — istemci burada
-    // yalnızca butonu gizler, asıl yetki kontrolü her zaman sunucuda tekrar yapılır.
-    // accountUser (pozisyon) ve firma talebi (loadMyClaims) BAĞIMSIZ/paralel yüklendiğinden bu
-    // fonksiyon her ikisinin de bittiği yerlerden ayrı ayrı çağrılır — hangisi sonra biterse
-    // butonu doğru duruma getirir (renderClaimsList ile AYNI desen).
+    // yalnızca butonu gizler, asıl yetki kontrolü her zaman sunucuda tekrar yapılır. Buton HER ZAMAN
+    // kutuda O AN AÇIK OLAN sayfanın firmasını hedefler (bkz. renderFirmPage).
     //
     // gerçek bulgu (denetim, 2026-09-04, bkz. js/components/claim-correction-box.js#
     // renderProfileEditButton'daki AYNI düzeltme): burada accountUser.position (CANLI pozisyon)
@@ -3244,7 +3358,10 @@ const AuthModal = (function () {
       const canEdit = !!firmInfoSlug && firmInfoApproved
         && OFFICE_EDIT_POSITIONS.has(firmInfoPosition);
       btn.style.display = canEdit ? '' : 'none';
-      if (canEdit) btn.href = `${CLAIM_EDIT_PAGE.office}?claim=${encodeURIComponent(firmInfoSlug)}`;
+      // Saf markalar marka-ekle.html'den düzenlenir (bkz. js/components/office-modal.js#editUrlBase
+      // ile AYNI karar) — firma-ekle.html'in Hizmet Alanı kutucukları marka kategorilerini hiç
+      // içermediğinden bir markayı oradan kaydetmek cats'ini sessizce boşaltırdı.
+      if (canEdit) btn.href = `${claimEditPageForOffice(firmInfoIsBrand)}?claim=${encodeURIComponent(firmInfoSlug)}`;
     }
 
     async function syncClaimedArchitectData(items) {
@@ -3333,6 +3450,47 @@ const AuthModal = (function () {
     function consultationIdFromLink(link) {
       return link && link.startsWith('consultation:') ? link.slice('consultation:'.length) : null;
     }
+    // Onaylanan/atanan bir FİRMA veya MARKA sahiplenme talebi — link "claim:office:<firma adı>"
+    // biçimindedir (bkz. src/routes/admin.js#claimNotificationLink), threadIdFromLink/
+    // consultationIdFromLink ile AYNI kalıp. Kullanıcı isteği (2026-09-07 madde 2): "bu bildirime
+    // tıklayınca profili düzenle sayfası değil firma ekle/düzenle ya da marka/ekle düzenle sayfası
+    // açılsın".
+    function claimOfficeKeyFromLink(link) {
+      return link && link.startsWith('claim:office:') ? link.slice('claim:office:'.length) : null;
+    }
+    // Kutuyu (Firma / Marka Bilgileri) o firmanın sayfasına getirir ve oraya kaydırır — düzenleme
+    // yetkisi OLMAYAN bir onayda (ör. Ekip Üyesi) doğru varış noktası budur: kullanıcı boş yere
+    // doldurup 403 alacağı bir form yerine, hesabına yeni bağlanan künyeyi görür.
+    function showFirmPageFor(officeKey) {
+      const idx = firmEntries.findIndex(e => foldTrAm(e.key) === foldTrAm(officeKey));
+      if (idx !== -1) { firmPage = idx + 1; renderFirmPage(); ensureFirmOffice(); }
+      const box = document.getElementById('am-firm-facts');
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    // Firma mı marka mı? Kararın TEK kaynağı sunucudur (/api/office/:key → isBrand, bkz.
+    // office-kind.js#isPureBrandOffice) — bildirim linki bu bilgiyi TAŞIMAZ, çünkü bir profil
+    // onaydan sonra da marka olabilir (ürün eklenmesi yeter). Hedef sayfa bu yüzden tıklama anında
+    // çözülür; künye zaten firmOfficeCache'te olabilir (kutu onu çekmiş olabilir), o zaman ek istek
+    // yoktur.
+    async function openOfficeClaimEditor(officeKey) {
+      // Yetki kontrolü renderFirmEditBtn ile BİREBİR aynı: talebin ONAY ANINDA dondurulmuş
+      // office_position'ı (CANLI accountUser.position DEĞİL — bkz. renderFirmEditBtn'deki gerçek
+      // bulgu) yetkili pozisyonlardan biri olmalı; asıl kontrol her zaman sunucuda tekrarlanır.
+      const folded = foldTrAm(officeKey);
+      const claim = amClaimItems.find(c => c.profile_type === 'office' && c.status === 'approved'
+        && foldTrAm(c.profile_key) === folded);
+      if (!claim || !OFFICE_EDIT_POSITIONS.has(claim.officePosition || null)) { showFirmPageFor(officeKey); return; }
+      let office = firmOfficeCache[officeKey];
+      if (office === undefined) {
+        try {
+          const res = await fetch(`/api/office/${encodeURIComponent(officeKey)}`);
+          office = res.ok ? ((await res.json()).item || null) : null;
+        } catch { office = null; }
+        firmOfficeCache[officeKey] = office;
+      }
+      const slug = (office && office.slug) || claim.slug || officeKey;
+      window.location.href = `${claimEditPageForOffice(!!(office && office.isBrand))}?claim=${encodeURIComponent(slug)}`;
+    }
     let consultationDetailModalLoad = null;
     function ensureConsultationDetailModalLoaded() {
       if (typeof ConsultationDetailModal !== 'undefined') return Promise.resolve();
@@ -3409,7 +3567,13 @@ const AuthModal = (function () {
             .catch(() => { window.location.href = '/rozet-al'; }),
         };
       }
-      // Profil sahiplenme kararı (onay/ret) — her iki durumda da yapılacak iş Profili Düzenle
+      // Onaylanan/atanan FİRMA veya MARKA talebi doğrudan firma-ekle.html / marka-ekle.html'e
+      // gider (kullanıcı isteği, 2026-09-07 madde 2) — yetki yoksa kutunun o sayfasına kaydırır,
+      // bkz. openOfficeClaimEditor.
+      const claimOfficeKey = claimOfficeKeyFromLink(item.link);
+      if (claimOfficeKey) return { navigates: true, run: () => openOfficeClaimEditor(claimOfficeKey) };
+      // Profil sahiplenme kararı (onay/ret) — geri kalan durumlarda (mimar talepleri ve bu değişiklikten
+      // ÖNCE oluşmuş, link'i 'hesabim.html' olan eski firma bildirimleri) yapılacak iş Profili Düzenle
       // ekranındadır: onaylanan profil oradan düzenlenir, reddedilen talepte başka bir kişi/firma
       // seçilir (bkz. submitFirmaClaimIfChanged).
       if (item.type === 'claim_approved' || item.type === 'claim_rejected') return { run: () => openAmProfileEditPopup() };

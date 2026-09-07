@@ -82,7 +82,33 @@ const TYPE_BY_PATH = Object.assign(Object.create(null), {
 // "Onayla" düğmesi VE admin'in "Düzenle / İncele"den kaydetmesi, bkz. src/routes/submissions.js#
 // updateOwnSubmission), bu yüzden metin/bağlantı üretimi tek bir paylaşılan yere taşındı.
 
-const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
+// Bildirim başlıklarında görünen tip etiketi. 'Firma / Marka' (kullanıcı isteği, 2026-09-07 madde 2)
+// — profile_claims('office') hem firmaları hem markaları taşır (ayrımın TEK kaynağı office-kind.js#
+// isPureBrandOffice, talep satırında böyle bir alan yok), bu yüzden başlık ikisini de kapsar.
+const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma / Marka' };
+// Onaylanan bir sahiplenme talebinin bildirim `link`i. Kullanıcı isteği (2026-09-07 madde 2): "bu
+// bildirime tıklayınca profili düzenle sayfası değil firma ekle/düzenle ya da marka/ekle düzenle
+// sayfası açılsın". Firma mı marka mı olduğuna SUNUCU burada karar VERMEZ — karar /api/office/:key
+// yanıtındaki isBrand'dedir (office-kind.js, ürün sayısına da bakar) ve bir profil sonradan marka
+// olabilir; bu yüzden link yalnızca "hangi talep" bilgisini taşır, hedef sayfayı istemci çözer
+// (bkz. js/components/auth-modal.js#claimRefFromLink). Mimar talepleri eski davranışını korur
+// ('hesabim.html' → Profili Düzenle popup'ı).
+function claimNotificationLink(profileType, profileKey) {
+  return profileType === 'office' ? `claim:office:${profileKey}` : 'hesabim.html';
+}
+// Bildirim gövdesi, onayın GERÇEKTEN verdiği yetkiyi söylemeli: bir ofis talebi Ekip Üyesi gibi
+// yetkisiz bir pozisyonla onaylandığında künye düzenlenemez (bkz. src/routes/submissions.js#
+// OFFICE_EDIT_POSITIONS ile BİREBİR aynı küme) — "artık düzenleyebilirsin" demek kullanıcıyı 403
+// alacağı bir forma yollardı. İstemci de AYNI kuralı uygular (bkz. js/components/auth-modal.js#
+// openOfficeClaimEditor: yetki yoksa bildirim düzenleme sayfasına değil, Hesabım'daki künye
+// sayfasına götürür).
+const CLAIM_OFFICE_EDIT_POSITIONS_SERVER = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+function claimApprovedBody(profileType, profileKey, officePosition) {
+  if (profileType === 'office' && !CLAIM_OFFICE_EDIT_POSITIONS_SERVER.has(officePosition || '')) {
+    return `"${profileKey}" ile bağlantın onaylandı. Künyeyi yalnızca kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir.`;
+  }
+  return `"${profileKey}" profilini artık düzenleyebilirsin.`;
+}
 const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };
 
 async function requireAdmin(request, env) {
@@ -789,8 +815,8 @@ async function handleClaimsAdmin(request, env, url, segments) {
     await createNotification(
       env, userId, 'claim_approved',
       `${typeLabel} profili hesabına bağlandı`,
-      `"${profileKey}" profilini artık Hesabım sayfandan düzenleyebilirsin.`,
-      'hesabim.html'
+      claimApprovedBody(profileType, profileKey, officePosition),
+      claimNotificationLink(profileType, profileKey)
     );
     return json({ ok: true });
   }
@@ -836,13 +862,17 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // onayın yetkisini artık ETKİLEMEZ (P1 güvenlik düzeltmesi). Admin bir claim'i tekrar
     // onaylarsa (bu uç yeniden çağrılırsa) snapshot o andaki güncel position ile YENİLENİR.
     let officePositionUpdate = '';
+    // Bildirim gövdesi de bu değeri okur (bkz. claimApprovedBody) — dondurulan pozisyon düzenleme
+    // yetkisini belirlediğinden, kullanıcıya ne söyleneceğini de o belirler.
+    let approvedOfficePosition = null;
     const bindArgs = [body.status, Date.now()];
     if (body.status === 'approved' && claim.profile_type === 'office') {
       const claimUser = await env.DB.prepare('SELECT position FROM users WHERE id = ?').bind(claim.user_id).first();
       officePositionUpdate = ', office_position = ?';
       // bkz. dosya üstündeki OFFICE_POSITIONS_ADMIN gerekçesi — admin panelindeki pozisyon seçici
       // bu alanı gönderir; gönderilmezse (eski istemci) davranış aynen korunur.
-      bindArgs.push(normalizeOfficePosition(body.officePosition) || (claimUser ? (claimUser.position || null) : null));
+      approvedOfficePosition = normalizeOfficePosition(body.officePosition) || (claimUser ? (claimUser.position || null) : null);
+      bindArgs.push(approvedOfficePosition);
     }
     bindArgs.push(id);
     await env.DB.prepare(
@@ -860,8 +890,8 @@ async function handleClaimsAdmin(request, env, url, segments) {
       await createNotification(
         env, claim.user_id, 'claim_approved',
         `${typeLabel} profili talebin onaylandı`,
-        `"${claim.profile_key}" profilini artık Hesabım sayfandan düzenleyebilirsin.`,
-        'hesabim.html'
+        claimApprovedBody(claim.profile_type, claim.profile_key, approvedOfficePosition),
+        claimNotificationLink(claim.profile_type, claim.profile_key)
       );
     } else {
       await createNotification(

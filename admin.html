@@ -230,6 +230,8 @@
   .ud-claims-col h4{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13px; font-weight:700; margin:0 0 8px; color:var(--ink-soft);}
   .ud-assign-box{margin-top:10px; position:relative;}
   .ud-assign-box input{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink);}
+  .ud-assign-position-label{display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft); margin:0 0 4px;}
+  .ud-assign-box select{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); margin-bottom:8px;}
   .ud-assign-results{margin-top:4px; max-height:180px; overflow-y:auto; border:1px solid var(--line); border-radius:9px; background:var(--paper-card);}
   .ud-assign-results:empty{display:none; border:none;}
   .ud-assign-result-row{padding:8px 11px; font-size:12.5px; cursor:pointer; border-bottom:1px solid var(--line-soft);}
@@ -540,10 +542,18 @@
             </div>
           </div>
           <div class="ud-claims-col">
-            <h4>Firma</h4>
+            <h4>Firma / Marka</h4>
             <div id="ud-claims-office-list"></div>
             <div class="ud-assign-box">
-              <input type="text" id="ud-assign-office-q" placeholder="Atamak için firma ara…">
+              <!-- Atamada DONDURULACAK görev (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN). Bu
+                   kutu olmadan POST /api/admin/claims kullanıcının o anki users.position'ına
+                   düşüyordu; yeni üye olmuş bir kullanıcıda o alan NULL olduğundan atama onaylı
+                   görünüyor ama künyeyi düzenleme yetkisi VERMİYORDU (bekleyen talep akışındaki
+                   pozisyon seçicinin çözdüğü AYNI tuzak — bkz. claimPositionPickerHtml). Varsayılan
+                   "Kurucu": bir firma/marka bir üyeye atanırken beklenen tipik ilişki budur. -->
+              <label class="ud-assign-position-label" for="ud-assign-office-position">Görev</label>
+              <select id="ud-assign-office-position"></select>
+              <input type="text" id="ud-assign-office-q" placeholder="Atamak için firma veya marka ara…">
               <div class="ud-assign-results" id="ud-assign-office-results"></div>
             </div>
           </div>
@@ -1657,9 +1667,15 @@ function renderUdClaimCol(containerId, items){
 // (bekleyen talep akışını atlayarak) o kullanıcıya onaylı bir profile_claims olarak atar (bkz.
 // kullanıcı isteği: "admin panelinden tüm mimar ve firmaları görebileceğim şekilde açılır bir menü
 // yap ... o profil o kullanıcıya atanmış olsun").
-function wireUdAssign(profileType, inputId, resultsId){
+function wireUdAssign(profileType, inputId, resultsId, positionSelectId){
   const input = document.getElementById(inputId);
   const results = document.getElementById(resultsId);
+  // Firma/marka atamasında dondurulacak görev — bkz. markup'taki gerekçe. Yalnızca office için var.
+  const positionSel = positionSelectId ? document.getElementById(positionSelectId) : null;
+  if(positionSel){
+    positionSel.innerHTML = UD_POSITIONS.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
+    positionSel.value = 'Kurucu';
+  }
   let timer = null;
   function runSearch(){
     clearTimeout(timer);
@@ -1673,9 +1689,11 @@ function wireUdAssign(profileType, inputId, resultsId){
         row.addEventListener('click', async ()=>{
           if(!udCurrentUserId) return;
           row.style.opacity = '0.5';
+          const payload = { userId: udCurrentUserId, profileType, profileKey: row.dataset.name };
+          if(positionSel && positionSel.value) payload.officePosition = positionSel.value;
           await api('/api/admin/claims', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ userId: udCurrentUserId, profileType, profileKey: row.dataset.name }),
+            body: JSON.stringify(payload),
           });
           input.value = '';
           results.innerHTML = '';
@@ -1688,7 +1706,7 @@ function wireUdAssign(profileType, inputId, resultsId){
   input.addEventListener('focus', ()=>{ if(!results.innerHTML) runSearch(); });
 }
 wireUdAssign('architect', 'ud-assign-architect-q', 'ud-assign-architect-results');
-wireUdAssign('office', 'ud-assign-office-q', 'ud-assign-office-results');
+wireUdAssign('office', 'ud-assign-office-q', 'ud-assign-office-results', 'ud-assign-office-position');
 
 async function loadUdSubmissions(userId){
   const container = document.getElementById('ud-submissions-list');
