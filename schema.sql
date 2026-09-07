@@ -990,6 +990,11 @@ CREATE TABLE IF NOT EXISTS gundem_items (
 );
 CREATE INDEX IF NOT EXISTS idx_gundem_items_published ON gundem_items(status, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gundem_items_category ON gundem_items(status, category, published_at DESC);
+-- Liste sıralaması GÖSTERİLEN tarihe göre yapılır (bkz. src/routes/gundem.js#GUNDEM_SORT ve
+-- migrations/0100). Yukarıdaki iki published_at index'i ingest tarafında (günlük tavan, mükerrer
+-- penceresi) kullanılmaya devam ettiği için düşürülmedi.
+CREATE INDEX IF NOT EXISTS idx_gundem_items_sorted ON gundem_items(status, COALESCE(source_published_at, published_at) DESC);
+CREATE INDEX IF NOT EXISTS idx_gundem_items_cat_sorted ON gundem_items(status, category, COALESCE(source_published_at, published_at) DESC);
 CREATE INDEX IF NOT EXISTS idx_gundem_items_content_hash ON gundem_items(content_hash);
 CREATE INDEX IF NOT EXISTS idx_gundem_items_title_key ON gundem_items(title_key);
 CREATE INDEX IF NOT EXISTS idx_gundem_items_canonical ON gundem_items(canonical_url);

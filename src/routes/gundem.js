@@ -32,6 +32,27 @@ const MAX_LIMIT = 24;
 const LIST_COLUMNS = `id, slug, title, summary, image_url, source_name, source_domain, source_url,
   source_published_at, published_at, category, source_id`;
 
+// SIRALAMA EKSENİ — kullanıcı isteği (2026-09-07): "Gündem içeriklerini her zaman en yakın
+// tarihten en eskiye doğru sırala."
+//
+// KARTIN GÖSTERDİĞİ tarih source_published_at'tir (bkz. shapeItem#date ve seo.js#datePublished:
+// ikisi de `source_published_at || published_at`). Sıralama ise published_at'e (MİMARLAB'a yazılma
+// anı) göre yapılıyordu. Cron turunda ikisi dakikalar içinde birbirini izlediği için fark
+// GÖRÜNMÜYORDU; 2026-09-07'de 154 kayıt tek turda yazılınca kartlar "3 Eylül, 31 Ağustos, 2 Eylül"
+// gibi sırasız göründü. O gün veri hizalanarak (published_at = source_published_at) geçici olarak
+// düzeltilmişti — bu, her toplu yazımdan sonra tekrarlanması gereken bir el işiydi.
+//
+// KALICI ÇÖZÜM: sıralamayı GÖSTERİLEN tarihin kendisine bağla. Böylece published_at'in ne tuttuğu
+// (ingest anı) sıralamayı hiç etkilemez ve tek bir kayıt bile toplu yazılsa sıra doğru kalır.
+// published_at KENDİ anlamında kalmaya devam eder: günlük yayın tavanı ve siteler arası mükerrer
+// penceresi (bkz. gundemIngest.js) hâlâ ingest anına bakar — onlar ingest hızını ölçer, içerik
+// tarihini değil.
+//
+// INDEX: bu ifade için migrations/0100'de İFADE INDEX'İ tanımlıdır (idx_gundem_items_sorted /
+// _cat_sorted). İfade birebir aynı yazılmalı — SQLite ifade index'ini ancak METİN olarak eşleşen
+// ifadede kullanır, bu yüzden sorgular bu sabiti paylaşır, ifadeyi elle tekrarlamaz.
+export const GUNDEM_SORT = 'COALESCE(source_published_at, published_at) DESC';
+
 function shapeItem(row, entitiesByItem) {
   return {
     // id — YALNIZCA admin kontrollerinin hedefi (bkz. js/pages/gundem.js#applyAdminControls).
@@ -108,7 +129,7 @@ async function handleGundemList(request, env, url) {
 
     if (search) {
       const { results } = await env.DB.prepare(
-        `SELECT ${LIST_COLUMNS} FROM gundem_items WHERE ${whereSql} ORDER BY published_at DESC LIMIT 400`
+        `SELECT ${LIST_COLUMNS} FROM gundem_items WHERE ${whereSql} ORDER BY ${GUNDEM_SORT} LIMIT 400`
       ).bind(...binds).all();
       const needle = foldTr(search);
       const filtered = results.filter(r =>
@@ -135,7 +156,7 @@ async function handleGundemList(request, env, url) {
     // sırasıdır ve tablo mertebesi yüzlerdir — offset taraması index üzerinde kalır. Sayfa sayısı
     // ayrıca hasMore ile sınırlıdır (sonsuz kaydırma en fazla birkaç sayfa gider).
     const { results } = await env.DB.prepare(
-      `SELECT ${LIST_COLUMNS} FROM gundem_items WHERE ${whereSql} ORDER BY published_at DESC LIMIT ? OFFSET ?`
+      `SELECT ${LIST_COLUMNS} FROM gundem_items WHERE ${whereSql} ORDER BY ${GUNDEM_SORT} LIMIT ? OFFSET ?`
     ).bind(...binds, limit, (page - 1) * limit).all();
     const entities = await loadEntities(env, results.map(r => r.id));
     return {
@@ -177,7 +198,7 @@ async function handleGundemDetail(request, env, url, slug) {
 // /gundem liste sayfasının SSR gövdesi (ilk sayfa kadar).
 export async function gundemSsrListBody(env) {
   const { results } = await env.DB.prepare(
-    `SELECT ${LIST_COLUMNS} FROM gundem_items WHERE status = 'published' ORDER BY published_at DESC LIMIT ?`
+    `SELECT ${LIST_COLUMNS} FROM gundem_items WHERE status = 'published' ORDER BY ${GUNDEM_SORT} LIMIT ?`
   ).bind(GUNDEM_PAGE_SIZE).all();
   return gundemSsrList(results);
 }
@@ -186,7 +207,7 @@ export async function gundemSsrListBody(env) {
 // "sitemap'a yalnızca gerçekten indexlenmesi amaçlanan URL'leri ekle" (madde 14).
 export async function listGundemSitemapUrls(env) {
   const { results } = await env.DB.prepare(
-    `SELECT slug, updated_at FROM gundem_items WHERE status = 'published' ORDER BY published_at DESC`
+    `SELECT slug, updated_at FROM gundem_items WHERE status = 'published' ORDER BY ${GUNDEM_SORT}`
   ).all();
   return results.map(r => [`${SITE_ORIGIN}/gundem/${encodeURIComponent(r.slug)}`, r.updated_at || null]);
 }

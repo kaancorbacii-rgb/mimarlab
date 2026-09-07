@@ -219,6 +219,27 @@ else
   bad "src/index.js — CSP img-src artık GUNDEM_IMAGE_HOSTS'tan türetilmiyor (Gündem görselleri engellenir)"
 fi
 
+# Gündem sıralaması GÖSTERİLEN tarihe göre olmalı (kullanıcı isteği 2026-09-07: "her zaman en
+# yakın tarihten en eskiye"). Kart source_published_at gösterir; sıralama published_at'e (ingest
+# anı) dönerse fark normal cron turunda GÖRÜNMEZ ve ancak toplu bir yazımda ortaya çıkar — yani
+# sessizce geri gelebilecek bir regresyondur. Bu yüzden statik olarak kontrol edilir.
+gundem_sort_raw=$(grep -c 'ORDER BY published_at DESC' src/routes/gundem.js src/routes/gundemAdmin.js | awk -F: '{s+=$2} END {print s+0}')
+if ! grep -q "^export const GUNDEM_SORT = 'COALESCE(source_published_at, published_at) DESC';" src/routes/gundem.js; then
+  bad "src/routes/gundem.js — GUNDEM_SORT sabiti kayıp/değişmiş (liste sıralaması gösterilen tarihe bağlı olmalı)"
+elif [ "$gundem_sort_raw" != "0" ]; then
+  bad "gundem sıralaması ayrışmış: $gundem_sort_raw sorgu hâlâ ham 'ORDER BY published_at DESC' kullanıyor"
+else
+  ok "gundem liste sıralaması gösterilen tarihe bağlı (GUNDEM_SORT)"
+fi
+
+# İfade index'i sıralama ifadesiyle BİREBİR eşleşmeli — SQLite ifade index'ini yalnızca yapısı
+# eşleşen ifadede kullanır; ayrışırsa sorgu sessizce tam tablo taramasına düşer.
+if grep -q 'COALESCE(source_published_at, published_at) DESC' schema.sql; then
+  ok "schema.sql — gundem sıralama index'i mevcut ve ifadeyle hizalı"
+else
+  bad "schema.sql — gundem sıralama index'i kayıp (liste sorguları tam tablo taramasına düşer)"
+fi
+
 rm -f /tmp/preflight_gundem
 
 echo ""

@@ -410,7 +410,12 @@ async function withSingleFlight(key, fn) {
 //     AYNI tuzağı: hiçbir satırın updated_at'i değişmediğinden fingerprint aynı kalır; sürüm
 //     artırılmazsa /gundem'i daha önce açmış ziyaretçiler 304 alıp eski gövdede takılır ve
 //     kaldırılan iki çipi görmeye devam ederdi.
-const API_PAYLOAD_VERSION = 'v20';
+// v21 (kullanıcı isteği, 2026-09-07): /api/gundem artık GÖSTERİLEN tarihe göre sıralanıyor
+//     (COALESCE(source_published_at, published_at) DESC — bkz. src/routes/gundem.js#GUNDEM_SORT).
+//     v5-v20'nin AYNI tuzağı ve burada ÖZELLİKLE sinsi: sıralama değişikliği hiçbir SATIRI
+//     değiştirmez, yani listFingerprint (COUNT + MAX(updated_at)) BİREBİR aynı kalır. Sürüm
+//     artırılmazsa önbellekteki gövde "taze" sayılır ve ziyaretçiler eski sırada takılırdı.
+const API_PAYLOAD_VERSION = 'v21';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

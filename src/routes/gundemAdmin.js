@@ -15,6 +15,9 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { purgeGundemCache } from '../lib/gundemCache.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
+// Admin listesi de PUBLIC listeyle AYNI sırayı göstermeli — yönetici, ziyaretçinin gördüğü
+// sırayı görmezse "şu kart neden yukarıda" sorusu cevapsız kalır (bkz. gundem.js#GUNDEM_SORT).
+import { GUNDEM_SORT } from './gundem.js';
 
 // Admin'in değiştirebileceği alanlar — BİLEREK dar. Kategori de düzenlenebilir çünkü otomatik
 // sınıflandırma en çok orada yanılır; slug/source_url/content_hash gibi KİMLİK ve MÜKERRER
@@ -114,7 +117,7 @@ async function listGundemAdmin(env) {
   const { results } = await env.DB.prepare(
     `SELECT id, slug, title, summary, image_url, category, status, source_name, source_url,
             source_published_at, published_at
-       FROM gundem_items ORDER BY published_at DESC LIMIT 200`
+       FROM gundem_items ORDER BY ${GUNDEM_SORT} LIMIT 200`
   ).all();
   return json({ items: results });
 }
