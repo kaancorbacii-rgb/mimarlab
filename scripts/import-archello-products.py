@@ -200,6 +200,35 @@ def flush_derivative_queue(dry_run):
     return n
 
 
+# Görsel arama dizini — İMPORT SONRASI ZORUNLU ADIM (arama denetimi, 2026-09-07).
+# İçe aktarılan ürünler/projeler tarayıcıdaki CLIP yolundan (image-clip-embed.js →
+# /api/ai/image-embed) geçmediği için görsel arama dizinine KENDİLİĞİNDEN GİRMEZ; 2026-09-07'de
+# ölçüldü: 754 ürünün yalnızca 188'i dizindeydi. Bu adım build-image-embeddings.py'nin artımlı
+# modunu (--only-changed: değişmeyen varlıkların vektörleri taşınır, yalnızca yeni/değişmiş
+# görseller embed edilir) izole venv ile çalıştırır — sistem python'unda onnxruntime YOKTUR.
+CLIP_VENV_PY = os.environ.get('CLIP_VENV_PY', '/tmp/clip_env/bin/python3')
+
+def sync_visual_index(entity_type, dry_run):
+    """entity_type: 'product' | 'project'. Import'un D1 yazımı BİTTİKTEN sonra çağrılır.
+    Başarısızlık import'u geri almaz (veri zaten yazıldı) — elle çalıştırılacak komutu basar."""
+    cmd = [CLIP_VENV_PY, os.path.join(ROOT, 'scripts', 'build-image-embeddings.py'),
+           '--type', entity_type, '--max-images', '0', '--only-changed']
+    if dry_run:
+        print(f'  [dry-run] görsel dizin senkronu çalıştırılmazdı: {" ".join(cmd)}')
+        return False
+    if not os.path.exists(CLIP_VENV_PY):
+        print(f'  UYARI: CLIP venv yok ({CLIP_VENV_PY}) — görsel arama dizini GÜNCELLENMEDİ. Kurup şunu çalıştır:\n'
+              f'    python3 -m venv /tmp/clip_env && /tmp/clip_env/bin/pip install onnxruntime pillow numpy transformers huggingface_hub requests\n'
+              f'    {" ".join(cmd)}', file=sys.stderr)
+        return False
+    print(f'  görsel dizin senkronu ({entity_type}) başlıyor…')
+    r = subprocess.run(cmd, cwd=ROOT)
+    if r.returncode != 0:
+        print(f'  UYARI: görsel dizin senkronu başarısız (kod {r.returncode}) — elle tekrar: {" ".join(cmd)}', file=sys.stderr)
+        return False
+    return True
+
+
 # --------------------------------------------------------------------------------------------
 # 1) Markalar
 # --------------------------------------------------------------------------------------------
@@ -405,6 +434,9 @@ def main():
     # "önce içerik, sonra optimizasyon" tutmak akışı okunur kılıyor.
     print('\n--- 6) Responsive türev kuyruğu ---')
     flush_derivative_queue(args.dry_run)
+
+    print('\n--- Görsel arama dizini (ürün) ---')
+    sync_visual_index('product', args.dry_run)
 
     out = os.path.join(ROOT, 'scripts', 'output', 'archello-products-import-report.json')
     os.makedirs(os.path.dirname(out), exist_ok=True)

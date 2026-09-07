@@ -263,6 +263,44 @@ def pack_index(entities_with_keys, all_vectors, entity_type):
     body = b''.join(v.tobytes() for v in all_vectors)
     return struct.pack('<I', len(header_bytes)) + header_bytes + body
 
+
+# ============================================================================================
+# ARTIMLI MOD (--only-changed) — ürün/proje import betiklerinin son adımı (bkz.
+# import-archello-products.py#sync_visual_index). Canlı KV paketini okur, images listesi
+# DEĞİŞMEMİŞ varlıkların vektörlerini olduğu gibi taşır, yalnızca yeni/değişmiş varlıkların
+# görsellerini embed eder, silinmiş/gizlenmiş varlıkları düşürür. Hiçbir şey değişmediyse KV'ye
+# YAZMAZ. Gerekçe (arama denetimi, 2026-09-07): import serileri tarayıcı embedding yolundan
+# geçmediği için ürün dizini 754 üründen 188'ini içeriyordu — "Görsel ile Ürün Arama"
+# kataloğun dörtte üçünü bulamıyordu.
+# ============================================================================================
+def kv_get_index(entity_type):
+    """Canlı KV'deki paketi (bytes) döner; yoksa None."""
+    kv_key = f'vsearch:imgindex:{entity_type}:{INDEX_VERSION}'
+    res = requests.get(
+        f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/storage/kv/namespaces/'
+        f'{KV_NAMESPACE_ID}/values/{kv_key}',
+        headers={'Authorization': f'Bearer {TOKEN}'}, timeout=120)
+    if res.status_code == 404:
+        return None
+    res.raise_for_status()
+    return res.content
+
+def unpack_index(buf):
+    """pack_index'in tersi: {'entities': [{slug,count,keys,vectors:[np.int8...]}]}.
+    src/lib/imageEmbedIndex.js#unpackImageIndex ile AYNI biçim."""
+    (hlen,) = struct.unpack('<I', buf[:4])
+    header = json.loads(buf[4:4 + hlen].decode('utf-8'))
+    dim = int(header.get('dim') or DIM)
+    body = np.frombuffer(buf[4 + hlen:], dtype=np.int8)
+    out = []
+    off = 0
+    for e in header.get('entities', []):
+        c = int(e.get('c') or 0)
+        vecs = [body[(off + i) * dim:(off + i + 1) * dim].copy() for i in range(c)]
+        out.append({'slug': e['s'], 'count': c, 'keys': list(e.get('k') or []), 'vectors': vecs})
+        off += c
+    return {'header': header, 'dim': dim, 'entities': out}
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--type', choices=['project', 'product'], required=True)
@@ -271,6 +309,8 @@ def main():
     ap.add_argument('--workers', type=int, default=8)
     ap.add_argument('--max-images', type=int, default=MAX_IMAGES_PER_ENTITY,
                     help='varlık başına en fazla görsel; 0 = SINIRSIZ (bkz. MAX_IMAGES_PER_ENTITY notu)')
+    ap.add_argument('--only-changed', action='store_true',
+                    help='ARTIMLI: canlı KV paketini oku, yalnızca images listesi değişen/yeni varlıkları embed et, değişiklik yoksa yazma')
     ap.add_argument('--derivative', type=int, default=0,
                     help='görselleri /media/_derived/w<N>/ türevinden indir (0 = orijinal). CLIP zaten 224px kullanır.')
     args = ap.parse_args()
@@ -313,14 +353,40 @@ def main():
         for ii, u in enumerate(urls):
             jobs.append((ei, ii, u))
 
+    # --only-changed: images listesi (URL sırası dahil) canlı paketle BİREBİR aynı olan varlıklar
+    # yeniden embed edilmez, vektörleri taşınır. Sıra farkı bile "değişmiş" sayılır — dizin
+    # satırları galeri sırasıyla eşleştiği için (matchedImageOrdinal) sıra da anlam taşır.
+    reused = {}   # ei -> [np.int8 vektörler]
+    if args.only_changed:
+        existing_buf = kv_get_index(args.type)
+        existing = unpack_index(existing_buf)['entities'] if existing_buf else []
+        by_slug = {e['slug']: e for e in existing}
+        for ei, e in enumerate(entities):
+            prev = by_slug.get(e['slug'])
+            if prev and prev['keys'] == e['urls'] and prev['count'] == len(e['urls']) and e['urls']:
+                reused[ei] = prev['vectors']
+        jobs = [j for j in jobs if j[0] not in reused]
+        live_slugs = {e['slug'] for e in entities}
+        removed = [e['slug'] for e in existing if e['slug'] not in live_slugs]
+        changed = [entities[ei]['slug'] for ei in range(len(entities)) if ei not in reused and entities[ei]['urls']]
+        print(f'[{args.type}] artımlı: {len(reused)} varlık değişmemiş, {len(changed)} yeni/değişmiş, '
+              f'{len(removed)} dizinden düşecek')
+        if changed[:12]:
+            print(f'[{args.type}]   yeni/değişmiş: {", ".join(changed[:12])}{" …" if len(changed) > 12 else ""}')
+        if not changed and not removed:
+            print(f'[{args.type}] dizin güncel — KV\'ye yazılmadı.')
+            return
+
     total_images = len(jobs)
     print(f'[{args.type}] toplam indirilecek/embed edilecek görsel: {total_images}')
-    if not total_images:
+    if not total_images and not reused:
         print(f'[{args.type}] hiç görsel yok, çıkılıyor.')
         return
 
-    embedder = Embedder()
+    embedder = Embedder() if total_images else None
     vectors_by_entity = {ei: {} for ei in range(len(entities))}  # ei -> {ii: vector}
+    for ei, vecs in reused.items():
+        vectors_by_entity[ei] = {ii: v for ii, v in enumerate(vecs)}
     lock = threading.Lock()
     done = [0]
     failed = [0]
@@ -353,9 +419,10 @@ def main():
             if done[0] % 50 == 0 or done[0] == total_images:
                 print(f'\r[{args.type}] {done[0]}/{total_images} (hata: {failed[0]})   ', end='', flush=True)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as ex:
-        list(ex.map(worker, jobs))
-    print()
+    if jobs:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as ex:
+            list(ex.map(worker, jobs))
+        print()
 
     # Ardışık paketleme: yalnızca GERÇEKTEN embed edilmiş görseller yazılır (indirilemeyen/bozuk
     # olanlar o varlığın satır sayısını sessizce azaltır — brief madde 13: "missing/corrupt image"

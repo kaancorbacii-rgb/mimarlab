@@ -162,6 +162,11 @@ def main():
         print(f"\n[dry-run] bitti: {len(payload['create'])} create + {len(merged)} enrich görüntülendi, hiçbir şey yazılmadı.")
     else:
         print(f'\nbitti: {created} yeni proje, {enriched} zenginleştirilen proje.')
+
+    # Yeni/zenginleştirilen projelerin görselleri görsel arama dizinine girsin (bkz.
+    # import-archello-products.py#sync_visual_index — artımlı, yalnızca değişenler embed edilir).
+    print('\n--- Görsel arama dizini (project) ---')
+    imp.sync_visual_index('project', args.dry_run)
     return 0
 
 

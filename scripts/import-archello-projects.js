@@ -165,6 +165,22 @@ for (const p of todo) {
   console.log(`  + ${p.slug} -> id ${id} (${p.images.length} görsel, ofis: ${officeIds.length ? officeIds.map((o) => `#${o}`).join(',') : 'eşleşmedi'})`);
 }
 console.log(DRY ? 'dry-run bitti, hiçbir şey yazılmadı.' : `bitti: ${todo.length} proje eklendi.`);
+
+// Görsel arama dizini — İMPORT SONRASI ZORUNLU ADIM (arama denetimi, 2026-09-07): içe aktarılan
+// projeler tarayıcıdaki CLIP yolundan geçmediği için dizine kendiliğinden girmez. Python
+// betiğinin artımlı modu (--only-changed) yalnızca yeni/değişmiş görselleri embed eder; venv yoksa
+// uyarır, import'u geri ALMAZ (bkz. scripts/import-archello-products.py#sync_visual_index).
+if (!DRY) {
+  const venvPy = process.env.CLIP_VENV_PY || '/tmp/clip_env/bin/python3';
+  const cmd = [path.join(ROOT, 'scripts', 'build-image-embeddings.py'), '--type', 'project', '--max-images', '0', '--only-changed'];
+  console.log('\n--- Görsel arama dizini (project) ---');
+  if (!fs.existsSync(venvPy)) {
+    console.error(`  UYARI: CLIP venv yok (${venvPy}) — görsel arama dizini GÜNCELLENMEDİ. Elle: ${venvPy} ${cmd.join(' ')}`);
+  } else {
+    try { execFileSync(venvPy, cmd, { cwd: ROOT, stdio: 'inherit' }); }
+    catch (e) { console.error(`  UYARI: görsel dizin senkronu başarısız — elle tekrar: ${venvPy} ${cmd.join(' ')}`); }
+  }
+}
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -259,6 +259,9 @@ def main():
     print('\n--- 6) Responsive türev kuyruğu ---')
     imp.flush_derivative_queue(args.dry_run)
 
+    print('\n--- Görsel arama dizini (product) ---')
+    imp.sync_visual_index('product', args.dry_run)
+
     out = os.path.join(HERE, 'output', 'batch114-import-report.json')
     json.dump(report, open(out, 'w', encoding='utf8'), ensure_ascii=False, indent=2)
     print(f'\nRapor: {out}')

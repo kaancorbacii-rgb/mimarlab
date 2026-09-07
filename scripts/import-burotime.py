@@ -328,6 +328,9 @@ def main():
     print('\n--- 6) Responsive türev kuyruğu ---')
     flush_derivatives_chunked(args.dry_run)
 
+    print('\n--- Görsel arama dizini (product) ---')
+    imp.sync_visual_index('product', args.dry_run)
+
     # Süzülmüş koşularda rapor ÜZERİNE YAZILMAZ — burotime-spread-display-order.py partinin
     # TAMAMINI bu rapordan okur.
     out = os.path.join(HERE, 'output', 'burotime-import-report.json'
