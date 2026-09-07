@@ -110,6 +110,44 @@ BACK_RE = re.compile(r'^\s*(Yüksek|Kısa|Orta|Alçak)\s+sırtlı\s*,?\s*(.*?)\s
 ARM_MAP = {'metal kollu': 'Metal Kollu', 'kolsuz': 'Kolsuz', 'kollu': 'Kollu'}
 
 
+# Kaynakta 13 sayfanın 30 çizim etiketi TAMAMEN BÜYÜK HARF ("STRIPE ARC TOPLANTI",
+# "PUNTO YÖNETİCİ"); diğer 380 etiket normal yazımda. Hap butonlarında yan yana geldiklerinde
+# tutarsız görünüyor, bu yüzden yalnızca TAMAMI büyük olanlar başlık yazımına çevrilir (anlam
+# değişmez, kısmi büyük harfli etiketlere DOKUNULMAZ).
+#
+# TUZAK — TÜRKÇE 'I' İKİ YÖNLÜ: Python'un `.lower()`'ı Türkçe farkında değil ('İ'.lower() 'i' +
+# birleşik nokta U+0307 üretir), ama körü körüne Türkçe kural uygulamak da YANLIŞ: 'I'->'ı'
+# eşlemesi "TOPLANTI"yı doğru ("Toplantı") çevirirken markanın YABANCI adlarını bozar
+# ("STRIPE" -> "Strıpe", "MARIN" -> "Marın"). Bu yüzden kelime bazında karar verilir:
+#   * Türkçe'ye özgü bir harf taşıyorsa (İÖÜŞĞÇ) ya da bilinen bir Türkçe sözcükse -> TR kuralı
+#   * aksi halde düz ASCII küçültme (yabancı ürün/aile adları)
+# TR_WORDS yalnızca bu partide GERÇEKTEN geçen ve 'I' içeren Türkçe sözcükleri barındırır;
+# listeye körü körüne ekleme yapma, her giriş bir yabancı adı bozma riski taşır.
+_TR_LOWER = str.maketrans({'İ': 'i', 'I': 'ı'})
+_TR_UPPER_FIRST = {'i': 'İ', 'ı': 'I'}
+_TR_SPECIFIC = set('İÖÜŞĞÇ')
+TR_WORDS = {'TOPLANTI', 'SAKSI', 'ASKILIK', 'AYAKLI', 'KAPI'}
+
+
+def tr_title(s):
+    out = []
+    for w in s.split(' '):
+        if not w:
+            out.append(w)
+            continue
+        turkish = bool(_TR_SPECIFIC & set(w)) or w.upper() in TR_WORDS
+        low = (w.translate(_TR_LOWER) if turkish else w).lower()
+        out.append(_TR_UPPER_FIRST.get(low[0], low[0].upper()) + low[1:])
+    return ' '.join(out)
+
+
+def normalize_label(s):
+    letters = [c for c in s if c.isalpha()]
+    if len(letters) > 3 and all(c == c.upper() for c in letters):
+        return tr_title(s)
+    return s
+
+
 def slugify(t):
     t = ''.join(TR_MAP.get(c, c) for c in (t or ''))
     return re.sub(r'^-+|-+$', '', re.sub(r'[^a-z0-9]+', '-', t.lower()))
@@ -249,7 +287,8 @@ def build_family(g, opts):
         page_files = list(raw.get('files') or [])
         page_desc = None if opts['drop_desc'] else (raw['description_src'] or None)
 
-        mods = raw['drawings'][:opts['max_modules']]
+        mods = [dict(m, label=normalize_label(m['label']))
+                for m in raw['drawings'][:opts['max_modules']]]
         legs = backs = None
         if g['category'] in SEATING_CATEGORIES and len(mods) > 1:
             backs = decompose_back([m['label'] for m in mods])
