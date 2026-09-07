@@ -4,6 +4,11 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { sendConsultationMessage } from './messages.js';
+// Güvenli Görüşme Gateway'i / Google Meet (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
+import {
+  ROOM_UUID_RE, roomPath, meetingWindow, resolveConsultationAccess, ensureRoomUuid, maybeRetryMeetOnAccess,
+  CONSULTATION_DURATION_MIN, JOIN_EARLY_MIN, CONSULTATION_TIMEZONE,
+} from '../lib/consultationMeet.js';
 
 // "Danışmanlık Al" — kişi popup'ında tek bir profile (kaan-corbaci) özel birebir görüşme randevusu
 // talebi. Ödeme yöntemi badges.js#createBadgeRequest İLE AYNI desen: havale/EFT, admin banka
@@ -37,6 +42,12 @@ export async function handleConsultationsRoute(request, env, url) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
+  // GET /api/consultations/room/:room_uuid — Güvenli Görüşme Gateway'inin TEK veri ucu (bkz.
+  // gorusme.html). Yetki her istekte sunucuda yeniden kurulur; Meet adresi yalnızca katılım
+  // penceresinde ve yalnızca yetkili tarafa döner (bkz. getRoomState).
+  if (segments.length === 4 && segments[2] === 'room' && request.method === 'GET') {
+    return getRoomState(request, env, user, segments[3]);
+  }
   if (segments.length === 2 && request.method === 'POST') return createConsultationRequest(request, env, user);
   if (segments.length === 3 && request.method === 'PATCH') return updateConsultationRequest(request, env, user, segments[2]);
   if (segments.length === 3 && request.method === 'GET') return getConsultationDetail(env, user, segments[2]);
@@ -149,6 +160,17 @@ async function getConsultationDetail(env, user, id) {
   const canReschedule = isBuyer && row.status === 'pending' && !row.has_rescheduled && beforeCutoff;
   const canCancel = openStatus && beforeCutoff;
   const canReview = isAfterMeeting(row);
+  // Görüşme odası (Google Meet gateway'i, 2026-09-08): oda kimliği bu özellikten önce açılmış
+  // satırlara burada tembel atanır; bağlantı yalnızca ONAYLI rezervasyonda döner. Meet adresinin
+  // KENDİSİ bu uçtan HİÇ çıkmaz — yalnızca gateway ucu, yalnızca katılım penceresinde döndürür.
+  let roomUrl = null;
+  let meetStatus = null;
+  if (row.status === 'approved') {
+    await ensureRoomUuid(env, row);
+    const fresh = await maybeRetryMeetOnAccess(env, row);
+    roomUrl = roomPath(fresh.room_uuid || row.room_uuid);
+    meetStatus = fresh.meet_link ? 'ready' : (fresh.meet_status || 'pending');
+  }
   return json({
     id: row.id,
     date: row.requested_date,
@@ -167,7 +189,66 @@ async function getConsultationDetail(env, user, id) {
     canReschedule,
     canCancel,
     canReview,
+    roomUrl,
+    meetStatus,
   });
+}
+
+// GET /api/consultations/room/:room_uuid — gateway sayfasının durumu. Kurallar (kullanıcı isteği,
+// 2026-09-08):
+//   * room_uuid TEK BAŞINA yetki vermez: oturum + alıcı/danışman eşleşmesi her istekte sunucuda.
+//   * Zaman kararı SUNUCU saatiyle (meetingWindow); istemci saatine güvenilmez, istemci yalnızca
+//     geri sayımı sunucunun `serverNow` değerine göre çizer.
+//   * meetLink YALNIZCA rezervasyon onaylı + Meet hazır + katılım penceresi (başlangıç-15dk ..
+//     başlangıç+45dk) içindeyken döner; diğer her durumda alan hiç yazılmaz.
+//   * Geçersiz/bilinmeyen oda -> 404, yetkisiz kullanıcı -> 403 (varlığı da sızdırılmaz denemedi:
+//     403 yalnızca gerçek bir odada döner ama oda kimliği zaten tahmin edilemez).
+async function getRoomState(request, env, user, roomUuid) {
+  if (!ROOM_UUID_RE.test(roomUuid || '')) return errorJson('Görüşme odası bulunamadı.', 404);
+  if (!(await checkRateLimit(env, 'meet-room', user.id, 120, 10 * 60 * 1000))) {
+    return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '600' });
+  }
+  let row = await env.DB.prepare(`SELECT * FROM consultation_requests WHERE room_uuid = ?`).bind(roomUuid).first();
+  if (!row) return errorJson('Görüşme odası bulunamadı.', 404);
+  const access = await resolveConsultationAccess(env, user, row);
+  if (!access.allowed) return errorJson('Bu görüşmeye erişim yetkin yok.', 403);
+  return json(buildRoomState(env, row, access, await maybeRetryMeetOnAccess(env, row)));
+}
+
+// Saf/yan etkisiz yanıt gövdesi — scripts/test-meet-gateway.mjs sahte saatle doğrudan bunu test eder.
+export function buildRoomState(env, row, access, freshRow, nowMs = Date.now()) {
+  const r = freshRow || row;
+  const win = meetingWindow(r, nowMs);
+  const meetReady = !!r.meet_link && r.meet_status === 'ready';
+  const meetStatus = meetReady ? 'ready' : (r.meet_status || 'pending');
+  const host = access.host || {};
+  const out = {
+    id: r.id,
+    roomUuid: r.room_uuid,
+    status: r.status,
+    date: r.requested_date,
+    time: r.requested_time,
+    timezone: CONSULTATION_TIMEZONE,
+    durationMin: CONSULTATION_DURATION_MIN,
+    joinEarlyMin: JOIN_EARLY_MIN,
+    startsAt: win.startsAt,
+    endsAt: win.endsAt,
+    joinOpensAt: win.joinOpensAt,
+    serverNow: nowMs,
+    phase: r.status === 'approved' ? win.phase : 'not_approved',
+    meetStatus,
+    isBuyer: access.isBuyer,
+    isHost: access.isHost,
+    contactName: r.contact_name || null,
+    host: {
+      slug: r.host_slug,
+      name: host.name || r.host_slug,
+      photoUrl: host.photo_url || null,
+      position: host.position || host.profession || null,
+    },
+  };
+  if (r.status === 'approved' && meetReady && win.joinable) out.meetLink = r.meet_link;
+  return out;
 }
 
 function trimOrNull(value, maxLen) {
@@ -205,11 +286,14 @@ async function createConsultationRequest(request, env, user) {
 
   const now = Date.now();
   const id = newId();
+  // room_uuid — Güvenli Görüşme Gateway'inin adresi (/gorusme/:room_uuid), crypto.randomUUID()
+  // (CSPRNG). Rezervasyon anında atanır; tek başına yetki VERMEZ (bkz. consultationMeet.js).
+  const roomUuid = crypto.randomUUID();
   await env.DB.prepare(
     `INSERT INTO consultation_requests
-       (id, user_id, host_slug, requested_date, requested_time, price_try, status, created_at, updated_at, payment_provider, contact_name, contact_email, contact_phone, note)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'havale', ?, ?, ?, ?)`
-  ).bind(id, user.id, hostSlug, body.date, body.time, CONSULTATION_PRICE_TRY, now, now, contactName, contactEmail, contactPhone, note).run();
+       (id, user_id, host_slug, requested_date, requested_time, price_try, status, created_at, updated_at, payment_provider, contact_name, contact_email, contact_phone, note, room_uuid)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'havale', ?, ?, ?, ?, ?)`
+  ).bind(id, user.id, hostSlug, body.date, body.time, CONSULTATION_PRICE_TRY, now, now, contactName, contactEmail, contactPhone, note, roomUuid).run();
 
   // Kaan Çorbacı'ya bildirim (kullanıcı isteği, 2026-09-05: "Bir kişi danışmanlık satın alımı
   // yaptığında Kaan Çorbacı'ya bildirim gitsin"). Hedef kullanıcı architects.claimed_by_user_id'den

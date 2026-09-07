@@ -121,6 +121,13 @@
     // linkedin/callback) de AYNI şekilde `wrangler secret put` ile tanımlanmalı. Tanımlı değilse
     // ilgili "... ile Giriş Yap" butonu tıklandığında sessizce giris-yap.html?oauth_error=not_
     // configured'a yönlendirir — mevcut e-posta/şifre akışı bundan ETKİLENMEZ.
+    //
+    // Google Meet / Güvenli Görüşme Gateway'i (kullanıcı isteği, 2026-09-08, bkz. src/lib/
+    // googleMeet.js): GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_CALENDAR_ID (+ opsiyonel
+    // GOOGLE_IMPERSONATE_USER — Workspace alan-geneli yetkilendirme) de `wrangler secret put` ile
+    // tanımlanır; burada ASLA yer almaz. Tanımlı değilse rezervasyon/onay akışı BOZULMAZ:
+    // consultation_requests.meet_status='failed', meet_error='config_missing: …' yazılır, secret'lar
+    // eklenince cron/admin düğmesi Meet'i oluşturur.
     // Faz 4D — yapılandırılmış loglardaki "environment" alanı için (bkz. src/lib/logger.js).
     "ENVIRONMENT": "production",
     "IYZICO_BASE_URL": "https://sandbox-api.iyzipay.com",

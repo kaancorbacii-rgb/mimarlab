@@ -1196,7 +1196,7 @@ async function loadConsultationRequests(){
     <div class="admin-card" data-id="${c.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${escapeHtml(c.contact_name || c.user_name)} <span class="admin-badge badge-pending">${Number(c.price_try).toFixed(2)} TL</span> <span class="admin-badge badge-approved">${escapeHtml(c.requested_date)} ${escapeHtml(c.requested_time)}</span> <span class="admin-badge badge-neutral">${c.payment_provider === 'havale' ? 'Havale/EFT' : 'Elle'}</span></div>
+          <div class="admin-card-title">${escapeHtml(c.contact_name || c.user_name)} <span class="admin-badge badge-pending">${Number(c.price_try).toFixed(2)} TL</span> <span class="admin-badge badge-approved">${escapeHtml(c.requested_date)} ${escapeHtml(c.requested_time)}</span> <span class="admin-badge badge-neutral">${c.payment_provider === 'havale' ? 'Havale/EFT' : 'Elle'}</span>${meetBadgeHtml(c)}</div>
           <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)}${c.contact_phone ? ` · ${escapeHtml(c.contact_phone)}` : ''} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
         ${c.status === 'pending' ? `
@@ -1204,8 +1204,13 @@ async function loadConsultationRequests(){
           <button class="admin-btn primary" data-action="approved">Onayla</button>
           <button class="admin-btn danger" data-action="rejected">Reddet</button>
         </div>` : ''}
+        ${c.status === 'approved' && !c.meet_link ? `
+        <div class="admin-actions">
+          <button class="admin-btn" data-meet-retry="1">Meet Oluştur (yeniden dene)</button>
+        </div>` : ''}
       </div>
       ${c.note ? `<div class="admin-card-note"><strong>Görüşme isteği hakkında not</strong>${escapeHtml(c.note)}</div>` : ''}
+      ${c.meet_status === 'failed' && c.meet_error ? `<div class="admin-card-note"><strong>Meet hatası</strong>${escapeHtml(c.meet_error)}</div>` : ''}
     </div>
   `).join('');
   list.querySelectorAll('[data-action]').forEach(btn=>{
@@ -1218,6 +1223,27 @@ async function loadConsultationRequests(){
       refreshAdminSummary();
     });
   });
+  // Google Meet elle yeniden deneme (2026-09-08) — src/routes/admin.js#create-meet; idempotent,
+  // meet_link zaten varsa yeni Meet ÜRETMEZ. Adres bu yanıtta dönmez (yalnızca durum).
+  list.querySelectorAll('[data-meet-retry]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      btn.disabled = true; btn.textContent = 'Oluşturuluyor…';
+      try {
+        const r = await api(`/api/admin/consultations/${id}/create-meet`, { method:'POST' });
+        if (!r.ok) alert('Meet oluşturulamadı: ' + (r.error || r.reason || 'bilinmeyen hata'));
+      } catch (e) { alert('Meet oluşturulamadı: ' + (e && e.message ? e.message : 'sunucu hatası')); }
+      loadConsultationRequests();
+    });
+  });
+}
+// Google Meet gateway durumu rozeti (2026-09-08) — bkz. migrations/0104_consultation_meet.sql.
+// Meet ADRESİ admin listesinde gösterilmez (yalnızca hazır/hazırlanıyor/hata).
+function meetBadgeHtml(c){
+  if (c.status !== 'approved') return '';
+  if (c.meet_link) return ' <span class="admin-badge badge-approved">Meet hazır</span>';
+  if (c.meet_status === 'failed') return ' <span class="admin-badge badge-rejected">Meet hatası</span>';
+  return ' <span class="admin-badge badge-pending">Meet bekliyor</span>';
 }
 
 // "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" talepleri (kullanıcı isteği, 2026-09-06) —

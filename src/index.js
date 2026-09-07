@@ -52,6 +52,9 @@ import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
 import { handleGundemRoute, gundemSsrListBody, listGundemSitemapUrls } from './routes/gundem.js';
 import { runGundemIngestion } from './lib/gundemIngest.js';
 import { gundemCronHealthFields } from './lib/gundemRuns.js';
+// Güvenli Görüşme Gateway'i (kullanıcı isteği, 2026-09-08) — /gorusme/:room_uuid sayfası + Meet
+// yeniden deneme cron işçisi. Bkz. src/lib/consultationMeet.js.
+import { ROOM_UUID_RE, resolveConsultationAccess, retryPendingMeets } from './lib/consultationMeet.js';
 // CSP img-src'nin Gündem bölümü, kaynak yapılandırmasından TÜRETİLİR (elle yazılan ikinci bir liste
 // yok) — bkz. src/lib/gundemSources.js#GUNDEM_IMAGE_HOSTS ve aşağıdaki CONTENT_SECURITY_POLICY.
 import { GUNDEM_IMAGE_HOSTS } from './lib/gundemSources.js';
@@ -682,6 +685,9 @@ const DEFAULT_SCHEDULED_RUNNERS = {
     fetchProjectPool: (e) => fetchActiveProjectPoolCached(e, 'built'),
   }, options),
   visualIndex: (env, type) => rebuildIndex(env, type, { maxEmbeds: 400 }),
+  // Onaylı ama Meet'i oluşturulamamış (Google geçici hatası / secret sonradan eklendi) danışmanlık
+  // rezervasyonlarını yeniden dener — Gündem ifadesiyle aynı 4 saatlik ızgarada koşar.
+  meetRetry: (env) => retryPendingMeets(env, { limit: 10 }),
 };
 
 export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDULED_RUNNERS) {
@@ -702,6 +708,20 @@ export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDUL
         console.log('gundem cron', JSON.stringify({ published: res && res.published, duplicate: res && res.duplicate, aiCalls: res && res.aiCalls }));
       } catch (err) {
         console.error('gundem cron başarısız', err && err.message);
+      }
+    })());
+  }
+
+  // Google Meet yeniden deneme turu — Gündem ile AYNI ifadede (4 saatte bir), AYRI bir cron
+  // satırı eklemeden. `runners.meetRetry` yoksa (scripts/test-gundem.mjs'in kendi runner seti)
+  // sessizce atlanır; hatası diğer işleri ve Worker'ı düşürmez.
+  if (cron !== VISUAL_INDEX_CRON && typeof runners.meetRetry === 'function') {
+    jobs.push((async () => {
+      try {
+        const res = await runners.meetRetry(env);
+        console.log('meetRetry cron', JSON.stringify(res));
+      } catch (err) {
+        console.error('meetRetry cron başarısız', err && err.message);
       }
     })());
   }
@@ -816,6 +836,18 @@ async function routeAsset(request, env, url, ctx) {
     return withListPageCacheHeaders(panoRes);
   }
 
+  // /gorusme/:room_uuid — Güvenli Görüşme Gateway'i (kullanıcı isteği, 2026-09-08). /pano/:token
+  // gibi CLEAN_URL_ASSETS'ten AYRI bir dal ama ondan farklı olarak KİŞİYE ÖZEL ve YETKİLİ: kabuk
+  // (gorusme.html) servis edilmeden ÖNCE oturum + alıcı/danışman eşleşmesi SUNUCUDA doğrulanır —
+  // giriş yoksa /giris'e (next= ile geri dönüş) yönlendirilir, oda yoksa 404, yetkisiz kullanıcıya
+  // 403 (kabuk 403 durumuyla döner, sayfa erişim ekranını gösterir). Yanıt ASLA önbelleğe girmez
+  // (durum kodu kullanıcıya göre değişir). Kabuk yine de HİÇBİR kişisel veri/Meet adresi taşımaz;
+  // sayfa GET /api/consultations/room/:uuid ile doldurur ve o uç yetkiyi yeniden kurar (F5'te de).
+  if (url.pathname.startsWith('/gorusme/') && url.pathname.length > '/gorusme/'.length) {
+    return serveMeetingRoomPage(request, env, url);
+  }
+  if (url.pathname === '/gorusme') return notFoundPageResponse();
+
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
   if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);
 
@@ -927,6 +959,45 @@ async function serveInfoModalPage(request, env, url, meta) {
       .transform(finalResponse);
   }
   return finalResponse;
+}
+
+// /gorusme/:room_uuid kabuğu — bkz. routeAsset'teki dal yorumu. Kabuk her durumda AYNI statik
+// gorusme.html'dir; yalnızca HTTP durum kodu (200/403/404) ve giriş yönlendirmesi sunucuda belirlenir.
+// Sayfanın JS'i durum kodunu değil, GET /api/consultations/room/:uuid yanıtını esas alır (yetki
+// orada bir kez daha kurulur) — buradaki kod, yetkisiz/anonim istemcilerin kabuğu 200 ile alıp
+// "sayfa var" sanmasını önler ve tarayıcıyı doğrudan giriş akışına sokar.
+const MEETING_ROOM_PAGE_HEADERS = { 'Cache-Control': 'private, no-store, must-revalidate' };
+async function serveMeetingRoomPage(request, env, url) {
+  const roomUuid = decodeURIComponent(url.pathname.slice('/gorusme/'.length).replace(/\/$/, ''));
+  if (!ROOM_UUID_RE.test(roomUuid)) return notFoundPageResponse();
+
+  const user = await getSessionUser(request, env);
+  if (!user) {
+    // next yalnızca site içi bir yol (bkz. src/routes/auth.js#safeNextPath ile AYNI kural);
+    // sorgu dizesi bilerek taşınmaz.
+    const dest = new URL('/giris', url.origin);
+    dest.searchParams.set('next', url.pathname);
+    return Response.redirect(dest.href, 302);
+  }
+
+  const row = await env.DB.prepare(
+    'SELECT id, user_id, host_slug FROM consultation_requests WHERE room_uuid = ?'
+  ).bind(roomUuid).first();
+  let status = 200;
+  if (!row) status = 404;
+  else {
+    const access = await resolveConsultationAccess(env, user, row);
+    if (!access.allowed) status = 403;
+  }
+
+  const assetUrl = new URL(url);
+  assetUrl.pathname = '/gorusme';
+  assetUrl.search = '';
+  const shell = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (shell.status !== 200) return notFoundPageResponse();
+  const headers = new Headers(shell.headers);
+  for (const [k, v] of Object.entries(MEETING_ROOM_PAGE_HEADERS)) headers.set(k, v);
+  return new Response(shell.body, { status, headers });
 }
 
 // DISABLED_PAGE_PATHS/PREFIXES için basit, markalı bir 404 — site genelinde ayrı bir statik

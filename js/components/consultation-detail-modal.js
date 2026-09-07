@@ -96,6 +96,11 @@ const ConsultationDetailModal = (function () {
         .cnd-action-submit:hover{background:var(--walnut);}
         .cnd-action-submit:disabled{opacity:0.5; cursor:default;}
         .cnd-action-feedback{font-size:12px; color:var(--ink-soft); margin-top:8px; min-height:1em;}
+        .cnd-room{margin-top:16px; padding:14px; border:1px solid var(--line); border-radius:12px; background:var(--paper);}
+        .cnd-room-title{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin-bottom:6px;}
+        .cnd-room-text{font-size:13px; color:var(--ink-soft); line-height:1.5; margin-bottom:10px;}
+        .cnd-room-btn{display:inline-block; background:var(--ink); color:var(--paper-card); padding:10px 18px; border-radius:100px; font-size:12.5px; font-weight:600;}
+        .cnd-room-btn:hover{background:var(--walnut);}
       `;
       document.head.appendChild(style);
     }
@@ -128,6 +133,27 @@ const ConsultationDetailModal = (function () {
     function row(label, value, extraClass) {
       if (!value) return '';
       return `<div class="cnd-row"><div class="cnd-row-label">${esc(label)}</div><div class="cnd-row-value${extraClass ? ' ' + extraClass : ''}">${esc(value)}</div></div>`;
+    }
+
+    // Görüşme odası (Güvenli Görüşme Gateway'i, 2026-09-08) — yalnızca ONAYLI rezervasyonda, sunucu
+    // roomUrl döndürdüyse. Bu bağlantı /gorusme/:room_uuid'dir, Google Meet adresi DEĞİL: Meet
+    // adresi yalnızca o sayfada, yalnızca katılım penceresinde ve sunucu yetkiyi yeniden kurduktan
+    // sonra görünür (bkz. src/routes/consultations.js#getRoomState).
+    const MEET_STATUS_TEXT = {
+      ready: 'Google Meet odan hazır. Görüşme saatinden 15 dakika önce katılabilirsin.',
+      pending: 'Google Meet odası hazırlanıyor — hazır olunca bildirim alacaksın.',
+      creating: 'Google Meet odası hazırlanıyor — hazır olunca bildirim alacaksın.',
+      failed: 'Google Meet odası henüz oluşturulamadı; otomatik olarak yeniden denenecek.',
+    };
+    function roomHtml(data) {
+      if (!data.roomUrl) return '';
+      const text = MEET_STATUS_TEXT[data.meetStatus] || MEET_STATUS_TEXT.pending;
+      return `
+        <div class="cnd-room">
+          <div class="cnd-room-title">Görüşme Odası</div>
+          <div class="cnd-room-text">${esc(text)}</div>
+          <a class="cnd-room-btn" href="${esc(data.roomUrl)}">Görüşme Odasına Git</a>
+        </div>`;
     }
 
     // canReschedule ise "Tarihi Değiştir" ızgaranın İLK hücresi olur (kullanıcı isteği, 2026-09-06:
@@ -236,6 +262,7 @@ const ConsultationDetailModal = (function () {
           row('Telefon', data.contactPhone),
           row('Görüşme İsteği Hakkında Not', data.note, 'cnd-note-value'),
         ].join('')
+          + roomHtml(data)
           // "Tarihi Değiştir" (kullanıcı isteği, 2026-09-06) — yalnızca alıcıda VE sunucunun izin
           // verdiği durumda (bkz. getConsultationDetail#canReschedule: pending + değiştirilmemiş +
           // görüşmeye en az 2 gün kalmış) görünür; artık aksiyon ızgarasının İLK hücresinde.

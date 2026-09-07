@@ -43,7 +43,7 @@ echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/kisi-ekle/fi
 # marka.html EKLENDİ (2026-09-06): kisi/firma ile birebir aynı iskelete sahip ve aynı elle yazılmış
 # inline render mantığını taşıyor, ama bu listede yoktu — yani onun inline script'i hiç kontrol
 # edilmiyordu.
-for f in index.html admin.html hesabim.html proje.html kisi.html firma.html marka.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html; do
+for f in index.html admin.html hesabim.html proje.html kisi.html firma.html marka.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html gorusme.html; do
   [ -f "$f" ] || continue
   node -e "
     const fs = require('fs');
@@ -166,6 +166,32 @@ else
   bad "SSRF koruması birim testleri BAŞARISIZ:"
   tail -20 /tmp/preflight_ssrf >&2
 fi
+
+# Güvenli Görüşme Gateway'i / Google Meet testleri (kullanıcı isteği, 2026-09-08) — node:sqlite
+# üzerinde GERÇEK schema.sql ile: erişim kontrolü (401/403/404), sahte saatle zaman kilidi,
+# idempotency (ardışık + eşzamanlı), Google hata yönetimi, JWT imzası, admin onay akışı.
+# Bkz. scripts/test-meet-gateway.mjs dosya başı.
+if node scripts/test-meet-gateway.mjs >/tmp/preflight_meet 2>&1; then
+  ok "görüşme gateway/Meet testleri geçti ($(grep -c '^  ok ' /tmp/preflight_meet) test)"
+else
+  bad "görüşme gateway/Meet testleri BAŞARISIZ:"
+  tail -20 /tmp/preflight_meet >&2
+fi
+rm -f /tmp/preflight_meet
+# Bildirim linki /gorusme/:uuid'e gidebilmeli — auth-modal.js#NOTIF_ENTITY_PATH_RE 'gorusme'
+# içermezse "görüşmen hazır" bildirimi tıklanınca hiçbir yere gitmez (sessiz regresyon).
+if grep -q "NOTIF_ENTITY_PATH_RE = .*marka|gorusme)" js/components/auth-modal.js; then
+  ok "auth-modal.js — bildirim yolu regex'i /gorusme/ içeriyor"
+else
+  bad "auth-modal.js — NOTIF_ENTITY_PATH_RE 'gorusme' içermiyor (Meet bildirimi tıklanınca gitmez)"
+fi
+# Sayfa rotası + kabuk + API ucu üçü birlikte var olmalı (bu depodaki "parça taşınınca sessizce öldü" tuzağı).
+gw_missing=""
+grep -q "serveMeetingRoomPage" src/index.js || gw_missing="$gw_missing src/index.js(route)"
+[ -f gorusme.html ] || gw_missing="$gw_missing gorusme.html(kabuk)"
+grep -q "getRoomState" src/routes/consultations.js || gw_missing="$gw_missing consultations.js(api)"
+grep -q "room_uuid" schema.sql || gw_missing="$gw_missing schema.sql(kolon)"
+if [ -n "$gw_missing" ]; then bad "Görüşme gateway'i eksik parça(lar):$gw_missing"; else ok "Görüşme gateway'i — route + kabuk + api + şema dördü de yerinde"; fi
 
 # Birim testler — feed ayrıştırma, mükerrer anahtarları, kalite kapısı, entity eşleştirme, kaynak
 # yapılandırması. Tamamen yerel/saf (ağ ve D1 yok), bkz. scripts/test-gundem.mjs dosya başı.

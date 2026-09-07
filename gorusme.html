@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
+<title>Görüşme Odası — MİMARLAB</title>
+<meta name="description" content="MİMARLAB danışmanlık görüşmesi için güvenli görüşme odası.">
+<!-- noindex: kişiye özel, oturum gerektiren bir sayfa. Kabuk HİÇBİR kişisel veri ya da Google Meet
+     adresi taşımaz — her şey GET /api/consultations/room/:uuid ile, sunucu yetkiyi her istekte
+     yeniden kurarak gelir (bkz. src/index.js#serveMeetingRoomPage, src/routes/consultations.js#
+     getRoomState). Bu sayfa Google Meet'in YERİNE geçmez; güvenli bir bekleme odası/geçittir. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/fonts/inter.css">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D; --ink-soft:#4E6478; --paper:#EDF0F3; --paper-card:#F8FAFB; --paper-alt:#E0E6EC;
+    --walnut:#2B425F; --brass:#5B7A9B; --brass-soft:#AFC5D8; --sage:#4F6478; --accent:#E08A3E;
+    --good:#2F8A55; --bad:#B84C4C;
+    --line: rgba(27,42,61,0.14); --line-soft: rgba(27,42,61,0.08);
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ink:#E8ECF1; --ink-soft:#93A4B8; --paper:#12171F; --paper-card:#1A212B; --paper-alt:#212A35;
+    --walnut:#8FB0DA; --brass:#7FA0C4; --brass-soft:#2E3F52; --sage:#8CA3BA; --accent:#E8A968;
+    --good:#5FB37D; --bad:#DD7676;
+    --line: rgba(232,236,241,0.14); --line-soft: rgba(232,236,241,0.08);
+  }
+  [data-theme="dark"] .nav{background:rgba(18,23,31,0.92);}
+  [data-theme="dark"] .site-footer{
+    --ink:#17202B; --ink-soft:#1E2836; --paper:#EDF0F3; --paper-card:#232C38; --brass-soft:#AFC5D8; --brass:#5B7A9B;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; flex-direction:column;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV (site-chrome.js ile aynı iskelet — bkz. pano.html) ---------- */
+  .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:10px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
+  .nav-mobile-menu{display:none; position:absolute; top:100%; right:18px; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;}
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{background:none; color:var(--ink); padding:8px 17px; border-radius:100px; border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;}
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper); margin-top:auto;}
+  .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .nav-right{margin-left:auto;}
+  }
+  @media (max-width:720px){
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+
+  /* ---------- GÖRÜŞME ODASI ---------- */
+  .room-wrap{max-width:560px; margin:0 auto; padding:48px 24px 80px; width:100%;}
+  .room-eyebrow{font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); margin-bottom:8px;}
+  .room-title{font-size:clamp(24px, 4vw, 32px); font-weight:700; letter-spacing:-0.01em; margin:0 0 6px;}
+  .room-lead{font-size:14px; color:var(--ink-soft); line-height:1.6; margin:0 0 24px;}
+  .room-card{background:var(--paper-card); border:1px solid var(--line-soft); border-radius:18px; padding:24px; box-shadow:0 18px 44px rgba(27,42,61,0.08);}
+  .room-host{display:flex; align-items:center; gap:14px; padding-bottom:18px; border-bottom:1px solid var(--line-soft); margin-bottom:18px;}
+  .room-avatar{width:56px; height:56px; border-radius:50%; background:var(--paper-alt); object-fit:cover; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; color:var(--walnut); overflow:hidden;}
+  .room-avatar img{width:100%; height:100%; object-fit:cover; display:block;}
+  .room-host-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin-bottom:3px;}
+  .room-host-name{font-size:17px; font-weight:700; line-height:1.25;}
+  .room-host-name a:hover{color:var(--walnut);}
+  .room-host-pos{font-size:13px; color:var(--ink-soft); margin-top:2px;}
+  .room-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:18px;}
+  .room-cell{background:var(--paper); border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px; min-width:0;}
+  .room-cell-label{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin-bottom:4px;}
+  .room-cell-value{font-size:15px; font-weight:600; line-height:1.3; word-break:break-word;}
+  .room-cell-sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+  .room-status{display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:12px; background:var(--paper); border:1px solid var(--line-soft); margin-bottom:14px;}
+  .room-dot{width:10px; height:10px; border-radius:50%; background:var(--brass); flex-shrink:0;}
+  .room-status.open .room-dot, .room-status.soon .room-dot{background:var(--good); box-shadow:0 0 0 4px rgba(47,138,85,0.18);}
+  .room-status.ended .room-dot, .room-status.failed .room-dot, .room-status.closed .room-dot{background:var(--bad);}
+  .room-status-text{font-size:14px; font-weight:600; line-height:1.4;}
+  .room-status-sub{font-size:12.5px; color:var(--ink-soft); font-weight:500; margin-top:2px;}
+  .room-countdown{font-variant-numeric:tabular-nums; font-size:clamp(28px, 6vw, 36px); font-weight:700; letter-spacing:0.02em; text-align:center; padding:6px 0 14px; color:var(--ink);}
+  .room-countdown-label{font-size:11.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); text-align:center; margin-top:-8px; margin-bottom:14px; font-weight:600;}
+  .room-join{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:15px 20px; border-radius:100px; border:none; background:var(--ink); color:var(--paper-card); font-size:15px; font-weight:700; text-align:center;}
+  .room-join:hover{background:var(--walnut);}
+  .room-join[aria-disabled="true"]{opacity:0.45; cursor:not-allowed; pointer-events:none;}
+  .room-join svg{flex-shrink:0;}
+  .room-hint{font-size:12px; color:var(--ink-soft); text-align:center; margin-top:12px; line-height:1.55;}
+  .room-state{text-align:center; padding:36px 12px;}
+  .room-state h2{font-size:19px; margin:0 0 8px;}
+  .room-state p{font-size:14px; color:var(--ink-soft); line-height:1.6; margin:0 0 20px;}
+  .room-state a.btn{display:inline-block; background:var(--ink); color:var(--paper-card); padding:11px 22px; border-radius:100px; font-size:14px; font-weight:600;}
+  .room-state a.btn:hover{background:var(--walnut);}
+  .room-back{display:inline-block; margin-top:18px; font-size:13px; color:var(--ink-soft); font-weight:500;}
+  .room-back:hover{color:var(--ink);}
+  @media (max-width:560px){
+    .room-wrap{padding:28px 16px 60px;}
+    .room-card{padding:18px; border-radius:14px;}
+    .room-grid{grid-template-columns:1fr 1fr;}
+    .room-grid .room-cell:first-child{grid-column:1 / -1;}
+    .room-avatar{width:48px; height:48px; font-size:16px;}
+  }
+</style>
+</head>
+<body>
+<script src="/js/overlay-manager.js" defer></script>
+<script src="/image-cdn.js" defer></script>
+<script src="/auth-nav.js" defer></script>
+<script src="/catalog-taxonomy.js" defer></script>
+<script src="/js/components/nav-product-menu.js" defer></script>
+<script src="/js/components/modal-shell.js" defer></script>
+<script src="/awards-shared.js"></script>
+<script src="/js/components/lazy-modals.js" defer></script>
+<script src="/js/components/profession-drawer.js" defer></script>
+
+  <div id="site-header-mount" data-nav-active=""></div>
+  <script src="/js/components/site-chrome.js"></script>
+
+  <main class="room-wrap">
+    <div class="room-eyebrow">Danışmanlık</div>
+    <h1 class="room-title">Görüşme Odası</h1>
+    <p class="room-lead" id="room-lead">Görüşme bilgileriniz yükleniyor…</p>
+    <div class="room-card" id="room-card"><div class="room-state"><p>Yükleniyor…</p></div></div>
+    <a class="room-back" href="/hesabim">← Hesabım</a>
+  </main>
+
+  <footer id="site-footer-mount"></footer>
+
+<script>
+// Güvenli Görüşme Gateway'i (kullanıcı isteği, 2026-09-08). TEK veri kaynağı GET
+// /api/consultations/room/:uuid — oturum + alıcı/danışman eşleşmesi SUNUCUDA doğrulanır, zaman
+// penceresi SUNUCU saatiyle hesaplanır (serverNow / startsAt / endsAt / joinOpensAt / phase).
+// Bu dosyadaki saat mantığı YALNIZCA geri sayımı çizmek ve pencere sınırında sunucuya yeniden
+// sormak içindir; Meet adresi sunucu göndermedikçe (phase soon/open + meet hazır) burada YOKTUR.
+(function () {
+  const card = document.getElementById('room-card');
+  const lead = document.getElementById('room-lead');
+  const m = window.location.pathname.match(/^\/gorusme\/([0-9a-f-]{36})$/i);
+  const roomUuid = m ? m[1] : null;
+
+  function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function fmtDate(iso) {
+    const d = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  function endTime(time, durationMin) {
+    const [h, mi] = time.split(':').map(Number);
+    const total = h * 60 + mi + durationMin;
+    return `${pad(Math.floor(total / 60) % 24)}:${pad(total % 60)}`;
+  }
+  function initials(name) {
+    return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
+  }
+  function photoSrc(url) {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url) || url.startsWith('/')) return url;
+    return '/' + url;
+  }
+  function stateHtml(title, text, btnHref, btnText) {
+    return `<div class="room-state"><h2>${esc(title)}</h2><p>${esc(text)}</p>${btnHref ? `<a class="btn" href="${esc(btnHref)}">${esc(btnText)}</a>` : ''}</div>`;
+  }
+
+  const PHASE_TEXT = {
+    waiting: { text: 'Görüşme saati bekleniyor.', sub: 'Katılım bağlantısı görüşmeden 15 dakika önce açılır.' },
+    soon: { text: '15 dakika içinde görüşmeniz başlayacak.', sub: 'Google Meet bağlantısı aktif — hazır olduğunda katılabilirsin.' },
+    open: { text: 'Görüşme devam ediyor.', sub: 'Google Meet bağlantısı aktif.' },
+    ended: { text: 'Bu görüşme sona ermiştir.', sub: 'Katılım bağlantısı artık aktif değil.' },
+    not_approved: { text: 'Ödeme onayı bekleniyor.', sub: 'Onaylandığında görüşme odası burada aktifleşir.' },
+    closed: { text: 'Bu görüşme aktif değil.', sub: 'Rezervasyon iptal edilmiş ya da reddedilmiş.' },
+  };
+
+  let timer = null;
+  let refreshTimer = null;
+
+  function render(data) {
+    const offset = data.serverNow - Date.now(); // sunucu saati - istemci saati
+    const serverNow = () => Date.now() + offset;
+    const status = data.status;
+    let phase = data.phase;
+    if (status !== 'approved') phase = status === 'pending' ? 'not_approved' : 'closed';
+    const meetReady = data.meetStatus === 'ready';
+    const joinable = (phase === 'soon' || phase === 'open') && !!data.meetLink;
+    const who = data.isHost ? `${esc(data.contactName || 'Kullanıcı')} ile danışmanlık görüşmen` : `${esc(data.host.name)} ile danışmanlık görüşmen`;
+    lead.innerHTML = `${who} — ${esc(fmtDate(data.date))}, ${esc(data.time)} (İstanbul, GMT+3).`;
+
+    let statusCls = phase;
+    let statusText = (PHASE_TEXT[phase] || PHASE_TEXT.waiting).text;
+    let statusSub = (PHASE_TEXT[phase] || PHASE_TEXT.waiting).sub;
+    if (status === 'approved' && (phase === 'waiting' || phase === 'soon' || phase === 'open') && !meetReady) {
+      statusSub = data.meetStatus === 'failed'
+        ? 'Google Meet odası henüz oluşturulamadı; otomatik olarak yeniden deneniyor. Sorun sürerse bizimle iletişime geç.'
+        : 'Google Meet odası hazırlanıyor — hazır olunca bildirim alacaksın.';
+      if (phase !== 'waiting') statusCls = 'failed';
+    }
+
+    const photo = photoSrc(data.host.photoUrl);
+    card.innerHTML = `
+      <div class="room-host">
+        <div class="room-avatar">${photo ? `<img src="${esc(photo)}" alt="" loading="lazy">` : esc(initials(data.host.name))}</div>
+        <div>
+          <div class="room-host-label">Danışman</div>
+          <div class="room-host-name"><a href="/kisi/${encodeURIComponent(data.host.slug)}">${esc(data.host.name)}</a></div>
+          ${data.host.position ? `<div class="room-host-pos">${esc(data.host.position)}</div>` : ''}
+        </div>
+      </div>
+      <div class="room-grid">
+        <div class="room-cell"><div class="room-cell-label">Tarih</div><div class="room-cell-value">${esc(fmtDate(data.date))}</div></div>
+        <div class="room-cell"><div class="room-cell-label">Başlangıç</div><div class="room-cell-value">${esc(data.time)}</div><div class="room-cell-sub">İstanbul (GMT+3)</div></div>
+        <div class="room-cell"><div class="room-cell-label">Süre</div><div class="room-cell-value">${esc(String(data.durationMin))} dk</div><div class="room-cell-sub">${esc(data.time)}–${esc(endTime(data.time, data.durationMin))}</div></div>
+      </div>
+      <div class="room-status ${esc(statusCls)}"><span class="room-dot"></span><div><div class="room-status-text" id="room-status-text">${esc(statusText)}</div><div class="room-status-sub" id="room-status-sub">${esc(statusSub)}</div></div></div>
+      ${status === 'approved' && phase !== 'ended' ? `<div class="room-countdown" id="room-countdown">--:--:--</div><div class="room-countdown-label" id="room-countdown-label">${phase === 'open' ? 'Görüşmenin bitmesine' : 'Görüşmeye kalan süre'}</div>` : ''}
+      <a class="room-join" id="room-join" ${joinable ? `href="${esc(data.meetLink)}" target="_blank" rel="noopener noreferrer"` : 'href="#" aria-disabled="true" tabindex="-1"'}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>
+        Google Meet Görüşmesine Katıl
+      </a>
+      <div class="room-hint">${joinable ? 'Bağlantı yeni sekmede Google Meet’te açılır.' : (phase === 'ended' ? 'Görüşme süresi doldu.' : 'Bu düğme yalnızca görüşmeden 15 dakika önce ile görüşme bitişi arasında aktiftir.')}</div>`;
+
+    if (timer) clearInterval(timer);
+    if (refreshTimer) clearTimeout(refreshTimer);
+    const cd = document.getElementById('room-countdown');
+    if (status === 'approved' && phase !== 'ended') {
+      // Sınırlar sunucunun verdiği anlardır; geri sayım yalnızca görsel, bir sınır geçilince
+      // sunucuya yeniden sorulur (Meet bağlantısı ancak o yanıtla gelir/gider).
+      const target = phase === 'open' ? data.endsAt : data.startsAt;
+      const boundary = phase === 'waiting' ? data.joinOpensAt : (phase === 'soon' ? data.startsAt : data.endsAt);
+      const tick = () => {
+        const now = serverNow();
+        let diff = Math.max(0, target - now);
+        const h = Math.floor(diff / 3600000); diff -= h * 3600000;
+        const mi = Math.floor(diff / 60000); diff -= mi * 60000;
+        const s = Math.floor(diff / 1000);
+        if (cd) cd.textContent = h >= 24 ? `${Math.floor(h / 24)} gün ${pad(h % 24)}:${pad(mi)}:${pad(s)}` : `${pad(h)}:${pad(mi)}:${pad(s)}`;
+        if (now >= boundary) { clearInterval(timer); load(); }
+      };
+      tick();
+      timer = setInterval(tick, 1000);
+      // Meet henüz hazır değilse sunucu arka planda yeniden dener — birkaç dakikada bir yoklayalım.
+      if (!meetReady) refreshTimer = setTimeout(load, 3 * 60 * 1000);
+    }
+  }
+
+  async function load() {
+    if (!roomUuid) { lead.textContent = ''; card.innerHTML = stateHtml('Görüşme odası bulunamadı', 'Bu bağlantı geçersiz görünüyor.', '/hesabim', 'Hesabıma Dön'); return; }
+    try {
+      const res = await fetch(`/api/consultations/room/${encodeURIComponent(roomUuid)}`, { cache: 'no-store' });
+      if (res.status === 401) { window.location.href = `/giris?next=${encodeURIComponent(window.location.pathname)}`; return; }
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) { lead.textContent = ''; card.innerHTML = stateHtml('Bu görüşmeye erişimin yok', 'Bu görüşme odası yalnızca rezervasyonu yapan kişi ve danışman tarafından görüntülenebilir.', '/hesabim', 'Hesabıma Dön'); return; }
+      if (res.status === 404) { lead.textContent = ''; card.innerHTML = stateHtml('Görüşme odası bulunamadı', 'Bu bağlantı geçersiz ya da kaldırılmış.', '/hesabim', 'Hesabıma Dön'); return; }
+      if (!res.ok) { card.innerHTML = stateHtml('Bir sorun oluştu', data.error || 'Görüşme bilgileri alınamadı, lütfen tekrar dene.'); return; }
+      render(data);
+    } catch {
+      card.innerHTML = stateHtml('Sunucuya ulaşılamadı', 'Lütfen bağlantını kontrol edip sayfayı yenile.');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+</body>
+</html>

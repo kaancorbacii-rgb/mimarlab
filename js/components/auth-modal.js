@@ -653,6 +653,27 @@ const AuthModal = (function () {
   // ---------------------------------------------------------------------------------------------
   // GİRİŞ YAP — giris-yap.html#auth-wrap ile BİREBİR aynı işaretleme/mantık (bkz. o dosya).
   // ---------------------------------------------------------------------------------------------
+  // Giriş sonrası dönüş yolu (Güvenli Görüşme Gateway'i, 2026-09-08): /gorusme/:uuid gibi oturum
+  // gerektiren bir sayfa anonim ziyaretçiyi /giris?next=<yol>'a yönlendirir (bkz. src/index.js#
+  // serveMeetingRoomPage). Kural src/routes/auth.js#safeNextPath ile AYNI: yalnızca site içi,
+  // "/" ile başlayan, "//" ile başlamayan ve "://" içermeyen bir yol kabul edilir — aksi halde
+  // eskisi gibi /hesabim. Hem e-posta girişi/kaydı (aşağıdaki wireLogin/wireSignup) hem OAuth
+  // düğmeleri (next= parametresi) aynı fonksiyonu kullanır.
+  function loginNextPath() {
+    let next = '';
+    try { next = (new URLSearchParams(window.location.search).get('next') || '').trim(); } catch { next = ''; }
+    if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('://')) return '/hesabim';
+    return next;
+  }
+  // Giriş/kayıt başarılıysa ve bir dönüş yolu varsa oraya git; yoksa mevcut davranış (popup içinde
+  // Hesabım'a geç) korunur. true dönerse çağıran taraf swap() YAPMAZ.
+  function redirectToNextIfAny() {
+    const next = loginNextPath();
+    if (next === '/hesabim') return false;
+    window.location.href = next;
+    return true;
+  }
+
   function loginTemplate() {
     return `
     <div class="auth-wrap">
@@ -661,11 +682,11 @@ const AuthModal = (function () {
       <p class="auth-sub">Devam etmek için hesabına giriş yap.</p>
       <div class="auth-card">
         <div class="auth-oauth">
-          <a class="auth-oauth-btn" href="/api/auth/google/start?next=%2Fhesabim">
+          <a class="auth-oauth-btn" href="/api/auth/google/start?next=${encodeURIComponent(loginNextPath())}">
             <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.46c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.81Z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.92l-3.88-3c-1.08.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.94H1.28v3.1C3.25 21.3 7.31 24 12 24Z"/><path fill="#FBBC05" d="M5.29 14.29A7.2 7.2 0 0 1 4.91 12c0-.8.14-1.57.38-2.29v-3.1H1.28A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.28 5.39l4.01-3.1Z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.59 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.61l4.01 3.1C6.23 6.88 8.88 4.77 12 4.77Z"/></svg>
             Google ile Giriş Yap
           </a>
-          <a class="auth-oauth-btn" href="/api/auth/linkedin/start?next=%2Fhesabim">
+          <a class="auth-oauth-btn" href="/api/auth/linkedin/start?next=${encodeURIComponent(loginNextPath())}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2"><path d="M4.98 3.5A2.5 2.5 0 1 0 4.98 8.5 2.5 2.5 0 0 0 4.98 3.5zM3 9.98h4v11.02H3zM10.5 9.98h3.83v1.51h.05c.53-1 1.85-2.06 3.8-2.06 4.06 0 4.82 2.67 4.82 6.14v6.43h-4v-5.7c0-1.36-.02-3.1-1.89-3.1-1.9 0-2.19 1.48-2.19 3v5.8h-4z"/></svg>
             LinkedIn ile Giriş Yap
           </a>
@@ -768,6 +789,7 @@ const AuthModal = (function () {
         // DEĞİLSE (modal kapatıldı ya da başka bir görünüme geçildi) geç gelen bu başarıyı artık
         // uygulamak YANLIŞ olur — refreshAuthNav() zaten çalıştı (nav avatarı doğru), yalnızca view
         // geçişi atlanır.
+        if (redirectToNextIfAny()) return;
         if (currentView === 'login') swap('account');
       } catch {
         notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
@@ -791,11 +813,11 @@ const AuthModal = (function () {
       <p class="auth-sub">Profilini oluşturmak için birkaç bilgi gir.</p>
       <div class="auth-card">
         <div class="auth-oauth">
-          <a class="auth-oauth-btn" href="/api/auth/google/start?next=%2Fhesabim">
+          <a class="auth-oauth-btn" href="/api/auth/google/start?next=${encodeURIComponent(loginNextPath())}">
             <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.46c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.81Z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.92l-3.88-3c-1.08.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.94H1.28v3.1C3.25 21.3 7.31 24 12 24Z"/><path fill="#FBBC05" d="M5.29 14.29A7.2 7.2 0 0 1 4.91 12c0-.8.14-1.57.38-2.29v-3.1H1.28A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.28 5.39l4.01-3.1Z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.59 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.61l4.01 3.1C6.23 6.88 8.88 4.77 12 4.77Z"/></svg>
             Google ile Kaydol
           </a>
-          <a class="auth-oauth-btn" href="/api/auth/linkedin/start?next=%2Fhesabim">
+          <a class="auth-oauth-btn" href="/api/auth/linkedin/start?next=${encodeURIComponent(loginNextPath())}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2"><path d="M4.98 3.5A2.5 2.5 0 1 0 4.98 8.5 2.5 2.5 0 0 0 4.98 3.5zM3 9.98h4v11.02H3zM10.5 9.98h3.83v1.51h.05c.53-1 1.85-2.06 3.8-2.06 4.06 0 4.82 2.67 4.82 6.14v6.43h-4v-5.7c0-1.36-.02-3.1-1.89-3.1-1.9 0-2.19 1.48-2.19 3v5.8h-4z"/></svg>
             LinkedIn ile Kaydol
           </a>
@@ -953,6 +975,7 @@ const AuthModal = (function () {
         // gerçek bulgu (denetim, 2026-08-24, bkz. wireLogin'deki AYNI kök neden): geç gelen bir
         // başarı yanıtı, kullanıcı bu arada popup'ı kapattıysa/başka bir view'a geçtiyse zorla
         // Hesabım'a geçmesin diye currentView kontrolü.
+        if (redirectToNextIfAny()) return;
         if (currentView === 'signup') swap('account');
       } catch {
         notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
@@ -3522,7 +3545,9 @@ const AuthModal = (function () {
     //       js/components/lazy-modals.js dosya başı yorumu: bilinçli yükleme bütçesi kararı), bu
     //       yüzden doğru davranış o URL'e GİTMEKTİR — sunucu kaydın SSR gövdesini döner ve sayfanın
     //       kendi modalı popup'ı açar (sitedeki her iç bağlantının zaten yaptığı şey).
-    const NOTIF_ENTITY_PATH_RE = /^\/(proje|kisi|firma|urun|marka)\/[^/?#]+/;
+    // 'gorusme' EKLENDİ (2026-09-08): "Danışmanlık görüşmen hazır" bildirimi /gorusme/:room_uuid'e
+    // gider (bkz. src/lib/consultationMeet.js#notifyMeetReady) — Meet adresi bildirimde HİÇ yer almaz.
+    const NOTIF_ENTITY_PATH_RE = /^\/(proje|kisi|firma|urun|marka|gorusme)\/[^/?#]+/;
     function notifEntityPath(link) {
       return typeof link === 'string' && NOTIF_ENTITY_PATH_RE.test(link) ? link : null;
     }

@@ -878,10 +878,18 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
   contact_email TEXT,
   contact_phone TEXT,
   note TEXT,
-  has_rescheduled INTEGER NOT NULL DEFAULT 0
+  has_rescheduled INTEGER NOT NULL DEFAULT 0,
+  -- Güvenli Görüşme Gateway'i / Google Meet (0104) — bkz. migrations/0104_consultation_meet.sql
+  room_uuid TEXT,
+  meet_link TEXT,
+  meet_event_id TEXT,
+  meet_status TEXT,
+  meet_error TEXT,
+  meet_created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_host_status ON consultation_requests(host_slug, status, requested_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_consultation_requests_room_uuid ON consultation_requests(room_uuid);
 
 -- ---------- Danışmanlık görüşme aksiyonu talepleri (0098) ----------
 -- "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" — profile_corrections İLE AYNI desen (bkz.

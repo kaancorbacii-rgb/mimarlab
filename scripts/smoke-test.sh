@@ -309,6 +309,24 @@ for legacy in /index.html /proje.html /kisi.html /firma.html /urun.html /marka.h
 done
 
 echo ""
+echo "14) Güvenli Görüşme Gateway'i (/gorusme/:room_uuid, 2026-09-08) — anonim/geçersiz erişim"
+# Anonim ziyaretçi giriş akışına yönlendirilir (302 /giris?next=...), geçersiz oda 404, çıplak yol
+# 404, API ucu oturumsuz 401. Hiçbiri kişisel veri ya da Meet adresi döndürmez.
+gw_uuid="00000000-0000-4000-8000-000000000000"
+gw_code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/gorusme/$gw_uuid")
+gw_loc=$(curl -s -o /dev/null -w "%{redirect_url}" "$BASE_URL/gorusme/$gw_uuid")
+if [ "$gw_code" = "302" ] && [[ "$gw_loc" == *"/giris?next=%2Fgorusme%2F$gw_uuid"* ]]; then
+  ok "/gorusme/<uuid> anonim -> 302 /giris?next=…"
+else
+  bad "/gorusme/<uuid> anonim -> $gw_code ($gw_loc) (302 /giris?next= bekleniyordu)"
+fi
+check_status "/gorusme/gecersiz" 404
+check_status "/gorusme" 404
+check_status "/api/consultations/room/$gw_uuid" 401
+gw_api=$(curl -s "$BASE_URL/api/consultations/room/$gw_uuid")
+if [[ "$gw_api" == *"meet.google.com"* ]]; then bad "/api/consultations/room oturumsuz yanıtta Meet adresi sızıyor"; else ok "/api/consultations/room oturumsuz yanıtta Meet adresi yok"; fi
+
+echo ""
 if [ "$fail" -eq 1 ]; then
   echo "Smoke test BAŞARISIZ oldu." >&2
   exit 1

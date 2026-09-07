@@ -7,6 +7,8 @@ import { myRatings } from './ratings.js';
 import { myComments } from './comments.js';
 import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, sanitizeImageHotspots } from '../lib/submissionTypes.js';
 import { createNotification, notifySubmissionApproved, notifySubmissionRejected } from '../lib/notify.js';
+// Google Meet gateway'i (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
+import { createMeetForConsultation } from '../lib/consultationMeet.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
@@ -1050,6 +1052,13 @@ async function handleConsultationsAdmin(request, env, url, segments) {
         `${row.requested_date} ${row.requested_time} için randevun onaylandı.`,
         `consultation:${id}`,
       );
+      // ÖDEME ONAYI -> Meet oluştur -> D1 -> bildirim (kullanıcı isteği, 2026-09-08). Onay ZATEN
+      // yazıldı; Google gecikse/başarısız olsa da onay geri alınmaz ve bu istek 500'e düşmez
+      // (createMeetForConsultation asla fırlatmaz, hatayı meet_status='failed' olarak kaydeder;
+      // cron/erişim/admin düğmesi yeniden dener). İdempotent: aynı satır için ikinci Meet
+      // ÜRETİLMEZ (meet_link doluysa Google'a hiç gidilmez, eşzamanlı çağrı kilitte kalır).
+      const meet = await createMeetForConsultation(env, id, { origin: new URL(request.url).origin });
+      return json({ ok: true, meet: { status: meet.status, error: meet.error || null } });
     } else {
       await createNotification(
         env, row.user_id, 'consultation_payment_rejected',
@@ -1059,6 +1068,20 @@ async function handleConsultationsAdmin(request, env, url, segments) {
       );
     }
     return json({ ok: true });
+  }
+
+  // POST /api/admin/consultations/:id/create-meet — yalnızca ADMİN, yalnızca sunucu tarafı: Meet
+  // oluşturmayı elle yeniden dener (Google geçici hata verdiyse ya da secret'lar sonradan
+  // eklendiyse). Public bir uç DEĞİLDİR; yetki requireAdmin ile en üstte kuruldu. İdempotent —
+  // meet_link zaten varsa Google'a gitmeden mevcut durumu döner. Meet ADRESİ bu yanıtta da
+  // dönmez (admin panelinin ona ihtiyacı yok; adres yalnızca gateway ucundan, pencere içinde).
+  if (segments.length === 5 && segments[4] === 'create-meet' && request.method === 'POST') {
+    const id = segments[3];
+    const row = await env.DB.prepare('SELECT id, status FROM consultation_requests WHERE id = ?').bind(id).first();
+    if (!row) return errorJson('Bulunamadı', 404);
+    if (row.status !== 'approved') return errorJson('Meet yalnızca onaylı rezervasyon için oluşturulur.');
+    const meet = await createMeetForConsultation(env, id, { origin: new URL(request.url).origin });
+    return json({ ok: meet.status === 'ready', status: meet.status, error: meet.error || null, reason: meet.reason || null });
   }
   return errorJson('Bulunamadı', 404);
 }
