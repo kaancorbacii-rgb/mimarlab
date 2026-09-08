@@ -118,7 +118,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // rozetlerinde logo, admin kontrollerinin sol üste taşınması, mobil buton boyutları. Yukarıdaki
 // v110-v119 ile AYNI gerekçe: /gundem'in SSR gövdesi önbelleğe gömülü olduğundan sürüm
 // artırılmazsa sayfayı daha önce açmış ziyaretçiler s-maxage boyunca ESKİ işaretlemeyi görür.
-export const SSR_CACHE_VERSION = 'v123';
+// v124 (kullanıcı isteği, 2026-09-08): kişi pop-up'ına "Portfolyo" bölümü eklendi. Bölümün kendisi
+// architect-modal.js içinde çizilir ama o modül SSR HTML'inin <head>'indeki
+// <meta name="ml-asset-version"> değerinden sürümlenir (bkz. lazy-modals.js#versionedSrc) — sürüm
+// artırılmazsa önbellekteki /kisi/:slug gövdesi ESKİ asset sürümünü taşımaya devam eder ve
+// ziyaretçiler s-maxage boyunca portfolyosuz eski modül dosyasını yükler.
+export const SSR_CACHE_VERSION = 'v124';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

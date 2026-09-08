@@ -381,7 +381,11 @@ export const MEDIA_IMAGE_FIELDS_BY_TYPE = {
   projects: { arrayFields: ['images'] },
   products: { arrayFields: ['images', 'files'] },
   materials: { arrayFields: ['images', 'files'] },
-  architects: { stringFields: ['photo_url'] },
+  // portfolio — kişi portfolyosundan ÇIKARILAN görsellerin R2 nesneleri de temizlensin (bkz.
+  // migrations/0105_architect_portfolio.sql). Buraya eklenmezse portfolyodan silinen her görsel
+  // (ve PDF'ten üretilmiş her sayfa) R2'de erişilemez ama silinmemiş biçimde kalırdı — projects.
+  // images/products.images ile AYNI gerekçe.
+  architects: { stringFields: ['photo_url'], arrayFields: ['portfolio'] },
   // cover_url — marka kapak görseli (bkz. migrations/0075_office_cover_url.sql). logo_url ile AYNI
   // türde tek bir R2 yolu; buraya eklenmezse değiştirilen/silinen kapaklar R2'de yetim kalırdı.
   offices: { stringFields: ['logo_url', 'cover_url'] },
@@ -882,6 +886,11 @@ async function syncArchitect(env, row) {
 
   const awards = row.awards ? JSON.stringify(row.awards) : null;
   const socialLinks = row.social_links ? JSON.stringify(row.social_links) : null;
+  // portfolio (bkz. migrations/0105_architect_portfolio.sql) — social_links ile AYNI nullable dizi
+  // sözleşmesi: `null` = "gönderi bu alanı HİÇ göndermedi, canonical'a dokunma", `[]` = "kullanıcı
+  // tüm öğeleri sildi, boşalt". Bu ayrım olmadan portfolyoyu tamamen boşaltmak imkânsız olurdu
+  // (bkz. social_links'in 2026-09-01'de aynı sebeple düzeltilmesi).
+  const portfolio = row.portfolio ? JSON.stringify(row.portfolio) : null;
 
   if (target) {
     const sets = [];
@@ -906,6 +915,9 @@ async function syncArchitect(env, row) {
       // aynı zamanda kullanıcının TÜM satırları silip kaydetmesini de sessizce yok sayıyordu —
       // bağlantılar profilde kalmaya devam ediyor, silmenin hiçbir yolu olmuyordu.
       if (row.social_links) { sets.push('social_links = ?'); vals.push(socialLinks); }
+      // bkz. yukarıdaki `portfolio` sabitinin gerekçesi — `row.portfolio` boş dizi de olsa yazılır
+      // (o "hepsini sil" demektir), yalnızca NULL (alan hiç gönderilmedi) atlanır.
+      if (row.portfolio) { sets.push('portfolio = ?'); vals.push(portfolio); }
       sets.push('office_id = ?'); vals.push(officeId);
       // bkz. syncOffice'teki AYNI gerçek bulgu/gerekçe — bu UPDATE dalı claimed_by_user_id'yi hiç
       // yazmıyordu, onaylı bir claim UPDATE dalına düştüğünde (statik kayıt zaten var olduğundan
@@ -913,8 +925,8 @@ async function syncArchitect(env, row) {
       const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
       if (claimedByUserId) { sets.push('claimed_by_user_id = ?'); vals.push(claimedByUserId); }
     } else {
-      sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'social_links = ?', 'office_id = ?');
-      vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, socialLinks, officeId);
+      sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'social_links = ?', 'portfolio = ?', 'office_id = ?');
+      vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, socialLinks, portfolio, officeId);
     }
     // "Kişi sayfasında ... görünmek istiyor musunuz?" — NULL, bu gönderinin soruyu HİÇ göndermediği
     // anlamına gelir (bkz. migrations/0081 + submissionTypes.js#normalizeSubmission), o durumda
@@ -937,9 +949,9 @@ async function syncArchitect(env, row) {
   if (clash) slug = `${slug}-${row.id}`;
   const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
   const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-    `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, social_links, office_id, directory_listed, source, legacy_key, claimed_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, Number(row.directory_listed) === 0 ? 0 : 1, marker, claimedByUserId));
+    `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, social_links, portfolio, office_id, directory_listed, source, legacy_key, claimed_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, portfolio, officeId, Number(row.directory_listed) === 0 ? 0 : 1, marker, claimedByUserId));
   const architectId = insert.meta.last_row_id;
   await syncOfficeFounderLink(env, architectId, founderLinkIds, founderPendingIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.

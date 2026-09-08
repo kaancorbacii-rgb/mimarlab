@@ -153,6 +153,36 @@ for f in kisi.html firma.html marka.html; do
   fi
 done
 
+# PORTFOLYO (kullanıcı isteği, 2026-09-08) — kişi ekle/düzenle'deki Portfolyo kutusu ve kişi
+# pop-up'ındaki Portfolyo galerisi. Bu özellik BEŞ ayrı parçanın birlikte deploy edilmesine bağlı ve
+# hiçbirinin eksikliği sözdizimi hatası vermez, SESSİZCE kırılır:
+#   * js/vendor/pdfjs/* — kendi barındırılan pdf.js; yoksa PDF yükleyen kullanıcı "PDF okunamadı"
+#     görür (CDN yok, CSP script-src 'self'),
+#   * kisi-ekle.html -> pdf-pages.js — yoksa PDF sessizce görsel sanılıp reddedilir,
+#   * architect-modal.js#am-portfolio-section — yoksa pop-up'ta bölüm hiç çizilmez,
+#   * lazy-modals.js#architect deps -> gallery.js — yoksa initDetailGallery tanımsız kalır ve
+#     portfolyo şeridi (guard sayesinde sessizce) hiç çizilmez,
+#   * submissionTypes.js#architects.fields -> portfolio — yoksa form portfolyoyu gönderse bile
+#     sunucu alanı yok sayar ve hiçbir şey kaydedilmez.
+for f in js/vendor/pdfjs/pdf.min.mjs js/vendor/pdfjs/pdf.worker.min.mjs js/components/pdf-pages.js; do
+  [ -s "$f" ] && ok "$f mevcut (portfolyo PDF boru hattı)" || bad "$f EKSİK — portfolyoya PDF yüklenemez"
+done
+grep -q 'js/components/pdf-pages.js' kisi-ekle.html \
+  && ok "kisi-ekle.html — pdf-pages.js yükleniyor" \
+  || bad "kisi-ekle.html — pdf-pages.js <script> etiketi yok, PDF sayfalara ayrılamaz"
+grep -q "id=\"portfolio-preview-grid\"" kisi-ekle.html \
+  && ok "kisi-ekle.html — Portfolyo kutusu mevcut" \
+  || bad "kisi-ekle.html — #portfolio-preview-grid yok, Portfolyo kutusu kaybolmuş"
+grep -q 'am-portfolio-section' js/components/architect-modal.js \
+  && ok "architect-modal.js — Portfolyo bölümü mevcut" \
+  || bad "architect-modal.js — am-portfolio-section yok, kişi pop-up'ında Portfolyo çizilmez"
+grep -q "js/components/gallery.js'" js/components/lazy-modals.js \
+  && ok "lazy-modals.js — kişi pop-up'ı gallery.js bağımlılığını yüklüyor" \
+  || bad "lazy-modals.js — architect deps içinde gallery.js yok, portfolyo şeridi çizilmez"
+grep -q "'portfolio'" src/lib/submissionTypes.js \
+  && ok "submissionTypes.js — architects.portfolio alanı tanımlı" \
+  || bad "submissionTypes.js — portfolio alanı yok, gönderilen portfolyo sunucuda yok sayılır"
+
 echo ""
 echo "5) GÜNDEM (kullanıcı isteği, 2026-09-06)"
 

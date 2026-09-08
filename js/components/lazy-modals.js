@@ -127,8 +127,12 @@
       // taraması boş çıkar) — popup'ın profil fotoğrafına `.img-zoomable` sınıfını basar ve modülün
       // kendi delege click dinleyicisi devreye girer. Yani bağımlılık MARKUP üzerindendir; dosya
       // yoksa fotoğrafa tıklamak sessizce hiçbir şey yapmaz.
+      // gallery.js: "Portfolyo" bölümünün şerit + lightbox motoru (kullanıcı isteği, 2026-09-08 —
+      // proje/ürün pop-up'larıyla AYNI initDetailGallery). architect-modal.js onu
+      // `typeof initDetailGallery === 'function'` ile koruyarak çağırır: dosya yüklenemezse
+      // portfolyo şeridi çizilmez ama pop-up'ın geri kalanı eskisi gibi çalışır.
       deps: [...ENTITY_UI_DEPS, 'js/components/claim-correction-box.js', 'js/components/message-button.js',
-        'js/components/social-links.js', 'js/components/image-lightbox.js'],
+        'js/components/social-links.js', 'js/components/image-lightbox.js', 'js/components/gallery.js'],
       // consultation-modal.js (39 KB — bu grubun EN BÜYÜĞÜ; canlıda ölçüldü: tek başına 663 ms,
       // diğer üç bağımlılığın tamamı ~135 ms) popup'ın RENDER'ı için gerekli DEĞİL: architect-modal.js
       // ona yalnızca "Danışmanlık Al" düğmesinin TIKLAMA dinleyicisi içinde dokunuyor ve o düğme de

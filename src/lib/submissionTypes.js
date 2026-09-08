@@ -117,12 +117,19 @@ export const SUBMISSION_TYPES = {
       // migrations/0081_architect_directory_listed.sql, kisi-ekle.html#getDirectoryListed) — 1/0,
       // gönderilmemişse NULL ("bu form soruyu sormadı, canonical satırdaki değere dokunma").
       'directory_listed',
+      // portfolio — "Portfolyo" kutusu (bkz. migrations/0105_architect_portfolio.sql, kisi-ekle.html):
+      // sıralı /media/... URL dizisi. projects.images/products.images İLE AYNI sözleşme, bu yüzden
+      // arrayFields + urlArrayFields'ta (öğeler düz string, isSafeUrlValue uygulanabilir).
+      'portfolio',
     ],
-    arrayFields: ['awards', 'social_links'],
-    nullableArrayFields: ['social_links'], // bkz. offices'teki AYNI not
+    arrayFields: ['awards', 'social_links', 'portfolio'],
+    // portfolio da social_links gibi nullable: TÜM öğeleri silip kaydetmek ([]) ile alanı hiç
+    // göndermemek (NULL, "dokunma") AYIRT EDİLMELİ — yoksa portfolyoyu boşaltmanın yolu olmazdı.
+    nullableArrayFields: ['social_links', 'portfolio'], // bkz. offices'teki AYNI not
     nullableStringFields: ['photo_url'],   // bkz. offices'teki AYNI not — profil fotoğrafı silinebilsin
     required: ['name'],
     urlFields: ['photo_url'],
+    urlArrayFields: ['portfolio'],
   },
 };
 
@@ -336,6 +343,20 @@ export function findInvalidProjectsField(type, body) {
     if (!slug.trim() && !title.trim()) return 'Kullanılan Projeler alanı geçersiz.';
     if (slug.length > 300 || title.length > 300) return 'Kullanılan Projeler alanı geçersiz.';
   }
+  return null;
+}
+
+// body.portfolio (kişi gönderisindeki "Portfolyo" kutusu) — öğe SAYISI sınırı. Öğelerin kendisi
+// düz URL olduğundan biçim doğrulaması urlArrayFields/isSafeUrlValue tarafından zaten yapılır (bkz.
+// yukarıdaki architects tanımı); burada yalnızca istemcideki MAX_PORTFOLIO_ITEMS'ın (kisi-ekle.html)
+// atlanamaz sunucu karşılığı vardır — bkz. findInvalidProjectsField'daki AYNI gerekçe: doğrudan
+// API'ye giden bir istek (curl/eski istemci) aksi halde tek satıra sınırsız URL yazabilirdi.
+export const MAX_PORTFOLIO_ITEMS = 30;
+export function findInvalidPortfolioField(type, body) {
+  if (type !== 'architects') return null;
+  if (!('portfolio' in body) || body.portfolio == null) return null;
+  if (!Array.isArray(body.portfolio)) return 'Portfolyo alanı geçersiz.';
+  if (body.portfolio.length > MAX_PORTFOLIO_ITEMS) return `Portfolyoya en fazla ${MAX_PORTFOLIO_ITEMS} içerik ekleyebilirsin.`;
   return null;
 }
 

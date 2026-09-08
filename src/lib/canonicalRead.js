@@ -6,7 +6,10 @@
 // AYNI "arrayFields listesine göre JSON.parse et" deseninin canonical tablo karşılığı.
 
 const JSON_FIELDS = {
-  architects: ['awards', 'social_links'],
+  // portfolio — kişi pop-up'ındaki "Portfolyo" galerisi (bkz. migrations/0105_architect_portfolio.sql).
+  // projects.images ile AYNI sözleşme: bozuk/boş değer [] olur, bu yüzden okuyan taraf
+  // (architect-modal.js) hiçbir zaman null kontrolü yapmak zorunda kalmaz.
+  architects: ['awards', 'social_links', 'portfolio'],
   offices: ['cats', 'awards', 'social_links'],
   projects: ['category', 'type', 'discipline', 'period', 'images', 'awards'],
   // variants: ürün popup'ındaki "Versiyonlar" seçici (bkz. migrations/0086_product_variants.sql).

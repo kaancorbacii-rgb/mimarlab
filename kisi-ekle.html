@@ -199,6 +199,31 @@
   .image-preview-item img{width:100%; height:100%; object-fit:cover;}
   .image-preview-remove{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;}
 
+  /* ---------- PORTFOLYO (kullanıcı isteği, 2026-09-08) ----------
+     Profil Fotoğrafı kutusunun aksine ÇOK öğeli ve SIRALANABİLİR: urun-ekle.html/proje-ekle.html'in
+     galeri ızgarasıyla BİREBİR aynı desen (basılı tut-sürükle + ‹ › taşı butonları). Yeni bir
+     etkileşim icat EDİLMEDİ; sınıf adları da o iki sayfayla aynı tutuldu ki ileride üçü birden tek
+     bir bileşene çıkarılabilsin. ---------- */
+  .portfolio-preview-item{position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--paper); touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab;}
+  .portfolio-preview-item img{width:100%; height:100%; object-fit:cover; pointer-events:none;}
+  .portfolio-preview-item button{cursor:pointer;}
+  .portfolio-preview-item.dragging{opacity:0.55; cursor:grabbing; z-index:2; box-shadow:0 10px 24px rgba(27,42,61,0.28);}
+  /* Sıra numarası: kullanıcı sürüklerken/taşırken kaçıncı sırada olduğunu görsün (pop-up'ta
+     portfolyo TAM OLARAK bu sırayla gösterilir). */
+  .portfolio-order-badge{position:absolute; left:4px; bottom:4px; background:var(--ink); color:var(--paper-card); font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px;}
+  .image-move-btn{
+    position:absolute; top:4px; width:20px; height:20px; border-radius:50%;
+    background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center;
+    font-size:13px; line-height:1; padding:0;
+  }
+  .image-move-btn:hover{background:var(--ink);}
+  .image-move-btn:disabled{opacity:0.25; cursor:default;}
+  .image-move-left{left:4px;}
+  .image-move-right{left:28px;}
+  /* PDF sayfaya çevrilirken gösterilen ilerleme satırı — dosya büyükse birkaç saniye sürebilir. */
+  .portfolio-progress{display:none; font-size:12px; color:var(--ink-soft); margin:10px 2px 0;}
+  .portfolio-progress.show{display:block;}
+
   /* ---------- Dizinde görünme sorusu (kullanıcı isteği, 2026-09-01 madde 4: "gönder-kaydet
      butonunun üzerinde TEK SATIRDA ... diye sor") — soru metni ve Evet/Hayır aynı satırda kalır,
      yalnızca dar ekranda (≤560px) alt alta sarar. ---------- */
@@ -315,6 +340,9 @@
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
+<!-- Portfolyo kutusuna yüklenen PDF'i sayfa sayfa görsele çevirir (bkz. js/components/pdf-pages.js).
+     defer: pdf.js'in KENDİSİ yalnızca gerçekten bir PDF seçildiğinde dinamik import ile iner. -->
+<script src="js/components/pdf-pages.js" defer></script>
 <script src="image-upload.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
@@ -445,6 +473,25 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
+      <!-- PORTFOLYO (kullanıcı isteği, 2026-09-08): "Profil Fotoğrafı bölümünün altına Portfolyo
+           kutusu ekle. Buraya görsel ya da pdf yüklenecek. Görsellerin ya da pdf sayfalarının
+           sırası değiştirilebilsin." PDF, tarayıcıda sayfa sayfa görsele çevrilir (bkz.
+           js/components/pdf-pages.js) — yani bu kutu sunucuya HER ZAMAN görsel gönderir ve
+           pop-up tarafı hiçbir PDF çalışma zamanı yüklemez. -->
+      <div class="form-section">
+        <h2>Portfolyo</h2>
+        <p class="section-hint">Kişisel çalışmalarına dair farklı içerikleri yükleyebilirsin.</p>
+        <label class="image-drop" id="portfolio-drop">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <strong>Görselleri veya PDF'i sürükleyip bırak</strong>
+          <span>ya da bilgisayarından seçmek için tıkla</span>
+          <input type="file" id="portfolio-input" accept="image/*,application/pdf" multiple style="display:none;">
+        </label>
+        <p class="image-spec-hint">Görsel ya da PDF yükleyebilirsin; PDF'in her sayfası ayrı bir içerik olarak eklenir. İçerikleri basılı tutup sürükleyerek ya da ‹ › butonlarıyla sıralayabilirsin. En fazla 30 içerik.</p>
+        <p class="portfolio-progress" id="portfolio-progress"></p>
+        <div class="image-preview-grid" id="portfolio-preview-grid"></div>
+      </div>
+
       <div class="form-section" id="my-badge-section" style="display:none;">
         <h2>Rozet</h2>
         <div class="my-badge-box" id="my-badge-box"></div>
@@ -533,6 +580,11 @@ const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
 let selectedFiles = [];
 let existingPhotoUrl = null;
+// PORTFOLYO (kullanıcı isteği, 2026-09-08) — urun-ekle.html#mediaItems ile AYNI model: mevcut
+// (kayıtlı) ve yeni seçilen öğeler TEK bir sıralı listede tutulur, böylece sıralama ikisi arasında
+// ayrım yapmaz. {key, kind:'existing'|'file', url?, file?, objectUrl?}
+let portfolioItems = [];
+let portfolioKeySeq = 0;
 const params = new URLSearchParams(window.location.search);
 let editId = params.get('edit');
 let claimName = params.get('claim');
@@ -874,6 +926,206 @@ dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
 
+/* ==================== PORTFOLYO (kullanıcı isteği, 2026-09-08) ====================
+   "Profil Fotoğrafı bölümünün altına Portfolyo kutusu ekle. Buraya görsel ya da pdf yüklenecek.
+    Görsellerin ya da pdf sayfalarının sırası değiştirilebilsin."
+   Yukarıdaki Profil Fotoğrafı kutusundan farkı: çok öğeli, sıralanabilir ve PDF kabul eder.
+   PDF, seçildiği anda tarayıcıda sayfa sayfa görsele çevrilir (bkz. js/components/pdf-pages.js) —
+   sunucuya ve D1'e HER ZAMAN görsel URL'si gider (bkz. migrations/0105_architect_portfolio.sql).
+   Etkileşim deseni urun-ekle.html/proje-ekle.html galerisinden BİREBİR alındı (basılı tut-sürükle
+   + ‹ › taşı + ✕ kaldır); yeni bir etkileşim icat edilmedi.  */
+const portfolioDrop = document.getElementById('portfolio-drop');
+const portfolioInput = document.getElementById('portfolio-input');
+const portfolioGrid = document.getElementById('portfolio-preview-grid');
+const portfolioProgress = document.getElementById('portfolio-progress');
+// src/lib/submissionTypes.js#MAX_PORTFOLIO_ITEMS İLE AYNI SAYI — buradaki sınır kullanıcıya erken
+// ve anlaşılır bir uyarı vermek için; atlanamaz kapı sunucudadır.
+const MAX_PORTFOLIO_ITEMS = 30;
+
+function portfolioItemSrc(item){
+  return item.kind === 'existing' ? item.url : item.objectUrl;
+}
+
+function setPortfolioItems(urls){
+  portfolioItems.forEach(item => { if(item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
+  portfolioItems = (urls || []).filter(u => typeof u === 'string' && u).map(url => ({ key: 'p' + (portfolioKeySeq++), kind:'existing', url }));
+}
+
+function showPortfolioNotice(text){
+  const notice = document.getElementById('form-notice');
+  notice.textContent = text;
+  notice.classList.add('show');
+}
+
+function setPortfolioProgress(text){
+  if(!text){ portfolioProgress.classList.remove('show'); portfolioProgress.textContent = ''; return; }
+  portfolioProgress.textContent = text;
+  portfolioProgress.classList.add('show');
+}
+
+function renderPortfolioPreviews(){
+  portfolioGrid.innerHTML = portfolioItems.map((item, i) => {
+    const isLast = i === portfolioItems.length - 1;
+    return `<div class="portfolio-preview-item" data-key="${escapeAttr(item.key)}">
+      <img src="${escapeAttr(portfolioItemSrc(item))}" alt="">
+      <button type="button" class="image-move-btn image-move-left" data-move-index="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
+      <button type="button" class="image-move-btn image-move-right" data-move-index="${i}" data-dir="1" aria-label="Sağa taşı"${isLast ? ' disabled' : ''}>›</button>
+      <span class="portfolio-order-badge">${i + 1}</span>
+      <button type="button" class="image-preview-remove" data-remove-index="${i}" aria-label="Kaldır">✕</button>
+    </div>`;
+  }).join('');
+  portfolioGrid.querySelectorAll('[data-remove-index]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [removed] = portfolioItems.splice(parseInt(btn.dataset.removeIndex), 1);
+      if(removed && removed.objectUrl) URL.revokeObjectURL(removed.objectUrl);
+      renderPortfolioPreviews();
+    });
+  });
+  portfolioGrid.querySelectorAll('[data-move-index]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.moveIndex);
+      const j = i + parseInt(btn.dataset.dir);
+      if(j < 0 || j >= portfolioItems.length) return;
+      [portfolioItems[i], portfolioItems[j]] = [portfolioItems[j], portfolioItems[i]];
+      renderPortfolioPreviews();
+    });
+  });
+}
+
+// Basılı tutup sürükleyerek sıralama — proje-ekle.html#pointerdown/pointermove/finishDragReorder
+// deseninin birebir aynısı (uzun-basma eşiği, sürükleme sırasında YENİDEN ÇİZİM YOK, sıra yalnızca
+// pointerup'ta DOM'dan diziye senkronlanır). Fare ve dokunmatikte aynı şekilde çalışır.
+const PORTFOLIO_DRAG_LONG_PRESS_MS = 260;
+const PORTFOLIO_DRAG_MOVE_CANCEL_PX = 8;
+let portfolioDragPending = null;
+let portfolioDragState = null;
+
+function clearPortfolioDragPending(){
+  if(portfolioDragPending && portfolioDragPending.timer) clearTimeout(portfolioDragPending.timer);
+  portfolioDragPending = null;
+}
+
+portfolioGrid.addEventListener('pointerdown', (e)=>{
+  if(e.target.closest('button')) return;
+  const tile = e.target.closest('.portfolio-preview-item');
+  if(!tile) return;
+  clearPortfolioDragPending();
+  const pointerId = e.pointerId;
+  portfolioDragPending = { tile, pointerId, startX: e.clientX, startY: e.clientY, timer: null };
+  portfolioDragPending.timer = setTimeout(()=>{
+    if(!portfolioDragPending || portfolioDragPending.pointerId !== pointerId) return;
+    portfolioDragState = { tile: portfolioDragPending.tile, pointerId };
+    portfolioDragPending = null;
+    tile.classList.add('dragging');
+    try{ tile.setPointerCapture(pointerId); }catch{}
+  }, PORTFOLIO_DRAG_LONG_PRESS_MS);
+});
+
+portfolioGrid.addEventListener('pointermove', (e)=>{
+  if(portfolioDragState && e.pointerId === portfolioDragState.pointerId){
+    e.preventDefault();
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const overTile = el ? el.closest('.portfolio-preview-item') : null;
+    if(!overTile || overTile === portfolioDragState.tile || !portfolioGrid.contains(overTile)) return;
+    const tiles = [...portfolioGrid.children];
+    const dragIndex = tiles.indexOf(portfolioDragState.tile);
+    const overIndex = tiles.indexOf(overTile);
+    if(dragIndex < overIndex) portfolioGrid.insertBefore(portfolioDragState.tile, overTile.nextSibling);
+    else portfolioGrid.insertBefore(portfolioDragState.tile, overTile);
+    return;
+  }
+  if(portfolioDragPending && e.pointerId === portfolioDragPending.pointerId){
+    if(Math.abs(e.clientX - portfolioDragPending.startX) > PORTFOLIO_DRAG_MOVE_CANCEL_PX || Math.abs(e.clientY - portfolioDragPending.startY) > PORTFOLIO_DRAG_MOVE_CANCEL_PX) clearPortfolioDragPending();
+  }
+});
+
+function finishPortfolioDrag(e){
+  if(portfolioDragPending && (!e || e.pointerId === portfolioDragPending.pointerId)) clearPortfolioDragPending();
+  if(!portfolioDragState || (e && e.pointerId !== portfolioDragState.pointerId)) return;
+  const tile = portfolioDragState.tile;
+  tile.classList.remove('dragging');
+  try{ tile.releasePointerCapture(portfolioDragState.pointerId); }catch{}
+  portfolioDragState = null;
+  const order = [...portfolioGrid.children].map(el => el.dataset.key);
+  const byKey = new Map(portfolioItems.map(item => [item.key, item]));
+  portfolioItems = order.map(k => byKey.get(k)).filter(Boolean);
+  renderPortfolioPreviews();
+}
+portfolioGrid.addEventListener('pointerup', finishPortfolioDrag);
+portfolioGrid.addEventListener('pointercancel', finishPortfolioDrag);
+
+// Seçilen dosyaları portfolyoya ekler. PDF'ler sayfa sayfa görsele çevrilir; görseller olduğu gibi
+// alınır. Sıra KULLANICININ seçtiği sıradır (PDF sayfaları da belge sırasında arka arkaya girer).
+async function addPortfolioFiles(fileList){
+  const files = Array.from(fileList || []);
+  if(!files.length) return;
+  const accepted = files.filter(f => f.type.startsWith('image/') || (window.PdfPages && PdfPages.isPdf(f)));
+  if(!accepted.length){
+    showPortfolioNotice('Portfolyoya yalnızca görsel ya da PDF ekleyebilirsin.');
+    return;
+  }
+  for(const file of accepted){
+    const remaining = MAX_PORTFOLIO_ITEMS - portfolioItems.length;
+    if(remaining <= 0){
+      showPortfolioNotice(`Portfolyoya en fazla ${MAX_PORTFOLIO_ITEMS} içerik ekleyebilirsin.`);
+      break;
+    }
+    if(window.PdfPages && PdfPages.isPdf(file)){
+      let pages = [];
+      let pdfFailed = false;
+      try{
+        setPortfolioProgress(`"${file.name}" sayfalara ayrılıyor…`);
+        pages = await PdfPages.toImages(file, {
+          maxPages: remaining,
+          onProgress: (page, total)=> setPortfolioProgress(`"${file.name}" sayfalara ayrılıyor… (${page}/${total})`),
+        });
+      }catch(err){
+        pdfFailed = true;
+        showPortfolioNotice('PDF okunamadı. Dosyanın bozuk ya da parola korumalı olmadığından emin ol.');
+      }finally{
+        setPortfolioProgress('');
+      }
+      // Hiç sayfa çizilemediyse sessizce geçme — kullanıcı dosyayı bıraktı ama ızgarada hiçbir şey
+      // belirmedi, sebebini görmeli (hata mesajı zaten gösterildiyse üzerine yazma).
+      if(!pages.length){
+        if(!pdfFailed) showPortfolioNotice('PDF sayfaları görsele çevrilemedi. Dosyayı görsel olarak dışa aktarıp tekrar dene.');
+        continue;
+      }
+      // PdfPages sayfa sayısını kalan kotayla (maxPages) zaten kesiyor.
+      pages.forEach(pageFile => {
+        portfolioItems.push({ key: 'p' + (portfolioKeySeq++), kind:'file', file: pageFile, objectUrl: URL.createObjectURL(pageFile) });
+      });
+      renderPortfolioPreviews();
+      continue;
+    }
+    portfolioItems.push({ key: 'p' + (portfolioKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) });
+    renderPortfolioPreviews();
+  }
+  // Kullanıcı AYNI dosyayı ikinci kez seçebilsin diye girdi temizlenir (change olayı aksi halde
+  // tetiklenmez) — Profil Fotoğrafı kutusundaki AYNI gerekçe.
+  portfolioInput.value = '';
+}
+portfolioInput.addEventListener('change', (e)=> addPortfolioFiles(e.target.files));
+portfolioDrop.addEventListener('dragover', (e)=>{ e.preventDefault(); portfolioDrop.classList.add('dragover'); });
+portfolioDrop.addEventListener('dragleave', ()=> portfolioDrop.classList.remove('dragover'));
+portfolioDrop.addEventListener('drop', (e)=>{ e.preventDefault(); portfolioDrop.classList.remove('dragover'); addPortfolioFiles(e.dataTransfer.files); });
+
+// Yeni öğeleri yükler ve NİHAİ sırayı (mevcut + yeni, kullanıcının verdiği sırada) döndürür.
+// uploadFiles ile AYNI uç/bağlam ('architect'), yalnızca maxEdge daha büyük: portfolyo içerikleri
+// profil fotoğrafı gibi 1:1 küçük bir kart değil, lightbox'ta tam ekran açılan sayfalardır.
+async function collectPortfolioUrls(){
+  const urls = [];
+  for(const item of portfolioItems){
+    if(item.kind === 'existing'){ urls.push(item.url); continue; }
+    const fd = await MimarlabUpload.buildUploadForm(item.file, { context: 'architect', maxEdge: 1600, quality: 0.85 });
+    const res = await fetch('/api/uploads', { method:'POST', body: fd });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || 'Portfolyo içeriği yüklenemedi.');
+    urls.push(data.url);
+  }
+  return urls;
+}
+
 let isAdmin = false;
 const currentUserReady = fetch('/api/auth/me').then(res=>{
   if(!res.ok){ window.location.href = '/giris'; return null; }
@@ -1030,6 +1282,10 @@ async function prefillForEdit(){
     (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
+    // Portfolyo (bkz. migrations/0105_architect_portfolio.sql) — kayıtlı sıra AYNEN geri yüklenir;
+    // kullanıcı buradan sürükleyerek/butonlarla yeniden sıralayabilir.
+    setPortfolioItems(item.portfolio || []);
+    renderPortfolioPreviews();
     wireAdminBadgePicker(item.name);
     wireMyBadgeBox(item.name, 'architect');
     mountArchitectAdminActions();
@@ -1105,7 +1361,7 @@ async function prefillForClaim(){
       const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
-        merged = overlayNonEmpty(merged, { name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links });
+        merged = overlayNonEmpty(merged, { name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links, portfolio: mine.portfolio });
         // Taslakta bu soru hiç yanıtlanmamışsa (NULL) canonical satırdan gelen değer korunur.
         if(mine.directory_listed !== undefined && mine.directory_listed !== null) merged.directory_listed = mine.directory_listed;
       }
@@ -1136,6 +1392,8 @@ async function prefillForClaim(){
   (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
+  setPortfolioItems(merged.portfolio || []);
+  renderPortfolioPreviews();
   wireAdminBadgePicker(claimName);
   wireMyBadgeBox(claimName, 'architect');
   mountArchitectAdminActions();
@@ -1317,8 +1575,12 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
   submitBtn.disabled = true;
   loading.classList.add('show');
   let photoUrl = existingPhotoUrl;
+  // Portfolyo: mevcut öğeler olduğu gibi kalır, yeni eklenenler burada yüklenir; dizinin SIRASI
+  // kullanıcının ızgarada bıraktığı sıradır ve pop-up'ta aynen bu sırayla gösterilir.
+  let portfolioUrls = [];
   try{
     if(selectedFiles.length) photoUrl = (await uploadFiles(selectedFiles))[0];
+    portfolioUrls = await collectPortfolioUrls();
   }catch(err){
     notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
     notice.classList.add('show');
@@ -1339,6 +1601,11 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
     photo_url: photoUrl,
     about: document.getElementById('m-about').value || null,
     social_links: collectSocialLinks(),
+    // portfolio HER ZAMAN gönderilir (boş dizi dahil): boş dizi "hepsini sil" demektir, alanı hiç
+    // göndermemek ise canonical'daki mevcut portfolyoya dokunmamak (bkz. src/lib/submissionTypes.js#
+    // nullableArrayFields) — bu form portfolyonun tek düzenleme yeri olduğundan silme işlemi
+    // yansımalı.
+    portfolio: portfolioUrls,
     directory_listed: getDirectoryListed(),
   };
   if(claimName) payload.claimed_profile_key = claimName;
@@ -1390,6 +1657,8 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
     form.reset();
     selectedFiles = [];
     renderPreviews();
+    setPortfolioItems([]);
+    renderPortfolioPreviews();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

@@ -422,7 +422,12 @@ async function withSingleFlight(key, fn) {
 //     bir profili atamak hiçbir canonical satırın updated_at'ini değiştirmediğinden fingerprint
 //     aynı kalır; sürüm artırılmazsa o pop-up'ı daha önce açmış ziyaretçiler 304 alıp uyarının
 //     hâlâ durduğu eski gövdede takılırdı.
-const API_PAYLOAD_VERSION = 'v23';
+// v23 -> v24 (kullanıcı isteği, 2026-09-08): /api/architect/:key artık `item.portfolio` taşıyor —
+//     kişi pop-up'ındaki yeni "Portfolyo" galerisi (bkz. migrations/0105_architect_portfolio.sql).
+//     v5-v22'nin AYNI tuzağı: yeni alan yanıtın ŞEKLİNİ değiştirir ama listFingerprint'i (COUNT +
+//     MAX(updated_at)) değiştirmez, sürüm artırılmazsa pop-up'ı daha önce açmış ziyaretçiler 304
+//     ile portfolyosuz eski gövdede takılırdı.
+const API_PAYLOAD_VERSION = 'v24';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

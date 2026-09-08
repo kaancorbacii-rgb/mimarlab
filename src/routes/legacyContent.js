@@ -478,7 +478,10 @@ const CONTENT_ACTION_TYPES = {
   architects: {
     table: 'architect_submissions',
     claimedColumn: 'claimed_profile_key',
-    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'],
+    // portfolio — bkz. migrations/0105_architect_portfolio.sql. Arşivle/Yayınla, canonical satırı
+    // bir taslağa kopyalayıp geri yazar; buraya eklenmezse arşivlenip yeniden yayımlanan her kişi
+    // profili portfolyosunu SESSİZCE kaybederdi (bindContentFields arrayFields'ı JSON'a çevirir).
+    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'portfolio'],
     async canonicalFields(env, key) {
       const row = await findCanonicalRowByNaturalKey(env, 'architects', key);
       if (!row) return null;
@@ -487,6 +490,7 @@ const CONTENT_ACTION_TYPES = {
       return {
         name: a.name, dob: a.dob, school: a.school, dept: a.dept, office: office ? office.name : null,
         position: a.position, profession: a.profession, awards: a.awards, photo_url: a.photo_url, about: a.about,
+        portfolio: a.portfolio,
       };
     },
   },

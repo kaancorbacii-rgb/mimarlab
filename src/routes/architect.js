@@ -629,6 +629,11 @@ async function buildArchitectPayload(env, key) {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
     role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
     social_links: a.social_links || [],
+    // portfolio — kişinin kendi yüklediği portfolyo görselleri (bkz. migrations/
+    // 0105_architect_portfolio.sql, js/components/architect-modal.js#am-portfolio-section). PDF
+    // yüklendiyse her SAYFA burada ayrı bir görsel URL'sidir; sıra kullanıcının kisi-ekle.html'de
+    // verdiği sıradır ve olduğu gibi korunur.
+    portfolio: a.portfolio || [],
     // kisi-ekle.html#prefillForClaim bu değeri "Kişi sayfasında ... görünmek istiyor musunuz?"
     // sorusuna geri yazar (bkz. setDirectoryListed) — aksi halde profilini ikinci kez düzenleyen
     // biri, formun varsayılanı "Evet" olduğu için önceki "Hayır" tercihini sessizce geri alırdı.

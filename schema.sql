@@ -218,7 +218,10 @@ CREATE TABLE IF NOT EXISTS architect_submissions (
   -- "gönderi bu soruyu hiç göndermedi" (canonical satırdaki mevcut tercih korunur, bkz.
   -- src/lib/canonicalSync.js#syncArchitect) — bu yüzden architects'teki karşılığının aksine
   -- NOT NULL/DEFAULT taşımaz.
-  directory_listed INTEGER
+  directory_listed INTEGER,
+  -- portfolio — kişinin kendi yüklediği portfolyo görselleri (bkz. migrations/
+  -- 0105_architect_portfolio.sql). architects.portfolio ile AYNI biçim: sıralı JSON URL dizisi.
+  portfolio TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_architect_owner ON architect_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_architect_status_created ON architect_submissions(status, created_at DESC);
@@ -592,7 +595,10 @@ CREATE TABLE IF NOT EXISTS architects (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, is_consultant INTEGER NOT NULL DEFAULT 0, hourly_rate INTEGER, session_duration_min INTEGER NOT NULL DEFAULT 45, expertise_tags TEXT, available_slots TEXT, consultant_bio TEXT, consultant_total_minutes INTEGER NOT NULL DEFAULT 0, consultant_sessions_completed INTEGER NOT NULL DEFAULT 0, consultant_experience_years INTEGER, social_platform TEXT, social_url TEXT, social_links TEXT, directory_listed INTEGER NOT NULL DEFAULT 1);
+, hidden_at TEXT, is_consultant INTEGER NOT NULL DEFAULT 0, hourly_rate INTEGER, session_duration_min INTEGER NOT NULL DEFAULT 45, expertise_tags TEXT, available_slots TEXT, consultant_bio TEXT, consultant_total_minutes INTEGER NOT NULL DEFAULT 0, consultant_sessions_completed INTEGER NOT NULL DEFAULT 0, consultant_experience_years INTEGER, social_platform TEXT, social_url TEXT, social_links TEXT, directory_listed INTEGER NOT NULL DEFAULT 1
+  -- portfolio: sıralı JSON dizi, /media/... görsel URL'leri (bkz. migrations/0105_architect_portfolio.sql).
+  -- PDF yüklenirse sayfaları tarayıcıda görsele çevrilip AYRI öğeler olarak yazılır — bu kolon PDF taşımaz.
+, portfolio TEXT);
 CREATE INDEX IF NOT EXISTS idx_architects_claimed_by ON architects(claimed_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_architects_consultant ON architects(is_consultant) WHERE is_consultant = 1;
 CREATE INDEX IF NOT EXISTS idx_architects_hidden_or_deleted ON architects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;

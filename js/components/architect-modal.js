@@ -222,6 +222,70 @@ const ArchitectModal = (function () {
       @media (max-width:860px){
         .am-projects-map-wrap{height:220px;}
       }
+      /* PORTFOLYO galerisi (kullanıcı isteği, 2026-09-08: "Kişi popupında bu görselleri ya da pdf'in
+         her sayfasını tek tek sırayla göstereceksin … tıklayınca popup şeklinde büyüsünler ve
+         büyüyen görsellerden de ileri geri yapıp diğer görselleri de görebilelim").
+         Bu blok js/components/product-modal.js#injectStyles'taki galeri/lightbox bloğunun BİREBİR
+         kopyasıdır — üç modül (proje/ürün/kişi) AYNI js/components/gallery.js#initDetailGallery
+         motorunu kullanır ama paylaşılan bir stylesheet olmadığından her modül kendi kopyasını
+         taşır (bkz. o dosyadaki AYNI not). Tek fark: kişi portfolyosunda ürün işaretçisi/marka
+         favicon'u yok, bu yüzden .gallery-placeholder'ın favicon satırı alınmadı. */
+      .gallery-wrap{position:relative; min-width:0;}
+      .gallery-media{position:relative;}
+      .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .detail-gallery::-webkit-scrollbar{display:none;}
+      .detail-gallery a{
+        flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px; overflow:hidden;
+        display:block; background:var(--paper-card);
+      }
+      /* object-fit:contain — portfolyo öğeleri ÇOĞUNLUKLA dikey PDF sayfalarıdır (A4/A3 sunum
+         paftası); 2:1 kutuya cover ile sığdırmak sayfanın üstünü ve altını keserdi. Proje/ürün
+         galerisinde görseller zaten yatay fotoğraflar olduğundan orada cover doğru; burada ise
+         "sayfanın TAMAMI görünsün" tek doğru davranış. Kutu zemini kâğıt rengiyle doldurulur. */
+      .detail-gallery img{width:100%; height:100%; object-fit:contain; display:block; background:var(--paper-alt);}
+      .gallery-nav{
+        position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+        width:38px; height:38px; border-radius:50%; border:none;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(27,42,61,0.45); color:#fff;
+      }
+      .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+      .gallery-prev{left:14px;}
+      .gallery-next{right:14px;}
+      .gallery-counter{text-align:center; margin-top:8px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12.5px; color:var(--ink-soft);}
+      .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+      .lightbox.open{display:flex;}
+      .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+      .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+      .lightbox-close:hover{opacity:1;}
+      .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+      .lightbox-nav:hover{opacity:1;}
+      .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+      .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+      .lightbox-counter{
+        position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+        color:#fff; font-size:13px; font-weight:600; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+      }
+      .lightbox-grid-toggle{
+        position:absolute; top:24px; right:78px; background:none; border:none;
+        color:var(--paper); opacity:0.8; z-index:2;
+      }
+      .lightbox-grid-toggle:hover{opacity:1;}
+      .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}
+      .lightbox.grid-mode .lightbox-grid{display:block;}
+      /* bkz. product-modal.js'teki AYNI gerçek bulgu — doğrudan-çocuk (>) kısıtlaması olmadan bu
+         kural ızgara kutucuklarının içindeki img'leri de gizliyordu. */
+      .lightbox.grid-mode > img,
+      .lightbox.grid-mode .lightbox-nav,
+      .lightbox.grid-mode .lightbox-counter{display:none;}
+      .lightbox-grid-list{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; max-width:1080px; margin:0 auto;}
+      .lightbox-grid-item{aspect-ratio:1/1; border-radius:10px; overflow:hidden; display:block; background:var(--paper-card);}
+      .lightbox-grid-item img{width:100%; height:100%; object-fit:cover; display:block;}
+      @media (max-width:768px){
+        .lightbox-grid{padding:60px 14px 24px;}
+        .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -277,6 +341,33 @@ const ArchitectModal = (function () {
       <div class="pgf-chips" id="am-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
+    </div>
+    <!-- PORTFOLYO (kullanıcı isteği, 2026-09-08): "Bu bölüm kişi popupında projeler haritasından
+         sonraki çizginin altında Portfolyo başlığı altında yer alsın." Bölümler arası çizgi ayrı bir
+         <hr> DEĞİL, .related-section'ın kendi border-top'udur (bkz. yukarıdaki CSS) — bu yüzden
+         "haritadan sonraki çizginin altı" = Projeler bölümünün hemen ardındaki .related-section.
+         İçerik: kişinin kendi yüklediği görseller VE yüklediği PDF'in her sayfası (sayfalar
+         kisi-ekle.html'de yüklenirken görsele çevrilir, bkz. js/components/pdf-pages.js) — hepsi
+         kullanıcının verdiği SIRADA. Galeri motoru proje/ürün pop-up'larıyla AYNI
+         (js/components/gallery.js#initDetailGallery): şerit + sayaç, tıklayınca lightbox, lightbox
+         içinde ileri/geri (ok tuşları, kaydırma, tekerlek) ve "Tümünü Gör" ızgarası. -->
+    <div class="related-section" id="am-portfolio-section" style="display:none;">
+      <h2 class="related-title">Portfolyo<span id="am-portfolio-count"></span></h2>
+      <div class="gallery-wrap" id="am-portfolio-wrap">
+        <div class="gallery-media">
+          <div class="detail-gallery" id="am-portfolio-gallery"></div>
+          <button class="gallery-nav gallery-prev" id="am-portfolio-prev" type="button" aria-label="Önceki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="gallery-nav gallery-next" id="am-portfolio-next" type="button" aria-label="Sonraki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+        <div class="gallery-counter" id="am-portfolio-counter"></div>
+      </div>
+      <div class="lightbox" id="am-portfolio-lightbox">
+        <button class="lightbox-close" id="am-portfolio-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="lightbox-nav lightbox-prev" id="am-portfolio-lightbox-prev" aria-label="Önceki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <img id="am-portfolio-lightbox-img" src="" alt="" decoding="async">
+        <button class="lightbox-nav lightbox-next" id="am-portfolio-lightbox-next" aria-label="Sonraki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+        <div class="lightbox-counter" id="am-portfolio-lightbox-counter"></div>
+      </div>
     </div>
     <!-- Fotoğrafladığı Projeler (kullanıcı isteği, 2026-09-01 madde 6: "kişinin popupında
          Fotoğraflarım kısmı olsun — aynı mimar profillerindeki projelerim kısmı gibi"). Kişi profili
@@ -643,10 +734,23 @@ const ArchitectModal = (function () {
     tag.textContent = JSON.stringify(data);
   }
 
+  // Portfolyo galerisinin DOM id eşlemesi — js/components/project-gallery.js#DEFAULT_IDS ve
+  // product-modal.js#GALLERY_IDS ile AYNI desen, yalnızca 'am-portfolio-' öneki. (gallery.js'in
+  // varsayılan id'leri kullanılamaz: kişi pop-up'ında ikinci bir galeri yok ama varsayılanlar
+  // sayfadaki BAŞKA bir galeriyle çakışabilirdi.)
+  const PORTFOLIO_GALLERY_IDS = {
+    gallery: 'am-portfolio-gallery', galleryPrev: 'am-portfolio-prev', galleryNext: 'am-portfolio-next',
+    galleryCounter: 'am-portfolio-counter',
+    lightbox: 'am-portfolio-lightbox', lightboxImg: 'am-portfolio-lightbox-img',
+    lightboxCounter: 'am-portfolio-lightbox-counter', lightboxClose: 'am-portfolio-lightbox-close',
+    lightboxPrev: 'am-portfolio-lightbox-prev', lightboxNext: 'am-portfolio-lightbox-next',
+  };
+
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['am-office-pair', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
+    'am-portfolio-section',
     'am-photographed-section',
     'am-related-architects-section', 'am-related-products-section', 'am-brands-products-pair',
     'am-used-products-section', 'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
@@ -861,6 +965,24 @@ const ArchitectModal = (function () {
         chipsEl: document.getElementById('am-projects-filter-chips'),
         items: relatedProjectsData,
         onChange: paintRelatedProjects,
+      });
+    }
+
+    // PORTFOLYO (kullanıcı isteği, 2026-09-08) — kişinin kisi-ekle.html'den yüklediği görseller ve
+    // PDF sayfaları, VERİLDİĞİ SIRADA. Galeri/lightbox motoru proje ve ürün pop-up'larıyla AYNI
+    // (js/components/gallery.js#initDetailGallery): şeritte tek tek sırayla gezilir, bir öğeye
+    // tıklayınca lightbox açılır ve orada ileri/geri yapılabilir.
+    // Boş portfolyoda bölüm HİÇ gösterilmez (boş bir başlık + çizgi bırakmamak için), ama
+    // initDetailGallery yine de boş listeyle çağrılır: aynı sayfa ömrü içinde portfolyosu OLAN bir
+    // kişiden portfolyosu OLMAYAN birine geçildiğinde (swap) şeritte eski görseller asılı kalmasın.
+    const portfolioImages = (a.portfolio || []).filter(u => typeof u === 'string' && u).map(safeUrl).filter(Boolean);
+    document.getElementById('am-portfolio-section').style.display = portfolioImages.length ? '' : 'none';
+    document.getElementById('am-portfolio-count').textContent = portfolioImages.length ? ` (${portfolioImages.length})` : '';
+    if (typeof initDetailGallery === 'function') {
+      initDetailGallery({
+        images: portfolioImages,
+        title: a.name || '',
+        ids: PORTFOLIO_GALLERY_IDS,
       });
     }
 
