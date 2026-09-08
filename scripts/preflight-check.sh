@@ -193,6 +193,18 @@ else
 fi
 rm -f /tmp/preflight_0908
 
+# Hesabım > Mesajlar konuşma avatarları (kullanıcı bulgusu, 2026-09-08) — node:sqlite üzerinde
+# GERÇEK schema.sql + GERÇEK rota (handleMessagesRoute). Regresyon: listMyThreads gönderen
+# yönündeki konuşmalarda otherPhotoUrl'yi koşulsuz null yazıyordu, yani kullanıcının kendi
+# başlattığı her konuşma baş harflerle görünüyordu. Bkz. scripts/test-messages-avatars.mjs.
+if node scripts/test-messages-avatars.mjs >/tmp/preflight_msgav 2>&1; then
+  ok "mesaj konuşma avatarı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_msgav) test)"
+else
+  bad "mesaj konuşma avatarı testleri BAŞARISIZ:"
+  tail -20 /tmp/preflight_msgav >&2
+fi
+rm -f /tmp/preflight_msgav
+
 # slugify TR/aksan haritası BEŞ dosyada kopyalı (bkz. src/lib/slugify.js dosya başı: save-widget.js
 # ve *-ekle.html tarayıcıda modülsüz çalıştığından bilerek kopyalanmış). Biri sapan bir kopya SESSİZ
 # bir hatadır: sunucunun ürettiği slug ile istemcinin kaydet/takip anahtarı ayrışır ve buton durumu
