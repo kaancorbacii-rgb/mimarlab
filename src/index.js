@@ -654,7 +654,9 @@ export default {
     // 200 dışı (404 sayfası vb.) ve HTML dışı yanıtlar olduğu gibi geçer. Content-Length silinir —
     // dönüştürülen akışın uzunluğu artık orijinalle aynı değil.
     let body = response.body;
-    if (request.method === 'GET' && response.status === 200 && body && /text\/html/i.test(headers.get('Content-Type') || '')) {
+    // typeof HTMLRewriter: scripts/test-meet-gateway.mjs bu fetch handler'ını Node'da (Workers
+    // çalışma zamanı olmadan) çağırır — orada HTMLRewriter yoktur, sürümleme atlanır.
+    if (request.method === 'GET' && response.status === 200 && body && typeof HTMLRewriter !== 'undefined' && /text\/html/i.test(headers.get('Content-Type') || '')) {
       const rewriter = new HTMLRewriter();
       versionAssetUrls(rewriter, env);
       // <meta name="ml-asset-version"> — DİNAMİK yüklenen modüller için (js/components/lazy-modals.js:
