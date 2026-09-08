@@ -18,6 +18,7 @@
      Yaş alt sınırı −5dk: istemci saati sunucudan geride olabilir (canlıda görüldü: −61ms, veri
      bu yüzden reddedilip boşuna fetch'e düşüyordu) — negatif yaş "gelecekten" değil saat sapmasıdır. -->
 <script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
+var dm=p.match(/^\/proje\/([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/project/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
 if(/^\/proje\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);return;}
 if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?buildStatus=built&page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);var u2='/api/projects/filters?buildStatus=built';window.__mlPrefetch[u2]=mlPre(u2);}
 }catch(e){}})();</script>

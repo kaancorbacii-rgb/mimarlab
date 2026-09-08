@@ -307,6 +307,63 @@
     if (mod.pathRe.test(location.pathname)) loadModule(key).catch(() => {});
   }
 
+  // NİYET ANINDA ÖN-YÜKLEME (kullanıcı isteği, 2026-09-08: "detay pop-up'larını hızlandır"). Canlıda
+  // ölçüldü: karta tıklandıktan sonra popup'ın ana içeriği yalnızca /api/<tip>/<slug> isteğini
+  // (uzak PoP'ta 300-700 ms) bekliyordu. İmleç bir varlık bağlantısının üzerinde ~100 ms kalınca
+  // (ya da dokunmatikte parmak değince / klavye odağı gelince) o istek ÖNCEDEN başlatılır ve
+  // window.__mlPrefetch'e yazılır; modal-shell.js#fetchEntity tıklamada oradan okur — çoğu tıklamada
+  // yanıt zaten gelmiş olur. URL modalların ürettiğiyle BİREBİR aynı kurulur (decode → encode).
+  //   * Aynı yol bir kez ön-yüklenir (prefetchedPaths) — imleç gidip gelse de tek istek.
+  //   * Veri tasarrufu modu (navigator.connection.saveData) açıksa hiç yapılmaz.
+  //   * Yalnızca okuma uçları, yalnızca sol tıkla açılabilecek düz bağlantılar (target/download yok).
+  const PREFETCH_HOVER_DELAY_MS = 100;
+  const ENTITY_API_PREFIX = { '/proje/': '/api/project/', '/kisi/': '/api/architect/', '/firma/': '/api/office/', '/marka/': '/api/office/', '/urun/': '/api/product/' };
+  const prefetchedPaths = new Set();
+  function entityApiPathFor(a) {
+    if (!a || a.target || a.hasAttribute('download')) return null;
+    let u;
+    try { u = new URL(a.getAttribute('href'), location.href); } catch { return null; }
+    if (u.origin !== location.origin) return null;
+    const m = u.pathname.match(/^(\/(?:proje|kisi|firma|marka|urun)\/)([^/]+)\/?$/);
+    if (!m) return null;
+    let slug;
+    try { slug = decodeURIComponent(m[2]); } catch { return null; }
+    return ENTITY_API_PREFIX[m[1]] + encodeURIComponent(slug);
+  }
+  function prefetchEntity(a) {
+    try {
+      const conn = navigator.connection;
+      if (conn && conn.saveData) return;
+      const path = entityApiPathFor(a);
+      if (!path || prefetchedPaths.has(path)) return;
+      prefetchedPaths.add(path);
+      const store = (window.__mlPrefetch = window.__mlPrefetch || {});
+      if (store[path]) return;
+      const p = fetch(path);
+      p.catch(() => {});
+      store[path] = p;
+    } catch { /* ön-yükleme hiçbir koşulda sayfayı bozmamalı */ }
+  }
+  let hoverTimer = null;
+  document.addEventListener('mouseover', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => prefetchEntity(a), PREFETCH_HOVER_DELAY_MS);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (a) clearTimeout(hoverTimer);
+  });
+  document.addEventListener('touchstart', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (a) prefetchEntity(a);
+  }, { passive: true });
+  document.addEventListener('focusin', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (a) prefetchEntity(a);
+  });
+
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

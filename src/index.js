@@ -1276,6 +1276,36 @@ const HUB_SSR = {
     images: () => [],
   },
 };
+// DETAY SAYFALARI (kullanıcı isteği, 2026-09-08: "detay pop-up'larını da hızlandır"). /proje/:slug
+// vb. doğrudan girişte modal, DOMContentLoaded + modül yüklemesi SONRASINDA /api/<tip>/<slug>'ı
+// çekiyordu. Şimdi serveDetailPage aynı yanıtı (routeApi → cachedPublicJson detailPath: Cache API +
+// parmak izi) Cache API aramasıyla PARALEL yükleyip #ml-list-data olarak gömer — SSR HTML'i 5dk
+// önbelleklenirken bu veri önbelleğin DIŞINDA her yanıta eklenir (serveGundemListPage ile aynı).
+// Şablonların <head> shim'i (mlPre) bunu __mlPrefetch'e yazar; modal-shell.js#fetchEntity oradan okur.
+// Anahtar, modalların ürettiğiyle BİREBİR aynı: `/api/<tip>/${encodeURIComponent(slug)}` (slug =
+// yol segmentinin decodeURIComponent'i — modallar da open(decodeURIComponent(m[1])) ile aynı yolu izler).
+const DETAIL_API_PREFIX = { project: '/api/project/', architect: '/api/architect/', office: '/api/office/', product: '/api/product/' };
+// Proje galerisinin ilk görseli (js/components/gallery.js#render: cdnImg(img,480) + srcset [320,480,640],
+// sizes="480px") — doğrudan girişte modalın LCP görseli; preload ile HTML ayrıştırılırken başlar.
+const DETAIL_GALLERY_IMG = { widths: [320, 480, 640], sizes: '480px', src: 480 };
+async function loadDetailData(env, ctx, type, rawSlug) {
+  const prefix = DETAIL_API_PREFIX[type];
+  if (!prefix || !rawSlug) return null;
+  const apiPath = prefix + encodeURIComponent(rawSlug);
+  const load = (async () => {
+    const data = await internalApiJson(env, ctx, apiPath);
+    if (!data || !data.item) return null;
+    let preload = '';
+    if (type === 'project') {
+      const img = Array.isArray(data.item.images) ? data.item.images[0] : null;
+      if (img) preload = imagePreloadLink(img, DETAIL_GALLERY_IMG, true);
+    }
+    return { json: { v: 1, t: Date.now(), entries: { [apiPath]: data } }, preload };
+  })();
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), HUB_SSR_TIMEOUT_MS));
+  try { return await Promise.race([load, timeout]); } catch { return null; }
+}
+
 function hubSsrEntryFor(url) {
   const cfg = HUB_SSR[url.pathname];
   if (!cfg) return null;
@@ -1362,15 +1392,18 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   // Yalnızca cache.match/put anahtarı için kullanılır — gerçek istek/yanıt URL'si (ve dolayısıyla
   // canonical/OG URL'leri) etkilenmez, bkz. SSR_CACHE_VERSION yorumu.
   const cacheKeyRequest = isGet ? withVersionedCacheKey(request, url) : null;
+  const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
+  // Detay API yanıtı (bkz. loadDetailData) Cache API aramasıyla PARALEL — HIT yolunda da eklenir.
+  // Yönlendirme/404 dallarında sonuç kullanılmaz (boşa gitmiş tek bir önbellekli okuma, zararsız).
+  const detailDataPromise = (isGet && DETAIL_API_PREFIX[cleanRoute.type]) ? loadDetailData(env, ctx, cleanRoute.type, rawSlug) : Promise.resolve(null);
   if (cacheKeyRequest) {
     const cached = await cacheMatch(cacheKeyRequest);
-    if (cached) return cached;
+    if (cached) return withHubListData(cached, await detailDataPromise);
   }
 
   const assetUrl = new URL(url);
   assetUrl.pathname = cleanRoute.asset;
 
-  const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
   // gerçek bulgu (production audit, 2026-08-17): ASSETS.fetch (statik şablon) ve buildMeta (D1
   // sorgusu) birbirinden bağımsızdır ama sıralı await ediliyordu — cache MISS'te (ilk istek/
   // SSR_CACHE_VERSION bump sonrası/TTL sonrası) TTFB'ye gereksiz bir D1 round-trip'i ekliyordu.
@@ -1466,7 +1499,8 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   const finalResponse = new Response(rewritten.body, { status: rewritten.status, statusText: rewritten.statusText, headers });
 
   if (cacheKeyRequest && ctx) ctx.waitUntil(cachePut(cacheKeyRequest, finalResponse.clone()));
-  return finalResponse;
+  // Detay verisi Cache API'ye YAZILMAZ (yukarıdaki clone veri eklenmeden alındı), yanıta eklenir.
+  return withHubListData(finalResponse, await detailDataPromise);
 }
 
 // /gundem liste sayfası — statik kabuk + D1'den gelen ilk sayfa kartlarının #ssr-entity-body'ye

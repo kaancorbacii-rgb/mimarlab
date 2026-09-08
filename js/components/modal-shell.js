@@ -1031,10 +1031,19 @@ const ModalShell = (function () {
   // 429/5xx'lerin çoğu tek bir ani yükten kaynaklandığından bu tek deneme çoğu kullanıcıda hatayı
   // hiç göstermeden çözer.
   const ENTITY_RETRY_DELAY_MS = 700;
+  // window.__mlPrefetch[path] — aynı yolu ÖNCEDEN başlatmış/hazırlamış bir Response promise'i (bkz.
+  // şablonların <head> shim'i: doğrudan /proje/:slug girişinde sunucunun HTML'e gömdüğü detay yanıtı;
+  // js/components/lazy-modals.js#prefetchEntityOnIntent: kartın üzerine gelme/dokunma anında başlatılan
+  // erken istek). Kayıt TEK KULLANIMLIKTIR; yeniden denemede (attempt 1) her zaman gerçek fetch.
+  function takePrefetched(path) {
+    const store = window.__mlPrefetch;
+    if (store && store[path]) { const p = store[path]; delete store[path]; return p; }
+    return null;
+  }
   async function fetchEntity(path) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await fetch(path);
+        const res = await ((attempt === 0 && takePrefetched(path)) || fetch(path));
         // 404/410 = kaydın kendisi yok/kaldırılmış (bkz. src/lib/publicCache.js#statusFor) — bu
         // KESİN bir cevap, tekrar denemek anlamsız.
         if (res.status === 404 || res.status === 410) return { status: 'missing' };
