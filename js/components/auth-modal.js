@@ -199,6 +199,20 @@ const AuthModal = (function () {
     #am-panel .dash-section-head h2{margin:0;}
     #am-panel .dash-edit-btn-sm{display:inline-flex; align-items:center; justify-content:center; padding:7px 14px; font-size:12.5px; text-decoration:none; white-space:nowrap; cursor:pointer;}
     #am-panel .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
+    /* AÇILIR/KAPANIR BÖLÜM (kullanıcı isteği, 2026-09-08 madde 2: "İstatistikler ve Rozetlerim
+       bölümlerini açılır kapanır bir butonun içine koy"). Başlık artık bir <button>: h2 görünümü
+       AYNEN korunur (yukarıdaki .dash-section h2 kuralı çocuğa uygulanır), yalnızca tıklanabilir
+       bir yüzeye ve sagda donen bir ok isaretine sahiptir. Govde HTML hidden niteligiyle gizlenir
+       (display:none), yani kapaliyken hicbir alt oge layout hesabina girmez. */
+    #am-panel .dash-collapse-toggle{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:0; margin:0; background:none; border:0; cursor:pointer; color:inherit; text-align:left; font:inherit;}
+    #am-panel .dash-collapse-toggle:hover h2{color:var(--walnut);}
+    #am-panel .dash-collapse-chevron{flex-shrink:0; transition:transform .18s ease; color:var(--ink-soft);}
+    #am-panel .dash-collapse-toggle[aria-expanded="true"] .dash-collapse-chevron{transform:rotate(180deg);}
+    #am-panel .dash-collapse-body{padding-top:4px;}
+    /* [hidden] bir TARAYICI VARSAYILANIDIR (display:none) ve her yazar kuralı onu ezer — ör.
+       .stat-range'in display:flex'i, kutuya hidden konsa bile dönem düğmelerini GÖRÜNÜR bırakıyordu
+       (yerel doğrulamada yakalandı). Bu kural, hidden ile gizlenen her öğede niyeti garanti eder. */
+    #am-panel [hidden]{display:none !important;}
     #am-panel .dash-empty{border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.6;}
     #am-panel .dash-empty a{color:var(--walnut); font-weight:600;}
     #am-panel .dash-empty a:hover{text-decoration:underline;}
@@ -1273,9 +1287,14 @@ const AuthModal = (function () {
            AYNI desen) çünkü içindeki ızgara/grafik iki sütuna sığmaz. -->
       <div class="dash-row col-two-col" id="am-stats-row" style="display:none;">
         <div class="dash-section dash-section-wide" id="am-stats-section">
+          <!-- Dönem seçici (Son 7 Gün/30 Gün/…) başlık satırında KALIR ama bölümle birlikte
+               gizlenir: kapalı bir bölümün dönemini değiştirmenin görünür bir karşılığı yok. -->
           <div class="dash-section-head">
-            <h2>İstatistikler</h2>
-            <div class="stat-range" id="am-stats-range">
+            <button type="button" class="dash-collapse-toggle" data-collapse="am-stats-collapse am-stats-range" aria-expanded="false" aria-controls="am-stats-collapse">
+              <h2>İstatistikler</h2>
+              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="stat-range" id="am-stats-range" hidden>
               <button type="button" class="stat-range-btn" data-range="7d">Son 7 Gün</button>
               <button type="button" class="stat-range-btn active" data-range="30d">30 Gün</button>
               <button type="button" class="stat-range-btn" data-range="90d">90 Gün</button>
@@ -1283,8 +1302,10 @@ const AuthModal = (function () {
               <button type="button" class="stat-range-btn" data-range="all">Tüm Zamanlar</button>
             </div>
           </div>
-          <p class="section-hint" id="am-stats-hint">Profilinin ve içeriklerinin performansı.</p>
-          <div id="am-stats-body"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-collapse-body" id="am-stats-collapse" hidden>
+            <p class="section-hint" id="am-stats-hint">Profilinin ve içeriklerinin performansı.</p>
+            <div id="am-stats-body"><div class="dash-empty">Yükleniyor…</div></div>
+          </div>
         </div>
       </div>
 
@@ -1293,10 +1314,15 @@ const AuthModal = (function () {
            activitiesTemplate'teki "Paylaştıklarım" kutusuyla AYNI desen (grid-column:1 / -1). -->
       <div class="dash-row col-two-col">
         <div class="dash-section dash-section-wide">
-          <h2>Rozetlerim</h2>
-          <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
-          <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
-          <div class="badge-grid" id="am-badge-grid"></div>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-badges-collapse" aria-expanded="false" aria-controls="am-badges-collapse">
+            <h2>Rozetlerim</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-badges-collapse" hidden>
+            <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
+            <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
+            <div class="badge-grid" id="am-badge-grid"></div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -2054,6 +2080,30 @@ const AuthModal = (function () {
       if (el) el.addEventListener(evt, fn);
     }
 
+    // Açılır/kapanır bölüm başlıkları (kullanıcı isteği, 2026-09-08 madde 2) — İstatistikler ve
+    // Rozetlerim. data-collapse, boşlukla ayrılmış BİRDEN ÇOK id taşıyabilir: İstatistikler'de
+    // gövdenin yanı sıra başlık satırındaki dönem seçicisi de aynı düğmeyle açılıp kapanır.
+    // Varsayılan KAPALI (markup'ta hidden + aria-expanded="false") — istek "tıklayınca açılsınlar".
+    // hidden niteliği kullanılır, style.display DEĞİL: bölümlerin içindeki bazı öğelerin kendi
+    // display kuralları var (ör. #am-my-badges-list JS ile display:none/'' arasında geçiyor,
+    // #am-stats-row rozetsiz üyede tamamen gizleniyor) — kapsayıcıyı hidden ile gizlemek o
+    // kuralların hiçbirine dokunmaz.
+    function wireCollapsibles() {
+      document.querySelectorAll('#am-panel .dash-collapse-toggle[data-collapse]').forEach((btn) => {
+        if (btn.dataset.collapseWired) return;
+        btn.dataset.collapseWired = '1';
+        btn.addEventListener('click', () => {
+          const open = btn.getAttribute('aria-expanded') !== 'true';
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          btn.dataset.collapse.split(/\s+/).filter(Boolean).forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.hidden = !open;
+          });
+        });
+      });
+    }
+    wireCollapsibles();
+
     // Önizlemedeki fotoğrafa tıklamak onu büyütüp yeniden kırpar (kullanıcı isteği, 2026-09-04) —
     // bkz. js/components/image-crop.js#enableThumbCrop, kisi-ekle.html'deki AYNI desen. PROFİL
     // FOTOĞRAFI 1:1 KİLİTLİ. Kırpılan dosya (yeni seçilen bir dosya gibi) yalnızca BELLEKTE tutulur,
@@ -2199,7 +2249,15 @@ const AuthModal = (function () {
         claimedArchitectKey = claim.profile_key;
         claimedArchitectPromise = fetch(`/api/architect/${encodeURIComponent(claim.profile_key)}`)
           .then(r => (r.ok ? r.json() : null))
-          .then(d => (d && d.item) || null)
+          // _officeFounderNames — payload'ın KÖKÜNDEKİ `offices` dizisi (bkz. src/routes/
+          // architect.js#buildArchitectPayload: office_founders join'i, yani kişinin "kurucu/ortak
+          // olarak bağlı olduğu firmalar"). Çağıranlar item'ı bekliyor, o yüzden liste item'ın
+          // üzerine iliştirilir — bkz. loadFirmInfo'daki ÜÇÜNCÜ KAYNAK.
+          .then(d => {
+            if (!d || !d.item) return null;
+            d.item._officeFounderNames = (d.offices || []).map(o => o && o.name).filter(Boolean);
+            return d.item;
+          })
           .catch(() => null);
       }
       return claimedArchitectPromise;
@@ -3236,6 +3294,14 @@ const AuthModal = (function () {
       if (arch && arch.office) {
         String(arch.office).split(',').forEach(n => pushEntry(n, { role: arch.role || null }));
       }
+      // ÜÇÜNCÜ KAYNAK (kullanıcı isteği, 2026-09-08): FİRMANIN kendisi kişiyi Kurucular/Ortaklar
+      // kutusuna eklediğinde ortada ne bir profile_claims satırı olur ne de kişinin kendi `office`
+      // alanı değişir — bağ yalnızca office_founders'ta durur (bkz. src/lib/canonicalSync.js#
+      // syncOfficeFoundersFromNames). Bu yüzden "Deneme firmasına kurucu olarak eklendim ama
+      // Hesabım'daki Firma / Marka Bilgileri kutusunda çıkmıyor" (gerçek bulgu): kutunun iki
+      // kaynağı da o bağı görmüyordu. pushEntry ilk gireni koruduğundan, aynı firma hem claim'li
+      // hem office_founders'lıysa CLAIM girdisi kazanır (düzenleme yetkisi orada belirlenir).
+      for (const n of (arch && arch._officeFounderNames) || []) pushEntry(n, { role: arch.role || null });
       firmEntries = entries;
       if (firmPage > entries.length) firmPage = 1;
       renderFirmPage();
