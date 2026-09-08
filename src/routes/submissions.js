@@ -526,12 +526,79 @@ async function listMine(env, user, typeKey) {
   return json({ items });
 }
 
+// src/lib/canonicalSync.js#syncProject/syncProduct'taki AYNI target-bulma deseni (bkz. o
+// dosyadaki "existing"/"target" arama sorguları) — bir taslağın karşılık geldiği canonical satırı
+// bulur: claimed_slug doluysa slug/legacy_key eşleşmesiyle (sahiplenilen statik/D1 kaydı), değilse
+// bu taslağın kendi onayında yazdığı sabit "submission:<id>" işaretiyle (daha önce onaylanmış,
+// şimdi tekrar düzenlenen bir kayıt). Hiçbiri yoksa (taslak hiç onaylanmamış) null döner.
+async function findCanonicalIdForSubmission(env, table, row) {
+  const marker = `submission:${row.id}`;
+  const found = row.claimed_slug
+    ? await env.DB.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`).bind(row.claimed_slug, row.claimed_slug).first()
+    : await env.DB.prepare(`SELECT id FROM ${table} WHERE legacy_key = ?`).bind(marker).first();
+  return found ? found.id : null;
+}
+
+// PROJE ↔ ÜRÜN kutularının KARŞILIKLI/DİNAMİK entegrasyonu (kullanıcı isteği): proje-ekle.html'deki
+// "Kullanılan Ürünler / Firmalar" kutusu (brandChips) bir görselde ürün etiketlenince kendiliğinden
+// dolar (bkz. o dosyadaki addHotspotBrandChip), ama bu yalnızca O ANKİ oturumda görseldir — taslak
+// daha önce kaydedilmiş/onaylanmışsa ve KARŞI taraftan (ör. ürünün kendi formundan "Kullanılan
+// Projeler" kutusuyla, ya da BAŞKA bir projenin hotspot etiketiyle) project_products'a bir kenar
+// eklenmişse, bu taslağın kendi `brands`/`projects` JSON'u bunu hiç bilmez (yalnızca KENDİ son
+// kaydında yazdıklarını taşır) — sayfa yeniden açıldığında karşı taraftan gelen kenar kutuda hiç
+// görünmezdi. Bu fonksiyon, gönderiyi döndürmeden hemen önce project_products'taki GÜNCEL DB
+// kenarlarını (yön fark etmeksizin, from_project/from_product'a bakılmaksızın) submission'ın kendi
+// alanına birleştirir — kutular böylece iki formdan HANGİSİ değiştirilirse değiştirilsin senkron
+// kalır. Yalnızca GÖSTERİM içindir: submission satırının kendisine yazılmaz, bir sonraki kaydetme
+// yine yalnızca kendi tarafının bayrağını (from_project ya da from_product) sıfırlayıp kurar (bkz.
+// canonicalSync.js#setProjectProductLinks) — yani burada eklenen "ödünç" satırlar o taraf hiç
+// dokunmadan kaydederse bile SİLİNMEZ, çünkü zaten kendi bayrağı hâlâ 1'dir.
+async function enrichSubmissionCrossLinks(env, typeKey, row, item) {
+  if (typeKey === 'projects') {
+    const projectId = await findCanonicalIdForSubmission(env, 'projects', row);
+    if (!projectId) return;
+    const { results } = await env.DB.prepare(
+      `SELECT p.title AS product, o.name AS brand FROM project_products pp
+       JOIN products p ON p.id = pp.product_id
+       LEFT JOIN offices o ON o.id = p.brand_office_id
+       WHERE pp.project_id = ? AND p.deleted_at IS NULL`
+    ).bind(projectId).all();
+    const seen = new Set((item.brands || []).map(b => `${(b.brand || '').toLowerCase()}|${(b.product || '').toLowerCase()}`));
+    for (const r of results || []) {
+      const brand = r.brand || '';
+      const product = r.product || '';
+      const key = `${brand.toLowerCase()}|${product.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      item.brands = item.brands || [];
+      item.brands.push({ brand, product });
+    }
+  } else if (typeKey === 'products' || typeKey === 'materials') {
+    const productId = await findCanonicalIdForSubmission(env, 'products', row);
+    if (!productId) return;
+    const { results } = await env.DB.prepare(
+      `SELECT pr.slug, pr.title FROM project_products pp
+       JOIN projects pr ON pr.id = pp.project_id
+       WHERE pp.product_id = ? AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL`
+    ).bind(productId).all();
+    const seen = new Set((item.projects || []).map(p => (typeof p === 'string' ? p : p.slug)));
+    for (const r of results || []) {
+      if (seen.has(r.slug)) continue;
+      seen.add(r.slug);
+      item.projects = item.projects || [];
+      item.projects.push({ slug: r.slug, title: r.title });
+    }
+  }
+}
+
 // Sahiplik kontrolü admin için atlanır — admin herhangi bir kullanıcının gönderisini görüntüleyip
 // düzenleyebilir (bkz. kullanıcı isteği: "admin hesabının tüm gönderilerin düzenleme yetkisi olsun").
 async function getOwnSubmission(env, user, typeKey, id) {
   const row = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!row || (row.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
-  return json({ item: parseSubmissionRow(typeKey, row) });
+  const item = parseSubmissionRow(typeKey, row);
+  await enrichSubmissionCrossLinks(env, typeKey, row, item);
+  return json({ item });
 }
 
 async function updateOwnSubmission(request, env, user, typeKey, id) {
