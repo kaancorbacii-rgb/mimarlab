@@ -8,8 +8,12 @@
      DEĞİLKEN çalışır — o durumda render()'ın üreteceği URL kesindir. limit=12 değeri
      js/pages/gundem.js#PAGE_SIZE ile birebir aynı olmalı; ayrışırsa istek boşa gider (kırılmaz,
      yalnızca kazanç kaybolur) — scripts/preflight-check.sh bunu statik olarak kontrol eder. -->
-<script>(function(){try{var p=location.pathname.replace(/\/+$/,'');
-if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';var f=fetch(u);f.catch(function(){});(window.__mlPrefetch=window.__mlPrefetch||{})[u]=f;}
+<!-- mlPre (performans turu, 2026-09-08): Worker bu shim'in ÜRETECEĞİ URL'lerin yanıtını <head>'in EN
+     BAŞINA #ml-list-data olarak gömer (bkz. src/index.js#HUB_SSR). Gömülü yanıt varsa (ve 60sn'den
+     yeniyse; alt sınır -5dk = istemci saat sapması toleransı) ağa hiç çıkılmadan aynı __mlPrefetch
+     sözlüğüne hazır bir Response yazılır; yoksa eskisi gibi erken fetch. listFetch() ikisini ayırt etmez. -->
+<script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname.replace(/\/+$/,'');
+if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
 }catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

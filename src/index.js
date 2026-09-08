@@ -942,7 +942,7 @@ async function routeAsset(request, env, url, ctx) {
       [hubJsonLd, homeData, hubListData] = await Promise.all([
         isHubPath(url.pathname) ? hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname)) : null,
         url.pathname === '/' ? loadHomeData(env, ctx) : null,
-        (!url.search && HUB_SSR[url.pathname]) ? loadHubListData(env, ctx, url.pathname) : null,
+        hubSsrEntryFor(url) ? loadHubListData(env, ctx, url) : null,
       ]);
     }
     const headers = new Headers(response.headers);
@@ -1197,9 +1197,11 @@ async function loadHomeData(env, ctx) {
 const escHtmlAttr = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function imagePreloadLink(path, spec, high) {
   if (!path || typeof path !== 'string') return '';
-  const srcset = derivedSrcset(path, spec.widths);
-  const href = derivedImageUrl(path, spec.src || 900);
-  return `<link rel="preload" as="image" href="${escHtmlAttr(href)}"${srcset ? ` imagesrcset="${escHtmlAttr(srcset)}" imagesizes="${escHtmlAttr(spec.sizes)}"` : ''}${high ? ' fetchpriority="high"' : ''}>`;
+  const srcset = spec.widths ? derivedSrcset(path, spec.widths) : '';
+  const href = spec.widths ? derivedImageUrl(path, spec.src || 900) : path;
+  // spec.extra: <img>'in taşıdığı ve preload eşleşmesini etkileyen ek öznitelikler (ör. Gündem
+  // kartlarının referrerpolicy="no-referrer"'ı — farklı referrer politikası preload'u kullanılmaz kılar).
+  return `<link rel="preload" as="image" href="${escHtmlAttr(href)}"${srcset ? ` imagesrcset="${escHtmlAttr(srcset)}" imagesizes="${escHtmlAttr(spec.sizes)}"` : ''}${high ? ' fetchpriority="high"' : ''}${spec.extra ? ' ' + spec.extra : ''}>`;
 }
 
 function buildHomePreloadLinks(data) {
@@ -1230,7 +1232,11 @@ function buildHomePreloadLinks(data) {
 // Ayrıca ilk satırın kart görselleri preload edilir; srcset/sizes istemcideki kart <img>'iyle aynıdır.
 // ---------------------------------------------------------------------------------------------
 const HUB_CARD_IMG = { widths: [400, 600, 800], sizes: '(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px', src: 600 };
+// Gündem kartı: harici (hotlink) görsel, srcset yok, referrerpolicy="no-referrer" (bkz. js/pages/gundem.js).
+const GUNDEM_CARD_IMG = { extra: 'referrerpolicy="no-referrer"' };
 const HUB_SSR_TIMEOUT_MS = 2000;
+// urls: dizi ya da (url) => dizi. withQuery: sorgu dizesi TAŞIYAN girişlerde de çalışır (yalnızca
+// /arama — sorgu orada içeriğin kendisidir; diğer sayfalarda sorgu = filtre/sayfa, shim çalışmaz).
 const HUB_SSR = {
   '/proje': {
     urls: ['/api/projects?buildStatus=built&page=1&limit=24', '/api/projects/filters?buildStatus=built'],
@@ -1252,18 +1258,44 @@ const HUB_SSR = {
     urls: ['/api/products?page=1&limit=24', '/api/products?page=1&limit=1'],
     images: (d) => (d.items || []).slice(0, 3).map(p => p && p.image),
   },
+  // /gundem — serveGundemListPage üzerinden (LIST dalı değil): gövde SSR'ı Cache API'de saklanır,
+  // bu veri ise ÖNBELLEĞİN DIŞINDA her istekte eklenir (bkz. o fonksiyon). gundem.html <head> shim'i
+  // + js/pages/gundem.js#listFetch ile aynı sözleşme; limit=12 = GUNDEM_PAGE_SIZE (preflight denetler).
+  '/gundem': {
+    urls: ['/api/gundem?page=1&limit=12'],
+    images: (d) => (d.items || []).slice(0, 2).map(it => it && it.image),
+    imgSpec: GUNDEM_CARD_IMG,
+  },
+  // /arama?q=... — arama.html#runSearch'ün attığı TEK istek. Sorgu boşsa istek de yok.
+  '/arama': {
+    withQuery: true,
+    urls: (url) => {
+      const q = (url.searchParams.get('q') || '').trim();
+      return q ? [`/api/public/search?q=${encodeURIComponent(q)}`] : [];
+    },
+    images: () => [],
+  },
 };
-
-async function loadHubListData(env, ctx, pathname) {
-  const cfg = HUB_SSR[pathname];
+function hubSsrEntryFor(url) {
+  const cfg = HUB_SSR[url.pathname];
   if (!cfg) return null;
+  if (url.search && !cfg.withQuery) return null;
+  return cfg;
+}
+
+async function loadHubListData(env, ctx, url) {
+  const cfg = hubSsrEntryFor(url);
+  if (!cfg) return null;
+  const urls = typeof cfg.urls === 'function' ? cfg.urls(url) : cfg.urls;
+  if (!urls.length) return null;
   const load = (async () => {
-    const results = await Promise.all(cfg.urls.map(u => internalApiJson(env, ctx, u)));
+    const results = await Promise.all(urls.map(u => internalApiJson(env, ctx, u)));
     const entries = {};
-    cfg.urls.forEach((u, i) => { if (results[i]) entries[u] = results[i]; });
+    urls.forEach((u, i) => { if (results[i]) entries[u] = results[i]; });
     if (!Object.keys(entries).length) return null;
     const primary = results[0];
-    const preload = primary ? cfg.images(primary).filter(Boolean).map((img, i) => imagePreloadLink(img, HUB_CARD_IMG, i === 0)).join('') : '';
+    const spec = cfg.imgSpec || HUB_CARD_IMG;
+    const preload = primary ? cfg.images(primary).filter(Boolean).map((img, i) => imagePreloadLink(img, spec, i === 0)).join('') : '';
     return { json: { v: 1, t: Date.now(), entries }, preload };
   })();
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), HUB_SSR_TIMEOUT_MS));
@@ -1449,10 +1481,14 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
 async function serveGundemListPage(request, env, url, ctx) {
   const isGet = request.method === 'GET';
   const cacheKeyRequest = isGet ? withVersionedCacheKey(request, url) : null;
-  if (cacheKeyRequest) {
-    const cached = await cacheMatch(cacheKeyRequest);
-    if (cached) return cached;
-  }
+  // Liste verisi (bkz. HUB_SSR['/gundem']) Cache API aramasıyla PARALEL yüklenir ve ÖNBELLEĞİN
+  // DIŞINDA, her yanıta (cache HIT dahil) eklenir — SSR gövdesi 5dk cache'lenirken karusel/liste
+  // verisi API'nin kendi parmak izi tazeliğiyle gelir. HEAD'de gövde yok, veri de yüklenmez.
+  const [cached, hubListData] = await Promise.all([
+    cacheKeyRequest ? cacheMatch(cacheKeyRequest) : null,
+    isGet ? loadHubListData(env, ctx, url) : null,
+  ]);
+  if (cached) return withHubListData(cached, hubListData);
 
   const [assetResponse, ssrBody] = await Promise.all([
     env.ASSETS.fetch(new Request(url, request)),
@@ -1470,7 +1506,21 @@ async function serveGundemListPage(request, env, url, ctx) {
   }
   const finalResponse = new Response(out.body, { status: 200, statusText: out.statusText, headers });
   if (cacheKeyRequest && ctx) ctx.waitUntil(cachePut(cacheKeyRequest, finalResponse.clone()));
-  return finalResponse;
+  return withHubListData(finalResponse, hubListData);
+}
+
+// #ml-list-data (head başı) + preload bağlantıları (head sonu) — LIST dalındaki AYNI enjeksiyon,
+// Cache API'den dönen bir yanıta da uygulanabilsin diye ayrı fonksiyon. Veri yoksa yanıt aynen döner.
+function withHubListData(response, hubListData) {
+  if (!hubListData) return response;
+  const headFirst = `<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>`;
+  const rewritten = new HTMLRewriter().on('head', { element(el) {
+    el.prepend(headFirst, { html: true });
+    if (hubListData.preload) el.append(hubListData.preload, { html: true });
+  } }).transform(response);
+  const headers = new Headers(response.headers);
+  headers.delete('Content-Length');
+  return new Response(rewritten.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 function withVersionedCacheKey(request, url) {

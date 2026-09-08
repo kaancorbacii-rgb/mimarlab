@@ -374,7 +374,7 @@
         <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
         <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
       </div>
-      <span class="footer-copyright">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</span>
+      <span class="footer-copyright">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan görseller ilgili kişi, firma veya markaya aittir.</span>
       <!-- kullanıcı isteği (2026-09-06 madde 8): sağa/sola kayan pil (knob'lu switch) tasarımı
            bırakıldı — artık TEK dairesel bir düğme. İki ikon da DOM'da kalır, hangisinin görüneceğine
            CSS karar verir (bkz. injectFooterStyle): gündüzken ay (tıkla → geceye geç), geceyken güneş.
@@ -384,7 +384,7 @@
         <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z"/></svg></span>
       </button>
     </div>
-    <p class="footer-archive-note">MİMARLAB, açık kaynaklardan derlenen bilgilerle oluşturulmuş bir arşivdir. Profilinizdeki bilgilerde hata, eksiklik veya güncellenmesi gereken bir durum olduğunu düşünüyorsanız lütfen <a href="/iletisim">bizimle iletişime geçin</a>.</p>
+    <p class="footer-archive-note">MİMARLAB, açık kaynaklardan derlenen bilgilerle oluşturulmuştur. Bilgilerde hata, eksiklik veya güncellenmesi gereken bir durum olduğunu düşünüyorsanız <a href="/iletisim">bizimle iletişime geçin</a>.</p>
   </footer>`;
   }
 

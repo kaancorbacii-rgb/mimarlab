@@ -2,6 +2,17 @@
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
+<!-- Erken arama isteği (performans turu, 2026-09-08): ?q= varsa runSearch()'ün atacağı TEK isteği HTML
+     ayrıştırılırken başlatır (kisi/firma/proje <head> shim'iyle aynı __mlPrefetch sözleşmesi). URL
+     runSearch'ünkiyle BİREBİR aynı kurulur (trim + encodeURIComponent); eşleşmezse listFetch normal
+     fetch'e düşer, ikinci istek DOĞMAZ. -->
+<!-- mlPre (performans turu, 2026-09-08): Worker bu shim'in ÜRETECEĞİ URL'lerin yanıtını <head>'in EN
+     BAŞINA #ml-list-data olarak gömer (bkz. src/index.js#HUB_SSR). Gömülü yanıt varsa (ve 60sn'den
+     yeniyse; alt sınır -5dk = istemci saat sapması toleransı) ağa hiç çıkılmadan aynı __mlPrefetch
+     sözlüğüne hazır bir Response yazılır; yoksa eskisi gibi erken fetch. listFetch() ikisini ayırt etmez. -->
+<script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{
+if(location.pathname.replace(/\/+$/,'')==='/arama'){var q=(new URLSearchParams(location.search).get('q')||'').trim();if(q){var u='/api/public/search?q='+encodeURIComponent(q);(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}}
+}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -362,6 +373,18 @@ function groupHtml(label, items, toRow, totalCount){
 // AYNI runToken/currentQuery karşılaştırma deseniyle en son başlatılan çağrı her zaman kazanır.
 let searchRunToken = 0;
 
+// <head>'deki shim'in ÖNCEDEN hazırladığı (gömülü ya da erken başlatılmış) yanıtı devralır; yoksa
+// normal fetch. Kayıt TEK KULLANIMLIKTIR — kisi.html/js/pages/proje.js#listFetch ile aynı desen.
+function listFetch(url){
+  const store = window.__mlPrefetch;
+  if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
+  return fetch(url);
+}
+// Son başarılı arama yanıtı. GERÇEK BULGU (performans turu, 2026-09-08): runSearch() aynı sorgu için
+// üç kez çalışıyor (ilk çizim, AI sonuçlarını karıştırma, rozetler gelince) ve her seferinde
+// /api/public/search'ü — Cache API'de TUTULMAYAN, tam bir D1 araması — yeniden çekiyordu. Sorgu
+// aynıysa eldeki yanıtla yeniden çizilir.
+let lastSearch = null;
 async function runSearch(){
   const runToken = ++searchRunToken;
   const params = new URLSearchParams(window.location.search);
@@ -403,10 +426,17 @@ async function runSearch(){
   // `pureBrand` bayraklarıyla yapılır (bkz. office-kind.js: marka bölümü isBrandOffice, firma
   // bölümü !isPureBrandOffice — bir ofis her ikisinde de görünebilir, Autoban gibi).
   let full = { architects: [], offices: [], projects: [], products: [], totals: { architects: 0, offices: 0, projects: 0, products: 0 }, capped: {} };
-  try {
-    const res = await fetch('/api/public/search?q=' + encodeURIComponent(query));
-    if(res.ok) full = await res.json();
-  } catch(e) { /* ağ hatası — boş durum aşağıda ele alınır */ }
+  const searchUrl = '/api/public/search?q=' + encodeURIComponent(query);
+  if(lastSearch && lastSearch.url === searchUrl){
+    full = lastSearch.data;
+  } else {
+    let fetched = null;
+    try {
+      const res = await listFetch(searchUrl);
+      if(res.ok) fetched = await res.json();
+    } catch(e) { /* ağ hatası — boş durum aşağıda ele alınır */ }
+    if(fetched){ full = fetched; lastSearch = { url: searchUrl, data: fetched }; }
+  }
   if(runToken !== searchRunToken) return; // yarış durumu — daha yeni bir çağrı zaten başladı
   const urunResults = full.products || [];
   const urunTotal = full.totals.products || 0;
