@@ -267,7 +267,21 @@ echo "12) Detay sayfalarında ARTIK liste sayfasının CollectionPage şeması O
 # canlıda DOĞRU olan hub sayfaları için "şema kaybolmuş" diye yanlış alarm verdi.) `grep -c` girdiyi
 # sonuna kadar okur, boruyu erken kapatmaz — sayıyı önce bir değişkene alıp onu karşılaştırıyoruz.
 has_list_jsonld() { curl -s "$BASE_URL$1" | grep -c 'id="list-jsonld"' || true; }
-for pair in "/proje/bil-s-magaza:/proje" "/kisi/emre-arolat:/kisi" "/firma/eaa-emre-arolat-architecture:/firma" "/urun/vivi-outdoor-masa-b-t-design:/urun"; do
+# Örnek detay kaydı SABİT slug DEĞİL (gerçek bulgu, 2026-09-08: "emre-arolat" ve "eaa-emre-arolat-
+# architecture" admin tarafından gizlendi, her ikisi 410 Gone dönüyor; 410 yanıtı hub şablonunu olduğu
+# gibi servis ettiğinden list-jsonld de onunla geliyor ve bu kontrol, injectMeta kuralı sağlıklı
+# çalışırken YANLIŞ alarm verdi). Önce eski sabit slug 200 dönüyorsa o, değilse liste API'sinin ilk
+# kaydı (yayında olduğu KESİN) kullanılır. Materyaller de /urun altında ve aynı API'de olduğundan
+# ürün için dinamik seçim yeterli.
+live_detail_path() {
+  local prefix="$1" api="$2" fallback="$3"
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$prefix/$fallback")" = "200" ]; then echo "$prefix/$fallback"; return; fi
+  local slug
+  slug="$(curl -s "$BASE_URL$api?limit=1" | sed -n 's/.*"items":\[{[^}]*"slug":"\([^"]*\)".*/\1/p' | head -1)"
+  if [ -n "$slug" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$prefix/$slug")" = "200" ]; then echo "$prefix/$slug"; return; fi
+  echo "$prefix/$fallback"
+}
+for pair in "$(live_detail_path /proje /api/projects bil-s-magaza):/proje" "$(live_detail_path /kisi /api/architects emre-arolat):/kisi" "$(live_detail_path /firma /api/offices eaa-emre-arolat-architecture):/firma" "$(live_detail_path /urun /api/products vivi-outdoor-masa-b-t-design):/urun"; do
   detail_path="${pair%%:*}"; hub_path="${pair#*:}"
   if [ "$(has_list_jsonld "$detail_path")" = "0" ]; then
     ok "$detail_path — liste CollectionPage şeması kaldırılmış"
