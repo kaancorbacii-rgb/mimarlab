@@ -249,6 +249,20 @@ else
 fi
 rm -f /tmp/preflight_omedit
 
+# Firma/marka üyelik listesi — kisi-ekle.html ile Profili Düzenle'nin (auth-modal.js) ORTAK
+# birleştiricisi (kullanıcı isteği, 2026-09-08: "admin tarafından dahi olsa görevlendiriliyorsa kişi
+# ekle/düzenle sayfasında da gözüksün"). Regresyon: kisi-ekle yalnızca kaydın `office` metnini okuyordu,
+# talepler/office_founders bağları görünmüyor ve Kaydet'te admin ataması siliniyordu. Saf test
+# (node:vm), ayrıca iki yüzeyin aynı yardımcıyı çağırdığını kaynak üzerinden doğrular.
+# Bkz. scripts/test-office-membership-names.mjs dosya başı.
+if node scripts/test-office-membership-names.mjs >/tmp/preflight_omnames 2>&1; then
+  ok "firma/marka üyelik birleştirici testleri geçti ($(grep -c '^  ok ' /tmp/preflight_omnames) test)"
+else
+  bad "firma/marka üyelik birleştirici testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_omnames >&2
+fi
+rm -f /tmp/preflight_omnames
+
 # slugify TR/aksan haritası BEŞ dosyada kopyalı (bkz. src/lib/slugify.js dosya başı: save-widget.js
 # ve *-ekle.html tarayıcıda modülsüz çalıştığından bilerek kopyalanmış). Biri sapan bir kopya SESSİZ
 # bir hatadır: sunucunun ürettiği slug ile istemcinin kaydet/takip anahtarı ayrışır ve buton durumu

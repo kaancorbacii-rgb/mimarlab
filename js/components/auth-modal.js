@@ -2371,9 +2371,6 @@ const AuthModal = (function () {
         await loadFirmaOptions();
         if (!firmaPicker) return;
         const claims = (await fetchMyClaims()).items || [];
-        const names = claims
-          .filter(c => c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending'))
-          .map(c => c.profile_key).filter(Boolean);
         // Kişi kaydının kendi `office` alanı — İKİ kayıt türü de okunur: sahiplenilmiş profil
         // (fetchClaimedArchitect) ya da kullanıcının kendi açtığı kişi kaydı (fetchOwnSelfSubmission,
         // claimed_profile_key TAŞIMAZ). İkincisi eksikti: kullanıcı firmalarını kisi-ekle.html'den
@@ -2381,7 +2378,15 @@ const AuthModal = (function () {
         // açılıyordu — "iki profil birbiriyle entegre" isteğinin (madde 2) tam karşıtı.
         const claimedArch = await fetchClaimedArchitect(claims);
         const arch = claimedArch || await fetchOwnSelfSubmission();
-        String((arch && arch.office) || '').split(',').forEach(n => { const t = n.trim(); if (t) names.push(t); });
+        // ÜÇÜNCÜ KAYNAK + ORTAK KURAL (kullanıcı isteği, 2026-09-08): birleştirme artık office-picker.js#
+        // mergeOfficeMembershipNames'te, kisi-ekle.html'in üç ön-doldurma yoluyla BİREBİR aynı fonksiyon
+        // — iki sayfa aynı kaynaklardan aynı listeyi üretir. officeLinks (hesabın kişi profilinin
+        // office_founders bağları; admin/firma yetkilisi Kurucular/Ekip kutusuna yazdığında oluşur, ne
+        // talep ne `office` metni doğurur) eskiden yalnızca Firma Bilgileri kutusunda (loadFirmInfo)
+        // okunuyordu, bu kutuda değil.
+        const names = (typeof mergeOfficeMembershipNames === 'function')
+          ? mergeOfficeMembershipNames({ officeTexts: [arch && arch.office], officeLinks: myOfficeLinks, claims })
+          : claims.filter(c => c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending')).map(c => c.profile_key).filter(Boolean);
         firmaPicker.set(names);
         // bkz. submitFirmaClaimIfChanged — kullanıcı seçimi DEĞİŞTİRMEDİYSE Kaydet'te talep
         // gönderilmemeli. Ofis talebi varken bunu zaten o fonksiyonun `existing` kontrolü sağlıyordu;

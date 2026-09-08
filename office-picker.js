@@ -271,5 +271,58 @@
     return api;
   }
 
+  // "BU KİŞİ HANGİ FİRMA/MARKALARDA GÖREVLİ?" — İKİ YÜZEYİN ORTAK CEVABI (kullanıcı isteği,
+  // 2026-09-08: "Bir kişi bir firma veya markaya admin tarafından dahi olsa görevlendiriliyorsa
+  // [kişi ekle/düzenle] sayfasında da profilini düzenle sayfasında olduğu gibi firma ve marka
+  // bilgileri gözüksün ... iki sayfa birbiriyle entegre, aynı bilgilere sahip olsun").
+  //
+  // GERÇEK BULGU: bir kişinin firma bağı DÖRT ayrı yerde yaşıyor ve iki sayfa bunların FARKLI alt
+  // kümelerini okuyordu — "MİMARLAB Robotu" Profili Düzenle'de iki firma görürken kisi-ekle.html'de
+  // kutu boş açılıyordu:
+  //   1. kişi kaydının virgüllü `office` metni (architect_submissions.office / canonical item.office —
+  //      ikincisi yalnızca BİRİNCİL firmayı, architects.office_id'yi döndürür, bkz. src/routes/
+  //      architect.js#buildArchitectPayload);
+  //   2. office_founders bağları — admin ya da firma yetkilisi kişiyi firmanın Kurucular/Ekip kutusuna
+  //      yazdığında oluşur, kişi kaydının `office` alanına HİÇ yazılmaz (/api/architect/:key yanıtının
+  //      üst düzey `offices` dizisi; kişinin kendi hesabı için /api/claims/mine -> officeLinks);
+  //   3. onaylı/beklemedeki profile_claims('office') talepleri (/api/claims/mine -> items) — admin
+  //      "Deneme Firması'na Yönetici olarak ata" dediğinde de tam olarak bu satır oluşur;
+  //   4. reddedilmiş talepler — bilinçli olarak DIŞARIDA.
+  // Bu fonksiyon dördünü TEK listeye indirger; hem kisi-ekle.html'in ön-doldurma yolları hem
+  // js/components/auth-modal.js#prefillFirmaSelect başka bir şey okumaz. Sıra: kişi kaydının kendi
+  // metni önce (ilk ad canonicalSync#syncArchitect'te "birincil firma" olur, o yüzden korunur),
+  // sonra kanonik founders bağları, hesabın officeLinks'i, en son talepler. Tekilleştirme Türkçe
+  // casefold ile ("MİMARLAB" ↔ "Mimarlab" tek çip).
+  //
+  // Kaydetme tarafında bu birleşim GÜVENLİDİR: canonicalSync#syncOfficeFounderLink form metninde
+  // OLMAYAN bağları siler — yani admin'in office_founders'a eklediği bir firmanın kutuda görünmemesi
+  // yalnızca kozmetik bir eksik değildi, kullanıcı formu kaydettiği anda o atama sessizce siliniyordu.
+  // Birleşim sayesinde kaydedilen metin admin atamasını da taşır.
+  //
+  // src.officeTexts  — virgüllü metinler (kayıt alanları), src.offices — /api/architect/:key `offices`
+  // (unregistered olanlar atlanır: picker yalnızca kayıtlı adları listeler), src.officeLinks —
+  // /api/claims/mine officeLinks, src.claims — /api/claims/mine items.
+  function mergeOfficeMembershipNames(src) {
+    const s = src || {};
+    const out = [];
+    const seen = new Set();
+    const push = (n) => {
+      const t = String(n == null ? '' : n).trim();
+      if (!t) return;
+      const key = foldTr(t);
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(t);
+    };
+    (s.officeTexts || []).forEach(txt => String(txt == null ? '' : txt).split(',').forEach(push));
+    (s.offices || []).forEach(o => { if (o && !o.unregistered) push(o.name); });
+    (s.officeLinks || []).forEach(l => push(l && l.name));
+    (s.claims || [])
+      .filter(c => c && c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending'))
+      .forEach(c => push(c.profile_key));
+    return out;
+  }
+
   window.createOfficePicker = createOfficePicker;
+  window.mergeOfficeMembershipNames = mergeOfficeMembershipNames;
 })();

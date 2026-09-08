@@ -1273,8 +1273,15 @@ async function prefillForEdit(){
     if(item.dob){ selectedDob = parseInt(String(item.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
     document.getElementById('m-school').value = item.school || '';
     meslekDropdown.setChecked(professionLabelList(item.profession));
-    document.getElementById('m-office').value = item.office || '';
-    officePicker.syncFromInput();
+    // Firma/marka kutusu — kaydın kendi `office` metni TEK kaynak DEĞİL (bkz. office-picker.js#
+    // mergeOfficeMembershipNames'teki gerçek bulgu: "MİMARLAB Robotu"nun taslağında office NULL'du,
+    // firmaları admin atamasıyla profile_claims/office_founders'ta duruyordu ve kutu boş açılıyordu).
+    // Kanonik kaydın founders bağları + (kişinin kendi profiliyse) hesabın talepleri/bağları eklenir.
+    await applyOfficeMemberships({
+      officeTexts: [item.office],
+      offices: await fetchCanonicalOffices(item.name),
+      own: await isOwnAccountProfile(item.name),
+    });
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
     document.getElementById('m-about').value = item.about || '';
@@ -1310,6 +1317,13 @@ async function prefillForClaim(){
   // dizisinden seed alma adımı kaldırıldı — bkz. firma-ekle.html#prefillForClaim'deki AYNI gerekçe,
   // aşağıdaki canonical D1 fetch zaten aynı alanların tamamını döndürüyor.
   let merged = { name: claimName };
+  // Firma/marka kutusunun kaynakları (bkz. office-picker.js#mergeOfficeMembershipNames): her katmanın
+  // `office` metni ayrı ayrı toplanır — merged.office'in katmanlar arası "son yazan kazanır" davranışı
+  // firma listesi için YANLIŞ, çünkü canonical item.office yalnızca birincil firmadır ve taslağın
+  // metni admin'in sonradan eklediği bağları taşımaz; doğru sonuç birleşimdir.
+  const officeTexts = [];
+  let canonicalOffices = [];
+  let mineMatched = false;
 
   // Bağımsız dizin kaydı — data.js'in statik architects[] dizisinde hiç yer almayan, doğrudan
   // canonical D1'de var olan bir mimar profili olabilir (bkz. gerçek bulgu: "Ezgi San" gibi bir
@@ -1321,7 +1335,8 @@ async function prefillForClaim(){
   try{
     const canonicalRes = await fetch(`/api/architect/${encodeURIComponent(claimName)}`);
     if(canonicalRes.ok){
-      const { item } = await canonicalRes.json();
+      const canonicalData = await canonicalRes.json();
+      const { item } = canonicalData;
       // bkz. kullanıcı isteği (2026-08-17): claimName artık ham isim yerine temiz bir slug da
       // olabilir (bkz. js/components/architect-modal.js#getClaimLinkKey) — GET /api/architect/:key
       // zaten name/slug/legacy_key alias'larının herhangi biriyle bulur (bkz. src/lib/
@@ -1332,6 +1347,10 @@ async function prefillForClaim(){
       if(item && (item.name === claimName || item.slug === claimName || item.legacy_key === claimName)){
         merged = { ...merged, ...item };
         claimName = item.name;
+        officeTexts.push(item.office);
+        // office_founders'tan gelen TÜM firmalar (admin/firma yetkilisinin Kurucular/Ekip kutusuna
+        // yazdığı bağlar dahil) — item.office bunların yalnızca ilkini taşır.
+        canonicalOffices = canonicalData.offices || [];
       }
     }
   }catch{}
@@ -1340,7 +1359,10 @@ async function prefillForClaim(){
     const editsRes = await fetch('/api/public/profile-edits');
     if(editsRes.ok){
       const edits = await editsRes.json();
-      if(edits.architect && edits.architect[claimName]) merged = { ...merged, ...edits.architect[claimName] };
+      if(edits.architect && edits.architect[claimName]){
+        merged = { ...merged, ...edits.architect[claimName] };
+        officeTexts.push(edits.architect[claimName].office);
+      }
     }
   }catch{}
 
@@ -1361,7 +1383,9 @@ async function prefillForClaim(){
       const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
+        mineMatched = true;
         merged = overlayNonEmpty(merged, { name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links, portfolio: mine.portfolio });
+        officeTexts.push(mine.office);
         // Taslakta bu soru hiç yanıtlanmamışsa (NULL) canonical satırdan gelen değer korunur.
         if(mine.directory_listed !== undefined && mine.directory_listed !== null) merged.directory_listed = mine.directory_listed;
       }
@@ -1383,8 +1407,15 @@ async function prefillForClaim(){
   if(merged.dob){ selectedDob = parseInt(String(merged.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
   document.getElementById('m-school').value = merged.school || '';
   meslekDropdown.setChecked(professionLabelList(merged.profession));
-  document.getElementById('m-office').value = merged.office || '';
-  officePicker.syncFromInput();
+  // `mine` eşleştiyse bu taslak oturumdaki hesabın kendi sahiplenilmiş profili demek (admin başkasının
+  // profilini düzenlerken /api/architects/mine admin'in kendi satırlarını döndürür, eşleşmez). editId
+  // BURADA ölçüt DEĞİL: ?edit= yolunda prefillForEdit onu admin'in /api/architects/:id ile açtığı
+  // BAŞKASININ taslağından da set eder.
+  await applyOfficeMemberships({
+    officeTexts,
+    offices: canonicalOffices,
+    own: mineMatched || await isOwnAccountProfile(nameInput.value),
+  });
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
   document.getElementById('m-about').value = merged.about || '';
@@ -1493,22 +1524,61 @@ async function maybeAutoFillFromAccount(){
   // kaynak burada da okunur: onaylı (yoksa beklemede) bir ofis talebi varsa adı buraya yazılır.
   // Kutu çoklu seçim olduğundan (kullanıcı isteği, 2026-09-06 madde 4) artık TEK talep değil,
   // onaylı/beklemedeki TÜM ofis taleplerinin adları yazılır.
+  // Artık yalnızca talepler değil, hesabın office_founders bağları da (officeLinks) okunur — Profili
+  // Düzenle ile AYNI birleşim, bkz. office-picker.js#mergeOfficeMembershipNames.
   const officeInput = document.getElementById('m-office');
   if(!officeInput.value){
-    try{
-      const claimsRes = await fetch('/api/claims/mine');
-      if(claimsRes.ok){
-        const claims = (await claimsRes.json()).items || [];
-        const officeKeys = claims
-          .filter(c => c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending'))
-          .map(c => c.profile_key).filter(Boolean);
-        if(officeKeys.length){
-          officeInput.value = [...new Set(officeKeys)].join(', ');
-          officePicker.syncFromInput();
-        }
-      }
-    }catch{}
+    await applyOfficeMemberships({ officeTexts: [], offices: [], own: true });
   }
+}
+
+// ---------- FİRMA/MARKA KUTUSUNUN ORTAK DOLDURUCUSU (kullanıcı isteği, 2026-09-08: "kişi ekle/düzenle
+// sayfası ile profilini düzenle sayfası aynı bilgilere sahip olsun, dinamik ve eş zamanlı çalışsın").
+// Üç ön-doldurma yolu (prefillForClaim, prefillForEdit, maybeAutoFillFromAccount) da buradan geçer;
+// birleştirme kuralı office-picker.js#mergeOfficeMembershipNames'te, auth-modal.js#prefillFirmaSelect
+// ile BİREBİR aynı fonksiyon. Hesaba bağlı kaynaklar (/api/claims/mine: talepler + officeLinks)
+// YALNIZCA düzenlenen profil oturumdaki hesabın KENDİ profiliyse eklenir — admin ya da firma yetkilisi
+// başkasının profilini düzenlerken kendi firmaları o kişinin kutusuna sızmasın.
+let myMembershipPromise = null;
+function fetchMyMembershipSources(){
+  if(!myMembershipPromise){
+    myMembershipPromise = fetch('/api/claims/mine')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => ({ claims: (d && d.items) || [], officeLinks: (d && d.officeLinks) || [], architectProfile: (d && d.architectProfile) || null }))
+      .catch(() => ({ claims: [], officeLinks: [], architectProfile: null }));
+  }
+  return myMembershipPromise;
+}
+// Kanonik kaydın office_founders bağları — /api/architect/:key yanıtının üst düzey `offices` dizisi.
+// Uç bulamadığında BAŞKA bir kişiye düşebildiğinden (bkz. prefillForClaim'deki aynı not) ad
+// eşleşmesi doğrulanır; eşleşmezse boş.
+async function fetchCanonicalOffices(name){
+  const key = String(name || '').trim();
+  if(!key) return [];
+  try{
+    const res = await fetch(`/api/architect/${encodeURIComponent(key)}`);
+    if(!res.ok) return [];
+    const data = await res.json();
+    const item = data && data.item;
+    if(!item || trLower(item.name || '') !== trLower(key)) return [];
+    return data.offices || [];
+  }catch{ return []; }
+}
+async function isOwnAccountProfile(name){
+  const n = trLower(String(name || '').trim());
+  if(!n) return false;
+  const data = await currentUserReady;
+  const user = data && data.user;
+  if(!user) return false;
+  const src = await fetchMyMembershipSources();
+  if(src.architectProfile && trLower(src.architectProfile.name || '') === n) return true;
+  return !!user.name && trLower(user.name) === n;
+}
+async function applyOfficeMemberships({ officeTexts, offices, own }){
+  const account = own ? await fetchMyMembershipSources() : { claims: [], officeLinks: [] };
+  const names = mergeOfficeMembershipNames({ officeTexts, offices, officeLinks: account.officeLinks, claims: account.claims });
+  document.getElementById('m-office').value = names.join(', ');
+  officePicker.syncFromInput();
 }
 document.getElementById('m-name').addEventListener('input', maybeAutoFillFromAccount);
 document.getElementById('m-name').addEventListener('blur', maybeAutoFillFromAccount);
