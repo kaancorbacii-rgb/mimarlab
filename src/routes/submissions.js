@@ -5,7 +5,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { ensurePendingOfficeClaims } from '../lib/claimedProfiles.js';
+import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
@@ -136,7 +136,15 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   const claim = await env.DB.prepare(
     `SELECT id, office_position FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
   ).bind(user.id, profileType, currentName).first();
-  if (!claim) return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
+  if (!claim) {
+    // İKİNCİ YETKİ YOLU (kullanıcı isteği, 2026-09-08 madde 1): firmanın kendisi, kullanıcının
+    // ADMIN ONAYLI kişi profilini "Kurucular / Ortaklar" kutusuna yazmışsa künyeyi düzenleyebilir —
+    // ortada bir profile_claims('office') satırı OLMASA da. Kural ve bilinen sınırı için bkz.
+    // src/lib/claimedProfiles.js#canEditOfficeViaFounderLink. Hesabım'daki buton AYNI kararı
+    // sunucudan (GET /api/claims/mine -> officeLinks[].canEdit) okur, ikisi ayrışamaz.
+    if (typeKey === 'offices' && await canEditOfficeViaFounderLink(env, user, currentName, OFFICE_EDIT_POSITIONS)) return null;
+    return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
+  }
   // P1 güvenlik düzeltmesi (bkz. migrations/0068): canlı user.position YERİNE, admin bu claim'i
   // onayladığı andaki dondurulmuş office_position kullanılır — aksi halde kullanıcı kendi
   // profilinden position'ını "Kurucu" yapıp bu kontrolü atlatabilirdi.

@@ -3,6 +3,8 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
+import { fetchOfficeFounderLinks, fetchOwnArchitectRows } from '../lib/claimedProfiles.js';
+import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
 // profile_claims.profile_key'in eşleşmesi GEREKEN canonical tablo (bkz. src/routes/admin.js#
@@ -99,7 +101,24 @@ async function myClaims(env, user) {
     const row = await env.DB.prepare(`SELECT slug, ${imageCol} AS image FROM ${table} WHERE name = ? AND deleted_at IS NULL`).bind(r.profile_key).first();
     return { ...r, slug: row ? row.slug : null, image: row ? row.image : null };
   }));
-  return json({ items });
+  // officeLinks — kullanıcının KİŞİ profilinin office_founders üzerinden bağlı olduğu firmalar
+  // (kullanıcı isteği, 2026-09-08: firma kullanıcıyı Kurucular kutusuna eklediğinde Hesabım'daki
+  // "Firma / Marka Bilgileri" kutusunda da görünsün). Bkz. src/lib/claimedProfiles.js#
+  // fetchOfficeFounderLinks — kişi kaydını bulmanın İKİ yolunu da (onaylı talep + ad eşleşmesi)
+  // kapsar, bu yüzden istemcinin eskiden yaptığı "yalnızca onaylı talebi olanda çalışan" türetme
+  // ortadan kalkar.
+  const officeLinks = await fetchOfficeFounderLinks(env, user, OFFICE_EDIT_POSITIONS);
+  // architectProfile — hesabın KİŞİ profili (kullanıcı isteği, 2026-09-08 madde 3: Hesabım'daki
+  // "Ad Soyad" satırı, firma satırı gibi, o profilin pop-up'ına gitsin). officeLinks ile AYNI
+  // yardımcıdan gelir, yani sahipliğin İKİ yolunu da kapsar: onaylı talep ÖNCE, yoksa hesabın
+  // adıyla eşleşen kendi kaydı (bkz. fetchOwnArchitectRows).
+  const own = await fetchOwnArchitectRows(env, user);
+  const ownArchitect = own.claimed[0] || own.selfNamed[0] || null;
+  return json({
+    items,
+    officeLinks,
+    architectProfile: ownArchitect ? { name: ownArchitect.name, slug: ownArchitect.slug } : null,
+  });
 }
 
 async function createClaim(request, env, user) {

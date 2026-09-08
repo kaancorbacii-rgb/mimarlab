@@ -1863,6 +1863,10 @@ const AuthModal = (function () {
   // Onaylı firma talebinin ONAY ANINDA dondurulmuş office_position'ı (bkz. renderFirmEditBtn) —
   // /api/claims/mine artık bu alanı döndürüyor.
   let firmInfoPosition = null;
+  // office_founders yolundan gelen düzenleme yetkisi (sunucunun kararı, bkz. renderFirmEditBtn).
+  let firmInfoFounderCanEdit = false;
+  // Hesabın kişi profili ({name, slug}) — /api/claims/mine#architectProfile (bkz. renderAmNameBadge).
+  let myArchitectProfile = null;
   // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
   // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
@@ -1947,7 +1951,14 @@ const AuthModal = (function () {
     if (!nameEl) return;
     const name = accountUser ? (accountUser.name || '—') : '—';
     const badgeType = accountUser ? myEffectiveBadgeType() : null;
-    nameEl.innerHTML = `${escapeHtml(name)}${badgeType ? accountBadgeIconHtml(badgeType) : ''}`;
+    // Hesaba bir kişi profili bağlıysa ad, o profilin pop-up'ına gider (kullanıcı isteği,
+    // 2026-09-08 madde 3) — Firma satırındaki bağlantıyla AYNI desen ve AYNI stil; temiz URL'yi
+    // pop-up'a çeviren js/components/lazy-modals.js olduğundan burada ekstra bir şey gerekmez.
+    const slug = myArchitectProfile && myArchitectProfile.slug;
+    const nameHtml = slug
+      ? `<a href="/kisi/${encodeURIComponent(slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(name)}</a>`
+      : escapeHtml(name);
+    nameEl.innerHTML = `${nameHtml}${badgeType ? accountBadgeIconHtml(badgeType) : ''}`;
   }
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
@@ -2233,8 +2244,23 @@ const AuthModal = (function () {
     // her Hesabım açılışında bu uca gereksiz İKİNCİ bir istek atılıyordu (bkz. kullanıcı isteği,
     // 2026-09-03: "Hesabım çok yavaş yükleniyor"). Tek sonuç mountAccount() ömrü boyunca paylaşılır.
     let myClaimsPromise = null;
+    // officeLinks — kişi profilinin office_founders üzerinden bağlı olduğu firmalar (bkz.
+    // src/routes/claims.js#myClaims). Aynı yanıtta geldiğinden ek bir istek doğurmaz; loadFirmInfo
+    // ÜÇÜNCÜ KAYNAK olarak bunu okur.
+    let myOfficeLinks = [];
     function fetchMyClaims() {
-      if (!myClaimsPromise) myClaimsPromise = fetch('/api/claims/mine').then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
+      if (!myClaimsPromise) {
+        myClaimsPromise = fetch('/api/claims/mine')
+          .then(r => r.ok ? r.json() : { items: [] })
+          .then(d => {
+            myOfficeLinks = (d && d.officeLinks) || [];
+            // Ad Soyad satırının bağlanacağı kişi profili (bkz. renderAmNameBadge) — sunucu
+            // sahipliğin İKİ yolunu da çözer (onaylı talep, yoksa hesabın adıyla eşleşen kendi kaydı).
+            myArchitectProfile = (d && d.architectProfile) || null;
+            return d;
+          })
+          .catch(() => ({ items: [] }));
+      }
       return myClaimsPromise;
     }
     // Sahiplenilmiş MİMAR kaydı — hem syncClaimedArchitectData (profil alanlarını bir kerelik
@@ -2249,15 +2275,7 @@ const AuthModal = (function () {
         claimedArchitectKey = claim.profile_key;
         claimedArchitectPromise = fetch(`/api/architect/${encodeURIComponent(claim.profile_key)}`)
           .then(r => (r.ok ? r.json() : null))
-          // _officeFounderNames — payload'ın KÖKÜNDEKİ `offices` dizisi (bkz. src/routes/
-          // architect.js#buildArchitectPayload: office_founders join'i, yani kişinin "kurucu/ortak
-          // olarak bağlı olduğu firmalar"). Çağıranlar item'ı bekliyor, o yüzden liste item'ın
-          // üzerine iliştirilir — bkz. loadFirmInfo'daki ÜÇÜNCÜ KAYNAK.
-          .then(d => {
-            if (!d || !d.item) return null;
-            d.item._officeFounderNames = (d.offices || []).map(o => o && o.name).filter(Boolean);
-            return d.item;
-          })
+          .then(d => (d && d.item) || null)
           .catch(() => null);
       }
       return claimedArchitectPromise;
@@ -3275,7 +3293,7 @@ const AuthModal = (function () {
         const folded = foldTrAm(name);
         if (seen.has(folded)) return;
         seen.add(folded);
-        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, ...extra });
+        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, founderCanEdit: false, ...extra });
       };
       for (const c of officeClaims.filter(c => c.status === 'approved')) {
         pushEntry(c.profile_key, {
@@ -3294,14 +3312,19 @@ const AuthModal = (function () {
       if (arch && arch.office) {
         String(arch.office).split(',').forEach(n => pushEntry(n, { role: arch.role || null }));
       }
-      // ÜÇÜNCÜ KAYNAK (kullanıcı isteği, 2026-09-08): FİRMANIN kendisi kişiyi Kurucular/Ortaklar
-      // kutusuna eklediğinde ortada ne bir profile_claims satırı olur ne de kişinin kendi `office`
-      // alanı değişir — bağ yalnızca office_founders'ta durur (bkz. src/lib/canonicalSync.js#
-      // syncOfficeFoundersFromNames). Bu yüzden "Deneme firmasına kurucu olarak eklendim ama
-      // Hesabım'daki Firma / Marka Bilgileri kutusunda çıkmıyor" (gerçek bulgu): kutunun iki
-      // kaynağı da o bağı görmüyordu. pushEntry ilk gireni koruduğundan, aynı firma hem claim'li
-      // hem office_founders'lıysa CLAIM girdisi kazanır (düzenleme yetkisi orada belirlenir).
-      for (const n of (arch && arch._officeFounderNames) || []) pushEntry(n, { role: arch.role || null });
+      // ÜÇÜNCÜ KAYNAK — FİRMANIN kendisi kişiyi Kurucular/Ortaklar kutusuna eklediğinde ortada ne
+      // bir profile_claims satırı olur ne de kişinin kendi `office` alanı değişir; bağ yalnızca
+      // office_founders'ta durur. Liste SUNUCUDAN gelir (bkz. src/routes/claims.js#myClaims ->
+      // officeLinks): eskiden burada /api/architect/:key yanıtından türetiliyordu ve o istek
+      // YALNIZCA onaylı bir mimar TALEBİ olan kullanıcı için atıldığından, kendi kaydını kendi
+      // açmış bir kullanıcıda (canlı örnek: iki firmada kayıtlı "MİMARLAB Robotu") hiç çalışmıyordu.
+      // canEdit sunucunun GERÇEK yetki kararıdır (bkz. claimedProfiles.js#canEditOfficeViaFounderLink)
+      // — buton onunla çizilir, böylece istemci ile sunucu ayrışamaz.
+      // pushEntry ilk gireni koruduğundan, aynı firma hem claim'li hem office_founders'lıysa CLAIM
+      // girdisi kazanır (yetkiyi orada dondurulmuş görev belirler).
+      for (const l of myOfficeLinks) {
+        pushEntry(l.name, { role: l.role || null, slug: l.slug || l.name, founderCanEdit: !!l.canEdit });
+      }
       firmEntries = entries;
       if (firmPage > entries.length) firmPage = 1;
       renderFirmPage();
@@ -3340,6 +3363,7 @@ const AuthModal = (function () {
         firmInfoApproved = false;
         firmInfoIsBrand = false;
         firmInfoPosition = null;
+        firmInfoFounderCanEdit = false;
         renderFirmEditBtn();
         box.innerHTML = '<div class="dash-empty">Henüz bir firmada veya markada görev almıyorsun. Profili Düzenle\'den firmanı ya da markanı seçebilirsin.</div>';
         if (pager) pager.innerHTML = '';
@@ -3352,6 +3376,7 @@ const AuthModal = (function () {
       firmInfoKey = entry.key;
       firmInfoApproved = entry.approved;
       firmInfoPosition = entry.position;
+      firmInfoFounderCanEdit = !!entry.founderCanEdit;
       firmInfoSlug = (office && office.slug) || entry.slug;
       // Saf marka mı? Kararın TEK kaynağı sunucudur (office-kind.js#isPureBrandOffice, /api/office/
       // :key yanıtındaki isBrand) — istemci burada ikinci bir kategori listesi taşımaz.
@@ -3447,8 +3472,13 @@ const AuthModal = (function () {
     function renderFirmEditBtn() {
       const btn = document.getElementById('am-firm-edit-btn');
       if (!btn) return;
-      const canEdit = !!firmInfoSlug && firmInfoApproved
-        && OFFICE_EDIT_POSITIONS.has(firmInfoPosition);
+      // İKİ yetki yolu (kullanıcı isteği, 2026-09-08 madde 1) — ikisi de SUNUCUDAKİ kararla birebir:
+      //  (a) onaylı profile_claims + dondurulmuş görev (bkz. submissions.js#verifyClaimedProfileKey),
+      //  (b) firmanın Kurucular listesindeki, admin onaylı kişi profilin (claims/mine -> officeLinks
+      //      [].canEdit, bkz. claimedProfiles.js#canEditOfficeViaFounderLink). (b) İSTEMCİDE YENİDEN
+      //      HESAPLANMAZ: kural office_founders'a bakmayı gerektiriyor, sunucu zaten söylüyor.
+      const canEdit = !!firmInfoSlug
+        && ((firmInfoApproved && OFFICE_EDIT_POSITIONS.has(firmInfoPosition)) || firmInfoFounderCanEdit);
       btn.style.display = canEdit ? '' : 'none';
       // Saf markalar marka-ekle.html'den düzenlenir (bkz. js/components/office-modal.js#editUrlBase
       // ile AYNI karar) — firma-ekle.html'in Hizmet Alanı kutucukları marka kategorilerini hiç

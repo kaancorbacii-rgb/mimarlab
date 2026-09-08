@@ -23,7 +23,7 @@ import { anyProfileClaimed } from '../src/lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../src/lib/projectClaimAccess.js';
 import { cascadeRemovedProfileClaims } from '../src/lib/officeFounderCascade.js';
 import { canUserEditProjectBySlug } from '../src/lib/projectClaimAccess.js';
-import { ensurePendingOfficeClaims, fillUserFromArchitectProfile } from '../src/lib/claimedProfiles.js';
+import { ensurePendingOfficeClaims, fillUserFromArchitectProfile, fetchOfficeFounderLinks, canEditOfficeViaFounderLink, fetchOwnArchitectRows } from '../src/lib/claimedProfiles.js';
 import { syncApprovedSubmissionToCanonical } from '../src/lib/canonicalSync.js';
 import { newId } from '../src/lib/crypto.js';
 import { parseSubmissionRow } from '../src/lib/submissionTypes.js';
@@ -449,6 +449,75 @@ await test('listede olmayan pozisyon hesaba kopyalanmaz', async () => {
   const env = { DB: d1(db) };
   await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik');
   assert.equal(db.prepare(`SELECT position FROM users WHERE id = 'u-cc'`).get().position, null);
+});
+
+// ================================================================================================
+// 2026-09-08 ÜÇÜNCÜ TUR — Hesabım "Firma / Marka Bilgileri" kutusunun office_founders kaynağı
+// ================================================================================================
+section('office_founders kaynağı — görünürlük ve düzenleme yetkisi');
+
+function seedFounderLinks(db) {
+  const now = Date.now();
+  // (a) onaylı KİŞİ talebi olan, görevi Kurucu -> yetki VAR
+  db.prepare(`INSERT INTO users (id,email,password_hash,name,role,created_at) VALUES ('u-k','k@e.com','x','Kaan Çorbacı','user',?)`).run(now);
+  db.exec(`INSERT INTO architects (slug,name,position,source) VALUES ('kaan-corbaci','Kaan Çorbacı','Kurucu','legacy_static')`);
+  const kid = db.prepare(`SELECT id FROM architects WHERE slug='kaan-corbaci'`).get().id;
+  db.prepare(`INSERT INTO profile_claims (id,user_id,profile_type,profile_key,status,created_at,updated_at) VALUES ('pc-k','u-k','architect','Kaan Çorbacı','approved',?,?)`).run(now, now);
+  // (b) TALEBİ OLMAYAN ama hesap adı kişi kaydıyla eşleşen kullanıcı -> görünürlük VAR, yetki YOK
+  db.prepare(`INSERT INTO users (id,email,password_hash,name,role,created_at) VALUES ('u-r','r@e.com','x','MİMARLAB Robotu','user',?)`).run(now);
+  db.exec(`INSERT INTO architects (slug,name,position,source) VALUES ('mimarlab-robotu','MİMARLAB Robotu','Kurucu','legacy_static')`);
+  const rid = db.prepare(`SELECT id FROM architects WHERE slug='mimarlab-robotu'`).get().id;
+  // (c) onaylı talebi olan ama görevi Ekip Üyesi -> görünürlük VAR, yetki YOK
+  db.prepare(`INSERT INTO users (id,email,password_hash,name,role,created_at) VALUES ('u-e','e@e.com','x','Ekip Kişi','user',?)`).run(now);
+  db.exec(`INSERT INTO architects (slug,name,position,source) VALUES ('ekip-kisi','Ekip Kişi','Ekip Üyesi','legacy_static')`);
+  const eid = db.prepare(`SELECT id FROM architects WHERE slug='ekip-kisi'`).get().id;
+  db.prepare(`INSERT INTO profile_claims (id,user_id,profile_type,profile_key,status,created_at,updated_at) VALUES ('pc-e','u-e','architect','Ekip Kişi','approved',?,?)`).run(now, now);
+  // Üçü de "DS Mimarlık" (id 2) ve "Boş Firma" (id 4) firmalarına bağlı
+  for (const id of [kid, rid, eid]) {
+    db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (2, ?)`).run(id);
+  }
+  db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (4, ?)`).run(kid);
+}
+
+await test('kişi kaydını bulmanın İKİ yolu da çözülür (talep + ad eşleşmesi)', async () => {
+  const db = freshDb(); seed(db); seedFounderLinks(db);
+  const env = { DB: d1(db) };
+  const k = await fetchOwnArchitectRows(env, { id: 'u-k', name: 'Kaan Çorbacı' });
+  assert.equal(k.claimed.length, 1);
+  const r = await fetchOwnArchitectRows(env, { id: 'u-r', name: 'MİMARLAB Robotu' });
+  assert.equal(r.claimed.length, 0);
+  assert.equal(r.selfNamed.length, 1, 'ad eşleşmesi yolu çalışmalı');
+  // Türkçe katlama: hesap adı farklı yazılmış olsa da eşleşir
+  const r2 = await fetchOwnArchitectRows(env, { id: 'u-r', name: 'MIMARLAB ROBOTU' });
+  assert.equal(r2.selfNamed.length, 1);
+});
+
+await test('TALEBİ OLMAYAN kullanıcı da firmalarını görür (canlı bulgu: iki firma, tek satır)', async () => {
+  const db = freshDb(); seed(db); seedFounderLinks(db);
+  const env = { DB: d1(db) };
+  const links = await fetchOfficeFounderLinks(env, { id: 'u-r', name: 'MİMARLAB Robotu' }, OFFICE_EDIT_POSITIONS);
+  assert.deepEqual(links.map(l => l.name), ['DS Mimarlık']);
+  assert.equal(links[0].canEdit, false, 'ad eşleşmesi düzenleme yetkisi VERMEZ');
+  // onaylı talebi olan kullanıcıda iki firma da listelenir
+  const kLinks = await fetchOfficeFounderLinks(env, { id: 'u-k', name: 'Kaan Çorbacı' }, OFFICE_EDIT_POSITIONS);
+  assert.deepEqual(kLinks.map(l => l.name).sort(), ['Boş Firma', 'DS Mimarlık']);
+  assert.ok(kLinks.every(l => l.canEdit), 'onaylı talep + Kurucu -> yetki VAR');
+});
+
+await test('düzenleme yetkisi: onaylı talep + yetkili görev şartı', async () => {
+  const db = freshDb(); seed(db); seedFounderLinks(db);
+  const env = { DB: d1(db) };
+  const can = (u, name) => canEditOfficeViaFounderLink(env, u, name, OFFICE_EDIT_POSITIONS);
+  assert.equal(await can({ id: 'u-k', name: 'Kaan Çorbacı' }, 'DS Mimarlık'), true);
+  assert.equal(await can({ id: 'u-k', name: 'Kaan Çorbacı' }, 'Boş Firma'), true);
+  // bağlı OLMADIĞI firma
+  assert.equal(await can({ id: 'u-k', name: 'Kaan Çorbacı' }, 'IND [Inter.National.Design]'), false);
+  // talebi yok (yalnızca ad eşleşmesi) -> yetki YOK
+  assert.equal(await can({ id: 'u-r', name: 'MİMARLAB Robotu' }, 'DS Mimarlık'), false);
+  // talebi var ama görevi Ekip Üyesi -> yetki YOK
+  assert.equal(await can({ id: 'u-e', name: 'Ekip Kişi' }, 'DS Mimarlık'), false);
+  // kullanıcı yok
+  assert.equal(await can(null, 'DS Mimarlık'), false);
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

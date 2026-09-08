@@ -127,3 +127,109 @@ export async function fillUserFromArchitectProfile(env, userId, architectName) {
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
   return true;
 }
+
+
+// ---------------------------------------------------------------------------------------------
+// KİŞİ PROFİLİ ÜZERİNDEN FİRMA BAĞLARI (office_founders)
+//
+// Bir kullanıcının bir firmayla ilişkisinin ÜÇÜNCÜ yolu: firmanın kendisi, kişiyi "Kurucular /
+// Ortaklar" kutusuna yazmıştır. Bu bağ ne profile_claims'te ne de kişinin kendi `office` alanında
+// görünür — yalnızca office_founders join tablosunda durur (bkz. src/lib/canonicalSync.js#
+// syncOfficeFoundersFromNames). Hesabım'daki "Firma / Marka Bilgileri" kutusu bu yüzden firma
+// pop-up'ıyla çelişiyordu: kişi firmanın Kurucular listesinde görünüyor ama kendi hesabında o
+// firmayı hiç göremiyordu.
+//
+// NEDEN SUNUCUDA (kullanıcı isteği, 2026-09-08: "kökten çöz"): istemci bunu bir süre
+// /api/architect/:key yanıtının `offices` alanından türetiyordu, ama o istek YALNIZCA onaylı bir
+// mimar TALEBİ olan kullanıcı için atılıyordu. Kendi kaydını kendi açmış (talebi olmayan) bir
+// kullanıcıda — canlı örnek: "MİMARLAB Robotu", iki firmada kayıtlı olmasına rağmen kutuda tek
+// firma görüyordu — hiç çalışmıyordu. Kullanıcının kişi kaydını bulmanın İKİ yolu var (bkz. proje
+// notu: "Profil sahipliğinin İKİ yolu") ve ikisi de burada tek noktada uygulanır.
+
+// Kullanıcının kişi (architects) satır id'leri.
+//   claimed  — admin onaylı profile_claims('architect') üzerinden bağlı satırlar
+//   selfNamed— kullanıcının KENDİ adıyla eşleşen satır (name_fold, migrations/0079'un generated
+//              kolonu; foldTr'nin SQL karşılığı — JS tarafıyla birebir aynı katlama)
+// İkisi AYRI döner: görünürlük her ikisini de kabul eder, DÜZENLEME YETKİSİ yalnızca `claimed`
+// yolundan verilir (ad eşleşmesi admin onayı DEĞİLDİR).
+export async function fetchOwnArchitectRows(env, user) {
+  if (!user) return { claimed: [], selfNamed: [] };
+  const [claimedRes, selfRes] = await Promise.all([
+    env.DB.prepare(
+      `SELECT a.id, a.name, a.slug, a.position FROM profile_claims c
+         JOIN architects a ON (a.name = c.profile_key OR a.legacy_key = c.profile_key) AND a.deleted_at IS NULL
+        WHERE c.user_id = ? AND c.profile_type = 'architect' AND c.status = 'approved'`
+    ).bind(user.id).all(),
+    user.name
+      ? env.DB.prepare(`SELECT id, name, slug, position FROM architects WHERE deleted_at IS NULL AND name_fold = ?`).bind(foldTrLocal(user.name)).all()
+      : Promise.resolve({ results: [] }),
+  ]);
+  const claimed = claimedRes.results || [];
+  const claimedIds = new Set(claimed.map(r => r.id));
+  return { claimed, selfNamed: (selfRes.results || []).filter(r => !claimedIds.has(r.id)) };
+}
+
+// src/lib/textMatch.js#foldTr ile BİREBİR aynı (bu dosya tarayıcıya hiç gitmiyor ama depodaki
+// yerleşik kopyalama kuralı korunur — bkz. o dosyanın başındaki not).
+function foldTrLocal(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase()
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
+// GET /api/claims/mine'ın `officeLinks` alanı: kişi profilinin office_founders üzerinden bağlı
+// olduğu firmalar. canEdit — bu bağın firma künyesini düzenleme yetkisi verip vermediği; sunucudaki
+// gerçek kural (bkz. canEditOfficeViaFounderLink) ile BİREBİR aynı hesap, istemci butonu buna göre
+// çizer ve "boş yere doldurulan form, sonra 403" durumu oluşmaz.
+export async function fetchOfficeFounderLinks(env, user, officeEditPositions) {
+  const { claimed, selfNamed } = await fetchOwnArchitectRows(env, user);
+  const all = [...claimed, ...selfNamed];
+  if (!all.length) return [];
+  const claimedIds = new Set(claimed.map(r => r.id));
+  const ids = all.map(r => r.id);
+  const { results } = await env.DB.prepare(
+    `SELECT f.architect_id, o.name, o.slug FROM office_founders f
+       JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
+      WHERE f.architect_id IN (${ids.map(() => '?').join(', ')})
+      ORDER BY o.name COLLATE NOCASE ASC`
+  ).bind(...ids).all();
+  const posById = new Map(all.map(r => [r.id, r.position || null]));
+  const out = [];
+  const seen = new Set();
+  for (const r of results || []) {
+    if (seen.has(r.name)) continue;
+    seen.add(r.name);
+    const position = posById.get(r.architect_id) || null;
+    out.push({
+      name: r.name, slug: r.slug, role: position,
+      canEdit: claimedIds.has(r.architect_id) && officeEditPositions.has(position || ''),
+    });
+  }
+  return out;
+}
+
+// Sunucu tarafı yetki kapısı — src/routes/submissions.js#verifyClaimedProfileKey buradan geçer.
+//
+// KURAL: kullanıcının ADMIN ONAYLI bir kişi profili var VE o kişi bu firmanın office_founders
+// listesinde VE kişinin görevi (architects.position) düzenleme yetkisi veren pozisyonlardan biri.
+// Yetkinin kaynağı iki yönlü bir onay zinciridir: (a) admin "bu profil bu kullanıcıya ait" dedi,
+// (b) firmayı düzenleme yetkisi olan biri (admin ya da firmanın claim sahibi) o kişiyi Kurucular
+// kutusuna yazdı. Ad eşleşmesi (selfNamed) BU KAPIDAN GEÇMEZ — o admin onayı değildir.
+//
+// BİLİNEN SINIR: office_founders satırı rol taşımaz (bkz. schema.sql — yalnızca office_id +
+// architect_id) ve `architects.position` KİŞİYE ait tek bir alandır, firmaya özgü değil. Yani bir
+// kişi A firmasında Kurucu, B firmasında sıradan bir üye olarak listelenmişse ikisinde de aynı
+// görevle değerlendirilir. Firma pop-up'ı da kurucu kartlarının rolünü ZATEN bu alandan yazıyor
+// (bkz. src/routes/office.js#buildOfficePayload), yani gösterim ile yetki tutarlı; daha ince bir
+// ayrım office_founders'a rol kolonu eklemeden mümkün değil.
+export async function canEditOfficeViaFounderLink(env, user, officeName, officeEditPositions) {
+  if (!user || !officeName) return false;
+  const { claimed } = await fetchOwnArchitectRows(env, user);
+  const eligible = claimed.filter(r => officeEditPositions.has(r.position || ''));
+  if (!eligible.length) return false;
+  const ids = eligible.map(r => r.id);
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM office_founders f JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
+      WHERE f.architect_id IN (${ids.map(() => '?').join(', ')}) AND (o.name = ? OR o.legacy_key = ?) LIMIT 1`
+  ).bind(...ids, officeName, officeName).first();
+  return !!row;
+}
