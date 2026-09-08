@@ -29,10 +29,14 @@
          bilinir; filtreli/sayfalı girişlerde hiçbir şey yapılmaz. URL birebir eşleşmezse
          listFetch() aşağıda normal fetch'e düşer — yani en kötü ihtimalle kazanç kaybolur,
          ASLA ikinci bir istek doğmaz (promise tüketildiğinde sözlükten silinir). -->
-<script>(function(){try{var p=location.pathname;
+<!-- mlPre (performans turu, 2026-09-08): Worker, sorgu dizesiz girişte bu shim'in ÜRETECEĞİ URL'lerin
+     yanıtını <head>'in EN BAŞINA #ml-list-data olarak gömer (bkz. src/index.js#HUB_SSR). Gömülü
+     yanıt varsa (ve 60sn'den yeniyse) ağa hiç çıkılmadan aynı __mlPrefetch sözlüğüne hazır bir
+     Response yazılır; yoksa eskisi gibi erken fetch. listFetch() iki durumu ayırt etmez. -->
+<script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>=0&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
 if(/^\/marka\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
 ['js/components/office-modal.js','js/components/modal-shell.js'].forEach(function(s){var l=document.createElement('link');l.rel='preload';l.as='script';l.href=s;document.head.appendChild(l);});return;}
-if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1&limit=24&brands=1';var f=fetch(u);f.catch(function(){});(window.__mlPrefetch=window.__mlPrefetch||{})[u]=f;}
+if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1&limit=24&brands=1';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
 }catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -867,12 +871,14 @@ function listFetch(url){
 }
 
 let renderRequestId = 0;
-async function render(){
-  const myRequest = ++renderRequestId;
-  const grid = document.getElementById('card-grid');
-  const empty = document.getElementById('empty-state');
-  grid.style.opacity = '0.5';
-
+// Son başarılı liste yanıtı (URL'siyle) — 'mimarlab-badges-ready' yeniden çizimi için. GERÇEK BULGU
+// (performans turu, 2026-09-08, yerel fetch izinde yakalandı): badge-shared.js rozetler gelince bu
+// olayı atıyor ve sayfa buna TAM bir render() ile yanıt verip AYNI listeyi ağdan İKİNCİ KEZ çekiyordu
+// — her açılışta çift liste isteği, üstelik ilk çizimden hemen sonra kart görselleriyle bant genişliği
+// yarışında. Rozetler yalnızca kart HTML'ini etkiler (verifiedBadgeHtml); veri aynıysa yeniden
+// istenmez, render({reuse:true}) elde olanla çizer.
+let lastListData = null;
+async function render(opts){
   const params = currentQueryParams();
   params.set('page', String(currentPage));
   params.set('limit', String(PAGE_SIZE));
@@ -880,13 +886,29 @@ async function render(){
   // handleOfficeListRoute): havuz aynı `offices` tablosu, ama burada yalnızca kataloğunda en az bir
   // ürün/malzeme bulunan firmalar listelenir ve "Marka" olarak adlandırılır (kullanıcı isteği).
   params.set('brands', '1');
+  const listUrl = `/api/offices?${params.toString()}`;
+  const reuse = !!(opts && opts.reuse);
+  // reuse: yalnızca AYNI URL'nin yanıtı elde varsa yeniden çizilir. Yoksa (henüz hiç çizilmedi ya da
+  // bir liste isteği hâlâ yolda) HİÇBİR ŞEY yapılmaz — bekleyen çizim zaten rozetler yüklendikten sonra
+  // gerçekleşeceğinden verifiedBadgeHtml onları görür; burada renderRequestId'yi artırmak o yoldaki
+  // isteğin sonucunu boşa çıkarıp listeyi ÜÇÜNCÜ kez çektirirdi (yerel testte ?sort=... ile görüldü).
+  if(reuse && !(lastListData && lastListData.url === listUrl)) return;
+  const myRequest = ++renderRequestId;
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('empty-state');
+  grid.style.opacity = '0.5';
 
   let data = null;
-  try{
-    const res = await listFetch(`/api/offices?${params.toString()}`);
-    if(res.ok) data = await res.json();
-  }catch(err){ console.error('Marka listesi alınamadı:', err); }
+  if(reuse){
+    data = lastListData.data;
+  } else {
+    try{
+      const res = await listFetch(listUrl);
+      if(res.ok) data = await res.json();
+    }catch(err){ console.error('Marka listesi alınamadı:', err); }
+  }
   if(myRequest !== renderRequestId) return;
+  if(data) lastListData = { url: listUrl, data };
   grid.style.opacity = '1';
 
   if(!data){
@@ -1057,7 +1079,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(Modal => { if (Modal) return Modal.open(decodeURIComponent(m[1]), { pushHistory:false }); })
     .then(done, done);
 });
-window.addEventListener('mimarlab-badges-ready', render);
+// reuse:true — liste ağdan yeniden ÇEKİLMEZ, yalnızca rozet HTML'i için yeniden çizilir (bkz. lastListData).
+window.addEventListener('mimarlab-badges-ready', () => render({ reuse: true }));
 </script>
 </body>
 </html>

@@ -908,12 +908,15 @@ async function routeAsset(request, env, url, ctx) {
     // Düzeltilen şey başlıklardı; onlar aşağıda her iki metot için de uygulanıyor.
     let hubJsonLd = null;
     let homeData = null;
+    let hubListData = null;
     if (request.method === 'GET') {
-      // Ana sayfa karusel verisi (bkz. loadHomeData) hub JSON-LD'siyle PARALEL yüklenir — ikisi de
-      // KV/Cache API'den beslenir, sıralı await TTFB'ye gereksiz bir tur eklerdi.
-      [hubJsonLd, homeData] = await Promise.all([
+      // Ana sayfa karusel verisi (loadHomeData) / hub ilk sayfa verisi (loadHubListData) hub
+      // JSON-LD'siyle PARALEL yüklenir — hepsi KV/Cache API'den beslenir, sıralı await TTFB'ye
+      // gereksiz bir tur eklerdi. Hub verisi yalnızca sorgu dizesiz girişte (shim'in koşuluyla aynı).
+      [hubJsonLd, homeData, hubListData] = await Promise.all([
         isHubPath(url.pathname) ? hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname)) : null,
-        url.pathname === '/' ? loadHomeData(env) : null,
+        url.pathname === '/' ? loadHomeData(env, ctx) : null,
+        (!url.search && HUB_SSR[url.pathname]) ? loadHubListData(env, ctx, url.pathname) : null,
       ]);
     }
     const headers = new Headers(response.headers);
@@ -931,8 +934,16 @@ async function routeAsset(request, env, url, ctx) {
       headExtra += buildHomePreloadLinks(homeData);
       headExtra += `<script id="ml-home-data" type="application/json">${JSON.stringify(homeData).replace(/</g, '\\u003c')}</script>`;
     }
+    if (hubListData) headExtra += hubListData.preload;
+    // Hub verisi <head>'in BAŞINA (shim'den önce) — bkz. HUB_SSR yorumu. Yanıt zaten
+    // `Content-Type: text/html; charset=utf-8` başlığı taşıdığından <meta charset>'in ilk 1024
+    // bayttan sonraya kayması sorun yaratmaz (başlık meta'dan önceliklidir).
+    const headFirst = hubListData ? `<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>` : '';
     const rewriter = new HTMLRewriter();
-    if (headExtra) rewriter.on('head', { element(el) { el.append(headExtra, { html: true }); } });
+    if (headExtra || headFirst) rewriter.on('head', { element(el) {
+      if (headFirst) el.prepend(headFirst, { html: true });
+      if (headExtra) el.append(headExtra, { html: true });
+    } });
     versionAssetUrls(rewriter, env);
     const rewritten = rewriter.transform(response);
     return new Response(rewritten.body, { status: response.status, statusText: response.statusText, headers });
@@ -1106,10 +1117,13 @@ const HOME_IMG = {
   product:   { widths: [400, 800, 1600], sizes: '(max-width: 860px) 100vw, 380px' },
 };
 
-async function internalListJson(env, pathname, handler) {
+// Sentetik (çerezsiz -> admin değil -> önbelleklenebilir yol) bir GET ile AYNI API yönlendiricisinden
+// geçer (routeApi) — handler'lar, Cache API anahtarları ve parmak izi doğrulaması gerçek istekle
+// birebir aynıdır. Hata/başarısız durum null döner, çağıran o bölümü gömmez.
+async function internalApiJson(env, ctx, pathname) {
   try {
     const u = new URL(`https://mimarlab.com${pathname}`);
-    const res = await handler(new Request(u.toString(), { method: 'GET' }), env, u);
+    const res = await routeApi(new Request(u.toString(), { method: 'GET' }), env, u, ctx);
     if (!res || !res.ok) return null;
     return await res.json();
   } catch {
@@ -1117,14 +1131,14 @@ async function internalListJson(env, pathname, handler) {
   }
 }
 
-async function loadHomeData(env) {
+async function loadHomeData(env, ctx) {
   const load = (async () => {
     const [projects, architects, offices, products, settings] = await Promise.all([
-      internalListJson(env, `/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}`, handleProjectListRoute),
-      internalListJson(env, `/api/architects?limit=${HOME_SLOTS}`, handleArchitectListRoute),
-      internalListJson(env, `/api/offices?limit=${HOME_SLOTS}`, handleOfficeListRoute),
-      internalListJson(env, `/api/products?limit=${HOME_SLOTS}`, handleProductListRoute),
-      internalListJson(env, '/api/public/site-settings', handlePublicRoute),
+      internalApiJson(env, ctx, `/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}`),
+      internalApiJson(env, ctx, `/api/architects?limit=${HOME_SLOTS}`),
+      internalApiJson(env, ctx, `/api/offices?limit=${HOME_SLOTS}`),
+      internalApiJson(env, ctx, `/api/products?limit=${HOME_SLOTS}`),
+      internalApiJson(env, ctx, '/api/public/site-settings'),
     ]);
     let projectItems = null;
     if (projects && Array.isArray(projects.items)) {
@@ -1152,22 +1166,86 @@ async function loadHomeData(env) {
   }
 }
 
+// <link rel="preload" as="image"> üretir. spec.src: istemcinin cdnImg(path, N)'de kullandığı N —
+// href o basamağa gider; imagesrcset/imagesizes istemcinin <img srcset/sizes>'ıyla BİREBİR aynı olmalı.
+const escHtmlAttr = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function imagePreloadLink(path, spec, high) {
+  if (!path || typeof path !== 'string') return '';
+  const srcset = derivedSrcset(path, spec.widths);
+  const href = derivedImageUrl(path, spec.src || 900);
+  return `<link rel="preload" as="image" href="${escHtmlAttr(href)}"${srcset ? ` imagesrcset="${escHtmlAttr(srcset)}" imagesizes="${escHtmlAttr(spec.sizes)}"` : ''}${high ? ' fetchpriority="high"' : ''}>`;
+}
+
 function buildHomePreloadLinks(data) {
-  const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const link = (path, spec, high) => {
-    if (!path || typeof path !== 'string') return '';
-    const srcset = derivedSrcset(path, spec.widths);
-    const href = derivedImageUrl(path, 900);
-    return `<link rel="preload" as="image" href="${esc(href)}"${srcset ? ` imagesrcset="${esc(srcset)}" imagesizes="${esc(spec.sizes)}"` : ''}${high ? ' fetchpriority="high"' : ''}>`;
-  };
   const first = (arr) => (Array.isArray(arr) && arr.length) ? arr[0] : null;
   const p = first(data.projects), a = first(data.architects), o = first(data.offices), u = first(data.products);
   return [
-    p ? link(p.images[0], HOME_IMG.project, true) : '',
-    a ? link(a.photo, HOME_IMG.architect, false) : '',
-    o ? link(o.logo, HOME_IMG.office, false) : '',
-    u ? link(u.image, HOME_IMG.product, false) : '',
+    p ? imagePreloadLink(p.images[0], HOME_IMG.project, true) : '',
+    a ? imagePreloadLink(a.photo, HOME_IMG.architect, false) : '',
+    o ? imagePreloadLink(o.logo, HOME_IMG.office, false) : '',
+    u ? imagePreloadLink(u.image, HOME_IMG.product, false) : '',
   ].join('');
+}
+
+// ---------------------------------------------------------------------------------------------
+// LİSTE (HUB) SAYFALARI — /proje, /kisi, /firma, /marka, /urun (kullanıcı isteği, 2026-09-08: "diğer
+// sayfalarda da aynı hızlandırmayı yap"). Bu sayfaların <head>'indeki senkron betik ilk sayfa
+// isteğini zaten HTML ayrıştırılırken başlatıyordu (window.__mlPrefetch) — ama önbellekli bir
+// ziyarette script'ler artık ~0,3sn'de gelirken /api yanıtı (uzak PoP + parmak izi sorgusu)
+// 0,4-1sn sürüyor ve ilk çizimi o belirliyordu; kart görselleri ise ancak DOMContentLoaded'dan
+// sonra istenmeye başlıyordu.
+//
+// Şimdi Worker, sorgu dizesi TAŞIMAYAN hub isteğinde o sayfanın <head> betiğinin ÜRETECEĞİ TAM
+// URL'leri (aşağıdaki tablo — sayfalardaki shim'lerle birebir aynı olmalı, scripts/preflight-check.sh
+// limit=PAGE_SIZE hizasını zaten denetliyor) PoP içinde çağırıp sonucu <head>'in EN BAŞINA
+// `<script id="ml-list-data" type="application/json">` olarak koyar (shim'den ÖNCE gelmeli ki shim
+// fetch yerine gömülü yanıtı __mlPrefetch'e yazsın — bkz. kisi.html <head>). Sayfa kodu (listFetch)
+// hiç değişmez. Gömülü veri 60sn'den eskiyse shim onu yok sayıp eskisi gibi fetch eder.
+// Ayrıca ilk satırın kart görselleri preload edilir; srcset/sizes istemcideki kart <img>'iyle aynıdır.
+// ---------------------------------------------------------------------------------------------
+const HUB_CARD_IMG = { widths: [400, 600, 800], sizes: '(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px', src: 600 };
+const HUB_SSR_TIMEOUT_MS = 2000;
+const HUB_SSR = {
+  '/proje': {
+    urls: ['/api/projects?buildStatus=built&page=1&limit=24', '/api/projects/filters?buildStatus=built'],
+    images: (d) => (d.items || []).slice(0, 3).map(p => p && Array.isArray(p.images) ? p.images[0] : null),
+  },
+  '/kisi': {
+    urls: ['/api/architects?page=1&limit=24'],
+    images: (d) => (d.items || []).slice(0, 4).map(a => a && a.photo),
+  },
+  '/firma': {
+    urls: ['/api/offices?page=1&limit=24'],
+    images: (d) => (d.items || []).slice(0, 4).map(o => o && o.cover),
+  },
+  '/marka': {
+    urls: ['/api/offices?page=1&limit=24&brands=1'],
+    images: (d) => (d.items || []).slice(0, 4).map(o => o && o.cover),
+  },
+  '/urun': {
+    urls: ['/api/products?page=1&limit=24', '/api/products?page=1&limit=1'],
+    images: (d) => (d.items || []).slice(0, 3).map(p => p && p.image),
+  },
+};
+
+async function loadHubListData(env, ctx, pathname) {
+  const cfg = HUB_SSR[pathname];
+  if (!cfg) return null;
+  const load = (async () => {
+    const results = await Promise.all(cfg.urls.map(u => internalApiJson(env, ctx, u)));
+    const entries = {};
+    cfg.urls.forEach((u, i) => { if (results[i]) entries[u] = results[i]; });
+    if (!Object.keys(entries).length) return null;
+    const primary = results[0];
+    const preload = primary ? cfg.images(primary).filter(Boolean).map((img, i) => imagePreloadLink(img, HUB_CARD_IMG, i === 0)).join('') : '';
+    return { json: { v: 1, t: Date.now(), entries }, preload };
+  })();
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), HUB_SSR_TIMEOUT_MS));
+  try {
+    return await Promise.race([load, timeout]);
+  } catch {
+    return null;
+  }
 }
 
 // Liste sayfalarının HTML'indeki YEREL <script src> / <link rel=stylesheet href> bağlantılarına deploy

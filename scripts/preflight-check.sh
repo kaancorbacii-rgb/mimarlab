@@ -114,6 +114,7 @@ check_prefetch_limit kisi.html kisi.html
 check_prefetch_limit firma.html firma.html
 check_prefetch_limit marka.html marka.html
 check_prefetch_limit proje.html js/pages/proje.js
+check_prefetch_limit urun.html urun.html
 # Aynı denetimin ikinci yarısı: prefetch'i TÜKETEN taraf hâlâ yerinde mi (biri silinirse istek
 # yapılır ama hiç kullanılmaz — sessiz bir israf).
 for f in kisi.html firma.html marka.html js/pages/proje.js; do

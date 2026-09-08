@@ -340,7 +340,8 @@ async function buildSidebar(){
   const sidebar = document.getElementById('sidebar');
   let filtersData = {};
   try{
-    const res = await fetch(`/api/projects/filters?${currentQueryParams().toString()}`);
+    // listFetch: proje.html <head>'indeki shim bu URL'yi de (gömülü/erken) hazırlar — bkz. mlPre notu.
+    const res = await listFetch(`/api/projects/filters?${currentQueryParams().toString()}`);
     if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
   }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
   if(mySidebarRequest !== sidebarRequestId) return; // bu arada başka bir buildSidebar() tetiklendi, bu yanıt bayat

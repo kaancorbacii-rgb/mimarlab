@@ -3,6 +3,13 @@
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <script>(function(){try{if(/^\/urun\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
+<!-- Erken liste fetch'i + mlPre (performans turu, 2026-09-08): Worker, sorgu dizesiz girişte bu shim'in ÜRETECEĞİ URL'lerin
+     yanıtını <head>'in EN BAŞINA #ml-list-data olarak gömer (bkz. src/index.js#HUB_SSR). Gömülü
+     yanıt varsa (ve 60sn'den yeniyse) ağa hiç çıkılmadan aynı __mlPrefetch sözlüğüne hazır bir
+     Response yazılır; yoksa eskisi gibi erken fetch. listFetch() iki durumu ayırt etmez. -->
+<script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>=0&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
+if(p.replace(/\/+$/,'')==='/urun'&&!location.search){var u='/api/products?page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);var u2='/api/products?page=1&limit=1';window.__mlPrefetch[u2]=mlPre(u2);}
+}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -587,7 +594,7 @@ async function buildSidebar(){
     const params = currentQueryParams();
     params.set('page', '1');
     params.set('limit', '1');
-    const res = await fetch(`/api/products?${params.toString()}`);
+    const res = await listFetch(`/api/products?${params.toString()}`);
     if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
   }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
   if(mySidebarRequest !== sidebarRequestId) return; // bu arada başka bir buildSidebar() tetiklendi, bu yanıt bayat
@@ -740,6 +747,14 @@ function submissionTypeFor(p){ return p.kind === 'material' ? 'materials' : 'pro
 // render() artık yalnızca mevcut sayfanın kartlarını /api/products'ten çeker (bkz. kullanıcı
 // isteği: her sayfa geçişinde sadece o sayfadaki veriyi çek) — tüm ürün/malzeme listesi hiçbir
 // zaman tarayıcıya inmiyor.
+// <head>'deki shim'in ÖNCEDEN hazırladığı (gömülü ya da erken başlatılmış) yanıtı devralır; yoksa
+// normal fetch. Kayıt TEK KULLANIMLIKTIR — kisi.html/js/pages/proje.js#listFetch ile aynı desen.
+function listFetch(url){
+  const store = window.__mlPrefetch;
+  if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
+  return fetch(url);
+}
+
 let renderRequestId = 0;
 async function render(){
   const myRequest = ++renderRequestId;
@@ -753,7 +768,7 @@ async function render(){
 
   let data = null;
   try{
-    const res = await fetch(`/api/products?${params.toString()}`);
+    const res = await listFetch(`/api/products?${params.toString()}`);
     if(res.ok) data = await res.json();
   }catch(err){ console.error('Ürün listesi alınamadı:', err); }
   if(myRequest !== renderRequestId) return;
