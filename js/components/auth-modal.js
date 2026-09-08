@@ -209,6 +209,20 @@ const AuthModal = (function () {
     #am-panel .dash-collapse-chevron{flex-shrink:0; transition:transform .18s ease; color:var(--ink-soft);}
     #am-panel .dash-collapse-toggle[aria-expanded="true"] .dash-collapse-chevron{transform:rotate(180deg);}
     #am-panel .dash-collapse-body{padding-top:4px;}
+    /* Profili Düzenle formunun altındaki iki açılır bölüm (Şifre Değiştir + Hesabımı Sil, kullanıcı
+       isteği 2026-09-08 madde 3). Eskiden ayrı ayrı <div>'lerle çizilen ayraç çizgileri artık
+       bölümlerin KENDİ üst çizgisidir, böylece iki başlık kapalıyken de alt alta bitişik iki satır
+       gibi okunur. Başlık düğmesine dikey iç boşluk verilir — genel .dash-collapse-toggle kuralı
+       padding:0 olduğundan (kutu başlığı olarak kullanıldığı yerde kutunun kendi padding'i var),
+       burada tıklama alanı satırın kendisi olmalı. */
+    #am-panel .dash-danger-collapsibles{margin-top:22px;}
+    #am-panel .dash-collapse-item{border-top:1px solid var(--line);}
+    #am-panel .dash-collapse-item > .dash-collapse-toggle{padding:16px 0;}
+    #am-panel .dash-collapse-item > .dash-collapse-body{padding:0 0 20px;}
+    /* Genel .dash-collapse-toggle:hover h2 kuralı başlığı --walnut yapar; "Hesabımı Sil" başlığının
+       uyarı kırmızısı hover'da da korunmalı, aksi halde yıkıcı eylem sıradan bir bölüm gibi görünür. */
+    #am-panel .dash-collapse-danger:hover h2{color:#B3261E;}
+    #am-panel .dash-collapse-danger .dash-collapse-chevron{color:#B3261E;}
     /* [hidden] bir TARAYICI VARSAYILANIDIR (display:none) ve her yazar kuralı onu ezer — ör.
        .stat-range'in display:flex'i, kutuya hidden konsa bile dönem düğmelerini GÖRÜNÜR bırakıyordu
        (yerel doğrulamada yakalandı). Bu kural, hidden ile gizlenen her öğede niyeti garanti eder. */
@@ -1179,37 +1193,58 @@ const AuthModal = (function () {
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
-        <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
-        <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Şifre Değiştir</h2>
-        <div class="dash-field">
-          <label for="am-pw-current">Mevcut Şifre</label>
-          <input type="password" id="am-pw-current" autocomplete="current-password">
-        </div>
-        <div class="dash-field">
-          <label for="am-pw-new">Yeni Şifre</label>
-          <input type="password" id="am-pw-new" autocomplete="new-password">
-        </div>
-        <div class="dash-field">
-          <label for="am-pw-new-confirm">Yeni Şifre (Tekrar)</label>
-          <input type="password" id="am-pw-new-confirm" autocomplete="new-password">
-        </div>
-        <button class="dash-edit-btn" id="am-pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
-        <span id="am-pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
-        <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="am-pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
+        <!-- Kullanıcı isteği (2026-09-08 madde 3): "Şifre Değiştir" ve "Hesabımı Sil" ARTIK alt alta
+             iki AÇILIR/KAPANIR bölüm — varsayılan kapalı, başlığa tıklayınca açılıyor. İstatistikler/
+             Rozetlerim ile AYNI sözleşme (.dash-collapse-toggle + data-collapse + hidden gövde,
+             bkz. wireCollapsibles), bu yüzden ayrı bir JS kancası gerekmez: wireCollapsibles zaten
+             #am-panel içindeki TÜM .dash-collapse-toggle[data-collapse] düğmelerini bağlar ve bu
+             form da #am-panel'in içindedir. Kapalıyken gövde hidden niteliğini taşıdığından şifre
+             alanları layout hesabına hiç girmez. -->
+        <div class="dash-danger-collapsibles">
+          <div class="dash-collapse-item">
+            <button type="button" class="dash-collapse-toggle" data-collapse="am-pw-collapse" aria-expanded="false" aria-controls="am-pw-collapse">
+              <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0;">Şifre Değiştir</h2>
+              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dash-collapse-body" id="am-pw-collapse" hidden>
+              <div class="dash-field">
+                <label for="am-pw-current">Mevcut Şifre</label>
+                <input type="password" id="am-pw-current" autocomplete="current-password">
+              </div>
+              <div class="dash-field">
+                <label for="am-pw-new">Yeni Şifre</label>
+                <input type="password" id="am-pw-new" autocomplete="new-password">
+              </div>
+              <div class="dash-field">
+                <label for="am-pw-new-confirm">Yeni Şifre (Tekrar)</label>
+                <input type="password" id="am-pw-new-confirm" autocomplete="new-password">
+              </div>
+              <button class="dash-edit-btn" id="am-pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
+              <span id="am-pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
+              <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="am-pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
+            </div>
+          </div>
 
-        <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
-        <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 8px; color:#B3261E;">Hesabımı Sil</h2>
-        <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
-        <!-- Kullanıcı isteği (2026-09-02 madde 1): silme butonunun ÜSTÜNDE e-posta kutusu; kullanıcı
-             giriş yaptığı adresi yazmadan hesabını silemez. Yanlışlıkla silmeye karşı gerçek bir
-             sürtünme — tek başına confirm() diyaloğu bunu sağlamıyordu. Doğrulama İSTEMCİDE
-             yapılır (sunucu zaten oturum sahibinden başkasının hesabını silemez, bkz.
-             src/routes/auth.js#handleAccountDeleteRoute); buradaki amaç kasıt teyidi. -->
-        <label for="am-delete-confirm-email" style="display:block; font-size:12.5px; font-weight:600; margin:0 0 5px;">Onaylamak için e-posta adresini yaz</label>
-        <input type="email" id="am-delete-confirm-email" autocomplete="off" placeholder="ornek@eposta.com" style="width:100%; max-width:320px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; margin-bottom:10px;">
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
-          <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E;"></span>
+          <div class="dash-collapse-item">
+            <button type="button" class="dash-collapse-toggle dash-collapse-danger" data-collapse="am-delete-collapse" aria-expanded="false" aria-controls="am-delete-collapse">
+              <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0; color:#B3261E;">Hesabımı Sil</h2>
+              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dash-collapse-body" id="am-delete-collapse" hidden>
+              <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
+              <!-- Kullanıcı isteği (2026-09-02 madde 1): silme butonunun ÜSTÜNDE e-posta kutusu; kullanıcı
+                   giriş yaptığı adresi yazmadan hesabını silemez. Yanlışlıkla silmeye karşı gerçek bir
+                   sürtünme — tek başına confirm() diyaloğu bunu sağlamıyordu. Doğrulama İSTEMCİDE
+                   yapılır (sunucu zaten oturum sahibinden başkasının hesabını silemez, bkz.
+                   src/routes/auth.js#handleAccountDeleteRoute); buradaki amaç kasıt teyidi. -->
+              <label for="am-delete-confirm-email" style="display:block; font-size:12.5px; font-weight:600; margin:0 0 5px;">Onaylamak için e-posta adresini yaz</label>
+              <input type="email" id="am-delete-confirm-email" autocomplete="off" placeholder="ornek@eposta.com" style="width:100%; max-width:320px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; margin-bottom:10px;">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
+                <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E;"></span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       </div>
@@ -1280,12 +1315,14 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <!-- İSTATİSTİKLER (kullanıcı isteği, 2026-09-04) — YALNIZCA rozetli üyelere gösterilir.
-           Kutu varsayılan olarak display:none'dır ve ancak /api/analytics/summary 200 dönerse
-           açılır (bkz. loadStats): rozet kontrolü SUNUCUDA yapılır, istemci yalnızca sonucuna
-           uyar — 403 alırsa bölüm hiç görünmez. Tam genişlik, .dash-section-wide (Rozetlerim ile
-           AYNI desen) çünkü içindeki ızgara/grafik iki sütuna sığmaz. -->
-      <div class="dash-row col-two-col" id="am-stats-row" style="display:none;">
+      <!-- İSTATİSTİKLER (kullanıcı isteği, 2026-09-04) — açılır/kapanır başlık HER ÜYEDE görünür
+           (kullanıcı isteği, 2026-09-08 madde 1); Altın Rozet'i olmayan üye açtığında içeride
+           özelliğin Altın Rozet'e özel olduğunu söyleyen ve /rozet-al'a bağlanan bir mesaj çıkar
+           (bkz. renderStatsLocked). Rozet kontrolü hâlâ TAMAMEN SUNUCUDA yapılır — istemci sadece
+           /api/analytics/summary'nin 200 mü 401/403 mü döndüğüne bakar, ayrı bir rozet kontrolü
+           kopyalanmaz. Tam genişlik, .dash-section-wide (Rozetlerim ile AYNI desen) çünkü içindeki
+           ızgara/grafik iki sütuna sığmaz. -->
+      <div class="dash-row col-two-col" id="am-stats-row">
         <div class="dash-section dash-section-wide" id="am-stats-section">
           <!-- Dönem seçici (Son 7 Gün/30 Gün/…) başlık satırında KALIR ama bölümle birlikte
                gizlenir: kapalı bir bölümün dönemini değiştirmenin görünür bir karşılığı yok. -->
@@ -2112,7 +2149,7 @@ const AuthModal = (function () {
     // Varsayılan KAPALI (markup'ta hidden + aria-expanded="false") — istek "tıklayınca açılsınlar".
     // hidden niteliği kullanılır, style.display DEĞİL: bölümlerin içindeki bazı öğelerin kendi
     // display kuralları var (ör. #am-my-badges-list JS ile display:none/'' arasında geçiyor,
-    // #am-stats-row rozetsiz üyede tamamen gizleniyor) — kapsayıcıyı hidden ile gizlemek o
+    // #am-stats-hint/#am-stats-range kilitli üyede gizleniyor) — kapsayıcıyı hidden ile gizlemek o
     // kuralların hiçbirine dokunmaz.
     function wireCollapsibles() {
       document.querySelectorAll('#am-panel .dash-collapse-toggle[data-collapse]').forEach((btn) => {
@@ -4009,12 +4046,12 @@ const AuthModal = (function () {
     // ---------------------------------------------------------------------------------------
     // İSTATİSTİKLER (kullanıcı isteği, 2026-09-04) — Hesabım > İstatistikler bölümü.
     //
-    // YETKİ: bölüm yalnızca /api/analytics/summary 200 dönerse açılır. 401/403'te (giriş yok ya da
-    // rozet yok) kutu display:none kalır — yani "rozetli mi?" sorusunun cevabı TAMAMEN sunucudan
-    // gelir, istemcide ayrı bir rozet kontrolü kopyalanmaz (bkz. src/lib/analyticsAccess.js
-    // #hasAnalyticsAccess). Bu, PDF dışa aktarımındaki fetchBadgeAccess deseninden bilinçli olarak
-    // daha katı: orada UI zaten görünüyordu ve yalnızca eylem engelleniyordu, burada VERİNİN
-    // KENDİSİ gizli olduğundan uç noktanın cevabı tek gerçek kaynaktır.
+    // YETKİ: veri yalnızca /api/analytics/summary 200 dönerse gösterilir. 401/403'te (giriş yok ya
+    // da Altın Rozet yok) bölüm ARTIK GİZLENMEZ — kullanıcı isteği (2026-09-08 madde 1): açılır/
+    // kapanır buton herkeste dursun, içeride özelliğin kime açık olduğunu ve nereden alınacağını
+    // söyleyen bir mesaj çıksın. "Rozetli mi?" sorusunun cevabı yine TAMAMEN sunucudan gelir,
+    // istemcide ayrı bir rozet kontrolü kopyalanmaz (bkz. src/lib/analyticsAccess.js
+    // #hasAnalyticsAccess) — değişen tek şey 403'ün UI karşılığı: gizlemek yerine kilit mesajı.
     //
     // VERİ: hiçbir metrik tahmin/mock değil (bkz. kullanıcı isteği) — görüntülenme ve arama
     // gösterimi analytics_daily sayaçlarından, kaydetme/takip/mesaj metrikleri ise zaten var olan
@@ -4022,20 +4059,36 @@ const AuthModal = (function () {
     let statsRange = '30d';
     let statsSeq = 0;
     async function loadStats() {
-      const row = document.getElementById('am-stats-row');
       const body = document.getElementById('am-stats-body');
-      if (!row || !body) return;
+      if (!body) return;
       const mySeq = ++statsSeq;
       body.innerHTML = '<div class="dash-empty">Yükleniyor…</div>';
       let data = null;
       try {
         const res = await fetch('/api/analytics/summary?range=' + encodeURIComponent(statsRange));
         if (res.ok) data = await res.json();
-        else { row.style.display = 'none'; return; } // 401/403: rozetsiz — bölüm hiç görünmez
-      } catch { row.style.display = 'none'; return; }
+        else { renderStatsLocked(); return; } // 401/403: Altın Rozet yok
+      } catch { renderStatsLocked(); return; }
       if (mySeq !== statsSeq) return; // daha yeni bir dönem seçimi zaten başladı
-      row.style.display = '';
       renderStats(data);
+    }
+
+    // Kilitli (Altın Rozet'i olmayan) üyenin gördüğü içerik. Dönem seçici burada ANLAMSIZ olduğu
+    // için hem gizlenir hem de başlık düğmesinin açtığı id listesinden çıkarılır — aksi halde bölüm
+    // her açıldığında wireCollapsibles onu yeniden görünür yapardı (bkz. data-collapse'ın boşlukla
+    // ayrılmış çoklu id sözleşmesi).
+    function renderStatsLocked() {
+      const body = document.getElementById('am-stats-body');
+      const hint = document.getElementById('am-stats-hint');
+      const range = document.getElementById('am-stats-range');
+      const toggle = document.querySelector('#am-panel .dash-collapse-toggle[aria-controls="am-stats-collapse"]');
+      if (toggle) toggle.dataset.collapse = 'am-stats-collapse';
+      if (range) range.hidden = true;
+      if (hint) hint.hidden = true;
+      if (!body) return;
+      body.innerHTML = '<div class="dash-empty">Bu özellik Altın Rozeti olan kullanıcılara özeldir, '
+        + '<a href="/rozet-al" style="text-decoration:underline;">rozet al sayfasından</a> '
+        + 'Altın Rozet alabilirsiniz.</div>';
     }
 
     function statCard(value, label) {

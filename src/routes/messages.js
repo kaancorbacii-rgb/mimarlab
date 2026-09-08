@@ -291,8 +291,9 @@ async function replyThread(request, env, user, threadId) {
 // mesaj" tekrar tekrar), Instagram/Messenger'daki gibi KİŞİ BAŞINA/KONUŞMA BAŞINA tek bir satır
 // (avatar + isim + son mesaj önizlemesi + zaman). Bir thread'in "diğer taraf"ı yöne göre değişir:
 // kullanıcı gönderense (isSender) diğer taraf mesajlaştığı mimar/firma PROFİLİdir (gerçek bir
-// users satırına bağlı değil, avatar yok); kullanıcı alıcıysa diğer taraf thread'i açan gerçek
-// kullanıcıdır (sender_user_id → users.photo_url ile avatar bulunabilir).
+// users satırına bağlı değildir; avatarı canonical architects.photo_url / offices.logo_url'den
+// gelir, bkz. fillProfilePhotos); kullanıcı alıcıysa diğer taraf thread'i açan gerçek kullanıcıdır
+// (sender_user_id → users.photo_url).
 async function listMyThreads(env, user) {
   const { results: threads } = await env.DB.prepare(
     `SELECT t.id, t.profile_type, t.profile_key, t.sender_user_id, t.sender_name, t.status, t.updated_at
@@ -327,6 +328,27 @@ async function listMyThreads(env, user) {
     senderUsers.forEach(u => photoByUserId.set(u.id, u.photo_url));
   }
 
+  // GÖNDEREN yönündeki konuşmalarda "diğer taraf" bir users satırı değil, mesaj gönderilen mimar/
+  // firma PROFİLİdir. Burada eskiden koşulsuz `null` vardı — bu yüzden kullanıcının KENDİ başlattığı
+  // her konuşma Hesabım > Mesajlar'da profil fotoğrafı yerine baş harflerle görünüyordu (kullanıcı
+  // bulgusu, 2026-09-08). Fotoğraf artık canonical satırdan gelir: architects.photo_url /
+  // offices.logo_url. message_threads.profile_key bir SLUG DEĞİL ÇIPLAK İSİMDİR (bkz. proje notu
+  // "architects/offices keyed by bare name everywhere"), bu yüzden eşleşme name üzerinden yapılır —
+  // src/lib/analyticsAccess.js#rowsByName ile AYNI desen.
+  //
+  // SORGU SAYISI: konuşma sayısından bağımsız, en fazla 2 (mimar + firma) — N+1'e dönüşmez.
+  const profilePhotoKeys = { architect: new Set(), office: new Set() };
+  for (const t of threads) {
+    if (t.sender_user_id !== user.id) continue;
+    const bucket = profilePhotoKeys[t.profile_type];
+    if (bucket && t.profile_key) bucket.add(t.profile_key);
+  }
+  const photoByProfile = new Map(); // `${profile_type}:${name}` -> url
+  await Promise.all([
+    fillProfilePhotos(env, 'architects', 'photo_url', 'architect', [...profilePhotoKeys.architect], photoByProfile),
+    fillProfilePhotos(env, 'offices', 'logo_url', 'office', [...profilePhotoKeys.office], photoByProfile),
+  ]);
+
   const { results: unreadRows } = await env.DB.prepare(
     `SELECT link FROM notifications WHERE user_id = ? AND type = 'message' AND is_read = 0`
   ).bind(user.id).all();
@@ -360,7 +382,9 @@ async function listMyThreads(env, user) {
       status: t.status,
       isSender,
       otherName: isSender ? t.profile_key : t.sender_name,
-      otherPhotoUrl: isSender ? null : (photoByUserId.get(t.sender_user_id) || null),
+      otherPhotoUrl: isSender
+        ? (photoByProfile.get(`${t.profile_type}:${t.profile_key}`) || null)
+        : (photoByUserId.get(t.sender_user_id) || null),
       lastMessage: last ? { body: last.body, isMe: last.sender_user_id === user.id, createdAt: last.created_at } : null,
       unread: unreadByGroup.get(key) || false,
       updatedAt: t.updated_at,
@@ -368,6 +392,21 @@ async function listMyThreads(env, user) {
   }).sort((a, b) => b.updatedAt - a.updatedAt);
 
   return json({ items });
+}
+
+// Silinmiş satırlar HARİÇ tutulur (deleted_at IS NULL): silinmiş bir profilin fotoğrafını
+// göstermek yerine baş harflere düşmek doğru davranış. hidden_at BİLEREK filtrelenmez — gizlenmiş
+// bir profil listelerden çıkar ama konuşma geçmişi kullanıcının kendi verisidir ve görünmeye
+// devam eder.
+async function fillProfilePhotos(env, table, column, profileType, names, out) {
+  if (!names.length) return;
+  const placeholders = names.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT name, ${column} AS photo FROM ${table} WHERE deleted_at IS NULL AND name IN (${placeholders})`
+  ).bind(...names).all();
+  for (const r of results || []) {
+    if (r.photo) out.set(`${profileType}:${r.name}`, r.photo);
+  }
 }
 
 async function closeThread(env, user, threadId) {
