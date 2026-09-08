@@ -428,7 +428,7 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
-    <p class="source-disclaimer" id="am-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
+    <p class="source-disclaimer" id="am-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaş!</p>
     <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;
@@ -771,8 +771,9 @@ const ArchitectModal = (function () {
     const designerProductsData = payload.relatedProducts || [];
     currentItem = a;
 
-    // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı: kayıt bir üyeye
-    // atanmışsa gösterilmez (kullanıcı isteği, 2026-09-08 madde 5 — bkz. src/lib/claimedProfiles.js).
+    // Kaynak ibaresi: kayıt bir üyeye atanmışsa yalnızca "yanlışlık için bize ulaş" çağrısı,
+    // atanmamışsa "kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır" + aynı çağrı (bkz.
+    // modal-shell.js#setSourceDisclaimer ve src/lib/claimedProfiles.js).
     ModalShell.setSourceDisclaimer('am-source-disclaimer', payload.claimed);
     updateHeadMeta(a, displayOffice);
     // Profil görüntülenmesi (kullanıcı isteği, 2026-09-04 — Profil İstatistikleri). Sayaç

@@ -650,8 +650,8 @@ async function buildArchitectPayload(env, key) {
 
   const adjacent = await fetchAdjacentArchitect(env, a.id);
   // claimed — bkz. src/lib/claimedProfiles.js (kullanıcı isteği, 2026-09-08 madde 5): bu kişi
-  // profili bir üyeye atanmışsa pop-up'taki "Kamuya açık kaynaklardan derlenmiştir" uyarısı
-  // gösterilmez. legacy_key de sorulur: sonradan yeniden adlandırılmış statik profillerde claim
+  // profili bir üyeye atanmışsa pop-up'taki kaynak ibaresi "doğrulanmamıştır" demez, yalnızca
+  // "yanlışlık için bize ulaş" çağrısı kalır. legacy_key de sorulur: sonradan yeniden adlandırılmış statik profillerde claim
   // satırı hâlâ ORİJİNAL adı taşıyor olabilir (bkz. renameArchitectEverywhere'in UPDATE OR IGNORE
   // dalı — UNIQUE çakışmasında eski anahtar korunur).
   const claimed = await anyProfileClaimed(env, [a.name, a.legacy_key]);

@@ -406,9 +406,9 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     item.usedByArchitects = users.architects;
     if (owner) Object.assign(item, owner);
     // claimed (kullanıcı isteği, 2026-09-08 madde 5): ürünün MARKASI ya da tasarımcısı bir üyeye
-    // atanmışsa — ya da ürünü zaten bir üye göndermişse (owner byline) — pop-up'taki "Kamuya açık
-    // kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı gösterilmez (bkz.
-    // src/lib/claimedProfiles.js). designer serbest metindir ve birden çok adı virgülle taşıyabilir
+    // atanmışsa — ya da ürünü zaten bir üye göndermişse (owner byline) — pop-up'taki kaynak ibaresi
+    // "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısını gösterir (bkz.
+    // src/lib/claimedProfiles.js ve modal-shell.js#setSourceDisclaimer). designer serbest metindir ve birden çok adı virgülle taşıyabilir
     // (bkz. renameArchitectEverywhere'in product_submissions.architect split(',') deseni).
     const designerNames = String(item.designer || '').split(',').map(x => x.trim()).filter(Boolean);
     // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/product-modal.js#

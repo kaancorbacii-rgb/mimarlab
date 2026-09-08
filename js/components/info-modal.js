@@ -343,34 +343,56 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">MİMARLAB Hakkında</h1>
-      <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı ve restorasyon alanlarındaki projeleri, mimarları ve firmaları tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
+      <p class="content-updated">Son güncelleme: 8 Eylül 2026</p>
+      <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon ve ürün tasarımı alanlarındaki projeleri, kişileri, firmaları, markaları ve ürünleri tek bir ağda birbirine bağlayan bağımsız bir dizin ve topluluk platformudur.</p>
 
-      <div class="content-section">
+      <div class="content-section" id="im-hk-ne-sunuyoruz">
         <h2>Ne sunuyoruz?</h2>
-        <p>Türkiye'deki mimarlık ekosistemini tek bir çatı altında topluyoruz:</p>
+        <p>Türkiye'deki mimarlık ve tasarım ekosistemini tek bir çatı altında topluyoruz:</p>
         <ul>
-          <li><strong>Proje arşivi</strong> — geçmişten günümüze öne çıkan projeleri tür, tip, yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
-          <li><strong>Mimar ve firma profilleri</strong> — bireysel mimarların ve mimarlık ofislerinin/markalarının profillerini inceleyebilirsiniz.</li>
-          <li><strong>Ürün ve malzeme kataloğu</strong> — projelerde kullanılan mobilya, aydınlatma, aksesuar ve yapı malzemelerini marka, kategori ve puanına göre filtreleyerek keşfedebilirsiniz.</li>
-          <li><strong>Puanlama, yorum ve kaydetme</strong> — projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
+          <li><strong>Proje arşivi</strong> — geçmişten günümüze öne çıkan projeleri tür, tip, yer, yıl ve tasarımcısına göre filtreleyerek keşfedebilir; görsel üzerindeki ürün işaretçileriyle projede kullanılan ürünlere ulaşabilirsiniz.</li>
+          <li><strong>Kişi profilleri</strong> — mimar, iç mimar, peyzaj mimarı, tasarımcı ve fotoğrafçıların profillerini, projelerini ve portfolyolarını inceleyebilirsiniz.</li>
+          <li><strong>Firma ve marka profilleri</strong> — mimarlık ofislerinin ve üretici markaların kadrosunu, projelerini ve ürünlerini görebilirsiniz.</li>
+          <li><strong>Ürün kataloğu</strong> — projelerde kullanılan mobilya, aydınlatma, aksesuar ve yapı malzemelerini marka, kategori ve kullanıldığı projelere göre keşfedebilirsiniz.</li>
+          <li><strong>Gündem</strong> — mimarlık ve tasarım yayınlarından derlenen haber akışını, her haberin kaynağına bağlantı vererek tek bir yerde sunuyoruz.</li>
+          <li><strong>Görsel arama</strong> — bir fotoğraf yükleyerek MİMARLAB'daki ilgili proje ve ürünleri bulabilirsiniz.</li>
+          <li><strong>Puanlama, yorum, kaydetme ve koleksiyonlar</strong> — projelere, ürünlere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri kaydedip panolar hâlinde düzenleyebilirsiniz.</li>
+          <li><strong>Mesajlaşma ve görüşme</strong> — sahiplenilmiş profillere mesaj gönderebilir, birebir görüşme sunan üyelerden randevu talep edebilirsiniz.</li>
         </ul>
-        <p>İçeriklerin bir kısmı halka açık kaynaklardan derlenir, bir kısmı ise üyelerimizin gönderdiği ve ekibimizin incelemesinden geçen katkılardan oluşur.</p>
       </div>
 
-      <div class="content-section">
-        <h2>Bağımsızlık ve doğruluk</h2>
-        <p>MİMARLAB'da yer alan firma ve mimar profillerinin büyük çoğunluğu, ilgili kişi veya kurumla resmi bir bağlantımız olmadan, halka açık kaynaklardan derlenmiştir. Bir profilin sahibiyseniz, ilgili detay sayfasından profili sahiplenme talebinde bulunabilir; onaylandığında profilinize gelen istenmeyen yorumları yönetebilir ve Doğrulanmış Profil rozeti alabilirsiniz.</p>
+      <div class="content-section" id="im-hk-icerik-kaynagi">
+        <h2>İçeriklerin kaynağı ve doğruluğu</h2>
+        <p>MİMARLAB'daki içerikler iki kaynaktan gelir:</p>
+        <ul>
+          <li><strong>Kamuya açık kaynaklardan derlenen kayıtlar</strong> — firmaların ve tasarımcıların kendi web siteleri, basın bültenleri, meslek yayınları ve arşivler. Bu kayıtlar ilgili kişi veya kurumla resmi bir bağlantımız olmadan derlenmiştir ve tarafımızca doğrulanmamıştır; bu kayıtların sayfasında <em>"Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır."</em> ibaresi yer alır.</li>
+          <li><strong>Üyelerimizin gönderdiği içerikler</strong> — üyelerimizin eklediği ve yayına alınmadan önce ekibimizin incelemesinden geçen proje, kişi, firma, marka ve ürün kayıtları.</li>
+        </ul>
+        <p>Bir profil sahibi tarafından sahiplenildiğinde künyesini artık sahibi yönetir; o profilin ve ona bağlı proje/ürün kayıtlarının sayfasında "doğrulanmamıştır" ibaresi kalkar, yalnızca düzeltme çağrısı kalır. Herhangi bir kayıtta yanlışlık olduğunu düşünüyorsanız <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine yazmanız yeterlidir; düzeltme ve kaldırma taleplerini <a href="/gizlilik-politikasi">Gizlilik Politikası</a>'nda açıklanan süreler içinde sonuçlandırırız.</p>
       </div>
 
-      <div class="content-section">
+      <div class="content-section" id="im-hk-uyelik">
         <h2>Üyelik, katkı ve rozetler</h2>
-        <p>Üye olarak proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
-        <p>Profilinizi öne çıkarmak isteyenler için aylık kiralanan iki rozet kademesi sunuyoruz — Doğrulanmış Üye ve Altın Üye. Kademeye göre profilinizde doğrulanmış rozet ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="/rozet-al">Rozet Al</a> sayfasını, iade talepleri için <a href="/iade-et">İade Et</a> sayfasını inceleyebilirsiniz.</p>
+        <p>Üyelik ücretsizdir. Üye olarak proje, kişi, firma, marka ve ürün gönderebilir; içeriğiniz yayına alınmadan önce ekibimizin incelemesinden geçer. Kamuya açık kaynaklardan derlenmiş bir profilin sahibi ya da yetkilisiyseniz profili sahiplenebilir; onaylandığında profil bilgilerini güncelleyebilir, gelen yorumları ve mesajları yönetebilirsiniz.</p>
+        <p>Profilini öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz. Güncel ayrıcalıklar ve fiyatlar için <a href="/rozet-al">Rozet Al</a> sayfasını, iade koşulları için <a href="/iade-et">İade Et</a> sayfasını ve <a href="/hizmet-sartlari">Hizmet Şartları</a>'nı inceleyebilirsiniz.</p>
       </div>
 
-      <div class="content-section">
+      <div class="content-section" id="im-hk-yasal-bilgiler">
+        <h2>Yasal bilgiler (künye)</h2>
+        <p>5651 sayılı İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun ve ilgili yönetmelik uyarınca tanıtıcı bilgilerimiz:</p>
+        <ul>
+          <li><strong>Platform</strong> — MİMARLAB (mimarlab.com)</li>
+          <li><strong>İşletmeci ve veri sorumlusu</strong> — Kaan Çorbacı</li>
+          <li><strong>E-posta</strong> — <a href="mailto:info@mimarlab.com">info@mimarlab.com</a></li>
+          <li><strong>Barındırma (hosting)</strong> — Cloudflare, Inc. (San Francisco, ABD); site Cloudflare'in Workers, D1, R2 ve KV hizmetleri üzerinde barındırılır.</li>
+          <li><strong>Faaliyetin niteliği</strong> — MİMARLAB, kendi derlediği içerikler bakımından içerik sağlayıcı; üyelerin gönderdiği içerikler (proje, ürün, yorum, mesaj vb.) bakımından ise 5651 sayılı Kanun m. 5 anlamında yer sağlayıcıdır. Yer sağlayıcı olarak üyelerin yüklediği içeriği önceden denetleme yükümlülüğümüz bulunmamakla birlikte, hukuka aykırılık bildirimi aldığımızda ilgili içeriği inceleyip kaldırırız.</li>
+        </ul>
+        <p>Kişisel verilerin işlenmesine ilişkin aydınlatma için <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, kullanım kuralları için <a href="/hizmet-sartlari">Hizmet Şartları</a>, çerezler için <a href="/cerez-politikasi">Çerez Politikası</a> sayfalarına bakabilirsiniz.</p>
+      </div>
+
+      <div class="content-section" id="im-hk-iletisim">
         <h2>İletişim</h2>
-        <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz.</p>
+        <p>Sorularınız, düzeltme ve kaldırma talepleriniz ya da iş birliği önerileriniz için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -499,159 +521,193 @@ const InfoModal = (function () {
     return `
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
-      <h1 class="content-title">Gizlilik Politikası</h1>
-      <p class="content-updated">Son güncelleme: 7 Eylül 2026</p>
-      <p class="content-lead">Bu Gizlilik Politikası, MİMARLAB'ı (mimarlab.com) kullanırken hangi kişisel verilerinizi topladığımızı, bunları neden ve nasıl işlediğimizi, kimlerle paylaştığımızı ve 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ile Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamındaki haklarınızı açıklar. Veri sorumlusu MİMARLAB'dır; bize <a href="#im-iletisim-gz">iletişim</a> bölümündeki adresten ulaşabilirsiniz.</p>
+      <h1 class="content-title">Gizlilik Politikası ve KVKK Aydınlatma Metni</h1>
+      <p class="content-updated">Son güncelleme: 8 Eylül 2026</p>
+      <p class="content-lead">Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 10. maddesi ve Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliğ uyarınca hazırlanmıştır. MİMARLAB'ı (mimarlab.com) kullanırken hangi kişisel verilerinizi hangi yöntemle topladığımızı, hangi amaç ve hukuki sebeplerle işlediğimizi, kimlere aktardığımızı ve KVKK ile Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamındaki haklarınızı açıklar.</p>
 
       <div class="content-toc">
         <h2>Bu sayfada</h2>
         <ol>
-          <li><a href="#im-toplanan-veriler">Topladığımız veriler</a></li>
-          <li><a href="#im-derlenmis-profiller">Derlenmiş profiller ve kaldırma talebi</a></li>
-          <li><a href="#im-kullanim-amaclari">Kullanım amaçları</a></li>
-          <li><a href="#im-uyelik-profil">Üyelik ve profil yönetimi</a></li>
-          <li><a href="#im-favoriler">Favoriler / Kaydedilenler</a></li>
-          <li><a href="#im-claim">Mimar/Firma sahiplik (claim) talepleri</a></li>
+          <li><a href="#im-veri-sorumlusu">Veri sorumlusu ve kapsam</a></li>
+          <li><a href="#im-toplanan-veriler">Topladığımız veriler ve toplama yöntemi</a></li>
+          <li><a href="#im-derlenmis-profiller">Derlenmiş profiller, düzeltme ve kaldırma</a></li>
+          <li><a href="#im-hukuki-sebepler">İşleme amaçları ve hukuki sebepler</a></li>
+          <li><a href="#im-uyelik-profil">Üyelik, sosyal giriş ve hesap silme</a></li>
+          <li><a href="#im-favoriler">Kaydedilenler, takip, koleksiyonlar ve istatistikler</a></li>
+          <li><a href="#im-claim">Profil sahiplik (claim) talepleri</a></li>
+          <li><a href="#im-mesaj-gorusme">Mesajlaşma ve görüşme talepleri</a></li>
           <li><a href="#im-ugc">Kullanıcı içerikleri ve telif hakları</a></li>
+          <li><a href="#im-odeme">Ödemeler ve iadeler</a></li>
+          <li><a href="#im-bulten">Bülten ve bildirimler</a></li>
           <li><a href="#im-cerezler">Çerezler ve analytics</a></li>
-          <li><a href="#im-altyapi">Altyapı ve veri saklama</a></li>
-          <li><a href="#im-paylasim">Üçüncü taraflarla paylaşım</a></li>
+          <li><a href="#im-altyapi">Altyapı ve hizmet sağlayıcılar</a></li>
           <li><a href="#im-yurtdisi">Yurt dışına veri aktarımı</a></li>
-          <li><a href="#im-guvenlik">Veri güvenliği ve saklama süresi</a></li>
-          <li><a href="#im-haklar">KVKK / GDPR kapsamındaki haklarınız</a></li>
+          <li><a href="#im-guvenlik">Veri güvenliği ve saklama süreleri</a></li>
+          <li><a href="#im-haklar">Haklarınız ve başvuru yolu</a></li>
           <li><a href="#im-cocuklar">Çocukların gizliliği</a></li>
           <li><a href="#im-degisiklikler">Politikadaki değişiklikler</a></li>
-          <li><a href="#im-iletisim-gz">İletişim</a></li>
+          <li><a href="#im-iletisim">İletişim</a></li>
         </ol>
       </div>
 
+      <div class="content-section" id="im-veri-sorumlusu">
+        <h2>1. Veri sorumlusu ve kapsam</h2>
+        <p>KVKK anlamında veri sorumlusu, MİMARLAB'ı işleten <strong>Kaan Çorbacı</strong>'dır (mimarlab.com, <a href="mailto:info@mimarlab.com">info@mimarlab.com</a>). Bu politika, siteyi ziyaret eden herkes (ziyaretçiler), hesap oluşturan üyeler ve kamuya açık kaynaklardan derlenmiş bir kayıtta adı geçen kişiler için geçerlidir. Sitede bağlantı verdiğimiz üçüncü taraf siteler (kaynak yayınlar, firma web siteleri, Google, LinkedIn vb.) kendi gizlilik politikalarına tabidir.</p>
+      </div>
+
       <div class="content-section" id="im-toplanan-veriler">
-        <h2>1. Topladığımız veriler</h2>
-        <p>MİMARLAB'ı ziyaret eden herkesten değil, yalnızca gerçekleştirdiğiniz işlemle orantılı veriler toplarız:</p>
+        <h2>2. Topladığımız veriler ve toplama yöntemi</h2>
+        <p>Kişisel verileriniz, sitedeki formlar ve etkileşimler üzerinden elektronik ortamda otomatik yollarla; derlenmiş kayıtlar için ise kamuya açık kaynaklardan toplanır. Yalnızca gerçekleştirdiğiniz işlemle orantılı veriler işlenir:</p>
         <ul>
-          <li><strong>Hesap verileri</strong> — üye olurken ad soyad, e-posta adresi ve şifrenizin güvenli (hash'lenmiş) hâli.</li>
-          <li><strong>Profil verileri</strong> — mimar/firma profilinizi sahiplendiyseniz (claim) veya düzenlediyseniz eklediğiniz fotoğraf, biyografi, üniversite/bölüm, web sitesi gibi bilgiler.</li>
-          <li><strong>Kullanıcı içerikleri</strong> — gönderdiğiniz proje/ürün/mimar/firma/iş ilanı formları, yorumlar, puanlamalar ve yüklediğiniz görseller.</li>
-          <li><strong>Kullanım verileri</strong> — kaydettiğiniz (favorilediğiniz) içerikler, bildirim tercihleri, oturum durumu.</li>
-          <li><strong>Teknik veriler</strong> — IP adresi, tarayıcı/cihaz bilgisi, ziyaret edilen sayfalar; bunlar Cloudflare edge altyapısı ve Google Analytics aracılığıyla toplanır (bkz. <a href="#im-cerezler">Çerezler ve analytics</a>).</li>
-          <li><strong>Ödeme verileri</strong> — rozet satın alımlarında kart bilgileriniz bizim sunucularımıza hiç ulaşmaz; ödeme doğrudan iyzico'nun güvenli altyapısında işlenir, biz yalnızca işlemin sonucunu (başarılı/başarısız, tutar, tarih) saklarız.</li>
+          <li><strong>Hesap verileri</strong> — üye olurken ad soyad, e-posta adresi, doğum yılı, okul/bölüm ve meslek bilgileri ile şifrenizin geri döndürülemez biçimde özetlenmiş (hash'lenmiş) hâli. Google veya LinkedIn ile giriş yaparsanız, bu sağlayıcıların ilettiği ad, e-posta adresi ve temel profil bilgileri.</li>
+          <li><strong>Profil verileri</strong> — profilinizi sahiplendiyseniz veya düzenlediyseniz eklediğiniz fotoğraf, biyografi, pozisyon, ödüller, web sitesi ve sosyal medya bağlantıları, portfolyo dosyaları ve kişi dizininde listelenme tercihiniz.</li>
+          <li><strong>Kullanıcı içerikleri</strong> — gönderdiğiniz proje, ürün, kişi, firma ve marka kayıtları; yüklediğiniz görseller ve PDF'ler; yorumlar, puanlamalar, görsel üzeri ürün işaretlemeleri.</li>
+          <li><strong>İletişim ve mesaj verileri</strong> — iletişim formundan gönderdiğiniz ad, e-posta ve mesaj metni (veritabanımıza kaydedilir); sahiplenilmiş profillere gönderdiğiniz site içi mesajlar.</li>
+          <li><strong>Görüşme talebi verileri</strong> — birebir görüşme talebinde ad soyad, e-posta, telefon, tercih edilen tarih/saat ve notunuz.</li>
+          <li><strong>Ödeme ve iade verileri</strong> — rozet veya görüşme ücretini havale/EFT ile ödediğinizde banka hesap özetimize yansıyan ad soyad, gönderen IBAN ve açıklama alanına yazdığınız e-posta; iade talebinde bildirdiğiniz IBAN, hesap sahibi adı ve iade sebebi. Kart bilgisi hiçbir zaman sunucularımıza ulaşmaz.</li>
+          <li><strong>Bülten verisi</strong> — bültene abone olurken verdiğiniz e-posta adresi.</li>
+          <li><strong>Kullanım verileri</strong> — kaydettiğiniz içerikler, takip ettikleriniz, koleksiyon/panolarınız, bildirim tercihleri ve oturum durumu.</li>
+          <li><strong>Teknik veriler</strong> — IP adresi, tarayıcı/cihaz bilgisi ve ziyaret edilen sayfalar. Bunlar Cloudflare altyapısının erişim kayıtlarında, kötüye kullanımı önleyen kısa ömürlü hız sınırlama sayaçlarında ve Google Analytics ölçümlerinde işlenir (bkz. <a href="#im-cerezler">Çerezler ve analytics</a>).</li>
+          <li><strong>Görsel arama yüklemeleri</strong> — görsel aramada yüklediğiniz fotoğraf yalnızca eşleştirme için işlenir; kalıcı olarak saklanmaz ve başka kullanıcılara gösterilmez.</li>
         </ul>
-        <p>Sitede yer alan proje/mimar/firma profillerinin büyük bir kısmı, ilgili kişi veya kurumla üyelik ilişkisi olmadan halka açık kaynaklardan derlenmiştir; bu durum <a href="/hakkinda">Hakkında</a> sayfasında ayrıca açıklanır.</p>
       </div>
 
       <div class="content-section" id="im-derlenmis-profiller">
-        <h2>2. Derlenmiş profiller ve kaldırma talebi</h2>
-        <p>Sitedeki proje, kişi, firma, marka ve ürün kayıtlarının önemli bir bölümü, ilgili kişi veya kurumla herhangi bir üyelik ya da izin ilişkisi olmadan <strong>kamuya açık kaynaklardan derlenmiştir</strong>: firmaların kendi web siteleri, basın bültenleri, meslek yayınları ve arşivler. Bu kayıtlar tarafımızca doğrulanmamıştır ve her profil sayfasında bu yönde bir ibare yer alır.</p>
+        <h2>3. Derlenmiş profiller, düzeltme ve kaldırma</h2>
+        <p>Sitedeki proje, kişi, firma, marka ve ürün kayıtlarının önemli bir bölümü, ilgili kişi veya kurumla herhangi bir üyelik ya da izin ilişkisi olmadan <strong>kamuya açık kaynaklardan derlenmiştir</strong>: firmaların kendi web siteleri, basın bültenleri, meslek yayınları ve arşivler. Bu kayıtlar tarafımızca doğrulanmamıştır; ilgili sayfalarda <em>"Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan info@mimarlab.com adresinden bize ulaş!"</em> ibaresi yer alır. Bir profil sahibi tarafından sahiplenildiğinde künyeyi sahibi yönettiğinden yalnızca düzeltme çağrısı gösterilir.</p>
         <ul>
-          <li><strong>Veri sorumlusu</strong> — MİMARLAB, <a href="mailto:info@mimarlab.com">info@mimarlab.com</a>.</li>
           <li><strong>İşlenen veriler</strong> — ad soyad, unvan/görev, ilişkili olduğu firma, mesleki geçmiş, kamuya açık fotoğraf ve proje künyesi bilgileri.</li>
-          <li><strong>Hukuki sebep</strong> — KVKK m. 5/2(d) uyarınca ilgili kişi tarafından alenileştirilmiş olması ve m. 5/2(f) uyarınca meşru menfaat; mesleki üretimin kayıt altına alınması ve aranabilir kılınması.</li>
+          <li><strong>Hukuki sebep</strong> — KVKK m. 5/2(d) uyarınca ilgili kişi tarafından alenileştirilmiş olması ve m. 5/2(f) uyarınca meşru menfaat (mesleki üretimin kayıt altına alınması ve aranabilir kılınması). Bu işlemede ilgili kişinin temel hak ve özgürlükleri gözetilir; yalnızca mesleki nitelikteki bilgiler işlenir, özel nitelikli kişisel veri işlenmez.</li>
           <li><strong>Kişi–firma ilişkilendirmeleri</strong> — kamuya açık kaynaklara dayanır ve hatalı olabilir. Özellikle ayrılmış, yeniden yapılanmış veya isim değiştirmiş firmalarda yanlış eşleştirme mümkündür; bildirilen hatalı ilişkilendirmeyi kaldırırız.</li>
         </ul>
-        <p><strong>Kaldırma, düzeltme ve itiraz.</strong> Profilinizin ya da bilgilerinizin yayınlanmasını istemiyorsanız, hatalı bir bilgi veya ilişkilendirme görüyorsanız, ilgili profil sayfasındaki <strong>Geri Bildirim</strong> kutusundan bize yazabilir ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine talebinizi iletebilirsiniz. Talepler kayıt altına alınır ve KVKK m. 13 uyarınca en geç <strong>30 gün</strong> içinde sonuçlandırılır. Kaldırma talebi için gerekçe belirtmeniz gerekmez.</p>
+        <p><strong>Kaldırma, düzeltme ve itiraz.</strong> Profilinizin ya da bilgilerinizin yayınlanmasını istemiyorsanız, hatalı bir bilgi veya ilişkilendirme görüyorsanız, ilgili sayfadaki Geri Bildirim kutusundan bize yazabilir ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine talebinizi iletebilirsiniz. Talepler kayıt altına alınır ve KVKK m. 13 uyarınca en geç <strong>30 gün</strong> içinde ücretsiz olarak sonuçlandırılır. Kaldırma talebi için gerekçe belirtmeniz gerekmez.</p>
         <p>Görsellerde eser sahibi (fotoğrafçı, mimar, marka) bilinen hâliyle künyede belirtilir. Bir görselin hak sahibiyseniz ve yayından kaldırılmasını istiyorsanız aynı yollardan bize bildirmeniz yeterlidir; talep üzerine görseli kaldırırız.</p>
       </div>
 
-      <div class="content-section" id="im-kullanim-amaclari">
-        <h2>3. Kullanım amaçları</h2>
+      <div class="content-section" id="im-hukuki-sebepler">
+        <h2>4. İşleme amaçları ve hukuki sebepler</h2>
+        <p>Verilerinizi aşağıdaki amaçlarla ve KVKK m. 5 ile m. 6'da sayılan hukuki sebeplere dayanarak işleriz:</p>
         <ul>
-          <li>Hesabınızı oluşturmak, kimliğinizi doğrulamak ve size hizmet sunmak,</li>
-          <li>Gönderdiğiniz içerikleri (proje, ürün, profil, yorum) inceleyip yayına almak,</li>
-          <li>Sahiplik (claim) ve düzeltme taleplerinizi değerlendirmek,</li>
-          <li>Rozet/üyelik satın alımlarınızı ve iade taleplerinizi işleme almak,</li>
-          <li>Platformun güvenliğini sağlamak, kötüye kullanımı önlemek ve hataları teşhis etmek,</li>
-          <li>Yasal yükümlülüklerimizi yerine getirmek,</li>
-          <li>Açık rızanız varsa ürün/hizmetlerimiz hakkında sizinle iletişime geçmek.</li>
+          <li><strong>Hesabınızı oluşturmak, kimliğinizi doğrulamak ve hizmeti sunmak</strong> (üyelik, içerik gönderimi, kaydetme, mesajlaşma, görüşme randevusu, rozet abonelikleri) — bir sözleşmenin kurulması ve ifası için gerekli olması (m. 5/2-c).</li>
+          <li><strong>Gönderdiğiniz içerikleri incelemek ve yayına almak; sahiplik ve düzeltme taleplerini değerlendirmek</strong> — sözleşmenin ifası (m. 5/2-c) ve meşru menfaat (m. 5/2-f).</li>
+          <li><strong>Ödeme ve iade işlemlerini yürütmek, mali kayıtları tutmak</strong> — sözleşmenin ifası (m. 5/2-c) ve hukuki yükümlülüklerimizin yerine getirilmesi (m. 5/2-ç).</li>
+          <li><strong>Platformun güvenliğini sağlamak, kötüye kullanımı önlemek, hataları teşhis etmek ve kullanımı anonim düzeyde ölçmek</strong> — meşru menfaat (m. 5/2-f).</li>
+          <li><strong>Yasal taleplere cevap vermek, hakları tesis etmek ve savunmak</strong> — hukuki yükümlülük (m. 5/2-ç) ve bir hakkın tesisi, kullanılması veya korunması (m. 5/2-e).</li>
+          <li><strong>Bülten ve tanıtım e-postaları göndermek</strong> — açık rızanız (m. 5/1); rızanızı her e-postadaki bağlantıyla dilediğiniz zaman geri çekebilirsiniz.</li>
+          <li><strong>Kamuya açık kaynaklardan derlenen mesleki kayıtları yayınlamak</strong> — alenileştirme (m. 5/2-d) ve meşru menfaat (m. 5/2-f); bkz. <a href="#im-derlenmis-profiller">3. bölüm</a>.</li>
         </ul>
+        <p>Özel nitelikli kişisel veri (sağlık, din, siyasi görüş vb.) talep etmeyiz ve işlemeyiz; lütfen formlara ve mesajlara bu tür bilgiler yazmayın.</p>
       </div>
 
       <div class="content-section" id="im-uyelik-profil">
-        <h2>4. Üyelik ve profil yönetimi</h2>
-        <p>Üye olduğunuzda oluşturduğunuz hesap, oturumunuzu (session) sunucu tarafında yönetmemizi sağlar; şifreniz asla düz metin olarak saklanmaz. <a href="/hesabim">Hesabım</a> sayfanızdan e-posta ve şifre bilgilerinizi güncelleyebilir, gönderdiğiniz içerikleri ve rozet aboneliğinizi görüntüleyebilir, hesabınızı silme talebinde bulunabilirsiniz. Hesap silme talebi, yasal saklama yükümlülüğü bulunan kayıtlar (örn. ödeme geçmişi) dışındaki tüm kişisel verilerinizin silinmesiyle sonuçlanır.</p>
+        <h2>5. Üyelik, sosyal giriş ve hesap silme</h2>
+        <p>Üye olduğunuzda oluşturduğunuz hesap, oturumunuzu sunucu tarafında yönetmemizi sağlar; oturum çerezi 30 gün geçerlidir ve şifreniz asla düz metin olarak saklanmaz. Google veya LinkedIn ile giriş yaptığınızda bu sağlayıcılar bize yalnızca doğrulanmış e-posta adresinizi ve temel profil bilgilerinizi iletir; sağlayıcıdaki şifrenize erişmeyiz ve sizin adınıza paylaşım yapmayız.</p>
+        <p><a href="/hesabim">Hesabım</a> sayfanızdan bilgilerinizi güncelleyebilir, gönderdiğiniz içerikleri ve rozet aboneliğinizi görüntüleyebilir ve <strong>hesabınızı silebilirsiniz</strong>. Hesap silme, hesabınıza bağlı kişisel verilerin (hesap bilgileri, profil fotoğrafı, yorumlar, puanlamalar, kaydedilenler, takipler, koleksiyonlar, sahiplik ve düzeltme talepleri, rozet kayıtları) kalıcı olarak silinmesiyle ve tüm oturumlarınızın sonlandırılmasıyla sonuçlanır. Site içi mesaj yazışmalarınız, görüşme talepleriniz, iletişim formu mesajlarınız ve bülten aboneliğiniz hesap silmeyle otomatik olarak silinmez; bunların da silinmesini istiyorsanız <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine yazmanız yeterlidir, talebiniz 30 gün içinde sonuçlandırılır. Yasal saklama yükümlülüğü bulunan mali kayıtlar ilgili süre boyunca erişimi kısıtlanmış biçimde tutulur.</p>
       </div>
 
       <div class="content-section" id="im-favoriler">
-        <h2>5. Favoriler / Kaydedilenler</h2>
-        <p>Proje, ürün, mimar veya firma kartlarındaki "Kaydet" butonuyla oluşturduğunuz favori listesi hesabınıza bağlı olarak saklanır ve yalnızca siz görebilirsiniz; bu liste üçüncü taraflarla paylaşılmaz ve içerikleri kişiselleştirme veya öneri amacıyla kullanılmaz — yalnızca sizin daha sonra tekrar erişebilmeniz için tutulur.</p>
+        <h2>6. Kaydedilenler, takip, koleksiyonlar ve istatistikler</h2>
+        <p>"Kaydet" ve "Takip et" butonlarıyla oluşturduğunuz listeler ile panolarınız hesabınıza bağlı olarak saklanır ve yalnızca siz görebilirsiniz; bu veriler üçüncü taraflarla paylaşılmaz, reklam veya profilleme amacıyla kullanılmaz.</p>
+        <p>Profil sahiplerine sunulan "Profil İstatistikleri" (görüntülenme ve arama sonuçlarında gösterim sayıları) günlük toplam sayılardan oluşur; hangi ziyaretçinin hangi profili görüntülediği kaydedilmez. Aynı sekme oturumunda tekrar sayımı önlemek için tarayıcınızın sekme belleğinde (sessionStorage) kimlik içermeyen kısa bir işaret tutulur.</p>
       </div>
 
       <div class="content-section" id="im-claim">
-        <h2>6. Mimar/Firma sahiplik (claim) talepleri</h2>
-        <p>Halka açık kaynaklardan derlenmiş bir mimar veya firma profilinin sahibi olduğunuzu düşünüyorsanız, ilgili profildeki "Bu profil sana mı ait?" bağlantısı üzerinden sahiplik talebinde bulunabilirsiniz. Bu süreçte kimliğinizi/yetkinizi doğrulamamıza yardımcı olacak bilgiler (ör. kurumsal e-posta, web sitesi bağlantısı) talep edebiliriz. Talep onaylandığında profil hesabınıza bağlanır; artık profilinize gelen yorumları yönetebilir, bilgilerini güncelleyebilir ve (varsa) rozet kademenize uygun ayrıcalıklardan yararlanabilirsiniz. Doğrulama amacıyla paylaştığınız bilgiler yalnızca talebi değerlendiren ekibimizle sınırlı tutulur.</p>
+        <h2>7. Profil sahiplik (claim) talepleri</h2>
+        <p>Kamuya açık kaynaklardan derlenmiş bir kişi, firma veya marka profilinin sahibi ya da yetkilisi olduğunuzu düşünüyorsanız, ilgili profildeki "Bu profil sana mı ait?" bağlantısı üzerinden sahiplik talebinde bulunabilirsiniz. Bu süreçte kimliğinizi/yetkinizi doğrulamamıza yardımcı olacak bilgiler (ör. kurumsal e-posta, web sitesi bağlantısı, firmadaki göreviniz) talep edebiliriz. Talep onaylandığında profil hesabınıza bağlanır; profil bilgilerini güncelleyebilir, gelen yorumları ve mesajları yönetebilirsiniz. Firma ve marka profillerinde yetkili konumdaki üyeler (kurucu, ortak, ekip lideri, yönetici), firmaya bağlı ortakların kişi profillerini de düzenleyebilir. Doğrulama amacıyla paylaştığınız bilgiler yalnızca talebi değerlendiren ekibimizle sınırlı tutulur ve profilde yayınlanmaz.</p>
+      </div>
+
+      <div class="content-section" id="im-mesaj-gorusme">
+        <h2>8. Mesajlaşma ve görüşme talepleri</h2>
+        <p><strong>Mesajlaşma.</strong> Sahiplenilmiş profillere gönderdiğiniz mesajlar veritabanımızda saklanır ve yalnızca gönderen ile alıcı tarafından (firma profillerinde firmanın yetkili üyeleri tarafından) görülebilir. Mesaj içeriklerini yalnızca kötüye kullanım bildirimi veya yasal bir talep hâlinde inceleriz.</p>
+        <p><strong>Görüşme talepleri.</strong> Birebir görüşme talep ettiğinizde ad soyad, e-posta, telefon, tarih/saat ve notunuz, görüşmeyi sunan üyeyle randevunun kurulması için işlenir. Ödeme onaylandığında görüşme bağlantısı Google Meet üzerinden oluşturulur ve hesabınızdaki bildirimlerle iletilir; görüşme sırasında Google'ın kendi hizmet şartları ve gizlilik politikası geçerlidir. Görüşmeler MİMARLAB tarafından kaydedilmez.</p>
       </div>
 
       <div class="content-section" id="im-ugc">
-        <h2>7. Kullanıcı içerikleri (UGC) ve telif hakları</h2>
-        <p>Platforma gönderdiğiniz proje, ürün, yorum, puanlama ve görseller "kullanıcı tarafından oluşturulan içerik" (UGC) sayılır. Bu içerikleri göndererek, içeriği yayınlamak, göstermek ve platformumuzda tanıtmak için MİMARLAB'a münhasır olmayan, dünya çapında, telifsiz bir kullanım hakkı verirsiniz; içeriğin mülkiyeti ve telif hakkı sizde (veya gerçek hak sahibinde) kalmaya devam eder.</p>
-        <p>Yalnızca yayınlama hakkına sahip olduğunuz içerikleri yüklemekle yükümlüsünüz. Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, ilgili sayfanın bağlantısı ve hak sahipliğinizi gösteren bilgilerle birlikte <a href="/iletisim">iletişim sayfamızdan</a> bize ulaşın; bildirimi inceleyip gerekirse içeriği kaldırırız. Ayrıntılı UGC ve telif kuralları için <a href="/hizmet-sartlari">Hizmet Şartları</a> sayfasına bakabilirsiniz.</p>
+        <h2>9. Kullanıcı içerikleri ve telif hakları</h2>
+        <p>Platforma gönderdiğiniz proje, ürün, yorum, puanlama, portfolyo ve görseller "kullanıcı tarafından oluşturulan içerik" sayılır. Bu içerikleri göndererek, içeriği yayınlamak, göstermek, teknik olarak biçimlendirmek (ör. görsel boyutlandırma) ve platformumuzda tanıtmak için MİMARLAB'a münhasır olmayan, dünya çapında, telifsiz bir kullanım hakkı verirsiniz; içeriğin mülkiyeti ve telif hakkı sizde (veya gerçek hak sahibinde) kalmaya devam eder. Yayınlanan içerikler adınız/profilinizle birlikte herkese açık olarak görüntülenir ve arama motorları tarafından indekslenebilir.</p>
+        <p>Yalnızca yayınlama hakkına sahip olduğunuz içerikleri yüklemekle yükümlüsünüz. Bir içeriğin telif hakkınızı veya kişilik haklarınızı ihlal ettiğini düşünüyorsanız, ilgili sayfanın bağlantısı ve hak sahipliğinizi gösteren bilgilerle birlikte <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine yazın; bildirimi inceleyip gerekirse içeriği kaldırırız. Ayrıntılı kurallar için <a href="/hizmet-sartlari">Hizmet Şartları</a> sayfasına bakabilirsiniz.</p>
+      </div>
+
+      <div class="content-section" id="im-odeme">
+        <h2>10. Ödemeler ve iadeler</h2>
+        <p>Rozet abonelikleri ve görüşme ücretleri şu an <strong>havale/EFT</strong> ile ödenir; ödeme talebiniz, ekibimiz banka hesap özetinde ödemeyi doğrulayana kadar "bekliyor" durumunda kalır. Bu süreçte ad soyad, gönderen IBAN ve açıklama alanına yazdığınız e-posta adresi banka kayıtlarımızda yer alır. Kredi/banka kartı ile ödeme aktif edildiğinde kart bilgileriniz doğrudan ödeme kuruluşunun (iyzico) güvenli altyapısında işlenir; sunucularımıza yalnızca işlemin sonucu (başarılı/başarısız, tutar, tarih) ulaşır.</p>
+        <p>İade talebinde bildirdiğiniz IBAN ve hesap sahibi adı yalnızca iade tutarını göndermek için kullanılır. Ödeme ve iade kayıtları, vergi ve ticaret mevzuatının öngördüğü süre boyunca saklanır (bkz. <a href="#im-guvenlik">15. bölüm</a>).</p>
+      </div>
+
+      <div class="content-section" id="im-bulten">
+        <h2>11. Bülten ve bildirimler</h2>
+        <p>Bültene abone olduğunuzda e-posta adresiniz, yeni yayına giren proje, ürün, kişi, firma ve marka kayıtlarını duyurmak için kullanılır. Bu e-postalar 6563 sayılı Elektronik Ticaretin Düzenlenmesi Hakkında Kanun anlamında ticari elektronik ileti niteliğindedir ve yalnızca onayınızla gönderilir; her e-postanın altındaki "Abonelikten çık" bağlantısıyla onayınızı dilediğiniz zaman geri çekebilirsiniz. Hesabınızla ilgili işlemsel e-postalar (şifre sıfırlama, ödeme onayı, görüşme bağlantısı, sahiplik talebi sonucu) bültenden bağımsızdır ve hizmetin bir parçası olarak gönderilir.</p>
       </div>
 
       <div class="content-section" id="im-cerezler">
-        <h2>8. Çerezler ve analytics</h2>
-        <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezleri</strong> (giriş durumunuzu hatırlamak için) kullanır; bunlar devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler bunlara bağlıdır. Ayrıca site trafiğini anlamak için <strong>Google Analytics</strong> kullanıyoruz. Kullandığımız çerezlerin tam listesi, süreleri ve devre dışı bırakma yöntemleri için ayrı <a href="/cerez-politikasi">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
+        <h2>12. Çerezler ve analytics</h2>
+        <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezini</strong> (giriş durumunuzu hatırlamak için) kullanır; bu çerez devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler buna bağlıdır. Tema tercihiniz tarayıcınızın yerel depolamasında tutulur. Ayrıca site trafiğini anlamak için <strong>Google Analytics</strong> kullanıyoruz; reklam veya pazarlama çerezi kullanmıyoruz. Kullandığımız çerezlerin tam listesi, süreleri ve devre dışı bırakma yöntemleri için <a href="/cerez-politikasi">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-altyapi">
-        <h2>9. Altyapı ve veri saklama</h2>
-        <p>MİMARLAB, Cloudflare'in küresel edge altyapısı üzerinde çalışır:</p>
+        <h2>13. Altyapı ve hizmet sağlayıcılar</h2>
+        <p>Verileriniz, hizmeti sunabilmemiz için aşağıdaki sağlayıcılar tarafından, veri işleyen sıfatıyla ve yalnızca gerekli ölçüde işlenir:</p>
         <ul>
-          <li><strong>Cloudflare Workers</strong> — sunucu tarafı mantığımızı (API uçları, oturum doğrulama, önbellekleme) kullanıcıya en yakın veri merkezinde çalıştırır.</li>
-          <li><strong>Cloudflare D1</strong> — hesap, profil, içerik, yorum ve puanlama verilerinizin saklandığı ilişkisel veritabanı.</li>
-          <li><strong>Cloudflare R2</strong> — yüklediğiniz görsellerin (proje fotoğrafları, profil fotoğrafları/logolar) saklandığı nesne depolama servisi.</li>
-          <li><strong>Cloudflare KV</strong> — sayfa yükleme hızını artırmak için kullanılan, kişisel veri içermeyen kısa ömürlü önbellek (facet/filtre sayaçları gibi).</li>
+          <li><strong>Cloudflare, Inc.</strong> (ABD) — Workers (sunucu tarafı mantık, API uçları, oturum doğrulama), D1 (hesap, profil, içerik, yorum, mesaj ve ödeme kayıtlarının tutulduğu veritabanı), R2 (yüklediğiniz görsel ve PDF'ler), KV (kişisel veri içermeyen kısa ömürlü önbellek ve hız sınırlama sayaçları) ve Workers AI (görsel arama, yapay zekâ destekli içerik ekleme ve gündem özetleri için model çıkarımı; Cloudflare, bu işlemde gönderilen görsel ve metinleri kendi beyanına göre model eğitiminde kullanmaz).</li>
+          <li><strong>Google LLC</strong> (ABD) — Google Analytics (kullanım ölçümü), Google ile giriş (OAuth) ve görüşme randevuları için Google Meet bağlantısı.</li>
+          <li><strong>LinkedIn Corporation</strong> (ABD) — LinkedIn ile giriş (OAuth).</li>
+          <li><strong>Resend, Inc.</strong> (ABD) — işlemsel e-postaların ve bültenin gönderimi; bu amaçla e-posta adresiniz ve ileti içeriği Resend'e iletilir.</li>
+          <li><strong>OpenStreetMap / Nominatim</strong> — proje eklerken "haritada konum ara" özelliğinde yazdığınız adres metni, sunucumuz üzerinden Nominatim'e iletilir; IP adresiniz bu servise gönderilmez.</li>
+          <li><strong>Gündem kaynakları</strong> — Gündem sayfasındaki haber görselleri doğrudan kaynak yayının sunucusundan yüklenir; tarayıcınız bu sunuculara bağlandığında IP adresiniz ve tarayıcı bilginiz ilgili yayına görünür hâle gelir ve o yayının gizlilik politikası geçerli olur.</li>
         </ul>
-        <p>Bu servis sağlayıcıların tamamı, kendi güvenlik ve veri koruma standartlarına tabidir; MİMARLAB, verilerinizi bu altyapı dışında üçüncü taraf sunucularda depolamaz.</p>
-      </div>
-
-      <div class="content-section" id="im-paylasim">
-        <h2>10. Üçüncü taraflarla paylaşım</h2>
-        <p>Kişisel verilerinizi pazarlama amacıyla satmayız veya kiralamayız. Verileriniz yalnızca şu durumlarda paylaşılabilir:</p>
-        <ul>
-          <li>Yukarıda belirtilen altyapı sağlayıcılarımızla (Cloudflare) ve ödeme işlemleriniz için iyzico ile, hizmeti sunabilmek amacıyla,</li>
-          <li>Yasal bir yükümlülük, mahkeme kararı veya yetkili bir kamu kurumunun talebi doğrultusunda,</li>
-          <li>Platformun, kullanıcıların veya üçüncü kişilerin haklarını, güvenliğini veya mülkiyetini korumak için gerekli olduğunda,</li>
-          <li>Açık rızanızı aldığımız diğer durumlarda.</li>
-        </ul>
+        <p>Verilerinizi pazarlama amacıyla satmayız veya kiralamayız. Yukarıdakiler dışında verileriniz yalnızca yasal bir yükümlülük, mahkeme kararı veya yetkili bir kamu kurumunun talebi doğrultusunda; platformun, kullanıcıların veya üçüncü kişilerin haklarını ve güvenliğini korumak için gerekli olduğunda; ya da açık rızanızı aldığımız durumlarda paylaşılır.</p>
       </div>
 
       <div class="content-section" id="im-yurtdisi">
-        <h2>11. Yurt dışına veri aktarımı</h2>
-        <p>MİMARLAB'ın kullandığı Cloudflare ve Google Analytics altyapıları küresel ölçekte çalışır; bu nedenle verileriniz, işlemin gerçekleştiği veri merkezine bağlı olarak Türkiye dışına (ör. Avrupa Birliği veya ABD'deki sunuculara) aktarılabilir. Bu aktarımlar, ilgili sağlayıcıların (Cloudflare, Google) standart sözleşme hükümleri ve kendi veri koruma taahhütleri çerçevesinde, yalnızca hizmetin sunulabilmesi için gerekli ölçüde gerçekleşir; verileriniz bu altyapı sağlayıcıları dışında üçüncü bir ülkeye ayrıca aktarılmaz.</p>
+        <h2>14. Yurt dışına veri aktarımı</h2>
+        <p>Yukarıda sayılan sağlayıcıların tamamı küresel ölçekte çalışır; bu nedenle verileriniz, işlemin gerçekleştiği veri merkezine bağlı olarak Türkiye dışına (Avrupa Birliği veya ABD'deki sunuculara) aktarılabilir. Bu aktarımlar KVKK m. 9 ve ilgili Kurul kararları çerçevesinde, sağlayıcıların veri işleme sözleşmeleri ve standart sözleşme hükümleri gibi uygun güvenceler altında, yalnızca hizmetin sunulabilmesi için gerekli ölçüde gerçekleşir. Verileriniz bu altyapı sağlayıcıları dışında üçüncü bir ülkeye ayrıca aktarılmaz.</p>
       </div>
 
       <div class="content-section" id="im-guvenlik">
-        <h2>12. Veri güvenliği ve saklama süresi</h2>
-        <p>Şifreleriniz hash'lenerek saklanır, veri trafiği HTTPS ile şifrelenir ve erişim yalnızca yetkili ekip üyeleriyle sınırlıdır. Verilerinizi, hesabınız aktif olduğu sürece ve yasal saklama yükümlülüklerimizin gerektirdiği süre boyunca saklarız; hesap silme talebinizin ardından yasal zorunluluk bulunmayan veriler makul bir süre içinde silinir.</p>
+        <h2>15. Veri güvenliği ve saklama süreleri</h2>
+        <p>Şifreleriniz geri döndürülemez biçimde hash'lenerek saklanır, tüm veri trafiği HTTPS ile şifrelenir, oturum çerezi yalnızca güvenli bağlantıda ve JavaScript'e kapalı olarak ayarlanır, yönetim erişimi yalnızca yetkili ekip üyeleriyle sınırlıdır. Bir veri ihlali hâlinde KVKK m. 12 uyarınca Kişisel Verileri Koruma Kurulu'na ve etkilenen kişilere bildirimde bulunuruz.</p>
+        <p>Saklama süreleri:</p>
+        <ul>
+          <li><strong>Hesap ve profil verileri</strong> — hesabınız aktif olduğu sürece; hesap silme talebiyle birlikte silinir.</li>
+          <li><strong>Oturum kayıtları</strong> — 30 gün veya çıkış yapana kadar.</li>
+          <li><strong>Yayınlanan içerikler, yorumlar, mesajlar</strong> — siz silene ya da hesabınızı silene kadar.</li>
+          <li><strong>İletişim formu ve sahiplik/düzeltme talepleri</strong> — talebin sonuçlanmasından itibaren yasal zamanaşımı süresi boyunca (azami 10 yıl).</li>
+          <li><strong>Ödeme ve iade kayıtları</strong> — vergi ve ticaret mevzuatı uyarınca 10 yıl.</li>
+          <li><strong>Bülten aboneliği</strong> — abonelikten çıkana kadar.</li>
+          <li><strong>Teknik erişim kayıtları</strong> — Cloudflare'in kısa süreli günlük saklama politikası çerçevesinde; hız sınırlama sayaçları dakikalar içinde silinir.</li>
+          <li><strong>Derlenmiş kayıtlar</strong> — kaldırma talebi alınana kadar.</li>
+        </ul>
       </div>
 
       <div class="content-section" id="im-haklar">
-        <h2>13. KVKK / GDPR kapsamındaki haklarınız</h2>
+        <h2>16. Haklarınız ve başvuru yolu</h2>
         <p>KVKK'nın 11. maddesi ve (Avrupa Ekonomik Alanı'ndaki kullanıcılar için) GDPR kapsamında aşağıdaki haklara sahipsiniz:</p>
         <ul>
-          <li>Verilerinizin işlenip işlenmediğini öğrenme,</li>
-          <li>İşlenen verileriniz hakkında bilgi talep etme,</li>
-          <li>Verilerinizin işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,</li>
-          <li>Eksik veya yanlış işlenmişse düzeltilmesini isteme,</li>
-          <li>Yasal şartlar oluştuğunda silinmesini veya yok edilmesini isteme,</li>
-          <li>Verilerinizin taşınabilir bir formatta size veya başka bir hizmete aktarılmasını isteme (GDPR),</li>
-          <li>İşlemeye itiraz etme ve rızanızı istediğiniz zaman geri çekme.</li>
+          <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme ve işlenmişse buna ilişkin bilgi talep etme,</li>
+          <li>İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,</li>
+          <li>Yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü kişileri bilme,</li>
+          <li>Eksik veya yanlış işlenmişse düzeltilmesini isteme ve bu işlemin aktarıldığı üçüncü kişilere bildirilmesini isteme,</li>
+          <li>KVKK m. 7'deki şartlar çerçevesinde silinmesini veya yok edilmesini isteme,</li>
+          <li>Münhasıran otomatik sistemlerle analiz edilmesi sonucu aleyhinize bir sonucun ortaya çıkmasına itiraz etme,</li>
+          <li>Kanuna aykırı işleme nedeniyle zarara uğramanız hâlinde zararın giderilmesini talep etme,</li>
+          <li>Verilerinizin taşınabilir bir formatta size veya başka bir hizmete aktarılmasını isteme ve işlemeye itiraz etme (GDPR).</li>
         </ul>
-        <p>Bu haklarınızı kullanmak için <a href="#im-iletisim-gz">iletişim</a> bölümündeki adresten bize ulaşabilirsiniz; talebiniz kimlik doğrulamasının ardından yasal süreler içinde sonuçlandırılır.</p>
+        <p><strong>Başvuru.</strong> Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ uyarınca taleplerinizi ad soyad, hesabınıza kayıtlı e-posta adresiniz ve talep konunuzu belirterek <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine iletebilirsiniz; kimliğinizi doğrulamak için hesabınıza kayıtlı e-posta adresinden yazmanızı isteyebiliriz. Başvurular en geç <strong>30 gün</strong> içinde ücretsiz olarak sonuçlandırılır. Başvurunuzun reddedilmesi, cevabın yetersiz bulunması veya süresinde cevap verilmemesi hâlinde KVKK m. 14 uyarınca Kişisel Verileri Koruma Kurulu'na şikâyette bulunabilirsiniz; Avrupa Ekonomik Alanı'ndaki kullanıcılar bulundukları ülkenin denetim otoritesine başvurabilir.</p>
       </div>
 
       <div class="content-section" id="im-cocuklar">
-        <h2>14. Çocukların gizliliği</h2>
-        <p>MİMARLAB, 18 yaşından küçük kullanıcılara yönelik değildir; bilerek 18 yaş altı kullanıcılardan veri toplamayız. Bir çocuğa ait veri topladığımızı fark edersek bu veriyi derhal sileriz.</p>
+        <h2>17. Çocukların gizliliği</h2>
+        <p>MİMARLAB, 18 yaşından küçük kullanıcılara yönelik değildir; bilerek 18 yaş altı kullanıcılardan veri toplamayız. Bir çocuğa ait veri topladığımızı fark edersek bu veriyi derhal sileriz. Böyle bir durumu fark ederseniz lütfen bize bildirin.</p>
       </div>
 
       <div class="content-section" id="im-degisiklikler">
-        <h2>15. Politikadaki değişiklikler</h2>
+        <h2>18. Politikadaki değişiklikler</h2>
         <p>Bu politikayı zaman zaman güncelleyebiliriz; önemli değişikliklerde sayfanın üst kısmındaki "son güncelleme" tarihini değiştirir, gerektiğinde sitede veya e-posta yoluyla bilgilendirme yaparız. Politikayı düzenli aralıklarla gözden geçirmenizi öneririz.</p>
       </div>
 
-      <div class="content-section" id="im-iletisim-gz">
-        <h2>16. İletişim</h2>
-        <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="/hizmet-sartlari">Hizmet Şartları</a>, çerez kullanımımız için <a href="/cerez-politikasi">Çerez Politikası</a> sayfasına göz atabilirsiniz.</p>
+      <div class="content-section" id="im-iletisim">
+        <h2>19. İletişim</h2>
+        <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="/hizmet-sartlari">Hizmet Şartları</a>, çerez kullanımımız için <a href="/cerez-politikasi">Çerez Politikası</a>, işletmeci bilgileri için <a href="/hakkinda">Hakkında</a> sayfasına göz atabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -665,99 +721,128 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">Hizmet Şartları</h1>
-      <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
-      <p class="content-lead">Bu Hizmet Şartları, MİMARLAB'ı (mimarlab.com) kullanımınızı düzenleyen kuralları içerir. Siteyi ziyaret ederek, üye olarak veya içerik göndererek bu şartları kabul etmiş sayılırsınız. Kişisel verilerinizin nasıl işlendiğini öğrenmek için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+      <p class="content-updated">Son güncelleme: 8 Eylül 2026</p>
+      <p class="content-lead">Bu Hizmet Şartları, MİMARLAB'ı (mimarlab.com) kullanımınızı düzenleyen kuralları ve tarafların hak ve yükümlülüklerini içerir. Siteyi ziyaret ederek, üye olarak, içerik göndererek veya ücretli bir hizmet satın alarak bu şartları kabul etmiş sayılırsınız. Kişisel verilerinizin nasıl işlendiğini öğrenmek için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
       <div class="content-toc">
         <h2>Bu sayfada</h2>
         <ol>
-          <li><a href="#im-tanimlar">Tanımlar</a></li>
-          <li><a href="#im-uyelik-hs">Üyelik ve hesap</a></li>
-          <li><a href="#im-ugc-hs">Kullanıcı içerikleri ve lisans</a></li>
-          <li><a href="#im-telif">Telif hakları ve ihlal bildirimi</a></li>
-          <li><a href="#im-claim-hs">Mimar/Firma sahiplik (claim) süreci</a></li>
-          <li><a href="#im-topluluk">Puanlama, yorum ve topluluk kuralları</a></li>
-          <li><a href="#im-rozet">Rozet/üyelik paketleri ve ödemeler</a></li>
-          <li><a href="#im-yasaklar">Yasaklı kullanımlar</a></li>
-          <li><a href="#im-fikri-mulkiyet">Fikri mülkiyet</a></li>
-          <li><a href="#im-sorumluluk">Sorumluluğun sınırlandırılması</a></li>
-          <li><a href="#im-degisiklik">Hizmetin değiştirilmesi ve sonlandırılması</a></li>
-          <li><a href="#im-hukuk">Uygulanacak hukuk</a></li>
-          <li><a href="#im-iletisim-hs">İletişim</a></li>
+          <li><a href="#im-hs-taraflar">Taraflar ve kabul</a></li>
+          <li><a href="#im-hs-tanimlar">Tanımlar</a></li>
+          <li><a href="#im-hs-platform">Platformun niteliği ve içerik kaynakları</a></li>
+          <li><a href="#im-hs-uyelik">Üyelik ve hesap</a></li>
+          <li><a href="#im-hs-ugc">Kullanıcı içerikleri ve lisans</a></li>
+          <li><a href="#im-hs-telif">Telif ve kişilik hakları, ihlal bildirimi</a></li>
+          <li><a href="#im-hs-claim">Profil sahiplik (claim) süreci</a></li>
+          <li><a href="#im-hs-topluluk">Puanlama, yorum, mesajlaşma ve topluluk kuralları</a></li>
+          <li><a href="#im-hs-rozet">Rozet paketleri, ödemeler ve iadeler</a></li>
+          <li><a href="#im-hs-gorusme">Görüşme (danışmanlık) hizmeti</a></li>
+          <li><a href="#im-hs-yasaklar">Yasaklı kullanımlar</a></li>
+          <li><a href="#im-hs-fikri-mulkiyet">Fikri mülkiyet ve veri tabanı hakları</a></li>
+          <li><a href="#im-hs-sorumluluk">Sorumluluğun sınırlandırılması</a></li>
+          <li><a href="#im-hs-degisiklik">Hizmetin ve şartların değiştirilmesi</a></li>
+          <li><a href="#im-hs-hukuk">Uygulanacak hukuk ve uyuşmazlık çözümü</a></li>
+          <li><a href="#im-hs-iletisim">İletişim</a></li>
         </ol>
       </div>
 
-      <div class="content-section" id="im-tanimlar">
-        <h2>1. Tanımlar</h2>
-        <p>"MİMARLAB", "biz", "bize" ifadeleri mimarlab.com platformunu; "Kullanıcı", "siz" ifadeleri siteyi ziyaret eden veya kullanan herkesi; "İçerik" ifadesi platformda yer alan proje, ürün, profil, yorum, puanlama, görsel ve metinleri; "Üye" ifadesi hesap oluşturmuş kullanıcıları ifade eder.</p>
+      <div class="content-section" id="im-hs-taraflar">
+        <h2>1. Taraflar ve kabul</h2>
+        <p>Bu şartlar, mimarlab.com alan adı altında yayın yapan MİMARLAB platformunu işleten <strong>Kaan Çorbacı</strong> (bundan sonra "MİMARLAB") ile platformu kullanan gerçek veya tüzel kişi (bundan sonra "Kullanıcı") arasında geçerlidir. İşletmeci ve yer sağlayıcıya ilişkin tanıtıcı bilgiler <a href="/hakkinda">Hakkında</a> sayfasındaki "Yasal bilgiler" bölümünde yer alır. Bu şartları kabul etmiyorsanız lütfen platformu kullanmayın.</p>
       </div>
 
-      <div class="content-section" id="im-uyelik-hs">
-        <h2>2. Üyelik ve hesap</h2>
-        <p>Üye olmak için doğru ve güncel bilgiler vermeniz gerekir. Hesabınızın ve şifrenizin gizliliğinden siz sorumlusunuz; hesabınız üzerinden gerçekleştirilen tüm işlemlerden sorumlu tutulursunuz. Hesabınızda yetkisiz bir erişim şüphesi varsa derhal <a href="/iletisim">bize bildirin</a>. MİMARLAB, şartları ihlal eden hesapları uyarmadan askıya alma veya kapatma hakkını saklı tutar.</p>
+      <div class="content-section" id="im-hs-tanimlar">
+        <h2>2. Tanımlar</h2>
+        <p>"MİMARLAB", "biz", "bize" ifadeleri mimarlab.com platformunu ve işletmecisini; "Kullanıcı", "siz" ifadeleri siteyi ziyaret eden veya kullanan herkesi; "Üye" ifadesi hesap oluşturmuş kullanıcıları; "İçerik" ifadesi platformda yer alan proje, ürün, kişi, firma ve marka kayıtları ile yorum, puanlama, mesaj, görsel ve metinleri; "Kullanıcı İçeriği" ifadesi bir Üye tarafından gönderilen içeriği; "Derlenmiş İçerik" ifadesi MİMARLAB'ın kamuya açık kaynaklardan derlediği içeriği; "Sahiplenilmiş Profil" ifadesi bir Üyeye bağlanmış kişi, firma veya marka profilini ifade eder.</p>
       </div>
 
-      <div class="content-section" id="im-ugc-hs">
-        <h2>3. Kullanıcı içerikleri ve lisans</h2>
-        <p>Platforma proje, ürün, profil, yorum, puanlama veya görsel gönderdiğinizde (Kullanıcı İçeriği), bu içeriğin sizin tarafınızdan oluşturulduğunu veya yayınlama hakkına sahip olduğunuzu beyan etmiş olursunuz. İçeriğin mülkiyeti sizde kalır; ancak içeriği platformda göstermek, saklamak, biçimlendirmek (ör. görsel boyutlandırma/optimize etme) ve tanıtım amacıyla kullanmak üzere bize dünya çapında, telifsiz, münhasır olmayan bir lisans vermiş olursunuz.</p>
-        <p>Gönderdiğiniz proje/ürün/profil/iş ilanı içerikleri yayına alınmadan önce ekibimizin incelemesinden geçer; MİMARLAB, kurallara aykırı, yanıltıcı veya hak ihlali içeren içerikleri yayınlamayı reddetme ya da sonradan kaldırma hakkını saklı tutar.</p>
+      <div class="content-section" id="im-hs-platform">
+        <h2>3. Platformun niteliği ve içerik kaynakları</h2>
+        <p>MİMARLAB, mimarlık ve tasarım alanında bir dizin ve topluluk platformudur. 5651 sayılı Kanun kapsamında, kendi derlediği içerikler bakımından <strong>içerik sağlayıcı</strong>; Üyelerin gönderdiği içerikler bakımından <strong>yer sağlayıcı</strong>dır. Yer sağlayıcı olarak Kullanıcı İçeriğini önceden denetleme yükümlülüğümüz yoktur; ancak gönderilen kayıtları yayına almadan önce inceleriz ve hukuka aykırılık bildirimi aldığımızda ilgili içeriği kaldırırız.</p>
+        <p>Derlenmiş İçerik; firmaların ve tasarımcıların kendi web siteleri, basın bültenleri, meslek yayınları ve arşivler gibi kamuya açık kaynaklardan, ilgili kişi veya kurumla bir bağlantı kurulmaksızın derlenir ve tarafımızca doğrulanmamıştır. Bu kayıtların sayfasında <em>"Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan info@mimarlab.com adresinden bize ulaş!"</em> ibaresi yer alır. Bir profil sahiplenildiğinde künyeyi sahibi yönetir ve "doğrulanmamıştır" ibaresi kalkar. Hatalı bilgi, hatalı ilişkilendirme veya kaldırma talepleri <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine iletilebilir; talepler en geç 30 gün içinde sonuçlandırılır.</p>
       </div>
 
-      <div class="content-section" id="im-telif">
-        <h2>4. Telif hakları ve ihlal bildirimi</h2>
-        <p>Sitede yer alan proje fotoğrafları ve görseller, ilgili mimar, firma, fotoğrafçı veya hak sahibine aittir; künyelerde belirtilen fotoğraf kaynağı bilgisi bu nedenle korunur. Yalnızca kendinize ait olan veya yayınlama izniniz bulunan içerikleri yükleyebilirsiniz.</p>
-        <p>Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, (a) ihlal edildiğini iddia ettiğiniz eserin tanımını, (b) ihlal eden içeriğin bulunduğu sayfanın bağlantısını ve (c) hak sahipliğinizi gösteren bilgileri <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine ileterek bildirimde bulunabilirsiniz. Bildirimi inceleyip haklı bulunması durumunda içeriği makul bir süre içinde kaldırırız.</p>
+      <div class="content-section" id="im-hs-uyelik">
+        <h2>4. Üyelik ve hesap</h2>
+        <p>Üye olmak için 18 yaşını doldurmuş olmanız ve doğru, güncel bilgiler vermeniz gerekir. Google veya LinkedIn ile giriş yaptığınızda bu sağlayıcıların kendi şartları da geçerlidir. Hesabınızın ve şifrenizin gizliliğinden siz sorumlusunuz; hesabınız üzerinden gerçekleştirilen tüm işlemlerden sorumlu tutulursunuz. Hesabınızda yetkisiz bir erişim şüphesi varsa derhal <a href="/iletisim">bize bildirin</a>. Aynı kişi adına birden fazla hesap açılamaz; sahte veya başkası adına açılan hesaplar kapatılır.</p>
+        <p>Hesabınızı dilediğiniz zaman <a href="/hesabim">Hesabım</a> sayfasından silebilirsiniz; hesap silindiğinde hesabınıza bağlı kişisel verileriniz <a href="/gizlilik-politikasi">Gizlilik Politikası</a>'nda açıklandığı şekilde silinir. Aktif bir rozet aboneliğiniz varsa, kalan süre için iade talebi <a href="/iade-et">İade Et</a> sayfasındaki koşullara tabidir. MİMARLAB, bu şartları ihlal eden hesapları önceden bildirmeksizin askıya alma veya kapatma hakkını saklı tutar.</p>
       </div>
 
-      <div class="content-section" id="im-claim-hs">
-        <h2>5. Mimar/Firma sahiplik (claim) süreci</h2>
-        <p>Sitede halka açık kaynaklardan derlenmiş bir mimar/firma profilinin gerçek sahibi veya yetkilisiyseniz, profil üzerinden sahiplik talebinde bulunabilirsiniz. Talebiniz incelenirken kimliğinizi/yetkinizi doğrulayacak belge veya bilgi isteyebiliriz; yanlış beyanla sahiplik talebinde bulunmak bu şartların ihlali sayılır ve hesabınızın kapatılmasına yol açabilir. Onaylanan talepler profilinizi hesabınıza bağlar; sahiplendiğiniz profildeki bilgileri güncelleme ve gelen yorumları yönetme yetkisi kazanırsınız. MİMARLAB, uyuşmazlık (aynı profil için birden fazla talep) durumunda ek doğrulama isteme veya talebi reddetme hakkını saklı tutar.</p>
+      <div class="content-section" id="im-hs-ugc">
+        <h2>5. Kullanıcı içerikleri ve lisans</h2>
+        <p>Platforma proje, ürün, kişi, firma, marka, yorum, puanlama, portfolyo veya görsel gönderdiğinizde, bu içeriğin sizin tarafınızdan oluşturulduğunu veya yayınlama hakkına sahip olduğunuzu, içerikte yer alan üçüncü kişilerden (fotoğrafçı, müşteri, çalışma arkadaşı vb.) gerekli izinleri aldığınızı beyan etmiş olursunuz. İçeriğin mülkiyeti ve telif hakkı sizde kalır; ancak içeriği platformda göstermek, saklamak, teknik olarak biçimlendirmek (ör. görsel boyutlandırma/optimize etme), aramada ve ilgili kayıtlarla ilişkilendirerek listelemek ve platformun tanıtımında kullanmak üzere MİMARLAB'a dünya çapında, telifsiz, münhasır olmayan, alt lisans verilebilir bir lisans vermiş olursunuz. Bu lisans, içeriği kaldırdığınızda ileriye dönük olarak sona erer; yalnızca önbellek ve yedeklerde makul bir süre daha bulunabilir.</p>
+        <p>Gönderdiğiniz proje/ürün/kişi/firma/marka kayıtları yayına alınmadan önce ekibimizin incelemesinden geçer; MİMARLAB, kurallara aykırı, yanıltıcı veya hak ihlali içeren içerikleri yayınlamayı reddetme, düzenleme, arşivleme ya da sonradan kaldırma hakkını saklı tutar. Yayınlanan içerikler herkese açıktır ve arama motorları tarafından indekslenebilir.</p>
       </div>
 
-      <div class="content-section" id="im-topluluk">
-        <h2>6. Puanlama, yorum ve topluluk kuralları</h2>
-        <p>Projelere yıldız puanı verebilir ve yorum yazabilirsiniz. Yorumlarınızın gerçek deneyiminize dayanması, hakaret, ayrımcılık, taciz, spam veya yanıltıcı bilgi içermemesi gerekir. Bu kurallara aykırı yorumları/puanlamaları kaldırma ve tekrarlayan ihlallerde hesabı kısıtlama hakkımız saklıdır. Bir profilin sahibiyseniz, kendi profilinize gelen uygunsuz yorumları yönetme (gizleme/bildirme) ayrıcalığından yararlanabilirsiniz.</p>
+      <div class="content-section" id="im-hs-telif">
+        <h2>6. Telif ve kişilik hakları, ihlal bildirimi</h2>
+        <p>Sitede yer alan proje fotoğrafları ve görseller, 5846 sayılı Fikir ve Sanat Eserleri Kanunu uyarınca ilgili mimar, firma, fotoğrafçı veya hak sahibine aittir; künyelerde belirtilen fotoğraf kaynağı bilgisi bu nedenle korunur. Yalnızca kendinize ait olan veya yayınlama izniniz bulunan içerikleri yükleyebilirsiniz.</p>
+        <p>Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, (a) ihlal edildiğini iddia ettiğiniz eserin tanımını, (b) ihlal eden içeriğin bulunduğu sayfanın bağlantısını, (c) hak sahipliğinizi gösteren bilgileri ve (d) iletişim bilgilerinizi <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine ileterek bildirimde bulunabilirsiniz. Bildirimi inceleyip haklı bulunması durumunda içeriği en geç 30 gün, açık ihlallerde ise mümkün olan en kısa sürede kaldırırız.</p>
+        <p>Bir içeriğin kişilik haklarınızı ihlal ettiğini düşünüyorsanız aynı adrese bildirimde bulunabilirsiniz; 5651 sayılı Kanun m. 9 kapsamındaki haklarınız (içeriğin çıkarılması ve erişimin engellenmesi talebiyle sulh ceza hâkimliğine başvurma) saklıdır.</p>
       </div>
 
-      <div class="content-section" id="im-rozet">
-        <h2>7. Rozet/üyelik paketleri ve ödemeler</h2>
-        <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, yorum yönetimi vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz; güncel kademeler ve fiyatlar <a href="/rozet-al">Rozet Al</a> sayfasında yer alır. Ödemeleriniz iyzico'nun güvenli altyapısı üzerinden işlenir; kart bilgileriniz MİMARLAB sunucularında saklanmaz. Rozet abonelikleri aylık yenilenir; iptal ve iade koşulları için <a href="/iade-et">İade Et</a> sayfasına bakabilirsiniz.</p>
+      <div class="content-section" id="im-hs-claim">
+        <h2>7. Profil sahiplik (claim) süreci</h2>
+        <p>Kamuya açık kaynaklardan derlenmiş bir kişi, firma veya marka profilinin gerçek sahibi veya yetkilisiyseniz, profil üzerinden sahiplik talebinde bulunabilirsiniz. Talebiniz incelenirken kimliğinizi/yetkinizi doğrulayacak belge veya bilgi isteyebiliriz. Yanlış beyanla sahiplik talebinde bulunmak bu şartların ağır ihlali sayılır; hesabınızın kapatılmasına ve gerektiğinde yasal yollara başvurulmasına yol açabilir.</p>
+        <p>Onaylanan talepler profili hesabınıza bağlar; profil bilgilerini güncelleme, gelen yorumları ve mesajları yönetme yetkisi kazanırsınız. Firma ve marka profillerinde yetkili konumdaki üyeler (kurucu, kurucu ortak, ortak, ekip lideri, yönetici) firmaya bağlı ortakların kişi profillerini de düzenleyebilir; bu yetki firma ekibinden çıkarıldığınızda sona erer. Sahiplenilmiş profilin ve ona bağlı proje/ürün kayıtlarının doğruluğundan profil sahibi sorumludur. MİMARLAB, uyuşmazlık (aynı profil için birden fazla talep) durumunda ek doğrulama isteme, talebi reddetme veya onaylanmış bir sahipliği geri alma hakkını saklı tutar.</p>
       </div>
 
-      <div class="content-section" id="im-yasaklar">
-        <h2>8. Yasaklı kullanımlar</h2>
+      <div class="content-section" id="im-hs-topluluk">
+        <h2>8. Puanlama, yorum, mesajlaşma ve topluluk kuralları</h2>
+        <p>Projelere, ürünlere ve profillere puan verebilir, yorum yazabilir ve sahiplenilmiş profillere mesaj gönderebilirsiniz. Yorum ve mesajlarınızın gerçek deneyiminize dayanması; hakaret, iftira, ayrımcılık, taciz, spam, reklam, kişisel veri ifşası veya yanıltıcı bilgi içermemesi gerekir. Bu kurallara aykırı yorumları/puanlamaları kaldırma, mesajlaşmayı kısıtlama ve tekrarlayan ihlallerde hesabı kapatma hakkımız saklıdır. Bir profilin sahibiyseniz, kendi profilinize gelen uygunsuz yorumları yönetme (gizleme/bildirme) ayrıcalığından yararlanabilirsiniz. Yorum ve mesajların içeriğinden yazarı sorumludur.</p>
+      </div>
+
+      <div class="content-section" id="im-hs-rozet">
+        <h2>9. Rozet paketleri, ödemeler ve iadeler</h2>
+        <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, yorum yönetimi, mesajlaşma vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz. Güncel kademeler, ayrıcalıklar ve Türk lirası cinsinden fiyatlar <a href="/rozet-al">Rozet Al</a> sayfasında ödeme öncesinde açıkça gösterilir; fiyatlar sunucu tarafında belirlenir ve satın alma anında geçerli olan fiyat uygulanır.</p>
         <ul>
-          <li>Sahte hesap oluşturmak veya başka bir kişi/kurum adına yetkisiz şekilde profil sahiplenmek,</li>
-          <li>Hak ihlali içeren, yanıltıcı veya izinsiz içerik yüklemek,</li>
-          <li>Platformu kötüye kullanmak, otomatikleştirilmiş araçlarla (bot/scraper) aşırı yük bindirmek veya güvenlik açıklarını istismar etmeye çalışmak,</li>
-          <li>Diğer kullanıcıları taciz etmek, spam göndermek veya yanıltıcı ticari içerik paylaşmak,</li>
+          <li><strong>Ödeme yöntemi</strong> — şu an havale/EFT. Ödeme talebiniz, ekibimiz banka hesap özetinde ödemeyi doğrulayana kadar "bekliyor" durumunda kalır; doğrulandığında rozetiniz aktifleşir ve hesabınızda görünür. Kredi/banka kartı ile ödeme aktif edildiğinde kart bilgileri yalnızca ödeme kuruluşunun (iyzico) güvenli sayfasında girilir, MİMARLAB sunucularında saklanmaz.</li>
+          <li><strong>Süre ve yenileme</strong> — rozetler aylık süreyle kiralanır; otomatik yenileme yoktur, süre sonunda rozet pasifleşir ve dilerseniz yeniden satın alırsınız. Rozet devredilemez.</li>
+          <li><strong>Cayma ve iade</strong> — tüketici sıfatıyla yapılan satın alımlarda 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği'ndeki haklarınız saklıdır. Rozet, ödemenin onaylanmasıyla birlikte anında ifa edilen bir dijital hizmettir; bununla birlikte iade taleplerinizi <a href="/iade-et">İade Et</a> sayfası üzerinden alır, sayfada belirtilen koşullar çerçevesinde değerlendirir ve onaylanan tutarı bildirdiğiniz IBAN'a havale/EFT ile göndeririz. Şartların ihlali nedeniyle kapatılan hesaplarda kullanılmamış süre iade edilmez.</li>
+        </ul>
+      </div>
+
+      <div class="content-section" id="im-hs-gorusme">
+        <h2>10. Görüşme (danışmanlık) hizmeti</h2>
+        <p>Bazı profillerde sunulan "Danışmanlık Al" özelliğiyle, görüşmeyi sunan üyeyle çevrimiçi birebir görüşme randevusu talep edebilirsiniz. Ücret, talep öncesinde gösterilir ve havale/EFT ile ödenir; ödeme doğrulandığında görüşme bağlantısı Google Meet üzerinden oluşturulur ve hesabınızdaki bildirimlerle iletilir. Görüşme tarihini, görüşmeden önce bir kez değiştirebilirsiniz. Görüşme içeriği görüşmeyi sunan üyenin kendi görüş ve deneyimini yansıtır; MİMARLAB görüşmenin içeriğinden, sonuçlarından veya bu görüşmeye dayanarak alınan kararlardan sorumlu değildir. Görüşme sırasında Google'ın hizmet şartları da geçerlidir.</p>
+      </div>
+
+      <div class="content-section" id="im-hs-yasaklar">
+        <h2>11. Yasaklı kullanımlar</h2>
+        <ul>
+          <li>Sahte hesap oluşturmak, başka bir kişi/kurum adına yetkisiz şekilde profil sahiplenmek veya içerik göndermek,</li>
+          <li>Hak ihlali içeren, yanıltıcı, izinsiz ya da üçüncü kişilerin kişisel verilerini içeren içerik yüklemek,</li>
+          <li>Platformdaki verileri otomatik araçlarla (bot, scraper, crawler) toplu olarak çekmek, kopyalamak, yeniden yayınlamak veya veri tabanının önemli bir kısmını başka bir ortama aktarmak,</li>
+          <li>Platforma aşırı yük bindirmek, güvenlik açıklarını istismar etmeye çalışmak, erişim kısıtlamalarını aşmak,</li>
+          <li>Diğer kullanıcıları taciz etmek, spam göndermek, mesajlaşma ve yorum alanlarını reklam amacıyla kullanmak,</li>
+          <li>Görsel üzeri ürün işaretleme, puanlama ve yorum sistemlerini manipüle etmek,</li>
           <li>Yürürlükteki yasalara aykırı herhangi bir faaliyette bulunmak.</li>
         </ul>
       </div>
 
-      <div class="content-section" id="im-fikri-mulkiyet">
-        <h2>9. Fikri mülkiyet</h2>
-        <p>MİMARLAB adı, logosu, arayüz tasarımı ve yazılımı MİMARLAB'a aittir ve telif/marka hakları ile korunur. Kullanıcı İçerikleri dışında, sitenin görsel tasarımı ve kodu izinsiz kopyalanamaz, çoğaltılamaz veya ticari amaçla kullanılamaz.</p>
+      <div class="content-section" id="im-hs-fikri-mulkiyet">
+        <h2>12. Fikri mülkiyet ve veri tabanı hakları</h2>
+        <p>MİMARLAB adı, logosu, arayüz tasarımı ve yazılımı MİMARLAB'a aittir ve telif/marka hakları ile korunur. Platformdaki kayıtların seçilmesi, düzenlenmesi, sınıflandırılması ve birbirine bağlanmasıyla oluşan derleme, 5846 sayılı Kanun'un veri tabanı hükümleriyle korunur. Kullanıcı İçerikleri dışında, sitenin görsel tasarımı, kodu ve veri tabanı izinsiz kopyalanamaz, çoğaltılamaz veya ticari amaçla kullanılamaz. Kişisel ve ticari olmayan kullanım ile kaynak belirterek bağlantı verme serbesttir.</p>
       </div>
 
-      <div class="content-section" id="im-sorumluluk">
-        <h2>10. Sorumluluğun sınırlandırılması</h2>
-        <p>MİMARLAB, sitede yer alan halka açık kaynaklardan derlenmiş profil bilgilerinin veya kullanıcılar tarafından gönderilen içeriklerin doğruluğunu garanti etmez; içerikler "olduğu gibi" sunulur. Platform kullanımından doğabilecek dolaylı, arızi veya sonuç niteliğindeki zararlardan, yürürlükteki mevzuatın izin verdiği azami ölçüde sorumlu tutulamayız. Bir bilginin hatalı olduğunu düşünüyorsanız <a href="/iletisim">bize bildirin</a>.</p>
+      <div class="content-section" id="im-hs-sorumluluk">
+        <h2>13. Sorumluluğun sınırlandırılması</h2>
+        <p>MİMARLAB, Derlenmiş İçeriğin veya Kullanıcı İçeriğinin doğruluğunu, güncelliğini veya eksiksizliğini garanti etmez; içerikler "olduğu gibi" sunulur. Platformdaki bilgiler mesleki, hukuki veya ticari tavsiye niteliği taşımaz; proje, ürün veya profil bilgilerine dayanarak vereceğiniz kararlardan sorumluluk size aittir. Platformun kesintisiz veya hatasız çalışacağını taahhüt etmeyiz. Platform kullanımından doğabilecek dolaylı, arızi veya sonuç niteliğindeki zararlardan, yürürlükteki mevzuatın izin verdiği azami ölçüde sorumlu tutulamayız; ücretli hizmetlerde sorumluluğumuz her hâlde ilgili hizmet için ödediğiniz tutarla sınırlıdır. Tüketicilerin emredici hükümlerden doğan hakları saklıdır. Bir bilginin hatalı olduğunu düşünüyorsanız <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize bildirin.</p>
       </div>
 
-      <div class="content-section" id="im-degisiklik">
-        <h2>11. Hizmetin değiştirilmesi ve sonlandırılması</h2>
-        <p>MİMARLAB, hizmetin herhangi bir bölümünü önceden bildirmeksizin değiştirme, geçici olarak durdurma veya sonlandırma hakkını saklı tutar. Bu şartları ihlal eden hesapları askıya alabilir veya kapatabiliriz. Bu şartlarda yapılacak önemli değişikliklerde sayfanın üst kısmındaki "son güncelleme" tarihi güncellenir.</p>
+      <div class="content-section" id="im-hs-degisiklik">
+        <h2>14. Hizmetin ve şartların değiştirilmesi</h2>
+        <p>MİMARLAB, hizmetin herhangi bir bölümünü önceden bildirmeksizin değiştirme, geçici olarak durdurma veya sonlandırma hakkını saklı tutar. Bu şartları ihlal eden hesapları askıya alabilir veya kapatabiliriz. Bu şartlarda yapılacak değişikliklerde sayfanın üst kısmındaki "son güncelleme" tarihi güncellenir; önemli değişiklikleri ayrıca sitede veya e-posta yoluyla duyururuz. Değişiklikten sonra platformu kullanmaya devam etmeniz güncel şartları kabul ettiğiniz anlamına gelir.</p>
       </div>
 
-      <div class="content-section" id="im-hukuk">
-        <h2>12. Uygulanacak hukuk</h2>
-        <p>Bu şartlar Türkiye Cumhuriyeti kanunlarına tabidir. Bu şartlardan doğabilecek uyuşmazlıklarda Türkiye mahkemeleri ve icra daireleri yetkilidir.</p>
+      <div class="content-section" id="im-hs-hukuk">
+        <h2>15. Uygulanacak hukuk ve uyuşmazlık çözümü</h2>
+        <p>Bu şartlar Türkiye Cumhuriyeti kanunlarına tabidir. Bu şartlardan doğabilecek uyuşmazlıklarda Türkiye mahkemeleri ve icra daireleri yetkilidir. Tüketici sıfatını taşıyan kullanıcılar, 6502 sayılı Kanun'daki parasal sınırlar dâhilinde bulundukları yerdeki tüketici hakem heyetine veya tüketici mahkemesine başvurabilir. Kişisel verilere ilişkin şikâyetler için <a href="/gizlilik-politikasi">Gizlilik Politikası</a>'ndaki başvuru yolu geçerlidir.</p>
       </div>
 
-      <div class="content-section" id="im-iletisim-hs">
-        <h2>13. İletişim</h2>
-        <p>Hizmet şartlarımızla ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, çerez kullanımımız için <a href="/cerez-politikasi">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
+      <div class="content-section" id="im-hs-iletisim">
+        <h2>16. İletişim</h2>
+        <p>Hizmet şartlarımızla ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, çerez kullanımımız için <a href="/cerez-politikasi">Çerez Politikası</a>, işletmeci bilgileri için <a href="/hakkinda">Hakkında</a> sayfamıza bakabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -772,16 +857,17 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">Çerez Politikası</h1>
-      <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
-      <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+      <p class="content-updated">Son güncelleme: 8 Eylül 2026</p>
+      <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla ve hangi hukuki dayanakla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel Verileri Koruma Kurumu'nun Çerez Uygulamaları Hakkında Rehberi dikkate alınarak hazırlanmıştır. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
       <div class="content-toc">
         <h2>Bu sayfada</h2>
         <ol>
           <li><a href="#im-cz-nedir">Çerez nedir?</a></li>
-          <li><a href="#im-cz-kullandiklarimiz">Kullandığımız çerezler</a></li>
-          <li><a href="#im-cz-ucuncu-taraf">Üçüncü taraf çerezleri</a></li>
-          <li><a href="#im-cz-reddetmeyecegimiz">Kullanmadığımız çerez türleri</a></li>
+          <li><a href="#im-cz-kullandiklarimiz">Kullandığımız çerezler ve depolama kayıtları</a></li>
+          <li><a href="#im-cz-ucuncu-taraf">Üçüncü taraf çerezleri ve kaynaklar</a></li>
+          <li><a href="#im-cz-hukuki-dayanak">Hukuki dayanak ve rıza</a></li>
+          <li><a href="#im-cz-kullanmadiklarimiz">Kullanmadığımız çerez türleri</a></li>
           <li><a href="#im-cz-kontrol">Çerezleri nasıl kontrol edebilirsiniz?</a></li>
           <li><a href="#im-cz-degisiklikler">Politikadaki değişiklikler</a></li>
           <li><a href="#im-cz-iletisim">İletişim</a></li>
@@ -790,12 +876,12 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-cz-nedir">
         <h2>1. Çerez nedir?</h2>
-        <p>Çerezler, bir web sitesini ziyaret ettiğinizde tarayıcınıza kaydedilen küçük metin dosyalarıdır. Oturum çerezleri tarayıcınızı kapattığınızda silinir; kalıcı çerezler ise belirli bir süre (genellikle birkaç gün ile birkaç yıl arasında) cihazınızda saklanır ve sizi tekrar ziyaretinizde tanımaya yarar. Çerezlere ek olarak, tarayıcınızın <code>localStorage</code> gibi benzer depolama teknolojilerini de (ör. tema tercihinizi hatırlamak için) sınırlı ölçüde kullanırız.</p>
+        <p>Çerezler, bir web sitesini ziyaret ettiğinizde tarayıcınıza kaydedilen küçük metin dosyalarıdır. Oturum çerezleri tarayıcınızı kapattığınızda silinir; kalıcı çerezler ise belirli bir süre (genellikle birkaç gün ile birkaç yıl arasında) cihazınızda saklanır ve sizi tekrar ziyaretinizde tanımaya yarar. Çerezlere ek olarak, tarayıcınızın <code>localStorage</code> ve <code>sessionStorage</code> gibi benzer depolama teknolojilerini de (ör. tema tercihinizi hatırlamak için) sınırlı ölçüde kullanırız; bu politika bu kayıtları da kapsar.</p>
       </div>
 
       <div class="content-section" id="im-cz-kullandiklarimiz">
-        <h2>2. Kullandığımız çerezler</h2>
-        <p>MİMARLAB'da çerezleri üç kategoride topluyoruz: sitenin çalışması için zorunlu olanlar, tercihinizi hatırlayan işlevsel bir yerel depolama kaydı ve site trafiğini anlamamızı sağlayan performans/analitik çerezleri.</p>
+        <h2>2. Kullandığımız çerezler ve depolama kayıtları</h2>
+        <p>MİMARLAB'da çerezleri üç kategoride topluyoruz: sitenin çalışması için zorunlu olanlar, tercihinizi hatırlayan işlevsel kayıtlar ve site trafiğini anlamamızı sağlayan performans/analitik çerezleri.</p>
         <div class="cookie-table-wrap">
           <table class="cookie-table">
             <thead>
@@ -803,51 +889,67 @@ const InfoModal = (function () {
             </thead>
             <tbody>
               <tr>
-                <td><code>mimarlab_session</code></td>
+                <td><code>__Host-mimarlab_session</code></td>
                 <td><span class="cookie-badge">Zorunlu</span></td>
-                <td>Giriş yaptığınızda oturumunuzu (kimliğinizi) sunucu tarafında hatırlar; hesap gerektiren tüm özellikler (favoriler, profil, gönderiler) buna bağlıdır. HttpOnly'dir, JavaScript ile okunamaz.</td>
-                <td>30 gün</td>
+                <td>Giriş yaptığınızda oturumunuzu (kimliğinizi) sunucu tarafında hatırlar; hesap gerektiren tüm özellikler (kaydedilenler, profil, gönderiler, mesajlar) buna bağlıdır. Yalnızca HTTPS üzerinden gönderilir, HttpOnly'dir (JavaScript ile okunamaz) ve SameSite=Lax ile üçüncü taraf sitelerden gönderilmez. Giriş yapmadıysanız bu çerez ayarlanmaz.</td>
+                <td>30 gün veya çıkış yapana kadar</td>
               </tr>
               <tr>
                 <td><code>mimarlab-theme</code></td>
                 <td><span class="cookie-badge">İşlevsel</span></td>
-                <td>Açık/koyu tema tercihinizi tarayıcınızda (yerel depolama olarak, çerez değil) hatırlar.</td>
+                <td>Açık/koyu tema tercihinizi tarayıcınızda (yerel depolama olarak, çerez değil) hatırlar. Sunucuya gönderilmez.</td>
                 <td>Siz silene kadar</td>
+              </tr>
+              <tr>
+                <td><code>mlab:an:*</code> (sessionStorage)</td>
+                <td><span class="cookie-badge">İşlevsel</span></td>
+                <td>Profil İstatistikleri sayacının aynı sekme oturumunda aynı kaydı iki kez saymamasını sağlayan, kimlik içermeyen işaret. Yalnızca sekme açık olduğu sürece yaşar.</td>
+                <td>Sekme kapanana kadar</td>
               </tr>
               <tr>
                 <td><code>_ga</code>, <code>_ga_*</code></td>
                 <td><span class="cookie-badge">Performans</span></td>
-                <td>Google Analytics tarafından, ziyaretçileri ayırt etmek ve site trafiğini/kullanım eğilimlerini anonimleştirilmiş biçimde ölçmek için ayarlanır.</td>
+                <td>Google Analytics tarafından, ziyaretçileri ayırt etmek ve site trafiğini/kullanım eğilimlerini toplu (istatistiksel) biçimde ölçmek için ayarlanır. Reklam veya kişiselleştirme amacıyla kullanılmaz.</td>
                 <td>Google'ın varsayılanı, en fazla 2 yıl</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>Cloudflare altyapısı, sitenin güvenliğini sağlamak (bot koruması, saldırı önleme) amacıyla zaman zaman kendi teknik çerezlerini (ör. <code>__cf_bm</code>) ayarlayabilir; bunlar zorunlu niteliktedir, kısa ömürlüdür ve sizi siteler arasında izlemez.</p>
       </div>
 
       <div class="content-section" id="im-cz-ucuncu-taraf">
-        <h2>3. Üçüncü taraf çerezleri</h2>
-        <p>Yukarıdaki tabloda listelenen <strong>Google Analytics</strong> çerezleri, Google LLC tarafından işletilir ve verileriniz Google'ın kendi gizlilik politikasına tabi olarak işlenir. Bu çerezler tarayıcınıza yalnızca sitemizi ziyaret ettiğinizde, bizim adımıza istatistiksel ölçüm amacıyla yerleştirilir; MİMARLAB bu verileri reklam veya kişiselleştirme amacıyla kullanmaz veya satmaz.</p>
+        <h2>3. Üçüncü taraf çerezleri ve kaynaklar</h2>
+        <p>Yukarıdaki tabloda listelenen <strong>Google Analytics</strong> çerezleri Google LLC tarafından işletilir ve verileriniz Google'ın kendi gizlilik politikasına tabi olarak işlenir. Bu çerezler tarayıcınıza yalnızca sitemizi ziyaret ettiğinizde, bizim adımıza istatistiksel ölçüm amacıyla yerleştirilir; MİMARLAB bu verileri reklam veya kişiselleştirme amacıyla kullanmaz veya satmaz.</p>
+        <p>Google veya LinkedIn ile giriş yaptığınızda, görüşme randevusu için Google Meet'e geçtiğinizde ya da Gündem sayfasındaki bir habere tıkladığınızda ilgili sağlayıcının kendi sitesine gidersiniz; orada o sağlayıcının çerezleri ve politikası geçerlidir. Gündem sayfasındaki haber görselleri doğrudan kaynak yayının sunucusundan yüklenir; bu yükleme sırasında tarayıcınız o sunucuya bağlanır, ancak MİMARLAB bu kaynaklara herhangi bir kimlik bilgisi iletmez.</p>
       </div>
 
-      <div class="content-section" id="im-cz-reddetmeyecegimiz">
-        <h2>4. Kullanmadığımız çerez türleri</h2>
-        <p>MİMARLAB şu anda <strong>reklam/pazarlama çerezleri</strong> veya sosyal medya izleme piksel'leri kullanmamaktadır — sitede üçüncü taraf reklam ağı bulunmaz. Bu durum değişirse, bu sayfa güncellenir ve gerekiyorsa siteye açık rıza alan bir çerez bildirimi eklenir.</p>
+      <div class="content-section" id="im-cz-hukuki-dayanak">
+        <h2>4. Hukuki dayanak ve rıza</h2>
+        <ul>
+          <li><strong>Zorunlu çerezler</strong> (oturum çerezi, Cloudflare güvenlik çerezleri) ve <strong>işlevsel kayıtlar</strong> (tema tercihi, sayaç işareti) açıkça talep ettiğiniz bir hizmetin sunulması için gereklidir; KVKK m. 5/2(c) ve m. 5/2(f) uyarınca açık rıza gerektirmeden kullanılır.</li>
+          <li><strong>Performans/analitik çerezleri</strong> (Google Analytics) hizmetin sunulması için zorunlu değildir; bunları istemiyorsanız aşağıdaki <a href="#im-cz-kontrol">kontrol yöntemleriyle</a> devre dışı bırakabilirsiniz. Bu çerezler engellendiğinde sitenin hiçbir işlevi etkilenmez.</li>
+        </ul>
+      </div>
+
+      <div class="content-section" id="im-cz-kullanmadiklarimiz">
+        <h2>5. Kullanmadığımız çerez türleri</h2>
+        <p>MİMARLAB, <strong>reklam/pazarlama çerezleri</strong>, sosyal medya izleme pikselleri veya siteler arası profilleme araçları kullanmamaktadır; sitede üçüncü taraf reklam ağı bulunmaz. Bu durum değişirse bu sayfa güncellenir ve gerekli olması hâlinde açık rıza alan bir çerez bildirimi eklenir.</p>
       </div>
 
       <div class="content-section" id="im-cz-kontrol">
-        <h2>5. Çerezleri nasıl kontrol edebilirsiniz?</h2>
-        <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz — bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. <code>mimarlab_session</code> gibi zorunlu çerezleri engellemeniz durumunda, giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar düzgün çalışmayabilir.</p>
-        <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
+        <h2>6. Çerezleri nasıl kontrol edebilirsiniz?</h2>
+        <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz; bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. Oturum çerezini engellemeniz durumunda giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar çalışmaz; yerel depolamayı temizlediğinizde tema tercihiniz sıfırlanır.</p>
+        <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilir ya da tarayıcınızın üçüncü taraf çerezlerini engelleyebilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
       </div>
 
       <div class="content-section" id="im-cz-degisiklikler">
-        <h2>6. Politikadaki değişiklikler</h2>
+        <h2>7. Politikadaki değişiklikler</h2>
         <p>Kullandığımız çerezler zaman içinde değişebilir; önemli değişikliklerde bu sayfanın üst kısmındaki "son güncelleme" tarihini güncelleriz. Politikayı düzenli aralıklarla gözden geçirmenizi öneririz.</p>
       </div>
 
       <div class="content-section" id="im-cz-iletisim">
-        <h2>7. İletişim</h2>
+        <h2>8. İletişim</h2>
         <p>Çerez politikamızla ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin genel olarak işlenmesi hakkında <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, platform kullanım kurallarımız için <a href="/hizmet-sartlari">Hizmet Şartları</a> sayfalarına bakabilirsiniz.</p>
       </div>
     </div>`;
@@ -2057,7 +2159,7 @@ const InfoModal = (function () {
     else if (view === 'rozet-al') { wrap.innerHTML = rozetAlTemplate(); mountRozetAl(); }
     else if (view === 'iade-et') { wrap.innerHTML = iadeEtTemplate(); mountIadeEt(); }
     else if (view === 'iletisim') { wrap.innerHTML = iletisimTemplate(); wireIletisim(); }
-    else if (view === 'hakkinda') { wrap.innerHTML = hakkindaTemplate(); }
+    else if (view === 'hakkinda') { wrap.innerHTML = hakkindaTemplate(); wireInPanelAnchors(wrap); }
     else if (view === 'gizlilik-politikasi') { wrap.innerHTML = gizlilikTemplate(); wireInPanelAnchors(wrap); }
     else if (view === 'hizmet-sartlari') { wrap.innerHTML = hizmetTemplate(); wireInPanelAnchors(wrap); }
     else if (view === 'cerez-politikasi') { wrap.innerHTML = cerezTemplate(); wireInPanelAnchors(wrap); }

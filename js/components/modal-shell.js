@@ -284,6 +284,7 @@ const ModalShell = (function () {
         margin:14px 0 0; text-align:center;
         font-size:11.5px; line-height:1.5; color:var(--ink-soft); opacity:0.75;
       }
+      .source-disclaimer a{color:inherit; text-decoration:underline; font-weight:600;}
       /* KALDIRILDI (kullanıcı isteği, 2026-09-06 madde 1): mimar/firma popup'larında buton satırı
          dar masaüstünde İKİNCİ SATIRA iniyordu (flex-wrap:wrap + sol sütun genişliğine kilitlenmiş
          bir max-width, ayrıca 861-1180px arasında sol sütuna eklenen 106px'lik telafi padding'i).
@@ -1069,15 +1070,24 @@ const ModalShell = (function () {
   // burada inline: dört modalın CSS'i dört ayrı yerde tanımlı, tek bir sınıf eklemek için dördünü
   // birden düzenlemek gerekirdi.
   const LOAD_ERROR_ID = 'modal-shell-load-error';
-  // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısının TEK anahtarı (kullanıcı
-  // isteği, 2026-09-08 madde 5). Sunucu her tekil detay ucunda `claimed` döner (bkz.
-  // src/lib/claimedProfiles.js): kayıt bir üyeye atanmışsa uyarı kalkar, çünkü künyeyi artık
-  // sahibi yönetiyor. Ortak kural burada, .source-disclaimer CSS'iyle AYNI gerekçeyle (dört modal
-  // dosyası da kendi stilini/markup'ını ayrı enjekte ediyor, kural tek yerde durmalı).
-  // `claimed` undefined ise (eski önbellekten gelen gövde) uyarı GÖSTERİLİR — güvenli varsayılan.
+  // Kaynak ibaresinin TEK anahtarı (kullanıcı isteği, 2026-09-08 madde 5; metin 2026-09-08 ikinci
+  // tur). Sunucu her tekil detay ucunda `claimed` döner (bkz. src/lib/claimedProfiles.js):
+  //   * kayıt bir üyeye atanmamışsa (ya da bayrak eski önbellekten gelen gövdede hiç yoksa —
+  //     güvenli varsayılan): "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." + iletişim
+  //     çağrısı;
+  //   * kayıt sahiplenilmişse (kişi/firma/marka profili ile sahiplenilmiş firma/markaların proje ve
+  //     ürünleri) yalnızca iletişim çağrısı — künyeyi artık sahibi yönetiyor, "doğrulanmamıştır"
+  //     demek yanlış olurdu; ama yanlışlık bildirimi için adres yine de gösterilir.
+  // Ortak kural burada, .source-disclaimer CSS'iyle AYNI gerekçeyle (dört modal dosyası da kendi
+  // stilini/markup'ını ayrı enjekte ediyor, kural tek yerde durmalı). İçerik SABİT metindir,
+  // kullanıcı verisi taşımaz — innerHTML yalnızca mailto bağlantısı için kullanılır.
+  const SOURCE_DISCLAIMER_CONTACT = 'Yanlışlık olduğunu düşünüyorsan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaş!';
+  const SOURCE_DISCLAIMER_UNVERIFIED = 'Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. ' + SOURCE_DISCLAIMER_CONTACT;
   function setSourceDisclaimer(id, claimed) {
     const el = document.getElementById(id);
-    if (el) el.style.display = claimed ? 'none' : '';
+    if (!el) return;
+    el.innerHTML = claimed ? SOURCE_DISCLAIMER_CONTACT : SOURCE_DISCLAIMER_UNVERIFIED;
+    el.style.display = '';
   }
 
   function clearLoadError() {

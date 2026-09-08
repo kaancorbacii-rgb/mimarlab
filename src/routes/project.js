@@ -445,9 +445,9 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
     if (item.imageHotspots) item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);
     // claimed (kullanıcı isteği, 2026-09-08 madde 5): künyedeki mimar/firmalardan HERHANGİ BİRİ bir
-    // üyeye atanmışsa — ya da projeyi zaten bir üye göndermişse (owner byline) — pop-up'taki
-    // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı gösterilmez (bkz.
-    // src/lib/claimedProfiles.js). Künye adları designerDetails'te ZATEN toplanmış durumda, ek bir
+    // üyeye atanmışsa — ya da projeyi zaten bir üye göndermişse (owner byline) — pop-up'taki kaynak
+    // ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısını gösterir (bkz.
+    // src/lib/claimedProfiles.js ve modal-shell.js#setSourceDisclaimer). Künye adları designerDetails'te ZATEN toplanmış durumda, ek bir
     // isim sorgusu doğmaz.
     // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/project-modal.js#
     // renderItem yalnızca item'ı alır, payload'ı değil.

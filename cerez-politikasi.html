@@ -180,16 +180,17 @@
   <div class="content-wrap">
     <div class="content-eyebrow">Kurumsal</div>
     <h1 class="content-title">Çerez Politikası</h1>
-    <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
-    <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+    <p class="content-updated">Son güncelleme: 8 Eylül 2026</p>
+    <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla ve hangi hukuki dayanakla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel Verileri Koruma Kurumu'nun Çerez Uygulamaları Hakkında Rehberi dikkate alınarak hazırlanmıştır. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
     <div class="content-toc">
       <h2>Bu sayfada</h2>
       <ol>
         <li><a href="#nedir">Çerez nedir?</a></li>
-        <li><a href="#kullandiklarimiz">Kullandığımız çerezler</a></li>
-        <li><a href="#ucuncu-taraf">Üçüncü taraf çerezleri</a></li>
-        <li><a href="#reddetmeyecegimiz">Kullanmadığımız çerez türleri</a></li>
+        <li><a href="#kullandiklarimiz">Kullandığımız çerezler ve depolama kayıtları</a></li>
+        <li><a href="#ucuncu-taraf">Üçüncü taraf çerezleri ve kaynaklar</a></li>
+        <li><a href="#hukuki-dayanak">Hukuki dayanak ve rıza</a></li>
+        <li><a href="#kullanmadiklarimiz">Kullanmadığımız çerez türleri</a></li>
         <li><a href="#kontrol">Çerezleri nasıl kontrol edebilirsiniz?</a></li>
         <li><a href="#degisiklikler">Politikadaki değişiklikler</a></li>
         <li><a href="#iletisim">İletişim</a></li>
@@ -198,12 +199,12 @@
 
     <div class="content-section" id="nedir">
       <h2>1. Çerez nedir?</h2>
-      <p>Çerezler, bir web sitesini ziyaret ettiğinizde tarayıcınıza kaydedilen küçük metin dosyalarıdır. Oturum çerezleri tarayıcınızı kapattığınızda silinir; kalıcı çerezler ise belirli bir süre (genellikle birkaç gün ile birkaç yıl arasında) cihazınızda saklanır ve sizi tekrar ziyaretinizde tanımaya yarar. Çerezlere ek olarak, tarayıcınızın <code>localStorage</code> gibi benzer depolama teknolojilerini de (ör. tema tercihinizi hatırlamak için) sınırlı ölçüde kullanırız.</p>
+      <p>Çerezler, bir web sitesini ziyaret ettiğinizde tarayıcınıza kaydedilen küçük metin dosyalarıdır. Oturum çerezleri tarayıcınızı kapattığınızda silinir; kalıcı çerezler ise belirli bir süre (genellikle birkaç gün ile birkaç yıl arasında) cihazınızda saklanır ve sizi tekrar ziyaretinizde tanımaya yarar. Çerezlere ek olarak, tarayıcınızın <code>localStorage</code> ve <code>sessionStorage</code> gibi benzer depolama teknolojilerini de (ör. tema tercihinizi hatırlamak için) sınırlı ölçüde kullanırız; bu politika bu kayıtları da kapsar.</p>
     </div>
 
     <div class="content-section" id="kullandiklarimiz">
-      <h2>2. Kullandığımız çerezler</h2>
-      <p>MİMARLAB'da çerezleri üç kategoride topluyoruz: sitenin çalışması için zorunlu olanlar, tercihinizi hatırlayan işlevsel bir yerel depolama kaydı ve site trafiğini anlamamızı sağlayan performans/analitik çerezleri.</p>
+      <h2>2. Kullandığımız çerezler ve depolama kayıtları</h2>
+      <p>MİMARLAB'da çerezleri üç kategoride topluyoruz: sitenin çalışması için zorunlu olanlar, tercihinizi hatırlayan işlevsel kayıtlar ve site trafiğini anlamamızı sağlayan performans/analitik çerezleri.</p>
       <div class="cookie-table-wrap">
         <table class="cookie-table">
           <thead>
@@ -211,51 +212,67 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>mimarlab_session</code></td>
+              <td><code>__Host-mimarlab_session</code></td>
               <td><span class="cookie-badge">Zorunlu</span></td>
-              <td>Giriş yaptığınızda oturumunuzu (kimliğinizi) sunucu tarafında hatırlar; hesap gerektiren tüm özellikler (favoriler, profil, gönderiler) buna bağlıdır. HttpOnly'dir, JavaScript ile okunamaz.</td>
-              <td>30 gün</td>
+              <td>Giriş yaptığınızda oturumunuzu (kimliğinizi) sunucu tarafında hatırlar; hesap gerektiren tüm özellikler (kaydedilenler, profil, gönderiler, mesajlar) buna bağlıdır. Yalnızca HTTPS üzerinden gönderilir, HttpOnly'dir (JavaScript ile okunamaz) ve SameSite=Lax ile üçüncü taraf sitelerden gönderilmez. Giriş yapmadıysanız bu çerez ayarlanmaz.</td>
+              <td>30 gün veya çıkış yapana kadar</td>
             </tr>
             <tr>
               <td><code>mimarlab-theme</code></td>
               <td><span class="cookie-badge">İşlevsel</span></td>
-              <td>Açık/koyu tema tercihinizi tarayıcınızda (yerel depolama olarak, çerez değil) hatırlar.</td>
+              <td>Açık/koyu tema tercihinizi tarayıcınızda (yerel depolama olarak, çerez değil) hatırlar. Sunucuya gönderilmez.</td>
               <td>Siz silene kadar</td>
+            </tr>
+            <tr>
+              <td><code>mlab:an:*</code> (sessionStorage)</td>
+              <td><span class="cookie-badge">İşlevsel</span></td>
+              <td>Profil İstatistikleri sayacının aynı sekme oturumunda aynı kaydı iki kez saymamasını sağlayan, kimlik içermeyen işaret. Yalnızca sekme açık olduğu sürece yaşar.</td>
+              <td>Sekme kapanana kadar</td>
             </tr>
             <tr>
               <td><code>_ga</code>, <code>_ga_*</code></td>
               <td><span class="cookie-badge">Performans</span></td>
-              <td>Google Analytics tarafından, ziyaretçileri ayırt etmek ve site trafiğini/kullanım eğilimlerini anonimleştirilmiş biçimde ölçmek için ayarlanır.</td>
+              <td>Google Analytics tarafından, ziyaretçileri ayırt etmek ve site trafiğini/kullanım eğilimlerini toplu (istatistiksel) biçimde ölçmek için ayarlanır. Reklam veya kişiselleştirme amacıyla kullanılmaz.</td>
               <td>Google'ın varsayılanı, en fazla 2 yıl</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <p>Cloudflare altyapısı, sitenin güvenliğini sağlamak (bot koruması, saldırı önleme) amacıyla zaman zaman kendi teknik çerezlerini (ör. <code>__cf_bm</code>) ayarlayabilir; bunlar zorunlu niteliktedir, kısa ömürlüdür ve sizi siteler arasında izlemez.</p>
     </div>
 
     <div class="content-section" id="ucuncu-taraf">
-      <h2>3. Üçüncü taraf çerezleri</h2>
-      <p>Yukarıdaki tabloda listelenen <strong>Google Analytics</strong> çerezleri, Google LLC tarafından işletilir ve verileriniz Google'ın kendi gizlilik politikasına tabi olarak işlenir. Bu çerezler tarayıcınıza yalnızca sitemizi ziyaret ettiğinizde, bizim adımıza istatistiksel ölçüm amacıyla yerleştirilir; MİMARLAB bu verileri reklam veya kişiselleştirme amacıyla kullanmaz veya satmaz.</p>
+      <h2>3. Üçüncü taraf çerezleri ve kaynaklar</h2>
+      <p>Yukarıdaki tabloda listelenen <strong>Google Analytics</strong> çerezleri Google LLC tarafından işletilir ve verileriniz Google'ın kendi gizlilik politikasına tabi olarak işlenir. Bu çerezler tarayıcınıza yalnızca sitemizi ziyaret ettiğinizde, bizim adımıza istatistiksel ölçüm amacıyla yerleştirilir; MİMARLAB bu verileri reklam veya kişiselleştirme amacıyla kullanmaz veya satmaz.</p>
+      <p>Google veya LinkedIn ile giriş yaptığınızda, görüşme randevusu için Google Meet'e geçtiğinizde ya da Gündem sayfasındaki bir habere tıkladığınızda ilgili sağlayıcının kendi sitesine gidersiniz; orada o sağlayıcının çerezleri ve politikası geçerlidir. Gündem sayfasındaki haber görselleri doğrudan kaynak yayının sunucusundan yüklenir; bu yükleme sırasında tarayıcınız o sunucuya bağlanır, ancak MİMARLAB bu kaynaklara herhangi bir kimlik bilgisi iletmez.</p>
     </div>
 
-    <div class="content-section" id="reddetmeyecegimiz">
-      <h2>4. Kullanmadığımız çerez türleri</h2>
-      <p>MİMARLAB şu anda <strong>reklam/pazarlama çerezleri</strong> veya sosyal medya izleme piksel'leri kullanmamaktadır — sitede üçüncü taraf reklam ağı bulunmaz. Bu durum değişirse, bu sayfa güncellenir ve gerekiyorsa siteye açık rıza alan bir çerez bildirimi eklenir.</p>
+    <div class="content-section" id="hukuki-dayanak">
+      <h2>4. Hukuki dayanak ve rıza</h2>
+      <ul>
+        <li><strong>Zorunlu çerezler</strong> (oturum çerezi, Cloudflare güvenlik çerezleri) ve <strong>işlevsel kayıtlar</strong> (tema tercihi, sayaç işareti) açıkça talep ettiğiniz bir hizmetin sunulması için gereklidir; KVKK m. 5/2(c) ve m. 5/2(f) uyarınca açık rıza gerektirmeden kullanılır.</li>
+        <li><strong>Performans/analitik çerezleri</strong> (Google Analytics) hizmetin sunulması için zorunlu değildir; bunları istemiyorsanız aşağıdaki <a href="#kontrol">kontrol yöntemleriyle</a> devre dışı bırakabilirsiniz. Bu çerezler engellendiğinde sitenin hiçbir işlevi etkilenmez.</li>
+      </ul>
+    </div>
+
+    <div class="content-section" id="kullanmadiklarimiz">
+      <h2>5. Kullanmadığımız çerez türleri</h2>
+      <p>MİMARLAB, <strong>reklam/pazarlama çerezleri</strong>, sosyal medya izleme pikselleri veya siteler arası profilleme araçları kullanmamaktadır; sitede üçüncü taraf reklam ağı bulunmaz. Bu durum değişirse bu sayfa güncellenir ve gerekli olması hâlinde açık rıza alan bir çerez bildirimi eklenir.</p>
     </div>
 
     <div class="content-section" id="kontrol">
-      <h2>5. Çerezleri nasıl kontrol edebilirsiniz?</h2>
-      <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz — bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. <code>mimarlab_session</code> gibi zorunlu çerezleri engellemeniz durumunda, giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar düzgün çalışmayabilir.</p>
-      <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
+      <h2>6. Çerezleri nasıl kontrol edebilirsiniz?</h2>
+      <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz; bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. Oturum çerezini engellemeniz durumunda giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar çalışmaz; yerel depolamayı temizlediğinizde tema tercihiniz sıfırlanır.</p>
+      <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilir ya da tarayıcınızın üçüncü taraf çerezlerini engelleyebilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
     </div>
 
     <div class="content-section" id="degisiklikler">
-      <h2>6. Politikadaki değişiklikler</h2>
+      <h2>7. Politikadaki değişiklikler</h2>
       <p>Kullandığımız çerezler zaman içinde değişebilir; önemli değişikliklerde bu sayfanın üst kısmındaki "son güncelleme" tarihini güncelleriz. Politikayı düzenli aralıklarla gözden geçirmenizi öneririz.</p>
     </div>
 
     <div class="content-section" id="iletisim">
-      <h2>7. İletişim</h2>
+      <h2>8. İletişim</h2>
       <p>Çerez politikamızla ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin genel olarak işlenmesi hakkında <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, platform kullanım kurallarımız için <a href="/hizmet-sartlari">Hizmet Şartları</a> sayfalarına bakabilirsiniz.</p>
     </div>
   </div>

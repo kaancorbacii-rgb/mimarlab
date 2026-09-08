@@ -807,7 +807,7 @@ export async function buildOfficePayload(env, key) {
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
   // claimed (kullanıcı isteği, 2026-09-08 madde 5): bu firma/marka bir üyeye atanmışsa pop-up'taki
-  // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı gösterilmez (bkz.
+  // kaynak ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısı kalır (bkz.
   // src/lib/claimedProfiles.js). Ayrı bir sorgu GEREKMİYOR — teamClaimRows zaten bu firmanın TÜM
   // onaylı profile_claims satırlarını (Kurucular'a/Ekip'e düşenler VE gizli 'Yönetici' hesabı
   // dahil) getiriyor.

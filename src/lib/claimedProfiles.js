@@ -1,13 +1,15 @@
 import professionShared from '../../profession-shared.js';
 
-// "Bu kayıt bir üyeye atanmış mı?" — kişi/firma/marka/proje/ürün pop-up'larındaki
-// "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısının TEK kaynağı.
+// "Bu kayıt bir üyeye atanmış mı?" — kişi/firma/marka/proje/ürün pop-up'larındaki kaynak
+// ibaresinin TEK kaynağı: atanmamışsa "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır."
+// + "Yanlışlık olduğunu düşünüyorsan info@mimarlab.com adresinden bize ulaş!", atanmışsa yalnızca
+// ikinci cümle (bkz. js/components/modal-shell.js#setSourceDisclaimer).
 //
 // NEDEN (kullanıcı isteği, 2026-09-08 madde 5): o uyarı, sitedeki kayıtların çoğunun kamuya açık
 // kaynaklardan derlenmiş, kimsenin doğrulamadığı içerik olmasından geliyor. Bir profil bir üyeye
 // atandığı (onaylı profile_claims) andan itibaren bu doğru DEĞİLDİR — künyeyi artık profilin
 // sahibi yönetiyor. Uyarı yalnızca o profilin kendi pop-up'ından değil, o profile ait proje ve
-// ürün pop-up'larından da kalkar.
+// ürün pop-up'larından da kalkar (iletişim çağrısı her iki durumda da kalır).
 //
 // Eşleştirme profile_claims.profile_key (= profilin ADI) üzerinden yapılır — bu tablo bu depoda
 // her yerde çıplak isimle anahtarlanıyor (bkz. proje notu: "Duplicate name key limitation"),
