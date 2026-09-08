@@ -1,4 +1,4 @@
-import { json, errorJson } from './lib/http.js';
+import { json, errorJson, clearSessionCookieHeader } from './lib/http.js';
 import { logRequest } from './lib/logger.js';
 import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
@@ -231,43 +231,99 @@ function isDisabledPagePath(pathname) {
   return DISABLED_PAGE_PATHS.has(bare);
 }
 
-// Admin panelden (Site Ayarları) açılıp kapatılan bakım modu (bkz. src/lib/siteSettings.js) —
-// bu YOLLAR her koşulda geçer, oturumu düşmüş/hiç açmamış bir admin'in bile giriş yapıp panele
-// geri dönebilmesi için: '/' + '/giris' (auth-modal.js'in yaşadığı ana sayfa, giriş formu burada
-// açılır), '/giris-yap'(.html) (eski URL, '/giris'e 301'lenir — bu yönlendirmenin KENDİSİ de
-// engellenmemeli), '/admin' (panelin kendisi).
-const MAINTENANCE_BYPASS_PATHS = new Set(['/', '/admin', '/admin.html', '/giris', '/giris-yap', '/giris-yap.html']);
-
 // Yalnızca "sayfa" isteklerini hedefler (son yol parçasında nokta YOKSA) — .css/.js/.png/.svg/.woff
-// gibi statik varlıklar bakım modundan HİÇ etkilenmez (maintenanceResponse'un kendi inline stili
-// zaten bunlara bağımlı değil, ama site JS'inin bakım sırasında bile normal çalışması istenmeyen bir
-// yan etki yaratmasın diye bu ayrım bilinçli).
+// gibi statik varlıklar bakım modundan HİÇ etkilenmez (maintenanceResponse'un kendi inline stili/
+// script'i zaten bunlara bağımlı değil, ama site JS'inin bakım sırasında bile normal çalışması
+// istenmeyen bir yan etki yaratmasın diye bu ayrım bilinçli).
 function isPageRequestPath(pathname) {
   const lastSegment = pathname.slice(pathname.lastIndexOf('/') + 1);
   return !lastSegment.includes('.');
 }
 
-function maintenanceResponse() {
+// Kullanıcı isteği (2026-09-09): bakım modu artık YOL BAZINDA muafiyet TANIMAZ — eskiden '/' ve
+// '/giris' muaf tutuluyordu (ikisi de AYNI index.html'i, yani TAM çalışan ana sayfayı servis
+// ediyordu — gerçek bulgu: admin olmayan bir ziyaretçi bakım modu AÇIKKEN mimarlab.com'a gidip
+// sitenin tamamen normal çalıştığını görebiliyordu). Şimdi HER sayfa isteği (giriş formu dahil)
+// aynı bu yanıtı alır; giriş, bu yanıtın KENDİ içine gömülü e-posta/şifre formu + Google butonuyla
+// yapılır (ikisi de /api/auth/* üzerinden — API dalı fetch()'te bu kontrolden önce ele alınıyor,
+// bkz. çağrı noktası, bu yüzden bakım modundan HİÇ etkilenmez). Yalnızca role='admin' olan bir
+// oturum bu sayfayı atlar; role='admin' OLMAYAN ama geçerli bir oturumu olan biri (ör. az önce
+// normal şifreyle giriş yaptı) buraya düşerse hem uyarı gösterilir HEM DE oturumu Set-Cookie ile
+// hemen temizlenir (aşağıdaki clearSessionCookieHeader çağrısı) — "yalnızca admin girebilsin,
+// diğerleri uyarılsın" isteği bu ikisiyle karşılanır, login()/oauthCallback() route'larına ayrıca
+// dokunulmadı (tek kontrol noktası burada kalır).
+function maintenanceResponse(request, blockedNonAdminSession) {
+  const warning = blockedNonAdminSession
+    ? `<p class="mw-warn">Bu hesapla bakım sırasında siteye giriş yapılamıyor. Yalnızca yönetici hesapları erişebilir.</p>`
+    : '';
   const html = `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>Bakımdayız — MİMARLAB</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f1ea;color:#1b2a3d;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;text-align:center}main{max-width:420px}h1{font-size:22px;margin:0 0 12px}p{font-size:15px;line-height:1.5;color:#5a6472;margin:0}</style>
-</head><body><main><h1>Kısa bir bakımdayız</h1><p>MİMARLAB şu anda planlı bir bakım çalışması nedeniyle geçici olarak erişime kapalı. Kısa süre içinde geri döneceğiz.</p></main></body></html>`;
-  return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '1800', 'X-Robots-Tag': 'noindex', 'Cache-Control': 'no-store' } });
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f1ea;color:#1b2a3d;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}
+main{max-width:380px;width:100%;background:#fff;border-radius:16px;padding:32px 28px;box-shadow:0 8px 30px rgba(0,0,0,.08);box-sizing:border-box}
+h1{font-size:20px;margin:0 0 10px}
+p{font-size:14px;line-height:1.5;color:#5a6472;margin:0 0 20px}
+.mw-warn{background:#fdecea;color:#b3261e;padding:10px 12px;border-radius:8px;font-size:13px}
+form{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}
+input{padding:10px 12px;border:1px solid #d8d2c6;border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box}
+button,.mw-google{padding:11px;border:none;border-radius:8px;background:#1b2a3d;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.mw-google{background:#fff;color:#1b2a3d;border:1px solid #d8d2c6;display:block;text-align:center;text-decoration:none;box-sizing:border-box}
+.mw-divider{text-align:center;color:#9aa1ab;font-size:12px;margin:6px 0}
+.mw-err{color:#b3261e;font-size:13px;margin-top:2px;display:none}
+</style>
+</head><body><main>
+<h1>Kısa bir bakımdayız</h1>
+<p>MİMARLAB şu anda planlı bir bakım çalışması nedeniyle geçici olarak erişime kapalı. Yöneticiler giriş yaparak devam edebilir.</p>
+${warning}
+<form id="mw-form" autocomplete="on">
+  <input type="email" id="mw-email" name="email" placeholder="E-posta" autocomplete="username" required>
+  <input type="password" id="mw-password" name="password" placeholder="Şifre" autocomplete="current-password" required>
+  <button type="submit">Giriş Yap</button>
+  <div class="mw-err" id="mw-err"></div>
+</form>
+<div class="mw-divider">veya</div>
+<a class="mw-google" href="/api/auth/google/start?next=%2F">Google ile giriş yap</a>
+<script>
+document.getElementById('mw-form').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var err = document.getElementById('mw-err');
+  err.style.display = 'none';
+  try {
+    var res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('mw-email').value, password: document.getElementById('mw-password').value }),
+    });
+    var data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Giriş başarısız.'; err.style.display = 'block'; return; }
+    if (data.user && data.user.role === 'admin') { window.location.reload(); return; }
+    await fetch('/api/auth/logout', { method: 'POST' });
+    err.textContent = 'Bu hesapla bakım sırasında siteye erişilemez. Yalnızca yönetici hesapları giriş yapabilir.';
+    err.style.display = 'block';
+  } catch (_) {
+    err.textContent = 'Bir hata oluştu, tekrar dene.';
+    err.style.display = 'block';
+  }
+});
+</script>
+</main></body></html>`;
+  const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '1800', 'X-Robots-Tag': 'noindex', 'Cache-Control': 'no-store' };
+  if (blockedNonAdminSession) headers['Set-Cookie'] = clearSessionCookieHeader(request);
+  return new Response(html, { status: 503, headers });
 }
 
-// null dönerse (bakım modu kapalı/muaf yol/admin oturumu) çağıran normal routeAsset akışına devam
-// eder — bkz. fetch()'teki çağrı noktası. getSiteSettings KV-önbellekli olduğundan (bkz.
+// null dönerse (bakım modu kapalı/admin oturumu) çağıran normal routeAsset akışına devam eder —
+// bkz. fetch()'teki çağrı noktası. getSiteSettings KV-önbellekli olduğundan (bkz.
 // src/lib/siteSettings.js) bu kontrol her sayfa isteğinde ek bir D1 sorgusu YARATMAZ.
 async function maybeServeMaintenancePage(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
   if (!isPageRequestPath(url.pathname)) return null;
-  if (MAINTENANCE_BYPASS_PATHS.has(url.pathname)) return null;
   const settings = await getSiteSettings(env);
   if (settings.maintenance_mode !== '1') return null;
   const user = await getSessionUser(request, env);
   if (user && user.role === 'admin') return null;
-  return maintenanceResponse();
+  return maintenanceResponse(request, !!user);
 }
 
 async function handleRobotsTxt(env) {
