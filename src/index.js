@@ -15,7 +15,7 @@ import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
 import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
-import { derivedImageUrl } from './lib/imageDerivative.js';
+import { derivedImageUrl, derivedSrcset } from './lib/imageDerivative.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
 import { handleReadsRoute } from './routes/reads.js';
@@ -495,6 +495,14 @@ const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, s
 // bu repo'da zaten kanıtlanmış, tazelik/round-trip dengesi — yeni bir politika icat ETMEK yerine.
 const SCRIPT_EXT_RE = /\.js$/i;
 const STATIC_SCRIPT_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300' };
+// ANA SAYFA PERFORMANS TURU (2026-09-08) — canlıda ölçüldü: önbellekli bir tekrar ziyarette bile ana
+// sayfanın 16 script/stylesheet dosyası (max-age=60 dolduğu için) HER ziyarette birer koşullu-GET
+// turu yapıyordu; bunlar HTTP/2'de bile ~1sn'lik bir bant oluşturuyor ve DOMContentLoaded'ı (dolayısıyla
+// eskiden karusel API isteklerinin BAŞLAMASINI) o kadar geciktiriyordu. site-chrome.js (105 KB,
+// senkron) ise doğrudan ayrıştırmayı bloke ediyordu. Liste sayfalarının HTML'inde yerel script/
+// stylesheet bağlantılarına deploy sürümü (?v=...) eklenir (bkz. versionAssetUrls) ve bu sürümlü
+// URL'ler `immutable` ile servis edilir — deploy'da sürüm değiştiği için bayat kod riski YOKTUR.
+const VERSIONED_ASSET_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=31536000, immutable' };
 // .wasm/.onnx (kullanıcı isteği, 2026-09-03 — tarayıcı-taraflı CLIP embedding, bkz. models/ ve
 // js/vendor/ort/) GERÇEKTEN değişmez içeriktir: bir model/çalışma zamanı güncellemesi her zaman
 // YENİ bir dosya adına gider (bu depodaki sürüm disiplini — bkz. src/lib/imageEmbedIndex.js#
@@ -899,20 +907,35 @@ async function routeAsset(request, env, url, ctx) {
     // okumayı atlamak, bu dala HEAD'i eklemenin ek bir D1/KV maliyeti getirmemesini sağlar.
     // Düzeltilen şey başlıklardı; onlar aşağıda her iki metot için de uygulanıyor.
     let hubJsonLd = null;
-    if (request.method === 'GET' && isHubPath(url.pathname)) {
-      hubJsonLd = await hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname));
+    let homeData = null;
+    if (request.method === 'GET') {
+      // Ana sayfa karusel verisi (bkz. loadHomeData) hub JSON-LD'siyle PARALEL yüklenir — ikisi de
+      // KV/Cache API'den beslenir, sıralı await TTFB'ye gereksiz bir tur eklerdi.
+      [hubJsonLd, homeData] = await Promise.all([
+        isHubPath(url.pathname) ? hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname)) : null,
+        url.pathname === '/' ? loadHomeData(env) : null,
+      ]);
     }
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
+    if (request.method !== 'GET') {
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+    let headExtra = '';
     if (hubJsonLd) {
       // injectMeta'daki AYNI kaçış kuralı: '<' escape edilmezse veri script bağlamından çıkabilir.
       const ld = JSON.stringify(hubJsonLd).replace(/</g, '\\u003c');
-      const rewritten = new HTMLRewriter()
-        .on('head', { element(el) { el.append(`<script type="application/ld+json">${ld}</script>`, { html: true }); } })
-        .transform(response);
-      return new Response(rewritten.body, { status: response.status, statusText: response.statusText, headers });
+      headExtra += `<script type="application/ld+json">${ld}</script>`;
     }
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    if (homeData) {
+      headExtra += buildHomePreloadLinks(homeData);
+      headExtra += `<script id="ml-home-data" type="application/json">${JSON.stringify(homeData).replace(/</g, '\\u003c')}</script>`;
+    }
+    const rewriter = new HTMLRewriter();
+    if (headExtra) rewriter.on('head', { element(el) { el.append(headExtra, { html: true }); } });
+    versionAssetUrls(rewriter, env);
+    const rewritten = rewriter.transform(response);
+    return new Response(rewritten.body, { status: response.status, statusText: response.statusText, headers });
   }
   // denetim bulgusu: DISABLED_PAGE_PATHS/detay-slug 404'lerinin (notFoundPageResponse/
   // notFoundDetailPageResponse) aksine, buraya kadar hiçbir kurala uymayan TAMAMEN rastgele bir yol
@@ -1049,6 +1072,131 @@ function withListPageCacheHeaders(response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+// ---------------------------------------------------------------------------------------------
+// ANA SAYFA KARUSEL VERİSİNİN HTML'E GÖMÜLMESİ (performans turu, 2026-09-08).
+//
+// GERÇEK BULGU (canlıda ölçüldü, önbellekli tekrar ziyaret): index.html'in dört karuseli veriyi
+// istemcide, ÜSTELİK DOMContentLoaded'dan sonra çekiyordu — yani HTML (0,5sn) → 16 script'in
+// yeniden doğrulanması (~1sn) → 5 paralel /api isteği (0,4-1,1sn; her HIT bile bir D1 parmak izi
+// sorgusu taşır) → render → ilk görsel. İlk karusel görseli 2,3sn'de geliyordu.
+//
+// Şimdi Worker, ana sayfa HTML'ini servis ederken AYNI dört liste ucunu (aynı handler'lar, aynı
+// Cache API + parmak izi doğrulaması — yeni bir veri yolu/önbellek icat edilmez) PoP içinde çağırıp
+// sonucu <head>'e `<script id="ml-home-data" type="application/json">` olarak gömer; index.html bu
+// bloğu bulursa hiçbir /api isteği atmadan, ayrıştırma sırasında hemen render eder. Tazelik semantiği
+// API'ninkiyle BİREBİR aynı (cachedPublicJson her HIT'te parmak izini doğrular) — ana sayfa HTML'i
+// Worker'dan her istekte geçer (Cache API'de tutulmaz), tarayıcı ise onu en fazla 60sn tutar;
+// index.html tarayıcı önbelleğinden gelen bir belgeyi (transferSize=0) yükten sonra arka planda
+// yine de API'den tazeler (bkz. index.html#loadHomeSections).
+//
+// Ayrıca ilk slaytların görselleri `<link rel="preload" as="image">` ile HTML ayrıştırılırken indirilmeye
+// başlanır (LCP) — srcset/sizes istemcideki <img>'inkiyle BİREBİR aynı olmalı (bkz. derivedSrcset).
+//
+// Her adım hataya dayanıklı: bir uç başarısız/yavaş olursa (HOME_DATA_TIMEOUT_MS) o bölüm null gömülür
+// ve index.html o bölümü eskisi gibi istemcide çeker — sayfa ASLA bu yüzden düşmez.
+// ---------------------------------------------------------------------------------------------
+const HOME_PROJECT_FETCH_LIMIT = 24; // index.html#PROJECT_CAROUSEL_FETCH_LIMIT ile aynı
+const HOME_SLOTS = 9;                // index.html#PROJECT_CAROUSEL_SLOTS ile aynı
+const HOME_DATA_TIMEOUT_MS = 2000;
+// index.html'deki <img sizes> değerleriyle BİREBİR aynı — preload'un kullanılabilmesi için şart.
+const HOME_IMG = {
+  project:   { widths: [600, 900, 1200], sizes: '(max-width: 720px) 100vw, 700px' },
+  architect: { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 190px' },
+  office:    { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 190px' },
+  product:   { widths: [400, 800, 1600], sizes: '(max-width: 860px) 100vw, 380px' },
+};
+
+async function internalListJson(env, pathname, handler) {
+  try {
+    const u = new URL(`https://mimarlab.com${pathname}`);
+    const res = await handler(new Request(u.toString(), { method: 'GET' }), env, u);
+    if (!res || !res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function loadHomeData(env) {
+  const load = (async () => {
+    const [projects, architects, offices, products, settings] = await Promise.all([
+      internalListJson(env, `/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}`, handleProjectListRoute),
+      internalListJson(env, `/api/architects?limit=${HOME_SLOTS}`, handleArchitectListRoute),
+      internalListJson(env, `/api/offices?limit=${HOME_SLOTS}`, handleOfficeListRoute),
+      internalListJson(env, `/api/products?limit=${HOME_SLOTS}`, handleProductListRoute),
+      internalListJson(env, '/api/public/site-settings', handlePublicRoute),
+    ]);
+    let projectItems = null;
+    if (projects && Array.isArray(projects.items)) {
+      // index.html'deki AYNI seçim: yalnızca kapak görseli olanlar, öne çıkanlar başa, ilk 9.
+      let pool = projects.items.filter(p => p && Array.isArray(p.images) && p.images[0]);
+      const featured = (settings && Array.isArray(settings.featuredProjectSlugs)) ? settings.featuredProjectSlugs : [];
+      if (featured.length) {
+        pool = [
+          ...featured.map(slug => pool.find(p => p.slug === slug)).filter(Boolean),
+          ...pool.filter(p => !featured.includes(p.slug)),
+        ];
+      }
+      projectItems = pool.slice(0, HOME_SLOTS);
+    }
+    const items = (res) => (res && Array.isArray(res.items)) ? res.items : null;
+    // t: üretim anı (ms) — index.html bununla gömülü verinin yaşını ölçer (bkz. oradaki arka plan yenilemesi).
+    const data = { v: 1, t: Date.now(), projects: projectItems, architects: items(architects), offices: items(offices), products: items(products) };
+    return (data.projects || data.architects || data.offices || data.products) ? data : null;
+  })();
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), HOME_DATA_TIMEOUT_MS));
+  try {
+    return await Promise.race([load, timeout]);
+  } catch {
+    return null;
+  }
+}
+
+function buildHomePreloadLinks(data) {
+  const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const link = (path, spec, high) => {
+    if (!path || typeof path !== 'string') return '';
+    const srcset = derivedSrcset(path, spec.widths);
+    const href = derivedImageUrl(path, 900);
+    return `<link rel="preload" as="image" href="${esc(href)}"${srcset ? ` imagesrcset="${esc(srcset)}" imagesizes="${esc(spec.sizes)}"` : ''}${high ? ' fetchpriority="high"' : ''}>`;
+  };
+  const first = (arr) => (Array.isArray(arr) && arr.length) ? arr[0] : null;
+  const p = first(data.projects), a = first(data.architects), o = first(data.offices), u = first(data.products);
+  return [
+    p ? link(p.images[0], HOME_IMG.project, true) : '',
+    a ? link(a.photo, HOME_IMG.architect, false) : '',
+    o ? link(o.logo, HOME_IMG.office, false) : '',
+    u ? link(u.image, HOME_IMG.product, false) : '',
+  ].join('');
+}
+
+// Liste sayfalarının HTML'indeki YEREL <script src> / <link rel=stylesheet href> bağlantılarına deploy
+// sürümü eklenir (?v=...). Sürüm deploy.sh'ın `--var DEPLOY_VERSION:<git sha>` ile verdiği değerdir;
+// yerel geliştirmede (var yok) SSR_CACHE_VERSION'a düşer. Sürümlü URL'ler VERSIONED_ASSET_CACHE_HEADERS
+// ile `immutable` servis edilir (bkz. withStaticAssetCacheHeaders). Harici (http/https/protokol-
+// göreli) ve zaten sorgu taşıyan bağlantılara dokunulmaz.
+function deployVersion(env) {
+  const v = env && typeof env.DEPLOY_VERSION === 'string' ? env.DEPLOY_VERSION.trim() : '';
+  return (v && /^[A-Za-z0-9._-]{1,40}$/.test(v)) ? v : SSR_CACHE_VERSION;
+}
+function isLocalAssetRef(value) {
+  if (!value) return false;
+  if (/^(https?:)?\/\//i.test(value) || /^(data|blob):/i.test(value)) return false;
+  if (value.includes('?') || value.includes('#')) return false;
+  return /\.(js|css)$/i.test(value);
+}
+function versionAssetUrls(rewriter, env) {
+  const v = deployVersion(env);
+  rewriter.on('script[src]', { element(el) {
+    const src = el.getAttribute('src');
+    if (isLocalAssetRef(src)) el.setAttribute('src', `${src}?v=${v}`);
+  } });
+  rewriter.on('link[rel="stylesheet"][href]', { element(el) {
+    const href = el.getAttribute('href');
+    if (isLocalAssetRef(href)) el.setAttribute('href', `${href}?v=${v}`);
+  } });
+}
+
 function withStaticAssetCacheHeaders(url, response) {
   if (response.status !== 200) return response;
   const extHeaders = IMAGE_EXT_RE.test(url.pathname) ? STATIC_IMAGE_CACHE_HEADERS
@@ -1059,7 +1207,12 @@ function withStaticAssetCacheHeaders(url, response) {
     : null;
   if (!extHeaders) return response;
   const headers = new Headers(response.headers);
-  for (const [k, v] of Object.entries(extHeaders)) headers.set(k, v);
+  // Sürümlü istek (?v=<deploy sürümü>, bkz. versionAssetUrls) — HTML'deki bağlantı her deploy'da
+  // değiştiğinden bu URL gerçekten değişmez içeriktir: tarayıcı bir yıl boyunca hiç yeniden
+  // doğrulamaz. Sürümsüz aynı yol (dinamik yüklenen bağımlılıklar, diğer sayfalar) eski 60sn/300sn
+  // politikasında kalır.
+  const versioned = (extHeaders === STATIC_SCRIPT_CACHE_HEADERS) && url.searchParams.has('v');
+  for (const [k, v] of Object.entries(versioned ? VERSIONED_ASSET_CACHE_HEADERS : extHeaders)) headers.set(k, v);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 

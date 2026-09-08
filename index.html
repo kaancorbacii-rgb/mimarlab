@@ -458,7 +458,6 @@
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
-<script src="image-cdn.js" defer></script>
 <script src="auth-nav.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -534,6 +533,11 @@
   </section>
 
   <footer id="site-footer-mount"></footer>
+<!-- image-cdn.js (8 KB) BİLEREK senkron ve defer'sız: aşağıdaki inline script karuselleri artık
+     DOMContentLoaded'ı beklemeden, ayrıştırma sırasında render eder (bkz. loadHomeSections) — cdnImg/
+     cdnSrcset'in o anda tanımlı olması şart (eski "cdnSrcset is not defined" yarış koşulunun kalıcı
+     çözümü). -->
+<script src="image-cdn.js"></script>
 <script src="il-ilce-data.js"></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -588,6 +592,45 @@ function lastProjectYear(dateStr) {
   return years ? years[years.length - 1] : dateStr;
 }
 
+// SLAYT GÖRSELLERİNİN TEMBEL YÜKLENMESİ (performans turu, 2026-09-08). GERÇEK BULGU (canlıda ölçüldü):
+// dört karuselin 36 slaytının HEPSİ sayfa açılışında iniyordu (2,4 MB) — `loading="lazy"` burada hiç
+// işe yaramıyordu, çünkü slaytlar absolute konumlu ve görünüm alanının İÇİNDE (yalnızca opacity:0);
+// tarayıcı "görünür" sayıp hepsini hemen indiriyordu ve ilk (LCP) görsel bant genişliğini 35 görselle
+// paylaşıyordu. Artık yalnızca ilk slayt gerçek src/srcset taşır; diğerleri data-src/data-srcset ile
+// bekler ve gösterilmeden hemen önce (hydrateSlide) yüklenir — her geçişte BİR SONRAKİ slayt da
+// önceden yüklenir ki 0,6sn'lik crossfade boş kareye düşmesin. sizes değerleri src/index.js#HOME_IMG
+// ile BİREBİR aynı olmalı (sunucu ilk slaytları <link rel=preload> ile aynı adaylarla önden yükler).
+function slideImgHtml(path, widths, sizes, alt, i, className){
+  const cls = className ? ` class="${className}"` : '';
+  const srcset = path ? cdnSrcset(path, widths) : '';
+  const sizesAttr = srcset ? ` sizes="${sizes}"` : '';
+  if(i === 0){
+    return `<img${cls} src="${escapeAttr(cdnImg(path, 900))}"${srcset ? ` srcset="${escapeAttr(srcset)}"` : ''}${sizesAttr} alt="${escapeAttr(alt)}" loading="eager" decoding="sync" fetchpriority="high">`;
+  }
+  return `<img${cls} data-src="${escapeAttr(cdnImg(path, 900))}"${srcset ? ` data-srcset="${escapeAttr(srcset)}"` : ''}${sizesAttr} alt="${escapeAttr(alt)}" decoding="async">`;
+}
+function hydrateSlide(slide){
+  const img = slide && slide.querySelector('img[data-src]');
+  if(!img) return;
+  if(img.dataset.srcset){ img.srcset = img.dataset.srcset; img.removeAttribute('data-srcset'); }
+  img.src = img.dataset.src;
+  img.removeAttribute('data-src');
+}
+// Gösterilecek slaytı ve bir sonrakini yükler (otomatik oynatma/ok/kaydırma hep +1 yönünde ilerler;
+// geri yönde de hedef slaytın kendisi yüklenir, yalnızca "önceden yükleme" ileri yöne bakar).
+function hydrateAround(slides, idx){
+  if(!slides.length) return;
+  hydrateSlide(slides[idx]);
+  if(slides.length > 1) hydrateSlide(slides[(idx + 1) % slides.length]);
+}
+// İlk render'dan sonra ikinci slayt, sayfa yükü (load) bitince yüklenir — LCP görseliyle bant
+// genişliği için yarışmasın diye önce değil.
+function hydrateSecondSlideAfterLoad(getSlides){
+  const run = () => setTimeout(() => { const s = getSlides(); if(s.length > 1) hydrateSlide(s[1]); }, 600);
+  if(document.readyState === 'complete') run();
+  else window.addEventListener('load', run, { once: true });
+}
+
 function projectSlideHtml(p, i){
   // Konum künyesinde ilçe DEĞİL yalnızca il/şehir gösterilir (bkz. kullanıcı isteği) —
   // il-ilce-data.js#parseLocationFull p.location'ı (ilçe ya da il adı) {city,district}'e çözer.
@@ -595,9 +638,8 @@ function projectSlideHtml(p, i){
   const designerNames = (p.officeNames && p.officeNames.length) ? p.officeNames : (p.designer || []);
   const meta = [designerNames.join(', '), cityName, lastProjectYear(p.date)].filter(Boolean).join(', ');
   const slideImg = (p.images && p.images[0]) || '';
-  const slideSrcset = slideImg ? cdnSrcset(slideImg, [600, 900, 1200]) : '';
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/proje/${encodeURIComponent(p.slug)}" data-index="${i}">
-    <img src="${escapeAttr(cdnImg(slideImg, 900))}"${slideSrcset ? ` srcset="${escapeAttr(slideSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
+    ${slideImgHtml(slideImg, [600, 900, 1200], '(max-width: 720px) 100vw, 700px', p.title, i, '')}
     <span class="slide-tag">PROJE</span>
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(p.title)}</h2>
@@ -662,6 +704,7 @@ function renderSlider(items){
   trackEl.innerHTML = items.map(projectSlideHtml).join('');
   trackEl.classList.add('loaded');
   mountSlideHotspots(trackEl, items);
+  hydrateSecondSlideAfterLoad(() => trackEl.querySelectorAll('.proje-slide'));
   restartAutoplay();
 }
 
@@ -685,8 +728,15 @@ function renderSlider(items){
 //     dosyadaki "ÖNİZLEME KARTI YALNIZCA LIGHTBOX'TA" notu — o kısıtlama küçük galeri şeritleri
 //     içindir, buradaki slider onlardan çok daha geniştir). Nokta tıklaması <a>'yı tetiklemez:
 //     ImageHotspots#onLayerClick zaten preventDefault+stopPropagation yapıyor.
+// Render artık ayrıştırma sırasında (deferred image-hotspots.js henüz çalışmadan) olabildiğinden
+// bileşen yoksa iş DOMContentLoaded'a ertelenir (deferred script'ler ondan önce çalışmayı garanti eder).
+let pendingHotspotItems = null;
+document.addEventListener('DOMContentLoaded', () => {
+  if(pendingHotspotItems){ const items = pendingHotspotItems; pendingHotspotItems = null; mountSlideHotspots(document.getElementById('slider-track'), items); }
+});
 function mountSlideHotspots(trackEl, items){
-  if(typeof ImageHotspots === 'undefined') return;
+  if(typeof ImageHotspots === 'undefined'){ pendingHotspotItems = items; return; }
+  pendingHotspotItems = null;
   trackEl.querySelectorAll('.proje-slide').forEach(slide => {
     const idx = parseInt(slide.dataset.index, 10);
     const p = items[idx];
@@ -719,6 +769,7 @@ function goToSlide(i){
   const slides = document.querySelectorAll('#slider-track .proje-slide');
   if(!slides.length) return;
   sliderIndex = (i + slides.length) % slides.length;
+  hydrateAround(slides, sliderIndex);
   slides.forEach((s, idx) => s.classList.toggle('active', idx === sliderIndex));
 }
 function nextSlide(){ goToSlide(sliderIndex + 1); }
@@ -759,9 +810,8 @@ function slideAvatarColor(name){
 }
 
 function architectSlideHtml(a, i){
-  const photoSrcset = a.photo ? cdnSrcset(a.photo, [400, 800]) : '';
   const media = a.photo
-    ? `<img src="${escapeAttr(cdnImg(a.photo, 900))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 860px) 50vw, 190px"` : ''} alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
+    ? slideImgHtml(a.photo, [400, 800], '(max-width: 860px) 50vw, 190px', a.name, i, '')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(a.name)}">${escapeHtml(slideInitials(a.name))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/kisi/${encodeURIComponent(a.slug || idxSlugify(a.name))}" data-index="${i}">
     ${media}
@@ -773,9 +823,8 @@ function architectSlideHtml(a, i){
 }
 
 function officeSlideHtml(o, i){
-  const logoSrcset = o.logo ? cdnSrcset(o.logo, [400, 800]) : '';
   const media = o.logo
-    ? `<img class="slide-logo-img" src="${escapeAttr(cdnImg(o.logo, 900))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 860px) 50vw, 190px"` : ''} alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
+    ? slideImgHtml(o.logo, [400, 800], '(max-width: 860px) 50vw, 190px', o.name, i, 'slide-logo-img')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(o.name)}">${escapeHtml(slideInitials(o.name))}</div>`;
   // o.brand: kaydın KANONİK URL öneki (/marka/:slug yalnızca saf markalarda — bkz.
   // src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). /api/offices bu bayrağı liste
@@ -791,9 +840,8 @@ function officeSlideHtml(o, i){
 }
 
 function urunSlideHtml(p, i){
-  const imgSrcset = p.image ? cdnSrcset(p.image, [400, 800, 1600]) : '';
   const media = p.image
-    ? `<img class="slide-logo-img" src="${escapeAttr(cdnImg(p.image, 900))}"${imgSrcset ? ` srcset="${escapeAttr(imgSrcset)}" sizes="(max-width: 860px) 100vw, 380px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
+    ? slideImgHtml(p.image, [400, 800, 1600], '(max-width: 860px) 100vw, 380px', p.title, i, 'slide-logo-img')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(p.title)}">${escapeHtml(slideInitials(p.title))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/urun/${encodeURIComponent(p.slug)}" data-index="${i}">
     ${media}
@@ -826,6 +874,7 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
     clearInterval(timer);
     trackEl.innerHTML = items.map(slideHtmlFn).join('');
     trackEl.classList.add('loaded');
+    hydrateSecondSlideAfterLoad(() => trackEl.querySelectorAll('.proje-slide'));
     restart();
   }
   // API isteği ağ hatası/5xx ile başarısız olduğunda çağrılır — trackEl'i boş bırakmak yerine
@@ -841,6 +890,7 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
     const slides = trackEl.querySelectorAll('.proje-slide');
     if(!slides.length) return;
     index = (i + slides.length) % slides.length;
+    hydrateAround(slides, index);
     slides.forEach((s, idx) => s.classList.toggle('active', idx === index));
   }
   function next(){ goTo(index + 1); }
@@ -876,75 +926,104 @@ function fetchPublicJson(url){
     .catch(()=>({items:[], failed:true}));
 }
 
-// İlk otomatik render() DOMContentLoaded'a ertelenir — aşağıdaki .then() içindeki cdnImg()/
-// cdnSrcset() (image-cdn.js, defer ile yüklenir) kisi.html/firma.html/js/pages/proje.js'de
-// zaten belgelenen AYNI ırk koşuluna açıktı: /api/projects|architects|offices isteği bazen
-// deferred script'ten daha hızlı dönebiliyor, bu da "cdnSrcset is not defined" hatasıyla anasayfa
-// carousel'lerini sessizce boş bırakıyordu (denetim raporu, 2026-08-22 — canlıda doğrulandı).
-// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
-document.addEventListener('DOMContentLoaded', () => {
-Promise.all([
-  // proje.html'in kullandığı AYNI canonical uç (bkz. yukarıdaki PROJECT_CAROUSEL_FETCH_LIMIT
-  // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
-  // düzenlemeleri/gizlemeleri satırın kendisinde, ayrı /api/public/hidden ve /api/public/project-
-  // edits fetch'lerine (ve client-side overlay'e) artık gerek yok.
-  fetchPublicJson('/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
-  // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk N Mimar ve
-  // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/kisi.html/firma.html'in
-  // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından, Proje carousel'iyle AYNI slot
-  // sayısıyla (PROJECT_CAROUSEL_SLOTS=9, bkz. kullanıcı isteği) çekilir. sort PARAMETRESİZ
-  // varsayılanı popülerlik sıralamasıdır (en çok projesi olan önce, bkz. src/routes/
-  // architect.js|office.js#handleArchitectListRoute — "Default Popularity-Based Sorting"), bu yüzden
-  // burada AYRICA bir sort değeri gönderilmez — eskiden burada açıkça sort=newest gönderilip "son
-  // eklenen 6" isteniyordu, bu davranış kullanıcı isteğiyle "en popüler N"ye çevrildi.
-  fetchPublicJson('/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS),
-  fetchPublicJson('/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS),
-  // Ürün mini-carousel'i (bkz. yukarıdaki hero-side/urunSlideHtml yorumu) — /api/products?limit=N
-  // varsayılan sıralaması id DESC'tir (bkz. src/routes/product.js#handleProductListRoute), bu
-  // yüzden burada da AYRICA bir sort parametresi gönderilmez, son eklenen N ürün gelir.
-  fetchPublicJson('/api/products?limit=' + PROJECT_CAROUSEL_SLOTS),
-  // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
-  // featured_project_slugs) — ayrı, düşük riskli bir istek: başarısız olursa (ya da hiç ayar
-  // yoksa) featuredProjectSlugs boş kabul edilir, carousel her zamanki (id DESC) sırasında kalır.
-  // window.__siteSettingsPromise: auth-nav.js (her sayfada defer ile yüklü) duyuru banner'ı için
-  // AYNI endpoint'i ayrıca çekiyordu — bu script daha erken (defer'sız) çalıştığından promise'i burada
-  // oluşturup paylaşmak, auth-nav.js'in aynı isteği ikinci kez atmasını önler (denetim bulgusu, 2026-08-24).
-  (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null))),
-]).then(([yapiRes, architectRes, officeRes, productRes, siteSettings])=>{
-  if(yapiRes.failed){
-    renderSliderError('Projeler şu an yüklenemedi.');
-  } else {
-    let pool = (yapiRes.items || []).filter(p => p.images && p.images[0]);
-    // Öne çıkan projeler bu havuz İÇİNDE başa alınır — proje.js#handleProjectListRoute'un bilerek
-    // dokunulmayan D1-seviyeli hızlı yoluna (bkz. o dosyadaki "riskli biçimde yeniden yazma YASAĞI"
-    // yorumu) HİÇ dokunulmadan, tamamen istemci tarafında. Havuzda olmayan bir featured slug (ör.
-    // güncel havuza girmeyecek kadar eski bir proje) sessizce atlanır.
-    const featured = (siteSettings && siteSettings.featuredProjectSlugs) || [];
-    if(featured.length){
-      pool = [
-        ...featured.map(slug => pool.find(p => p.slug === slug)).filter(Boolean),
-        ...pool.filter(p => !featured.includes(p.slug)),
-      ];
+// VERİ KAYNAĞI (performans turu, 2026-09-08). Worker, ana sayfa HTML'ini servis ederken dört liste
+// ucunun sonucunu <head>'e `<script id="ml-home-data" type="application/json">` olarak gömer (bkz.
+// src/index.js#loadHomeData — AYNI handler'lar, AYNI Cache API + parmak izi tazeliği). Blok varsa
+// hiçbir /api isteği atılmadan, ayrıştırma sırasında HEMEN render edilir; bir bölüm eksikse (null —
+// o uç sunucuda başarısız/yavaş kaldıysa) yalnızca o bölüm eskisi gibi istemcide çekilir.
+//
+// Eski akış: render DOMContentLoaded'a ertelenip fetch'ler orada başlıyordu — 16 deferred script'in
+// yeniden doğrulanması (~1sn) + 5 API isteği (0,4-1,1sn) karusellerin görünmesini 2sn+ geciktiriyordu.
+// image-cdn.js artık senkron (bkz. yukarıdaki <script> yorumu), bu yüzden DOMContentLoaded beklenmez.
+function readHomeSsrData(){
+  try{
+    const el = document.getElementById('ml-home-data');
+    if(!el) return null;
+    const d = JSON.parse(el.textContent || 'null');
+    return (d && d.v === 1) ? d : null;
+  }catch(e){ return null; }
+}
+const HOME_SSR = readHomeSsrData();
+function ssrList(key){ return HOME_SSR && Array.isArray(HOME_SSR[key]) ? HOME_SSR[key] : null; }
+
+// useSsr=false: gömülü veri yok sayılır, her şey ağdan tazelenir (arka plan yenilemesi, aşağıya bkz.).
+function loadHomeSections(useSsr){
+  const pick = (key, url) => {
+    const list = useSsr ? ssrList(key) : null;
+    return list ? Promise.resolve({ items: list }) : fetchPublicJson(url);
+  };
+  const projectsFromSsr = useSsr && !!ssrList('projects');
+  return Promise.all([
+    // proje.html'in kullandığı AYNI canonical uç (bkz. yukarıdaki PROJECT_CAROUSEL_FETCH_LIMIT
+    // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
+    // düzenlemeleri/gizlemeleri satırın kendisinde.
+    pick('projects', '/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
+    // Mimar/Firma mini-carousel'leri: proje.html/kisi.html/firma.html'in kendi listeleme
+    // sayfalarında da kullandığı genel D1 uçları, Proje carousel'iyle AYNI slot sayısıyla
+    // (PROJECT_CAROUSEL_SLOTS=9). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
+    // src/routes/architect.js|office.js#handle*ListRoute — "Default Popularity-Based Sorting").
+    pick('architects', '/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS),
+    pick('offices', '/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS),
+    // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
+    pick('products', '/api/products?limit=' + PROJECT_CAROUSEL_SLOTS),
+    // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
+    // featured_project_slugs). Projeler gömülü veriden geliyorsa sunucu bu sıralamayı ZATEN uygulamış
+    // olur, istek atılmaz. window.__siteSettingsPromise: auth-nav.js duyuru banner'ı için AYNI
+    // endpoint'i çekiyor — burada oluşturulan promise paylaşılır, aynı istek iki kez atılmaz.
+    projectsFromSsr ? Promise.resolve(null)
+      : (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null))),
+  ]).then(([yapiRes, architectRes, officeRes, productRes, siteSettings])=>{
+    if(yapiRes.failed){
+      renderSliderError('Projeler şu an yüklenemedi.');
+    } else {
+      let pool = (yapiRes.items || []).filter(p => p.images && p.images[0]);
+      // Öne çıkan projeler bu havuz İÇİNDE başa alınır — tamamen istemci tarafında (sunucu tarafı
+      // gömülü veride aynı işlem zaten yapılmıştır, burada tekrar uygulanması sonucu değiştirmez).
+      const featured = (siteSettings && siteSettings.featuredProjectSlugs) || [];
+      if(featured.length){
+        pool = [
+          ...featured.map(slug => pool.find(p => p.slug === slug)).filter(Boolean),
+          ...pool.filter(p => !featured.includes(p.slug)),
+        ];
+      }
+      renderSlider(pool.slice(0, PROJECT_CAROUSEL_SLOTS));
     }
-    renderSlider(pool.slice(0, PROJECT_CAROUSEL_SLOTS));
+
+    // İstek başarısız olursa trackEl kalıcı olarak boş bir renkli kutu olarak kalmasın diye failed:true
+    // ayrıca ele alınır. Mimar/Firma fotoğrafı/logosu OLMAYAN öğeleri havuzdan DÜŞÜRMEZ —
+    // architectSlideHtml/officeSlideHtml eksik görselde kendi baş harf rozetine düşer.
+    if(architectRes.failed) mimarSlider.renderError('Kişiler şu an yüklenemedi.');
+    else mimarSlider.render(architectRes.items || []);
+
+    if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
+    else markaSlider.render(officeRes.items || []);
+
+    if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
+    else urunSlider.render(productRes.items || []);
+  });
+}
+
+loadHomeSections(true);
+
+// ARKA PLAN YENİLEMESİ — gömülü veri, HTML'in üretildiği andaki (HOME_SSR.t) veridir. Belge Worker'dan
+// az önce geldiyse veri API'nin döneceğiyle aynıdır, ek istek gereksiz. Belge tarayıcının kendi
+// önbelleğinden geldiyse (max-age=60, geri/ileri gezinme, ya da beklenmedik biçimde daha uzun tutan
+// bir ara katman — bkz. fetchPublicJson'daki Browser Cache TTL bulgusu) veri bayat olabilir — sayfa
+// yükü bitip görseller indikten sonra sessizce API'den tazelenir; render() içerik değişmemişse hiçbir
+// şey yapmaz (aynı anahtar), değiştiyse yeni içerik yazılır (eski "karusel yeni projeyi göstermiyor"
+// şikâyetinin güvenlik ağı). Ölçüt yaş: 45sn — ağ üzerinden az önce üretilmiş bir belge bunun çok
+// altındadır; istemci saati sapmışsa en kötü durumda gereksiz (ama zararsız) bir yenileme olur.
+// (Navigation Timing transferSize BİLEREK kullanılmıyor: yerel testte ağdan gelen belgede bile 0 döndü.)
+if(HOME_SSR){
+  const navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
+  const age = Date.now() - (Number(HOME_SSR.t) || 0);
+  const maybeStale = !(age >= 0 && age < 45000) || (navEntry && navEntry.type === 'back_forward');
+  if(maybeStale){
+    const refresh = () => setTimeout(() => loadHomeSections(false), 2500);
+    if(document.readyState === 'complete') refresh();
+    else window.addEventListener('load', refresh, { once: true });
   }
-
-  // Mimar/Firma mini-carousel'lerinin AKSİNE (bkz. yukarısı) hiçbir statik yedek dizisi yok —
-  // istek başarısız olursa trackEl kalıcı olarak boş bir renkli kutu olarak kalırdı, bu yüzden
-  // failed:true burada ayrıca ele alınır. Mimar/Firma artık fotoğrafı/logosu OLMAYAN öğeleri
-  // havuzdan DÜŞÜRMÜYOR (bkz. gerçek bulgu: bu filtre firma tarafında tüm 6'lık havuzu boşaltıp
-  // carousel'in kalıcı olarak boş kalmasına yol açabiliyordu) — architectSlideHtml/officeSlideHtml
-  // eksik görselde kendi baş harf rozetine düşer (bkz. yukarısı).
-  if(architectRes.failed) mimarSlider.renderError('Kişiler şu an yüklenemedi.');
-  else mimarSlider.render(architectRes.items || []);
-
-  if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
-  else markaSlider.render(officeRes.items || []);
-
-  if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
-  else urunSlider.render(productRes.items || []);
-});
-});
+}
 </script>
 
 </body>

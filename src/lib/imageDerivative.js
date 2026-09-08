@@ -47,3 +47,24 @@ export function derivedImageUrl(path, width) {
   if (clean.startsWith('media/')) return `/media/_derived/w${step}/r2/${clean.slice('media/'.length)}`;
   return `/media/_derived/w${step}/s/${clean}`;
 }
+
+// image-cdn.js#cdnSrcset'in SUNUCU TARAFI karşılığı (ana sayfa performans turu, 2026-09-08 — bkz.
+// src/index.js#buildHomePreloadLinks). `<link rel="preload" as="image" imagesrcset>` ile tarayıcının
+// LCP görselini HTML ayrıştırılırken indirmeye başlaması için, istemcinin <img srcset>'iyle BİREBİR
+// AYNI aday listesi üretilmeli — aksi halde preload edilen URL <img>'in seçtiği adayla eşleşmez ve
+// görsel iki kez iner ("preload not used" uyarısı). Bu yüzden algoritma image-cdn.js'tekiyle aynı:
+// istenen genişlikler merdivene yuvarlanır, tekilleştirilir, tanımlayıcı olarak GERÇEK basamak yazılır.
+export function derivedSrcset(path, widths) {
+  if (!path || !Array.isArray(widths)) return '';
+  const seen = new Set();
+  const parts = [];
+  for (const w of widths) {
+    const step = derivativeWidthFor(w);
+    if (!step || seen.has(step)) continue;
+    const url = derivedImageUrl(path, step);
+    if (url === path) continue;
+    seen.add(step);
+    parts.push(`${url} ${step}w`);
+  }
+  return parts.join(', ');
+}

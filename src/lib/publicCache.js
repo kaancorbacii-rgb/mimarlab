@@ -173,7 +173,7 @@ function isSearchPath(pathname) {
 // göstermiyor" — bkz. kullanıcı isteği). Bu yüzden en sık ziyaret edilen ana sayfa varyantları da
 // AÇIKÇA listelenip her yazma işleminde birlikte temizlenir.
 const HOMEPAGE_LIST_PATHS = [
-  '/api/projects?limit=24', '/api/architects?limit=6', '/api/offices?limit=6', '/api/products?limit=6',
+  '/api/projects?limit=24', '/api/architects?limit=9', '/api/offices?limit=9', '/api/products?limit=9',
 ];
 // proje.html/urun.html'in filtresiz/sıralamasız ilk ziyarette gerçekten çektiği TAM URL (bkz.
 // proje.html#render/urun.html#render — page=1&limit=24, hiçbir filtre/arama/sort aktif değilken) —

@@ -130,7 +130,13 @@ echo ""
 # teyidi). `set -o pipefail` (yukarıda) sayesinde `wrangler deploy` başarısız olursa `tee`
 # borusundan sonra da script yine hata ile durur.
 deploy_log="$(mktemp)"
-npx wrangler deploy "$@" | tee "$deploy_log"
+# DEPLOY_VERSION — liste sayfalarındaki yerel script/stylesheet bağlantılarına eklenen ?v= sürümü (bkz.
+# src/index.js#versionAssetUrls). Her deploy'da değişmesi ŞART: sürümlü URL'ler `immutable` ile bir yıl
+# önbelleklenir; sürüm değişmezse yeni kod tarayıcıya hiç ulaşmaz. Working tree yukarıda temiz
+# olduğundan HEAD sha'sı deploy edilen kodu birebir tanımlar.
+deploy_version="$(git rev-parse --short=10 HEAD)"
+echo "DEPLOY_VERSION=$deploy_version"
+npx wrangler deploy --var "DEPLOY_VERSION:$deploy_version" "$@" | tee "$deploy_log"
 deployed_version=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$deploy_log" | tail -1 || true)
 rm -f "$deploy_log"
 
