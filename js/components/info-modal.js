@@ -374,7 +374,7 @@ const InfoModal = (function () {
       <div class="content-section" id="im-hk-uyelik">
         <h2>Üyelik, katkı ve rozetler</h2>
         <p>Üyelik ücretsizdir. Üye olarak proje, kişi, firma, marka ve ürün gönderebilir; içeriğiniz yayına alınmadan önce ekibimizin incelemesinden geçer. Kamuya açık kaynaklardan derlenmiş bir profilin sahibi ya da yetkilisiyseniz profili sahiplenebilir; onaylandığında profil bilgilerini güncelleyebilir, gelen yorumları ve mesajları yönetebilirsiniz.</p>
-        <p>Profilini öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz. Güncel ayrıcalıklar ve fiyatlar için <a href="/rozet-al">Rozet Al</a> sayfasını, iade koşulları için <a href="/iade-et">İade Et</a> sayfasını ve <a href="/hizmet-sartlari">Hizmet Şartları</a>'nı inceleyebilirsiniz.</p>
+        <p>Profilini öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz; satış şu an geçici olarak kapalıdır. Güncel ayrıcalıklar ve fiyatlar için <a href="/rozet-al">Rozet Al</a> sayfasını, iade koşulları için <a href="/iade-et">İade Et</a> sayfasını ve <a href="/hizmet-sartlari">Hizmet Şartları</a>'nı inceleyebilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-hk-yasal-bilgiler">
@@ -564,7 +564,7 @@ const InfoModal = (function () {
           <li><strong>Kullanıcı içerikleri</strong> — gönderdiğiniz proje, ürün, kişi, firma ve marka kayıtları; yüklediğiniz görseller ve PDF'ler; yorumlar, puanlamalar, görsel üzeri ürün işaretlemeleri.</li>
           <li><strong>İletişim ve mesaj verileri</strong> — iletişim formundan gönderdiğiniz ad, e-posta ve mesaj metni (veritabanımıza kaydedilir); sahiplenilmiş profillere gönderdiğiniz site içi mesajlar.</li>
           <li><strong>Görüşme talebi verileri</strong> — birebir görüşme talebinde ad soyad, e-posta, telefon, tercih edilen tarih/saat ve notunuz.</li>
-          <li><strong>Ödeme ve iade verileri</strong> — rozet veya görüşme ücretini havale/EFT ile ödediğinizde banka hesap özetimize yansıyan ad soyad, gönderen IBAN ve açıklama alanına yazdığınız e-posta; iade talebinde bildirdiğiniz IBAN, hesap sahibi adı ve iade sebebi. Kart bilgisi hiçbir zaman sunucularımıza ulaşmaz.</li>
+          <li><strong>Ödeme ve iade verileri</strong> — şu anda ödeme almıyoruz; ücretli hizmetler açıldığında ödeme yalnızca lisanslı bir ödeme kuruluşunun güvenli sayfasında alınacak ve kart bilgisi hiçbir zaman sunucularımıza ulaşmayacaktır. Daha önce satın alınmış rozetler için iade talebinde bildirdiğiniz IBAN, hesap sahibi adı ve iade sebebi.</li>
           <li><strong>Bülten verisi</strong> — bültene abone olurken verdiğiniz e-posta adresi.</li>
           <li><strong>Kullanım verileri</strong> — kaydettiğiniz içerikler, takip ettikleriniz, koleksiyon/panolarınız, bildirim tercihleri ve oturum durumu.</li>
           <li><strong>Teknik veriler</strong> — IP adresi, tarayıcı/cihaz bilgisi ve ziyaret edilen sayfalar. Bunlar Cloudflare altyapısının erişim kayıtlarında, kötüye kullanımı önleyen kısa ömürlü hız sınırlama sayaçlarında ve Google Analytics ölçümlerinde işlenir (bkz. <a href="#im-cerezler">Çerezler ve analytics</a>).</li>
@@ -619,7 +619,7 @@ const InfoModal = (function () {
       <div class="content-section" id="im-mesaj-gorusme">
         <h2>8. Mesajlaşma ve görüşme talepleri</h2>
         <p><strong>Mesajlaşma.</strong> Sahiplenilmiş profillere gönderdiğiniz mesajlar veritabanımızda saklanır ve yalnızca gönderen ile alıcı tarafından (firma profillerinde firmanın yetkili üyeleri tarafından) görülebilir. Mesaj içeriklerini yalnızca kötüye kullanım bildirimi veya yasal bir talep hâlinde inceleriz.</p>
-        <p><strong>Görüşme talepleri.</strong> Birebir görüşme talep ettiğinizde ad soyad, e-posta, telefon, tarih/saat ve notunuz, görüşmeyi sunan üyeyle randevunun kurulması için işlenir. Ödeme onaylandığında görüşme bağlantısı Google Meet üzerinden oluşturulur ve hesabınızdaki bildirimlerle iletilir; görüşme sırasında Google'ın kendi hizmet şartları ve gizlilik politikası geçerlidir. Görüşmeler MİMARLAB tarafından kaydedilmez.</p>
+        <p><strong>Görüşme talepleri.</strong> Birebir görüşme talep ettiğinizde ad soyad, e-posta, telefon, tarih/saat ve notunuz, görüşmeyi sunan üyeyle randevunun kurulması için işlenir. Talep onaylandığında görüşme bağlantısı Google Meet üzerinden oluşturulur ve hesabınızdaki bildirimlerle iletilir; görüşme sırasında Google'ın kendi hizmet şartları ve gizlilik politikası geçerlidir. Görüşmeler MİMARLAB tarafından kaydedilmez.</p>
       </div>
 
       <div class="content-section" id="im-ugc">
@@ -630,8 +630,8 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-odeme">
         <h2>10. Ödemeler ve iadeler</h2>
-        <p>Rozet abonelikleri ve görüşme ücretleri şu an <strong>havale/EFT</strong> ile ödenir; ödeme talebiniz, ekibimiz banka hesap özetinde ödemeyi doğrulayana kadar "bekliyor" durumunda kalır. Bu süreçte ad soyad, gönderen IBAN ve açıklama alanına yazdığınız e-posta adresi banka kayıtlarımızda yer alır. Kredi/banka kartı ile ödeme aktif edildiğinde kart bilgileriniz doğrudan ödeme kuruluşunun (iyzico) güvenli altyapısında işlenir; sunucularımıza yalnızca işlemin sonucu (başarılı/başarısız, tutar, tarih) ulaşır.</p>
-        <p>İade talebinde bildirdiğiniz IBAN ve hesap sahibi adı yalnızca iade tutarını göndermek için kullanılır. Ödeme ve iade kayıtları, vergi ve ticaret mevzuatının öngördüğü süre boyunca saklanır (bkz. <a href="#im-guvenlik">15. bölüm</a>).</p>
+        <p>Şu anda <strong>ödeme almıyoruz</strong>: rozet satışı ve görüşme ücreti tahsilatı geçici olarak kapalıdır; görüşme talepleri ücretsiz olarak alınır ve ekibimizin onayıyla sonuçlandırılır. Ücretli hizmetler yeniden açıldığında ödemeler kredi/banka kartıyla, lisanslı bir ödeme kuruluşunun (iyzico) güvenli altyapısında alınacak; kart bilgileriniz sunucularımıza ulaşmayacak, bize yalnızca işlemin sonucu (başarılı/başarısız, tutar, tarih) iletilecektir. Bu metin o zaman güncellenecektir.</p>
+        <p>Daha önce satın alınmış rozetler için iade talebinde bildirdiğiniz IBAN ve hesap sahibi adı yalnızca iade tutarını göndermek için kullanılır. Ödeme ve iade kayıtları, vergi ve ticaret mevzuatının öngördüğü süre boyunca saklanır (bkz. <a href="#im-guvenlik">15. bölüm</a>).</p>
       </div>
 
       <div class="content-section" id="im-bulten">
@@ -796,7 +796,7 @@ const InfoModal = (function () {
         <h2>9. Rozet paketleri, ödemeler ve iadeler</h2>
         <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, yorum yönetimi, mesajlaşma vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz. Güncel kademeler, ayrıcalıklar ve Türk lirası cinsinden fiyatlar <a href="/rozet-al">Rozet Al</a> sayfasında ödeme öncesinde açıkça gösterilir; fiyatlar sunucu tarafında belirlenir ve satın alma anında geçerli olan fiyat uygulanır.</p>
         <ul>
-          <li><strong>Ödeme yöntemi</strong> — şu an havale/EFT. Ödeme talebiniz, ekibimiz banka hesap özetinde ödemeyi doğrulayana kadar "bekliyor" durumunda kalır; doğrulandığında rozetiniz aktifleşir ve hesabınızda görünür. Kredi/banka kartı ile ödeme aktif edildiğinde kart bilgileri yalnızca ödeme kuruluşunun (iyzico) güvenli sayfasında girilir, MİMARLAB sunucularında saklanmaz.</li>
+          <li><strong>Ödeme yöntemi</strong> — şu anda ödeme almıyoruz; rozet satışı geçici olarak kapalıdır ve Rozet Al sayfası yalnızca kademeleri ve fiyatları tanıtır. Satış yeniden açıldığında ödeme kredi/banka kartıyla, lisanslı bir ödeme kuruluşunun (iyzico) güvenli sayfasında alınacak; kart bilgileri MİMARLAB sunucularında saklanmayacaktır. Ödeme onaylandığında rozet aktifleşir ve hesabınızda görünür.</li>
           <li><strong>Süre ve yenileme</strong> — rozetler aylık süreyle kiralanır; otomatik yenileme yoktur, süre sonunda rozet pasifleşir ve dilerseniz yeniden satın alırsınız. Rozet devredilemez.</li>
           <li><strong>Cayma ve iade</strong> — tüketici sıfatıyla yapılan satın alımlarda 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği'ndeki haklarınız saklıdır. Rozet, ödemenin onaylanmasıyla birlikte anında ifa edilen bir dijital hizmettir; bununla birlikte iade taleplerinizi <a href="/iade-et">İade Et</a> sayfası üzerinden alır, sayfada belirtilen koşullar çerçevesinde değerlendirir ve onaylanan tutarı bildirdiğiniz IBAN'a havale/EFT ile göndeririz. Şartların ihlali nedeniyle kapatılan hesaplarda kullanılmamış süre iade edilmez.</li>
         </ul>
@@ -804,7 +804,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-hs-gorusme">
         <h2>10. Görüşme (danışmanlık) hizmeti</h2>
-        <p>Bazı profillerde sunulan "Danışmanlık Al" özelliğiyle, görüşmeyi sunan üyeyle çevrimiçi birebir görüşme randevusu talep edebilirsiniz. Ücret, talep öncesinde gösterilir ve havale/EFT ile ödenir; ödeme doğrulandığında görüşme bağlantısı Google Meet üzerinden oluşturulur ve hesabınızdaki bildirimlerle iletilir. Görüşme tarihini, görüşmeden önce bir kez değiştirebilirsiniz. Görüşme içeriği görüşmeyi sunan üyenin kendi görüş ve deneyimini yansıtır; MİMARLAB görüşmenin içeriğinden, sonuçlarından veya bu görüşmeye dayanarak alınan kararlardan sorumlu değildir. Görüşme sırasında Google'ın hizmet şartları da geçerlidir.</p>
+        <p>Bazı profillerde sunulan "Danışmanlık Al" özelliğiyle, görüşmeyi sunan üyeyle çevrimiçi birebir görüşme randevusu talep edebilirsiniz. Şu anda görüşme için ücret alınmamaktadır; talebiniz ekibimizce değerlendirilir ve onaylandığında görüşme bağlantısı Google Meet üzerinden oluşturulur ve hesabınızdaki bildirimlerle iletilir. Görüşme tarihini, görüşmeden önce bir kez değiştirebilirsiniz. Görüşme içeriği görüşmeyi sunan üyenin kendi görüş ve deneyimini yansıtır; MİMARLAB görüşmenin içeriğinden, sonuçlarından veya bu görüşmeye dayanarak alınan kararlardan sorumlu değildir. Görüşme sırasında Google'ın hizmet şartları da geçerlidir.</p>
       </div>
 
       <div class="content-section" id="im-hs-yasaklar">
@@ -1001,8 +1001,10 @@ const InfoModal = (function () {
         <h2>Rozetler</h2>
         <p class="section-hint">Devam etmeden önce dilediğin kademeyi seçebilirsin.</p>
         <div class="tier-grid" id="im-tier-grid"></div>
-        <button class="form-submit" id="im-select-tier-btn" type="button" style="margin-top:18px;">Rozeti Seç</button>
-        <div class="form-notice" id="im-select-tier-notice"></div>
+        <div class="already-has" id="im-sales-closed" style="margin-top:18px;">
+          <strong>Rozet satışı şu an açık değil</strong>
+          <p>Şimdilik ödeme almıyoruz. Rozet satışı kredi/banka kartıyla ödeme açıldığında başlayacak; açıldığında burada duyuracağız.</p>
+        </div>
       </div>
 
       <div class="form-section" id="im-already-has-section" style="display:none;">
@@ -1015,182 +1017,19 @@ const InfoModal = (function () {
     </div>`;
   }
 
-  // Ödeme Yöntemi popup'ı — Rozetler bölümündeki "Rozeti Seç" butonuna tıklandığında AÇILAN ikinci
-  // popup (kullanıcı isteği, 2026-09-05: "Ödeme Yöntemleri rozet al sayfasında değil, Rozeti Seç
-  // butonuna tıkladıktan sonra gelecek olan başka bir popup sayfasında yer alsın"). ModalShell TEK
-  // bir paylaşılan singleton olduğundan (rozet-al zaten onu kullanıyor, bir üstüne ikinci bir
-  // ModalShell içeriği açılamaz) bu popup rating-widget.js#ensureRatePopup İLE AYNI desenle kendi
-  // bağımsız overlay'ini document.body'ye TEK seferlik enjekte eder (z-index 400, ModalShell'in
-  // 150'sinin üstünde) — rozet-al popup'ı ister ModalShell'de ister (tablet/mobil) NavDrawer alt
-  // sayfasında açılsın, sabit konumlandırma ikisinin de üstünü kaplar.
-  let rozetPayPopupApi = null;
-  function ensureRozetPayPopup() {
-    if (rozetPayPopupApi) return rozetPayPopupApi;
-    if (!document.getElementById('rozet-pay-style')) {
-      const style = document.createElement('style');
-      style.id = 'rozet-pay-style';
-      style.textContent = `
-        .rozet-pay-overlay{display:none; position:fixed; inset:0; z-index:400; background:rgba(20,24,30,0.62); backdrop-filter:blur(2px); align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto;}
-        .rozet-pay-overlay.open{display:flex;}
-        .rozet-pay-popup{width:100%; max-width:440px; background:var(--paper-card); border-radius:16px; padding:28px 26px 26px; position:relative; box-shadow:0 24px 60px rgba(0,0,0,0.35); margin:auto;}
-        .rozet-pay-close{position:absolute; top:12px; right:12px; background:none; border:none; color:var(--ink-soft); padding:8px; cursor:pointer; display:flex; border-radius:50%;}
-        .rozet-pay-close:hover{color:var(--ink); background:var(--paper-alt);}
-        .rozet-pay-eyebrow{font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--sage);}
-        .rozet-pay-title{margin:4px 0 18px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:19px; font-weight:700; color:var(--ink); padding-right:20px;}
-        .rozet-pay-summary-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:14px;}
-        .rozet-pay-summary-row:last-of-type{border-bottom:none; margin-bottom:14px;}
-        .rozet-pay-summary-total{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:17px;}
-        .rozet-pay-section-title{font-size:14px; font-weight:700; margin:6px 0 2px;}
-        .rozet-pay-section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;}
-        .rozet-pay-option{display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:500; cursor:pointer; padding:8px 4px;}
-        .rozet-pay-option input{width:16px; height:16px; accent-color:var(--walnut); flex-shrink:0;}
-        .rozet-pay-option-disabled{opacity:0.55; cursor:default;}
-        .rozet-pay-option-disabled input{cursor:default;}
-        .rozet-pay-soon-tag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); background:var(--paper-alt); padding:3px 8px; border-radius:100px;}
-        .rozet-pay-havale-box{margin-top:12px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--paper);}
-        .rozet-pay-havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line-soft); font-size:13px;}
-        .rozet-pay-havale-row:last-of-type{border-bottom:none;}
-        .rozet-pay-havale-label{color:var(--ink-soft); flex-shrink:0;}
-        .rozet-pay-havale-value{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; text-align:right; word-break:break-word;}
-        .rozet-pay-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 11px; font-size:11px; font-weight:600; color:var(--ink);}
-        .rozet-pay-copy-btn:hover{background:var(--paper-alt);}
-        .rozet-pay-hint{font-size:12px; color:var(--ink-soft); line-height:1.6; margin:10px 0 0;}
-        .rozet-pay-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:13px; border-radius:100px; font-weight:600; font-size:14.5px; margin-top:18px; cursor:pointer;}
-        .rozet-pay-submit:hover{background:var(--walnut);}
-        .rozet-pay-submit:disabled{background:var(--paper-alt); color:var(--ink-soft); cursor:default;}
-        .rozet-pay-notice{display:none; margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
-        .rozet-pay-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
-        .rozet-pay-notice.show{display:block;}
-      `;
-      document.head.appendChild(style);
-    }
-
-    const overlay = document.createElement('div');
-    overlay.className = 'rozet-pay-overlay';
-    overlay.innerHTML = `
-      <div class="rozet-pay-popup" role="dialog" aria-modal="true" aria-labelledby="rozet-pay-title">
-        <button type="button" class="rozet-pay-close" aria-label="Kapat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        <div class="rozet-pay-eyebrow">Ödeme</div>
-        <h3 class="rozet-pay-title" id="rozet-pay-title">—</h3>
-
-        <div class="rozet-pay-summary-row">
-          <span>Tutar</span>
-          <span class="rozet-pay-summary-total" id="rozet-pay-price">—</span>
-        </div>
-        <div class="rozet-pay-summary-row">
-          <span>Yenileme</span>
-          <span>Aylık, elle iptal edilene kadar</span>
-        </div>
-
-        <div class="rozet-pay-section-title">Ödeme Yöntemi</div>
-        <p class="rozet-pay-section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
-        <label class="rozet-pay-option"><input type="radio" name="rozet-pay-method" checked> Havale / EFT</label>
-        <label class="rozet-pay-option rozet-pay-option-disabled"><input type="radio" disabled> Kredi / Banka Kartı <span class="rozet-pay-soon-tag">Şu an aktif değil</span></label>
-
-        <div class="rozet-pay-havale-box">
-          <div class="rozet-pay-havale-row">
-            <span class="rozet-pay-havale-label">IBAN</span>
-            <span class="rozet-pay-havale-value">TR22 0004 6001 7088 8000 2482 94</span>
-            <button type="button" class="rozet-pay-copy-btn" id="rozet-pay-copy-btn">Kopyala</button>
-          </div>
-          <div class="rozet-pay-havale-row"><span class="rozet-pay-havale-label">Hesap Sahibi</span><span class="rozet-pay-havale-value">Kaan Çorbacı</span></div>
-          <div class="rozet-pay-havale-row"><span class="rozet-pay-havale-label">Tutar</span><span class="rozet-pay-havale-value" id="rozet-pay-amount">—</span></div>
-          <div class="rozet-pay-havale-row"><span class="rozet-pay-havale-label">Açıklama</span><span class="rozet-pay-havale-value">info@mimarlab.com</span></div>
-          <p class="rozet-pay-hint">Ödemeni yukarıdaki IBAN'a gönderirken açıklama kısmına e-posta adresini yaz. Ödemeyi tamamladıktan sonra aşağıdaki butona tıkla, satın alımın onaylandığında rozetin hemen aktifleşecek.</p>
-        </div>
-
-        <button class="rozet-pay-submit" type="button" id="rozet-pay-confirm-btn">Ödemeyi Yaptım</button>
-        <div class="rozet-pay-notice" id="rozet-pay-notice"></div>
-      </div>`;
-    document.body.appendChild(overlay);
-
-    const titleEl = overlay.querySelector('#rozet-pay-title');
-    const priceEl = overlay.querySelector('#rozet-pay-price');
-    const amountEl = overlay.querySelector('#rozet-pay-amount');
-    const confirmBtn = overlay.querySelector('#rozet-pay-confirm-btn');
-    const notice = overlay.querySelector('#rozet-pay-notice');
-    const copyBtn = overlay.querySelector('#rozet-pay-copy-btn');
-    const ORIGINAL_BTN_LABEL = 'Ödemeyi Yaptım';
-    const HAVALE_IBAN_RAW = 'TR220004600170888000248294';
-    const state = { badgeType: null, targetType: 'self', targetKey: null, onSuccess: null };
-
-    function close() {
-      overlay.classList.remove('open');
-      document.body.style.overflow = '';
-    }
-    overlay.querySelector('.rozet-pay-close').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) close(); });
-    // Bu popup bir InfoModal içeriğinin ÜSTÜNDE açılır — rozet-al popup'ı kapanırsa (X, geri tuşu,
-    // başka bir popup'a geçiş) bu overlay document.body'de asılı kalıp body.overflow'u 'hidden'da
-    // kilitli bırakmasın diye rating-widget.js#ensureRatePopup İLE AYNI temizlik.
-    document.addEventListener('mimarlab-modal-closed', close);
-
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(HAVALE_IBAN_RAW);
-        const original = copyBtn.textContent;
-        copyBtn.textContent = 'Kopyalandı';
-        setTimeout(() => { copyBtn.textContent = original; }, 1500);
-      } catch {}
-    });
-
-    confirmBtn.addEventListener('click', async () => {
-      notice.classList.remove('show', 'success');
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = 'Gönderiliyor…';
-      try {
-        const res = await fetch('/api/badges', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ badgeType: state.badgeType, targetType: state.targetType, targetKey: state.targetKey }),
-        });
-        if (res.status === 401) { window.location.href = '/giris'; return; }
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          notice.textContent = data.error || 'Talep gönderilemedi, tekrar dene.';
-          notice.classList.add('show');
-          confirmBtn.disabled = false;
-          confirmBtn.textContent = ORIGINAL_BTN_LABEL;
-          return;
-        }
-        notice.textContent = 'Talebin alındı. Ödemen kontrol edilip onaylandığında rozetin aktif olacak — sonucu Hesabım sayfandan takip edebilirsin.';
-        notice.classList.add('show', 'success');
-        confirmBtn.textContent = 'Talebin Gönderildi';
-        if (state.onSuccess) state.onSuccess();
-      } catch {
-        notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
-        notice.classList.add('show');
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = ORIGINAL_BTN_LABEL;
-      }
-    });
-
-    rozetPayPopupApi = {
-      open({ tierLabel, priceLabel, badgeType, targetType, targetKey, onSuccess }) {
-        state.badgeType = badgeType;
-        state.targetType = targetType;
-        state.targetKey = targetKey;
-        state.onSuccess = onSuccess || null;
-        titleEl.textContent = tierLabel;
-        priceEl.textContent = `${priceLabel} / ay`;
-        amountEl.textContent = priceLabel;
-        notice.textContent = '';
-        notice.classList.remove('show', 'success');
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = ORIGINAL_BTN_LABEL;
-        overlay.classList.add('open');
-        document.body.style.overflow = 'hidden';
-      },
-    };
-    return rozetPayPopupApi;
-  }
+  // ÖDEME POPUP'I KALDIRILDI (kullanıcı isteği, 2026-09-08): "Rozet Al sayfasından havale ile öde
+  // seçeneğini kaldır, şimdilik ödeme almıyoruz; IBAN bilgilerini siteden sil." Eski
+  // ensureRozetPayPopup (havale/EFT + IBAN kutusu + "Ödemeyi Yaptım" -> POST /api/badges) burada
+  // duruyordu; sunucu ucu da satışı reddediyor (bkz. src/routes/badges.js#BADGE_SALES_OPEN). Kart
+  // ödemesi açıldığında akış src/routes/payments.js#startCheckout (iyzico hosted sayfa) üzerinden
+  // kurulmalı, IBAN'lı havale kutusu geri GETİRİLMEMELİ.
 
   function mountRozetAl() {
-    // Sayfa artık giriş YAPMADAN da görüntülenebilir (kullanıcı isteği, 2026-09-05) — eskiden burada
-    // oturum yoksa '/giris'e sessizce yönlendiren bir kontrol vardı. Girişin ZORUNLU olduğu tek an,
-    // aşağıdaki "Rozeti Seç" tıklamasıyla ödeme popup'ına geçilmeye çalışıldığı andır (bkz. o
-    // butonun dinleyicisi) — /api/claims/mine ve /api/badges/mine gibi diğer uçlar oturumsuzken
-    // zaten sessizce boş sonuç döner (catch/res.ok kontrolleri), sayfa çökmez.
+    // Sayfa giriş YAPMADAN da görüntülenebilir (kullanıcı isteği, 2026-09-05). Satış şu an KAPALI
+    // (kullanıcı isteği, 2026-09-08 — "şimdilik ödeme almıyoruz"): "Rozeti Seç" butonu ve ödeme
+    // popup'ı kaldırıldı, yerinde #im-sales-closed kutusu duruyor; kademe/fiyat tanıtımı ve mevcut
+    // rozet paneli (loadMyBadges) çalışmaya devam eder. /api/claims/mine ve /api/badges/mine
+    // oturumsuzken sessizce boş sonuç döner (catch/res.ok kontrolleri), sayfa çökmez.
 
     // "Mesaj" perk'i her iki kademede de listelenir — bkz. architect-modal.js/office-modal.js#
     // renderMessageIcon (kullanıcı isteği 2026-08-30: doğrulanmış/altın üyeler artık TÜM kullanıcılara
@@ -1284,16 +1123,15 @@ const InfoModal = (function () {
         blocking = profileRank >= activeRank ? { badge_type: profileBadgeType, status: 'active', admin: true } : activeBadge;
       }
 
-      const selectTierBtn = document.getElementById('im-select-tier-btn');
+      const salesClosedBox = document.getElementById('im-sales-closed');
       const alreadyHasSection = document.getElementById('im-already-has-section');
       if (!blocking) {
-        selectTierBtn.style.display = '';
+        salesClosedBox.style.display = '';
         alreadyHasSection.style.display = 'none';
         return;
       }
       const tier = BADGE_TIERS.find(t => t.type === blocking.badge_type);
-      selectTierBtn.style.display = 'none';
-      document.getElementById('im-select-tier-notice').classList.remove('show');
+      salesClosedBox.style.display = 'none';
       alreadyHasSection.style.display = 'block';
       const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
       document.getElementById('im-already-has-title').textContent =
@@ -1356,45 +1194,6 @@ const InfoModal = (function () {
       });
     });
 
-    // "Rozeti Seç" (kullanıcı isteği, 2026-09-05): Ödeme Yöntemi/Sipariş Özeti artık bu sayfada
-    // DEĞİL, bu butona tıklandığında açılan AYRI bir popup'ta (bkz. ensureRozetPayPopup). Ödeme
-    // popup'ına geçmek GİRİŞ gerektirir — oturum yoksa uyarı + Giriş Yap/Üye Ol bağlantısı
-    // gösterilir, popup açılmaz (yalnızca sayfanın kendisi girişsiz görüntülenebilir).
-    document.getElementById('im-select-tier-btn').addEventListener('click', async () => {
-      const btn = document.getElementById('im-select-tier-btn');
-      const notice = document.getElementById('im-select-tier-notice');
-      notice.classList.remove('show');
-
-      if (selectedTargetType === 'office' && !selectedTargetKey) {
-        notice.textContent = 'Rozet almak için önce onaylı bir firma profiline sahip olmalısın.';
-        notice.classList.add('show');
-        return;
-      }
-
-      btn.disabled = true;
-      let authed = false;
-      try {
-        const res = await fetch('/api/auth/me');
-        authed = res.ok;
-      } catch {}
-      btn.disabled = false;
-
-      if (!authed) {
-        notice.innerHTML = 'Ödeme yöntemine ilerlemek için hesabına giriş yapman gerekiyor. <a href="/giris" style="color:var(--walnut); font-weight:600;">Giriş Yap</a> ya da <a href="/uye-ol" style="color:var(--walnut); font-weight:600;">Üye Ol</a>.';
-        notice.classList.add('show');
-        return;
-      }
-
-      const tier = BADGE_TIERS.find(t => t.type === selectedTier);
-      ensureRozetPayPopup().open({
-        tierLabel: tier.label,
-        priceLabel: formatTRY(priceForTier(tier)),
-        badgeType: selectedTier,
-        targetType: selectedTargetType,
-        targetKey: selectedTargetKey,
-        onSuccess: () => loadMyBadges(),
-      });
-    });
   }
 
   // ---------------------------------------------------------------------------------------------

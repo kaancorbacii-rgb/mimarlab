@@ -3,7 +3,7 @@
 // architect-modal.js#renderItem — a.slug kapısı) görünen bir buton, tıklanınca açık olan
 // ArchitectModal'ın (ModalShell) ÜSTÜNDE ikinci bir bağımsız overlay açar.
 //
-// Desen js/components/info-modal.js#ensureRozetPayPopup / rating-widget.js#ensureRatePopup İLE
+// Desen rating-widget.js#ensureRatePopup İLE (eski info-modal.js#ensureRozetPayPopup da aynıydı, kaldırıldı)
 // AYNI: singleton, document.body'ye TEK seferlik enjekte edilen, z-index 400 (ModalShell'in
 // overlay'i 150'de kalır) sabit konumlu bir overlay — ModalShell ikinci bir içeriği kendi
 // içinde AÇAMADIĞINDAN (tek paylaşılan singleton) bu şekilde kendi DOM'unu taşır. Aynı temizlik
@@ -12,7 +12,7 @@
 // 'hidden'da asılı kalır (bkz. o iki dosyadaki AYNI gerçek bulgu).
 //
 // Ödeme ekranının işaretleme/CSS'i (kullanıcı isteği: "Rozet Al ödeme ekranının BİREBİR AYNISI")
-// info-modal.js#ensureRozetPayPopup'taki .rozet-pay-* kurallarının DEĞER BAZINDA birebir kopyasıdır
+// (kaldırılan) info-modal.js#ensureRozetPayPopup'taki .rozet-pay-* kurallarının DEĞER BAZINDA kopyasıydı
 // (kisi.html info-modal.js'i hiç yüklemediğinden doğrudan çağrılamaz/import edilemez — bkz. proje
 // hafızası, kisi.html architect-modal.js dışında ağır bir modül yüklemiyor). Sınıf öneki
 // çakışmasın diye "cns-pay-" oldu, ama tüm renk/boyut/aralık değerleri kaynağıyla AYNI.
@@ -27,9 +27,11 @@
 // ilk 24 saat noktasız/tıklanamaz. Doluluk src/routes/consultations.js#getAvailability'den (herkese
 // açık, kişisel veri İÇERMEZ) ay bazında çekilir — bkz. calendarState.availability.
 const ConsultationModal = (function () {
-  const CONSULTATION_PRICE_TRY = 1500; // sunucudaki src/routes/consultations.js#CONSULTATION_PRICE_TRY İLE AYNI — burası yalnızca gösterim, gerçek fiyat sunucuda sabitlenir.
-  const HAVALE_IBAN_FORMATTED = 'TR22 0004 6001 7088 8000 2482 94';
-  const HAVALE_IBAN_RAW = 'TR220004600170888000248294';
+  // ÖDEME ADIMI KALDIRILDI (kullanıcı isteği, 2026-09-08: "şimdilik ödeme almıyoruz; IBAN bilgilerini
+  // siteden sil"). Eskiden burada havale/EFT + IBAN kutusu ve "Ödemeyi Yaptım" vardı; talep artık
+  // ücretsiz alınır, admin onayıyla (src/routes/admin.js#handleConsultationsAdmin) Meet odası
+  // kurulur. Sunucu price_try'ı hâlâ kayıt için yazıyor (src/routes/consultations.js) — burada
+  // kullanıcıya tutar GÖSTERİLMEZ.
   // Uygun günler (Pzt/Çar/Cum) ve saatler (kullanıcı isteği, 2026-09-05) — src/routes/
   // consultations.js#ALLOWED_WEEKDAYS/ALLOWED_TIMES İLE AYNI, sunucu bağımsız olarak yeniden
   // doğrular (istemciye güvenilmez).
@@ -64,9 +66,6 @@ const ConsultationModal = (function () {
     const d = new Date(`${isoDate}T00:00:00`);
     if (Number.isNaN(d.getTime())) return isoDate;
     return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-  }
-  function formatPriceTr(amount) {
-    return `${amount.toLocaleString('tr-TR')} TL`;
   }
 
   function ensurePopup() {
@@ -128,18 +127,6 @@ const ConsultationModal = (function () {
         .cns-pay-summary-total{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:17px;}
         .cns-pay-section-title{font-size:14px; font-weight:700; margin:16px 0 2px;}
         .cns-pay-section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;}
-        .cns-pay-option{display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:500; cursor:pointer; padding:8px 4px;}
-        .cns-pay-option input{width:16px; height:16px; accent-color:var(--walnut); flex-shrink:0;}
-        .cns-pay-option-disabled{opacity:0.55; cursor:default;}
-        .cns-pay-option-disabled input{cursor:default;}
-        .cns-pay-soon-tag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); background:var(--paper-alt); padding:3px 8px; border-radius:100px;}
-        .cns-pay-havale-box{margin-top:12px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--paper);}
-        .cns-pay-havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line-soft); font-size:13px;}
-        .cns-pay-havale-row:last-of-type{border-bottom:none;}
-        .cns-pay-havale-label{color:var(--ink-soft); flex-shrink:0;}
-        .cns-pay-havale-value{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; text-align:right; word-break:break-word;}
-        .cns-pay-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 11px; font-size:11px; font-weight:600; color:var(--ink);}
-        .cns-pay-copy-btn:hover{background:var(--paper-alt);}
         .cns-pay-hint{font-size:12px; color:var(--ink-soft); line-height:1.6; margin:10px 0 0;}
         .cns-pay-notice{display:none; margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
         .cns-pay-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
@@ -185,7 +172,6 @@ const ConsultationModal = (function () {
 
           <div class="cns-pay-summary-row"><span>Tarih</span><span id="cns-pay-date">—</span></div>
           <div class="cns-pay-summary-row"><span>Saat</span><span id="cns-pay-time">—</span></div>
-          <div class="cns-pay-summary-row"><span>Tutar</span><span class="cns-pay-summary-total" id="cns-pay-price">—</span></div>
 
           <div class="cns-field-label" style="margin-top:16px;">Ad Soyad</div>
           <div class="cns-contact-field"><input type="text" id="cns-contact-name" autocomplete="name" maxlength="120"></div>
@@ -203,24 +189,9 @@ const ConsultationModal = (function () {
             <textarea id="cns-note" maxlength="2000" placeholder="Opsiyonel — konuşmak istediğin konuyu ya da eklemek istediklerini yaz…"></textarea>
           </div>
 
-          <div class="cns-pay-section-title">Ödeme Yöntemi</div>
-          <p class="cns-pay-section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
-          <label class="cns-pay-option"><input type="radio" name="cns-pay-method" checked> Havale / EFT</label>
-          <label class="cns-pay-option cns-pay-option-disabled"><input type="radio" disabled> Kredi / Banka Kartı <span class="cns-pay-soon-tag">Şu an aktif değil</span></label>
+          <p class="cns-pay-section-hint" style="margin-top:14px;">Şu anda görüşme için ödeme alınmıyor. Talebin ekibimize iletilir; onaylandığında görüşme odan Hesabım &gt; Bildirimler'e düşer.</p>
 
-          <div class="cns-pay-havale-box">
-            <div class="cns-pay-havale-row">
-              <span class="cns-pay-havale-label">IBAN</span>
-              <span class="cns-pay-havale-value">${HAVALE_IBAN_FORMATTED}</span>
-              <button type="button" class="cns-pay-copy-btn" id="cns-pay-copy-btn">Kopyala</button>
-            </div>
-            <div class="cns-pay-havale-row"><span class="cns-pay-havale-label">Hesap Sahibi</span><span class="cns-pay-havale-value">Kaan Çorbacı</span></div>
-            <div class="cns-pay-havale-row"><span class="cns-pay-havale-label">Tutar</span><span class="cns-pay-havale-value" id="cns-pay-amount">—</span></div>
-            <div class="cns-pay-havale-row"><span class="cns-pay-havale-label">Açıklama</span><span class="cns-pay-havale-value">info@mimarlab.com</span></div>
-            <p class="cns-pay-hint">Ödemeni yukarıdaki IBAN'a gönderirken açıklama kısmına e-posta adresini yaz. Ödemeyi tamamladıktan sonra aşağıdaki butona tıkla.</p>
-          </div>
-
-          <button class="cns-submit" type="button" id="cns-pay-confirm-btn">Ödemeyi Yaptım</button>
+          <button class="cns-submit" type="button" id="cns-pay-confirm-btn">Talebi Gönder</button>
           <div class="cns-pay-notice" id="cns-pay-notice"></div>
         </div>
 
@@ -249,11 +220,8 @@ const ConsultationModal = (function () {
     const backBtn = overlay.querySelector('#cns-back-btn');
     const payDateEl = overlay.querySelector('#cns-pay-date');
     const payTimeEl = overlay.querySelector('#cns-pay-time');
-    const payPriceEl = overlay.querySelector('#cns-pay-price');
-    const payAmountEl = overlay.querySelector('#cns-pay-amount');
     const confirmBtn = overlay.querySelector('#cns-pay-confirm-btn');
     const notice = overlay.querySelector('#cns-pay-notice');
-    const copyBtn = overlay.querySelector('#cns-pay-copy-btn');
     const nameInput = overlay.querySelector('#cns-contact-name');
     const emailInput = overlay.querySelector('#cns-contact-email');
     const phoneInput = overlay.querySelector('#cns-contact-phone');
@@ -262,7 +230,7 @@ const ConsultationModal = (function () {
     const successTextEl = overlay.querySelector('#cns-success-text');
     const rescheduleBtn = overlay.querySelector('#cns-reschedule-btn');
     const successCloseBtn = overlay.querySelector('#cns-success-close-btn');
-    const CONFIRM_BTN_LABEL = 'Ödemeyi Yaptım';
+    const CONFIRM_BTN_LABEL = 'Talebi Gönder';
 
     // ---------------------------------------------------------------------------------------
     // Telefon maskesi (kullanıcı isteği, 2026-09-06 madde 3): "sadece 11 haneli, başında 0 olan
@@ -341,7 +309,7 @@ const ConsultationModal = (function () {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) close(); });
     // Bu popup bir ArchitectModal (ModalShell) içeriğinin ÜSTÜNDE açılır — o popup kapanırsa
     // (X, geri tuşu, başka bir popup'a geçiş) bu overlay document.body'de asılı kalıp
-    // body.overflow'u 'hidden'da kilitli bırakmasın diye info-modal.js#ensureRozetPayPopup İLE AYNI temizlik.
+    // body.overflow'u 'hidden'da kilitli bırakmasın diye rating-widget.js#ensureRatePopup İLE AYNI temizlik.
     document.addEventListener('mimarlab-modal-closed', close);
 
     // Ay ızgarasını (mevcut calendarState.year/month + calendarState.availability'e göre) çizer.
@@ -447,8 +415,6 @@ const ConsultationModal = (function () {
     function showPayScreen() {
       payDateEl.textContent = formatDateTr(state.date);
       payTimeEl.textContent = state.time;
-      payPriceEl.textContent = formatPriceTr(CONSULTATION_PRICE_TRY);
-      payAmountEl.textContent = formatPriceTr(CONSULTATION_PRICE_TRY);
       if (!nameInput.value && prefill.name) nameInput.value = prefill.name;
       if (!emailInput.value && prefill.email) emailInput.value = prefill.email;
       notice.textContent = '';
@@ -477,7 +443,7 @@ const ConsultationModal = (function () {
       bookNotice.classList.remove('show', 'success');
       bookNotice.textContent = '';
       if (state.requestId) {
-        // Yeniden planlama — ödeme adımı tekrarlanmaz, mevcut talebin tarih/saati güncellenir.
+        // Yeniden planlama — iletişim adımı tekrarlanmaz, mevcut talebin tarih/saati güncellenir.
         continueBtn.disabled = true;
         continueBtn.textContent = 'Kaydediliyor…';
         try {
@@ -506,15 +472,6 @@ const ConsultationModal = (function () {
       showPayScreen();
     });
     backBtn.addEventListener('click', () => showScreen('book'));
-
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(HAVALE_IBAN_RAW);
-        const original = copyBtn.textContent;
-        copyBtn.textContent = 'Kopyalandı';
-        setTimeout(() => { copyBtn.textContent = original; }, 1500);
-      } catch {}
-    });
 
     confirmBtn.addEventListener('click', async () => {
       const contactName = nameInput.value.trim();

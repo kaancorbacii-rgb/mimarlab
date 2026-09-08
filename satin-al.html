@@ -120,18 +120,6 @@
   .form-section h2{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
   .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px; line-height:1.6;}
 
-  .payment-option-disabled{opacity:0.55; cursor:default;}
-  .payment-option-disabled input{cursor:default;}
-  .payment-soon-tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); background:var(--paper-alt); padding:3px 9px; border-radius:100px;}
-
-  .havale-box{margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:var(--paper);}
-  .havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px;}
-  .havale-row:last-of-type{border-bottom:none;}
-  .havale-row-label{color:var(--ink-soft); flex-shrink:0;}
-  .havale-row-value{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; text-align:right; word-break:break-word;}
-  .havale-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 12px; font-size:11.5px; font-weight:600; color:var(--ink);}
-  .havale-copy-btn:hover{background:var(--paper-alt);}
-  .havale-hint{font-size:12.5px; color:var(--ink-soft); line-height:1.6; margin:12px 0 0;}
 
   .summary-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line-soft); font-size:14px;}
   .summary-row:last-child{border-bottom:none;}
@@ -239,25 +227,6 @@
       <div class="tier-grid" id="tier-grid"></div>
     </div>
 
-    <div class="form-section" id="payment-section">
-      <h2>Ödeme Yöntemi</h2>
-      <p class="section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
-      <label class="target-option"><input type="radio" name="payment-method" id="payment-havale" value="havale" checked> Havale / EFT</label>
-      <label class="target-option payment-option-disabled"><input type="radio" name="payment-method" id="payment-card" value="card" disabled> Kredi / Banka Kartı <span class="payment-soon-tag">Şu an aktif değil</span></label>
-
-      <div class="havale-box" id="havale-box">
-        <div class="havale-row">
-          <span class="havale-row-label">IBAN</span>
-          <span class="havale-row-value" id="havale-iban">TR22 0004 6001 7088 8000 2482 94</span>
-          <button type="button" class="havale-copy-btn" id="havale-copy-btn">Kopyala</button>
-        </div>
-        <div class="havale-row"><span class="havale-row-label">Hesap Sahibi</span><span class="havale-row-value">Kaan Çorbacı</span></div>
-        <div class="havale-row"><span class="havale-row-label">Tutar</span><span class="havale-row-value" id="havale-amount">—</span></div>
-        <div class="havale-row"><span class="havale-row-label">Açıklama</span><span class="havale-row-value">info@mimarlab.com</span></div>
-        <p class="havale-hint">Ödemeni yukarıdaki IBAN'a gönderirken açıklama kısmına e-posta adresini yaz. Ödemeyi tamamladıktan sonra aşağıdaki butona tıkla, satın alımın onaylandığında rozetin hemen aktifleşecek.</p>
-      </div>
-    </div>
-
     <div class="form-section" id="summary-section">
       <h2>Sipariş Özeti</h2>
       <div class="summary-row">
@@ -268,8 +237,10 @@
         <span class="summary-row-label">Yenileme</span>
         <span class="summary-row-value">Aylık, elle iptal edilene kadar</span>
       </div>
-      <button class="form-submit" id="confirm-btn" type="button" style="margin-top:18px;">Ödemeyi Yaptım</button>
-      <div class="form-notice" id="form-notice"></div>
+      <div class="already-has" id="sales-closed" style="margin-top:18px;">
+        <strong>Rozet satışı şu an açık değil</strong>
+        <p>Şimdilik ödeme almıyoruz. Rozet satışı kredi/banka kartıyla ödeme açıldığında başlayacak; açıldığında burada duyuracağız.</p>
+      </div>
     </div>
 
     <div class="form-section" id="already-has-section" style="display:none;">
@@ -351,7 +322,6 @@ function renderSummary(){
   const priceLabel = formatTRY(priceForTier(tier));
   document.getElementById('summary-tier-label').textContent = tier.label;
   document.getElementById('summary-tier-price').textContent = `${priceLabel} / ay`;
-  document.getElementById('havale-amount').textContent = priceLabel;
 }
 
 renderTierGrid();
@@ -400,17 +370,14 @@ function updateExistingBadgePanel(){
     blocking = profileRank >= activeRank ? { badge_type: profileBadgeType, status: 'active', admin: true } : activeBadge;
   }
 
-  const paymentSection = document.getElementById('payment-section');
   const summarySection = document.getElementById('summary-section');
   const alreadyHasSection = document.getElementById('already-has-section');
   if(!blocking){
-    paymentSection.style.display = '';
     summarySection.style.display = '';
     alreadyHasSection.style.display = 'none';
     return;
   }
   const tier = BADGE_TIERS.find(t => t.type === blocking.badge_type);
-  paymentSection.style.display = 'none';
   summarySection.style.display = 'none';
   alreadyHasSection.style.display = 'block';
   const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
@@ -475,54 +442,9 @@ document.querySelectorAll('input[name="badge-target"]').forEach(radio=>{
   });
 });
 
-const HAVALE_IBAN_RAW = 'TR220004600170888000248294';
-const havaleCopyBtn = document.getElementById('havale-copy-btn');
-havaleCopyBtn.addEventListener('click', async ()=>{
-  try{
-    await navigator.clipboard.writeText(HAVALE_IBAN_RAW);
-    const original = havaleCopyBtn.textContent;
-    havaleCopyBtn.textContent = 'Kopyalandı';
-    setTimeout(()=>{ havaleCopyBtn.textContent = original; }, 1500);
-  }catch{}
-});
-
-const ORIGINAL_BTN_LABEL = 'Ödemeyi Yaptım';
-
-document.getElementById('confirm-btn').addEventListener('click', async ()=>{
-  const btn = document.getElementById('confirm-btn');
-  const notice = document.getElementById('form-notice');
-  notice.classList.remove('show', 'success');
-
-  if(selectedTargetType === 'office' && !selectedTargetKey){ notice.textContent = 'Rozet almak için önce onaylı bir firma profiline sahip olmalısın.'; notice.classList.add('show'); return; }
-
-  btn.disabled = true;
-  btn.textContent = 'Gönderiliyor…';
-  try{
-    const res = await fetch('/api/badges', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ badgeType: selectedTier, targetType: selectedTargetType, targetKey: selectedTargetKey }),
-    });
-    if(res.status === 401){ window.location.href = '/giris'; return; }
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok){
-      notice.textContent = data.error || 'Talep gönderilemedi, tekrar dene.';
-      notice.classList.add('show');
-      btn.disabled = false;
-      btn.textContent = ORIGINAL_BTN_LABEL;
-      return;
-    }
-    notice.textContent = 'Talebin alındı. Ödemen kontrol edilip onaylandığında rozetin aktif olacak — sonucu Hesabım sayfandan takip edebilirsin.';
-    notice.classList.add('show', 'success');
-    btn.textContent = 'Talebin Gönderildi';
-    loadMyBadges();
-  }catch(err){
-    notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
-    notice.classList.add('show');
-    btn.disabled = false;
-    btn.textContent = ORIGINAL_BTN_LABEL;
-  }
-});
-
+// Havale/EFT kutusu, IBAN ve "Ödemeyi Yaptım" akışı KALDIRILDI (kullanıcı isteği, 2026-09-08:
+// "şimdilik ödeme almıyoruz") — bkz. js/components/info-modal.js#mountRozetAl (bu sayfanın canlı
+// ikizi) ve src/routes/badges.js#BADGE_SALES_OPEN.
 fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = '/giris'; });
 
 

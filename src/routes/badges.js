@@ -123,7 +123,14 @@ export async function getBlockingRank(env, userId, target) {
   return Math.max(activeRank, profileRank);
 }
 
+// Rozet satışı KAPALI (kullanıcı isteği, 2026-09-08: "şimdilik ödeme almıyoruz"). UI'daki havale/
+// EFT kutusu ve "Ödemeyi Yaptım" butonu kaldırıldı; bu bayrak, eski JS'i önbellekten çalıştıran
+// ya da ucu doğrudan çağıran bir istemcinin yine de 'pending' talep açmasını engeller. Satış
+// yeniden açıldığında true yapılmalı — ama havale değil, kart akışı (payments.js) kurulmalı.
+const BADGE_SALES_OPEN = false;
+
 async function createBadgeRequest(request, env, user) {
+  if (!BADGE_SALES_OPEN) return errorJson('Rozet satışı şu an açık değil.', 403);
   // gerçek bulgu: bu havale/EFT yolunda hiç hız sınırı yoktu — aynı özelliğin kart ödemesi
   // karşılığı (payments.js#startCheckout) hem kullanıcı hem IP bazlı limit uyguluyor, buradaki
   // DELETE+INSERT pending döngüsü (bkz. aşağısı) sınırsız tekrarlanabiliyordu. AYNI oranlar.
