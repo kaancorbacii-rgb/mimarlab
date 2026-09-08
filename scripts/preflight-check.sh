@@ -191,6 +191,23 @@ else
   tail -25 /tmp/preflight_0908 >&2
 fi
 rm -f /tmp/preflight_0908
+
+# slugify TR/aksan haritası BEŞ dosyada kopyalı (bkz. src/lib/slugify.js dosya başı: save-widget.js
+# ve *-ekle.html tarayıcıda modülsüz çalıştığından bilerek kopyalanmış). Biri sapan bir kopya SESSİZ
+# bir hatadır: sunucunun ürettiği slug ile istemcinin kaydet/takip anahtarı ayrışır ve buton durumu
+# ya da temiz URL eşleşmesi bozulur. Karşılaştırma harita İÇERİĞİ üzerinden (yorumlar/boşluk hariç).
+slug_sig() { tr -d ' \n' < "$1" | grep -o "ç:'c'.*Đ:'d'" | head -1; }
+slug_ref="$(slug_sig src/lib/slugify.js)"
+slug_drift=""
+if [ -z "$slug_ref" ]; then
+  bad "slugify TR/aksan haritası src/lib/slugify.js'te bulunamadı (biçim değişmiş olabilir)"
+else
+  for f in save-widget.js marka-ekle.html firma-ekle.html kisi-ekle.html; do
+    [ "$(slug_sig "$f")" = "$slug_ref" ] || slug_drift="$slug_drift $f"
+  done
+  if [ -n "$slug_drift" ]; then bad "slugify haritası src/lib/slugify.js'ten SAPMIŞ:$slug_drift"
+  else ok "slugify haritası beş kopyada da aynı"; fi
+fi
 # Bildirim linki /gorusme/:uuid'e gidebilmeli — auth-modal.js#NOTIF_ENTITY_PATH_RE 'gorusme'
 # içermezse "görüşmen hazır" bildirimi tıklanınca hiçbir yere gitmez (sessiz regresyon).
 if grep -q "function meetingRoomUuidFromLink" js/components/auth-modal.js && grep -q "MeetingRoom.open(meetingRoomUuid)" js/components/auth-modal.js; then

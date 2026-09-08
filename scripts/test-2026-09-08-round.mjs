@@ -27,6 +27,7 @@ import { ensurePendingOfficeClaims, fillUserFromArchitectProfile } from '../src/
 import { syncApprovedSubmissionToCanonical } from '../src/lib/canonicalSync.js';
 import { newId } from '../src/lib/crypto.js';
 import { parseSubmissionRow } from '../src/lib/submissionTypes.js';
+import { slugify } from '../src/lib/slugify.js';
 
 let passed = 0, failed = 0;
 const failures = [];
@@ -388,6 +389,23 @@ await test('classicSearch D1 üzerinde aksanlı kişiyi bulur (SQL yolu)', async
     const r = await classicSearch(env, q, { perGroup: 20 });
     assert.ok(r.architects.length, `"${q}" hiçbir kişi döndürmedi`);
   }
+});
+
+section('madde 2b — slugify aksanı KATLAR (düşürmez)');
+
+await test('aksanlı adlar temiz slug üretir', () => {
+  // Eskiden harita aksanı içermediğinden `[^a-z0-9]+ -> '-'` onları TİRE'ye çeviriyordu:
+  // "Celâleddin Çelik" -> "cel-leddin-celik" (canlıda böyleydi).
+  assert.equal(slugify('Celâleddin Çelik'), 'celaleddin-celik');
+  assert.equal(slugify('José Bruguera'), 'jose-bruguera');
+  assert.equal(slugify('İbrahim Kâmil Ağa'), 'ibrahim-kamil-aga');
+  assert.equal(slugify('èdoc architects'), 'edoc-architects');
+  assert.equal(slugify('Lâpseki Hükümet Konağı'), 'lapseki-hukumet-konagi');
+  assert.equal(slugify('Renée'), 'renee');
+  // Türkçe davranışı DEĞİŞMEDİ
+  assert.equal(slugify('Şefik Birkiye'), 'sefik-birkiye');
+  assert.equal(slugify('Galata Kulesi'), 'galata-kulesi');
+  assert.equal(slugify('R.A.F. Studio'), 'r-a-f-studio');
 });
 
 section('madde 3 — atanan kişi profili hesap bilgilerini doldurur');
