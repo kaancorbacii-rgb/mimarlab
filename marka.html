@@ -32,8 +32,10 @@
 <!-- mlPre (performans turu, 2026-09-08): Worker, sorgu dizesiz girişte bu shim'in ÜRETECEĞİ URL'lerin
      yanıtını <head>'in EN BAŞINA #ml-list-data olarak gömer (bkz. src/index.js#HUB_SSR). Gömülü
      yanıt varsa (ve 60sn'den yeniyse) ağa hiç çıkılmadan aynı __mlPrefetch sözlüğüne hazır bir
-     Response yazılır; yoksa eskisi gibi erken fetch. listFetch() iki durumu ayırt etmez. -->
-<script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>=0&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
+     Response yazılır; yoksa eskisi gibi erken fetch. listFetch() iki durumu ayırt etmez.
+     Yaş alt sınırı −5dk: istemci saati sunucudan geride olabilir (canlıda görüldü: −61ms, veri
+     bu yüzden reddedilip boşuna fetch'e düşüyordu) — negatif yaş "gelecekten" değil saat sapmasıdır. -->
+<script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
 if(/^\/marka\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
 ['js/components/office-modal.js','js/components/modal-shell.js'].forEach(function(s){var l=document.createElement('link');l.rel='preload';l.as='script';l.href=s;document.head.appendChild(l);});return;}
 if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1&limit=24&brands=1';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}

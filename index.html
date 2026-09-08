@@ -1017,7 +1017,9 @@ loadHomeSections(true);
 if(HOME_SSR){
   const navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
   const age = Date.now() - (Number(HOME_SSR.t) || 0);
-  const maybeStale = !(age >= 0 && age < 45000) || (navEntry && navEntry.type === 'back_forward');
+  // age < -300000: 5dk'dan büyük NEGATİF yaş saat sapması değil beklenmedik bir durumdur; küçük negatif
+  // değerler (istemci saati sunucudan biraz geride — canlıda -61ms görüldü) tazedir, yenileme gerektirmez.
+  const maybeStale = age >= 45000 || age < -300000 || (navEntry && navEntry.type === 'back_forward');
   if(maybeStale){
     const refresh = () => setTimeout(() => loadHomeSections(false), 2500);
     if(document.readyState === 'complete') refresh();
