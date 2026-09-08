@@ -6,7 +6,9 @@ import { getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge, BADGE_RANK 
 // Erişim kuralı: YALNIZCA ALTIN ÜYE (kullanıcı isteği, 2026-09-04: "İstatistik erişimini altın
 // üyeyle sınırla"). İlk sürümde kapı "herhangi bir rozet" idi ve /rozet-al'da özellikten yalnızca
 // Altın Üye altında bahsediliyordu; kural artık tanıtım metniyle birebir örtüşüyor — Doğrulanmış
-// Üye bu veriye ERİŞEMEZ (UI'da bölüm hiç görünmez, API 403 döner).
+// Üye bu veriye ERİŞEMEZ (API 403 döner). 403'ün UI karşılığı 2026-09-08'de değişti: bölüm artık
+// gizlenmiyor, açılır/kapanır başlık herkeste duruyor ve içeride "Altın Rozet'e özel" kilit mesajı
+// çıkıyor (bkz. auth-modal.js#renderStatsLocked) — yetki kararı yine YALNIZCA buradan gelir.
 //
 // PDF dışa aktarımının kapısı (auth-modal.js#badgeAccessFrom) BİLEREK olduğu gibi bırakıldı: o
 // ayrıcalık her iki kademede de listeleniyor, yani iki özellik artık farklı kümelere açılıyor.
