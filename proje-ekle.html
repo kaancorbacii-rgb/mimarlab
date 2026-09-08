@@ -400,10 +400,14 @@
   .hs-pin{
     position:absolute; transform:translate(-50%,-50%); width:26px; height:26px; border-radius:50%;
     border:2.5px solid #fff; background:var(--accent); box-shadow:0 2px 10px rgba(15,19,26,0.5);
-    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+    display:flex; align-items:center; justify-content:center; cursor:grab; padding:0;
+    touch-action:none;
   }
   .hs-pin::after{content:''; width:9px; height:9px; border-radius:50%; background:#fff;}
   .hs-pin.active{outline:3px solid rgba(255,255,255,0.55);}
+  /* Sürükleme sırasında (bkz. JS#hsPinDrag) — imleç değişir ve pin hafifçe büyür, kullanıcı
+     taşımanın gerçekten başladığını görsün. */
+  .hs-pin.hs-pin-dragging{cursor:grabbing; transform:translate(-50%,-50%) scale(1.15); box-shadow:0 4px 18px rgba(15,19,26,0.65);}
   .hs-form{
     position:absolute; width:280px; max-width:82vw; background:var(--paper-card); border-radius:14px;
     padding:14px; box-shadow:0 18px 44px rgba(15,19,26,0.4); line-height:1.5; z-index:3;
@@ -1870,7 +1874,68 @@ previewGrid.addEventListener('click', (e)=>{
 // Sarmalayıcı ok fonksiyonu ŞART: doğrudan bağlanırsa Event nesnesi renderHotspotPins'in draftAt
 // argümanına düşer ve (x/y'si olmadığı için) sol üst köşede hayalet bir işaretçi çizilir.
 hsImage.addEventListener('load', ()=> renderHotspotPins());
+
+// ---------- İŞARETÇİYİ SÜRÜKLEYEREK TAŞIMA (kullanıcı isteği) ----------
+// Bir pine basılı tutup sürüklemek onu görsel üzerinde yeni bir konuma taşır; sürüklemeden bir
+// pine düz tıklamak ise (aşağıdaki click dinleyicisinde) hâlâ düzenleme kutusunu açar — ikisi
+// hareket mesafesine (HS_DRAG_MOVE_PX) bakılarak ayrıştırılır, previewGrid'in sürükle-sırala
+// akışındaki dragJustFinished deseniyle aynı mantık (yukarısı).
+const HS_DRAG_MOVE_PX = 4;
+let hsPinDrag = null; // {pin, pointerId, index, moved, x, y}
+let hsDragJustFinished = false;
+
+hsStage.addEventListener('pointerdown', (e)=>{
+  // Bir önceki sürüklemeden kalan "click'i yut" bayrağı, sürükleme click üretmeden biterse
+  // (ör. pointercancel) takılı kalabilir — her yeni basışta sıfırlanır (previewGrid'teki
+  // dragJustFinished ile aynı önlem, yukarısı).
+  hsDragJustFinished = false;
+  const pin = e.target.closest('.hs-pin');
+  if(!pin) return;
+  e.preventDefault();
+  try{ pin.setPointerCapture(e.pointerId); }catch{}
+  hsPinDrag = { pin, pointerId: e.pointerId, index: pin.dataset.hsIndex, moved: false, startX: e.clientX, startY: e.clientY, x: null, y: null };
+});
+
+hsStage.addEventListener('pointermove', (e)=>{
+  if(!hsPinDrag || e.pointerId !== hsPinDrag.pointerId) return;
+  if(!hsPinDrag.moved){
+    if(Math.abs(e.clientX - hsPinDrag.startX) < HS_DRAG_MOVE_PX && Math.abs(e.clientY - hsPinDrag.startY) < HS_DRAG_MOVE_PX) return;
+    hsPinDrag.moved = true;
+    hsPinDrag.pin.classList.add('hs-pin-dragging');
+  }
+  const rect = hsImage.getBoundingClientRect();
+  const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+  hsPinDrag.x = x; hsPinDrag.y = y;
+  hsPinDrag.pin.style.left = x + '%';
+  hsPinDrag.pin.style.top = y + '%';
+  // Taşınan pinin düzenleme kutusu açıksa (aktif pin ya da henüz kaydedilmemiş taslak) kutu da
+  // pinle birlikte kayar, aksi halde kutu eski noktada asılı kalır.
+  if(hsForm && hsPinDrag.pin.classList.contains('active')){
+    placeHotspotForm(x, y);
+    if(hsDraft){ hsDraft.x = x; hsDraft.y = y; }
+  }
+});
+
+function finishHsPinDrag(e){
+  if(!hsPinDrag || (e && e.pointerId !== hsPinDrag.pointerId)) return;
+  const { pin, moved, index, x, y } = hsPinDrag;
+  pin.classList.remove('hs-pin-dragging');
+  try{ pin.releasePointerCapture(hsPinDrag.pointerId); }catch{}
+  hsPinDrag = null;
+  if(!moved) return;
+  // Sürükleme sonrası tarayıcının ürettiği click, taşınan pini yine düzenleme kutusuyla AÇMAMALI.
+  hsDragJustFinished = true;
+  if(index === 'draft') return; // hsDraft.x/y yukarıda zaten güncellendi, kayıt Kaydet'te olur.
+  const item = hsCurrentItem();
+  const h = item && (item.hotspots || [])[parseInt(index, 10)];
+  if(h){ h.x = x; h.y = y; }
+}
+hsStage.addEventListener('pointerup', finishHsPinDrag);
+hsStage.addEventListener('pointercancel', finishHsPinDrag);
+
 hsStage.addEventListener('click', (e)=>{
+  if(hsDragJustFinished){ hsDragJustFinished = false; return; }
   const pin = e.target.closest('.hs-pin');
   if(pin){
     if(pin.dataset.hsIndex === 'draft') return; // kaydedilmemiş işaretçi: kutusu zaten açık
