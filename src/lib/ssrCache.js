@@ -118,7 +118,7 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // rozetlerinde logo, admin kontrollerinin sol üste taşınması, mobil buton boyutları. Yukarıdaki
 // v110-v119 ile AYNI gerekçe: /gundem'in SSR gövdesi önbelleğe gömülü olduğundan sürüm
 // artırılmazsa sayfayı daha önce açmış ziyaretçiler s-maxage boyunca ESKİ işaretlemeyi görür.
-export const SSR_CACHE_VERSION = 'v122';
+export const SSR_CACHE_VERSION = 'v123';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

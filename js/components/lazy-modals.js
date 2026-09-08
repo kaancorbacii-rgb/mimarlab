@@ -204,6 +204,25 @@
   // davranış hiç değişmez.
   const ALL_MODULES = Object.assign({}, MODULES, ENTITY_MODULES);
 
+  // SÜRÜMLÜ MODÜL URL'LERİ (performans turu, 2026-09-08). Worker her HTML'in <head>'ine
+  // <meta name="ml-asset-version" content="<deploy sha>"> yazar (bkz. src/index.js#fetch sonundaki
+  // sarmalayıcı) ve ?v=<sürüm> taşıyan .js/.css istekleri bir yıl `immutable` servis edilir. Sayfanın
+  // kendi <script src> etiketlerini Worker HTMLRewriter ile sürümlerken burada dinamik eklenen
+  // modül/bağımlılık etiketleri AYNI sürümü alır — aksi halde her detay pop-up'ı açılışında
+  // modal-shell.js (77 KB) ve 6-10 bağımlılık 60sn'lik max-age dolunca yeniden doğrulanıyordu.
+  // Meta yoksa (yerel statik sunum, eski cache girdisi) URL'ler değişmeden kalır.
+  const ASSET_VERSION = (function () {
+    const m = document.querySelector('meta[name="ml-asset-version"]');
+    const v = m && m.getAttribute('content');
+    return (v && /^[A-Za-z0-9._-]{1,40}$/.test(v)) ? v : '';
+  })();
+  function versionedSrc(src) {
+    if (!ASSET_VERSION || typeof src !== 'string') return src;
+    if (/^(https?:)?\/\//i.test(src) || src.includes('?') || src.includes('#')) return src;
+    if (!/\.(js|css)$/i.test(src)) return src;
+    return src + '?v=' + ASSET_VERSION;
+  }
+
   const pending = {};
   // src'si zaten sayfada varsa (ör. bu betik iki kez dahil edilmişse) tekrar enjekte etmez —
   // window.AuthModal/InfoModal (bkz. o dosyaların sonundaki AYNI not) hazır olana kadar bekler.
@@ -214,7 +233,8 @@
     // Bağımlılıklar modülden ÖNCE ve sırayla yüklenir. Bir bağımlılık yüklenemezse modül YİNE DE
     // yüklenir (bkz. auth-modal.js'teki yedek liste) — yardımcı bir veri dosyası yüzünden tüm
     // Hesabım popup'ını kaybetmek çok daha kötü olurdu.
-    const loadDep = (src) => new Promise(res => {
+    const loadDep = (rawSrc) => new Promise(res => {
+      const src = versionedSrc(rawSrc);
       if (document.querySelector(`script[src="${src}"]`)) return res();
       const dep = document.createElement('script');
       dep.src = src;
@@ -227,11 +247,12 @@
     // zaten tarayıcı önbelleğinde olduğundan ikinci bir gidiş-dönüş oluşmaz. Canlıda ölçüldü: bu
     // olmadan architect-modal.js indirmesi bağımlılıklardan SONRA başlıyor ve soğuk önbellekte
     // ~280 ms'lik ek bir seri adım ekliyordu.
-    if (!document.querySelector(`link[rel="preload"][href="${mod.src}"]`)) {
+    const modSrc = versionedSrc(mod.src);
+    if (!document.querySelector(`link[rel="preload"][href="${modSrc}"]`)) {
       const pre = document.createElement('link');
       pre.rel = 'preload';
       pre.as = 'script';
-      pre.href = mod.src;
+      pre.href = modSrc;
       document.head.appendChild(pre);
     }
     // deferredDeps: modülün RENDER'ı için gerekmeyen, yalnızca bir kullanıcı etkileşiminde devreye
@@ -249,7 +270,7 @@
 
     pending[key] = depsReady.then(() => new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = mod.src;
+      script.src = modSrc;
       script.onload = () => resolve(window[mod.globalName]);
       // gerçek bulgu: onerror hiç ele alınmıyordu — ağ hatasında (offline/timeout) bu Promise SONSUZA
       // KADAR askıda kalıyordu; e.preventDefault() zaten çağrıldığından tıklama hiçbir şey yapmadan

@@ -642,7 +642,31 @@ export default {
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
     logRequest({ request, url, env, requestId, startedAt, status: response.status, errorMessage });
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    // SÜRÜMLÜ SCRIPT/STYLESHEET BAĞLANTILARI — TÜM HTML yanıtları için TEK yerde (kullanıcı isteği,
+    // 2026-09-08: "detay sayfalarını da sürümlü script'e geçir"). Önceden yalnızca LIST_PAGE_PATHS
+    // dalında yapılıyordu; detay (/proje/:slug — serveDetailPage, Cache API'den de dönebilir), bilgi
+    // (serveInfoModalPage), Gündem ve diğer tüm sayfalar max-age=60'lık sürümsüz bağlantılarla
+    // kalıyordu. Burada uygulamanın iki avantajı var: (a) hangi servis fonksiyonundan geldiği fark
+    // etmez, yeni bir sayfa yolu eklenince unutulamaz; (b) Cache API'de saklanan detay HTML'i
+    // SÜRÜMSÜZ tutulur, sürüm her istekte O ANKİ deploy'dan yazılır — eski bir cache girdisi bile
+    // hiçbir zaman eski ?v= taşımaz. isLocalAssetRef '?' taşıyan bağlantıya dokunmadığından çift
+    // uygulama (LIST dalı hâlâ kendi enjeksiyonunda da çağırıyor) idempotenttir. HEAD'de gövde yok;
+    // 200 dışı (404 sayfası vb.) ve HTML dışı yanıtlar olduğu gibi geçer. Content-Length silinir —
+    // dönüştürülen akışın uzunluğu artık orijinalle aynı değil.
+    let body = response.body;
+    if (request.method === 'GET' && response.status === 200 && body && /text\/html/i.test(headers.get('Content-Type') || '')) {
+      const rewriter = new HTMLRewriter();
+      versionAssetUrls(rewriter, env);
+      // <meta name="ml-asset-version"> — DİNAMİK yüklenen modüller için (js/components/lazy-modals.js:
+      // modal-shell/architect-modal/... ve bağımlılıkları; kisi/firma/marka <head> preload ipuçları)
+      // aynı sürüm istemciye de verilir; onlar da ?v= ekleyip immutable önbellekten yararlanır.
+      // <head>'in BAŞINA: <head>'deki senkron shim'ler ondan sonra çalışmalı.
+      const versionMeta = `<meta name="ml-asset-version" content="${deployVersion(env)}">`;
+      rewriter.on('head', { element(el) { el.prepend(versionMeta, { html: true }); } });
+      body = rewriter.transform(new Response(body, { status: 200, headers: { 'Content-Type': 'text/html' } })).body;
+      headers.delete('Content-Length');
+    }
+    return new Response(body, { status: response.status, statusText: response.statusText, headers });
   },
 
   // ---------------------------------------------------------------------------------------------
