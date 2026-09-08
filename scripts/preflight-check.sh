@@ -185,7 +185,7 @@ rm -f /tmp/preflight_meet
 # ("r.a.f. studio"), `claimed` bayrağı ve Kurucular/Ekip aksan-katlamalı tekilleştirme.
 # Bkz. scripts/test-2026-09-08-round.mjs dosya başı.
 if node scripts/test-2026-09-08-round.mjs >/tmp/preflight_0908 2>&1; then
-  ok "atama/görev/arama/claimed testleri geçti ($(grep -c '^  ok ' /tmp/preflight_0908) test)"
+  ok "atama/görev/arama/claimed/onay-kapısı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_0908) test)"
 else
   bad "atama/görev/arama/claimed testleri BAŞARISIZ:"
   tail -25 /tmp/preflight_0908 >&2

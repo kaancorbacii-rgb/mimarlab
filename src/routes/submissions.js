@@ -5,6 +5,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
+import { ensurePendingOfficeClaims } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
@@ -235,19 +236,27 @@ export async function handleSubmissionRoute(request, env, url) {
 // Başkası adına açılan/düzenlenen kişi kayıtları (kisi-ekle.html'in asıl kullanımı) bu iki testin
 // ikisinden de geçemez, dolayısıyla düzenleyenin hesabına HİÇBİR ŞEY yazılmaz.
 const ACCOUNT_SYNC_STRING_FIELDS = ['dob', 'school', 'dept', 'position', 'about', 'photo_url'];
-async function syncOwnArchitectToAccount(env, user, typeKey, row, selfMatchName) {
-  if (typeKey !== 'architects' || !user || !row) return;
-  let isSelf = false;
+// "Bu kişi kaydı kullanıcının KENDİSİ mi?" — syncOwnArchitectToAccount ve ensurePendingOfficeClaims
+// çağrısı AYNI soruyu sorar (biri hesap alanlarını doldurmak, diğeri firma bağı için onay talebi
+// açmak üzere), bu yüzden kural tek yerde durur. Kritik: kisi-ekle.html'in ASIL kullanımı BAŞKA
+// birini eklemektir — bir meslektaşının firmasını yazmak, o kullanıcı adına firma talebi
+// DOĞURMAMALI.
+async function isOwnArchitectRecord(env, user, row, selfMatchName) {
+  if (!user || !row) return false;
   if (row.claimed_profile_key) {
     const claim = await env.DB.prepare(
       `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved'`
     ).bind(user.id, row.claimed_profile_key).first();
-    isSelf = !!claim;
+    if (claim) return true;
   }
   // Ad karşılaştırması DÜZENLEMEDEN ÖNCEKİ ad (selfMatchName) üzerinden yapılır — kullanıcı kendi
   // kişi profilinde ad soyadını değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez, eski ad eşleşir.
-  if (!isSelf && selfMatchName && user.name) isSelf = foldTr(selfMatchName) === foldTr(user.name);
-  if (!isSelf) return;
+  return !!(selfMatchName && user.name && foldTr(selfMatchName) === foldTr(user.name));
+}
+
+async function syncOwnArchitectToAccount(env, user, typeKey, row, selfMatchName) {
+  if (typeKey !== 'architects' || !user || !row) return;
+  if (!(await isOwnArchitectRecord(env, user, row, selfMatchName))) return;
 
   const updates = [];
   const values = [];
@@ -417,6 +426,13 @@ async function createSubmission(request, env, user, typeKey) {
   const renameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
   if (status === 'approved' && renameCascade && body.claimed_profile_key && body.name !== body.claimed_profile_key) {
     await renameCascade(env, body.claimed_profile_key, body.name);
+  }
+
+  // "Firma veya Marka" alanı -> admin onayı (bkz. src/lib/claimedProfiles.js#
+  // ensurePendingOfficeClaims, kullanıcı isteği 2026-09-08 madde 1). Kişi FİRMA profilinde ancak bu
+  // talep onaylandıktan sonra görünür (bkz. src/lib/canonicalSync.js#splitAdminApprovedOffices).
+  if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, { ...row, claimed_profile_key: body.claimed_profile_key || null }, row.name)) {
+    await ensurePendingOfficeClaims(env, user, (row.office || '').split(','), newId);
   }
 
   // GERÇEK BULGU (kullanıcı isteği, 2026-09-08 madde 3): Kurucular/Ekip kutusundan bir isim silmek
@@ -603,11 +619,14 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // Kişi profili -> hesap profili geri senkronu (bkz. syncOwnArchitectToAccount) — "kendisi mi"
   // testi DÜZENLEMEDEN ÖNCEKİ ad (existing.name) ile yapılır, kullanıcı kendi profilinde ad soyadını
   // değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez.
-  await syncOwnArchitectToAccount(
-    env, user, typeKey,
-    { ...row, claimed_profile_key: body.claimed_profile_key || existing.claimed_profile_key || null },
-    existing.name
-  );
+  const architectRowForSelfCheck = { ...row, claimed_profile_key: body.claimed_profile_key || existing.claimed_profile_key || null };
+  await syncOwnArchitectToAccount(env, user, typeKey, architectRowForSelfCheck, existing.name);
+
+  // "Firma veya Marka" alanı -> admin onayı — bkz. createSubmission'daki AYNI çağrı/gerekçe
+  // (kullanıcı isteği, 2026-09-08 madde 1).
+  if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, architectRowForSelfCheck, existing.name)) {
+    await ensurePendingOfficeClaims(env, user, (row.office || '').split(','), newId);
+  }
 
   // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle (bkz.
   // src/lib/officeFounderCascade.js — gerçek "kurucu/ortak" görünürlüğü bu alandan gelir, founders

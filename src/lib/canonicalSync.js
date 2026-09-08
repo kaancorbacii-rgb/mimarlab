@@ -638,14 +638,19 @@ async function pruneConflictsReferencingId(env, id) {
 // syncArchitect — "A Mimarlık, B Tasarım Studio" gibi birden çok firma desteği, kullanıcı isteği).
 // Bu listede OLMAYAN mevcut bağlantılar çıkarılır (form artık o firmayı içermiyorsa), listedeki
 // her firma için bağlantı eklenir/korunur.
-async function syncOfficeFounderLink(env, architectId, officeIds) {
+// pendingIds — mimarın `office` alanında GEÇEN ama admin onayı olmadığı için firma profiline
+// bağlanmayacak ofisler (bkz. splitAdminApprovedOffices). Bunlar için YENİ bağlantı KURULMAZ, ama
+// var olan bağlantı da SİLİNMEZ: aksi halde bu kural yürürlüğe girdikten sonra ilk kez profilini
+// kaydeden herkes, yıllardır firma sayfasında görünen kendi bağlantısını sessizce kaybederdi.
+async function syncOfficeFounderLink(env, architectId, officeIds, pendingIds = []) {
   const ids = [...new Set((officeIds || []).filter(id => id !== null && id !== undefined))];
-  if (!ids.length) {
+  const keep = [...new Set([...ids, ...(pendingIds || []).filter(id => id !== null && id !== undefined)])];
+  if (!keep.length) {
     await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ?`).bind(architectId).run();
     return;
   }
-  const placeholders = ids.map(() => '?').join(', ');
-  await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ? AND office_id NOT IN (${placeholders})`).bind(architectId, ...ids).run();
+  const placeholders = keep.map(() => '?').join(', ');
+  await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ? AND office_id NOT IN (${placeholders})`).bind(architectId, ...keep).run();
   for (const officeId of ids) {
     await env.DB.prepare(`INSERT OR IGNORE INTO office_founders (office_id, architect_id) VALUES (?, ?)`).bind(officeId, architectId).run();
   }
@@ -796,6 +801,47 @@ async function syncOffice(env, row) {
   return result;
 }
 
+// FİRMA-TARAFI GÖRÜNÜRLÜK KAPISI (kullanıcı isteği, 2026-09-08 madde 1: "kendini kurucu, kurucu
+// ortak, ortak, ekip üyesi vs. gösterirse onu o firma ya da marka profiline HEMEN EKLEME, admin
+// onayına sun").
+//
+// GERÇEK BULGU: Hesabım > Profili Düzenle'deki "Firma veya Marka" kutusu zaten bir
+// profile_claims('office') talebi açıp admin onayını bekliyordu — AMA aynı seçim, mimar kaydının
+// `office` alanına da düz metin olarak yazılıyordu ve syncArchitect bunu bölüp KOŞULSUZ
+// office_founders'a bağlıyordu. office_founders, firma pop-up'ının "Kurucular / Ortaklar"
+// listesinin ta kendisidir (bkz. src/routes/office.js#buildOfficePayload) — yani onay akışı
+// çalışırken kişi zaten o firmanın profilinde görünüyordu. Kendi-kendine-yayın yolu
+// (submissions.js#isSelfDirectoryListing) moderasyona hiç uğramadığından bu anında oluyordu.
+//
+// KURAL: firma-tarafı bağlantı yalnızca bağ ADMIN TARAFINDAN ONAYLANMIŞSA kurulur —
+//   * kaydın sahibi yoksa (legacy_static/admin kökenli içe aktarım) -> serbest,
+//   * sahibi admin ise -> serbest,
+//   * aksi halde sahibinin o firma için onaylı bir profile_claims('office') satırı olmalı.
+// Kişi-tarafı alan (architects.office_id, "Firma: X" satırı) DEĞİŞMEDEN yazılmaya devam eder:
+// kullanıcının kendi profilinde nerede çalıştığını yazması onay gerektirmez, istek FİRMA
+// profiline eklenmemekle ilgili.
+//
+// VAR OLAN BAĞLANTILAR KORUNUR: bu kapıdan geçemeyen ofisler `pendingIds` olarak
+// syncOfficeFounderLink'e ayrıca verilir — böylece bu değişiklikten ÖNCE kurulmuş bağlantılar,
+// kişinin profilini bir daha kaydetmesiyle sessizce SİLİNMEZ (yalnızca YENİSİ kurulmaz).
+async function splitAdminApprovedOffices(env, ownerUserId, officeNames, officeIdByName) {
+  const allIds = officeNames.map(n => officeIdByName.get(n)).filter(id => id != null);
+  if (!ownerUserId) return { linkIds: allIds, pendingIds: [] };
+  const owner = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(ownerUserId).first();
+  if (owner && owner.role === 'admin') return { linkIds: allIds, pendingIds: [] };
+  const { results } = await env.DB.prepare(
+    `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND status = 'approved'`
+  ).bind(ownerUserId).all();
+  const approved = new Set((results || []).map(r => foldTr(r.profile_key || '')));
+  const linkIds = [], pendingIds = [];
+  for (const name of officeNames) {
+    const id = officeIdByName.get(name);
+    if (id == null) continue;
+    (approved.has(foldTr(name)) ? linkIds : pendingIds).push(id);
+  }
+  return { linkIds, pendingIds };
+}
+
 async function syncArchitect(env, row) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
@@ -809,15 +855,19 @@ async function syncArchitect(env, row) {
   // ve buildArchitectPayload'daki "Kurucu/ortak olduğu TÜM firmalar" okuma mantığı, zaten bu join
   // tablosunu okuyor).
   const officeNames = (row.office || '').split(',').map(s => s.trim()).filter(Boolean);
+  const officeIdByName = new Map();
   const officeIds = [];
   for (const officeName of officeNames) {
     const match = await findOneByName(env, 'offices', officeName);
-    if (match.row) officeIds.push(match.row.id);
+    if (match.row) { officeIdByName.set(officeName, match.row.id); officeIds.push(match.row.id); }
     // candidates=[] "hiç eşleşme yok" anlamına gelir (bkz. syncOfficeFoundersFromNames'teki AYNI
     // gerekçe) — sessiz atlanan isimler artık en azından burada iz bırakır.
     else await logConflict(env, 'office_founder', officeName, `architect_submission:${row.id}`, match.ambiguous ? match.candidates : []);
   }
+  // architects.office_id (kişi-tarafı "Firma: X") kapıya TABİ DEĞİL — bkz. splitAdminApprovedOffices.
   const officeId = officeIds.length ? officeIds[0] : null;
+  const { linkIds: founderLinkIds, pendingIds: founderPendingIds } =
+    await splitAdminApprovedOffices(env, row.owner_user_id, officeNames, officeIdByName);
 
   let target = claimedKey
     ? await findSyncTargetByClaim(env, 'architects', claimedKey)
@@ -877,7 +927,7 @@ async function syncArchitect(env, row) {
     sets.push('hidden_at = NULL');
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
-    await syncOfficeFounderLink(env, target.id, officeIds);
+    await syncOfficeFounderLink(env, target.id, founderLinkIds, founderPendingIds);
     return target;
   }
 
@@ -891,7 +941,7 @@ async function syncArchitect(env, row) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
   ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, Number(row.directory_listed) === 0 ? 0 : 1, marker, claimedByUserId));
   const architectId = insert.meta.last_row_id;
-  await syncOfficeFounderLink(env, architectId, officeIds);
+  await syncOfficeFounderLink(env, architectId, founderLinkIds, founderPendingIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
   if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'architects', claimedKey);
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(architectId).first();

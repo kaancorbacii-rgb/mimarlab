@@ -21,6 +21,7 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { findR2Orphans, confirmStillOrphaned } from '../lib/r2Reconcile.js';
+import { fillUserFromArchitectProfile } from '../lib/claimedProfiles.js';
 import { buildMeta } from '../lib/seo.js';
 import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSettings.js';
 import { handleGundemAdminRoute } from './gundemAdmin.js';
@@ -837,6 +838,10 @@ async function handleClaimsAdmin(request, env, url, segments) {
     }
     // bkz. aşağıdaki PATCH onay dalındaki AYNI invalidation gerekçesi — /api/public/badges bu tabloya
     // doğrudan JOIN olduğundan.
+    // Atanan KİŞİ profilinin künyesi hesabın kendi profiline taşınır (kullanıcı isteği, 2026-09-08
+    // madde 3) — bkz. src/lib/claimedProfiles.js#fillUserFromArchitectProfile: yalnızca BOŞ alanlar
+    // doldurulur, hem Hesabım formu hem admin panelindeki Üyeler ekranı aynı users satırını okur.
+    if (profileType === 'architect') await fillUserFromArchitectProfile(env, userId, profileKey);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, profileType, profileKey);
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[profileType] || profileType;
@@ -912,6 +917,12 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // `profile_claims.status = 'approved'` filtresine JOIN olduğundan, bir talep onaylandığında/
     // reddedildiğinde o profilin rozet görünümü en fazla ANON_CACHE_HEADERS penceresi (15sn) kadar
     // eski kalabiliyordu.
+    // bkz. POST dalındaki AYNI çağrı/gerekçe (kullanıcı isteği, 2026-09-08 madde 3) — bir profil
+    // ataması İKİ ayrı uçtan geçebiliyor, yan etki ikisine de eklenmeli (bkz. proje notu:
+    // "Atamanın İKİ admin yolu").
+    if (body.status === 'approved' && claim.profile_type === 'architect') {
+      await fillUserFromArchitectProfile(env, claim.user_id, claim.profile_key);
+    }
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, claim.profile_type, claim.profile_key);
 

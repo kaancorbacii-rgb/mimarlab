@@ -50,10 +50,15 @@ export async function foldedPrefixThenSubstring({ runQuery, sqlFor, foldColumn, 
 
   // 2. aşama — 1. aşama listeyi dolduramadı, substring eşleşmelerini de ara. Zaten bulunanlar
   // tekrar edilmesin diye anahtara göre tekilleştirilir (aynı satır iki aşamada da eşleşebilir).
+  // 2. aşama AKSAN-DUYARSIZ (bkz. foldAccents'in üstündeki gerekçe): kolon da sorgu da aynı
+  // katlamadan geçirilir, böylece "celaleddin" yazan biri "Celâleddin Çelik"i bulur. 1. aşama
+  // (indexli önek) BİLEREK ham kolonla kalır — index ancak kolonun kendi değeri üzerinde çalışır;
+  // aksanlı bir adı önekle bulamamak burada bir kayıp DEĞİL, çünkü liste dolmadığı sürece 2. aşama
+  // zaten çalışır ve o kaydı toplar.
   const seen = new Set(prefixRows.map(keyOf));
   const substringRows = await runQuery(
-    sqlFor(`AND ${foldColumn} LIKE ? ESCAPE '\\'`, limit),
-    [`%${escapeLike(q)}%`]
+    sqlFor(`AND ${foldAccentsSqlExpr(foldColumn)} LIKE ? ESCAPE '\\'`, limit),
+    [`%${escapeLike(foldAccents(q))}%`]
   );
   const merged = prefixRows.slice();
   for (const row of substringRows) {
@@ -118,6 +123,51 @@ export function stripPunctSqlExpr(expr) {
   // gibi sözdizimsel olarak bozuk bir SQL üretilir ve sorgu tamamen patlar.
   const lit = (ch) => `'${ch.replace(/'/g, "''")}'`;
   return CHARS.reduce((acc, ch) => `replace(${acc},${lit(ch)},'')`, expr);
+}
+
+// AKSAN KATLAMA (kullanıcı isteği, 2026-09-08 madde 2: "Celaleddin yazınca Celâleddin Çelik
+// çıkmıyor"). foldTr yalnızca TÜRKÇE'ye özgü harfleri (ı ş ç ğ ü ö) katlar — şapkalı â/î/û ve
+// yabancı adlardaki é/è/á/ñ gibi harfler olduğu gibi kalır, dolayısıyla klavyeyle yazılan aksansız
+// hâl hiçbir zaman eşleşmiyordu. Canlı veride bugün 9 kayıt etkileniyordu ("Celâleddin Çelik",
+// "İbrahim Kâmil Ağa", "Lâpseki Hükümet Konağı", "Yapay Zekâ Müzesi", "İç Mekânları",
+// "Dış Mekân Koleksiyonu" ×2, "José Bruguera", "èdoc architects").
+//
+// NEDEN GENERATED KOLONA (0079) DEĞİL DE SORGU ZAMANINA: name_fold/title_fold/brand_fold'un
+// ifadesi, JS `foldTr` ile BİREBİR aynı olmak ZORUNDA (bkz. foldSqlExpr'in üstündeki not) — çünkü
+// bazı uçlar (ör. /api/products/search?brand=) o kolonu foldTr çıktısıyla EŞİTLİK ile karşılaştırır.
+// foldTr'yi değiştirmek o eşitlikleri kolonlar yeniden üretilene kadar bozardı. Bu yüzden aksan
+// katlaması yalnızca ALT-DİZE (LIKE '%q%') karşılaştırmasına, hem kolon hem sorgu tarafına
+// simetrik olarak uygulanır; eşitlik/önek yollarına HİÇ dokunulmaz.
+//
+// LİSTE BİLEREK DAR: her karakter SQL'de İKİ replace() daha demek (küçük/BÜYÜK), ve bu ifade
+// taranan HER satırda çalışır. Yerelde ölçüldü (4.000 satır, tek kolon): yalnızca noktalama 10,4ms,
+// +12 aksan karakteri 32ms; tüm Latin-1 kümesi (24 karakter) 38ms'e çıkıyordu ve kazanç yoktu.
+// Kapsam: Türkçe şapkalılar + canlı veride gerçekten geçen ve mimarlık adlarında en sık görülen
+// Latin aksanları.
+const ACCENT_FOLD = {
+  'â': 'a', 'á': 'a', 'à': 'a', 'ä': 'a',
+  'é': 'e', 'è': 'e',
+  'î': 'i', 'í': 'i',
+  'ó': 'o', 'ô': 'o',
+  'û': 'u', 'ú': 'u',
+  'ñ': 'n',
+};
+const ACCENT_RE = new RegExp(`[${Object.keys(ACCENT_FOLD).join('')}]`, 'g');
+
+// JS tarafı: foldTr ZATEN küçük harfe indirmiş olur (JS toLowerCase Unicode farkındadır, 'Â' -> 'â'),
+// bu yüzden yalnızca küçük biçimler eşlenir. HER ZAMAN foldTr'DEN SONRA çağrılmalı.
+export function foldAccents(s) {
+  return String(s || '').replace(ACCENT_RE, (c) => ACCENT_FOLD[c] || c);
+}
+
+// SQL karşılığı. SQLite'ın lower()'ı ASCII dışını BİLMEZ ('Â' olduğu gibi kalır — foldSqlExpr'in
+// Türkçe büyük harfleri elle indirmesinin AYNI sebebi), bu yüzden her karakterin BÜYÜK biçimi de
+// ayrıca eşlenir.
+export function foldAccentsSqlExpr(expr) {
+  return Object.entries(ACCENT_FOLD).reduce(
+    (acc, [ch, ascii]) => `replace(replace(${acc},'${ch}','${ascii}'),'${ch.toUpperCase()}','${ascii}')`,
+    expr,
+  );
 }
 
 // foldedPrefixThenSubstring ile AYNI iki aşamalı yapı ve AYNI garanti: dönen hiçbir satır eskiden

@@ -121,6 +121,7 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  .field-hint{margin:6px 0 0; font-size:12px; line-height:1.45; color:var(--ink-soft);}
   /* Zorunlu alan yıldızı (kullanıcı isteği, 2026-08-31 madde 4): "zorunlu olarak doldurulması
      gereken kutucukların başlıklarının yanına '*' işareti ekle". Yalnızca GERÇEKTEN zorunlu
      alanlara basılır — ya HTML `required` taşıyanlara ya da submit handler'ın boş bırakılınca
@@ -421,6 +422,13 @@
             <label for="m-office-picker">Firma veya Marka <span class="opt">(opsiyonel, birden fazla seçebilirsin)</span></label>
             <input type="hidden" id="m-office" name="office">
             <div id="m-office-picker"></div>
+            <!-- Kullanıcı isteği (2026-09-08 madde 1): bir firmada görev aldığını BEYAN ETMEK, o
+                 firmanın profiline hemen eklenmek anlamına gelmez — seçim sunucuda bekleyen bir
+                 profile_claims('office') talebi doğurur (bkz. src/lib/claimedProfiles.js#
+                 ensurePendingOfficeClaims) ve kişi firmanın Kurucular/Ekip listesinde ancak admin
+                 onayından sonra görünür (bkz. src/lib/canonicalSync.js#splitAdminApprovedOffices).
+                 Hesabım > Profili Düzenle'deki AYNI kutuda da aynı not var. -->
+            <p class="field-hint">Seçtiğin firma/marka admin onayına gönderilir; onaylanana kadar o firmanın profilinde görünmezsin.</p>
           </div>
         </div>
       </div>

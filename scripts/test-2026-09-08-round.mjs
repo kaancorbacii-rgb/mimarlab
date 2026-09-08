@@ -23,6 +23,10 @@ import { anyProfileClaimed } from '../src/lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../src/lib/projectClaimAccess.js';
 import { cascadeRemovedProfileClaims } from '../src/lib/officeFounderCascade.js';
 import { canUserEditProjectBySlug } from '../src/lib/projectClaimAccess.js';
+import { ensurePendingOfficeClaims, fillUserFromArchitectProfile } from '../src/lib/claimedProfiles.js';
+import { syncApprovedSubmissionToCanonical } from '../src/lib/canonicalSync.js';
+import { newId } from '../src/lib/crypto.js';
+import { parseSubmissionRow } from '../src/lib/submissionTypes.js';
 
 let passed = 0, failed = 0;
 const failures = [];
@@ -38,7 +42,9 @@ function d1(db) {
     bind: (...p) => stmt(sql, p),
     async first(col) { const r = db.prepare(sql).get(...params); if (r === undefined) return null; return col ? r[col] : { ...r }; },
     async all() { return { results: db.prepare(sql).all(...params).map((r) => ({ ...r })) }; },
-    async run() { const r = db.prepare(sql).run(...params); return { success: true, meta: { changes: Number(r.changes) } }; },
+    // last_row_id: canonicalSync.js#syncArchitect INSERT'ten sonra bunu okur (yeni canonical satırın
+    // id'si) — shim döndürmezse bind hatası verir, gerçek D1 döndürür.
+    async run() { const r = db.prepare(sql).run(...params); return { success: true, meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } }; },
   });
   return {
     prepare: (sql) => stmt(sql, []),
@@ -275,6 +281,156 @@ await test('Kurucu görevli claim, EKİP kutusundan çıkarma ile iptal edilmez'
   assert.equal(claimStatus(db, 'c-arman'), 'approved');
   await cascadeRemovedProfileClaims(env, 'IND [Inter.National.Design]', [], { founders: true });
   assert.equal(claimStatus(db, 'c-arman'), 'rejected');
+});
+
+// ================================================================================================
+// 2026-09-08 İKİNCİ TUR (kullanıcı isteği maddeleri 1-3)
+// ================================================================================================
+
+section('madde 1 — firma bağı admin onayına girer, firma profiline HEMEN eklenmez');
+
+function seedForOfficeGate(db) {
+  const now = Date.now();
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-yeni','yeni@example.com','x','Yeni Üye','user',?)`).run(now);
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-admin','admin@example.com','x','Admin','admin',?)`).run(now);
+  db.prepare(
+    `INSERT INTO architect_submissions (id, owner_user_id, status, created_at, updated_at, name, office, position)
+     VALUES ('sub-1','u-yeni','approved',?,?,'Yeni Üye','DS Mimarlık','Kurucu')`
+  ).run(now, now);
+}
+function founderRows(db, officeName) {
+  return db.prepare(
+    `SELECT ar.name FROM office_founders f
+      JOIN architects ar ON ar.id = f.architect_id
+      JOIN offices o ON o.id = f.office_id
+     WHERE o.name = ?`
+  ).all(officeName).map(r => r.name);
+}
+
+await test('onaysız kullanıcı, firmanın Kurucular listesine EKLENMEZ', async () => {
+  const db = freshDb(); seed(db); seedForOfficeGate(db);
+  const env = { DB: d1(db) };
+  const sub = parseSubmissionRow('architects', db.prepare(`SELECT * FROM architect_submissions WHERE id = 'sub-1'`).get());
+  await syncApprovedSubmissionToCanonical(env, 'architects', sub);
+  assert.ok(!founderRows(db, 'DS Mimarlık').includes('Yeni Üye'), JSON.stringify(founderRows(db, 'DS Mimarlık')));
+  // kişi-tarafı "Firma: X" alanı YAZILIR — istek yalnızca firma profiline eklememekle ilgili
+  const arch = db.prepare(`SELECT office_id FROM architects WHERE name = 'Yeni Üye'`).get();
+  assert.ok(arch && arch.office_id, 'architects.office_id yazılmalıydı');
+});
+
+await test('onaylı profile_claims varsa firma profiline EKLENİR', async () => {
+  const db = freshDb(); seed(db); seedForOfficeGate(db);
+  const now = Date.now();
+  db.prepare(`INSERT INTO profile_claims (id,user_id,profile_type,profile_key,status,created_at,updated_at,office_position) VALUES ('c-yeni','u-yeni','office','DS Mimarlık','approved',?,?,'Kurucu')`).run(now, now);
+  const env = { DB: d1(db) };
+  const sub = parseSubmissionRow('architects', db.prepare(`SELECT * FROM architect_submissions WHERE id = 'sub-1'`).get());
+  await syncApprovedSubmissionToCanonical(env, 'architects', sub);
+  assert.ok(founderRows(db, 'DS Mimarlık').includes('Yeni Üye'), JSON.stringify(founderRows(db, 'DS Mimarlık')));
+});
+
+await test('admin gönderisi kapıya takılmaz', async () => {
+  const db = freshDb(); seed(db); seedForOfficeGate(db);
+  db.exec(`UPDATE architect_submissions SET owner_user_id = 'u-admin' WHERE id = 'sub-1'`);
+  const env = { DB: d1(db) };
+  const sub = parseSubmissionRow('architects', db.prepare(`SELECT * FROM architect_submissions WHERE id = 'sub-1'`).get());
+  await syncApprovedSubmissionToCanonical(env, 'architects', sub);
+  assert.ok(founderRows(db, 'DS Mimarlık').includes('Yeni Üye'));
+});
+
+await test('VAR OLAN bağlantı, kural yürürlüğe girince silinmez', async () => {
+  const db = freshDb(); seed(db); seedForOfficeGate(db);
+  db.exec(`INSERT INTO architects (slug, name, source) VALUES ('yeni-uye','Yeni Üye','submission')`);
+  const arId = db.prepare(`SELECT id FROM architects WHERE name = 'Yeni Üye'`).get().id;
+  db.prepare(`UPDATE architects SET legacy_key = 'submission:sub-1' WHERE id = ?`).run(arId);
+  db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (2, ?)`).run(arId);
+  const env = { DB: d1(db) };
+  const sub = parseSubmissionRow('architects', db.prepare(`SELECT * FROM architect_submissions WHERE id = 'sub-1'`).get());
+  await syncApprovedSubmissionToCanonical(env, 'architects', sub);
+  assert.ok(founderRows(db, 'DS Mimarlık').includes('Yeni Üye'), 'eski bağlantı korunmalıydı');
+});
+
+await test('ensurePendingOfficeClaims: bekleyen talep açar, kararı geri almaz', async () => {
+  const db = freshDb(); seed(db); seedForOfficeGate(db);
+  const env = { DB: d1(db) };
+  const user = { id: 'u-yeni', role: 'user', name: 'Yeni Üye' };
+  await ensurePendingOfficeClaims(env, user, ['DS Mimarlık', 'Olmayan Firma'], newId);
+  const rows = db.prepare(`SELECT profile_key, status FROM profile_claims WHERE user_id = 'u-yeni'`).all();
+  assert.equal(rows.length, 1);
+  assert.deepEqual({ k: rows[0].profile_key, s: rows[0].status }, { k: 'DS Mimarlık', s: 'pending' });
+  // admin reddettiyse yeniden kaydetmek talebi geri AÇMAZ
+  db.exec(`UPDATE profile_claims SET status = 'rejected' WHERE user_id = 'u-yeni'`);
+  await ensurePendingOfficeClaims(env, user, ['DS Mimarlık'], newId);
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE user_id = 'u-yeni'`).get().status, 'rejected');
+  // admin hiç talep üretmez
+  await ensurePendingOfficeClaims(env, { id: 'u-admin', role: 'admin' }, ['DS Mimarlık'], newId);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE user_id = 'u-admin'`).get().n, 0);
+});
+
+section('madde 2 — aksanlı ad araması');
+
+await test('şapkalı/aksanlı adlar aksansız yazımla eşleşir', () => {
+  const cases = [
+    ['celaleddin', 'Celâleddin Çelik'], ['Celâleddin', 'Celâleddin Çelik'],
+    ['celaleddin celik', 'Celâleddin Çelik'], ['ibrahim kamil', 'İbrahim Kâmil Ağa'],
+    ['jose bruguera', 'José Bruguera'], ['edoc', 'èdoc architects'],
+    ['dis mekan', 'Whale Dış Mekân Koleksiyonu'], ['lapseki', 'Lâpseki Hükümet Konağı'],
+  ];
+  for (const [q, t] of cases) assert.notEqual(fieldScore(t, queryWords(q)), null, `"${q}" -> "${t}"`);
+  // yanlış pozitif üretmez
+  assert.equal(fieldScore('Galata Kulesi', queryWords('celaleddin')), null);
+});
+
+await test('classicSearch D1 üzerinde aksanlı kişiyi bulur (SQL yolu)', async () => {
+  const db = freshDb(); seed(db);
+  db.exec(`INSERT INTO architects (slug, name, source) VALUES ('celaleddin-celik','Celâleddin Çelik','legacy_static'), ('jose','José Bruguera','legacy_static')`);
+  const env = { DB: d1(db) };
+  for (const q of ['celaleddin', 'Celâleddin Çelik', 'jose bruguera']) {
+    const r = await classicSearch(env, q, { perGroup: 20 });
+    assert.ok(r.architects.length, `"${q}" hiçbir kişi döndürmedi`);
+  }
+});
+
+section('madde 3 — atanan kişi profili hesap bilgilerini doldurur');
+
+function seedArchitectProfile(db) {
+  const now = Date.now();
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-cc','cc@nunarch.com','x','Celaleddin Çelik','user',?)`).run(now);
+  db.exec(`INSERT INTO architects (slug, name, dob, school, dept, profession, position, about, photo_url, awards, social_links, source)
+           VALUES ('celaleddin-celik','Celâleddin Çelik','1985','İTÜ','Mimarlık','Mimar, Fotoğrafçı','Kurucu','Hakkında metni','/u/foto.webp','["Ödül A"]','[{"platform":"instagram","url":"https://x.test"}]','legacy_static')`);
+}
+
+await test('boş hesap alanları kişi profilinden dolar (slug çevirisiyle)', async () => {
+  const db = freshDb(); seed(db); seedArchitectProfile(db);
+  const env = { DB: d1(db) };
+  assert.equal(await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik'), true);
+  const u = db.prepare(`SELECT * FROM users WHERE id = 'u-cc'`).get();
+  assert.equal(u.dob, '1985');
+  assert.equal(u.school, 'İTÜ');
+  assert.equal(u.dept, 'Mimarlık');
+  assert.equal(u.position, 'Kurucu');
+  assert.equal(u.profession, 'mimar,fotografci');
+  assert.equal(u.about, 'Hakkında metni');
+  assert.equal(u.photo_url, '/u/foto.webp');
+  assert.equal(u.name, 'Celaleddin Çelik', 'hesap adı EZİLMEMELİ');
+});
+
+await test('kullanıcının kendi girdiği değerlerin üzerine YAZILMAZ', async () => {
+  const db = freshDb(); seed(db); seedArchitectProfile(db);
+  db.exec(`UPDATE users SET school = 'ODTÜ', dob = '1990' WHERE id = 'u-cc'`);
+  const env = { DB: d1(db) };
+  await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik');
+  const u = db.prepare(`SELECT school, dob, dept FROM users WHERE id = 'u-cc'`).get();
+  assert.equal(u.school, 'ODTÜ');
+  assert.equal(u.dob, '1990');
+  assert.equal(u.dept, 'Mimarlık', 'boş olan alan yine de dolmalı');
+});
+
+await test('listede olmayan pozisyon hesaba kopyalanmaz', async () => {
+  const db = freshDb(); seed(db); seedArchitectProfile(db);
+  db.exec(`UPDATE architects SET position = 'Baş Mimar' WHERE slug = 'celaleddin-celik'`);
+  const env = { DB: d1(db) };
+  await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik');
+  assert.equal(db.prepare(`SELECT position FROM users WHERE id = 'u-cc'`).get().position, null);
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

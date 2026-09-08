@@ -29,7 +29,7 @@
 // öngörülebilir klasik kanaldır; arama.html ikisini birleştirir.
 
 import { foldTr } from './textMatch.js';
-import { foldSqlExpr, stripPunctSqlExpr, escapeLike, SQL_MAX_WORDS } from './searchFold.js';
+import { foldSqlExpr, stripPunctSqlExpr, foldAccentsSqlExpr, foldAccents, escapeLike, SQL_MAX_WORDS } from './searchFold.js';
 import { stemTr, hardenFinal, phraseInHay } from './searchConcepts.js';
 import { fetchOfficeProductCounts } from './officeProductCounts.js';
 import { normalizeOfficeCats, officePath } from './officeUrl.js';
@@ -44,6 +44,15 @@ const { isBrandOffice, isPureBrandOffice } = officeKindJs;
 export const RETRIEVAL_LIMIT = 400;
 
 const FIELD_WEIGHTS = { primary: 1.0, secondary: 0.8, tertiary: 0.55 };
+
+// Klasik aramanın metin normalizasyonu = foldTr + aksan katlama (bkz. searchFold.js#foldAccents'in
+// üstündeki gerekçe, kullanıcı isteği 2026-09-08 madde 2). foldTr'nin KENDİSİ değiştirilmedi:
+// birkaç uç onu generated fold kolonlarıyla EŞİTLİK ile karşılaştırıyor ve o eşitlikler bozulurdu.
+// Sorgu ve belge tarafı BU fonksiyondan geçer, SQL aday koşulu da (likeCondition) kolonu aynı
+// katlamadan geçirir — üç taraf birlikte değişmeli.
+function foldSearch(s) {
+  return foldAccents(foldTr(s || ''));
+}
 
 function tokensOf(folded) {
   return folded.split(/[^a-z0-9]+/).filter(Boolean);
@@ -93,7 +102,7 @@ function wordGrade(word, toks) {
 
 // Bir alanın sorguya puanı; sorgunun herhangi bir kelimesi eşleşmiyorsa null (alan aday DEĞİL).
 export function fieldScore(text, words) {
-  const folded = foldTr(text || '').trim();
+  const folded = foldSearch(text).trim();
   if (!folded || !words.length) return null;
   const rawToks = tokensOf(folded);
   const merged = mergeInitials(rawToks);
@@ -149,7 +158,7 @@ export function rankRows(rows, fields, words, nameOf) {
 // kendiliğinden eşleşir. Tek yönlü bir GENİŞLEME değildir: tek harflik parçalar (r/a/f) yalnızca
 // tam token eşleşmesi ya da token öneki olarak sayıldığından yanlış pozitif üretmez.
 export function queryWords(rawQ) {
-  return mergeInitials(tokensOf(foldTr(String(rawQ || ''))));
+  return mergeInitials(tokensOf(foldSearch(String(rawQ || ''))));
 }
 
 // SQL aday koşulu: verilen katlanmış alanlardan HERHANGİ BİRİ sorgunun TÜM kelimelerini alt-dize
@@ -170,7 +179,7 @@ function likeCondition(columns, words) {
   });
   const params = [];
   const cond = columns.map(rawCol => {
-    const col = stripPunctSqlExpr(rawCol);
+    const col = foldAccentsSqlExpr(stripPunctSqlExpr(rawCol));
     return `(${variants.map(vs => `(${vs.map(v => { params.push(`%${escapeLike(v)}%`); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ')})`;
   }).join(' OR ');
   return { cond: `(${cond})`, params };

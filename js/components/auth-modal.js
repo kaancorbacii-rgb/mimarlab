@@ -1111,6 +1111,9 @@ const AuthModal = (function () {
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma veya Marka <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
             <div id="am-edit-office-picker"></div>
+            <!-- kisi-ekle.html'deki AYNI not (kullanıcı isteği, 2026-09-08 madde 1) — beyan,
+                 firmanın profilinde görünmek demek değil; onay admin'de. -->
+            <p style="margin:6px 0 0; font-size:12px; line-height:1.45; color:var(--ink-soft);">Seçtiğin firma/marka admin onayına gönderilir; onaylanana kadar o firmanın profilinde görünmezsin.</p>
           </div>
           <!-- Ödüller/Sosyal Medya/Açıklama — bkz. kullanıcı isteği: "Mimar profiliyle henüz
                eşleşmemiş kullanıcılar da ödül, sosyal medya ve açıklama ekleyebilsinler" — herkes
