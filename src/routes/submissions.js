@@ -5,7 +5,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink } from '../lib/claimedProfiles.js';
+import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
@@ -143,6 +143,13 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
     // src/lib/claimedProfiles.js#canEditOfficeViaFounderLink. Hesabım'daki buton AYNI kararı
     // sunucudan (GET /api/claims/mine -> officeLinks[].canEdit) okur, ikisi ayrışamaz.
     if (typeKey === 'offices' && await canEditOfficeViaFounderLink(env, user, currentName, OFFICE_EDIT_POSITIONS)) return null;
+    // ÜÇÜNCÜ YETKİ YOLU (kullanıcı isteği, 2026-09-08): bir firmanın/markanın yetkilisi (Kurucu,
+    // Kurucu Ortak, Ortak, Ekip Lideri, Yönetici) o firmanın Kurucular/Ekip listesindeki DİĞER
+    // kişilerin profillerini de düzenleyebilir — kendi adına onaylı bir kişi talebi olmasa da.
+    // Kural ve "kendi sahibi olan profil dokunulmaz" sınırı için bkz. src/lib/claimedProfiles.js#
+    // canEditArchitectViaOfficeMembership. İstemcideki Düzenle butonu AYNI kararı sunucudan okur
+    // (GET /api/claims/status -> delegatedEdit), ikisi ayrışamaz.
+    if (typeKey === 'architects' && await canEditArchitectViaOfficeMembership(env, user, currentName, OFFICE_EDIT_POSITIONS)) return null;
     return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
   }
   // P1 güvenlik düzeltmesi (bkz. migrations/0068): canlı user.position YERİNE, admin bu claim'i
@@ -839,6 +846,24 @@ async function moderateOwnSubmission(request, env, user, typeKey, id) {
   if (!OWNER_MODERATE_TYPES.has(typeKey)) return errorJson('Bulunamadı', 404);
   const existing = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
+  // DELEGASYON YALNIZCA DÜZENLEME YETKİSİDİR (kullanıcı isteği, 2026-09-08): bir firma yetkilisi,
+  // ortağının kişi profilini düzenlediğinde kendi adına claimed_profile_key'li bir taslak oluşur ve
+  // bu taslak "Eklediklerim" listesinde çıkar — oradaki Sil/Arşivle ise runContentAction'ın
+  // claimedColumn dalı üzerinden o kişinin CANONICAL profilini tümden siler/gizler (bkz.
+  // src/routes/legacyContent.js#runContentAction). Bir ortağın profilini silmek düzenlemekle aynı
+  // şey değil: claimed_profile_key'li KİŞİ taslaklarında moderasyon profilin gerçek sahibine
+  // (onaylı profile_claims('architect')) ve admin'e ayrılır. Firma taslaklarında kural
+  // DEĞİŞMEZ — orada delegasyon yok, yetki zaten claim ya da Kurucular bağıyla gelir.
+  if (typeKey === 'architects' && existing.claimed_profile_key && user.role !== 'admin') {
+    // claimed_profile_key ORİJİNAL adı taşır, profile_claims.profile_key yeniden adlandırmayı takip
+    // eder (bkz. dosya başındaki AYNI not) — karşılaştırma güncel ad üzerinden yapılmalı, aksi halde
+    // adı değişmiş bir profilin GERÇEK sahibi kendi kaydını arşivleyemezdi.
+    const currentName = await resolveCurrentProfileName(env, typeKey, existing.claimed_profile_key);
+    const ownClaim = await env.DB.prepare(
+      `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved' LIMIT 1`
+    ).bind(user.id, currentName).first();
+    if (!ownClaim) return errorJson('Bu profili yalnızca sahibi silebilir ya da arşivleyebilir.', 403);
+  }
   const body = await readJson(request);
   if (!['delete', 'archive'].includes(body.action)) return errorJson('Geçersiz işlem.');
   const key = (typeKey === 'architects' || typeKey === 'offices') && !existing.claimed_profile_key

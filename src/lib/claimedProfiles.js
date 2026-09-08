@@ -233,3 +233,108 @@ export async function canEditOfficeViaFounderLink(env, user, officeName, officeE
   ).bind(...ids, officeName, officeName).first();
   return !!row;
 }
+
+// ---------------------------------------------------------------------------------------------
+// FİRMA/MARKA YETKİLİSİNİN, FİRMA ORTAKLARININ KİŞİ PROFİLLERİNİ DÜZENLEMESİ
+// (kullanıcı isteği, 2026-09-08: "Bir firmanın kurucusu, kurucu ortağı, ortağı veya ekip lideri de
+// diğer firma ortaklarının profillerini düzenleme yetkisine sahip olsun ... Aynı kural marka
+// profilleri ve marka kurucuları, ortakları vs. için de geçerli.")
+//
+// Marka için AYRI bir kod yolu YOK: marka bir `offices` satırıdır (bkz. office-kind.js), claim tipi
+// de 'office' — aşağıdaki kural ikisini birden kapsar.
+//
+// YETKİNİN KAYNAĞI iki yönlü bir onay zinciri (canEditOfficeViaFounderLink ile AYNI mantık):
+//   (a) kullanıcı firmayı düzenleyebiliyor — onaylı profile_claims('office') + admin'in DONDURDUĞU
+//       office_position OFFICE_EDIT_POSITIONS içinde, ya da canEditOfficeViaFounderLink'in aynı
+//       kapısı (onaylı KİŞİ talebi + firmanın Kurucular listesinde olmak + yetkili görev),
+//   (b) hedef kişi o firmanın Kurucular/Ekip listesinde — yani firmayı düzenleyebilen biri (ya da
+//       admin) o kişiyi oraya YAZMIŞ.
+//
+// SINIR — KENDİ SAHİBİ OLAN PROFİL DOKUNULMAZ: hedef kişi profilinin BAŞKA bir hesaba ait onaylı
+// bir profile_claims('architect') satırı varsa bu kapı kapalıdır. Gerekçe: firmanın kendi Kurucular
+// kutusu serbest metindir ve isim eşleşmesiyle office_founders'a bağlanır (bkz. canonicalSync.js#
+// syncOfficeFoundersFromNames — kasıtlı olarak onay kapısının DIŞINDA), yani bu güvenlik ağı
+// olmadan herhangi bir firma yetkilisi kutusuna tanınmış bir mimarın adını yazıp o kişinin KENDİ
+// sahiplendiği profilini düzenleyebilirdi. Sahiplenilmiş profili yalnızca sahibi (ve admin) düzenler.
+async function fetchUserEditableOfficeIds(env, user, officeEditPositions) {
+  const ids = new Set();
+  // (a1) doğrudan firma/marka sahipliği — DONDURULMUŞ office_position (canlı users.position ASLA,
+  // bkz. migrations/0068 ve submissions.js#verifyClaimedProfileKey'deki AYNI P1 gerekçesi).
+  const { results: claimRows } = await env.DB.prepare(
+    `SELECT c.office_position AS position, o.id AS office_id
+       FROM profile_claims c
+       JOIN offices o ON (o.name = c.profile_key OR o.legacy_key = c.profile_key) AND o.deleted_at IS NULL
+      WHERE c.user_id = ? AND c.profile_type = 'office' AND c.status = 'approved'`
+  ).bind(user.id).all();
+  for (const r of claimRows || []) {
+    if (officeEditPositions.has(r.position || '')) ids.add(r.office_id);
+  }
+  // (a2) firmanın Kurucular listesindeki onaylı kişi profili üzerinden — canEditOfficeViaFounderLink
+  // ile AYNI kural, yalnızca "tek firma" yerine tüm firmaları döndürür.
+  const { claimed } = await fetchOwnArchitectRows(env, user);
+  const eligible = claimed.filter(r => officeEditPositions.has(r.position || ''));
+  if (eligible.length) {
+    const archIds = eligible.map(r => r.id);
+    const { results } = await env.DB.prepare(
+      `SELECT f.office_id FROM office_founders f
+         JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
+        WHERE f.architect_id IN (${archIds.map(() => '?').join(', ')})`
+    ).bind(...archIds).all();
+    for (const r of results || []) ids.add(r.office_id);
+  }
+  // Düz IN(...) sınırı — bkz. proje notu: SQLite ifade-ağacı derinlik sınırı. Bir hesabın onlarca
+  // firmayı birden yönetmesi beklenmez, üst sınır yalnızca uç veriye karşı emniyet supabı.
+  return [...ids].slice(0, 50);
+}
+
+export async function canEditArchitectViaOfficeMembership(env, user, architectKey, officeEditPositions) {
+  if (!user || !architectKey) return false;
+  const arch = await env.DB.prepare(
+    `SELECT id, name FROM architects WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ? OR slug = ?) LIMIT 1`
+  ).bind(architectKey, architectKey, architectKey).first();
+  if (!arch) return false;
+  // Kendi sahibi olan profil dokunulmaz (bkz. yukarıdaki SINIR).
+  const ownedByOther = await env.DB.prepare(
+    `SELECT 1 FROM profile_claims
+      WHERE profile_type = 'architect' AND profile_key = ? AND status = 'approved' AND user_id != ? LIMIT 1`
+  ).bind(arch.name, user.id).first();
+  if (ownedByOther) return false;
+
+  const officeIds = await fetchUserEditableOfficeIds(env, user, officeEditPositions);
+  if (!officeIds.length) return false;
+  const placeholders = officeIds.map(() => '?').join(', ');
+
+  // (b1) yapısal bağ — firma pop-up'ının "Kurucular / Ortaklar" listesi (office_founders).
+  const link = await env.DB.prepare(
+    `SELECT 1 FROM office_founders WHERE architect_id = ? AND office_id IN (${placeholders}) LIMIT 1`
+  ).bind(arch.id, ...officeIds).first();
+  if (link) return true;
+
+  // (b2) serbest metin Kurucular/Ekip kutuları — firma-ekle.html'in iki listesi (bkz. src/routes/
+  // office.js#fetchRawFounderNames/fetchRawTeamNames, pop-up'ta AYNI isimler render edilir).
+  // office_founders'a bağlanmamış (ad eşleşmesi onay anında kurulamamış) bir isim de firmanın
+  // künyesinde görünür; yetki gösterimle tutarlı kalmalı.
+  const { results: offices } = await env.DB.prepare(
+    `SELECT id, name, legacy_key FROM offices WHERE id IN (${placeholders})`
+  ).bind(...officeIds).all();
+  const wanted = foldTrLocal(arch.name);
+  for (const o of offices || []) {
+    const submissionId = (o.legacy_key || '').startsWith('submission:') ? o.legacy_key.slice('submission:'.length) : '';
+    const row = await env.DB.prepare(
+      `SELECT founders, team FROM office_submissions
+        WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+    ).bind(o.name, o.legacy_key || '', submissionId).first();
+    if (!row) continue;
+    const names = [...parseNameList(row.founders), ...parseNameList(row.team)];
+    if (names.some(n => foldTrLocal(n) === wanted)) return true;
+  }
+  return false;
+}
+
+function parseNameList(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string') : [];
+  } catch { return []; }
+}

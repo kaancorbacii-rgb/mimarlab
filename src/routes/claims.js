@@ -3,7 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
-import { fetchOfficeFounderLinks, fetchOwnArchitectRows } from '../lib/claimedProfiles.js';
+import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
@@ -183,7 +183,16 @@ async function claimStatus(env, url, user) {
     'SELECT status, office_position FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
   ).bind(user.id, profileType, profileKey).first();
 
+  // delegatedEdit — kullanıcı bu KİŞİ profilini kendi adına bir talebi olmadan, bir firmanın/markanın
+  // yetkilisi olduğu için düzenleyebiliyor mu (kullanıcı isteği, 2026-09-08: firma ortaklarının
+  // profillerini de düzenleyebilme). Sunucudaki ASIL kapı ile (src/routes/submissions.js#
+  // verifyClaimedProfileKey) AYNI yardımcıdan gelir — istemci kuralı YENİDEN HESAPLAMAZ, aksi halde
+  // ikisi ayrışıp "boş yere doldurulan form, sonra 403" durumu doğardı (bkz. denetim 2026-09-04).
+  const delegatedEdit = (profileType === 'architect' && (!row || row.status !== 'approved'))
+    ? await canEditArchitectViaOfficeMembership(env, user, profileKey, OFFICE_EDIT_POSITIONS)
+    : false;
+
   // officePosition — bkz. dosya sonundaki AYNI gerekçe/myClaims: istemcinin "Düzenle" butonunu
   // sunucuyla AYNI değere (onay anında dondurulmuş pozisyon) göre gösterebilmesi için.
-  return json({ status: row ? row.status : 'none', officePosition: row ? (row.office_position || null) : null });
+  return json({ status: row ? row.status : 'none', officePosition: row ? (row.office_position || null) : null, delegatedEdit });
 }

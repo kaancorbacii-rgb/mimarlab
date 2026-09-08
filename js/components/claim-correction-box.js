@@ -62,6 +62,12 @@ function createClaimCorrectionBox(config){
   // Onay ANINDA dondurulmuş pozisyon (/api/claims/status → officePosition). Kullanıcının canlı
   // position'ı DEĞİL — bkz. renderProfileEditButton'daki gerçek bulgu.
   let claimOfficePosition = null;
+  // Sahiplenme talebi OLMADAN düzenleme yetkisi: kullanıcı bu KİŞİ profilini, ortak olduğu bir
+  // firmanın/markanın yetkilisi (Kurucu/Kurucu Ortak/Ortak/Ekip Lideri/Yönetici) olduğu için
+  // düzenleyebiliyor (kullanıcı isteği, 2026-09-08). Kural İSTEMCİDE HESAPLANMAZ — sunucunun
+  // kararı okunur (/api/claims/status → delegatedEdit, bkz. src/lib/claimedProfiles.js#
+  // canEditArchitectViaOfficeMembership); aksi halde buton ile sunucu kapısı ayrışabilirdi.
+  let claimDelegatedEdit = false;
   const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
 
   // product-modal.js#injectStyles'daki AYNI .pr-feedback-card kuralları — burada iki kutu (claim +
@@ -152,6 +158,7 @@ function createClaimCorrectionBox(config){
   async function loadClaimCard(){
     isProfileOwner = false;
     claimOfficePosition = null;
+    claimDelegatedEdit = false;
     const card = document.getElementById('claim-info-card');
     const body = document.getElementById('claim-card-body');
     // Bu fonksiyon TÜM ClaimCorrectionBox çağıranları için (init() üzerinden) çalışır, ama yalnızca
@@ -168,6 +175,7 @@ function createClaimCorrectionBox(config){
         const data = res.ok ? await res.json() : { status: 'none' };
         isProfileOwner = data.status === 'approved';
         claimOfficePosition = data.officePosition || null;
+        claimDelegatedEdit = !!data.delegatedEdit;
       }catch{}
       return;
     }
@@ -207,6 +215,7 @@ function createClaimCorrectionBox(config){
       const data = res.ok ? await res.json() : { status: 'none' };
       if(config.isStale && config.isStale()) return;
       claimOfficePosition = data.officePosition || null;
+      claimDelegatedEdit = !!data.delegatedEdit;
       if(data.status === 'approved'){
         isProfileOwner = true;
         card.style.display = 'none';
@@ -316,7 +325,7 @@ function createClaimCorrectionBox(config){
     const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(claimOfficePosition);
     // ownSubmissionId — kullanıcının KENDİ yayınladığı profil (bkz. loadOwnSubmissionId'deki GERÇEK
     // BULGU): onaylı bir sahiplenme talebi olmasa da düzenleyebilmeli.
-    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin' || ownSubmissionId)){ slot.innerHTML = ''; return; }
+    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin' || ownSubmissionId || claimDelegatedEdit)){ slot.innerHTML = ''; return; }
     // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
     // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
     // etkilenmesin diye buraya bir varsayılan değerle eklendi).
@@ -325,6 +334,8 @@ function createClaimCorrectionBox(config){
     // kullanıcının kendi gönderisi ise doğrudan o taslağın id'siyle açılır — save-widget.js'in
     // "Düzenle" butonuyla BİREBİR aynı adres, böylece iki kapı da AYNI satırı düzenler ve mükerrer
     // bir gönderi oluşmaz.
+    // claimDelegatedEdit (firma yetkilisi, başkasının profili): kullanıcının kendi taslağı OLMADIĞI
+    // için ?claim= yolu kullanılır — sunucu o profili claimed_profile_key olarak zaten kabul ediyor.
     const editHref = (!isProfileOwner && currentUser.role !== 'admin' && ownSubmissionId)
       ? `${config.editUrlBase}?edit=${encodeURIComponent(ownSubmissionId)}&stype=${encodeURIComponent(config.contentType || '')}`
       : `${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}`;

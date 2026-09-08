@@ -235,6 +235,20 @@ else
 fi
 rm -f /tmp/preflight_msgav
 
+# Firma/marka yetkilisinin, firma ortaklarının KİŞİ profillerini düzenlemesi (kullanıcı isteği,
+# 2026-09-08) — node:sqlite üzerinde GERÇEK schema.sql. Kural tek yerde (claimedProfiles.js#
+# canEditArchitectViaOfficeMembership) yaşıyor ve HEM kaydetme kapısı (submissions.js#
+# verifyClaimedProfileKey) HEM istemcinin Düzenle butonu (/api/claims/status -> delegatedEdit)
+# onu okuyor; sapması sessizce ya yetkiyi kaldırır ya da başkasının profilini açar.
+# Bkz. scripts/test-office-member-profile-edit.mjs dosya başı.
+if node scripts/test-office-member-profile-edit.mjs >/tmp/preflight_omedit 2>&1; then
+  ok "firma ortağı profil düzenleme yetkisi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_omedit) test)"
+else
+  bad "firma ortağı profil düzenleme yetkisi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_omedit >&2
+fi
+rm -f /tmp/preflight_omedit
+
 # slugify TR/aksan haritası BEŞ dosyada kopyalı (bkz. src/lib/slugify.js dosya başı: save-widget.js
 # ve *-ekle.html tarayıcıda modülsüz çalıştığından bilerek kopyalanmış). Biri sapan bir kopya SESSİZ
 # bir hatadır: sunucunun ürettiği slug ile istemcinin kaydet/takip anahtarı ayrışır ve buton durumu
