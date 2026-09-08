@@ -231,6 +231,8 @@
   .ud-assign-box{margin-top:10px; position:relative;}
   .ud-assign-box input{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink);}
   .ud-assign-position-label{display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft); margin:0 0 4px;}
+  .ud-assign-position-hint{font-size:11px; line-height:1.45; color:var(--ink-soft); margin:5px 0 8px;}
+  .ud-claim-position-select{font-size:11.5px; padding:3px 6px;}
   .ud-assign-box select{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); margin-bottom:8px;}
   .ud-assign-results{margin-top:4px; max-height:180px; overflow-y:auto; border:1px solid var(--line); border-radius:9px; background:var(--paper-card);}
   .ud-assign-results:empty{display:none; border:none;}
@@ -553,6 +555,10 @@
                    "Kurucu": bir firma/marka bir üyeye atanırken beklenen tipik ilişki budur. -->
               <label class="ud-assign-position-label" for="ud-assign-office-position">Görev</label>
               <select id="ud-assign-office-position"></select>
+              <!-- "Yönetici": firmanın KENDİ adına açtığı kurumsal hesaplar için (ör. "DS Mimarlık"
+                   adlı üye). Künyeyi düzenleme yetkisi verir ama firma pop-up'ının Kurucular/Ekip
+                   listelerinde GÖRÜNMEZ — bkz. src/lib/projectClaimAccess.js#MANAGER_POSITION. -->
+              <div class="ud-assign-position-hint">“Yönetici”: firmanın kendi kurumsal hesabı — yalnızca kendi firmasını yönetir, Kurucular/Ekip listelerinde görünmez.</div>
               <input type="text" id="ud-assign-office-q" placeholder="Atamak için firma veya marka ara…">
               <div class="ud-assign-results" id="ud-assign-office-results"></div>
             </div>
@@ -1090,7 +1096,11 @@ async function loadOwnershipClaims(){
 // taleplerinde pozisyonun yetkiyle ilgisi yok, o yüzden yalnızca office için çizilir.
 // UD_POSITIONS ile AYNI liste; OFFICE_EDIT_POSITIONS ise src/routes/submissions.js'teki düzenleme
 // yetkisi veren alt küme (BİREBİR aynı dört değer).
-const CLAIM_OFFICE_EDIT_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri'];
+const CLAIM_OFFICE_EDIT_POSITIONS = ['Yönetici', 'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri'];
+// Bir claim'in "Görev"i, kullanıcının kendi profil pozisyonundan (UD_POSITIONS) FARKLI bir listedir:
+// buna ek olarak 'Yönetici' (firmanın kendi kurumsal hesabı — düzenleme yetkisi verir, popup'ta
+// Kurucular/Ekip'te GÖRÜNMEZ; bkz. src/lib/projectClaimAccess.js#MANAGER_POSITION) seçilebilir.
+const CLAIM_POSITIONS = ['Yönetici', 'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
 function claimPositionPickerHtml(c){
   if(c.profile_type !== 'office') return '';
   if(c.status !== 'pending' && c.status !== 'approved') return '';
@@ -1098,7 +1108,7 @@ function claimPositionPickerHtml(c){
   // Onaylı: ZATEN dondurulmuş office_position seçili — yanlış/boş donmuş eski bir onay (canlıdaki
   // "MEEZ Mimarlık" gibi) panelden düzeltilebilsin diye, "Pozisyonu Güncelle" ile yeniden onaylanır.
   const current = (c.status === 'approved' ? c.office_position : c.user_position) || '';
-  const options = ['', ...UD_POSITIONS].map(p =>
+  const options = ['', ...CLAIM_POSITIONS].map(p =>
     `<option value="${escapeAttr(p)}"${p === current ? ' selected' : ''}>${p ? escapeHtml(p) : '— pozisyon seçilmemiş —'}</option>`
   ).join('');
   return `<div class="claim-position-row">
@@ -1111,7 +1121,7 @@ function updateClaimPositionWarning(sel){
   const warn = sel.closest('.claim-position-row').querySelector('.claim-position-warning');
   const ok = CLAIM_OFFICE_EDIT_POSITIONS.includes(sel.value);
   warn.style.display = ok ? 'none' : '';
-  warn.textContent = ok ? '' : '⚠ Bu pozisyon firma bilgilerini düzenleme yetkisi VERMEZ (yalnızca Kurucu, Kurucu Ortak, Ortak, Ekip Lideri verir).';
+  warn.textContent = ok ? '' : '⚠ Bu görev firma bilgilerini düzenleme yetkisi VERMEZ (yalnızca Yönetici, Kurucu, Kurucu Ortak, Ortak, Ekip Lideri verir).';
 }
 
 async function loadCorrections(){
@@ -1666,6 +1676,26 @@ async function loadUdClaims(userId){
   renderUdClaimCol('ud-claims-office-list', items.filter(c => c.profile_type === 'office'));
 }
 
+// Onaylı bir FİRMA/MARKA atamasının dondurulmuş görevini satır içinde gösterir ve düzeltilebilir
+// kılar (kullanıcı isteği, 2026-09-08 madde 1: "Atadıklarımda kişi ve firma profillerini düzenleme
+// yetkisi geçiyor mu kontrol et"). Atama kutusundaki Görev seçici YALNIZCA yeni atamada okunuyordu —
+// daha önce (ya da pozisyon seçici eklenmeden önce) yapılmış bir atamanın görevi bu ekranda ne
+// görülebiliyor ne düzeltilebiliyordu; görev yetkisiz/boş donmuşsa satır "ONAYLANDI" görünmesine
+// rağmen kullanıcıya HİÇBİR düzenleme yetkisi vermiyordu (bkz. src/routes/admin.js#
+// listUserClaimsAdmin). Kişi (architect) atamalarında görevin yetkiyle ilgisi yok, seçici çizilmez.
+function udClaimPositionHtml(c){
+  if(c.profile_type !== 'office' || c.status !== 'approved') return '';
+  const current = c.office_position || '';
+  const options = ['', ...CLAIM_POSITIONS].map(p =>
+    `<option value="${escapeAttr(p)}"${p === current ? ' selected' : ''}>${p ? escapeHtml(p) : '— görev yok —'}</option>`
+  ).join('');
+  const ok = CLAIM_OFFICE_EDIT_POSITIONS.includes(current);
+  return `<span class="ud-claim-position" style="display:flex; align-items:center; gap:6px;">
+    <select class="ud-claim-position-select" data-id="${escapeAttr(c.id)}" title="Bu atamada dondurulmuş görev">${options}</select>
+    <span title="${ok ? 'Bu görev firma bilgilerini düzenleme yetkisi verir.' : 'Bu görev firma bilgilerini düzenleme yetkisi VERMEZ.'}">${ok ? '✓' : '⚠'}</span>
+  </span>`;
+}
+
 function renderUdClaimCol(containerId, items){
   const container = document.getElementById(containerId);
   if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Atanmış profil yok.</div>'; return; }
@@ -1673,12 +1703,25 @@ function renderUdClaimCol(containerId, items){
     <div class="ud-list-row">
       <span>${escapeHtml(c.profile_key)}</span>
       <span style="display:flex; align-items:center; gap:10px;">
+        ${udClaimPositionHtml(c)}
         ${c.submissionId && UD_CLAIM_EDIT_PAGE[c.profile_type] ? `<a href="${UD_CLAIM_EDIT_PAGE[c.profile_type]}?edit=${encodeURIComponent(c.submissionId)}&stype=${encodeURIComponent(UD_CLAIM_EDIT_STYPE[c.profile_type])}" target="_blank" rel="noopener" style="color:var(--walnut); font-weight:600;">Düzenle</a>` : ''}
         <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : c.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${UD_CLAIM_STATUS_LABELS[c.status] || c.status}</span>
         <button type="button" class="ud-claim-remove-btn" data-id="${c.id}">Kaldır</button>
       </span>
     </div>
   `).join('');
+  // Görev değişince aynı PATCH ucu (status yine 'approved') çağrılır — bkz. Profil Talepleri
+  // sekmesindeki "Pozisyonu Güncelle" ile BİREBİR aynı istek.
+  container.querySelectorAll('.ud-claim-position-select').forEach(sel=>{
+    sel.addEventListener('change', async ()=>{
+      sel.disabled = true;
+      await api(`/api/admin/claims/${encodeURIComponent(sel.dataset.id)}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status: 'approved', officePosition: sel.value }),
+      });
+      loadUdClaims(udCurrentUserId);
+    });
+  });
   container.querySelectorAll('.ud-claim-remove-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!confirm('Bu profil ataması kaldırılsın mı? Kullanıcı bu profili artık düzenleyemez.')) return;
@@ -1699,7 +1742,7 @@ function wireUdAssign(profileType, inputId, resultsId, positionSelectId){
   // Firma/marka atamasında dondurulacak görev — bkz. markup'taki gerekçe. Yalnızca office için var.
   const positionSel = positionSelectId ? document.getElementById(positionSelectId) : null;
   if(positionSel){
-    positionSel.innerHTML = UD_POSITIONS.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
+    positionSel.innerHTML = CLAIM_POSITIONS.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
     positionSel.value = 'Kurucu';
   }
   let timer = null;

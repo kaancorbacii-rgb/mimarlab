@@ -309,7 +309,7 @@ function createClaimCorrectionBox(config){
   // buton görünüyor, form dolduruluyor ve kaydederken 403 dönüyordu — auth-modal.js'teki AYNI
   // kontrolün yorumunda "önce boş yere doldurulan form, sonra 403" olarak tarif edilen tam da bu.
   // Artık tek kaynak sunucudan gelen dondurulmuş değer (/api/claims/status → officePosition).
-  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
   function renderProfileEditButton(){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;

@@ -10,6 +10,7 @@ import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 import { TR_UNIVERSITIES } from '../lib/universities.js';
+import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -643,9 +644,16 @@ async function buildArchitectPayload(env, key) {
   if (a.legacy_key && !isSubmissionMarker && a.legacy_key !== a.name) item._claimKey = a.legacy_key;
 
   const adjacent = await fetchAdjacentArchitect(env, a.id);
+  // claimed — bkz. src/lib/claimedProfiles.js (kullanıcı isteği, 2026-09-08 madde 5): bu kişi
+  // profili bir üyeye atanmışsa pop-up'taki "Kamuya açık kaynaklardan derlenmiştir" uyarısı
+  // gösterilmez. legacy_key de sorulur: sonradan yeniden adlandırılmış statik profillerde claim
+  // satırı hâlâ ORİJİNAL adı taşıyor olabilir (bkz. renameArchitectEverywhere'in UPDATE OR IGNORE
+  // dalı — UNIQUE çakışmasında eski anahtar korunur).
+  const claimed = await anyProfileClaimed(env, [a.name, a.legacy_key]);
 
   return {
     item,
+    claimed,
     office: office ? { name: office.name, loc: office.loc, cats: office.cats, yil: office.yil, logo: office.logo_url, badges: [] } : null,
     offices: [
       ...offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),

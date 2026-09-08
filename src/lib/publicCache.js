@@ -415,7 +415,14 @@ async function withSingleFlight(key, fn) {
 //     v5-v20'nin AYNI tuzağı ve burada ÖZELLİKLE sinsi: sıralama değişikliği hiçbir SATIRI
 //     değiştirmez, yani listFingerprint (COUNT + MAX(updated_at)) BİREBİR aynı kalır. Sürüm
 //     artırılmazsa önbellekteki gövde "taze" sayılır ve ziyaretçiler eski sırada takılırdı.
-const API_PAYLOAD_VERSION = 'v22';
+// v22 -> v23 (kullanıcı isteği, 2026-09-08 madde 5): dört TEKİL detay ucu (/api/office/:key,
+//     /api/architect/:key, /api/project/:slug, /api/product/:key) artık `claimed` bayrağı taşıyor —
+//     pop-up'lardaki "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı bu profil
+//     bir üyeye atanmışsa gösterilmiyor (bkz. src/lib/claimedProfiles.js). v5-v21'in AYNI tuzağı:
+//     bir profili atamak hiçbir canonical satırın updated_at'ini değiştirmediğinden fingerprint
+//     aynı kalır; sürüm artırılmazsa o pop-up'ı daha önce açmış ziyaretçiler 304 alıp uyarının
+//     hâlâ durduğu eski gövdede takılırdı.
+const API_PAYLOAD_VERSION = 'v23';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

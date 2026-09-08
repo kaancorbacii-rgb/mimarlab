@@ -104,10 +104,10 @@ function claimNotificationLink(profileType, profileKey) {
 // alacağı bir forma yollardı. İstemci de AYNI kuralı uygular (bkz. js/components/auth-modal.js#
 // openOfficeClaimEditor: yetki yoksa bildirim düzenleme sayfasına değil, Hesabım'daki künye
 // sayfasına götürür).
-const CLAIM_OFFICE_EDIT_POSITIONS_SERVER = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+const CLAIM_OFFICE_EDIT_POSITIONS_SERVER = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
 function claimApprovedBody(profileType, profileKey, officePosition) {
   if (profileType === 'office' && !CLAIM_OFFICE_EDIT_POSITIONS_SERVER.has(officePosition || '')) {
-    return `"${profileKey}" ile bağlantın onaylandı. Künyeyi yalnızca kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir.`;
+    return `"${profileKey}" ile bağlantın onaylandı. Künyeyi yalnızca yönetici, kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir.`;
   }
   return `"${profileKey}" profilini artık düzenleyebilirsin.`;
 }
@@ -525,8 +525,13 @@ async function listUserSubmissionsAdmin(env, targetId, url) {
 // submission id taşımıyor. `id` — DELETE /api/admin/claims/:id ile atamayı kaldırmak (bkz. kullanıcı
 // isteği: mimar/firma atama) için client'a geri döner.
 async function listUserClaimsAdmin(env, targetId) {
+  // office_position — atamanın GERÇEKTEN düzenleme yetkisi verip vermediğini belirleyen dondurulmuş
+  // görev (bkz. OFFICE_POSITIONS_ADMIN + src/routes/submissions.js#OFFICE_EDIT_POSITIONS). Bu alan
+  // yanıta girmediği sürece admin, Üyeler ekranında "ONAYLANDI" rozetini görüp atamanın çalıştığını
+  // sanıyor ama görev NULL/yetkisiz donmuşsa kullanıcı profili hiç düzenleyemiyordu (bkz. proje
+  // notu: pozisyonsuz onay sessizce ÖLÜ onaydır). Artık aynı satırda gösterilip düzeltilebiliyor.
   const { results } = await env.DB.prepare(
-    'SELECT id, profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
+    'SELECT id, profile_type, profile_key, status, office_position FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(targetId).all();
   const items = await Promise.all(results.map(async (c) => {
     const table = c.profile_type === 'architect' ? 'architect_submissions' : c.profile_type === 'office' ? 'office_submissions' : null;
@@ -770,13 +775,33 @@ async function handleProfileOptionsAdmin(env, url) {
 // seçmemişse office_position NULL olarak donuyor ve onay HİÇBİR düzenleme yetkisi vermiyordu —
 // ne kullanıcıya ne admin'e bir uyarı çıkmadan. Admin panelinde artık bir pozisyon seçici + uyarı
 // var (bkz. admin.html#loadOwnershipClaims), bu uç de o seçimi kabul eder.
+// 'Yönetici' — firmanın KENDİ adına açtığı kurumsal hesap (bkz. src/lib/projectClaimAccess.js#
+// MANAGER_POSITION, kullanıcı isteği 2026-09-08 madde 2): düzenleme yetkisi verir ama firma
+// popup'ının Kurucular/Ekip listelerinde görünmez.
 const OFFICE_POSITIONS_ADMIN = new Set([
+  'Yönetici',
   'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi',
   'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz',
 ]);
 function normalizeOfficePosition(value) {
   const v = (value || '').trim();
   return OFFICE_POSITIONS_ADMIN.has(v) ? v : null;
+}
+
+// Bir profile_claims satırı (atama/onay/red/kaldırma) değiştiğinde, o profilin TEKİL detay ucunu
+// ve SSR HTML'ini de temizler. invalidatePublicCache() TEK BAŞINA YETMEZ: yalnızca sabit liste
+// yollarını temizler, /api/office/:slug ve /api/architect/:slug ise caches.default'ta 5 dakikalık
+// s-maxage ile durur ve fingerprint taşımaz (bkz. proje notu: "Detay ucu cache'i:
+// purgeSsrDetailCache şart"). Bu tur (2026-09-08 madde 5) claim durumunu detay yükünde GÖRÜNÜR
+// kıldığı için — `claimed` bayrağı kaynak uyarısını gizliyor, ayrıca Kurucular/Ekip listeleri de
+// claim satırlarından türüyor — purge olmadan admin "atadım ama sayfada değişmedi" derdi.
+// NOT: aynı firmaya ait PROJE/ÜRÜN detaylarının `claimed` bayrağı burada purge EDİLMEZ (bir
+// firmanın yüzlerce projesi olabilir, tek tek purge etmek D1/cache bütçesine değmez) — onlar en
+// fazla 5 dakikalık s-maxage penceresi kadar bayat kalır.
+async function purgeClaimProfileCaches(env, profileType, profileKey) {
+  const type = profileType === 'office' ? 'office' : profileType === 'architect' ? 'architect' : null;
+  if (!type || !profileKey) return;
+  await purgeSsrDetailCache(type, profileKey, env);
 }
 
 async function handleClaimsAdmin(request, env, url, segments) {
@@ -813,6 +838,7 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // bkz. aşağıdaki PATCH onay dalındaki AYNI invalidation gerekçesi — /api/public/badges bu tabloya
     // doğrudan JOIN olduğundan.
     await invalidatePublicCache(env);
+    await purgeClaimProfileCaches(env, profileType, profileKey);
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[profileType] || profileType;
     await createNotification(
       env, userId, 'claim_approved',
@@ -825,10 +851,11 @@ async function handleClaimsAdmin(request, env, url, segments) {
 
   if (segments.length === 4 && request.method === 'DELETE') {
     const id = segments[3];
-    const claim = await env.DB.prepare('SELECT user_id FROM profile_claims WHERE id = ?').bind(id).first();
+    const claim = await env.DB.prepare('SELECT user_id, profile_type, profile_key FROM profile_claims WHERE id = ?').bind(id).first();
     if (!claim) return errorJson('Bulunamadı', 404);
     await env.DB.prepare('DELETE FROM profile_claims WHERE id = ?').bind(id).run();
     await invalidatePublicCache(env);
+    await purgeClaimProfileCaches(env, claim.profile_type, claim.profile_key);
     return json({ ok: true });
   }
 
@@ -886,6 +913,7 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // reddedildiğinde o profilin rozet görünümü en fazla ANON_CACHE_HEADERS penceresi (15sn) kadar
     // eski kalabiliyordu.
     await invalidatePublicCache(env);
+    await purgeClaimProfileCaches(env, claim.profile_type, claim.profile_key);
 
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[claim.profile_type] || claim.profile_type;
     if (body.status === 'approved') {

@@ -29,7 +29,7 @@
 // öngörülebilir klasik kanaldır; arama.html ikisini birleştirir.
 
 import { foldTr } from './textMatch.js';
-import { foldSqlExpr, escapeLike, SQL_MAX_WORDS } from './searchFold.js';
+import { foldSqlExpr, stripPunctSqlExpr, escapeLike, SQL_MAX_WORDS } from './searchFold.js';
 import { stemTr, hardenFinal, phraseInHay } from './searchConcepts.js';
 import { fetchOfficeProductCounts } from './officeProductCounts.js';
 import { normalizeOfficeCats, officePath } from './officeUrl.js';
@@ -47,6 +47,28 @@ const FIELD_WEIGHTS = { primary: 1.0, secondary: 0.8, tertiary: 0.55 };
 
 function tokensOf(folded) {
   return folded.split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+// Ardışık TEK HARFLİK token dizilerini tek bir token'a birleştirir: ["r","a","f","studio"] ->
+// ["raf","studio"]. Noktalı/ayrık yazılan kısaltmaların ("R.A.F.", "A&B", "S.O.M.") bitişik
+// yazılışıyla AYNI biçime inmesini sağlar; sorgu VE belge tarafında AYNI şekilde uygulandığından
+// hangi tarafın noktalı yazıldığı fark etmez. En az İKİ harf gerekir — tek bir baş harf ("M. Ali")
+// bir kısaltma değildir, olduğu gibi bırakılır ve önek eşleşmesiyle ("m" -> "Mehmet") çalışır.
+function mergeInitials(toks) {
+  const out = [];
+  let run = [];
+  const flush = () => {
+    if (run.length >= 2) out.push(run.join(''));
+    else out.push(...run);
+    run = [];
+  };
+  for (const t of toks) {
+    if (t.length === 1) { run.push(t); continue; }
+    flush();
+    out.push(t);
+  }
+  flush();
+  return out;
 }
 
 // Tek bir sorgu kelimesinin bir alanın kelimeleriyle en iyi eşleşme kademesi (0 = eşleşmiyor).
@@ -73,7 +95,12 @@ function wordGrade(word, toks) {
 export function fieldScore(text, words) {
   const folded = foldTr(text || '').trim();
   if (!folded || !words.length) return null;
-  const toks = tokensOf(folded);
+  const rawToks = tokensOf(folded);
+  const merged = mergeInitials(rawToks);
+  // Eşleştirme token'ları HER İKİ biçimi de taşır: ham ("r","a","f") ve birleştirilmiş ("raf").
+  // Böylece "r.a.f. studio" da "raf studio" da aynı kaydı bulur — sorgu hangi biçimde yazılırsa
+  // yazılsın (queryWords birleştirilmiş biçimi üretir, ham biçim eski davranışı korur).
+  const toks = merged.length === rawToks.length ? rawToks : [...rawToks, ...merged];
   let sum = 0;
   for (const w of words) {
     const g = wordGrade(w, toks);
@@ -81,10 +108,15 @@ export function fieldScore(text, words) {
     sum += g;
   }
   let score = sum / words.length;
+  // İfade (tam eşleşme/önek) karşılaştırması ham `folded` üzerinde DEĞİL, token'lara ayrılıp tek
+  // boşlukla birleştirilmiş biçim üzerinde yapılır — aksi halde queryWords artık noktalamayı attığı
+  // için "r a f studio" hiçbir zaman "r.a.f. studio"ya eşit/önek sayılmaz ve tam ad eşleşmesi
+  // (+6/+3) kaybolurdu. Alfabetik-boşluklu sıradan adlarda iki biçim ZATEN aynıdır.
+  const norm = merged.join(' ');
   const phrase = words.join(' ');
-  if (folded === phrase) score += 6;
-  else if (folded.startsWith(phrase)) score += 3;
-  else if (phraseInHay(folded, phrase)) score += 2;
+  if (norm === phrase) score += 6;
+  else if (norm.startsWith(phrase)) score += 3;
+  else if (phraseInHay(norm, phrase)) score += 2;
   // Aynı kademede daha KISA alan önce: "Galata Kulesi" (13) "Galatasaray Üniversitesi (Ortaköy
   // Yerleşkesi)"nden (44) önce. Küçük bir ek, kademeyi asla geçmez.
   score += Math.max(0, 1 - folded.length / 80) * 0.5;
@@ -107,8 +139,17 @@ export function rankRows(rows, fields, words, nameOf) {
   return out;
 }
 
+// GERÇEK BULGU (kullanıcı isteği, 2026-09-08 madde 4): sorgu kelimeleri BOŞLUKLA, alan kelimeleri
+// ise tokensOf ile HARF/RAKAM DIŞI HER ŞEYLE bölünüyordu — iki taraf farklı alfabede konuşuyordu.
+// "r.a.f. studio" sorgusu ["r.a.f.", "studio"] üretiyor, "R.A.F. Studio" adı ise ["r","a","f",
+// "studio"] token'larına ayrılıyordu; "r.a.f." hiçbir token'a eşit/önek/alt-dize olmadığı için
+// wordGrade 0 dönüyor, fieldScore null veriyor ve firma aramada HİÇ çıkmıyordu (SQL adayı doğru
+// geliyordu — kayıp tamamen JS skorlamasındaydı). Kök çözüm: sorgu da BİREBİR tokensOf ile
+// bölünür, böylece nokta/kesme/tire/& içeren her ad ("R.A.F.", "St. Regis", "M. Ali", "A&B")
+// kendiliğinden eşleşir. Tek yönlü bir GENİŞLEME değildir: tek harflik parçalar (r/a/f) yalnızca
+// tam token eşleşmesi ya da token öneki olarak sayıldığından yanlış pozitif üretmez.
 export function queryWords(rawQ) {
-  return foldTr(String(rawQ || '')).split(/\s+/).filter(Boolean);
+  return mergeInitials(tokensOf(foldTr(String(rawQ || ''))));
 }
 
 // SQL aday koşulu: verilen katlanmış alanlardan HERHANGİ BİRİ sorgunun TÜM kelimelerini alt-dize
@@ -116,13 +157,22 @@ export function queryWords(rawQ) {
 // olmayan) bir ÜST KÜMEDİR: JS'in "tam kelime/kök/önek/kelime içi" kademelerinin hepsi bir alt-dize
 // eşleşmesini gerektirir. Tek istisna Türkçe kök eşleşmesi ("koltuğu" → "koltuk"): sorgu kelimesi
 // belge kelimesinden UZUN olabilir; bunun için sorgunun kökü de OR'a eklenir.
+// NOKTALAMA: her kolon stripPunctSqlExpr ile sarmalanır (bkz. o fonksiyonun gerekçesi) — sorgu
+// kelimeleri queryWords'ten zaten yalnızca harf/rakam olarak geldiğinden iki taraf aynı alfabede
+// karşılaşır ve "raf" sorgusu "R.A.F. Studio" adını ADAY olarak getirebilir. Ek bir OR dalı DEĞİL,
+// kolonun kendisi dönüştürülür: OR dalı terim sayısını ikiye katlayıp D1'in ifade-ağacı derinlik
+// sınırına (bkz. proje notu) yaklaştırırdı, oysa bu biçim aday kümesinin ÜST KÜME olma garantisini
+// bozmadan terim sayısını AYNI bırakır.
 function likeCondition(columns, words) {
   const variants = words.slice(0, SQL_MAX_WORDS).map(w => {
     const st = hardenFinal(stemTr(w));
     return (st !== w && st.length >= 3) ? [w, st] : [w];
   });
   const params = [];
-  const cond = columns.map(col => `(${variants.map(vs => `(${vs.map(v => { params.push(`%${escapeLike(v)}%`); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ')})`).join(' OR ');
+  const cond = columns.map(rawCol => {
+    const col = stripPunctSqlExpr(rawCol);
+    return `(${variants.map(vs => `(${vs.map(v => { params.push(`%${escapeLike(v)}%`); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ')})`;
+  }).join(' OR ');
   return { cond: `(${cond})`, params };
 }
 

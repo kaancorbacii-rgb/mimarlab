@@ -1060,6 +1060,17 @@ const ModalShell = (function () {
   // burada inline: dört modalın CSS'i dört ayrı yerde tanımlı, tek bir sınıf eklemek için dördünü
   // birden düzenlemek gerekirdi.
   const LOAD_ERROR_ID = 'modal-shell-load-error';
+  // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısının TEK anahtarı (kullanıcı
+  // isteği, 2026-09-08 madde 5). Sunucu her tekil detay ucunda `claimed` döner (bkz.
+  // src/lib/claimedProfiles.js): kayıt bir üyeye atanmışsa uyarı kalkar, çünkü künyeyi artık
+  // sahibi yönetiyor. Ortak kural burada, .source-disclaimer CSS'iyle AYNI gerekçeyle (dört modal
+  // dosyası da kendi stilini/markup'ını ayrı enjekte ediyor, kural tek yerde durmalı).
+  // `claimed` undefined ise (eski önbellekten gelen gövde) uyarı GÖSTERİLİR — güvenli varsayılan.
+  function setSourceDisclaimer(id, claimed) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = claimed ? 'none' : '';
+  }
+
   function clearLoadError() {
     const el = document.getElementById(LOAD_ERROR_ID);
     if (el) el.remove();
@@ -1084,7 +1095,7 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError, setSourceDisclaimer };
 })();
 
 // KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-06 madde 2: "5. sayfadan proje popup'ı açıp

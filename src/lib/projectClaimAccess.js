@@ -10,7 +10,14 @@
 // tabi (Kurucu/Kurucu Ortak/Ortak/Ekip Lideri) — bir Ekip Üyesi firmanın kendi profilini
 // düzenleyemediğinden, firmaya ait projeleri de düzenleyemez. Mimar için pozisyon kısıtı yok (bkz.
 // submissions.js#verifyClaimedProfileKey'deki AYNI ayrım).
-export const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+//
+// 'Yönetici' (MANAGER_POSITION, kullanıcı isteği 2026-09-08 madde 2): bir firmanın KENDİ adına
+// açtığı kurumsal hesap için ayrılmış görev. Düzenleme yetkisi taşır (bu yüzden aşağıdaki kümede),
+// ama bir insanı temsil etmediğinden firma popup'ının Kurucular/Ekip listelerinde GÖSTERİLMEZ
+// (bkz. src/routes/office.js#buildOfficePayload) ve Ekip kutusundan çıkarma cascade'i onu ASLA
+// iptal etmez (bkz. src/lib/officeFounderCascade.js#cascadeRemovedProfileClaims).
+export const MANAGER_POSITION = 'Yönetici';
+export const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', MANAGER_POSITION]);
 
 export async function canUserEditProjectBySlug(env, user, slug) {
   if (!user) return false;

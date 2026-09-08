@@ -9,6 +9,7 @@ import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { getSessionUser } from '../lib/auth.js';
 import { canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
+import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 // bkz. src/routes/project.js'teki AYNI CJS-interop yorumu (il-ilce-data.js için) — bu dosya da
 // canonical veri DEĞİL, salt statik bir taksonomi referans tablosu.
 import catalogTaxonomyJs from '../../catalog-taxonomy.js';
@@ -404,6 +405,15 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     item.usedByOffices = users.offices;
     item.usedByArchitects = users.architects;
     if (owner) Object.assign(item, owner);
+    // claimed (kullanıcı isteği, 2026-09-08 madde 5): ürünün MARKASI ya da tasarımcısı bir üyeye
+    // atanmışsa — ya da ürünü zaten bir üye göndermişse (owner byline) — pop-up'taki "Kamuya açık
+    // kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı gösterilmez (bkz.
+    // src/lib/claimedProfiles.js). designer serbest metindir ve birden çok adı virgülle taşıyabilir
+    // (bkz. renameArchitectEverywhere'in product_submissions.architect split(',') deseni).
+    const designerNames = String(item.designer || '').split(',').map(x => x.trim()).filter(Boolean);
+    // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/product-modal.js#
+    // renderItem yalnızca item'ı alır, payload'ı değil.
+    item.claimed = !!owner || await anyProfileClaimed(env, [item.brand, ...designerNames]);
     return { item, hidden: !!row.hidden_at };
   });
 }

@@ -178,6 +178,19 @@ else
   tail -20 /tmp/preflight_meet >&2
 fi
 rm -f /tmp/preflight_meet
+
+# 2026-09-08 turu (kullanıcı isteği maddeleri 1-6) — node:sqlite üzerinde GERÇEK schema.sql +
+# migrations/0079 ile: atamanın gerçekten düzenleme yetkisi vermesi, 'Yönetici' görevi (yetki VERİR
+# ama Kurucular/Ekip'te görünmez), Ekip kutusundan çıkarma cascade'i, noktalı ad araması
+# ("r.a.f. studio"), `claimed` bayrağı ve Kurucular/Ekip aksan-katlamalı tekilleştirme.
+# Bkz. scripts/test-2026-09-08-round.mjs dosya başı.
+if node scripts/test-2026-09-08-round.mjs >/tmp/preflight_0908 2>&1; then
+  ok "atama/görev/arama/claimed testleri geçti ($(grep -c '^  ok ' /tmp/preflight_0908) test)"
+else
+  bad "atama/görev/arama/claimed testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_0908 >&2
+fi
+rm -f /tmp/preflight_0908
 # Bildirim linki /gorusme/:uuid'e gidebilmeli — auth-modal.js#NOTIF_ENTITY_PATH_RE 'gorusme'
 # içermezse "görüşmen hazır" bildirimi tıklanınca hiçbir yere gitmez (sessiz regresyon).
 if grep -q "function meetingRoomUuidFromLink" js/components/auth-modal.js && grep -q "MeetingRoom.open(meetingRoomUuid)" js/components/auth-modal.js; then

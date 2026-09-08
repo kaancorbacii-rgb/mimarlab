@@ -110,7 +110,8 @@ const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' }
 // bir pozisyon) ile onaylanmış bir claim artık düzenleme HAKKI vermez, yalnızca firma.html#Ekip'te
 // görünmeyi sağlar (bkz. src/routes/office.js#buildOfficePayload). Yalnızca 'offices' için geçerli —
 // bir mimarın kendi profilini düzenlemesi pozisyonundan bağımsızdır.
-const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+// 'Yönetici' — firmanın kendi kurumsal hesabı (bkz. src/lib/projectClaimAccess.js#MANAGER_POSITION).
+const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
 
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   // claimed_profile_key canonical architects/offices satırının adı/slug'ı/legacy_key'iyle birebir
@@ -139,7 +140,7 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   // onayladığı andaki dondurulmuş office_position kullanılır — aksi halde kullanıcı kendi
   // profilinden position'ını "Kurucu" yapıp bu kontrolü atlatabilirdi.
   if (typeKey === 'offices' && !OFFICE_EDIT_POSITIONS.has(claim.office_position)) {
-    return errorJson('Bu firmayı düzenlemek için Kurucu, Kurucu Ortak, Ortak ya da Ekip Lideri pozisyonunda olman gerekiyor.', 403);
+    return errorJson('Bu firmayı düzenlemek için Yönetici, Kurucu, Kurucu Ortak, Ortak ya da Ekip Lideri görevinde olman gerekiyor.', 403);
   }
   return null;
 }
@@ -416,6 +417,23 @@ async function createSubmission(request, env, user, typeKey) {
   const renameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
   if (status === 'approved' && renameCascade && body.claimed_profile_key && body.name !== body.claimed_profile_key) {
     await renameCascade(env, body.claimed_profile_key, body.name);
+  }
+
+  // GERÇEK BULGU (kullanıcı isteği, 2026-09-08 madde 3): Kurucular/Ekip kutusundan bir isim silmek
+  // yalnızca updateOwnSubmission'da (PATCH) cascade'leniyordu. Bir firma İLK KEZ sahiplenilerek
+  // düzenlendiğinde (firma-ekle.html?claim= — henüz office_submissions satırı yok) kaydetme BU
+  // fonksiyona (POST) düşer ve hiçbir cascade çalışmıyordu: kutudan silinen kişinin onaylı
+  // profile_claims satırı olduğu gibi kalıyor, firma popup'ı onu Kurucular/Ekip'te göstermeye devam
+  // ediyordu ("siliyorum ama popup'tan silinmiyor"). Aynı iki çağrı burada da yapılır — bkz.
+  // updateOwnSubmission'daki AYNI blok/gerekçe. renameCascade'DEN SONRA çalışır: profile_claims
+  // satırları oraya kadar hâlâ eski adı taşıyabilir, cascade nihai (yeni) adla eşleşmelidir.
+  if (typeKey === 'offices' && body.claimed_profile_key && status === 'approved') {
+    if ('founders' in body) {
+      await cascadeRemovedProfileClaims(env, row.name, Array.isArray(body.founders) ? body.founders : [], { founders: true });
+    }
+    if ('team' in body) {
+      await cascadeRemovedProfileClaims(env, row.name, Array.isArray(body.team) ? body.team : [], { founders: false });
+    }
   }
 
   // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki

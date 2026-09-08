@@ -103,6 +103,23 @@ export function foldSqlExpr(column) {
   'ı','i'),'ş','s'),'ç','c'),'ğ','g'),'ü','u'),'ö','o')`;
 }
 
+// Noktalama ELEYEN sarmalayıcı — YALNIZCA klasik aramanın alt-dize (LIKE '%...%') koşulunda
+// kullanılır (bkz. src/lib/classicSearch.js#likeCondition). GEREKÇE (kullanıcı isteği, 2026-09-08
+// madde 4): "R.A.F. Studio" adı name_fold'da noktalarıyla duruyor, kullanıcının yazdığı "raf" ise
+// hiçbir zaman alt-dizesi olmuyordu — JS skorlaması noktalı/noktasız yazımı artık eşitliyor ama
+// aday satır D1'den hiç gelmediği için sonuç yine boş kalırdı. BOŞLUK BİLEREK KORUNUR: boşluğu da
+// atmak kelime sınırlarını yok edip aday kümesini gereksiz yere şişirir (RETRIEVAL_LIMIT'e daha
+// çabuk çarpar), noktalamayı atmak ise kelime sınırını bozmaz. Bu ifade index kullanmaz — zaten
+// '%q%' deseni hiçbir B-tree ile index'lenemiyordu (bkz. yukarıdaki "dürüst sınır" notu), yani
+// sorgu planı DEĞİŞMEZ, yalnızca satır başına birkaç replace() daha çalışır.
+export function stripPunctSqlExpr(expr) {
+  const CHARS = ['.', "'", '\u2019', '-', '&', '/', ',', '(', ')', ':', '"', '+'];
+  // SQLite dize literalinde tek tırnak İKİYE KATLANARAK kaçışlanır — kaçırılırsa `replace(x,''','')`
+  // gibi sözdizimsel olarak bozuk bir SQL üretilir ve sorgu tamamen patlar.
+  const lit = (ch) => `'${ch.replace(/'/g, "''")}'`;
+  return CHARS.reduce((acc, ch) => `replace(${acc},${lit(ch)},'')`, expr);
+}
+
 // foldedPrefixThenSubstring ile AYNI iki aşamalı yapı ve AYNI garanti: dönen hiçbir satır eskiden
 // eşleşmeyecek bir satır DEĞİLDİR (yanlış pozitif yok) ve eşleşme sayısı <= limit ise küme eskisiyle
 // aynıdır. 1. aşamanın öneki TÜM sorgu dizesidir (q) — çok kelimeli bir sorguda bir alan q ile

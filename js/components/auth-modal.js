@@ -1770,7 +1770,7 @@ const AuthModal = (function () {
   // UYGULAMIYORDU (gerçek bulgu): Ekip Üyesi pozisyonundaki biri firma sayfasından Düzenle'yi hiç
   // GÖRMESE de buradan firma-ekle.html?claim=...'a ulaşabiliyordu — sunucu yine de reddeder ama
   // kullanıcıya önce boş yere doldurabileceği bir form gösterip sonra 403 ile karşılaştırıyordu.
-  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
   // selfPrice/officePrice, src/routes/badges.js#BADGE_PRICES ile AYNI kaynaktan kopyalanmıştır
   // (bkz. info-modal.js#mountRozetAl/satin-al.html'deki BİREBİR aynı desen) — bu grid yalnızca
   // "Kendim için" fiyatını gösterir, gerçek tutar her zaman satın alma anında sunucuda yeniden

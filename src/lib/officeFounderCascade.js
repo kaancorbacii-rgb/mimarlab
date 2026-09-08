@@ -4,6 +4,7 @@ import { purgeSsrDetailCache } from './ssrCache.js';
 import { slugify } from './slugify.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { createNotification } from './notify.js';
+import { MANAGER_POSITION } from './projectClaimAccess.js';
 
 // src/routes/office.js#trLower ile BİREBİR aynı (bu dosyada da aynı sebeple yerel olarak tekrar
 // tanımlanmış — bkz. o dosyadaki yorum) — Kurucular/Ekip kutusundaki bir isim, o firmaya onaylı bir
@@ -11,6 +12,12 @@ import { createNotification } from './notify.js';
 // bilmediği kurallarla doğru yapılması gerekir.
 function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+
+// trLower + aksan katlaması — src/lib/textMatch.js#foldTr ile BİREBİR aynı (bkz. src/routes/
+// office.js#foldTr'deki aynı yerel kopya/gerekçe).
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
 const ARCHITECT_COPY_FIELDS = ['dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'];
@@ -90,20 +97,35 @@ const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
 // silmeden kaydetmek) bu isimler YENİ listede de olur — yalnızca editör GERÇEKTEN o ismi kutudan
 // silip kaydederse "reddedilmiş" sayılır.
 export async function cascadeRemovedProfileClaims(env, officeName, newNames, { founders = false } = {}) {
-  const newSet = new Set((newNames || []).filter(Boolean).map(n => trLower(n.trim())));
+  // foldTr: office.js#buildOfficePayload'ın Kurucular/Ekip tekilleştirmesiyle AYNI katlama (bkz.
+  // oradaki "Arman Akdoğan" / "Arman Akdogan" bulgusu) — kutudaki isim aksanlı, hesabın adı aksansız
+  // yazılmışsa trLower'a göre eşleşmiyor ve kimseyi silmemiş olan bir kaydetme, o kişinin claim'ini
+  // sessizce iptal ediyordu.
+  const newSet = new Set((newNames || []).filter(Boolean).map(n => foldTr(n.trim())));
 
+  // Görev kaynağı: office.js#buildOfficePayload'daki AYNI COALESCE — hangi bölüme (Kurucular/Ekip)
+  // düştüğü admin'in dondurduğu c.office_position'dan belirlenmeli, aksi halde popup bir kişiyi
+  // Kurucular'da gösterirken bu cascade onu Ekip sayıp yanlış listeden "çıkarılmış" kabul ederdi.
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.user_id, u.name, u.position FROM profile_claims c JOIN users u ON u.id = c.user_id
+    `SELECT c.id, c.user_id, u.name, COALESCE(NULLIF(c.office_position, ''), u.position) AS position
+       FROM profile_claims c JOIN users u ON u.id = c.user_id
      WHERE c.profile_type = 'office' AND c.profile_key = ? AND c.status = 'approved'`
   ).bind(officeName).all();
-  const relevant = (results || []).filter(r => founders === FOUNDER_POSITIONS.has(r.position));
-  const toRevoke = relevant.filter(r => !newSet.has(trLower((r.name || '').trim())));
+  // MANAGER_POSITION ('Yönetici', firmanın kendi kurumsal hesabı) Kurucular'da da Ekip'te de HİÇ
+  // listelenmediğinden (bkz. office.js#buildOfficePayload) kutuda adı da bulunmaz — kapsam dışı
+  // bırakılmazsa her kaydetme onu "listeden çıkarılmış" sayıp yetkisini iptal ederdi.
+  const relevant = (results || []).filter(r => r.position !== MANAGER_POSITION && founders === FOUNDER_POSITIONS.has(r.position));
+  const toRevoke = relevant.filter(r => !newSet.has(foldTr((r.name || '').trim())));
   if (!toRevoke.length) return;
 
   const now = Date.now();
   await env.DB.batch(toRevoke.map(r =>
     env.DB.prepare(`UPDATE profile_claims SET status = 'rejected', updated_at = ? WHERE id = ?`).bind(now, r.id)
   ));
+  // Firma detay ucu/SSR HTML'i claim satırlarından türeyen Kurucular/Ekip listelerini (ve 2026-09-08'den
+  // beri `claimed` bayrağını) taşıdığından, iptal edilen claim'ler hemen yansımalı — invalidatePublicCache
+  // tekil detay uçlarına DOKUNMAZ (bkz. proje notu: "Detay ucu cache'i: purgeSsrDetailCache şart").
+  await purgeSsrDetailCache('office', officeName, env);
   for (const r of toRevoke) {
     await createNotification(
       env, r.user_id, 'claim_rejected',

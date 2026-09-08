@@ -337,7 +337,7 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
-    <p class="source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
+    <p class="source-disclaimer" id="am-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
     <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;
@@ -667,6 +667,9 @@ const ArchitectModal = (function () {
     const designerProductsData = payload.relatedProducts || [];
     currentItem = a;
 
+    // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı: kayıt bir üyeye
+    // atanmışsa gösterilmez (kullanıcı isteği, 2026-09-08 madde 5 — bkz. src/lib/claimedProfiles.js).
+    ModalShell.setSourceDisclaimer('am-source-disclaimer', payload.claimed);
     updateHeadMeta(a, displayOffice);
     // Profil görüntülenmesi (kullanıcı isteği, 2026-09-04 — Profil İstatistikleri). Sayaç
     // js/analytics-beacon.js'te oturum başına tekilleştirilir; modül yüklü değilse hiçbir şey olmaz.

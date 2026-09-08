@@ -360,7 +360,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-city-grid"></div>
     </div>
     <div class="prevnext" id="om-prevnext"></div>
-    <p class="source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
+    <p class="source-disclaimer" id="om-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır.</p>
     <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;
@@ -705,6 +705,9 @@ const OfficeModal = (function () {
       if (el) el.style.display = '';
     });
     const o = payload.item;
+    // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı: kayıt bir üyeye
+    // atanmışsa gösterilmez (kullanıcı isteği, 2026-09-08 madde 5 — bkz. src/lib/claimedProfiles.js).
+    ModalShell.setSourceDisclaimer('om-source-disclaimer', payload.claimed);
     // Firma/marka profil görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
     if (window.MimarlabAnalytics) MimarlabAnalytics.view('office', o.slug || slugify(o.name));
     const founders = payload.founders || [];

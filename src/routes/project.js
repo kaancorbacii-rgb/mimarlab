@@ -1,4 +1,5 @@
 import { json, errorJson } from '../lib/http.js';
+import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 import { getSessionUser } from '../lib/auth.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
@@ -443,6 +444,14 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // item.imageHotspots yalnızca dolu olduğunda var (bkz. shapeProjectItem) — boşsa enrich hiç
     // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
     if (item.imageHotspots) item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);
+    // claimed (kullanıcı isteği, 2026-09-08 madde 5): künyedeki mimar/firmalardan HERHANGİ BİRİ bir
+    // üyeye atanmışsa — ya da projeyi zaten bir üye göndermişse (owner byline) — pop-up'taki
+    // "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." uyarısı gösterilmez (bkz.
+    // src/lib/claimedProfiles.js). Künye adları designerDetails'te ZATEN toplanmış durumda, ek bir
+    // isim sorgusu doğmaz.
+    // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/project-modal.js#
+    // renderItem yalnızca item'ı alır, payload'ı değil.
+    item.claimed = !!owner || await anyProfileClaimed(env, designerDetails.map(d => d.name));
     return { item, hidden: false };
   });
 }

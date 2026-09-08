@@ -11,7 +11,7 @@ import { getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge, BADGE_RANK 
 // OFFICE_EDIT_POSITIONS İLE BİREBİR AYNI küme — firma profilini düzenleyebilen pozisyonlarla
 // firmaya gelen mesajları görebilen pozisyonlar kasıtlı olarak eşleşir.
 const PROFILE_TYPES = new Set(['architect', 'office']);
-const OFFICE_MESSAGE_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+const OFFICE_MESSAGE_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
 const MAX_BODY_LEN = 4000;
 
 export async function handleMessagesRoute(request, env, url) {
