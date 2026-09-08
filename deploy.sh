@@ -145,7 +145,10 @@ sample_files=$(find miras -maxdepth 1 -type f | awk 'NR % 400 == 1' | head -6)
 fail=0
 for f in $sample_files; do
   url="https://mimarlab.com/${f}"
-  code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  # `|| code=000`: set -e altında curl'ün geçici bir ağ hatası (ör. exit 56, deploy'dan hemen sonra
+  # bağlantı sıfırlanması — 2026-09-08'de yaşandı) tüm betiği burada öldürüp health-check.sh ve
+  # smoke-test.sh'i HİÇ çalıştırmadan bırakıyordu. Hata artık "200 değil" uyarısına dönüşür.
+  code=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo 000)
   if [ "$code" != "200" ]; then
     echo "  UYARI: $url -> $code"
     fail=1
