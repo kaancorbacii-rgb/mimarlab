@@ -14,10 +14,9 @@ const ProjectModal = (function () {
       <div class="skeleton-line" style="height:12px; width:58%; border-radius:6px;"></div>
     </div>
     <div class="pm-top-rank" id="pm-top-rank" style="display:none;"></div>
-    <div class="detail-byline" id="pm-byline" style="display:none;">
-      <span class="detail-byline-avatar" id="pm-byline-avatar"></span>
-      <span id="pm-byline-text"></span>
-    </div>
+    <!-- "X tarafindan" byline'i KALDIRILDI (kullanici istegi, 2026-09-09): projeyi/urunu kimin
+         yayinladigi artik popup'ta gosterilmiyor. Sunucu tarafi (fetchOwnerByline/item.ownerName)
+         DOKUNULMADI; item.claimed (kaynak ibaresi) hala ayni owner nesnesine bakiyor. -->
     <div class="detail-info">
       <div class="designer-section" id="pm-architect-section" style="display:none;">
         <div class="designer-label">${ProjectMeta.metaIconHtml('architect')}Mimar:</div>
@@ -478,31 +477,19 @@ const ProjectModal = (function () {
     return ModalShell.fetchEntity(`/api/project/${encodeURIComponent(slug)}`);
   }
 
-  // "X tarafından" satırı — yalnızca üye gönderisi kökenli projelerde dolu (bkz. src/routes/
-  // project.js#fetchOwnerByline item.ownerName alanı), statik/admin kökenli projelerde gizli kalır.
-  function renderByline(item) {
-    const wrap = document.getElementById('pm-byline');
-    if (!item.ownerName) { wrap.style.display = 'none'; return; }
-    wrap.style.display = '';
-    const avatar = document.getElementById('pm-byline-avatar');
-    avatar.style.background = officeColor(item.ownerName);
-    // cdnImg (bkz. image-cdn.js, bu sayfada — proje.html — her zaman yüklü) — denetim bulgusu
-    // (2026-08-14): bu küçük (~24-64px) avatar önceden yükleme çözünürlüğünde isteniyordu.
-    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
-    const ownerNameHtml = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)}`;
-    document.getElementById('pm-byline-text').innerHTML = item.ownerArchitectSlug
-      ? `<a href="/kisi/${encodeURIComponent(item.ownerArchitectSlug)}">${ownerNameHtml}</a> tarafından`
-      : `${ownerNameHtml} tarafından`;
-  }
+  // renderByline KALDIRILDI (kullanici istegi, 2026-09-09: "kimin proje ve urunu yayinladigi dair
+  // bilgi kismini kaldir") - "X tarafindan" satiri artik render edilmiyor. item.ownerName/
+  // ownerPhoto/ownerArchitectSlug/ownerBadge sunucudan hala gelir (bkz. src/routes/project.js#
+  // fetchOwnerByline) cunku ayni owner nesnesi item.claimed'i (kaynak ibaresi) besliyor.
 
   // renderNotFound() bu ID'leri gizler (bkz. aşağısı); ModalShell'in şablonu sayfa ömrü boyunca
   // TEK SEFER mount edip yeniden kullandığı için (bkz. ensureTemplate#mountedOnce), bir kez 404/ağ
   // hatası alınıp bu bölümler gizlendikten sonra bir sonraki BAŞARILI render bunları geri
   // AÇMAZSA aynı sekmede açılan sıradaki projeler kalıcı olarak yarı-boş görünürdü (gerçek bulgu —
   // bkz. kullanıcı isteği: "bazı sayfalar boş geliyor"). Bu yüzden her başarılı renderItem() en
-  // başta hepsini görünür durumuna sıfırlar; ilgili alt render fonksiyonları (renderByline,
-  // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
-  const HIDE_ON_NOT_FOUND_IDS = ['pm-byline', 'pm-architect-section', 'pm-office-section',
+  // başta hepsini görünür durumuna sıfırlar; ilgili alt render fonksiyonları (ProjectMeta.render,
+  // RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
+  const HIDE_ON_NOT_FOUND_IDS = ['pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-map-section', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
     'pm-related-section', 'pm-city-section', 'pm-products-pair', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
 
@@ -799,7 +786,6 @@ const ProjectModal = (function () {
     // Proje görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
     if (window.MimarlabAnalytics) MimarlabAnalytics.view('project', item.slug);
     renderTopRankBadge();
-    renderByline(item);
     ProjectMeta.render(item);
     // "Mimarın/Firmanın Diğer Projeleri" başlığı duruma göre değişir (bkz. kullanıcı isteği): projede
     // bir mimarlık firması varsa (item.designerDetails'te type==='office' — ProjectMeta.render'ın

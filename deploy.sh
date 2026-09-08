@@ -130,12 +130,17 @@ echo ""
 # teyidi). `set -o pipefail` (yukarıda) sayesinde `wrangler deploy` başarısız olursa `tee`
 # borusundan sonra da script yine hata ile durur.
 deploy_log="$(mktemp)"
-# DEPLOY_VERSION — liste sayfalarındaki yerel script/stylesheet bağlantılarına eklenen ?v= sürümü (bkz.
-# src/index.js#versionAssetUrls). Her deploy'da değişmesi ŞART: sürümlü URL'ler `immutable` ile bir yıl
-# önbelleklenir; sürüm değişmezse yeni kod tarayıcıya hiç ulaşmaz. Working tree yukarıda temiz
-# olduğundan HEAD sha'sı deploy edilen kodu birebir tanımlar.
+# DEPLOY_VERSION — liste sayfalarındaki yerel script/stylesheet bağlantılarına eklenen ?v= sürümünün
+# İKİNCİL/bilgilendirici kaynağı (bkz. src/index.js#deployVersion). BİRİNCİL kaynak artık
+# env.CF_VERSION_METADATA.id (wrangler.jsonc#version_metadata binding'i) — Cloudflare tarafından HER
+# deploy'da (çıplak `wrangler deploy` dahil) otomatik üretilir, --var enjeksiyonuna dayanmadığından
+# başka bir worktree'den gelen bir deploy onu SİLEMEZ (gerçek bulgu, 2026-09-09: DEPLOY_VERSION --var'ı
+# tam olarak bu şekilde — paylaşılan .git'i kullanan başka bir worktree'nin --var'sız bir deploy'u —
+# sessizce silinmişti, ?v= SSR_CACHE_VERSION sabitine düşüp yeni kod immutable önbellekte hiç
+# görünmemişti). DEPLOY_VERSION insan-okunur bir git sha vermeye devam eder (debug için faydalı),
+# ama artık HERHANGİ bir deploy'un onu unutması canlıyı bozmaz.
 deploy_version="$(git rev-parse --short=10 HEAD)"
-echo "DEPLOY_VERSION=$deploy_version"
+echo "DEPLOY_VERSION=$deploy_version (bilgilendirici — asıl önbellek sürümü CF_VERSION_METADATA.id'den gelir)"
 npx wrangler deploy --var "DEPLOY_VERSION:$deploy_version" "$@" | tee "$deploy_log"
 deployed_version=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$deploy_log" | tail -1 || true)
 rm -f "$deploy_log"

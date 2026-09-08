@@ -1337,11 +1337,31 @@ async function loadHubListData(env, ctx, url) {
 }
 
 // Liste sayfalarının HTML'indeki YEREL <script src> / <link rel=stylesheet href> bağlantılarına deploy
-// sürümü eklenir (?v=...). Sürüm deploy.sh'ın `--var DEPLOY_VERSION:<git sha>` ile verdiği değerdir;
-// yerel geliştirmede (var yok) SSR_CACHE_VERSION'a düşer. Sürümlü URL'ler VERSIONED_ASSET_CACHE_HEADERS
-// ile `immutable` servis edilir (bkz. withStaticAssetCacheHeaders). Harici (http/https/protokol-
-// göreli) ve zaten sorgu taşıyan bağlantılara dokunulmaz.
+// sürümü eklenir (?v=...). Sürümlü URL'ler VERSIONED_ASSET_CACHE_HEADERS ile `immutable` (1 yıl)
+// servis edilir (bkz. withStaticAssetCacheHeaders) — sürüm değişmezse tarayıcı YENİ KODU HİÇ İNDİRMEZ.
+//
+// GERÇEK BULGU (2026-09-09): birincil kaynak eskiden yalnızca deploy.sh'ın `--var
+// DEPLOY_VERSION:<git sha>` ile verdiği env değişkeniydi. Bu, deploy.sh'tan GEÇEN her deploy için
+// çalışır — ama repo'da paylaşılan .git dizinini kullanan BİRDEN FAZLA worktree var (bkz. proje
+// notu: "Concurrent deploy race", "Worktree branch divergence incident") ve CLAUDE.md'nin kendisi
+// bir kez ÇIPLAK `wrangler deploy`'un (deploy.sh'sız, --var'sız) canlıya sızdığını belgeliyor.
+// Böyle çıplak bir deploy, wrangler'ın "aksi belirtilmezse önceki vars'ı KORU" davranışı OLMADAN
+// (bkz. --keep-vars, kullanılmıyor) DEPLOY_VERSION'ı env'den TAMAMEN SİLER; sonraki her istek
+// SSR_CACHE_VERSION'a (elle güncellenen sabit bir string) düşer ve o hiç değişmediği sürece yeni
+// deploy edilmiş JS'ler `?v=` değişmediği için tarayıcı/edge immutable önbelleğinden hiç çıkmaz —
+// kod sunucuda güncel olsa bile ZİYARETÇİLER eski JS görmeye devam eder. 2026-09-08 akşamı tam
+// olarak bu oldu: iki deploy.sh çalıştırmam arasında ~2 saatte 9 ayrı deploy tetiklendi (yalnızca
+// 2'si benimdi), DEPLOY_VERSION sonunda `wrangler versions view` çıktısında HİÇ görünmez oldu.
+//
+// KALICI ÇÖZÜM: env.CF_VERSION_METADATA.id (wrangler.jsonc#version_metadata binding'i) HER deploy'da
+// — çıplak `wrangler deploy` dahil — Cloudflare tarafından OTOMATİK ve BENZERSİZ üretilir; bu bir
+// --var enjeksiyonu DEĞİL, platformun kendi binding'i olduğundan hiçbir deploy onu "unutamaz".
+// Birincil kaynak artık budur; DEPLOY_VERSION yalnızca ikincil/bilgilendirici bir düşme noktası
+// olarak kalır (ör. bu binding'in olmadığı eski bir çalışma zamanı senaryosu için).
 function deployVersion(env) {
+  const meta = env && env.CF_VERSION_METADATA && typeof env.CF_VERSION_METADATA.id === 'string'
+    ? env.CF_VERSION_METADATA.id.trim() : '';
+  if (meta && /^[A-Za-z0-9._-]{1,40}$/.test(meta)) return meta;
   const v = env && typeof env.DEPLOY_VERSION === 'string' ? env.DEPLOY_VERSION.trim() : '';
   return (v && /^[A-Za-z0-9._-]{1,40}$/.test(v)) ? v : SSR_CACHE_VERSION;
 }

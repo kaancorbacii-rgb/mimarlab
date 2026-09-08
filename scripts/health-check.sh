@@ -101,6 +101,28 @@ else
   echo "  OK: canlı worker_version = $deployed_version"
 fi
 
+echo ""
+echo "4b) ml-asset-version meta etiketi worker_version ile hizalı mı (src/index.js#deployVersion)"
+# GERÇEK BULGU (2026-09-09): bu meta etiket (bkz. js/components/lazy-modals.js#ASSET_VERSION), lazy
+# yüklenen modal script'lerine (modal-shell.js, architect-modal.js vb.) eklenen ?v= sürümünün TEK
+# kaynağıdır ve bu URL'ler `immutable` (1 yıl) önbelleklenir. Eskiden ayrı bir DEPLOY_VERSION --var
+# enjeksiyonuna dayanıyordu; paylaşılan .git dizinini kullanan başka bir worktree'den gelen bir
+# --var'sız (çıplak) `wrangler deploy` bu var'ı sessizce silip meta'yı SSR_CACHE_VERSION sabitine
+# düşürüyordu — kod sunucuda güncel olsa bile ziyaretçiler eski JS'i immutable önbellekten görmeye
+# devam ediyordu (üstteki worker_version teyidi bunu YAKALAMAZ, çünkü o kontrol deploy'un HEMEN
+# ardından çalışır; asıl olay SAATLER SONRA başka bir deploy'la gerçekleşiyordu). deployVersion() artık
+# birincil kaynak olarak env.CF_VERSION_METADATA.id'yi kullanıyor (her deploy'da otomatik, --var'a
+# bağlı değil) — bu kontrol meta etiketin GERÇEKTEN o değeri taşıdığını doğrular.
+asset_version=$(curl -s "$BASE_URL/" | grep -oE '<meta name="ml-asset-version" content="[^"]*"' | sed -E 's/.*content="([^"]*)"/\1/')
+if [ -z "$asset_version" ]; then
+  echo "  UYARI: ml-asset-version meta etiketi bulunamadı (HTMLRewriter kancası kaldırılmış olabilir)" >&2
+elif [ -n "$deployed_version" ] && [ "$asset_version" != "$deployed_version" ]; then
+  echo "  BAŞARISIZ: ml-asset-version ($asset_version) canlı worker_version ($deployed_version) ile eşleşmiyor — lazy modal script'leri (modal-shell.js vb.) immutable önbellekte ESKİ KALABİLİR" >&2
+  fail=1
+else
+  echo "  OK: ml-asset-version = $asset_version (worker_version ile hizalı)"
+fi
+
 # Zone-geneli önbellek temizliği (production audit 2026-09-01, madde E) — YALNIZCA bilgi amaçlı,
 # BAŞARISIZLIK SAYILMAZ: kod, CF_ZONE_ID + CF_PURGE_TOKEN secret'ları yokken de tamamen çalışır
 # (purge sessizce atlanır, mevcut s-maxage tabanlı tazelik davranışı korunur). Bu satır yalnızca

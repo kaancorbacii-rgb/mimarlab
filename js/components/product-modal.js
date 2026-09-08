@@ -3,10 +3,9 @@
 // çerçevesi js/components/modal-shell.js'ten, galeri/lightbox js/components/gallery.js'ten gelir.
 // urun-detay.html'in aksine `/api/product/:key`'i kullanan İLK tüketici budur (bkz. src/routes/
 // product.js) — statik urunler-data.js/malzemeler-data.js dizilerini/data.js'i hiç yüklemez, proje
-// modalıyla aynı "sunucudan tek JSON çek" desenine geçer. "X tarafından" byline'ı (bkz. renderByline
-// aşağıda) src/routes/product.js#fetchOwnerByline'ın claimed_by_user_id üzerinden users/badge_requests
-// join'iyle beslediği item.ownerName alanına yeniden bağlandı (kullanıcı isteği) — yalnızca üye
-// gönderisi kökenli ürünlerde dolu, legacy_static/admin kayıtlarında gizli kalır.
+// modalıyla aynı "sunucudan tek JSON çek" desenine geçer. "X tarafindan" byline'i (item.ownerName)
+// artik RENDER EDILMIYOR (kullanici istegi, 2026-09-09) - src/routes/product.js#fetchOwnerByline
+// sunucu tarafinda DOKUNULMADI, cunku ayni owner nesnesi item.claimed'i (kaynak ibaresi) besliyor.
 const ProductModal = (function () {
   // Künye satırı ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili (24x24 viewBox,
   // stroke-width 1.6, dolgu yok, bkz. kullanıcı isteği) — urun.html o script'i yüklemediğinden kendi
@@ -30,12 +29,13 @@ const ProductModal = (function () {
   function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
   function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
   // .detail-title/.designer-*/.gallery-*/.lightbox*/.related-*/.specs-* urun-detay.html'den taşınan
-  // AYNI değerler — urun.html farklı bir sayfa olduğundan bunları miras alamaz. .rating-widget/
-  // .card-save-btn/.card-edit-btn/.card-delete-btn İSE urun.html'in KENDİ kart bağlamı için ZATEN
-  // TANIMLI (bkz. urun.html #card-grid kartları) — burada AYNI sınıf adlarını kart bağlamındakinden
-  // FARKLI (detay/modal) görünümde kullanmak gerektiğinden, proje.html'in `.pm-rating-save-row
+  // AYNI değerler — urun.html farklı bir sayfa olduğundan bunları miras alamaz. .card-save-btn/
+  // .card-edit-btn/.card-delete-btn İSE urun.html'in KENDİ kart bağlamı için ZATEN TANIMLI (bkz.
+  // urun.html #card-grid kartları) — burada AYNI sınıf adlarını kart bağlamındakinden FARKLI
+  // (detay/modal) görünümde kullanmak gerektiğinden, proje.html'in `.pm-rating-save-row
   // .card-save-btn` deseniyle BİREBİR aynı şekilde yalnızca `.pr-*` kapsayıcıların İÇİNDEKİ kopyaları
   // hedefleyen daha ÖZGÜL seçicilerle override edilir — kart bağlamındaki görünüm HİÇ etkilenmez.
+  // (.rating-widget KALDIRILDI, kullanici istegi 2026-09-09 - urun popup'inda artik Puanla yok.)
   function injectStyles() {
     if (document.getElementById('product-modal-styles')) return;
     const style = document.createElement('style');
@@ -46,36 +46,12 @@ const ProductModal = (function () {
          kaldırılıp X'in yanına taşındığından (bkz. kullanıcı isteği) bu artık künye bloğuna en yakın
          komşu; sayfadaki diğer blok aralarıyla (.detail-meta/.detail-desc margin-top:18px) AYNI
          dikey ritme oturur. */
-      .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 18px;}
-      .detail-byline strong{color:var(--ink); font-weight:600;}
-      .detail-byline a{color:inherit; text-decoration:none;}
-      .detail-byline a:hover strong{text-decoration:underline;}
-      .detail-byline-avatar{
-        width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
-        display:flex; align-items:center; justify-content:center; color:#fff;
-        font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:9.5px;
-      }
-      .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      /* Puanla/Kaydet/Paylaş/Websitesi/Düzenle/Arşivle/Sil artık bu satırda DEĞİL — Puanla/Kaydet/
-         Paylaş X'in yanında (X→Kaydet→Paylaş→Puanla sırasıyla, bkz. kullanıcı isteği), Düzenle X'in
-         KARŞI kenarında render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons); Websitesi
-         tamamen kaldırıldı. Kaydet/Puanla header'da da .save-btn/.card-save-btn/.rating-widget/
-         .pr-rating-avg sınıflarını taşıdığından TEK stil kaynağı hâlâ burasıdır (modal-shell.js
-         yalnızca header bağlamındaki yükseklik/genişlik/konum override'larını ekler). */
-      .rating-widget{
-        display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
-        flex-shrink:1 !important; min-width:0 !important;
-        height:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 8px !important; margin:0; transition:border-color .15s ease;
-        font-family:inherit; font-size:12px !important; font-weight:600; color:var(--ink-soft);
-      }
-      .rating-widget:hover{border-color:var(--walnut);}
-      .rating-widget svg{flex-shrink:0;}
-      .pr-rating-avg{
-        display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
-        font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
+      /* Puanla/Kaydet/Paylaş/Websitesi/Düzenle/Arşivle/Sil artık bu satırda DEĞİL — Kaydet/Paylaş
+         X'in yanında render edilir (bkz. kullanıcı isteği), Düzenle X'in KARŞI kenarında render
+         edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons); Websitesi tamamen kaldırıldı,
+         Puanla ve "X tarafından" byline'ı KALDIRILDI (kullanıcı isteği, 2026-09-09). Kaydet
+         header'da da .save-btn/.card-save-btn sınıflarını taşıdığından TEK stil kaynağı hâlâ
+         burasıdır (modal-shell.js yalnızca header bağlamındaki override'ları ekler). */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -357,7 +333,6 @@ const ProductModal = (function () {
            modalın EN ÜSTÜNE zıplatıyordu). */
         #pr-gallery-wrap{order:1;}
         #pr-title{order:2; margin-top:20px;}
-        #pr-byline{order:4;}
         /* [data-owner="product"] — proje.html AYNI sınıfa order:5 veriyor (bkz. yukarıdaki #pr-desc
            gerçek bulgusu); kapsamsız bırakılırsa proje popup'ının mobil dizilimi bozulurdu. */
         .modal-shell-overlay[data-owner="product"] .detail-info{order:6;}
@@ -390,10 +365,7 @@ const ProductModal = (function () {
 
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pr-title"></h1>
-    <div class="detail-byline" id="pr-byline" style="display:none;">
-      <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
-      <span id="pr-byline-text"></span>
-    </div>
+    <!-- "X tarafindan" byline'i KALDIRILDI (kullanici istegi, 2026-09-09) - bkz. dosya basindaki not. -->
     <div class="detail-info">
       <!-- Versiyonlar — künyenin EN ÜSTÜNDE (Marka/Tasarımcı chip'lerinden de önce): seçim
            galeriyi, teknik özellikleri, dosyaları ve açıklamayı değiştirdiğinden, altındaki her
@@ -685,27 +657,13 @@ const ProductModal = (function () {
     }));
   }
 
-  // "X tarafından" satırı — proje-modal.js#renderByline ile BİREBİR aynı (yalnızca üye gönderisi
-  // kökenli ürünlerde dolu, bkz. src/routes/product.js#fetchOwnerByline item.ownerName alanı).
-  function renderByline(item) {
-    const wrap = document.getElementById('pr-byline');
-    if (!item.ownerName) { wrap.style.display = 'none'; return; }
-    wrap.style.display = '';
-    const avatar = document.getElementById('pr-byline-avatar');
-    avatar.style.background = officeColor(item.ownerName);
-    // cdnImg (bkz. image-cdn.js, bu sayfada — urun.html/proje.html — her zaman yüklü) — denetim
-    // bulgusu (2026-08-14): bu küçük (~24-64px) avatar önceden yükleme çözünürlüğünde isteniyordu.
-    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
-    const ownerNameHtml = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)}`;
-    document.getElementById('pr-byline-text').innerHTML = item.ownerArchitectSlug
-      ? `<a href="/kisi/${encodeURIComponent(item.ownerArchitectSlug)}">${ownerNameHtml}</a> tarafından`
-      : `${ownerNameHtml} tarafından`;
-  }
+  // renderByline KALDIRILDI (kullanici istegi, 2026-09-09) - bkz. dosya basindaki not.
 
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
-  // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
-  // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-variants-section', 'pr-brand-section', 'pr-designer-section',
+  // bu ID'leri gizliyor (pr-byline KALDIRILDI, kullanici istegi 2026-09-09), ModalShell'in şablonu
+  // sayfa ömrü boyunca tek sefer mount edildiğinden bir sonraki başarılı render bunları geri
+  // açmazsa modal kalıcı olarak yarı-boş görünürdü.
+  const HIDE_ON_NOT_FOUND_IDS = ['pr-variants-section', 'pr-brand-section', 'pr-designer-section',
     'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-projects-section', 'pr-users-pair', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
@@ -948,7 +906,6 @@ const ProductModal = (function () {
     // Ürün görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
     if (window.MimarlabAnalytics) MimarlabAnalytics.view('product', p.slug || key);
     document.getElementById('pr-title').textContent = p.title;
-    renderByline(p);
 
     document.getElementById('pr-brand-section').style.display = 'none';
     renderBrandSection(p);
@@ -1024,16 +981,11 @@ const ProductModal = (function () {
       }));
     }
 
-    // Puanla — X/Kaydet/Paylaş'ın EN DIŞINDA (bkz. kullanıcı isteği: "Puanla'yı da üste al, X,
-    // Kaydet, Paylaş'ın en dış tarafına, yan yana") — DOM'da EN SONA eklenir ki görsel sıra
-    // X→Kaydet→Paylaş→Puanla olsun.
-    if (typeof mountRateButton === 'function' && headerActions) {
-      headerActions.insertAdjacentHTML('beforeend', `<button type="button" class="rating-widget" id="pr-rating" aria-label="Puanla"></button><span class="pr-rating-avg" id="pr-rating-avg" style="display:none;"></span>`);
-      mountRateButton(document.getElementById('pr-rating'), {
-        targetType: ratingKindFor(p), targetId: ratingKey, label: p.title,
-        avgEl: document.getElementById('pr-rating-avg'),
-      });
-    }
+    // Puanla butonu KALDIRILDI (kullanici istegi, 2026-09-09: "Urun popuplarindaki puanla
+    // butonunu kaldir") - eskiden burada X/Kaydet/Paylas'in en disina mountRateButton ile
+    // eklenirdi. Proje popup'indaki Puanla (project-modal.js#pm-rating) buna dokunulmadan
+    // duruyor; kaldirma yalnizca urun popup'una ozel. Urunlerin puan/yorum ALTYAPISI
+    // (renderStructuredData'daki aggregateRating, /api/ratings uclari) DOKUNULMADI.
 
     const adminActions = ModalShell.getAdminActionsSlot();
     if (adminActions) adminActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';

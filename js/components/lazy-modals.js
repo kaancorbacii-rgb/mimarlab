@@ -214,8 +214,10 @@
   const ALL_MODULES = Object.assign({}, MODULES, ENTITY_MODULES);
 
   // SÜRÜMLÜ MODÜL URL'LERİ (performans turu, 2026-09-08). Worker her HTML'in <head>'ine
-  // <meta name="ml-asset-version" content="<deploy sha>"> yazar (bkz. src/index.js#fetch sonundaki
-  // sarmalayıcı) ve ?v=<sürüm> taşıyan .js/.css istekleri bir yıl `immutable` servis edilir. Sayfanın
+  // <meta name="ml-asset-version" content="<sürüm>"> yazar (bkz. src/index.js#deployVersion —
+  // 2026-09-09'dan beri BİRİNCİL kaynak env.CF_VERSION_METADATA.id, her deploy'da otomatik ve
+  // --var'a bağlı değil, bkz. o fonksiyonun başındaki gerçek bulgu) ve ?v=<sürüm> taşıyan .js/.css
+  // istekleri bir yıl `immutable` servis edilir. Sayfanın
   // kendi <script src> etiketlerini Worker HTMLRewriter ile sürümlerken burada dinamik eklenen
   // modül/bağımlılık etiketleri AYNI sürümü alır — aksi halde her detay pop-up'ı açılışında
   // modal-shell.js (77 KB) ve 6-10 bağımlılık 60sn'lik max-age dolunca yeniden doğrulanıyordu.
