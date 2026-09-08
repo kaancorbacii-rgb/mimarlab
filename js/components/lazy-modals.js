@@ -34,6 +34,11 @@
       // isteği, 2026-09-06 madde 1). profession-shared.js ile AYNI gerekçe: auth-modal.js tembel
       // yüklendiğinden sayfalara ayrı <script> koymak işe yaramaz, bağımlılık burada bildirilir.
       deps: ['profession-shared.js', 'office-picker.js', 'js/components/profession-drawer.js', 'js/components/image-crop.js'],
+      // parallelDeps (Hesabım performans turu, 2026-09-08): dört bağımlılık birbirine parse anında
+      // dokunmayan ayrı dosyalar (profession-drawer.js PROFESSION_* sabitlerine yalnızca çağrı anında
+      // bakar; office-picker/image-crop kendi global'ini yazar) — sıralı zincir 4 ardışık gidiş-dönüştü.
+      // Modülün kendisi (auth-modal.js) yine hepsi bittikten SONRA çalışır (bkz. loadModule#depsReady).
+      parallelDeps: true,
       hrefRe: {
         login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/,
         account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/,
@@ -344,12 +349,38 @@
       store[path] = p;
     } catch { /* ön-yükleme hiçbir koşulda sayfayı bozmamalı */ }
   }
+  // MODÜL DOSYALARININ ÖN-YÜKLEMESİ (Hesabım performans turu, 2026-09-08). auth-modal.js 445 KB'lık
+  // tembel bir modül: "Hesabım"/"Giriş Yap" tıklamasında önce o (+4 bağımlılık) inip parse edilmeden
+  // popup açılamıyordu. Bağlantının üzerine gelme/dokunma/odak anında (aşağıdaki aynı dinleyiciler)
+  // ya da oturum açık kullanıcıda boşta zamanda (auth-nav.js → LazyModals.preload('auth')) dosyalar
+  // <link rel="preload" as="script"> ile önden indirilir; sürümlü URL'ler immutable olduğundan bu
+  // maliyet cihaz başına sürüm başına bir keredir. Çalıştırma yine tıklamada, loadModule ile olur.
+  const preloadedModules = new Set();
+  function preloadModuleAssets(key) {
+    const mod = ALL_MODULES[key];
+    if (!mod || mod.preloadedOnly || preloadedModules.has(key) || window[mod.globalName]) return;
+    preloadedModules.add(key);
+    [mod.src, ...(mod.deps || []), ...(mod.deferredDeps || [])].forEach((rawSrc) => {
+      const src = versionedSrc(rawSrc);
+      if (document.querySelector(`link[rel="preload"][href="${src}"], script[src="${src}"]`)) return;
+      const pre = document.createElement('link');
+      pre.rel = 'preload';
+      pre.as = 'script';
+      pre.href = src;
+      document.head.appendChild(pre);
+    });
+  }
+  function prefetchModuleForAnchor(a) {
+    for (const key in MODULES) {
+      if (viewForAnchor(MODULES[key], a)) { preloadModuleAssets(key); return; }
+    }
+  }
   let hoverTimer = null;
   document.addEventListener('mouseover', (e) => {
     const a = e.target.closest && e.target.closest('a[href]');
     if (!a) return;
     clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => prefetchEntity(a), PREFETCH_HOVER_DELAY_MS);
+    hoverTimer = setTimeout(() => { prefetchEntity(a); prefetchModuleForAnchor(a); }, PREFETCH_HOVER_DELAY_MS);
   });
   document.addEventListener('mouseout', (e) => {
     const a = e.target.closest && e.target.closest('a[href]');
@@ -357,11 +388,11 @@
   });
   document.addEventListener('touchstart', (e) => {
     const a = e.target.closest && e.target.closest('a[href]');
-    if (a) prefetchEntity(a);
+    if (a) { prefetchEntity(a); prefetchModuleForAnchor(a); }
   }, { passive: true });
   document.addEventListener('focusin', (e) => {
     const a = e.target.closest && e.target.closest('a[href]');
-    if (a) prefetchEntity(a);
+    if (a) { prefetchEntity(a); prefetchModuleForAnchor(a); }
   });
 
   document.addEventListener('click', (e) => {
@@ -481,5 +512,8 @@
     ownsPath: (pathname) => !!entityModuleForPath(pathname),
     load: (key) => (ALL_MODULES[key] ? loadModule(key) : Promise.resolve(null)),
     isLoaded: (key) => !!(ALL_MODULES[key] && window[ALL_MODULES[key].globalName]),
+    // Dosyaları ÇALIŞTIRMADAN önden indirir (bkz. preloadModuleAssets) — auth-nav.js oturum açık
+    // kullanıcıda boşta zamanda çağırır.
+    preload: (key) => preloadModuleAssets(key),
   };
 })();

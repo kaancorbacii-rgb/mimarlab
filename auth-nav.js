@@ -97,6 +97,13 @@
 
     if (!user) return;
 
+    // Oturum açık kullanıcı büyük olasılıkla Hesabım'ı açacak: auth-modal.js (445 KB) + bağımlılıkları
+    // boşta zamanda önden indirilir (yalnızca indirme, çalıştırma yok — bkz. lazy-modals.js#
+    // preloadModuleAssets; sürümlü URL'ler immutable olduğundan cihaz başına sürüm başına bir kez).
+    const preloadAuthModule = () => { if (window.LazyModals && window.LazyModals.preload) window.LazyModals.preload('auth'); };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(preloadAuthModule, { timeout: 4000 });
+    else setTimeout(preloadAuthModule, 1500);
+
     injectStyleOnce();
     const adminLink = user.role === 'admin' ? `<a href="/admin"><span>${ICON_ADMIN}</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>` : '';
     const avatarInner = user.photoUrl

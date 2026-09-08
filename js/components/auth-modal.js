@@ -2078,6 +2078,21 @@ const AuthModal = (function () {
   // kaldırılmıyordu (sınırsız birikim, sayfa ömrü boyunca büyüyen bir bellek/performans sızıntısı).
   let amDropdownCloseWired = false;
 
+  // /api/auth/me PAYLAŞIMI (Hesabım performans turu, 2026-09-08). auth-nav.js her sayfa açılışında bu
+  // isteği zaten atıyor ve promise'ini window.__authMeFetch'te tutuyor (login/signup sonrası taze bir
+  // istekle DEĞİŞTİRİR; çıkış sayfayı yeniler). Popup ise Hesabım/Aktivitelerim/Koleksiyonum her
+  // açılışında AYNI ucu yeniden çekip cevabı BEKLİYORDU — dashboard'un ilk çizimi bu tura bağlıydı.
+  // Yalnızca "oturum var" sonucu paylaşılır: paylaşılan sonuç oturum yok diyorsa (ör. başka sekmede
+  // giriş yapıldı) gerçek istek atılır. Dönüş: {user,...} ya da null (oturum yok / hata).
+  function freshAuthMe() {
+    return fetch('/api/auth/me').then(r => (r.ok ? r.json() : null)).catch(() => null);
+  }
+  function sharedAuthMe() {
+    const shared = window.__authMeFetch;
+    if (!shared || typeof shared.then !== 'function') return freshAuthMe();
+    return shared.then(d => (d && d.user ? d : freshAuthMe()), freshAuthMe);
+  }
+
   function mountAccount() {
     // Kaydet'e basılana kadar bellekte tutulan profil fotoğrafı (bkz. am-avatar-file-input).
     let pendingAvatarFile = null;
@@ -2177,10 +2192,11 @@ const AuthModal = (function () {
       input.addEventListener('blur', () => setTimeout(closeBox, 150));
     })();
 
-    async function loadUser() {
-      const res = await fetch('/api/auth/me');
-      if (!res.ok) { swap('login'); return; }
-      const data = await res.json();
+    // opts.shared: yalnızca İLK mount'ta (bkz. aşağıdaki loadUser({ shared: true })) sayfa açılışındaki
+    // paylaşılan /api/auth/me sonucu kullanılır; profil kaydı sonrası çağrılar her zaman taze ister.
+    async function loadUser(opts) {
+      const data = (opts && opts.shared) ? await sharedAuthMe() : await freshAuthMe();
+      if (!data || !data.user) { swap('login'); return; }
       accountUser = data.user;
       renderAvatar();
       // Bildirimdeki /hesabim?dizin=1 bağlantısıyla gelindiyse dizin sorusunu aç (kullanıcı isteği,
@@ -4134,7 +4150,7 @@ const AuthModal = (function () {
         </div>`;
     }
 
-    loadUser().then(() => {
+    loadUser({ shared: true }).then(() => {
       if (accountUser) {
         [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages(), loadStats()]
           .forEach(p => p.catch(() => {}));
@@ -4421,8 +4437,8 @@ const AuthModal = (function () {
       renderSubmissions();
     });
 
-    fetch('/api/auth/me').then(r => {
-      if (!r.ok) { swap('login'); return; }
+    sharedAuthMe().then(d => {
+      if (!d) { swap('login'); return; }
       [loadRated(), loadComments(), loadShares(), loadSubmissions()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
@@ -6199,8 +6215,8 @@ const AuthModal = (function () {
       renderFollowFeed();
     });
 
-    fetch('/api/auth/me').then(r => {
-      if (!r.ok) { swap('login'); return; }
+    sharedAuthMe().then(d => {
+      if (!d) { swap('login'); return; }
       loadCollections();
       loadColSaved().catch(() => {});
       loadFollowFeed().catch(() => {});
@@ -6373,7 +6389,7 @@ const AuthModal = (function () {
     // Hesabım'a düşer. Popup ÖNCE anında açılır, kontrol arka planda koşar — /api/auth/me yavaşsa
     // tıklama tepkisiz görünmesin (2026-08-14 gerçek bulgusu, davranış korunuyor).
     if (view === 'login' || view === 'signup') {
-      fetch('/api/auth/me').then(r => { if (r.ok && currentView === view) swap('account'); }).catch(() => {});
+      sharedAuthMe().then(d => { if (d && currentView === view) swap('account'); }).catch(() => {});
     }
   }
 
@@ -6519,7 +6535,7 @@ const AuthModal = (function () {
     if (isOpen()) {
       swap(view);
       if (view === 'login' || view === 'signup') {
-        fetch('/api/auth/me').then(r => { if (r.ok && currentView === view) swap('account'); }).catch(() => {});
+        sharedAuthMe().then(d => { if (d && currentView === view) swap('account'); }).catch(() => {});
       }
     } else {
       open(view, { triggerEl: a });
