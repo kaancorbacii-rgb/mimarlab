@@ -3694,7 +3694,7 @@ const AuthModal = (function () {
             </div>
           </div>
           <span style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <a class="submission-edit-link" href="${escapeAttr(it.editUrl)}">Düzenle</a>
+            ${it.editUrl ? `<a class="submission-edit-link" href="${escapeAttr(it.editUrl)}">Düzenle</a>` : ''}
             <button type="button" class="dash-edit-btn dash-edit-btn-sm am-archive-publish-btn" style="margin-left:0;">Yayına Al</button>
           </span>
         </div>`).join('');

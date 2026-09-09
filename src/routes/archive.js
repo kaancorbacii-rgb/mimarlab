@@ -138,35 +138,42 @@ async function fetchArchivedRows(env, user, typeKey, claimKeys) {
   return results || [];
 }
 
-// Kutudaki satırın görünen hâli. Detay bağlantısı BİLEREK verilmez: kayıt arşivde olduğu için canlı
-// sayfası 410 döner (bkz. src/lib/seo.js hidden_at filtresi) — kullanıcıyı ölü bir bağlantıya
-// göndermek yerine yalnızca Düzenle ve Yayına Al eylemleri sunulur.
-function shapeRow(typeKey, row) {
+// Kutudaki satırın görünen hâli. İKİ bağlantı BİLEREK verilmez:
+//   * Detay: kayıt arşivde olduğu için canlı sayfası 410 döner (bkz. src/lib/seo.js hidden_at
+//     filtresi) — kullanıcıyı ölü bir bağlantıya göndermenin anlamı yok.
+//   * Düzenle: YALNIZCA taslağın gerçek sahibine gösterilir (`owned`). GERÇEK BULGU: toplu
+//     arşivlemenin (bkz. src/routes/unassignedArchive.js) ürettiği taslakların owner_user_id'si
+//     ADMIN'dir; *-ekle.html?edit= yolu ise src/routes/submissions.js#getOwnSubmission ile
+//     korunuyor ve sahibi olmayan bir kullanıcıya 404 döner. Atama üzerinden gelen kullanıcıya
+//     çalışmayan bir "Düzenle" linki göstermek yerine yalnızca "Yayına Al" sunulur — kayıt yayına
+//     döndüğü anda profilin kendi Düzenle yolları (?claim=) zaten açılır.
+function shapeRow(typeKey, row, owned) {
   const item = parseSubmissionRow(typeKey, row);
-  const base = { type: typeKey, id: row.id, archivedAt: row.updated_at || row.created_at };
+  const base = { type: typeKey, id: row.id, archivedAt: row.updated_at || row.created_at, owned: !!owned };
+  const editUrlFor = (page, stype) => (owned ? `${page}?edit=${encodeURIComponent(row.id)}&stype=${stype}` : null);
   if (typeKey === 'projects') {
     return { ...base, kind: 'project', title: item.title || '—',
       subtitle: [item.location, item.date].filter(Boolean).join(' · '),
       image: (item.images && item.images[0]) || null,
-      editUrl: `/proje-ekle?edit=${encodeURIComponent(row.id)}&stype=projects` };
+      editUrl: editUrlFor('/proje-ekle', 'projects') };
   }
   if (typeKey === 'architects') {
     return { ...base, kind: 'architect', title: item.name || '—',
       subtitle: [item.profession, item.office].filter(Boolean).join(' · '),
       image: item.photo_url || null,
-      editUrl: `/kisi-ekle?edit=${encodeURIComponent(row.id)}&stype=architects` };
+      editUrl: editUrlFor('/kisi-ekle', 'architects') };
   }
   if (typeKey === 'offices') {
     const brand = isBrandOffice(item.cats, 0);
     return { ...base, kind: brand ? 'brand' : 'office', title: item.name || '—',
       subtitle: [item.loc, item.cats].filter(Boolean).join(' · '),
       image: item.logo_url || null,
-      editUrl: `${brand ? '/marka-ekle' : '/firma-ekle'}?edit=${encodeURIComponent(row.id)}&stype=offices` };
+      editUrl: editUrlFor(brand ? '/marka-ekle' : '/firma-ekle', 'offices') };
   }
   return { ...base, kind: 'product', title: item.title || '—',
     subtitle: [item.brand, item.category].filter(Boolean).join(' · '),
     image: (item.images && item.images[0]) || null,
-    editUrl: `/urun-ekle?edit=${encodeURIComponent(row.id)}&stype=${typeKey}` };
+    editUrl: editUrlFor('/urun-ekle', typeKey) };
 }
 
 async function listMineArchive(env, user) {
@@ -174,7 +181,7 @@ async function listMineArchive(env, user) {
   const types = Object.keys(TYPE_TO_TABLE);
   const lists = await Promise.all(types.map(t => fetchArchivedRows(env, user, t, claimKeys)));
   const items = [];
-  types.forEach((t, i) => lists[i].forEach(row => items.push(shapeRow(t, row))));
+  types.forEach((t, i) => lists[i].forEach(row => items.push(shapeRow(t, row, row.owner_user_id === user.id))));
   items.sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
   return json({ items });
 }

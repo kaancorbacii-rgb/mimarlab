@@ -120,6 +120,21 @@ await test('atama onaylanınca kayıt Arşivim kutusunda belirir', async () => {
   assert.equal(data.items[0].title, 'Atanmamış Mimarlık');
   assert.equal(data.items[0].kind, 'office');
   assert.equal(data.items[0].type, 'offices');
+  // Taslağın sahibi ADMIN olduğundan (toplu arşivlemenin ürettiği satırlar) Düzenle bağlantısı
+  // VERİLMEZ — *-ekle.html?edit= yolu sahibi olmayana 404 döner (bkz. shapeRow'daki gerekçe).
+  assert.equal(data.items[0].owned, false);
+  assert.equal(data.items[0].editUrl, null);
+});
+
+await test('kendi arşiv gönderisinde Düzenle bağlantısı VERİLİR', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  const now = Date.now();
+  db.prepare(`INSERT INTO office_submissions (id, owner_user_id, status, created_at, updated_at, name, cats) VALUES (?, 'u-uye', 'archived', ?, ?, ?, ?)`)
+    .run('s-own', now, now, 'Üyenin Kendi Firması', 'Mimarlık');
+  const res = await call(handleArchiveRoute, 'u-uye', '/api/archive/mine', { method: 'GET' });
+  const item = (await res.json()).items[0];
+  assert.equal(item.owned, true);
+  assert.equal(item.editUrl, '/firma-ekle?edit=s-own&stype=offices');
 });
 
 await test('yetkisiz görevle (Ekip Üyesi) atanan kullanıcı kaydı GÖREMEZ', async () => {
