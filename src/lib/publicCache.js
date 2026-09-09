@@ -2,6 +2,7 @@ import { json } from './http.js';
 import { getSessionUser } from './auth.js';
 import { reserveKvWrite } from './kvQuota.js';
 import { purgeGlobalUrls } from './globalPurge.js';
+import { scrubLockedMediaPayload } from './mediaRights.js';
 
 // Admin oturumu taşıyan istekler (mimarlab_session çerezi + role==='admin') hiçbir zaman
 // önbelleklenmez — admin panelinden yapılan bir değişikliğin aynı oturumda anında görünmesi için
@@ -427,11 +428,24 @@ async function withSingleFlight(key, fn) {
 //     v5-v22'nin AYNI tuzağı: yeni alan yanıtın ŞEKLİNİ değiştirir ama listFingerprint'i (COUNT +
 //     MAX(updated_at)) değiştirmez, sürüm artırılmazsa pop-up'ı daha önce açmış ziyaretçiler 304
 //     ile portfolyosuz eski gövdede takılırdı.
-const API_PAYLOAD_VERSION = 'v24';
+// v24 -> v25 (kullanıcı isteği, 2026-09-09): telif kilidi. Kilitli görsellerin URL'si artık
+//     /api/media/<opak id> biçiminde dönüyor ve proje yükleri `imageRights` alanı taşıyabiliyor —
+//     yanıtın ŞEKLİ değişti, sürüm artırılmazsa yükü daha önce almış ziyaretçiler 304 ile ESKİ
+//     (orijinal URL'li) gövdede takılırdı. Bu, kilidin sessizce delinmesi demek olurdu.
+const API_PAYLOAD_VERSION = 'v25';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
+  // Admin yükü TARANMAZ: admin paneli kilitli medyanın gerçek yolunu görebilmeli (hak yönetimi
+  // ekranı orijinali önizler ve durumunu değiştirir). Bu bir kapı deliği değil — bu dal zaten
+  // yalnızca admin oturumu taşıyan isteklerde çalışır ve yanıtı asla önbelleğe girmez.
   if (admin) { const data = await computeData(); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
+
+  // TELİF SIZINTISINA KARŞI ÇIKIŞ TARAMASI (bkz. src/lib/mediaRights.js#scrubLockedMediaPayload).
+  // Bu, sitedeki TÜM public okuma uçlarının ortak çıkışıdır — proje uçları zaten anlamsal katmandan
+  // geçtiği için burada no-op olur; kişi/firma pop-up'larının proje ızgaraları, arama sonuçları,
+  // En İyi 100 ve Gündem gibi proje görselini "yan üründe" taşıyan uçlar ise yalnızca burada kapanır.
+  const compute = async () => scrubLockedMediaPayload(env, await computeData());
 
   const listPath = isListPath(pathname);
   const detailPath = !listPath && isDetailPath(pathname);
@@ -455,7 +469,7 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   const headers = pathname === '/api/public/badges' ? BADGE_NO_CACHE_HEADERS
     : (listPath || detailPath || pathname === '/api/public/top100' || pathname === '/api/public/platform') ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
-  if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, computeData); return json(data, statusFor(data), headers); }
+  if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, compute); return json(data, statusFor(data), headers); }
 
   const cacheKey = cacheKeyFor(pathname);
 
@@ -510,7 +524,7 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   }
 
   const responseHeaders = etag ? { ...headers, ETag: etag } : headers;
-  const data = await withSingleFlight(`json:${pathname}`, computeData);
+  const data = await withSingleFlight(`json:${pathname}`, compute);
   // gerçek bulgu (production audit, 2026-09-03): burada durum kodu SABİT 200 yazılıydı — oysa
   // statusFor() tam olarak bu şekli (tekil detay uçlarının `{item:null}` yanıtı) 404/410'a
   // çevirmek için var. D1 audit'in P0-1 adımı (2026-08-25) `/api/project|architect|office|

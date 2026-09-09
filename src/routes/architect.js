@@ -589,15 +589,19 @@ async function buildArchitectPayload(env, key) {
       const parsed = parseCanonicalRow('projects', p);
       // type — künyedeki "Grup" alanı; pop-up'taki grup filtresi (bkz. js/components/
       // project-group-filter.js) bunun üzerinden çalışır.
-      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date), _bucket: Number(p.rights_bucket) || 0 };
     })
+    // TELİF GÜVENLİĞİ GRUBU ÖNCE, mevcut sıra (yeniden eskiye) GRUBUN İÇİNDE — proje listesi ve
+    // ana sayfa karuseliyle AYNI kural (bkz. src/lib/projectPool.js#fetchActiveProjectPool'daki
+    // ORDER BY). Grup içindeki davranış BİREBİR eskisi gibi: yılı olmayanlar sona düşer.
     .sort((a, b) => {
+      if (a._bucket !== b._bucket) return a._bucket - b._bucket;
       if (a._year == null && b._year == null) return 0;
       if (a._year == null) return 1;
       if (b._year == null) return -1;
       return b._year - a._year;
     })
-    .map(({ _year, ...rest }) => rest);
+    .map(({ _year, _bucket, ...rest }) => rest);
   const relatedProjects = shapeProjectsNewestFirst(relatedRes.results);
   const photographedProjects = shapeProjectsNewestFirst(photographedRes.results);
   // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla

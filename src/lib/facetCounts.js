@@ -43,7 +43,9 @@ async function replaceFacetCounts(env, listType, groups) {
 }
 
 async function recomputeProjectFacets(env) {
-  const pool = await fetchActiveProjectPool(env);
+  // withRights:false — bu yol yalnızca facet SAYAÇLARINI üretir, hiçbir görsel URL'si okumaz
+  // (bkz. fetchActiveProjectPool'daki gerekçe: her içerik yazımında gereksiz bir media_rights turu).
+  const pool = await fetchActiveProjectPool(env, undefined, { withRights: false });
   const FILTER_GROUPS = buildFilterGroups(new Map()); // rating hariç — bkz. dosya başı kapsam notu, facet_counts filtresiz/rating'siz genel sayım için
   const groups = {};
   for (const g of FILTER_GROUPS) {

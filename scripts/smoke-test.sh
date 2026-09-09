@@ -340,6 +340,117 @@ check_status "/api/consultations/room/$gw_uuid" 401
 gw_api=$(curl -s "$BASE_URL/api/consultations/room/$gw_uuid")
 if [[ "$gw_api" == *"meet.google.com"* ]]; then bad "/api/consultations/room oturumsuz yanıtta Meet adresi sızıyor"; else ok "/api/consultations/room oturumsuz yanıtta Meet adresi yok"; fi
 
+# --------------------------------------------------------------------------------------------
+# TELİF/YAYIN HAKKI KİLİTLEME (kullanıcı isteği, 2026-09-09) — deploy SONRASI canlı doğrulama.
+#
+# VERİ ODAKLI: sabit bir slug'a bağlanmaz (bkz. proje notu: gizlenen kayıt 410 -> yanlış alarm).
+# Kilitli bir medyayı CANLI API'den çözer; hiç kilitli medya yoksa (seed henüz uygulanmadı) kontrolü
+# UYARI ile atlar — deploy'u bloke etmez ama sessizce de geçmez.
+# --------------------------------------------------------------------------------------------
+echo ""
+echo "Telif kilitleme (media rights)"
+cb2=$(date +%s)
+
+# Kilitli bir görsel taşıyan ilk projeyi bul: /api/projects yükünde güvenli uç öneki aranır.
+mr_list=$(curl -s "$BASE_URL/api/projects?page=1&limit=48")
+mr_media_id=$(printf '%s' "$mr_list" | grep -o '/api/media/[A-Za-z0-9-]\{1,64\}' | head -1 | sed 's|/api/media/||')
+
+if [ -z "$mr_media_id" ]; then
+  warnf "canlıda kilitli proje görseli bulunamadı — seed uygulanmamış olabilir, telif kontrolleri atlandı"
+else
+  ok "kilitli medya bulundu (/api/media/$mr_media_id)"
+
+  # 1) Güvenli uç GERÇEK bir görsel döndürüyor (yer tutucuya düşmüyor) ve noindex.
+  mr_hdrs=$(curl -s -D - -o /dev/null "$BASE_URL/api/media/$mr_media_id?$cb2")
+  mr_code=$(printf '%s' "$mr_hdrs" | head -1 | awk '{print $2}')
+  mr_ctype=$(printf '%s' "$mr_hdrs" | grep -i '^content-type:' | tr -d '\r' | awk '{print $2}')
+  if [ "$mr_code" = "200" ]; then ok "/api/media/<id> -> 200"; else bad "/api/media/<id> -> $mr_code (200 bekleniyordu)"; fi
+  case "$mr_ctype" in
+    image/svg+xml) warnf "/api/media/<id> YER TUTUCU döndürüyor — bu görselin w400/w800 türevi eksik" ;;
+    image/*)       ok "/api/media/<id> gerçek görsel döndürüyor ($mr_ctype)" ;;
+    *)             bad "/api/media/<id> beklenmeyen içerik türü: $mr_ctype" ;;
+  esac
+  if printf '%s' "$mr_hdrs" | grep -qi '^x-robots-tag:.*noindex'; then
+    ok "/api/media/<id> noindex taşıyor"
+  else
+    bad "/api/media/<id> X-Robots-Tag: noindex TAŞIMIYOR (arama motoru kilitli görseli indexleyebilir)"
+  fi
+
+  # 2) O medyanın ORİJİNAL yolu doğrudan erişilemiyor olmalı. Yolu admin olmadan bilemeyiz; bunun
+  # yerine kilitli bir PROJENİN detay yükünde orijinal yol KALINTISI olup olmadığına bakılır.
+  mr_slug=$(printf '%s' "$mr_list" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for item in data.get('items', []):
+    for img in (item.get('images') or []):
+        if isinstance(img, str) and img.startswith('/api/media/'):
+            print(item.get('slug', '')); sys.exit(0)
+" 2>/dev/null)
+  if [ -n "$mr_slug" ]; then
+    mr_detail=$(curl -s "$BASE_URL/api/project/$mr_slug")
+    # Kilitli bir görselin bulunduğu yükte /projects/, /miras/ ya da /media/ ile başlayan HAM bir
+    # görsel yolu KALMAMALI — hepsi güvenli uca çevrilmiş olmalı. (Onaylı görseller ham yolda kalır,
+    # bu yüzden yalnızca TAMAMEN kilitli projeler için anlamlı; aşağıdaki kontrol o durumu arar.)
+    mr_locked_only=$(printf '%s' "$mr_detail" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+imgs = (data.get('item') or {}).get('images') or []
+print('yes' if imgs and all(isinstance(i, str) and i.startswith('/api/media/') for i in imgs) else 'no')
+" 2>/dev/null)
+    if [ "$mr_locked_only" = "yes" ]; then
+      for prefix in "/projects/" "/miras/" "/media/projects/" "/media/u/"; do
+        if printf '%s' "$mr_detail" | grep -q "$prefix"; then
+          bad "kilitli proje ($mr_slug) API yükünde ORİJİNAL yol sızıyor: $prefix"
+        else
+          ok "kilitli proje API yükünde $prefix yolu yok"
+        fi
+      done
+      # SSR/HTML tarafı: JSON-LD, OpenGraph ve gövde görseli de aynı yükten beslenir.
+      mr_html=$(curl -s "$BASE_URL/proje/$mr_slug")
+      for prefix in "/projects/" "/miras/" "/media/projects/"; do
+        if printf '%s' "$mr_html" | grep -q "$prefix"; then
+          bad "kilitli proje ($mr_slug) SSR HTML'inde ORİJİNAL yol sızıyor: $prefix"
+        else
+          ok "kilitli proje SSR HTML'inde $prefix yolu yok"
+        fi
+      done
+    else
+      ok "seçilen proje karma (hem onaylı hem kilitli görsel) — ham yol kontrolü atlandı"
+    fi
+  fi
+fi
+
+# Kodlanmış traversal/bypass varyantları — gerçek bulgu (2026-09-09): kapı ham pathname'i
+# eşleştirdiği sürece tek bir harfi yüzde-kodlamak ("g" -> "%67") kilidi atlatıyordu.
+#
+# DOĞRU ÖLÇÜT "404" DEĞİL, "GÖRSEL BAYTI DÖNMEMESİ": bu yolların bir kısmı Cloudflare Assets
+# tarafından zaten normalize edilip 307 ile herkese açık bir SAYFAYA yönlendiriliyor (canlıda
+# doğrulandı: /projects/%2e%2e/admin.html -> 307 /admin). Bu bir sızıntı değildir — /admin zaten
+# kendi yolundan erişilebilir bir sayfadır ve içeriği ayrıca oturum kontrolüne tabidir. Kilit
+# açısından tek önemli soru, bu yollardan bir GÖRSELİN baytlarına ulaşılıp ulaşılamadığıdır.
+check_not_image() {
+  local path="$1"
+  local hdrs code ctype
+  hdrs=$(curl -s -D - -o /dev/null "$BASE_URL$path")
+  code=$(printf '%s' "$hdrs" | head -1 | awk '{print $2}')
+  ctype=$(printf '%s' "$hdrs" | grep -i '^content-type:' | tr -d '\r' | awk '{print $2}')
+  case "$code:$ctype" in
+    200:image/*) bad "traversal varyantı GÖRSEL döndürdü: $path ($ctype)" ;;
+    *)           ok "traversal varyantı görsel döndürmüyor: $path -> $code" ;;
+  esac
+}
+check_not_image "/projects/%2e%2e/admin.html?$cb2"
+check_not_image "/projects/%2e%2e%2fadmin.html?$cb2"
+check_not_image "/miras/%2e%2e/admin.html?$cb2"
+check_not_image "/media/_derived/w400/s/%2e%2e/%2e%2e/admin.html?$cb2"
+check_not_image "/media/_derived/w400/s/..%252F..%252Fadmin.html?$cb2"
+
 echo ""
 if [ "$fail" -eq 1 ]; then
   echo "Smoke test BAŞARISIZ oldu." >&2

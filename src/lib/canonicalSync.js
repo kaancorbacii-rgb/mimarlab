@@ -17,6 +17,7 @@
 // gerekiyor).
 
 import { newId } from './crypto.js';
+import { syncProjectMediaRights } from './mediaRights.js';
 import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
@@ -1277,6 +1278,19 @@ async function syncProject(env, row) {
     // Yalnızca marka seçilmiş satırlar ürün DEĞİL marka kenarı üretir (bkz. o fonksiyonun notu).
     await setProjectBrandLinks(env, projectId, brandOfficeIds);
   }
+
+  // TELİF KAYITLARI (kullanıcı isteği, 2026-09-09). BURADA, project_designers/project_photographers
+  // kurulduktan SONRA çağrılır — isProjectClaimBacked künyedeki mimar/firma bağlarını okur; blok
+  // yukarı taşınsaydı YENİ bir projede künye henüz yazılmamış olur ve sahiplenilmiş içerik
+  // yanlışlıkla kilitli başlardı. Hangi gönderi/admin yolundan gelinirse gelinsin kayıt TEK
+  // noktadan yapılır: canonical proje satırını yazan tek fonksiyon budur (bkz. proje notu:
+  // "doğru yardımcı, kod yolu taşınınca sessizce bypass edildi").
+  await syncProjectMediaRights(env, projectId, {
+    declarationVersion: row.rights_declaration_version || null,
+    ownerUserId: row.owner_user_id || null,
+    photographer: row.photoCreditText || null,
+  });
+
   return env.DB.prepare(`SELECT * FROM projects WHERE id = ?`).bind(projectId).first();
 }
 

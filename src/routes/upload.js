@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { ingestClientDerivatives, recordPendingWidths } from '../lib/derivativeIngest.js';
+import { gatePathFor, lookupGateDecision, rightsEpoch } from '../lib/mediaRights.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (haber/iş ilanı görselleri)
 const CONTEXT_MAX_BYTES = {
@@ -270,6 +271,10 @@ export async function handleFileUploadRoute(request, env) {
 // düşer. 404'ler BİLEREK önbelleğe yazılmaz — henüz yüklenmemiş/az önce yüklenmiş bir nesnenin
 // "yok" yanıtı edge'de kalıcı olmasın.
 const MEDIA_EDGE_MAX_AGE_SECONDS = 2592000;
+// Telif kapısına tabi (media_rights'ta kayıtlı) medyanın TARAYICI ömrü — bkz. aşağıdaki
+// Cache-Control ataması. src/index.js#GATED_IMAGE_CACHE_HEADERS ile AYNI değer olmalı: iki yol
+// (R2 ve statik varlık) aynı görsel sınıfını servis ediyor, farklı takedown pencereleri taşımamalı.
+const GATED_MEDIA_BROWSER_MAX_AGE_SECONDS = 86400;
 
 // Görsel performans optimizasyonu (2026-09-01) — R2'de önceden üretilmiş responsive türevler
 // (bkz. image-cdn.js#derivativeUrl, scripts/generate-image-derivatives.js). Türev anahtarları:
@@ -311,9 +316,24 @@ const DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS = 3600;
 export async function handleMediaRoute(request, env, url, ctx) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
+  // TELİF KAPISI (kullanıcı isteği, 2026-09-09 madde 5/16.7) — kilitli bir görselin ORİJİNAL
+  // baytları bu yoldan servis EDİLEMEZ. Kapı yolu, türev anahtarlarını kaynak görsele indirger
+  // (bkz. mediaRights.js#gatePathFor), yani "/media/_derived/w1600/r2/<anahtar>" ile orijinali
+  // istemek aynı kapıya çarpar.
+  //
+  // SIRALAMA — KAPI ÖNBELLEKTEN ÖNCE Mİ SONRA MI: karar önbelleğin ÖNÜNE konsaydı her görsel
+  // isteği (avatarlar dahil) bir D1/izolat aramasına mal olurdu. Bunun yerine ÖNBELLEK ANAHTARINA
+  // hak epoch'u karıştırılır: bir edge girdisi ancak O EPOCH'TA kapıdan geçmiş bir istekten
+  // doğabilir, dolayısıyla bir HIT zaten "bu epoch'ta izin verilmiş" demektir. Bir hak durumu
+  // değiştiğinde epoch artar (bkz. mediaRights.js#bumpRightsEpoch), tüm eski girdiler yetim kalır
+  // ve karar yeniden verilir. Sonuç: sıcak yolda ek maliyet YOK, bayat "açık" yanıt da YOK.
+  const epoch = await rightsEpoch(env);
+  const gatePath = gatePathFor(url.pathname);
   // Cache anahtarı HER ZAMAN GET'tir — HEAD isteği (uptime/monitoring araçları) GET'in önbelleğini
   // paylaşır ama kendisi gövdesiz döner (aşağıdaki request.method kontrolü korunur).
-  const cacheKey = new Request(url.toString(), { method: 'GET' });
+  const cacheUrl = new URL(url.toString());
+  if (gatePath) cacheUrl.searchParams.set('__rv', epoch);
+  const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
   let cache = null;
   try { cache = caches.default; } catch { /* caches API bazı ortamlarda (yerel wrangler dev) yok */ }
   if (cache) {
@@ -321,6 +341,24 @@ export async function handleMediaRoute(request, env, url, ctx) {
       const hit = await cache.match(cacheKey);
       if (hit) return request.method === 'HEAD' ? new Response(null, { status: hit.status, headers: hit.headers }) : hit;
     } catch { /* okuma başarısızsa aşağıdaki R2 yoluna düş — davranış eski hâliyle birebir aynı */ }
+  }
+
+  let gateDecision = null;
+  if (gatePath) {
+    const decision = await lookupGateDecision(env, gatePath);
+    gateDecision = decision;
+    if (decision.gated && !decision.allowed) {
+      // Kayıtlı ama onaysız/ihtilaflı medya. Güvenli sürüm bu yoldan DEĞİL, yalnızca
+      // /api/media/:mediaId üzerinden verilir — o uç opak kimlikle çalışır ve orijinal yolu
+      // hiç açığa vurmaz. Yanıt, art arda gelen taramaların her seferinde D1'e gitmemesi için
+      // epoch'lu anahtarla önbelleğe yazılır.
+      const denied = errorJson('Bulunamadı', 404, { 'Cache-Control': 'public, max-age=60, s-maxage=300' });
+      if (cache) {
+        const put = cache.put(cacheKey, denied.clone()).catch(() => {});
+        if (ctx) ctx.waitUntil(put);
+      }
+      return denied;
+    }
   }
 
   // denetim bulgusu: bozuk `%`-encoding içeren bir path (ör. tek başına "%") decodeURIComponent'ten
@@ -380,9 +418,20 @@ export async function handleMediaRoute(request, env, url, ctx) {
 
   const headers = new Headers();
   headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
+  // TELİF KAPISINA TABİ MEDYADA `immutable` KULLANILMAZ (kullanıcı isteği, 2026-09-09 madde 9).
+  // Bir onay geri alındığında EDGE anında temizlenir (cache anahtarına hak epoch'u karışıyor, bkz.
+  // yukarısı) ama TARAYICININ kendi kopyası geri çağrılamaz — `max-age=31536000, immutable` o
+  // kopyayı BİR YIL yaşatırdı. Sitedeki proje görsellerinin çoğunluğu (29.045'in 19.282'si) bu
+  // R2 yolundan geçtiğinden, takedown'ın pratikte işe yaraması için burada da statik dalla AYNI
+  // 1 günlük tarayıcı ömrü uygulanır (bkz. src/index.js#GATED_IMAGE_CACHE_HEADERS'taki gerekçe).
+  // Kayıtsız medya (avatar, logo, ürün görseli) ESKİ sözleşmesini AYNEN korur — orada geri
+  // alınacak bir hak yok ve bir yıllık immutable önbellek gerçek bir performans kazancı.
+  const gatedMedia = !!(gateDecision && gateDecision.gated);
   headers.set('Cache-Control', isFallback
     ? `public, max-age=${DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS}, s-maxage=${DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS}`
-    : `public, max-age=31536000, s-maxage=${MEDIA_EDGE_MAX_AGE_SECONDS}, immutable`);
+    : gatedMedia
+      ? `public, max-age=${GATED_MEDIA_BROWSER_MAX_AGE_SECONDS}, s-maxage=${MEDIA_EDGE_MAX_AGE_SECONDS}`
+      : `public, max-age=31536000, s-maxage=${MEDIA_EDGE_MAX_AGE_SECONDS}, immutable`);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('ETag', object.httpEtag);
   // Content-Length: edge'e yazılan yanıtın boyutu bilinsin diye (R2 nesnesinin kendi metadata'sı).

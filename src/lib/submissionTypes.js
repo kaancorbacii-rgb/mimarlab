@@ -52,6 +52,11 @@ export const SUBMISSION_TYPES = {
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
       'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory', 'awards', 'publishDate',
       'lat', 'lng', 'imageHotspots',
+      // Zorunlu telif/yayın hakkı beyanının onaylandığı metin sürümü (bkz. migrations/
+      // 0106_media_rights.sql, src/lib/mediaRights.js#RIGHTS_DECLARATION_VERSION). İstemci bu
+      // alanı GÖNDERMEZ; sunucu, `rightsDeclaration` onay kutusuna bakarak kendisi doldurur
+      // (bkz. src/routes/submissions.js#rightsDeclarationErrorFor).
+      'rights_declaration_version',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,

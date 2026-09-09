@@ -6,6 +6,7 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // ikinci bir sezgi yazmak yerine AYNI kaynak paylaşılır, aksi halde popup ile SSR farklı
 // sınıflandırma üretebilirdi.
 import { isOfficeName } from './projectPool.js';
+import { applyProjectImageRights, fetchProjectMediaRights } from './mediaRights.js';
 import { officePath, isBrandUrlOffice } from './officeUrl.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
 // proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
@@ -788,10 +789,22 @@ async function buildProjectMeta(slug, env) {
   // Proje (eski "Yapı") tek URL öneki: /proje/:slug (bkz. kullanıcı isteği: Yapı sayfası Proje
   // adını aldı, eski konsept "Proje" kategorisi tamamen kaldırıldı — artık tek kategori var).
   const canonicalUrl = `${SITE_ORIGIN}/proje/${encodeURIComponent(p.slug)}`;
+  // TELİF KİLİDİ — SSR/META KATMANI (kullanıcı isteği, 2026-09-09 madde 7).
+  // Bu fonksiyonun çıktısı doğrudan HTML'e giriyor: <meta property="og:image">, JSON-LD `image`,
+  // SSR gövdesindeki <img>. Hak dönüşümü UYGULANMADAN bırakılsaydı, API tarafında kapatılmış bir
+  // orijinal URL sayfanın KAYNAK KODUNDAN okunabilirdi — kilidin en kolay atlatılma yolu tam olarak
+  // budur (bkz. madde 16.3/16.5).
+  await applyProjectImageRights(p, row.id, await fetchProjectMediaRights(env, row.id), Number(row.is_copyright_approved) === 1);
   const images = (p.images || []).map(absoluteUrl).filter(Boolean);
+  // ARAMA MOTORUNA YALNIZCA GERÇEKTEN AÇIK GÖRSELLER BİLDİRİLİR. Kilitli görselin güvenli ucu
+  // zaten `X-Robots-Tag: noindex, noimageindex` ile döner (bkz. src/routes/media.js); onu ayrıca
+  // JSON-LD/OG'de ilan etmek, indexlenmeyeceğini bildiğimiz bir URL'i ilan etmek olurdu. Sayfa
+  // GÖVDESİ (bodyImage) yine güvenli sürümü gösterir — ziyaretçi boş bir kutu görmez.
+  const lockedAbsolute = new Set(Object.keys(p.imageRights || {}).map(absoluteUrl).filter(Boolean));
+  const publicImages = images.filter(u => !lockedAbsolute.has(u));
   const jsonLd = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, url: canonicalUrl };
   if (p.description) jsonLd.description = p.description;
-  if (images.length) jsonLd.image = images;
+  if (publicImages.length) jsonLd.image = publicImages;
   if (p.location) {
     // Şehir/ilçe kırılımı proje.html#FILTER_GROUPS'un location/district filtrelerinde zaten
     // kullanılan AYNI parseLocationFull ile — düz metin yerine yapılandırılmış PostalAddress
@@ -921,7 +934,7 @@ async function buildProjectMeta(slug, env) {
       ['Kullanılan Markalar', officeLinksHtml(used.brands)],
     ]),
   ].filter(Boolean).join('');
-  return { title, h1: p.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', publishedTime: toIso8601(row.created_at), breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl), bodyHtml, bodyImage: images[0] || null, bodyImageAlt: p.title };
+  return { title, h1: p.title, description, canonicalUrl, image: publicImages[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', publishedTime: toIso8601(row.created_at), breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl), bodyHtml, bodyImage: images[0] || null, bodyImageAlt: p.title };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —

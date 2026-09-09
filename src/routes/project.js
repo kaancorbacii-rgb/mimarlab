@@ -16,8 +16,9 @@ import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 import {
   DESIGNER_SEP, DESIGNER_JOIN_SQL, OFFICE_NAMES_SQL,
   shapeProjectItem, isOfficeName, ratingBuckets,
-  fetchActiveProjectPool, buildFilterGroups,
+  fetchActiveProjectPool, buildFilterGroups, reduceToCover,
 } from '../lib/projectPool.js';
+import { applyProjectImageRights, applyRightsToShapedProjects, fetchProjectMediaRights } from '../lib/mediaRights.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
 // sınıflandırma referansı. Burada yalnızca "Fotoğrafçı veya Kaynak" önerilerinde bir ofisin
@@ -444,6 +445,17 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // item.imageHotspots yalnızca dolu olduğunda var (bkz. shapeProjectItem) — boşsa enrich hiç
     // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
     if (item.imageHotspots) item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);
+    // TELİF KİLİDİ + GALERİ SIRALAMASI (kullanıcı isteği madde 13). applyProjectImageRights burada,
+    // enrichImageHotspots'tan SONRA çağrılır: işaretçi haritası görsel URL'siyle anahtarlı olduğundan
+    // URL'ler yeniden yazılırken anahtarların da taşınması gerekir; zenginleştirmeden önce
+    // çağrılsaydı enrich, artık var olmayan eski anahtarlarla çalışırdı.
+    // Galeri önce hak grubuna (onaylı+orijinal açık -> güvenli gösterilebilir -> unknown/pending ->
+    // ihtilaflı) göre gruplanır, HER GRUBUN İÇİNDE mevcut editoryal sıra AYNEN korunur; takedown
+    // almış ('removed') görseller yükten tamamen düşer.
+    applyProjectImageRights(item, row.id, await fetchProjectMediaRights(env, row.id), Number(row.is_copyright_approved) === 1);
+    // Pop-up'ın telif rozetini/uyarısını çizebilmesi + yetkili kullanıcıya onay kutusunu
+    // gösterebilmesi için proje düzeyi onay bayrağı da yüke eklenir (bkz. js/components/project-modal.js).
+    item.copyrightApproved = Number(row.is_copyright_approved) === 1;
     // claimed (kullanıcı isteği, 2026-09-08 madde 5): künyedeki mimar/firmalardan HERHANGİ BİRİ bir
     // üyeye atanmışsa — ya da projeyi zaten bir üye göndermişse (owner byline) — pop-up'taki kaynak
     // ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısını gösterir (bkz.
@@ -689,18 +701,25 @@ function hasActiveProjectListFilters(url) {
 // elle serpiştirilmiş bir parti (bkz. B&T Design 43-proje partisi, 2026-09-04) sıralamayı burada
 // override eder. idx_projects_build_status_order bu ifadeyi AYNEN kapsayacak şekilde yeniden
 // oluşturuldu, ORDER BY dışta AYNEN tekrarlanır (bkz. yukarıdaki performans notu).
+// Telif güvenliği sıralaması (kullanıcı isteği madde 13/14): rights_bucket sıralamanın BAŞINDA,
+// mevcut editoryal sıra (display_order -> yayın tarihi -> id) bucket'ın İÇİNDE aynen korunur —
+// fetchActiveProjectPool'daki ORDER BY ile BİREBİR aynı olmak ZORUNDA, aksi halde filtreli
+// (havuz) ve filtresiz (bu hızlı yol) listeler farklı sıralar gösterirdi. İÇ sorguda da AYNI
+// sıra kullanılır: LIMIT/OFFSET orada uygulanıyor, yani sayfaya hangi satırların gireceğini o
+// belirliyor (bkz. proje notu: LIMIT/OFFSET index'i öldürüyor — idx_projects_rights_order tam bu
+// ORDER BY için var).
 async function fetchProjectPageRows(env, buildStatus, limit, offset) {
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
-            p.image_hotspots,
+            p.image_hotspots, p.is_copyright_approved, p.rights_bucket,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
            WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?
-           ORDER BY COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
+           ORDER BY rights_bucket ASC, COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
            LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
-     GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY p.rights_bucket ASC, COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(buildStatus, limit, offset).all();
   return results;
 }
@@ -779,7 +798,14 @@ async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
   const clampedPage = Math.min(page, totalPages);
   const rows = clampedPage === page ? rawRows : await fetchProjectPageRows(env, buildStatus, limit, (clampedPage - 1) * limit);
 
-  const items = rows.map(row => shapeProjectItem(row, { coverOnly: true }));
+  // Haklar TAM dizi üzerinde uygulanır, kapak ONDAN SONRA seçilir — gerekçe için bkz.
+  // src/lib/projectPool.js#fetchActiveProjectPool'daki aynı not (takedown almış bir görsel
+  // karta kapak olmamalı).
+  const pairs = rows.map(row => ({
+    id: row.id, approved: Number(row.is_copyright_approved) === 1, item: shapeProjectItem(row),
+  }));
+  await applyRightsToShapedProjects(env, pairs);
+  const items = pairs.map(pair => reduceToCover(pair.item));
   const ratingBySlug = await fetchRatingsForSlugs(env, items.map(p => p.slug));
   const withRatings = items.map(p => {
     const r = ratingBySlug.get(p.slug);
