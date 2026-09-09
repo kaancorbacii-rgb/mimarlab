@@ -524,6 +524,44 @@ check_not_image() {
     *)           ok "traversal varyantı görsel döndürmüyor: $path -> $code" ;;
   esac
 }
+# DÖRT TİP — kilit ürün/kişi/firma medyasını da kapsıyor (kullanıcı isteği, 2026-09-09 ikinci tur).
+# Her liste ucunda: (a) kilitli medya güvenli uçtan geliyor mu, (b) sıralama telif grubuna göre mi
+# (onaylı kayıtlar ilk sayfada yoğunlaşmalı, kilitliler sona düşmeli).
+for mr_kind in architects offices products; do
+  mr_p1=$(curl -s "$BASE_URL/api/$mr_kind?page=1&limit=48")
+  mr_tp=$(printf '%s' "$mr_p1" | python3 -c "
+import sys, json
+try:
+    print(json.load(sys.stdin).get('totalPages', 1))
+except Exception:
+    print(1)
+" 2>/dev/null)
+  mr_last=$(curl -s "$BASE_URL/api/$mr_kind?page=${mr_tp:-1}&limit=48")
+  mr_n1=$(printf '%s' "$mr_p1" | grep -c '/api/media/' || true)
+  mr_nl=$(printf '%s' "$mr_last" | grep -c '/api/media/' || true)
+  if [ "${mr_tp:-1}" -gt 1 ]; then
+    if [ "$mr_n1" -le "$mr_nl" ]; then
+      ok "/$mr_kind sıralaması telif grubuna göre (ilk sayfa kilitli=$mr_n1 <= son sayfa kilitli=$mr_nl)"
+    else
+      bad "/$mr_kind: kilitli içerik ilk sayfada son sayfadan FAZLA (ilk=$mr_n1, son=$mr_nl)"
+    fi
+  fi
+  # Kilitli bir medya varsa güvenli uçtan GERÇEK görsel dönmeli (yer tutucu değil).
+  mr_id=$(printf '%s' "$mr_last" | grep -o '/api/media/[A-Za-z0-9-]\{1,64\}' | head -1 | sed 's|/api/media/||')
+  if [ -n "$mr_id" ]; then
+    mr_ct=$(curl -s -D - -o /dev/null "$BASE_URL/api/media/$mr_id?$cb2" | grep -i '^content-type:' | tr -d '\r' | awk '{print $2}')
+    case "$mr_ct" in
+      image/svg+xml) warnf "/$mr_kind kilitli medyası YER TUTUCU döndürüyor — türevi eksik" ;;
+      image/*)       ok "/$mr_kind kilitli medyası gerçek görsel döndürüyor ($mr_ct)" ;;
+      *)             bad "/$mr_kind kilitli medyası beklenmeyen içerik türü: $mr_ct" ;;
+    esac
+  fi
+done
+
+# SİTE LOGOSU kapsam DIŞI kalmalı — kapı yalnızca KAYITLI yolu reddeder. Bu 200 dönmezse
+# /logos/ önekini kapıya almak siteyi kırmış demektir.
+check_status "/logos/site/favicon-32.png?$cb2" 200
+
 check_not_image "/projects/%2e%2e/admin.html?$cb2"
 check_not_image "/projects/%2e%2e%2fadmin.html?$cb2"
 check_not_image "/miras/%2e%2e/admin.html?$cb2"
