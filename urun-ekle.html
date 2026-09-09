@@ -1018,6 +1018,13 @@ async function prefillForEdit(){
       }
     }
     if(!item) return;
+    // GERÇEK BULGU (kullanıcı isteği, 2026-09-10 madde 4): sahiplenilmiş/arşivlenmiş bir ürün
+    // taslağının canonical bağı `claimed_slug`'ta durur, ama ?edit= modunda claimSlug yalnızca
+    // ?claim= parametresinden okunuyordu — yani bu formdan kaydetmek claimed_slug'ı NULL'a
+    // düşürüyor, src/lib/canonicalSync.js#syncProduct de "submission:<id>" işaretine düşüp
+    // ORİJİNAL ürünü geri açmak yerine İKİNCİ bir ürün satırı yaratıyordu. proje-ekle.html#
+    // prefillForEdit bu bağı zaten geri yüklüyordu (bkz. oradaki AYNI satır), bu sayfa sapmıştı.
+    if(item.claimed_slug) claimSlug = item.claimed_slug;
     applyPrefillItem(item);
     mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }

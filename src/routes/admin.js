@@ -11,6 +11,9 @@ import { createNotification, notifySubmissionApproved, notifySubmissionRejected 
 import { createMeetForConsultation } from '../lib/consultationMeet.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { handleUnassignedArchiveAdmin } from './unassignedArchive.js';
+// bkz. src/routes/submissions.js'teki AYNI CJS-interop içe aktarma — firma/marka ayrımının tek kaynağı.
+import officeKindJs from '../../office-kind.js';
+const { isBrandOffice } = officeKindJs;
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -568,7 +571,15 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       ? env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id WHERE s.status = ? ORDER BY s.created_at DESC LIMIT 2000`).bind(status)
       : env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id ORDER BY s.created_at DESC LIMIT 2000`);
     const { results } = await query.all();
-    return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
+    const items = results.map(r => parseSubmissionRow(typeKey, r));
+    // isBrand — admin Arşiv sekmesindeki "Marka" alt sekmesi için (kullanıcı isteği, 2026-09-10
+    // madde 3). src/routes/submissions.js#listMine ile BİREBİR aynı ayrım/gerekçe: marka AYRI bir
+    // gönderi tipi değil, offices gönderisidir ve firma/marka ayrımının TEK kaynağı office-kind.js
+    // olduğundan karar sunucuda verilir (istemci ikinci bir kategori listesi taşımaz).
+    if (typeKey === 'offices') {
+      for (const item of items) item.isBrand = isBrandOffice(item.cats, 0);
+    }
+    return json({ items });
   }
 
   if (segments.length === 5) {

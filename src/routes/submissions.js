@@ -616,9 +616,38 @@ async function enrichSubmissionCrossLinks(env, typeKey, row, item) {
 
 // Sahiplik kontrolü admin için atlanır — admin herhangi bir kullanıcının gönderisini görüntüleyip
 // düzenleyebilir (bkz. kullanıcı isteği: "admin hesabının tüm gönderilerin düzenleme yetkisi olsun").
+// "Bu taslağı açıp düzenleyebilir miyim?" — owner_user_id TEK ÖLÇÜT DEĞİLDİR.
+//
+// KULLANICI İSTEĞİ (2026-09-10 madde 4/5): Hesabım > Arşivim'deki "Düzenle ve Yayına Al" butonu
+// kullanıcıyı içeriğin KENDİ düzenleme sayfasına götürür; kullanıcı orada telif beyanını onaylayıp
+// yayına alır. GERÇEK BULGU: toplu arşivlemenin (bkz. src/routes/unassignedArchive.js) ürettiği
+// taslakların owner_user_id'si ADMIN'dir — yalnızca owner_user_id'ye bakan eski kontrol, profili
+// ÜZERİNE ATANMIŞ kullanıcıya 404 döndürüyordu, yani madde 5'teki akış hiç çalışamazdı.
+//
+// Bu yüzden sahiplik, taslağın BAĞLI OLDUĞU PROFİL üzerinden de doğrulanır ve bunun için sitenin
+// zaten var olan TEK yetki kuralı yeniden kullanılır (verifyClaimedProfileKey — onaylı
+// profile_claims + firma-kurucu bağı + firma yetkilisi delegasyonu; claimedSlugVerifierFor —
+// proje künyesi / ürün markası). YENİ bir yetki yolu AÇILMAZ: burada geçen bir kullanıcı aynı
+// içeriği zaten ?claim= akışıyla da düzenleyebiliyordu.
+//
+// SİLME/ARŞİVLEME BU KAPIYI KULLANMAZ: moderateOwnSubmission bilerek owner_user_id'ye bağlı kalır
+// (bkz. o fonksiyondaki "DELEGASYON YALNIZCA DÜZENLEME YETKİSİDİR" notu ve
+// scripts/test-office-member-profile-edit.mjs'teki testi).
+async function canAccessSubmissionRow(env, user, typeKey, row) {
+  if (user.role === 'admin') return true;
+  if (row.owner_user_id && row.owner_user_id === user.id) return true;
+  if (row.claimed_profile_key && CLAIM_PROFILE_TYPE[typeKey]) {
+    if (!(await verifyClaimedProfileKey(env, user, typeKey, row.claimed_profile_key))) return true;
+  }
+  if (CLAIMED_SLUG_TYPES.has(typeKey) && row.claimed_slug) {
+    if (!(await claimedSlugVerifierFor(typeKey)(env, user, row.claimed_slug))) return true;
+  }
+  return false;
+}
+
 async function getOwnSubmission(env, user, typeKey, id) {
   const row = await findOrHealSubmissionDraft(env, typeKey, id);
-  if (!row || (row.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
+  if (!row || !(await canAccessSubmissionRow(env, user, typeKey, row))) return errorJson('Bulunamadı', 404);
   const item = parseSubmissionRow(typeKey, row);
   await enrichSubmissionCrossLinks(env, typeKey, row, item);
   return json({ item });
@@ -627,7 +656,9 @@ async function getOwnSubmission(env, user, typeKey, id) {
 async function updateOwnSubmission(request, env, user, typeKey, id) {
   const config = SUBMISSION_TYPES[typeKey];
   const existing = await findOrHealSubmissionDraft(env, typeKey, id);
-  if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
+  // bkz. canAccessSubmissionRow — okuma (getOwnSubmission) ile yazma AYNI kuralı kullanmalı,
+  // aksi halde kullanıcı formu doldurup kaydederken 404 alırdı.
+  if (!existing || !(await canAccessSubmissionRow(env, user, typeKey, existing))) return errorJson('Bulunamadı', 404);
 
   const body = await readJson(request);
   // bkz. createSubmission'daki AYNI kapı/gerekçe (kullanıcı isteği, 2026-09-10 madde 1) — düzenleme

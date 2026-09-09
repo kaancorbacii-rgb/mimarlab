@@ -1,20 +1,24 @@
-// Arşivim — kullanıcının kendi arşivindeki (yayından çekilmiş) içerikleri listeleyip, Telif ve
-// Sorumluluk Beyanı'nı onaylayarak tekrar yayına almasını sağlayan uçlar.
+// Arşivim — kullanıcının kendi arşivindeki (yayından çekilmiş) içerikleri LİSTELEYEN uç.
 //
 // KULLANICI İSTEĞİ (2026-09-10):
 //   madde 2: "Hesabım sayfasında açılır kapanır buton olarak tek satırı kaplayacak şekilde Arşivim
 //             kutusu yap ... Kişiler telif sorumluluğunu kabul etmeden arşivden projeleri yayına
 //             alamayacaklar."
-//   madde 3: "... arşive taşınan tüm içerikler, eğer bir firmaya bir kullanıcı atanırsa o
-//             kullanıcının hesabım sayfasındaki arşiv kutusunda gözüksünler. Eğer kullanıcı telif
-//             metnini kabul ederse içerik tekrar canlıya alınsın."
+//   madde 3/5: "... arşive taşınan tüm içerikler, eğer bir firmaya bir kullanıcı atanırsa o
+//             kullanıcının hesabım sayfasındaki arşiv kutusunda gözüksünler."
+//   madde 4: "... her içerik için ayrı ayrı olarak kendi düzenle sayfasından bu butona tıklayarak
+//             içeriği yayınlasın."
+//
+// BU DOSYA YAYINLAMAZ. Madde 4 gereği yayına alma YALNIZCA içeriğin kendi düzenleme sayfasından
+// olur: kullanıcı "Düzenle ve Yayına Al" ile *-ekle.html?edit=<taslak>'a gider, bilgileri kontrol
+// eder, Telif ve Sorumluluk Beyanı'nı onaylar ve kaydeder — kaydetme arşiv taslağını 'approved'a
+// çevirip canonical satırı yeniden yayına alır (bkz. src/routes/submissions.js#updateOwnSubmission
+// ve unhideIfClaimedApproved). Buradaki tek-tık "Yayına Al" ucu bilerek KALDIRILDI ki içerik
+// görülmeden yayınlanabilen ikinci bir yol kalmasın.
 //
 // "ARŞİV" BU DEPODA NE DEMEK (yeni bir kavram DEĞİL): bir *_submissions satırının status='archived'
 // olması + canonical satırın hidden_at ile canlıdan çekilmesi (bkz. src/routes/legacyContent.js#
-// runProjectAction/runContentAction). Bu uçlar o mekanizmayı hiç değiştirmez, yalnızca ÜYE
-// TARAFINDAN görünür ve kullanılabilir hale getirir — yayına alma işini yine AYNI runProjectAction/
-// runContentAction 'publish' dalı yapar, böylece arşiv anlık görüntüsü, facet sayaçları ve cache
-// temizliği admin panelindekiyle BİREBİR aynı olur.
+// runProjectAction/runContentAction).
 //
 // SAHİPLİK: bir arşiv satırı kullanıcının kutusunda İKİ ayrı yoldan görünebilir —
 //   1) satırın owner_user_id'si kullanıcının kendisi (kendi gönderisi ya da kendi arşivlediği kayıt),
@@ -23,10 +27,8 @@
 //      admin bir firmayı bir kullanıcıya atadığı ANDA o firmanın arşivdeki kaydı kullanıcının
 //      kutusunda belirir. Yetki her istekte CANLI okunur (atama geri alınırsa erişim de gider,
 //      bkz. src/routes/legacyContent.js#canDeleteOrModerateProject'teki AYNI gerekçe).
-import { json, errorJson, readJson } from '../lib/http.js';
+import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
-import { requireRightsAcceptance, recordRightsAcceptance } from '../lib/rightsConsent.js';
-import { runProjectAction, runContentAction } from './legacyContent.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 import { foldTr } from '../lib/textMatch.js';
@@ -138,19 +140,23 @@ async function fetchArchivedRows(env, user, typeKey, claimKeys) {
   return results || [];
 }
 
-// Kutudaki satırın görünen hâli. İKİ bağlantı BİLEREK verilmez:
-//   * Detay: kayıt arşivde olduğu için canlı sayfası 410 döner (bkz. src/lib/seo.js hidden_at
-//     filtresi) — kullanıcıyı ölü bir bağlantıya göndermenin anlamı yok.
-//   * Düzenle: YALNIZCA taslağın gerçek sahibine gösterilir (`owned`). GERÇEK BULGU: toplu
-//     arşivlemenin (bkz. src/routes/unassignedArchive.js) ürettiği taslakların owner_user_id'si
-//     ADMIN'dir; *-ekle.html?edit= yolu ise src/routes/submissions.js#getOwnSubmission ile
-//     korunuyor ve sahibi olmayan bir kullanıcıya 404 döner. Atama üzerinden gelen kullanıcıya
-//     çalışmayan bir "Düzenle" linki göstermek yerine yalnızca "Yayına Al" sunulur — kayıt yayına
-//     döndüğü anda profilin kendi Düzenle yolları (?claim=) zaten açılır.
+// Kutudaki satırın görünen hâli.
+//
+// TEK EYLEM: "Düzenle ve Yayına Al" (kullanıcı isteği, 2026-09-10 madde 4) — kutunun içinde tek
+// tıkla yayına alma KALDIRILDI; kullanıcı önce içeriğin kendi düzenleme sayfasına gider, bilgileri
+// kontrol eder, oradaki Telif ve Sorumluluk Beyanı'nı onaylayıp kaydeder. Kaydetme, arşivlenmiş
+// taslağı 'approved'a çevirir ve canonical satırı yeniden yayına alır (bkz. src/routes/
+// submissions.js#updateOwnSubmission -> unhideIfClaimedApproved).
+//
+// editUrl HER kayıt için verilir (sahibi olsun olmasın): *-ekle.html?edit= yolu artık atanmış
+// profil üzerinden de açılabiliyor (bkz. src/routes/submissions.js#canAccessSubmissionRow).
+//
+// Detay bağlantısı BİLEREK verilmez: kayıt arşivde olduğu için canlı sayfası 410 döner (bkz.
+// src/lib/seo.js hidden_at filtresi) — kullanıcıyı ölü bir bağlantıya göndermenin anlamı yok.
 function shapeRow(typeKey, row, owned) {
   const item = parseSubmissionRow(typeKey, row);
   const base = { type: typeKey, id: row.id, archivedAt: row.updated_at || row.created_at, owned: !!owned };
-  const editUrlFor = (page, stype) => (owned ? `${page}?edit=${encodeURIComponent(row.id)}&stype=${stype}` : null);
+  const editUrlFor = (page, stype) => `${page}?edit=${encodeURIComponent(row.id)}&stype=${stype}`;
   if (typeKey === 'projects') {
     return { ...base, kind: 'project', title: item.title || '—',
       subtitle: [item.location, item.date].filter(Boolean).join(' · '),
@@ -186,66 +192,13 @@ async function listMineArchive(env, user) {
   return json({ items });
 }
 
-// Yayına alma yetkisi — listeleme kuralının TEKİL karşılığı. Listede görünmeyen bir id'ye POST
-// atılabileceği için (istemci kontrolü tek başına güvenlik sağlamaz) burada yeniden doğrulanır.
-async function canPublish(env, user, typeKey, row, claimKeys) {
-  if (user.role === 'admin') return true;
-  if (row.owner_user_id && row.owner_user_id === user.id) return true;
-  if (typeKey === 'projects') {
-    const slug = row.claimed_slug || row.slug;
-    if (!slug) return false;
-    const slugs = await fetchClaimedProjectSlugs(env, claimKeys);
-    return slugs.includes(slug);
-  }
-  if (typeKey === 'products' || typeKey === 'materials') {
-    if (!row.brand) return false;
-    return claimKeys.offices.some(k => foldTr(k) === foldTr(row.brand));
-  }
-  const keys = typeKey === 'architects' ? claimKeys.architects : claimKeys.offices;
-  const folded = new Set(keys.map(foldTr));
-  return folded.has(foldTr(row[CLAIMED_COLUMN[typeKey]] || '')) || folded.has(foldTr(row.name || ''));
-}
-
-// POST /api/archive/publish  body: {type, id, rightsAccepted, rightsTextVersion}
-async function publishFromArchive(request, env, user) {
-  const body = await readJson(request);
-  const typeKey = (body.type || '').trim();
-  const id = (body.id || '').trim();
-  if (!TYPE_TO_TABLE[typeKey] || !id) return errorJson('Geçersiz istek.');
-  // Telif ve Sorumluluk Beyanı — kullanıcı isteği madde 2/3'ün ASIL kapısı: onay olmadan hiçbir
-  // arşiv kaydı canlıya dönemez.
-  const rightsErr = requireRightsAcceptance(body);
-  if (rightsErr) return rightsErr;
-
-  const row = await env.DB.prepare(`SELECT * FROM ${TYPE_TO_TABLE[typeKey]} WHERE id = ?`).bind(id).first();
-  if (!row) return errorJson('Bulunamadı.', 404);
-  if (row.status !== 'archived') return errorJson('Bu kayıt arşivde değil.');
-  const claimKeys = await fetchApprovedClaimKeys(env, user);
-  if (!(await canPublish(env, user, typeKey, row, claimKeys))) {
-    return errorJson('Bu içeriği yayına alma yetkin yok.', 403);
-  }
-
-  const contentKey = typeKey === 'projects'
-    ? (row.claimed_slug || row.slug)
-    : (row.claimed_profile_key || row.name || row.title || null);
-  await recordRightsAcceptance(env, user, {
-    contentType: typeKey, contentKey, submissionId: id, source: 'archive-publish',
-  });
-
-  // Yayına alma İŞİNİ admin panelinin kullandığı AYNI fonksiyon yapar (bkz. dosya başı yorum) —
-  // burada ikinci bir kopya YAZILMAZ. Bu iki fonksiyon kendi başlarına yetki kontrolü yapmaz
-  // (bkz. o dosyadaki uyarı), yetki yukarıda zaten doğrulandı.
-  const res = typeKey === 'projects'
-    ? await runProjectAction(env, user, { action: 'publish', id })
-    : await runContentAction(env, user, { type: typeKey, action: 'publish', id });
-  return res;
-}
-
 export async function handleArchiveRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "archive", ...]
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') return listMineArchive(env, user);
-  if (segments.length === 3 && segments[2] === 'publish' && request.method === 'POST') return publishFromArchive(request, env, user);
+  // POST /api/archive/publish KALDIRILDI (kullanıcı isteği, 2026-09-10 madde 4): arşivden yayına
+  // alma artık YALNIZCA içeriğin kendi düzenleme sayfasından, telif beyanı onaylanarak yapılır —
+  // kullanıcı içeriği görmeden yayınlayamasın diye. Kapıyı ikiye bölmemek için ikinci yol kapatıldı.
   return errorJson('Bulunamadı', 404);
 }

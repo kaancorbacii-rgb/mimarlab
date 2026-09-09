@@ -120,13 +120,10 @@ await test('atama onaylanınca kayıt Arşivim kutusunda belirir', async () => {
   assert.equal(data.items[0].title, 'Atanmamış Mimarlık');
   assert.equal(data.items[0].kind, 'office');
   assert.equal(data.items[0].type, 'offices');
-  // Taslağın sahibi ADMIN olduğundan (toplu arşivlemenin ürettiği satırlar) Düzenle bağlantısı
-  // VERİLMEZ — *-ekle.html?edit= yolu sahibi olmayana 404 döner (bkz. shapeRow'daki gerekçe).
   assert.equal(data.items[0].owned, false);
-  assert.equal(data.items[0].editUrl, null);
 });
 
-await test('kendi arşiv gönderisinde Düzenle bağlantısı VERİLİR', async () => {
+await test('kendi arşiv gönderisi owned:true olarak işaretlenir', async () => {
   const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
   const now = Date.now();
   db.prepare(`INSERT INTO office_submissions (id, owner_user_id, status, created_at, updated_at, name, cats) VALUES (?, 'u-uye', 'archived', ?, ?, ?, ?)`)
@@ -145,47 +142,67 @@ await test('yetkisiz görevle (Ekip Üyesi) atanan kullanıcı kaydı GÖREMEZ',
   assert.equal((await res.json()).items.length, 0);
 });
 
-section('madde 2 — beyan onaylanmadan arşivden yayına alınamaz');
+section('madde 2/4 — yayına alma İÇERİĞİN KENDİ DÜZENLEME SAYFASINDAN, beyanla olur');
 
 async function archivedIdFor(db) {
   return db.prepare(`SELECT id FROM office_submissions WHERE status = 'archived'`).get().id;
 }
+// Düzenleme sayfasının gerçekte attığı istek: PATCH /api/offices/:id, claimed_profile_key ile.
+const savePayload = (extra) => JSON.stringify({
+  name: 'Atanmamış Mimarlık', cats: 'Mimarlık', claimed_profile_key: 'Atanmamış Mimarlık', ...extra,
+});
 
-await test('POST /api/archive/publish: beyan yoksa 422 ve kayıt gizli kalır', async () => {
+await test('atanan kullanıcı arşiv taslağını AÇABİLİR (owner admin olsa da)', async () => {
   const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
   await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Atanmamış Mimarlık' });
   approveOfficeClaim(db);
   const id = await archivedIdFor(db);
-  const res = await call(handleArchiveRoute, 'u-uye', '/api/archive/publish', {
-    method: 'POST', body: JSON.stringify({ type: 'offices', id }),
-  });
+  // GERÇEK BULGU: bu uç eskiden yalnızca owner_user_id'ye bakıyordu; toplu arşivin taslak sahibi
+  // ADMIN olduğundan atanan kullanıcı 404 alıyor, madde 4/5 akışı hiç çalışamıyordu.
+  const res = await call(handleSubmissionRoute, 'u-uye', `/api/offices/${id}`, { method: 'GET' });
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal((await res.json()).item.name, 'Atanmamış Mimarlık');
+});
+
+await test('düzenleme sayfasından kaydetmek beyan olmadan REDDEDİLİR (422) ve kayıt gizli kalır', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Atanmamış Mimarlık' });
+  approveOfficeClaim(db);
+  const id = await archivedIdFor(db);
+  const res = await call(handleSubmissionRoute, 'u-uye', `/api/offices/${id}`, { method: 'PATCH', body: savePayload({}) });
   assert.equal(res.status, 422, await res.clone().text());
   assert.ok(db.prepare(`SELECT hidden_at FROM offices WHERE name = 'Atanmamış Mimarlık'`).get().hidden_at);
+  assert.equal(db.prepare(`SELECT status FROM office_submissions WHERE id = ?`).get(id).status, 'archived');
 });
 
-await test('POST /api/archive/publish: beyan onaylıysa kayıt yayına döner', async () => {
+await test('beyan onaylıysa kaydetmek kaydı YAYINA ALIR', async () => {
   const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
   await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Atanmamış Mimarlık' });
   approveOfficeClaim(db);
   const id = await archivedIdFor(db);
-  const res = await call(handleArchiveRoute, 'u-uye', '/api/archive/publish', {
-    method: 'POST', body: JSON.stringify({ type: 'offices', id, rightsAccepted: true }),
-  });
+  const res = await call(handleSubmissionRoute, 'u-uye', `/api/offices/${id}`, { method: 'PATCH', body: savePayload({ rightsAccepted: true }) });
   assert.equal(res.status, 200, await res.clone().text());
   assert.equal(db.prepare(`SELECT hidden_at FROM offices WHERE name = 'Atanmamış Mimarlık'`).get().hidden_at, null);
-  const acc = db.prepare(`SELECT * FROM rights_acceptances WHERE source = 'archive-publish'`).get();
-  assert.ok(acc, 'arşivden yayına almanın denetim izi yazılmalı');
-  assert.equal(acc.user_id, 'u-uye');
+  assert.equal(db.prepare(`SELECT status FROM office_submissions WHERE id = ?`).get(id).status, 'approved');
+  assert.ok(db.prepare(`SELECT 1 AS x FROM rights_acceptances WHERE source = 'submit'`).get());
 });
 
-await test('atanmamış bir kullanıcı başkasının arşiv kaydını yayına alamaz (403)', async () => {
+await test('atanmamış bir kullanıcı arşiv taslağını AÇAMAZ (404)', async () => {
   const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
   await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Atanmamış Mimarlık' });
   const id = await archivedIdFor(db);
-  const res = await call(handleArchiveRoute, 'u-uye', '/api/archive/publish', {
-    method: 'POST', body: JSON.stringify({ type: 'offices', id, rightsAccepted: true }),
-  });
-  assert.equal(res.status, 403, await res.clone().text());
+  const res = await call(handleSubmissionRoute, 'u-uye', `/api/offices/${id}`, { method: 'GET' });
+  assert.equal(res.status, 404);
+});
+
+await test('her arşiv satırı "Düzenle ve Yayına Al" bağlantısı taşır (sahibi olmasa da)', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Atanmamış Mimarlık' });
+  approveOfficeClaim(db);
+  const res = await call(handleArchiveRoute, 'u-uye', '/api/archive/mine', { method: 'GET' });
+  const item = (await res.json()).items[0];
+  assert.equal(item.owned, false);
+  assert.match(item.editUrl, /^\/firma-ekle\?edit=.+&stype=offices$/);
 });
 
 section('regresyon — ürünü arşivleyip yayına almak kaydı ÇOĞALTMAMALI');

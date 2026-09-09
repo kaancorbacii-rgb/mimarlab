@@ -43,6 +43,50 @@ const SUBMISSION_TABLE = {
 
 const MAX_BATCH = 25;
 
+// KORUNAN KAYITLAR — arşivlemenin DIŞINDA tutulanlar (kullanıcı isteği, 2026-09-10 ikinci tur:
+// "Kaan Çorbacı'nın profilini ve fotoğrafladığı hiçbir projeyi arşivlemene gerek yok. İz bırakan
+// rozetine sahip hiçbir mimarın kişi profilini, firmasını ve projelerini arşivlemene gerek yok.
+// Künyesinde 1970 tarihinden önce bir tarih yazan hiçbir projeyi arşivlemene gerek yok.").
+//
+// PROJELER BU ARACIN KAPSAMINDA HİÇ YOK (bkz. TYPES) — "fotoğrafladığı projeler" ve "1970 öncesi
+// projeler" istisnaları bu yüzden kendiliğinden sağlanır; buraya PROJE tipi eklenirse o iki kural
+// da AYNI ANDA buraya eklenmelidir, yoksa sessizce ihlal edilirler.
+//
+// 'iz-birakan' rozeti admin_badges'te durur (bkz. src/routes/admin.js#ADMIN_GRANTABLE_BADGES) ve
+// hem kişi hem firma profillerine verilebilir. Rozetli bir KİŞİNİN FİRMASI da korunur — firma bağı
+// İKİ yerde yaşar (architects.office_id = birincil firma, office_founders = kurucu/ekip bağı),
+// ikisi de okunur (bkz. [[project_office_membership_names_single_merge_2026_09_08]] — tek kaynağa
+// bakmak bağların bir kısmını kaçırır).
+const PROTECTED_ARCHITECT_NAMES = ['Kaan Çorbacı'];
+
+async function fetchProtectedNames(env) {
+  const architects = new Set(PROTECTED_ARCHITECT_NAMES.map(foldTr));
+  const offices = new Set();
+
+  const { results: badged } = await env.DB.prepare(
+    `SELECT profile_type, profile_key FROM admin_badges WHERE badge_type = 'iz-birakan'`
+  ).all();
+  for (const r of badged || []) {
+    if (r.profile_type === 'architect') architects.add(foldTr(r.profile_key || ''));
+    else if (r.profile_type === 'office') offices.add(foldTr(r.profile_key || ''));
+  }
+
+  const { results: firms } = await env.DB.prepare(
+    `SELECT DISTINCT o.name AS name FROM offices o WHERE o.deleted_at IS NULL AND o.id IN (
+       SELECT a.office_id FROM architects a
+         JOIN admin_badges b ON b.profile_type = 'architect' AND b.profile_key = a.name AND b.badge_type = 'iz-birakan'
+         WHERE a.office_id IS NOT NULL
+       UNION
+       SELECT f.office_id FROM office_founders f
+         JOIN architects a2 ON a2.id = f.architect_id
+         JOIN admin_badges b2 ON b2.profile_type = 'architect' AND b2.profile_key = a2.name AND b2.badge_type = 'iz-birakan'
+     )`
+  ).all();
+  for (const r of firms || []) offices.add(foldTr(r.name || ''));
+
+  return { architects, offices };
+}
+
 // Onaylı atamaların adları. office_position kısıtı BİLEREK uygulanmaz: buradaki soru "bu profilin
 // üzerinde bir kullanıcı VAR MI" — yetkisiz görevle atanmış bir kullanıcı da bir kullanıcıdır ve o
 // profil "atanmamış" sayılmamalıdır (bkz. src/routes/archive.js'teki AYNI kolonun FARKLI amaçla,
@@ -81,7 +125,7 @@ async function fetchMemberOwnedKeys(env, typeKey) {
 
 // Canlıda görünen (arşivlenmemiş, silinmemiş) canonical satırlar — atanmamış olanlar.
 // Her satır için runContentAction'ın beklediği doğal anahtar (`key`) da hesaplanır.
-async function findUnassigned(env, typeKey, assigned, memberKeys, limit) {
+async function findUnassigned(env, typeKey, assigned, memberKeys, protectedNames, limit) {
   if (typeKey === 'architects' || typeKey === 'offices') {
     const { results } = await env.DB.prepare(
       `SELECT id, name, slug${typeKey === 'offices' ? ', cats' : ''} FROM ${typeKey}
@@ -91,7 +135,8 @@ async function findUnassigned(env, typeKey, assigned, memberKeys, limit) {
     const out = [];
     for (const row of results || []) {
       const folded = foldTr(row.name || '');
-      if (!folded || pool.has(folded) || memberKeys.has(folded)) continue;
+      const protectedPool = typeKey === 'architects' ? protectedNames.architects : protectedNames.offices;
+      if (!folded || pool.has(folded) || memberKeys.has(folded) || protectedPool.has(folded)) continue;
       out.push({ key: row.name, name: row.name, cats: row.cats });
       if (limit && out.length >= limit) break;
     }
@@ -110,6 +155,9 @@ async function findUnassigned(env, typeKey, assigned, memberKeys, limit) {
   for (const row of results || []) {
     const brandFolded = foldTr(row.brand || '');
     if (brandFolded && assigned.offices.has(brandFolded)) continue;
+    // Korunan bir markanın ürünleri de korunur: firma canlı kalırken ürün kataloğunun tamamen
+    // arşivlenmesi profili yarım gösterirdi.
+    if (brandFolded && protectedNames.offices.has(brandFolded)) continue;
     if (memberKeys.has(foldTr(row.title || '')) || (row.slug && memberKeys.has(foldTr(row.slug)))) continue;
     out.push({ key: row.legacy_key || row.slug, name: row.title });
     if (limit && out.length >= limit) break;
@@ -123,9 +171,10 @@ async function findUnassigned(env, typeKey, assigned, memberKeys, limit) {
 async function previewUnassigned(env) {
   const assigned = await fetchAssignedNames(env);
   const counts = {};
+  const protectedNames = await fetchProtectedNames(env);
   for (const typeKey of TYPES) {
     const memberKeys = await fetchMemberOwnedKeys(env, typeKey);
-    const rows = await findUnassigned(env, typeKey, assigned, memberKeys, 0);
+    const rows = await findUnassigned(env, typeKey, assigned, memberKeys, protectedNames, 0);
     if (typeKey === 'offices') {
       counts.offices = rows.filter(r => !isBrandOffice(r.cats, 0)).length;
       counts.brands = rows.filter(r => isBrandOffice(r.cats, 0)).length;
@@ -146,8 +195,9 @@ async function archiveUnassignedBatch(request, env, user) {
   const limit = Math.min(MAX_BATCH, Math.max(1, parseInt(body.limit, 10) || MAX_BATCH));
 
   const assigned = await fetchAssignedNames(env);
+  const protectedNames = await fetchProtectedNames(env);
   const memberKeys = await fetchMemberOwnedKeys(env, typeKey);
-  const all = await findUnassigned(env, typeKey, assigned, memberKeys, 0);
+  const all = await findUnassigned(env, typeKey, assigned, memberKeys, protectedNames, 0);
   const batch = all.slice(0, limit);
 
   const errors = [];
@@ -171,8 +221,24 @@ async function archiveUnassignedBatch(request, env, user) {
 export async function findUnassignedForScript(env, typeKey) {
   if (!TYPES.includes(typeKey)) throw new Error(`Geçersiz tip: ${typeKey}`);
   const assigned = await fetchAssignedNames(env);
+  const protectedNames = await fetchProtectedNames(env);
   const memberKeys = await fetchMemberOwnedKeys(env, typeKey);
-  return findUnassigned(env, typeKey, assigned, memberKeys, 0);
+  return findUnassigned(env, typeKey, assigned, memberKeys, protectedNames, 0);
+}
+
+// YANLIŞLIKLA ARŞİVLENMİŞ KORUNAN KAYITLAR — koruma kuralı arşivleme BAŞLADIKTAN sonra eklendiği
+// için (kullanıcı isteği ikinci turda geldi) o ana kadar arşivlenmiş korunan kayıtların geri
+// alınması gerekir. Yayına alma işini yine runContentAction 'publish' yapar; taslak canonical
+// satırdan üretildiği ve syncOffice/syncArchitect'in claimed dalı YALNIZCA dolu alanları yazdığı
+// için bu tur kayıpsızdır (cover_url/social_links gibi copyFields DIŞINDAKİ kolonlara dokunulmaz).
+export async function findArchivedProtected(env, typeKey) {
+  if (typeKey !== 'architects' && typeKey !== 'offices') throw new Error(`Bu tip korunmuyor: ${typeKey}`);
+  const protectedNames = await fetchProtectedNames(env);
+  const pool = typeKey === 'architects' ? protectedNames.architects : protectedNames.offices;
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, claimed_profile_key FROM ${SUBMISSION_TABLE[typeKey]} WHERE status = 'archived'`
+  ).all();
+  return (results || []).filter(r => pool.has(foldTr(r.claimed_profile_key || r.name || '')));
 }
 
 export async function handleUnassignedArchiveAdmin(request, env, user) {

@@ -1270,8 +1270,19 @@ async function prefillForEdit(){
       // prefillForClaim zaten o katmanlamayı yapıyor (ve aynı profilin EN YENİ taslağını seçip
       // editId'yi ona sabitliyor), bu yüzden burada tekrarlanmaz — oraya devredilir.
       claimName = item.claimed_profile_key;
-      await prefillForClaim();
-      return;
+      // ARŞİVLENMİŞ TASLAK İSTİSNASI (kullanıcı isteği, 2026-09-10 madde 4/5): prefillForClaim,
+      // formu CANONICAL kayıttan (GET /api/{tip}/:key) doldurur — ama arşivlenmiş bir kaydın
+      // canonical satırı gizli olduğundan o uç bilerek `item: null` döner (bkz. src/routes/
+      // office.js#buildOfficePayload'daki güvenlik notu), yani form BOMBOŞ açılırdı ve kullanıcı
+      // kaydettiğinde profilin verisi (logo dahil) silinebilirdi. Arşiv taslağı ZATEN canonical'ın
+      // arşivleme anındaki tam kopyasıdır (bkz. src/routes/legacyContent.js#runContentAction
+      // copyFields) — bu durumda doğru kaynak taslağın kendisidir, aşağıdaki normal doldurma yolu
+      // kullanılır. claimName yukarıda set edildiğinden kayıt yine claimed_profile_key ile gider,
+      // yani mükerrer kayıt oluşmaz ve kaydetme canonical'ı yeniden yayına alır.
+      if(item.status !== 'archived'){
+        await prefillForClaim();
+        return;
+      }
     }
     document.querySelector('.eyebrow').textContent = 'Kişi Düzenle';
     document.querySelector('.page-head h1').textContent = 'Bilgilerini düzenle';

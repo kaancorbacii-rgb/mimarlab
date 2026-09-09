@@ -355,6 +355,12 @@
 
       <div class="admin-section" id="section-archive">
         <div class="admin-subtabs" id="archive-subtabs"></div>
+        <!-- Arama çubuğu (kullanıcı isteği, 2026-09-10 madde 3) — arşiv listesi zaten TAMAMI
+             istemciye gelen bir dizi (bkz. loadArchive'daki tek istek, sunucuda LIMIT 2000), bu
+             yüzden filtreleme istemcide anında yapılır: her tuş vuruşunda yeni bir istek atmaya
+             gerek yok. Sekme değişince kutu ve filtre sıfırlanır. -->
+        <input type="search" id="archive-search" placeholder="Arşivde ara (başlık, konum, marka…)"
+               style="width:100%; max-width:420px; padding:9px 12px; margin-bottom:14px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
         <div id="archive-list"></div>
       </div>
 
@@ -968,10 +974,18 @@ async function toggleFeaturedProject(slug){
 // olarak burada aynı listede görünür (bkz. kullanıcı isteği: "mimar, firma ve ürüne silme ve
 // arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
 // (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
-const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Kişi', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
-const ARCHIVE_EDIT_PAGE = { projects: '/proje-ekle', architects: '/kisi-ekle', offices: '/firma-ekle', products: '/urun-ekle', materials: '/urun-ekle' };
-const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null, materials: null };
+// 'brands' GERÇEK bir gönderi tipi DEĞİL (kullanıcı isteği, 2026-09-10 madde 3: "Arşivim kısmına
+// Marka butonunu da ekle") — marka gönderileri offices gönderisidir, ayrım sunucudan gelen
+// item.isBrand ile yapılır (bkz. src/routes/admin.js#handleSubmissionsAdmin ve office-kind.js).
+// 'offices' (Firma) simetrik olarak marka OLMAYANLARI gösterir, aksi halde her marka iki sekmede
+// birden çıkardı — Hesabım > Arşivim kutusundaki AYNI ayrım.
+const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Kişi', offices: 'Firma', brands: 'Marka', products: 'Ürün', materials: 'Malzeme' };
+const ARCHIVE_EDIT_PAGE = { projects: '/proje-ekle', architects: '/kisi-ekle', offices: '/firma-ekle', brands: '/marka-ekle', products: '/urun-ekle', materials: '/urun-ekle' };
+const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', brands: 'claimed_profile_key', products: null, materials: null };
+// Sunucuya gidilecek GERÇEK gönderi tipi (brands -> offices); moderasyon uçları da bunu bekler.
+const ARCHIVE_API_TYPE = { projects: 'projects', architects: 'architects', offices: 'offices', brands: 'offices', products: 'products', materials: 'materials' };
 let archiveType = 'projects';
+let archiveSearch = '';
 
 function archiveEditHref(type, item){
   const claimedColumn = ARCHIVE_CLAIMED_COLUMN[type];
@@ -988,25 +1002,44 @@ async function loadArchive(){
     `<button class="admin-subtab ${t===archiveType?'active':''}" data-type="${t}">${ARCHIVE_TYPE_LABELS[t]}</button>`
   ).join('');
   subtabs.querySelectorAll('.admin-subtab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ archiveType = btn.dataset.type; loadArchive(); });
+    btn.addEventListener('click', ()=>{
+      archiveType = btn.dataset.type;
+      // Sekme değişince arama sıfırlanır — bir sekmede yazılan sorgunun başka bir sekmede
+      // "hiç sonuç yok" göstermesi kafa karıştırıcı olurdu.
+      archiveSearch = '';
+      const box = document.getElementById('archive-search');
+      if(box) box.value = '';
+      loadArchive();
+    });
   });
 
   const list = document.getElementById('archive-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api(`/api/admin/submissions?type=${archiveType}&status=archived`);
-  const items = data.items || [];
+  const data = await api(`/api/admin/submissions?type=${ARCHIVE_API_TYPE[archiveType]}&status=archived`);
+  let items = data.items || [];
+  // Firma/Marka ayrımı (bkz. ARCHIVE_TYPE_LABELS yorumu) — ikisi de office_submissions'tan gelir.
+  if(archiveType === 'brands') items = items.filter(it => !!it.isBrand);
+  else if(archiveType === 'offices') items = items.filter(it => !it.isBrand);
   const typeLabel = ARCHIVE_TYPE_LABELS[archiveType].toLowerCase();
   if(!items.length){ list.innerHTML = `<div class="admin-empty">Arşivlenmiş ${typeLabel} yok.</div>`; return; }
+  // Arama: başlık + künye metni üzerinde Türkçe-duyarsız alt dize (foldTr yerine locale-aware
+  // toLocaleLowerCase('tr') yeterli — burada sıralama/puanlama yok, yalnızca "içeriyor mu").
+  if(archiveSearch){
+    const q = archiveSearch.toLocaleLowerCase('tr');
+    const apiType = ARCHIVE_API_TYPE[archiveType];
+    items = items.filter(it => `${itemTitle(apiType, it) || ''} ${itemMeta(apiType, it) || ''}`.toLocaleLowerCase('tr').includes(q));
+    if(!items.length){ list.innerHTML = `<div class="admin-empty">"${escapeHtml(archiveSearch)}" ile eşleşen arşiv kaydı yok.</div>`; return; }
+  }
   list.innerHTML = items.map(item => `
     <div class="admin-card" data-id="${item.id}">
       <div class="admin-card-head">
         <div class="admin-card-body">
-          ${itemImage(archiveType, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(archiveType, item))}" alt="" loading="lazy" decoding="async">` : ''}
+          ${itemImage(ARCHIVE_API_TYPE[archiveType], item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(ARCHIVE_API_TYPE[archiveType], item))}" alt="" loading="lazy" decoding="async">` : ''}
           <div>
-            <div class="admin-card-title">${escapeHtml(itemTitle(archiveType, item))} <span class="admin-badge badge-rejected">Arşivde</span></div>
+            <div class="admin-card-title">${escapeHtml(itemTitle(ARCHIVE_API_TYPE[archiveType], item))} <span class="admin-badge badge-rejected">Arşivde</span></div>
             ${claimBadgeHtml(item)}
-            <div class="admin-card-meta">${escapeHtml(itemMeta(archiveType, item))}</div>
-            ${itemDetails(archiveType, item)}
+            <div class="admin-card-meta">${escapeHtml(itemMeta(ARCHIVE_API_TYPE[archiveType], item))}</div>
+            ${itemDetails(ARCHIVE_API_TYPE[archiveType], item)}
           </div>
         </div>
         <div class="admin-actions">
@@ -1024,12 +1057,25 @@ async function loadArchive(){
       if(action === 'delete' && !confirm(`Bu arşivlenmiş ${typeLabel} kalıcı olarak silmek istediğine emin misin?`)) return;
       btn.disabled = true;
       const endpoint = archiveType === 'projects' ? '/api/admin/legacy/project-action' : '/api/admin/legacy/content-action';
-      const body = archiveType === 'projects' ? { action, id } : { type: archiveType, action, id };
+      const body = archiveType === 'projects' ? { action, id } : { type: ARCHIVE_API_TYPE[archiveType], action, id };
       await api(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
       loadArchive();
     });
   });
 }
+
+// Arşiv arama kutusu (kullanıcı isteği, 2026-09-10 madde 3). Liste tamamen istemcide olduğundan
+// yeniden çizim ucuz; yine de her tuş vuruşunda tam yeniden render etmemek için kısa bir gecikme
+// uygulanır (admin panelindeki diğer canlı filtrelerle AYNI his).
+(function wireArchiveSearch(){
+  const box = document.getElementById('archive-search');
+  if(!box) return;
+  let timer = null;
+  box.addEventListener('input', ()=>{
+    clearTimeout(timer);
+    timer = setTimeout(()=>{ archiveSearch = box.value.trim(); loadArchive(); }, 200);
+  });
+})();
 
 let claimsKind = 'ownership';
 let claimsStatus = 'pending';

@@ -14,6 +14,7 @@
 //   node scripts/archive-unassigned.mjs --dry-run            # yalnızca sayar
 //   node scripts/archive-unassigned.mjs                      # tüm tipleri arşivler
 //   node scripts/archive-unassigned.mjs --type=products      # tek tip
+//   node scripts/archive-unassigned.mjs --restore-protected  # korunan kayıtları yayına geri al
 //
 // İKİ NOT:
 //   1) env.FACET_CACHE (KV) burada YOK, bu yüzden invalidatePublicCache havuz anahtarlarını
@@ -24,7 +25,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { runContentAction } from '../src/routes/legacyContent.js';
-import { findUnassignedForScript, UNASSIGNED_TYPES } from '../src/routes/unassignedArchive.js';
+import { findUnassignedForScript, findArchivedProtected, UNASSIGNED_TYPES } from '../src/routes/unassignedArchive.js';
 
 const ACCOUNT_ID = '2e3cd3c1a471552e19436913b2368c4f';
 const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
@@ -97,6 +98,26 @@ const adminRow = await env.DB.prepare(`SELECT id, email FROM users WHERE role = 
 if (!adminRow) throw new Error('Admin kullanıcı bulunamadı.');
 const user = { id: adminRow.id, role: 'admin' };
 console.log(`Admin: ${adminRow.email}${DRY ? '   [DRY-RUN]' : ''}\n`);
+
+// --restore-protected: koruma kuralı arşivleme BAŞLADIKTAN sonra eklendiğinden (bkz.
+// src/routes/unassignedArchive.js#findArchivedProtected) o ana kadar yanlışlıkla arşivlenmiş
+// korunan kayıtları yayına geri alır ve çıkar.
+if (process.argv.includes('--restore-protected')) {
+  let restored = 0;
+  for (const type of ['architects', 'offices']) {
+    const rows = await findArchivedProtected(env, type);
+    console.log(`${type}: ${rows.length} korunan kayıt arşivde`);
+    for (const row of rows) {
+      const key = row.claimed_profile_key || row.name;
+      if (DRY) { console.log(`  [DRY] ${key}`); continue; }
+      const res = await runContentAction(env, user, { type, action: 'publish', id: row.id });
+      if (res && res.status >= 400) console.log(`  HATA ${key}: ${await res.text()}`);
+      else { restored++; console.log(`  yayına alındı: ${key}`); }
+    }
+  }
+  console.log(`\n${restored} korunan kayıt yayına geri alındı. (${queryCount} D1 sorgusu)`);
+  process.exit(0);
+}
 
 const types = ONLY_TYPE ? [ONLY_TYPE] : UNASSIGNED_TYPES;
 let grandTotal = 0;

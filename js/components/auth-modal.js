@@ -1323,8 +1323,15 @@ const AuthModal = (function () {
             <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dash-collapse-body" id="am-archive-collapse" hidden>
-            <p class="section-hint">Yayından çekilmiş içeriklerin. Bir içeriği tekrar yayına almak için önce aşağıdaki Telif ve Sorumluluk Beyanı’nı onaylaman gerekiyor.</p>
-            <div data-rights-consent id="am-archive-rights-consent"></div>
+            <!-- Telif kutucuğu BURADAN KALDIRILDI (kullanıcı isteği, 2026-09-10 madde 4): onay
+                 artık kutunun tamamı için TEK SEFER değil, HER İÇERİK için kendi düzenleme
+                 sayfasında veriliyor — kullanıcı önce içeriği görüp kontrol ediyor, sonra o
+                 sayfadaki beyanı onaylayıp yayına alıyor. Bu yüzden buradaki "Düzenle" ve
+                 "Yayına Al" da tek bir "Düzenle ve Yayına Al" butonunda birleşti. -->
+            <p class="section-hint">Yayından çekilmiş içeriklerin. Bir içeriği tekrar yayına almak için “Düzenle ve Yayına Al”a bas: içeriğin düzenleme sayfasında bilgileri kontrol et, Telif ve Sorumluluk Beyanı’nı onayla ve kaydet.</p>
+            <!-- Arama çubuğu (kullanıcı isteği, 2026-09-10 madde 3) — admin Arşiv sekmesindeki
+                 kutuyla AYNI davranış: liste zaten tamamen istemcide, filtreleme anında yapılır. -->
+            <input type="search" id="am-archive-search" placeholder="Arşivde ara…" style="width:100%; max-width:360px; padding:8px 11px; margin-bottom:12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13px; color:var(--ink);">
             <div class="submissions-toolbar-row" id="am-archive-filter">
               <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
               <button type="button" class="submissions-filter-btn" data-filter="project">Proje</button>
@@ -3651,6 +3658,7 @@ const AuthModal = (function () {
     // Eklediklerim kutusundaki AYNI ayrım/gerekçe) — aksi halde her marka iki filtrede birden çıkardı.
     let archiveItems = [];
     let archiveFilter = '';
+    let archiveSearch = '';
     let archivePage = 1;
     const ARCHIVE_KIND_LABELS = { project: 'Proje', architect: 'Kişi', office: 'Firma', brand: 'Marka', product: 'Ürün' };
 
@@ -3672,9 +3680,15 @@ const AuthModal = (function () {
         if (pagination) pagination.innerHTML = '';
         return;
       }
-      const all = archiveFilter ? archiveItems.filter(it => it.kind === archiveFilter) : archiveItems;
+      let all = archiveFilter ? archiveItems.filter(it => it.kind === archiveFilter) : archiveItems;
+      // Arama (kullanıcı isteği, 2026-09-10 madde 3): başlık + alt satır üzerinde Türkçe-duyarlı
+      // alt dize. Liste tamamen istemcide olduğundan yeni bir istek atılmaz.
+      if (archiveSearch) {
+        const q = archiveSearch.toLocaleLowerCase('tr');
+        all = all.filter(it => `${it.title || ''} ${it.subtitle || ''}`.toLocaleLowerCase('tr').includes(q));
+      }
       if (!all.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde arşivlenmiş bir içerik yok.</div>';
+        container.innerHTML = `<div class="dash-empty">${archiveSearch ? 'Aramanla eşleşen arşiv kaydı yok.' : 'Bu türde arşivlenmiş bir içerik yok.'}</div>`;
         if (pagination) pagination.innerHTML = '';
         return;
       }
@@ -3694,50 +3708,22 @@ const AuthModal = (function () {
             </div>
           </div>
           <span style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            ${it.editUrl ? `<a class="submission-edit-link" href="${escapeAttr(it.editUrl)}">Düzenle</a>` : ''}
-            <button type="button" class="dash-edit-btn dash-edit-btn-sm am-archive-publish-btn" style="margin-left:0;">Yayına Al</button>
+            <a class="dash-edit-btn dash-edit-btn-sm" style="margin-left:0;" href="${escapeAttr(it.editUrl)}">Düzenle ve Yayına Al</a>
           </span>
         </div>`).join('');
-      container.querySelectorAll('.am-archive-publish-btn').forEach(btn => {
-        btn.addEventListener('click', () => publishFromArchive(btn));
-      });
       renderDashPagination('am-archive-pagination', archivePage, totalPages, (p) => { archivePage = p; renderArchive(); });
     }
 
-    async function publishFromArchive(btn) {
-      const row = btn.closest('.saved-row');
-      if (!row) return;
-      // TELİF KAPISI (kullanıcı isteği: "Kişiler telif sorumluluğunu kabul etmeden arşivden
-      // projeleri yayına alamayacaklar") — kutunun içindeki tek beyan kutucuğu işaretli olmalı.
-      // Sunucu AYNI onayı ayrıca arar (bkz. src/routes/archive.js#publishFromArchive), yani bu
-      // kontrol atlatılsa bile kayıt yayına giremez.
-      const consent = document.getElementById('am-archive-rights-consent');
-      if (window.RightsConsent && !RightsConsent.require(consent)) return;
-      btn.disabled = true;
-      const original = btn.textContent;
-      btn.textContent = 'Yayınlanıyor…';
-      try {
-        const res = await fetch('/api/archive/publish', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: row.dataset.archiveType, id: row.dataset.archiveId,
-            ...(window.RightsConsent ? RightsConsent.payload() : {}),
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          btn.disabled = false;
-          btn.textContent = original;
-          const meta = row.querySelector('.saved-row-meta');
-          if (meta) { meta.textContent = data.error || 'Yayına alınamadı, tekrar dene.'; meta.style.color = '#B3261E'; }
-          return;
-        }
-        await loadArchive();
-      } catch {
-        btn.disabled = false;
-        btn.textContent = original;
-      }
-    }
+    (function wireArchiveSearch() {
+      const box = document.getElementById('am-archive-search');
+      if (!box || box.dataset.wired === '1') return;
+      box.dataset.wired = '1';
+      let timer = null;
+      box.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { archiveSearch = box.value.trim(); archivePage = 1; renderArchive(); }, 200);
+      });
+    })();
 
     on('am-archive-filter', 'click', (e) => {
       const btn = e.target.closest('.submissions-filter-btn');
