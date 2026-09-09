@@ -532,10 +532,22 @@ const CONTENT_ACTION_TYPES = {
   },
 };
 
+// GERÇEK BULGU (bkz. [[project_bulk_admin_ops_via_live_code_2026_09_08]]): `offices.cats` bu depoda
+// ' · ' ile ayrılmış TEK BİR METİN olarak saklanır ve arrayFields'ta DEĞİLDİR — ama canlıda bazı
+// satırlarda dizi biçiminde durur (eski içe aktarımlar) ve parseCanonicalRow onları dizi olarak
+// döndürür. O durumda aşağıdaki `fields[f] ?? null` D1'e bir DİZİ bind etmeye çalışır ve arşivleme
+// o kayıt için PATLAR. Tekil bir kayıtta bu yalnızca bir hata mesajıdır; toplu arşivlemede (bkz.
+// src/routes/unassignedArchive.js) ilerlemeyi tümden durdurur. Dizi olarak gelen dizi-OLMAYAN bir
+// alan, saklandığı biçime (birleştirilmiş metin) normalize edilir.
 function bindContentFields(type, fields) {
   const { copyFields } = CONTENT_ACTION_TYPES[type];
   const arrayFields = SUBMISSION_TYPES[type].arrayFields;
-  return copyFields.map(f => (arrayFields.includes(f) ? JSON.stringify(fields[f] || []) : (fields[f] ?? null)));
+  return copyFields.map(f => {
+    if (arrayFields.includes(f)) return JSON.stringify(fields[f] || []);
+    const value = fields[f];
+    if (Array.isArray(value)) return value.filter(Boolean).join(' · ') || null;
+    return value ?? null;
+  });
 }
 
 // POST /api/admin/legacy/content-action  body: {type:'architects'|'offices'|'products'|'materials', action:'delete'|'archive'|'publish', id?, key?}
@@ -573,7 +585,16 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     // (hidden_at HİÇ set edilmiyordu, yalnızca facet sayaçları güncelleniyordu — ürün canlıdan asla
     // kalkmıyordu) products/materials için sessizce hiçbir şey yapmıyordu.
     const legacyKeyFallback = (type === 'products' || type === 'materials') ? `submission:${id}` : null;
-    const targetKey = (config.claimedColumn && row[config.claimedColumn]) || key || legacyKeyFallback;
+    // products/materials'ın claimedColumn'u yok ama `claimed_slug`'ı VAR (bkz. migrations/
+    // 0088_product_claimed_slug.sql) — anahtarla (key ile) arşivlenmiş bir ürünün taslağı artık
+    // canonical satırın slug'ını taşıyor (bkz. aşağıdaki key dalı), bu yüzden id ile yapılan
+    // Arşivle/Yayınla/Sil de o canonical satırı bulabilmeli. GERÇEK BULGU (kullanıcı isteği,
+    // 2026-09-10 madde 3 hazırlığı): bu olmadan `submission:<id>` fallback'ine düşülüyordu; o
+    // anahtara karşılık gelen canonical satır HİÇ YOK, dolayısıyla "Yayınla" orijinal (gizli) ürünü
+    // geri açmak yerine syncProduct'a YENİ bir satır açtırıyor, eski kayıt sonsuza dek gizli
+    // kalıyordu — yani arşivden yayına alma ürünlerde kaydı ÇOĞALTIYORDU.
+    const claimedSlugKey = (type === 'products' || type === 'materials') ? (row.claimed_slug || null) : null;
+    const targetKey = (config.claimedColumn && row[config.claimedColumn]) || claimedSlugKey || key || legacyKeyFallback;
     if (action === 'delete') {
       await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
@@ -640,11 +661,18 @@ export async function runContentAction(env, user, { type, action, id, key }) {
       ).bind(newId(), user.id, 'archived', now, now, key, ...boundValues).run();
     }
   } else {
-    const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.copyFields];
+    // products/materials: claimedColumn YOK, ama taslak canonical satıra `claimed_slug` ile
+    // bağlanır (bkz. yukarıdaki targetKey yorumu ve src/lib/canonicalSync.js#syncProduct'ın
+    // claimedSlug dalı) — bağ kurulmazsa bu taslağın "Yayınla"sı orijinali geri açmak yerine
+    // ikinci bir ürün satırı yaratırdı.
+    const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
+    const claimedSlug = (canonRow && canonRow.slug) || null;
+    const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at',
+      ...(claimedSlug ? ['claimed_slug'] : []), ...config.copyFields];
     const placeholders = columns.map(() => '?').join(', ');
     await env.DB.prepare(
       `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
-    ).bind(newId(), user.id, 'archived', now, now, ...boundValues).run();
+    ).bind(newId(), user.id, 'archived', now, now, ...(claimedSlug ? [claimedSlug] : []), ...boundValues).run();
   }
 
   await setLegacyHidden(env, user, type, key, true);

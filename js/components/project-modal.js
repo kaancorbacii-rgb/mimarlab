@@ -257,8 +257,19 @@ const ProjectModal = (function () {
     return r.top < vh + IO_ROOT_MARGIN_PX && r.bottom > -IO_ROOT_MARGIN_PX;
   }
 
-  function observeOnce(el, loadFn, pollMs, isStale) {
-    if (!el) return;
+  // elOrEls: TEK bir eleman ya da bir DİZİ olabilir. Dizi verildiğinde bölümlerden HERHANGİ BİRİ
+  // görünür alana girdiğinde yükleme tetiklenir — GERÇEK BULGU (kullanıcı isteği, 2026-09-10 madde 4:
+  // "popuplardaki benzer projeler vs. alanında yüklenme sorunu var, yüklenmeden kalıyor ama sayfayı
+  // yenileyince düzeliyor"): "Benzer Projeler"/"Şehirdeki Diğer Projeler" yüklemesi TEK BİR bölümün
+  // ("Mimarın/Firmanın Diğer Projeleri") görünürlüğüne bağlıydı; o bölüm bir önceki projede boş
+  // kaldığı için display:none'a alınmışsa (bkz. ArchitectProjects#mount) hem IntersectionObserver
+  // hem isNearViewport layout kutusu olmayan bir elemana bakıyor, ÜÇ bölüm birden sonsuza kadar
+  // yüklenmeden kalıyordu. Bölümlerin display'i artık armDeferredSections'ta sıfırlanıyor (asıl
+  // düzeltme) — dizi kabul etmek ise ikinci savunma hattı: bölümlerden biri gizli kalsa bile
+  // diğerleri tetikleyicidir.
+  function observeOnce(elOrEls, loadFn, pollMs, isStale) {
+    const els = (Array.isArray(elOrEls) ? elOrEls : [elOrEls]).filter(Boolean);
+    if (!els.length) return;
     let done = false;
     let timer = null;
     let obs = null;
@@ -268,13 +279,13 @@ const ProjectModal = (function () {
       obs = new IntersectionObserver((entries) => {
         entries.forEach(entry => { if (entry.isIntersecting) trigger(); });
       }, { rootMargin: `${IO_ROOT_MARGIN_PX}px` });
-      obs.observe(el);
+      els.forEach(el => obs.observe(el));
     }
     if (!pollMs) return;
     const poll = () => {
       if (done) return;
       if (isStale && isStale()) { stop(); return; } // başka bir proje açıldı — bu döngü artık ölü
-      if (isNearViewport(el)) { trigger(); return; }
+      if (els.some(isNearViewport)) { trigger(); return; }
       timer = setTimeout(poll, pollMs);
     };
     timer = setTimeout(poll, pollMs);
@@ -337,6 +348,17 @@ const ProjectModal = (function () {
 
     const sameDesignerSection = document.getElementById('pm-same-designer-section');
     const relatedSection = document.getElementById('pm-related-section');
+    const citySection = document.getElementById('pm-city-section');
+    // GERÇEK BULGU (kullanıcı isteği, 2026-09-10 madde 4 — "yüklenmeden kalıyor ama sayfayı
+    // yenileyince düzeliyor"): şablon sayfa ömrü boyunca TEK SEFER mount edildiğinden (bkz.
+    // ensureTemplate#mountedOnce) bu üç bölüm popup'lar arasında PAYLAŞILIR; ArchitectProjects/
+    // RelatedProjects/CityProjects sonuç boş çıktığında kendi bölümlerine `style.display='none'`
+    // yazar ve bunu HİÇBİR yer geri almazdı (renderItem yalnızca .pm-force-hidden SINIFINI
+    // temizler, satır içi display'i DEĞİL). Bir sonraki projede display:none kalan bölümün layout
+    // kutusu olmadığı için ne IntersectionObserver tetikleniyor ne de isNearViewport true dönüyordu
+    // — yükleme hiç başlamıyordu. Sayfa yenilenince (yeni belge, satır içi stil sıfır) düzelmesinin
+    // sebebi de tam olarak buydu. Ürünler satırında (aşağıda) AYNI sıfırlama zaten yapılıyordu.
+    [sameDesignerSection, relatedSection, citySection].forEach(el => { if (el) el.style.display = ''; });
     document.getElementById('pm-same-designer-grid').innerHTML = skeletonCardsHtml(4);
     document.getElementById('pm-related-grid').innerHTML = skeletonCardsHtml(4);
     document.getElementById('pm-city-grid').innerHTML = skeletonCardsHtml(4);
@@ -350,7 +372,7 @@ const ProjectModal = (function () {
     // projelerle proje çakışması hiçbir zaman olmasın" — gerçek bulgu: Ayasofya popup'ında Sokullu
     // Mehmed Paşa Camii hem İlgili Projeler'de hem Şehirdeki Diğer Projeler'de birden çıkıyordu),
     // böylece iki bölüm arasında ASLA çakışma olmaz.
-    observeOnce(sameDesignerSection, () => {
+    observeOnce([sameDesignerSection, relatedSection, citySection], () => {
       if (mySeq !== requestSeq) return;
       const architectSlugsPromise = ArchitectProjects.mount(item).then(r => (mySeq === requestSeq && r) ? r.slugs : new Set());
       const relatedSlugsPromise = RelatedProjects.mount(item, architectSlugsPromise).then(r => (mySeq === requestSeq && r) ? r.slugs : new Set());

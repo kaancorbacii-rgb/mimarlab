@@ -249,6 +249,18 @@ else
 fi
 rm -f /tmp/preflight_omedit
 
+# Telif ve Sorumluluk Beyanı kapısı + Arşivim (kullanıcı isteği, 2026-09-10 madde 1/2/3). Kapı ÜÇ
+# ayrı uçta (POST/PATCH /api/<tip> ve POST /api/archive/publish) aynı yardımcıya bağlı; sapması
+# ya beyanı atlatılabilir kılar ya da kullanıcıların kendi arşivlerini yayına almasını engeller.
+# Bkz. scripts/test-rights-archive.mjs dosya başı.
+if node scripts/test-rights-archive.mjs >/tmp/preflight_rights 2>&1; then
+  ok "telif beyanı + Arşivim testleri geçti ($(grep -c '^  ok ' /tmp/preflight_rights) test)"
+else
+  bad "telif beyanı + Arşivim testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_rights >&2
+fi
+rm -f /tmp/preflight_rights
+
 # Firma/marka üyelik listesi — kisi-ekle.html ile Profili Düzenle'nin (auth-modal.js) ORTAK
 # birleştiricisi (kullanıcı isteği, 2026-09-08: "admin tarafından dahi olsa görevlendiriliyorsa kişi
 # ekle/düzenle sayfasında da gözüksün"). Regresyon: kisi-ekle yalnızca kaydın `office` metnini okuyordu,

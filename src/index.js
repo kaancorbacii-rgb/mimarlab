@@ -25,6 +25,7 @@ import { handleFollowRoute } from './routes/follows.js';
 import { handleAnalyticsRoute } from './routes/analytics.js';
 import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
+import { handleArchiveRoute } from './routes/archive.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
 import { handleConsultationsRoute } from './routes/consultations.js';
 import { handleTop100Route } from './routes/top100.js';
@@ -1999,6 +2000,9 @@ async function routeApi(request, env, url, ctx) {
   if (path.startsWith('/api/analytics')) return handleAnalyticsRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
+  // Arşivim (bkz. src/routes/archive.js, kullanıcı isteği 2026-09-10 madde 2/3) — tamamen oturum
+  // korumalı, herkese açık okuma ucu yok; /api/saved ile AYNI desen.
+  if (path.startsWith('/api/archive')) return handleArchiveRoute(request, env, url);
   if (path.startsWith('/api/corrections')) return handleCorrectionsRoute(request, env, url);
   if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);
   if (path.startsWith('/api/consultations')) return handleConsultationsRoute(request, env, url);

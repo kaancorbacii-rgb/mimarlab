@@ -1,5 +1,6 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
+import { requireRightsAcceptance, recordRightsAcceptance } from '../lib/rightsConsent.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField, findInvalidFilesField, findInvalidProjectsField, findInvalidPortfolioField, findInvalidOfficeCats } from '../lib/submissionTypes.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
@@ -316,6 +317,11 @@ async function createSubmission(request, env, user, typeKey) {
   }
 
   const body = await readJson(request);
+  // Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — istemci kapısının
+  // (js/components/rights-consent.js) sunucu tarafı karşılığı; bu uca doğrudan atılan isteklerde de
+  // onay ZORUNLU. Diğer doğrulamalardan ÖNCE bakılır: onay yoksa gönderi hiç işlenmemeli.
+  const rightsErr = requireRightsAcceptance(body);
+  if (rightsErr) return rightsErr;
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
   const oversizedField = findOversizedField(typeKey, body);
@@ -498,6 +504,14 @@ async function createSubmission(request, env, user, typeKey) {
       await notifyNewsletterOfNewContent(env, typeKey, syncedRow || { ...row, id });
     }
   }
+  // Beyan denetim kaydı (bkz. src/lib/rightsConsent.js) — gönderi başarıyla oluştuktan SONRA yazılır
+  // ki başarısız/yarıda kalan denemeler için sahte bir onay izi kalmasın.
+  await recordRightsAcceptance(env, user, {
+    contentType: typeKey,
+    contentKey: body.claimed_profile_key || body.claimed_slug || (typeKey === 'projects' ? row.slug : body.name) || null,
+    submissionId: id,
+    source: 'submit',
+  });
   // slug: proje-ekle.html'in kaydettikten sonra doğrudan canlı sayfaya yönlendirebilmesi için (bkz.
   // kullanıcı isteği) — syncedRow'dan (canonical satırın KENDİSİ) okunur, row.slug'dan DEĞİL: bir
   // slug çakışması olduysa (bkz. src/lib/canonicalSync.js#syncProject) canonical'daki gerçek slug
@@ -616,6 +630,11 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
 
   const body = await readJson(request);
+  // bkz. createSubmission'daki AYNI kapı/gerekçe (kullanıcı isteği, 2026-09-10 madde 1) — düzenleme
+  // de bir YAYINLAMA eylemidir (onaylı bir taslağın PATCH'i canonical satıra senkronlanır), bu
+  // yüzden beyan burada da her seferinde aranır.
+  const rightsErr = requireRightsAcceptance(body);
+  if (rightsErr) return rightsErr;
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
   const oversizedField = findOversizedField(typeKey, body, existing);
@@ -800,6 +819,13 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
   // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
   await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? row.claimed_slug : row.claimed_profile_key);
+  // bkz. createSubmission'daki AYNI denetim kaydı (src/lib/rightsConsent.js).
+  await recordRightsAcceptance(env, user, {
+    contentType: typeKey,
+    contentKey: row.claimed_profile_key || row.claimed_slug || (typeKey === 'projects' ? row.slug : row.name) || null,
+    submissionId: id,
+    source: 'submit',
+  });
   // slug/prefix: proje-ekle.html/kisi-ekle.html/firma-ekle.html'in kaydettikten sonra doğrudan
   // (olası yeni) canlı sayfaya yönlendirebilmesi için (bkz. kullanıcı isteği). architects/offices'te
   // slug'ı asıl DEĞİŞTİREN updateRenameCascade'dir (syncedRow.slug bu adımdan ÖNCEki değeri taşır,

@@ -1190,6 +1190,15 @@ const AuthModal = (function () {
              submitArchitectSyncIfNeeded'in 409 dalı, claim-correction-box.js İLE AYNI POST /api/claims). -->
         <div id="am-directory-duplicate-warning" style="display:none; padding:12px 14px; margin:-6px 0 16px; border:1px solid var(--accent); border-radius:10px; background:rgba(224,138,62,0.10); font-size:12.5px; line-height:1.6; color:var(--ink);"></div>
 
+        <!-- Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — bu form, "Evet"
+             seçiliyken kişi profilini KİŞİ DİZİNİNE YAYIMLAR (bkz. submitArchitectSyncIfNeeded ->
+             POST/PATCH /api/architects, kisi-ekle.html'in kullandığı AYNI uç), dolayısıyla beş
+             ekleme formuyla AYNI beyanı ister. Kutu yalnızca gerçekten yayımlanacaksa zorunludur
+             (bkz. am-dash-save-btn işleyicisi) — dizine girmek istemeyen kullanıcı hesap
+             bilgilerini eskisi gibi onaysız kaydedebilir. Şablon dinamik basıldığından kutu
+             RightsConsent.autoMount ile mount() sonrası kurulur. -->
+        <div data-rights-consent id="am-rights-consent" style="margin:4px 0 16px;"></div>
+
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
@@ -1294,6 +1303,39 @@ const AuthModal = (function () {
                belirtilsinler") — Bildirimler/Mesajlar kutularıyla AYNI .dash-pagination bileşeni
                (bkz. renderDashPagination), tek fark sayfa başına bir KAYIT düşmesi. -->
           <div class="dash-pagination" id="am-firm-pagination"></div>
+        </div>
+      </div>
+
+      <!-- ARŞİVİM (kullanıcı isteği, 2026-09-10 madde 2: "Hesabım sayfasında açılır kapanır buton
+           olarak tek satırı kaplayacak şekilde Arşivim kutusu yap. Bu kutuyu Tümü, Proje, Kişi,
+           Firma, Ürün, Marka şeklinde butonlarla filtrelere böl. Bildirimler ve mesajlar satırının
+           üzerinde olsun."). İstatistikler/Rozetlerim ile AYNI sözleşme: .dash-collapse-toggle +
+           data-collapse + hidden gövde (wireCollapsibles zaten #am-panel içindeki TÜM bu düğmeleri
+           bağlar, ayrı bir kanca gerekmez) ve .dash-section-wide ile tek satırın tamamını kaplar.
+           İçerik /api/archive/mine'dan gelir (bkz. src/routes/archive.js) — yalnızca kullanıcının
+           KENDİ arşivi ve üzerine atanmış profillerin arşivi. "Yayına Al", kutunun içindeki Telif ve
+           Sorumluluk Beyanı onaylanmadan çalışmaz (madde 2/3'ün asıl kuralı); sunucu da AYNI onayı
+           ayrıca arar. -->
+      <div class="dash-row col-two-col">
+        <div class="dash-section dash-section-wide" id="am-archive-section">
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-archive-collapse" aria-expanded="false" aria-controls="am-archive-collapse">
+            <h2>Arşivim<span id="am-archive-count"></span></h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-archive-collapse" hidden>
+            <p class="section-hint">Yayından çekilmiş içeriklerin. Bir içeriği tekrar yayına almak için önce aşağıdaki Telif ve Sorumluluk Beyanı’nı onaylaman gerekiyor.</p>
+            <div data-rights-consent id="am-archive-rights-consent"></div>
+            <div class="submissions-toolbar-row" id="am-archive-filter">
+              <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
+              <button type="button" class="submissions-filter-btn" data-filter="project">Proje</button>
+              <button type="button" class="submissions-filter-btn" data-filter="architect">Kişi</button>
+              <button type="button" class="submissions-filter-btn" data-filter="office">Firma</button>
+              <button type="button" class="submissions-filter-btn" data-filter="product">Ürün</button>
+              <button type="button" class="submissions-filter-btn" data-filter="brand">Marka</button>
+            </div>
+            <div id="am-archive-list"><div class="dash-empty">Yükleniyor…</div></div>
+            <div class="dash-pagination" id="am-archive-pagination"></div>
+          </div>
         </div>
       </div>
 
@@ -2131,6 +2173,10 @@ const AuthModal = (function () {
   }
 
   function mountAccount() {
+    // Telif ve Sorumluluk Beyanı kutuları (Profili Düzenle + Arşivim) — bu şablon DİNAMİK basıldığı
+    // için rights-consent.js'in DOMContentLoaded'daki otomatik kurulumu bu düğümleri göremez,
+    // burada açıkça kurulur (bkz. o dosyadaki #autoMount).
+    if (window.RightsConsent) RightsConsent.autoMount(document.getElementById('am-panel') || document);
     // Kaydet'e basılana kadar bellekte tutulan profil fotoğrafı (bkz. am-avatar-file-input).
     let pendingAvatarFile = null;
     let pendingAvatarUrl = null;
@@ -2899,6 +2945,9 @@ const AuthModal = (function () {
           const picked = document.querySelector('input[name="am-directory-listed"]:checked');
           return picked ? { directory_listed: picked.value === 'yes' ? 1 : 0 } : {};
         })(),
+        // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu
+        // POST/PATCH /api/architects'te bunu ZORUNLU kılar (src/lib/rightsConsent.js).
+        ...(window.RightsConsent ? RightsConsent.payload() : {}),
         // Kendi-kendine-yayın bayrağı (kullanıcı isteği, 2026-09-06) — YALNIZCA bu turda YENİ bir
         // kayıt açılıyorsa gönderilir (bkz. src/routes/submissions.js#isSelfDirectoryListing, isim
         // sunucuda oturumdaki hesabın adıyla AYRICA doğrulanır, istemci bayrağına güvenilmez).
@@ -2980,6 +3029,16 @@ const AuthModal = (function () {
           msg.textContent = 'Kişi sayfasında yayımlanmak için şu alanlar zorunlu: ' + eksik.join(', ') + '.';
           return;
         }
+      }
+      // Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — YALNIZCA bu Kaydet
+      // gerçekten bir kişi profili YAYIMLAYACAKSA zorunlu: ya kullanıcının zaten bir kişi kaydı var
+      // (architectSyncState dolu, Kaydet o kaydı günceller) ya da dizine girmeyi bu turda seçiyor.
+      // Dizine hiç girmeyen kullanıcı hesap bilgilerini eskisi gibi onaysız kaydedebilir — beyan
+      // "yayınlanan içerik" içindir, hesap alanları için değil.
+      const willPublishArchitect = !!architectSyncState || !!(wantsDirectory && wantsDirectory.value === 'yes');
+      if (willPublishArchitect && window.RightsConsent && !RightsConsent.require(document.getElementById('am-rights-consent'))) {
+        msg.textContent = 'Profilini yayımlamak için Telif ve Sorumluluk Beyanı’nı onaylaman gerekiyor.';
+        return;
       }
       btn.disabled = true;
       try {
@@ -3580,6 +3639,114 @@ const AuthModal = (function () {
         if (res.ok) await loadUser();
       } catch {}
     }
+
+    // ---------- ARŞİVİM (kullanıcı isteği, 2026-09-10 madde 2/3) -------------------------------
+    // Veri /api/archive/mine'dan gelir (bkz. src/routes/archive.js): kullanıcının KENDİ arşiv
+    // satırları + üzerine ATANMIŞ profillerin (onaylı profile_claims) arşiv satırları. "Kişi bir
+    // firmaya atanınca o firmanın arşivi kutusunda belirir" davranışı bu yüzden istemci tarafında
+    // ekstra bir kural gerektirmez — atama onaylandığı anda uç zaten satırı döndürür.
+    //
+    // Filtre etiketleri sunucudan gelen `kind` alanına bakar (project/architect/office/product/brand).
+    // "Marka", "Firma"dan office-kind.js kuralıyla AYRILIR ve ikisi birbirini DIŞLAR (bkz.
+    // Eklediklerim kutusundaki AYNI ayrım/gerekçe) — aksi halde her marka iki filtrede birden çıkardı.
+    let archiveItems = [];
+    let archiveFilter = '';
+    let archivePage = 1;
+    const ARCHIVE_KIND_LABELS = { project: 'Proje', architect: 'Kişi', office: 'Firma', brand: 'Marka', product: 'Ürün' };
+
+    async function loadArchive() {
+      const res = await fetch('/api/archive/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      archiveItems = data.items || [];
+      const countEl = document.getElementById('am-archive-count');
+      if (countEl) countEl.textContent = archiveItems.length ? ` (${archiveItems.length})` : '';
+      renderArchive();
+    }
+
+    function renderArchive() {
+      const container = document.getElementById('am-archive-list');
+      if (!container) return;
+      const pagination = document.getElementById('am-archive-pagination');
+      if (!archiveItems.length) {
+        container.innerHTML = '<div class="dash-empty">Arşivinde bir içerik yok.</div>';
+        if (pagination) pagination.innerHTML = '';
+        return;
+      }
+      const all = archiveFilter ? archiveItems.filter(it => it.kind === archiveFilter) : archiveItems;
+      if (!all.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde arşivlenmiş bir içerik yok.</div>';
+        if (pagination) pagination.innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE_DASH));
+      if (archivePage > totalPages) archivePage = totalPages;
+      const startIdx = (archivePage - 1) * PAGE_SIZE_DASH;
+      const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      // Arşivdeki kaydın CANLI sayfası 410 döner (bkz. src/lib/seo.js hidden_at filtresi), bu yüzden
+      // başlık bilerek link DEĞİL — kullanıcıya ölü bağlantı gösterilmez; eylemler Düzenle ve Yayına Al.
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row" data-archive-type="${escapeAttr(it.type)}" data-archive-id="${escapeAttr(it.id)}">
+          <div class="saved-row-link" style="cursor:default;">
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(avatarImg(it.image, 96, safeUrl(it.image)))}" alt="" loading="lazy" decoding="async">` : '<div class="saved-row-noimg"></div>'}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+              <div class="saved-row-meta">${escapeHtml([ARCHIVE_KIND_LABELS[it.kind] || '', it.subtitle || ''].filter(Boolean).join(' · '))}</div>
+            </div>
+          </div>
+          <span style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+            <a class="submission-edit-link" href="${escapeAttr(it.editUrl)}">Düzenle</a>
+            <button type="button" class="dash-edit-btn dash-edit-btn-sm am-archive-publish-btn" style="margin-left:0;">Yayına Al</button>
+          </span>
+        </div>`).join('');
+      container.querySelectorAll('.am-archive-publish-btn').forEach(btn => {
+        btn.addEventListener('click', () => publishFromArchive(btn));
+      });
+      renderDashPagination('am-archive-pagination', archivePage, totalPages, (p) => { archivePage = p; renderArchive(); });
+    }
+
+    async function publishFromArchive(btn) {
+      const row = btn.closest('.saved-row');
+      if (!row) return;
+      // TELİF KAPISI (kullanıcı isteği: "Kişiler telif sorumluluğunu kabul etmeden arşivden
+      // projeleri yayına alamayacaklar") — kutunun içindeki tek beyan kutucuğu işaretli olmalı.
+      // Sunucu AYNI onayı ayrıca arar (bkz. src/routes/archive.js#publishFromArchive), yani bu
+      // kontrol atlatılsa bile kayıt yayına giremez.
+      const consent = document.getElementById('am-archive-rights-consent');
+      if (window.RightsConsent && !RightsConsent.require(consent)) return;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Yayınlanıyor…';
+      try {
+        const res = await fetch('/api/archive/publish', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: row.dataset.archiveType, id: row.dataset.archiveId,
+            ...(window.RightsConsent ? RightsConsent.payload() : {}),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          btn.disabled = false;
+          btn.textContent = original;
+          const meta = row.querySelector('.saved-row-meta');
+          if (meta) { meta.textContent = data.error || 'Yayına alınamadı, tekrar dene.'; meta.style.color = '#B3261E'; }
+          return;
+        }
+        await loadArchive();
+      } catch {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    }
+
+    on('am-archive-filter', 'click', (e) => {
+      const btn = e.target.closest('.submissions-filter-btn');
+      if (!btn) return;
+      archiveFilter = btn.dataset.filter;
+      archivePage = 1;
+      document.querySelectorAll('#am-archive-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderArchive();
+    });
 
     let notifItems = [];
     let notifPage = 1;
@@ -4210,7 +4377,7 @@ const AuthModal = (function () {
 
     loadUser({ shared: true }).then(() => {
       if (accountUser) {
-        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages(), loadStats()]
+        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages(), loadStats(), loadArchive()]
           .forEach(p => p.catch(() => {}));
         const rangeWrap = document.getElementById('am-stats-range');
         if (rangeWrap && !rangeWrap.dataset.wired) {

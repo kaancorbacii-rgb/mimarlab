@@ -389,6 +389,28 @@
       </div>
 
       <div class="admin-section" id="section-users">
+        <!-- Üzerine kullanıcı atanmamış içerikleri toplu arşivleme (kullanıcı isteği, 2026-09-10
+             madde 3: "Admin panelindeki üyeler bölümünden üzerine bir kullanıcı atanmamış tüm
+             firmaları, kişileri, ürün ve markaları arşive taşı."). Uç parçalı (batch) çalışır —
+             tek Worker isteği binlerce kaydı işleyemez, bu yüzden "Arşive Taşı" butonu bitene
+             kadar POST'u tekrarlar (bkz. src/routes/unassignedArchive.js dosya başı yorumu).
+             ÖNİZLEME (Yenile) hiçbir şeyi değiştirmez; arşivleme geri alınabilir: her kayıt için
+             bir *_submissions taslağı oluşur ve kayıt hem Admin > Arşiv sekmesinden hem de
+             atandığı kullanıcının Hesabım > Arşivim kutusundan tekrar yayına alınabilir. -->
+        <div class="admin-card" id="unassigned-archive-card" style="margin-bottom:18px;">
+          <div class="admin-card-head">
+            <div>
+              <div class="admin-card-title">Atanmamış İçerikleri Arşive Taşı</div>
+              <div class="admin-card-meta">Üzerine hiçbir kullanıcı atanmamış (onaylı profil talebi olmayan) ve hiçbir üye tarafından yüklenmemiş kişi, firma, marka ve ürün kayıtlarını yayından çeker. Kayıtlar SİLİNMEZ: arşive taşınır, bir kullanıcı atandığında o kullanıcının Hesabım &gt; Arşivim kutusunda görünür ve telif beyanı onaylandığında tekrar yayına alınabilir.</div>
+            </div>
+          </div>
+          <div id="unassigned-archive-counts" style="font-size:13px; margin:10px 0;">—</div>
+          <div class="admin-actions" style="gap:8px;">
+            <button class="admin-btn" id="unassigned-archive-refresh">Yenile</button>
+            <button class="admin-btn danger" id="unassigned-archive-run" disabled>Arşive Taşı</button>
+          </div>
+          <div id="unassigned-archive-progress" style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;"></div>
+        </div>
         <div id="users-list"></div>
       </div>
 
@@ -1549,6 +1571,75 @@ async function loadCommentsAdmin(){
     });
   });
 }
+
+// ---------- Üyeler > Atanmamış İçerikleri Arşive Taşı ----------
+// bkz. src/routes/unassignedArchive.js — GET önizleme (sayım), POST tek parti arşivleme.
+// Buton, uç `remaining: 0` diyene kadar tip tip POST'u tekrarlar; her tur kendi ilerlemesini yazar,
+// böylece binlerce kayıtlık bir işlem tek bir Worker isteğine sıkışmaz.
+const UNASSIGNED_TYPE_LABELS = { architects:'Kişi', offices:'Firma', brands:'Marka', products:'Ürün', materials:'Malzeme' };
+// POST'ta 'brands' AYRI bir tip DEĞİL (offices'ın marka olanları, bkz. office-kind.js) — sunucu
+// tarafı yalnızca bu dört tipi tanır.
+const UNASSIGNED_POST_TYPES = ['architects', 'offices', 'products', 'materials'];
+let unassignedCounts = null;
+
+async function loadUnassignedCounts(){
+  const box = document.getElementById('unassigned-archive-counts');
+  const runBtn = document.getElementById('unassigned-archive-run');
+  box.textContent = 'Sayılıyor…';
+  runBtn.disabled = true;
+  try{
+    const data = await api('/api/admin/unassigned-archive');
+    unassignedCounts = data.counts || {};
+    const parts = Object.keys(UNASSIGNED_TYPE_LABELS)
+      .filter(k => unassignedCounts[k])
+      .map(k => `${UNASSIGNED_TYPE_LABELS[k]}: <strong>${unassignedCounts[k]}</strong>`);
+    box.innerHTML = unassignedCounts.total
+      ? `Arşive taşınacak kayıt: <strong>${unassignedCounts.total}</strong> — ${parts.join(' · ')}`
+      : 'Arşive taşınacak atanmamış kayıt yok.';
+    runBtn.disabled = !unassignedCounts.total;
+  }catch{
+    box.textContent = 'Sayım yapılamadı, tekrar dene.';
+  }
+}
+
+async function runUnassignedArchive(){
+  const runBtn = document.getElementById('unassigned-archive-run');
+  const refreshBtn = document.getElementById('unassigned-archive-refresh');
+  const progress = document.getElementById('unassigned-archive-progress');
+  const total = (unassignedCounts && unassignedCounts.total) || 0;
+  if(!total) return;
+  if(!confirm(`${total} kayıt yayından çekilip arşive taşınacak. Kayıtlar silinmez, geri alınabilir. Devam edilsin mi?`)) return;
+  runBtn.disabled = true;
+  refreshBtn.disabled = true;
+  let done = 0;
+  let failed = 0;
+  try{
+    for(const type of UNASSIGNED_POST_TYPES){
+      // Güvenlik freni: uç ilerleme kaydetmezse (ör. hepsi hata veriyorsa) sonsuz döngüye girmemek
+      // için bir turda hiç kayıt arşivlenmediyse o tipe devam edilmez.
+      for(;;){
+        progress.textContent = `${UNASSIGNED_TYPE_LABELS[type]} arşivleniyor… ${done}/${total}`;
+        const data = await api('/api/admin/unassigned-archive', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type, limit: 25 }),
+        });
+        if(data.error){ progress.textContent = data.error; return; }
+        done += data.archived || 0;
+        failed += (data.errors || []).length;
+        if(!data.archived || !data.remaining) break;
+      }
+    }
+    progress.textContent = `Bitti. ${done} kayıt arşive taşındı.` + (failed ? ` ${failed} kayıt atlandı.` : '');
+  }catch{
+    progress.textContent = `Bağlantı koptu. Şimdiye kadar ${done} kayıt arşive taşındı — "Yenile" ile kalanı görüp tekrar başlatabilirsin.`;
+  }finally{
+    refreshBtn.disabled = false;
+    await loadUnassignedCounts();
+  }
+}
+
+document.getElementById('unassigned-archive-refresh').addEventListener('click', loadUnassignedCounts);
+document.getElementById('unassigned-archive-run').addEventListener('click', runUnassignedArchive);
 
 async function loadUsers(){
   const list = document.getElementById('users-list');

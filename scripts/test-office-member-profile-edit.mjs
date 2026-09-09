@@ -258,7 +258,7 @@ await test('POST /api/architects: yetkili ortak kaydedebilir, yetkisiz 403 alır
   const db = freshDb(); seed(db); await withSessions(db);
   const env = { DB: d1(db) };
   const save = (uid) => handleSubmissionRoute(
-    req(uid, '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı', about: 'Güncellendi' }) }),
+    req(uid, '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı', about: 'Güncellendi', rightsAccepted: true }) }),
     env, new URL('https://mimarlab.com/api/architects'),
   );
   const ok = await save('u-tuna');
@@ -275,7 +275,7 @@ await test('delegasyon SİLME/ARŞİVLEME yetkisi vermez (yalnızca düzenleme)'
   const db = freshDb(); seed(db); await withSessions(db);
   const env = { DB: d1(db) };
   const created = await handleSubmissionRoute(
-    req('u-tuna', '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı' }) }),
+    req('u-tuna', '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı', rightsAccepted: true }) }),
     env, new URL('https://mimarlab.com/api/architects'),
   );
   const id = (await created.json()).id;

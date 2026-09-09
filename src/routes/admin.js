@@ -10,6 +10,7 @@ import { createNotification, notifySubmissionApproved, notifySubmissionRejected 
 // Google Meet gateway'i (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import { createMeetForConsultation } from '../lib/consultationMeet.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
+import { handleUnassignedArchiveAdmin } from './unassignedArchive.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -137,6 +138,9 @@ export async function handleAdminRoute(request, env, url) {
   try {
     if (sub === 'users') return await handleUsersAdmin(request, env, url, segments);
     if (sub === 'legacy') return await handleLegacyAdmin(request, env, url, segments, user);
+    // Üzerine kullanıcı atanmamış içerikleri toplu arşivleme (bkz. src/routes/unassignedArchive.js,
+    // kullanıcı isteği 2026-09-10 madde 3). GET = önizleme/sayım, POST = bir parti arşivle.
+    if (sub === 'unassigned-archive') return await handleUnassignedArchiveAdmin(request, env, user);
     if (sub === 'submissions') return await handleSubmissionsAdmin(request, env, url, segments, user);
     if (sub === 'claims') return await handleClaimsAdmin(request, env, url, segments);
     if (sub === 'profile-options') return await handleProfileOptionsAdmin(env, url);

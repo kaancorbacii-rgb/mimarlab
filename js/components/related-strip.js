@@ -87,8 +87,16 @@
       '.related-grid-scroll .related-more-btn:hover{background:var(--paper-alt); color:var(--ink); border-color:var(--brass);}',
       '.related-grid-scroll .related-more-plus{font-size:22px; line-height:1; font-weight:400;}',
       '.related-grid-scroll .related-more-sub{font-size:11.5px; font-weight:500; opacity:.75;}',
+      /* İskelet kartlar (bkz. project-modal.js#skeletonCardsHtml) İÇİ BOŞ bir <div> — .related-card
+         kuralı yalnızca genişlik (flex:0 0 200px) verir, yükseklik ÇOCUKLARDAN gelir, dolayısıyla
+         boş iskelet 200x0 piksel, yani GÖRÜNMEZdi. Kullanıcı bu yüzden "yükleniyor" göstergesi
+         değil, başlığın altında boş bir boşluk görüyordu (kullanıcı isteği, 2026-09-10 madde 4).
+         Gerçek kartın en-boy oranıyla (.related-card-photo 4/3 + başlık satırı) uyumlu bir
+         min-height verilir. */
+      '.related-grid-scroll .related-card.skeleton-card{min-height:186px; border-radius:12px;}',
       '@media (max-width: 720px){',
       '  .related-grid-scroll .related-more-btn{flex:0 0 140px; min-height:100px; font-size:12px;}',
+      '  .related-grid-scroll .related-card.skeleton-card{min-height:135px;}',
       '}',
     ].join('\n');
     document.head.appendChild(el);

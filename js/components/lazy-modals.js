@@ -33,7 +33,11 @@
       // office-picker.js — Profili Düzenle'deki "Firma veya Marka" çoklu seçim kutusu (kullanıcı
       // isteği, 2026-09-06 madde 1). profession-shared.js ile AYNI gerekçe: auth-modal.js tembel
       // yüklendiğinden sayfalara ayrı <script> koymak işe yaramaz, bağımlılık burada bildirilir.
-      deps: ['profession-shared.js', 'office-picker.js', 'js/components/profession-drawer.js', 'js/components/image-crop.js'],
+      // rights-consent.js — Telif ve Sorumluluk Beyanı kutusu (kullanıcı isteği, 2026-09-10 madde 1/2):
+      // hem Profili Düzenle'nin Kaydet'i (kişi profilini dizine YAYIMLAR) hem Hesabım > Arşivim
+      // kutusundaki "Yayına Al" akışı bu bileşene bağlı. office-picker.js ile AYNI gerekçe: auth-modal.js
+      // tembel yüklendiğinden sayfalara ayrı <script> koymak yetmez, bağımlılık burada bildirilir.
+      deps: ['profession-shared.js', 'office-picker.js', 'js/components/profession-drawer.js', 'js/components/image-crop.js', 'js/components/rights-consent.js'],
       // parallelDeps (Hesabım performans turu, 2026-09-08): dört bağımlılık birbirine parse anında
       // dokunmayan ayrı dosyalar (profession-drawer.js PROFESSION_* sabitlerine yalnızca çağrı anında
       // bakar; office-picker/image-crop kendi global'ini yazar) — sıralı zincir 4 ardışık gidiş-dönüştü.

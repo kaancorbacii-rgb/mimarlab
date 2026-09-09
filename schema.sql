@@ -1161,3 +1161,21 @@ CREATE TABLE IF NOT EXISTS gundem_runs (
   stats TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_gundem_runs_mode_started ON gundem_runs(ingest_mode, started_at DESC);
+
+-- Telif ve Sorumluluk Beyanı onay kaydı (bkz. migrations/0106_rights_acceptances.sql, kullanıcı
+-- isteği 2026-09-10 madde 1/3). İçerik gönderme/düzenleme (src/routes/submissions.js) ve arşivden
+-- yayına alma (src/routes/archive.js) uçları beyan onayı olmadan çalışmaz; bu tablo hangi
+-- kullanıcının hangi içerik için hangi metin sürümünü onayladığının denetim izidir.
+CREATE TABLE IF NOT EXISTS rights_acceptances (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  content_type TEXT NOT NULL, -- 'projects' | 'architects' | 'offices' | 'products' | 'materials'
+  content_key TEXT,           -- canonical doğal anahtar (slug / isim / legacy_key)
+  submission_id TEXT,         -- ilgili *_submissions satırı (FK YOK: denetim izi gönderiden uzun ömürlü)
+  text_version TEXT NOT NULL, -- bkz. src/lib/rightsConsent.js#RIGHTS_TEXT_VERSION
+  source TEXT NOT NULL,       -- 'submit' | 'archive-publish'
+  accepted_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rights_acceptances_user ON rights_acceptances(user_id, accepted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rights_acceptances_content ON rights_acceptances(content_type, content_key);
+CREATE INDEX IF NOT EXISTS idx_rights_acceptances_submission ON rights_acceptances(submission_id);

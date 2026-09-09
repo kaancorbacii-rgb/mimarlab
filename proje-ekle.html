@@ -565,6 +565,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="project-taxonomy.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
+<script src="js/components/rights-consent.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="proje"></div>
   <script src="js/components/site-chrome.js"></script>
@@ -779,6 +780,14 @@
           Bu içeriğin hak sahibiyim veya yayınlama iznine sahibim.
         </label>
       </div>
+
+      <!-- Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1): "Gönder" butonunun
+           ÜZERİNDE zorunlu onay kutucuğu; işaretlenmeden içerik yayınlanamaz. Metnin/­davranışın TEK
+           kaynağı js/components/rights-consent.js — beş ekleme formu ve Hesabım > Arşivim'deki
+           "Yayına Al" akışı AYNI bileşeni kullanır (hukuki metnin kopyalanmaması için). Kutu bu boş
+           kabın içine data-rights-consent özniteliğiyle otomatik kurulur; gönderim ayrıca
+           document-capture fazında da engellenir (bkz. o dosyadaki #guard). -->
+      <div data-rights-consent></div>
 
       <button class="form-submit" type="submit">Projeyi Gönder</button>
       <!-- Arşivle/Sil — artık proje popup'ında DEĞİL, buradalar (bkz. kullanıcı isteği: "Arşivle ve
@@ -2700,6 +2709,11 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   }
   if(claimSlug) payload.claimed_slug = claimSlug;
   if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
+
+  // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu bu iki alanı
+  // ZORUNLU kılar (src/lib/rightsConsent.js#requireRightsAcceptance); kutu işaretlenmeden gönderim
+  // zaten document-capture fazında engellenir, bu satır yalnızca onayı sunucuya taşır.
+  Object.assign(payload, window.RightsConsent ? RightsConsent.payload() : {});
 
   const patchUrl = isAdminEditingOther
     ? `/api/admin/submissions/projects/${encodeURIComponent(editId)}`
