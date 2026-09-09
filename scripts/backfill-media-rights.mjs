@@ -37,7 +37,7 @@
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { normalizeMediaPath } from '../src/lib/mediaRights.js';
+import { collectEntityMediaUrls, normalizeMediaPath } from '../src/lib/mediaRights.js';
 
 const APPLY = process.argv.includes('--apply');
 // --check-derivatives[=N|all] — KİLİTLİ görsellerin güvenli sürümünün (w400/w800 türevi) GERÇEKTEN
@@ -89,6 +89,8 @@ const rows = d1(`
 const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
 const statements = [];
 const approvedProjectIds = [];
+// Kapsam ölçümü için: KİLİTLİ kalacak her medyanın normalize yolu (dört tip birden).
+const lockedTargets = [];
 let totalImages = 0;
 let approvedImages = 0;
 let lockedImages = 0;
@@ -110,7 +112,7 @@ for (const row of rows) {
     totalImages++;
     const path = normalizeMediaPath(url);
     if (!path) externalImages++;
-    if (claimBacked) approvedImages++; else lockedImages++;
+    if (claimBacked) approvedImages++; else { lockedImages++; if (path) lockedTargets.push(path); }
     statements.push(
       `INSERT OR IGNORE INTO media_rights (id, entity_type, entity_id, media_url, media_path, sort_order,` +
       ` rights_status, public_original_allowed, photographer, content_origin, rights_verified_at, created_at, updated_at)` +
@@ -130,6 +132,70 @@ for (let i = 0; i < approvedProjectIds.length; i += 200) {
   statements.push(`UPDATE projects SET is_copyright_approved = 1 WHERE id IN (${chunk.join(',')});`);
 }
 
+// ---------------------------------------------------------------------------------------------
+// DİĞER ÜÇ TİP (kullanıcı isteği, 2026-09-09 ikinci tur): ürün, kişi, firma/marka.
+// Kural proje ile AYNI: sahiplenilmemişse kilitli, sahiplenilmişse açık. "Sahiplenilmiş" tanımı
+// src/lib/mediaRights.js#isEntityClaimBacked ile BİREBİR aynı olmalı — ikisi ayrışırsa seed ile
+// çalışma zamanı farklı kayıtları sahiplenilmiş sayar.
+// ---------------------------------------------------------------------------------------------
+const EXTRA_TYPES = [
+  {
+    type: 'architect', table: 'architects', cols: 'id, photo_url, portfolio',
+    claimSql: `a.claimed_by_user_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM profile_claims c WHERE c.status='approved' AND c.profile_type='architect'
+                   AND (c.profile_key = a.name OR c.profile_key = a.legacy_key))`,
+    alias: 'a',
+  },
+  {
+    type: 'office', table: 'offices', cols: 'id, logo_url, cover_url',
+    claimSql: `o.claimed_by_user_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM profile_claims c WHERE c.status='approved' AND c.profile_type='office'
+                   AND (c.profile_key = o.name OR c.profile_key = o.legacy_key))`,
+    alias: 'o',
+  },
+  {
+    type: 'product', table: 'products', cols: 'id, images, variants',
+    claimSql: `pr.claimed_by_user_id IS NOT NULL
+      OR bo.claimed_by_user_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM profile_claims c WHERE c.status='approved' AND c.profile_type='office'
+                   AND (c.profile_key = bo.name OR c.profile_key = bo.legacy_key OR c.profile_key = pr.brand_name_raw))`,
+    alias: 'pr',
+    join: 'LEFT JOIN offices bo ON bo.id = pr.brand_office_id AND bo.deleted_at IS NULL',
+  },
+];
+
+const extraStats = {};
+for (const cfg of EXTRA_TYPES) {
+  const prefixed = cfg.cols.split(', ').map(c => `${cfg.alias}.${c}`).join(', ');
+  const rows2 = d1(`
+    SELECT ${prefixed}, CASE WHEN ${cfg.claimSql} THEN 1 ELSE 0 END AS claim_backed
+      FROM ${cfg.table} ${cfg.alias} ${cfg.join || ''}
+     WHERE ${cfg.alias}.deleted_at IS NULL`);
+  let open = 0;
+  let locked = 0;
+  let entities = 0;
+  const openIds = [];
+  for (const row of rows2) {
+    const urls = collectEntityMediaUrls(row, cfg.type);
+    if (!urls.length) continue;
+    entities++;
+    const claimBacked = Number(row.claim_backed) === 1;
+    if (claimBacked) openIds.push(row.id);
+    urls.forEach((url, i) => {
+      const npath = normalizeMediaPath(url);
+      if (claimBacked) open++; else { locked++; if (npath) lockedTargets.push(npath); }
+      statements.push(
+        `INSERT OR IGNORE INTO media_rights (id, entity_type, entity_id, media_url, media_path, sort_order,` +
+        ` rights_status, public_original_allowed, content_origin, rights_verified_at, created_at, updated_at)` +
+        ` VALUES (${q(randomUUID())}, ${q(cfg.type)}, ${row.id}, ${q(url)}, ${q(npath)}, ${i},` +
+        ` ${claimBacked ? "'approved'" : "'unknown'"}, ${claimBacked ? 1 : 0},` +
+        ` ${claimBacked ? "'owner_submitted'" : "'platform_curated'"}, ${claimBacked ? q(now) : 'NULL'}, ${q(now)}, ${q(now)});`
+      );
+    });
+  }
+  extraStats[cfg.type] = { entities, open, locked, openEntities: openIds.length };
+}
+
 console.log('--- TELİF SEED RAPORU ---');
 console.log(`Görselli proje              : ${projectsWithImages}`);
 console.log(`Sahiplenilmiş (açık) proje  : ${approvedProjectIds.length}`);
@@ -138,6 +204,12 @@ console.log(`Toplam görsel               : ${totalImages}`);
 console.log(`  -> approved + orijinal açık: ${approvedImages}`);
 console.log(`  -> kilitli (unknown)       : ${lockedImages}`);
 console.log(`  -> harici host (güvenli sürüm üretilemez, yer tutucu gösterilir): ${externalImages}`);
+for (const [type, st] of Object.entries(extraStats)) {
+  const label = { architect: 'KİŞİ', office: 'FİRMA/MARKA', product: 'ÜRÜN' }[type] || type;
+  console.log(`--- ${label} ---`);
+  console.log(`  medyalı kayıt             : ${st.entities} (açık ${st.openEntities} / kilitli ${st.entities - st.openEntities})`);
+  console.log(`  görsel                    : açık ${st.open} / kilitli ${st.locked}`);
+}
 console.log(`Üretilecek ifade            : ${statements.length}`);
 
 if (CHECK_N) await reportDerivativeCoverage();
@@ -165,15 +237,24 @@ for (const f of files) console.log(`  npx wrangler d1 execute mimarlab-db --remo
 // handleMediaRoute orijinale düşer ve `max-age=3600` yazar (bkz. src/routes/upload.js#
 // DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS). R2 listelemeye gerek yok, HEAD yeterli.
 async function reportDerivativeCoverage() {
-  const targets = [];
-  for (const row of rows) {
-    if (Number(row.claim_backed) === 1) continue;   // yalnızca KİLİTLİ kalacaklar önemli
-    let images = [];
-    try { images = row.images ? JSON.parse(row.images) : []; } catch { images = []; }
-    for (const url of images) {
-      const path = typeof url === 'string' ? normalizeMediaPath(url) : null;
-      if (path) targets.push(path);
-    }
+  // DÖRT TİPİN DE kilitli medyası ölçülür. Kişi fotoğrafları ve firma logoları ZATEN küçük
+  // (mimarlar-thumb/, logos-thumb/) olduğundan türev üretimi onlarda daha sık atlanmıştır —
+  // ölçüm bu yüzden proje dışı tipler için en az proje kadar önemli.
+  //
+  // ZATEN KAYITLI (ve dolayısıyla KAPIDAN GEÇMEYEN) yollar ölçüm dışı bırakılır. Ölçüm yöntemi
+  // türev URL'sine HEAD atıp `immutable` başlığı aramaktır; ama kilit CANLIYA ALINDIKTAN sonra o
+  // URL kapıdan 404 döner ve yöntem "türev yok" ile "kapı kapattı"yı ayırt edemez — canlıda
+  // doğrulandı: seed'li proje medyası bu yüzden %93 "eksik" görünüyordu, oysa türevleri tamdı.
+  // Kayıtlı medyanın kapsamı ZATEN kaydedilmeden ÖNCE ölçülmüştür; burada ölçülmesi gereken,
+  // HENÜZ kaydedilmemiş (yani bir sonraki --apply ile kilitlenecek) medyadır.
+  let registered = new Set();
+  try {
+    registered = new Set(d1('SELECT DISTINCT media_path FROM media_rights WHERE media_path IS NOT NULL')
+      .map(r => r.media_path));
+  } catch { /* tablo henüz yoksa hepsi ölçülür */ }
+  const targets = [...new Set(lockedTargets)].filter(p => !registered.has(p));
+  if (registered.size) {
+    console.log(`(${registered.size} yol zaten kayıtlı/kapıda — ölçüm dışı, kapsamları kayıttan ÖNCE doğrulandı)`);
   }
   const all = CHECK_N === 'all';
   const sample = all ? targets : shuffle(targets).slice(0, Number(CHECK_N) || 200);

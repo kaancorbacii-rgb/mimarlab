@@ -24,7 +24,8 @@
 import { errorJson } from '../lib/http.js';
 import {
   LOCKED_PLACEHOLDER_SVG, SAFE_MEDIA_PREFIX, isOriginalPublic, normalizeMediaPath,
-  SAFE_DERIVATIVE_WIDTH_LADDER, originalR2KeyFor, parseFallbackMediaId, rightsEpoch, safeDerivativeKeyFor,
+  MEDIA_FIELDS_BY_TYPE, SAFE_DERIVATIVE_WIDTH_LADDER, collectEntityMediaUrls, originalR2KeyFor,
+  parseFallbackMediaId, rightsEpoch, safeDerivativeKeyFor,
 } from '../lib/mediaRights.js';
 
 const SAFE_CACHE_SECONDS = 300;
@@ -101,19 +102,19 @@ export async function handleSafeMediaRoute(request, env, url, ctx) {
 
   const fallback = parseFallbackMediaId(mediaId);
   let row = null;
-  let project = null;
 
   if (fallback) {
     // EMNİYET BİÇİMİ — hak satırı olmayan bir görsel. Bu daldan ASLA "izin verildi" çıkmaz:
     // orijinali serbest bırakma kararı yalnızca gerçek bir media_rights satırından doğabilir.
-    project = await env.DB.prepare(
-      `SELECT id, images, is_copyright_approved, deleted_at, hidden_at FROM projects WHERE id = ?`
-    ).bind(fallback.projectId).first();
-    if (!project || project.deleted_at || project.hidden_at) return errorJson('Bulunamadı', 404);
-    let images = [];
-    try { images = project.images ? JSON.parse(project.images) : []; } catch { images = []; }
-    const raw = images[fallback.index];
-    const localPath = normalizeMediaPath(raw);
+    const cfg = MEDIA_FIELDS_BY_TYPE[fallback.entityType];
+    if (!cfg) return errorJson('Bulunamadı', 404);
+    const cols = [...cfg.singleFields, ...cfg.arrayFields, ...(fallback.entityType === 'product' ? ['variants'] : [])];
+    const entity = await env.DB.prepare(
+      `SELECT ${cols.join(', ')}, deleted_at, hidden_at FROM ${cfg.table} WHERE id = ?`
+    ).bind(fallback.entityId).first();
+    if (!entity || entity.deleted_at || entity.hidden_at) return errorJson('Bulunamadı', 404);
+    const urls = collectEntityMediaUrls(entity, fallback.entityType);
+    const localPath = normalizeMediaPath(urls[fallback.index]);
     if (!localPath) return placeholderResponse();
     const safe = await readSafeBytes(env, localPath);
     const response = safe
@@ -122,16 +123,28 @@ export async function handleSafeMediaRoute(request, env, url, ctx) {
     return finish(request, response, cache, cacheKey, ctx);
   }
 
+  // DÖRT VARLIK TİPİ TEK SORGUDA — bkz. src/lib/mediaRights.js#lookupGateDecision'daki aynı desen.
+  // entity_approved yalnızca projelerde ikinci bir düzeydir; diğer tiplerde medya düzeyi tek karardır.
   row = await env.DB.prepare(
     `SELECT m.id, m.entity_type, m.entity_id, m.media_url, m.media_path, m.rights_status,
-            m.public_original_allowed, p.is_copyright_approved, p.deleted_at, p.hidden_at
+            m.public_original_allowed,
+            CASE m.entity_type WHEN 'project' THEN COALESCE(p.is_copyright_approved, 0) ELSE 1 END AS is_copyright_approved,
+            CASE m.entity_type
+              WHEN 'project'   THEN (p.id IS NOT NULL AND p.deleted_at IS NULL AND p.hidden_at IS NULL)
+              WHEN 'product'   THEN (pr.id IS NOT NULL AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL)
+              WHEN 'architect' THEN (a.id IS NOT NULL AND a.deleted_at IS NULL AND a.hidden_at IS NULL)
+              WHEN 'office'    THEN (o.id IS NOT NULL AND o.deleted_at IS NULL AND o.hidden_at IS NULL)
+              ELSE 0 END AS entity_visible
        FROM media_rights m
-       LEFT JOIN projects p ON m.entity_type = 'project' AND p.id = m.entity_id
+       LEFT JOIN projects   p  ON m.entity_type = 'project'   AND p.id  = m.entity_id
+       LEFT JOIN products   pr ON m.entity_type = 'product'   AND pr.id = m.entity_id
+       LEFT JOIN architects a  ON m.entity_type = 'architect' AND a.id  = m.entity_id
+       LEFT JOIN offices    o  ON m.entity_type = 'office'    AND o.id  = m.entity_id
       WHERE m.id = ?`
   ).bind(mediaId).first();
   if (!row) return errorJson('Bulunamadı', 404);
-  // Silinmiş/gizlenmiş projenin medyası hiçbir biçimde (güvenli sürüm dahil) servis edilmez.
-  if (row.deleted_at || row.hidden_at) return errorJson('Bulunamadı', 404);
+  // Silinmiş/gizlenmiş kaydın medyası hiçbir biçimde (güvenli sürüm dahil) servis edilmez.
+  if (Number(row.entity_visible) !== 1) return errorJson('Bulunamadı', 404);
   // 'removed' = takedown. Güvenli sürüm bile verilmez (bkz. kullanıcı isteği madde 11: içerik
   // "tamamen gizlenebilir"); yükte zaten hiç görünmez (bkz. applyProjectImageRights).
   if (row.rights_status === 'removed') return errorJson('Bulunamadı', 404);

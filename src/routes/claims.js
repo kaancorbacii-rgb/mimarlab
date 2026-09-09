@@ -1,4 +1,5 @@
 import { json, errorJson, readJson } from '../lib/http.js';
+import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
@@ -114,11 +115,15 @@ async function myClaims(env, user) {
   // adıyla eşleşen kendi kaydı (bkz. fetchOwnArchitectRows).
   const own = await fetchOwnArchitectRows(env, user);
   const ownArchitect = own.claimed[0] || own.selfNamed[0] || null;
-  return json({
+  // TELİF KİLİDİ (2026-09-09 ikinci tur): bu kutu YALNIZCA onaylı taleplerin görselini gösterir ve
+  // sahiplenilmiş profilin medyası zaten açıktır — yani tarama pratikte hiçbir şeyi değiştirmez.
+  // Yine de duruyor: bir profil sonradan ihtilaflı/kaldırılmış duruma geçerse ham yol kapıdan 404
+  // döner ve kutu kırık görsel gösterirdi (bkz. src/routes/messages.js'teki aynı gerekçe).
+  return json(await scrubLockedMediaPayload(env, {
     items,
     officeLinks,
     architectProfile: ownArchitect ? { name: ownArchitect.name, slug: ownArchitect.slug } : null,
-  });
+  }));
 }
 
 async function createClaim(request, env, user) {

@@ -34,8 +34,21 @@ export const RIGHTS_DECLARATION_TEXT = 'Yüklediğim tüm görsellerin yayın ha
 export const RIGHTS_STATUSES = ['unknown', 'pending', 'approved', 'disputed', 'removed'];
 export const CONTENT_ORIGINS = ['platform_curated', 'owner_submitted', 'photographer_submitted', 'user_submitted'];
 
-// Bu turda YALNIZCA proje görselleri kaydedilir/kapıdan geçirilir (bkz. migrations/0106 başlığı).
-export const REGISTERED_ENTITY_TYPES = ['project'];
+// Kullanıcı isteği (2026-09-09, ikinci tur): kilit artık DÖRT varlık tipini de kapsıyor — proje,
+// ürün, kişi ve firma/marka. media_rights.entity_type baştan jenerik tasarlandığı için ŞEMA
+// DEĞİŞMEDİ (bkz. migrations/0106'daki CHECK kısıtı); eklenen tek şey bu tiplerin kaydı ve okuma
+// yollarındaki dönüşüm.
+export const REGISTERED_ENTITY_TYPES = ['project', 'product', 'architect', 'office'];
+
+// Her tipin hangi kolonlarında medya durduğu — kayıt (registrar) ve backfill TEK yerden okur.
+//   arrayFields : JSON dizi kolonları (çok görselli galeri)
+//   singleFields: tek bir URL taşıyan kolonlar (avatar/logo/kapak)
+export const MEDIA_FIELDS_BY_TYPE = {
+  project:   { table: 'projects',   arrayFields: ['images'], singleFields: [] },
+  product:   { table: 'products',   arrayFields: ['images'], singleFields: [] },
+  architect: { table: 'architects', arrayFields: ['portfolio'], singleFields: ['photo_url'] },
+  office:    { table: 'offices',    arrayFields: [], singleFields: ['logo_url', 'cover_url'] },
+};
 
 // Güvenli (kilitli) sürümün genişliği — image-cdn.js#DERIVATIVE_WIDTHS'in EN KÜÇÜK basamağıyla
 // BİREBİR aynı olmalı, aksi halde var olmayan bir türev istenir ve her kilitli görsel yer tutucuya
@@ -59,11 +72,19 @@ export const SAFE_MEDIA_PREFIX = '/api/media/';
 // "p-51-0" biçimini HİÇ eşleştirmiyordu, yani o projelerin kayıtsız bir görseli emniyet yolundan
 // güvenli sürümü alamayıp 404 alırdı. `-?` ile işaret kabul edilir; ayrıştırma yine tekdüzedir
 // çünkü index HER ZAMAN negatif olmayan bir tam sayıdır ve SON tire ayraçtır.
-const FALLBACK_ID_RE = /^p(-?\d+)-(\d+)$/;
-export function fallbackSafeMediaId(projectId, index) { return `p${projectId}-${index}`; }
+// Tip öneki: p=project, r=product, a=architect, o=office. Tek harf, ardından (negatif olabilen)
+// varlık id'si ve görselin dizideki sırası.
+const FALLBACK_TYPE_CHAR = { project: 'p', product: 'r', architect: 'a', office: 'o' };
+const FALLBACK_CHAR_TYPE = { p: 'project', r: 'product', a: 'architect', o: 'office' };
+const FALLBACK_ID_RE = /^([proa])(-?\d+)-(\d+)$/;
+export function fallbackSafeMediaId(entityId, index, entityType) {
+  return `${FALLBACK_TYPE_CHAR[entityType] || 'p'}${entityId}-${index}`;
+}
 export function parseFallbackMediaId(id) {
   const m = FALLBACK_ID_RE.exec(id || '');
-  return m ? { projectId: Number(m[1]), index: Number(m[2]) } : null;
+  if (!m) return null;
+  // projectId adı geriye dönük uyumluluk için korunur (mevcut çağıranlar okuyor).
+  return { entityType: FALLBACK_CHAR_TYPE[m[1]], entityId: Number(m[2]), projectId: Number(m[2]), index: Number(m[3]) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -160,7 +181,7 @@ export function mediaBucketOf(row, projectApproved) {
 //
 // GRUP İÇİ SIRA KORUNUR: sıralama, orijinal dizideki index'e göre STABİL — mevcut editoryal sıra
 // (proje-ekle.html'de sürükle-bırakla belirlenen görsel sırası) bucket'ın İÇİNDE aynen kalır.
-export function applyProjectImageRights(item, projectId, rows, projectApproved) {
+export function applyProjectImageRights(item, entityId, rows, projectApproved, entityType) {
   const images = Array.isArray(item.images) ? item.images : [];
   if (!images.length) return item;
 
@@ -184,7 +205,7 @@ export function applyProjectImageRights(item, projectId, rows, projectApproved) 
   const urlMap = new Map();
   for (const e of kept) {
     if (e.bucket === 0) { out.push(e.url); urlMap.set(e.url, e.url); continue; }
-    const safe = e.row ? `${SAFE_MEDIA_PREFIX}${e.row.id}` : `${SAFE_MEDIA_PREFIX}${fallbackSafeMediaId(projectId, e.i)}`;
+    const safe = e.row ? `${SAFE_MEDIA_PREFIX}${e.row.id}` : `${SAFE_MEDIA_PREFIX}${fallbackSafeMediaId(entityId, e.i, entityType)}`;
     out.push(safe);
     urlMap.set(e.url, safe);
     rights[safe] = { locked: true, status: e.row ? e.row.rights_status : 'unknown' };
@@ -216,11 +237,30 @@ const MEDIA_COLUMNS = `id, entity_type, entity_id, media_url, media_path, sort_o
   rights_verified_by, rights_declaration_version, content_origin`;
 
 export async function fetchProjectMediaRights(env, projectId) {
-  if (!projectId) return [];
+  return fetchEntityMediaRights(env, 'project', projectId);
+}
+
+export async function fetchEntityMediaRights(env, entityType, entityId) {
+  if (!entityId) return [];
   const { results } = await env.DB.prepare(
-    `SELECT ${MEDIA_COLUMNS} FROM media_rights WHERE entity_type = 'project' AND entity_id = ? ORDER BY sort_order ASC`
-  ).bind(projectId).all();
+    `SELECT ${MEDIA_COLUMNS} FROM media_rights WHERE entity_type = ? AND entity_id = ? ORDER BY sort_order ASC`
+  ).bind(entityType, entityId).all();
   return results || [];
+}
+
+// Bir varlık tipinin TÜM medya satırları, entity_id'ye göre gruplanmış — havuz yolları için
+// (bkz. fetchAllProjectMediaRights'taki aynı maliyet gerekçesi: havuzlar KV'de 30 dk önbellekli).
+export async function fetchAllEntityMediaRights(env, entityType) {
+  const { results } = await env.DB.prepare(
+    `SELECT ${MEDIA_COLUMNS} FROM media_rights WHERE entity_type = ? ORDER BY entity_id ASC, sort_order ASC`
+  ).bind(entityType).all();
+  const byEntity = new Map();
+  for (const row of results || []) {
+    let list = byEntity.get(row.entity_id);
+    if (!list) { list = []; byEntity.set(row.entity_id, list); }
+    list.push(row);
+  }
+  return byEntity;
 }
 
 // HAVUZ YOLU (fetchActiveProjectPool) için: TEK sorguda tüm proje medyası.
@@ -292,10 +332,16 @@ export async function applyRightsToShapedProjects(env, pairs, byProject) {
 // defaultStatus: yeni satırların başlangıç durumu. Sahiplenilmiş bir profilin kendi gönderdiği
 // içerikte 'approved'+izinli (kullanıcı beyanı alınmıştır), diğer her durumda 'unknown'.
 export async function registerProjectMedia(env, projectId, images, opts) {
-  if (!projectId) return { added: 0, removed: 0 };
+  return registerEntityMedia(env, 'project', projectId, images, opts);
+}
+
+// Jenerik kayıt — dört varlık tipi için de AYNI kural: var olan satırların HAK DURUMUNA dokunmaz,
+// yalnızca eksikleri ekler, artık kayıtta olmayanları siler, sort_order'ı tazeler.
+export async function registerEntityMedia(env, entityType, entityId, images, opts) {
+  if (!entityId || !REGISTERED_ENTITY_TYPES.includes(entityType)) return { added: 0, removed: 0 };
   const o = opts || {};
   const list = Array.isArray(images) ? images.filter(u => typeof u === 'string' && u.trim()) : [];
-  const existing = await fetchProjectMediaRights(env, projectId);
+  const existing = await fetchEntityMediaRights(env, entityType, entityId);
   const existingByUrl = new Map(existing.map(r => [r.media_url, r]));
   const wanted = new Set(list);
 
@@ -318,9 +364,9 @@ export async function registerProjectMedia(env, projectId, images, opts) {
       `INSERT INTO media_rights (id, entity_type, entity_id, media_url, media_path, sort_order,
          rights_status, public_original_allowed, photographer, copyright_holder, source_url,
          rights_verified_at, rights_verified_by, rights_declaration_version, content_origin, created_at, updated_at)
-       VALUES (?, 'project', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
-      crypto.randomUUID(), projectId, url, normalizeMediaPath(url), i,
+      crypto.randomUUID(), entityType, entityId, url, normalizeMediaPath(url), i,
       status, allowOriginal, o.photographer || null, o.copyrightHolder || null, o.sourceUrl || null,
       status === 'approved' ? now : null, o.verifiedBy || null,
       o.declarationVersion || null, origin, now, now,
@@ -408,7 +454,16 @@ export async function setMediaRightsStatus(env, mediaId, next, actor) {
 // Bir önek eklemek, o dizindeki KAYITSIZ dosyaları etkilemez: kapı yalnızca media_rights satırı
 // OLAN yolları reddeder (bkz. lookupGateDecision) — dolayısıyla miras/ altındaki proje dışı
 // içerikler eskisi gibi açık kalır.
-const GATED_STATIC_PREFIXES = ['/projects/', '/miras/'];
+// Canlı veriden ölçüldü (2026-09-09): proje görselleri /media/, /projects/, /miras/ altında;
+// KİŞİ fotoğraflarının 708'i `mimarlar-thumb/`, FİRMA logolarının 544'ü `logos-thumb/` ve 48'i
+// yine `mimarlar-thumb/` altında duruyor (kolonlarda BAŞTA EĞİK ÇİZGİSİZ saklanıyorlar — bkz.
+// js/components/project-meta.js'teki aynı not). Bu dört dizin eklenmezse o medyanın orijinali
+// kayıtlı olsa bile doğrudan indirilebilir kalırdı.
+//
+// /logos/ BURADA OLMASI TEHLİKELİ DEĞİL: kapı yalnızca media_rights'ta KAYDI OLAN yolu reddeder.
+// Sitenin kendi logoları ve favicon'ları (/logos/site/*) hiçbir zaman kaydedilmez, dolayısıyla
+// eskisi gibi herkese açık kalır (regresyon testi: scripts/test-media-rights.mjs).
+const GATED_STATIC_PREFIXES = ['/projects/', '/miras/', '/mimarlar/', '/mimarlar-thumb/', '/logos/', '/logos-thumb/'];
 const DERIVED_KEY_RE = /^_derived\/w(\d+)\/(r2|s)\/(.+)$/;
 
 export function gatePathFor(pathname) {
@@ -504,16 +559,37 @@ export async function lookupGateDecision(env, gatePath) {
 
   let decision = { gated: false };
   try {
+    // DÖRT VARLIK TİPİ TEK SORGUDA. Proje tarafında onay İKİ düzeylidir (medya + projects.
+    // is_copyright_approved, bkz. migrations/0106 başlığı); diğer üç tipte entity_approved her zaman
+    // 1'dir çünkü orada ikinci bir düzey yoktur — bir firmanın kendi logosunun ya da bir kişinin
+    // kendi portresinin hak sahibi tek bir taraftır, projenin künyesi/fotoğrafçısı ayrımı yoktur.
+    // Silinmiş/gizlenmiş kaydın medyası HER tipte kapalıdır (entity_visible = 0).
     const row = await env.DB.prepare(
-      `SELECT m.id, m.rights_status, m.public_original_allowed, p.is_copyright_approved
+      `SELECT m.id, m.rights_status, m.public_original_allowed,
+              CASE m.entity_type WHEN 'project' THEN COALESCE(p.is_copyright_approved, 0) ELSE 1 END AS entity_approved,
+              CASE m.entity_type
+                WHEN 'project'   THEN (p.id IS NOT NULL AND p.deleted_at IS NULL AND p.hidden_at IS NULL)
+                WHEN 'product'   THEN (pr.id IS NOT NULL AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL)
+                WHEN 'architect' THEN (a.id IS NOT NULL AND a.deleted_at IS NULL AND a.hidden_at IS NULL)
+                WHEN 'office'    THEN (o.id IS NOT NULL AND o.deleted_at IS NULL AND o.hidden_at IS NULL)
+                ELSE 0 END AS entity_visible
          FROM media_rights m
-         LEFT JOIN projects p ON m.entity_type = 'project' AND p.id = m.entity_id
+         LEFT JOIN projects   p  ON m.entity_type = 'project'   AND p.id  = m.entity_id
+         LEFT JOIN products   pr ON m.entity_type = 'product'   AND pr.id = m.entity_id
+         LEFT JOIN architects a  ON m.entity_type = 'architect' AND a.id  = m.entity_id
+         LEFT JOIN offices    o  ON m.entity_type = 'office'    AND o.id  = m.entity_id
         WHERE m.media_path = ?
-        ORDER BY (m.rights_status = 'approved' AND m.public_original_allowed = 1
-                  AND COALESCE(p.is_copyright_approved, 0) = 1) DESC
+        ORDER BY (m.rights_status = 'approved' AND m.public_original_allowed = 1) DESC
         LIMIT 1`
     ).bind(gatePath).first();
-    if (row) decision = { gated: true, allowed: isOriginalPublic(row, Number(row.is_copyright_approved) === 1), mediaId: row.id };
+    if (row) {
+      const visible = Number(row.entity_visible) === 1;
+      decision = {
+        gated: true,
+        allowed: visible && isOriginalPublic(row, Number(row.entity_approved) === 1),
+        mediaId: row.id,
+      };
+    }
   } catch {
     // D1 okunamadıysa MEVCUT DAVRANIŞ korunur (gated:false). Bu bilinçli bir seçim: veritabanı
     // arızasında sitedeki tüm görselleri karartmak, kilitli bir görselin o pencerede erişilebilir
@@ -702,4 +778,246 @@ export async function syncProjectMediaRights(env, projectId, opts) {
     await env.DB.prepare(`UPDATE projects SET is_copyright_approved = 1 WHERE id = ?`).bind(projectId).run();
   }
   return { ...result, status, claimBacked };
+}
+
+// ---------------------------------------------------------------------------------------------
+// DÖRT TİP İÇİN SAHİPLİK VE KAYIT (kullanıcı isteği, 2026-09-09 ikinci tur)
+// ---------------------------------------------------------------------------------------------
+// Kural aynı: SAHİPLENİLMEMİŞ her kaydın medyası kilitli başlar, sahiplenilmiş olanlarınki açık.
+// "Sahiplenilmiş" tanımı her tipte sitenin BAŞKA yerlerinde zaten kullanılan tanımdır — yeni bir
+// sahiplik kavramı icat edilmedi (bkz. src/lib/claimedProfiles.js#anyProfileClaimed ve
+// isProjectClaimBacked'in üç yolu).
+//
+// profile_claims bu depoda ÇIPLAK İSİMLE anahtarlanır (bkz. proje notu: "Duplicate name key
+// limitation"), bu yüzden eşleştirme name/legacy_key üzerinden yapılır — claimedProfiles.js'in
+// yaptığının aynısı.
+export async function isEntityClaimBacked(env, entityType, entityId) {
+  if (!entityId) return false;
+  if (entityType === 'project') return isProjectClaimBacked(env, entityId);
+
+  if (entityType === 'architect') {
+    const row = await env.DB.prepare(
+      `SELECT 1 AS ok FROM architects a
+        WHERE a.id = ?1 AND (
+          a.claimed_by_user_id IS NOT NULL
+          OR EXISTS (SELECT 1 FROM profile_claims c
+                      WHERE c.status = 'approved' AND c.profile_type = 'architect'
+                        AND (c.profile_key = a.name OR c.profile_key = a.legacy_key)))
+        LIMIT 1`
+    ).bind(entityId).first();
+    return !!row;
+  }
+
+  if (entityType === 'office') {
+    const row = await env.DB.prepare(
+      `SELECT 1 AS ok FROM offices o
+        WHERE o.id = ?1 AND (
+          o.claimed_by_user_id IS NOT NULL
+          OR EXISTS (SELECT 1 FROM profile_claims c
+                      WHERE c.status = 'approved' AND c.profile_type = 'office'
+                        AND (c.profile_key = o.name OR c.profile_key = o.legacy_key)))
+        LIMIT 1`
+    ).bind(entityId).first();
+    return !!row;
+  }
+
+  if (entityType === 'product') {
+    // Ürünün sahibi ya ürünü sahiplenen üye ya da MARKASINI sahiplenen üyedir — marka sahipliği
+    // ürün künyesini de yönetme yetkisi verir (bkz. proje notu: "Ürün etiketleme = rozet
+    // ayrıcalığı", onay hep marka sahibindedir). brand_name_raw, canonical bir offices satırına
+    // bağlanamamış markalar için fallback'tir; onun için de ad üzerinden talep aranır.
+    const row = await env.DB.prepare(
+      `SELECT 1 AS ok FROM products pr
+         LEFT JOIN offices o ON o.id = pr.brand_office_id AND o.deleted_at IS NULL
+        WHERE pr.id = ?1 AND (
+          pr.claimed_by_user_id IS NOT NULL
+          OR o.claimed_by_user_id IS NOT NULL
+          OR EXISTS (SELECT 1 FROM profile_claims c
+                      WHERE c.status = 'approved' AND c.profile_type = 'office'
+                        AND (c.profile_key = o.name OR c.profile_key = o.legacy_key
+                             OR c.profile_key = pr.brand_name_raw)))
+        LIMIT 1`
+    ).bind(entityId).first();
+    return !!row;
+  }
+  return false;
+}
+
+// Bir varlık satırındaki TÜM medya URL'lerini, MEDIA_FIELDS_BY_TYPE'a göre sırayla toplar.
+export function collectEntityMediaUrls(row, entityType) {
+  const cfg = MEDIA_FIELDS_BY_TYPE[entityType];
+  if (!cfg || !row) return [];
+  const urls = [];
+  const push = (v) => { if (typeof v === 'string' && v.trim()) urls.push(v.trim()); };
+  for (const field of cfg.singleFields) push(row[field]);
+  for (const field of cfg.arrayFields) {
+    let arr = [];
+    try { arr = row[field] ? JSON.parse(row[field]) : []; } catch { arr = []; }
+    if (Array.isArray(arr)) arr.forEach(push);
+  }
+  // ÜRÜN VERSİYONLARI: products.variants[].images, pop-up'ta ürünün KENDİ galerisini GÖLGELER
+  // (bkz. proje notu: "Versiyonlar ürün galerisini gölgeler" — seçili versiyonun görselleri
+  // öncelikli okunuyor). Kaydedilmezlerse kilitli bir ürünün asıl gösterilen görselleri kapının
+  // dışında kalırdı.
+  if (entityType === 'product' && row.variants) {
+    let variants = [];
+    try { variants = JSON.parse(row.variants); } catch { variants = []; }
+    if (Array.isArray(variants)) {
+      for (const v of variants) {
+        if (v && Array.isArray(v.images)) v.images.forEach(push);
+      }
+    }
+  }
+  return [...new Set(urls)];
+}
+
+// Canonical bir kayıt yazıldıktan SONRA çağrılır (syncProjectMediaRights'ın dört tipe genellenmiş
+// hâli). Medyayı GERÇEĞİN KENDİSİNDEN (satırdan) okur — çağıranın elindeki diziden değil.
+export async function syncEntityMediaRights(env, entityType, entityId, opts) {
+  if (!entityId || !REGISTERED_ENTITY_TYPES.includes(entityType)) return null;
+  if (entityType === 'project') return syncProjectMediaRights(env, entityId, opts);
+  const cfg = MEDIA_FIELDS_BY_TYPE[entityType];
+  const cols = [...cfg.singleFields, ...cfg.arrayFields, ...(entityType === 'product' ? ['variants'] : [])];
+  const row = await env.DB.prepare(
+    `SELECT ${cols.join(', ')} FROM ${cfg.table} WHERE id = ?`
+  ).bind(entityId).first();
+  if (!row) return null;
+  const urls = collectEntityMediaUrls(row, entityType);
+  const claimBacked = await isEntityClaimBacked(env, entityType, entityId);
+  const o = opts || {};
+  return registerEntityMedia(env, entityType, entityId, urls, {
+    // Sahiplenilmiş kayıtta medya AÇIK başlar (kullanıcının kendi içeriği); değilse kilitli.
+    defaultStatus: claimBacked ? 'approved' : 'unknown',
+    publicOriginalAllowed: true,
+    contentOrigin: claimBacked ? 'owner_submitted' : 'platform_curated',
+    declarationVersion: o.declarationVersion || null,
+    verifiedBy: o.ownerUserId || null,
+  });
+}
+
+// Bir profil TALEBİ ONAYLANDIĞINDA çağrılır: o kaydın (ve kişi/firma ise ilişkili projelerinin)
+// kilitli medyası açılır.
+//
+// NEDEN GEREKLİ: seed "şu an sahiplenilmemiş olan kilitli" der. Kullanıcı profilini SONRADAN
+// sahiplendiğinde bu karar yeniden değerlendirilmezse profil sonsuza kadar bulanık kalırdı —
+// sistemin en görünür kırılma biçimi bu olurdu.
+//
+// YALNIZCA 'unknown'/'pending' satırlar açılır: 'disputed'/'removed' bir hak sahibi kararıdır ve
+// bir profil sahiplenmesi onu geri alamaz.
+export async function openMediaForClaimedEntity(env, entityType, entityId) {
+  if (!entityId || !REGISTERED_ENTITY_TYPES.includes(entityType)) return { opened: 0 };
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const res = await env.DB.prepare(
+    `UPDATE media_rights
+        SET rights_status = 'approved', public_original_allowed = 1,
+            content_origin = 'owner_submitted', rights_verified_at = ?, updated_at = ?
+      WHERE entity_type = ? AND entity_id = ? AND rights_status IN ('unknown', 'pending')`
+  ).bind(now, now, entityType, entityId).run();
+  const opened = (res && res.meta && res.meta.changes) || 0;
+  if (opened && entityType === 'project') {
+    await env.DB.prepare(`UPDATE projects SET is_copyright_approved = 1 WHERE id = ?`).bind(entityId).run();
+  }
+  return { opened };
+}
+
+// ---------------------------------------------------------------------------------------------
+// HAVUZ SIRALAMASI (kullanıcı isteği, 2026-09-09 ikinci tur: "ana sayfadaki caroseller için de")
+// ---------------------------------------------------------------------------------------------
+// Kişi/firma/ürün listeleri projeninkinden FARKLI çalışır: hepsi tek parça bir "havuz" olarak
+// çekilip KV'de önbelleklenir ve sayfalama/filtreleme JS'te yapılır (bkz. publicCache.js#
+// getCachedPool). Bu yüzden projede olduğu gibi bir SQL kolonuna (rights_bucket) ve trigger'lara
+// GEREK YOK — sıra burada, havuz kurulurken bir kez hesaplanır ve 30 dakika boyunca bedava gelir.
+//
+// Ana sayfa carousel'leri, /kisi /firma /marka /urun listeleri ve arama hep AYNI havuzu tükettiği
+// için tek bir yerde sıralamak dört yüzeyi birden kapsar.
+export function entityRightsBucketFrom(rows) {
+  const list = rows || [];
+  if (!list.length) return 1;                                     // medyası yok — nötr
+  if (list.some(r => r.rights_status === 'approved' && Number(r.public_original_allowed) === 1)) return 0;
+  if (list.some(r => r.rights_status !== 'disputed' && r.rights_status !== 'removed')) return 1;
+  return 2;                                                       // hepsi ihtilaflı/kaldırılmış
+}
+
+// Ham D1 satırlarını telif grubuna göre STABİL sıralar: grup içindeki MEVCUT sıra (sorgunun kendi
+// ORDER BY'ı — display_order, id DESC vb.) aynen korunur, yalnızca gruplar üst üste dizilir.
+// ORDER BY RANDOM() kullanılmaz; sıra tamamen deterministiktir.
+export async function orderRowsByRightsBucket(env, entityType, rows) {
+  const list = rows || [];
+  if (!list.length) return list;
+  let byEntity;
+  try { byEntity = await fetchAllEntityMediaRights(env, entityType); } catch { return list; }
+  if (!byEntity.size) return list;
+  return list
+    .map((row, i) => ({ row, i, bucket: entityRightsBucketFrom(byEntity.get(row.id)) }))
+    .sort((a, b) => (a.bucket - b.bucket) || (a.i - b.i))
+    .map(x => x.row);
+}
+
+// SSR/meta katmanı için ince sarmalayıcı: bir varlığın medya URL'lerini güvenli biçimlerine
+// çevirir ve hangilerinin kilitli olduğunu döndürür.
+//   urls   — hak grubuna göre sıralanmış, kilitliler /api/media/<id> ile değiştirilmiş liste
+//   locked — o listedeki KİLİTLİ URL'lerin kümesi
+// Kullanım kuralı (projede kurulan ilkeyle aynı): SAYFA GÖVDESİ kilitli görselin güvenli sürümünü
+// gösterir, ama JSON-LD/OpenGraph'a YALNIZCA gerçekten açık olanlar yazılır — indexlenmeyeceğini
+// bildiğimiz bir URL'i arama motoruna ilan etmenin anlamı yok (bkz. src/routes/media.js'in
+// X-Robots-Tag: noindex başlığı).
+export async function safeMediaUrlsFor(env, entityType, entityId, urls, entityApproved) {
+  const list = (urls || []).filter(u => typeof u === 'string' && u.trim());
+  if (!entityId || !list.length) return { urls: list, locked: new Set() };
+  let rows = [];
+  try { rows = await fetchEntityMediaRights(env, entityType, entityId); } catch { return { urls: list, locked: new Set() }; }
+  const holder = { images: list };
+  applyProjectImageRights(holder, entityId, rows, entityApproved !== false, entityType);
+  return { urls: holder.images, locked: new Set(Object.keys(holder.imageRights || {})) };
+}
+
+// Bir profil TALEBİ ONAYLANDIĞINDA (ya da admin doğrudan atadığında) çağrılır — seed kuralının
+// ÇALIŞMA ZAMANI KARŞILIĞI.
+//
+// Seed "şu an sahiplenilmemiş olan kilitli" der. Kullanıcı profilini SONRADAN sahiplendiğinde bu
+// karar yeniden değerlendirilmezse profil sonsuza kadar bulanık kalırdı — sistemin en görünür
+// kırılma biçimi bu olurdu ve kullanıcı "sahiplendim ama hiçbir şey değişmedi" derdi.
+//
+// KAPSAM, seed'in kapsamıyla BİREBİR AYNI olmalı (aksi halde aynı içerik iki yoldan iki farklı
+// sonuç alır):
+//   * profilin KENDİ medyası (kişi fotoğrafı / firma logosu+kapağı)
+//   * o profilin künyede geçtiği PROJELER (isProjectClaimBacked'in (b)/(c) yolları)
+//   * firma/marka ise o markanın ÜRÜNLERİ (isEntityClaimBacked'in ürün dalı)
+//
+// profile_claims ÇIPLAK İSİMLE anahtarlanır (bkz. proje notu: "Duplicate name key limitation"),
+// bu yüzden eşleştirme name/legacy_key üzerindendir.
+export async function openMediaForClaimKey(env, profileType, profileKey) {
+  if (!profileKey || (profileType !== 'architect' && profileType !== 'office')) return { opened: 0 };
+  const table = profileType === 'architect' ? 'architects' : 'offices';
+  const entity = await env.DB.prepare(
+    `SELECT id FROM ${table} WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ?) LIMIT 1`
+  ).bind(profileKey, profileKey).first();
+  if (!entity) return { opened: 0 };
+
+  let opened = 0;
+  opened += (await openMediaForClaimedEntity(env, profileType, entity.id)).opened;
+
+  // Künyesinde bu profil geçen projeler.
+  const column = profileType === 'architect' ? 'architect_id' : 'office_id';
+  const { results: projectRows } = await env.DB.prepare(
+    `SELECT DISTINCT pd.project_id AS id FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id AND p.deleted_at IS NULL
+      WHERE pd.${column} = ?`
+  ).bind(entity.id).all();
+  for (const r of projectRows || []) {
+    opened += (await openMediaForClaimedEntity(env, 'project', r.id)).opened;
+  }
+
+  // Markanın ürünleri.
+  if (profileType === 'office') {
+    const { results: productRows } = await env.DB.prepare(
+      `SELECT id FROM products WHERE brand_office_id = ? AND deleted_at IS NULL`
+    ).bind(entity.id).all();
+    for (const r of productRows || []) {
+      opened += (await openMediaForClaimedEntity(env, 'product', r.id)).opened;
+    }
+  }
+
+  if (opened) await bumpRightsEpoch(env);
+  return { opened };
 }

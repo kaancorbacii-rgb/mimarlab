@@ -27,7 +27,8 @@ import {
   fallbackSafeMediaId, gatePathFor, isOriginalPublic, lookupGateDecision, mediaBucketOf,
   normalizeMediaPath, parseFallbackMediaId, rightsEpoch,
   registerProjectMedia, safeDerivativeKeyFor, scrubLockedMediaPayload, setMediaRightsStatus,
-  syncProjectMediaRights,
+  syncProjectMediaRights, collectEntityMediaUrls, entityRightsBucketFrom, isEntityClaimBacked,
+  openMediaForClaimKey, orderRowsByRightsBucket, registerEntityMedia, syncEntityMediaRights,
 } from '../src/lib/mediaRights.js';
 import { derivedImageUrl, derivedSrcset } from '../src/lib/imageDerivative.js';
 import { fetchActiveProjectPool } from '../src/lib/projectPool.js';
@@ -123,11 +124,15 @@ await test('mutlak/göreli/öneksiz biçimlerin hepsi aynı kanonik yola indirge
   assert.equal(normalizeMediaPath('//mimarlab.com/projects/a.webp'), '/projects/a.webp');
 });
 
-await test('emniyet biçimi NEGATİF proje id\'lerini de çözer (canlıda 48 aktif proje negatif)', () => {
-  assert.deepEqual(parseFallbackMediaId('p-51-0'), { projectId: -51, index: 0 });
-  assert.deepEqual(parseFallbackMediaId('p1850-7'), { projectId: 1850, index: 7 });
+await test('emniyet biçimi NEGATİF id\'leri ve DÖRT varlık tipini çözer', () => {
+  // Negatif id gerçek: canlıda 48 aktif projenin id'si negatif (min -51).
+  assert.deepEqual(parseFallbackMediaId('p-51-0'), { entityType: 'project', entityId: -51, projectId: -51, index: 0 });
+  assert.deepEqual(parseFallbackMediaId('a12-3'), { entityType: 'architect', entityId: 12, projectId: 12, index: 3 });
+  assert.deepEqual(parseFallbackMediaId('o7-0'), { entityType: 'office', entityId: 7, projectId: 7, index: 0 });
+  assert.deepEqual(parseFallbackMediaId('r99-1'), { entityType: 'product', entityId: 99, projectId: 99, index: 1 });
   assert.equal(parseFallbackMediaId('not-a-fallback-id'), null);
-  assert.equal(fallbackSafeMediaId(-51, 0), 'p-51-0');
+  assert.equal(fallbackSafeMediaId(-51, 0, 'project'), 'p-51-0');
+  assert.equal(fallbackSafeMediaId(12, 3, 'architect'), 'a12-3');
 });
 
 await test('harici host ve data: URL null döner (kapı onlara dokunmaz)', () => {
@@ -141,15 +146,17 @@ await test('(madde 6) türev yolları KAYNAK görsele indirgenir — w800/w1600 
   assert.equal(gatePathFor('/media/_derived/w400/s/projects/a.webp'), '/projects/a.webp');
 });
 
-await test('kapı /media, /projects ve /miras altında çalışır; diğer dizinler dokunulmaz', () => {
-  // /miras/ canlı veriden geldi: 29.045 proje görselinin 2.720'i orada duruyor (bkz.
-  // GATED_STATIC_PREFIXES'teki ölçüm notu). Listeye alınmasaydı o görsellerin orijinali açık kalırdı.
-  assert.equal(gatePathFor('/miras/x.webp'), '/miras/x.webp');
-  assert.equal(gatePathFor('/projects/x.webp'), '/projects/x.webp');
-  assert.equal(gatePathFor('/media/u/a/b.webp'), '/media/u/a/b.webp');
-  assert.equal(gatePathFor('/logos/x.png'), null);
-  assert.equal(gatePathFor('/mimarlar-thumb/x.webp'), null);
-  assert.equal(gatePathFor('/fonts/x.woff2'), null);
+await test('kapı medyanın GERÇEKTEN durduğu tüm dizinleri kapsar', () => {
+  // Hepsi canlı veriden: proje görselleri /media/ + /projects/ + /miras/; kişi fotoğraflarının
+  // 708'i mimarlar-thumb/, firma logolarının 544'ü logos-thumb/ ve 48'i mimarlar-thumb/ altında.
+  for (const p of ['/media/u/a/b.webp', '/projects/x.webp', '/miras/x.webp',
+                   '/mimarlar/x.jpg', '/mimarlar-thumb/y/z.jpg', '/logos/a.png', '/logos-thumb/b/c.jpg']) {
+    assert.equal(gatePathFor(p), p, `kapsanması gereken yol kapı dışında: ${p}`);
+  }
+  // Kapsam dışı dizinler DOKUNULMAZ.
+  for (const p of ['/fonts/x.woff2', '/js/components/gallery.js', '/models/a.glb', '/favicon.ico']) {
+    assert.equal(gatePathFor(p), null, `kapsam dışı yol kapıya alındı: ${p}`);
+  }
 });
 
 await test('(madde 4) KODLANMIŞ TRAVERSAL MATRİSİ — normalizasyon sonrası allowlist yeniden uygulanır', () => {
@@ -774,6 +781,133 @@ section('8b) SSR / meta katmanı (madde 2, 3)');
     assert.equal(item.images[0], '/projects/ssr-b.webp', 'onaylı görsel galerinin başına geçmeli');
     assert.ok(item.images[1].startsWith('/api/media/'));
     assert.equal(openId > 0, true);
+  });
+}
+
+// =================================================================================================
+section('10) DÖRT VARLIK TİPİ — ürün, kişi, firma/marka (kullanıcı isteği, 2026-09-09 ikinci tur)');
+
+{
+  const db = freshDb();
+  const r2 = [
+    ['_derived/w400/s/mimarlar-thumb/a.jpg', SAFE_BYTES],
+    ['_derived/w400/s/logos-thumb/b.jpg', SAFE_BYTES],
+    ['_derived/w400/r2/products/p1.webp', SAFE_BYTES],
+  ];
+  const assets = new Map([
+    ['/mimarlar-thumb/a.jpg', ORIGINAL_BYTES],
+    ['/logos-thumb/b.jpg', ORIGINAL_BYTES],
+    ['/logos/site/favicon-32.png', 'SITE-LOGO'],
+  ]);
+  const env = makeEnv(db, { r2, assets });
+  const ctx = { waitUntil() {} };
+  const req = (path) => new Request(`https://mimarlab.com${path}`);
+
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u1','a@b.c','x','Test','user',0)`).run();
+  // Sahiplenilmemiş kişi + firma + ürün
+  db.prepare(`INSERT INTO architects (slug, name, photo_url) VALUES ('kisi-a','Kişi A','mimarlar-thumb/a.jpg')`).run();
+  db.prepare(`INSERT INTO offices (slug, name, logo_url) VALUES ('firma-b','Firma B','logos-thumb/b.jpg')`).run();
+  db.prepare(`INSERT INTO products (slug, kind, title, images) VALUES ('urun-c','product','Ürün C','["/media/products/p1.webp"]')`).run();
+  const aid = db.prepare(`SELECT id FROM architects WHERE slug='kisi-a'`).get().id;
+  const oid = db.prepare(`SELECT id FROM offices WHERE slug='firma-b'`).get().id;
+  const pid = db.prepare(`SELECT id FROM products WHERE slug='urun-c'`).get().id;
+
+  await test('medya alanları doğru toplanır (avatar, logo+kapak, ürün galerisi + VERSİYONLAR)', () => {
+    assert.deepEqual(collectEntityMediaUrls({ photo_url: 'x.jpg', portfolio: '["p1.webp","p2.webp"]' }, 'architect'),
+      ['x.jpg', 'p1.webp', 'p2.webp']);
+    assert.deepEqual(collectEntityMediaUrls({ logo_url: 'l.png', cover_url: 'c.jpg' }, 'office'), ['l.png', 'c.jpg']);
+    // Versiyon görselleri ürünün KENDİ galerisini pop-up'ta gölgeler (bkz. proje notu) — kayıt dışı
+    // kalırlarsa kilitli bir ürünün asıl gösterilen görselleri kapının dışında kalırdı.
+    assert.deepEqual(
+      collectEntityMediaUrls({ images: '["g1.webp"]', variants: '[{"images":["v1.webp","v2.webp"]}]' }, 'product'),
+      ['g1.webp', 'v1.webp', 'v2.webp']);
+  });
+
+  await test('sahiplenilmemiş kişi/firma/ürün KİLİTLİ kaydedilir', async () => {
+    for (const [type, id] of [['architect', aid], ['office', oid], ['product', pid]]) {
+      assert.equal(await isEntityClaimBacked(env, type, id), false, `${type} yanlışlıkla sahiplenilmiş sayıldı`);
+      await syncEntityMediaRights(env, type, id, {});
+      const rows = db.prepare(`SELECT rights_status, public_original_allowed FROM media_rights WHERE entity_type=? AND entity_id=?`).all(type, id);
+      assert.ok(rows.length >= 1, `${type} medyası hiç kaydedilmedi`);
+      assert.equal(rows[0].rights_status, 'unknown');
+      assert.equal(Number(rows[0].public_original_allowed), 0);
+    }
+  });
+
+  await test('kilitli avatar/logo doğrudan yoldan 404 alır (mimarlar-thumb, logos-thumb)', async () => {
+    _resetDecisionCacheForTests();
+    for (const p of ['/mimarlar-thumb/a.jpg', '/logos-thumb/b.jpg']) {
+      const res = await worker.fetch(req(p), env, ctx);
+      assert.equal(res.status, 404, `kilitli medya hâlâ açık: ${p}`);
+    }
+  });
+
+  await test('SİTE LOGOSU (/logos/site/*) etkilenmez — kayıtsız yol açık kalır', async () => {
+    _resetDecisionCacheForTests();
+    const res = await worker.fetch(req('/logos/site/favicon-32.png'), env, ctx);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), 'SITE-LOGO');
+  });
+
+  await test('kilitli avatarın güvenli sürümü /api/media üzerinden geliyor', async () => {
+    _resetDecisionCacheForTests();
+    const mid = db.prepare(`SELECT id FROM media_rights WHERE entity_type='architect' AND entity_id=?`).get(aid).id;
+    const res = await worker.fetch(req(`/api/media/${mid}`), env, ctx);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), SAFE_BYTES);
+  });
+
+  await test('emniyet biçimi tip önekiyle çalışır (a<id>-<idx>)', async () => {
+    _resetDecisionCacheForTests();
+    const res = await worker.fetch(req(`/api/media/a${aid}-0`), env, ctx);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), SAFE_BYTES);
+  });
+
+  await test('PROFİL SAHİPLENİLİNCE medya açılır (kişi + projeleri)', async () => {
+    db.prepare(`INSERT INTO projects (slug,title,images,build_status,created_at,updated_at) VALUES ('pr-a','PR A','["/projects/x.webp"]','built','2026-01-01 00:00:00','2026-01-01 00:00:00')`).run();
+    const prid = db.prepare(`SELECT id FROM projects WHERE slug='pr-a'`).get().id;
+    db.prepare(`INSERT INTO project_designers (project_id, architect_id) VALUES (?, ?)`).run(prid, aid);
+    await registerEntityMedia(env, 'project', prid, ['/projects/x.webp'], { defaultStatus: 'unknown' });
+
+    db.prepare(`INSERT INTO profile_claims (id,user_id,profile_type,profile_key,status,created_at,updated_at) VALUES ('c1','u1','architect','Kişi A','approved',0,0)`).run();
+    const out = await openMediaForClaimKey(env, 'architect', 'Kişi A');
+    assert.ok(out.opened >= 2, `beklenen en az 2 medya açılışı, olan: ${out.opened}`);
+    assert.equal(db.prepare(`SELECT rights_status FROM media_rights WHERE entity_type='architect' AND entity_id=?`).get(aid).rights_status, 'approved');
+    assert.equal(db.prepare(`SELECT rights_status FROM media_rights WHERE entity_type='project' AND entity_id=?`).get(prid).rights_status, 'approved');
+    // Proje düzeyi onay da birlikte gelir, aksi halde galeri hâlâ kilitli görünürdü.
+    assert.equal(Number(db.prepare(`SELECT is_copyright_approved FROM projects WHERE id=?`).get(prid).is_copyright_approved), 1);
+  });
+
+  await test('ihtilaflı/kaldırılmış medya SAHİPLENME ile geri açılmaz', async () => {
+    db.prepare(`UPDATE media_rights SET rights_status='removed', public_original_allowed=0 WHERE entity_type='office' AND entity_id=?`).run(oid);
+    db.prepare(`INSERT INTO profile_claims (id,user_id,profile_type,profile_key,status,created_at,updated_at) VALUES ('c2','u1','office','Firma B','approved',0,0)`).run();
+    await openMediaForClaimKey(env, 'office', 'Firma B');
+    assert.equal(db.prepare(`SELECT rights_status FROM media_rights WHERE entity_type='office' AND entity_id=?`).get(oid).rights_status, 'removed');
+  });
+
+  await test('(madde 8) havuz sıralaması: onaylı kayıtlar başa geçer, grup içi sıra korunur', async () => {
+    const db2 = freshDb();
+    const env2 = makeEnv(db2, {});
+    for (const [slug, name] of [['a1','A1'],['a2','A2'],['a3','A3'],['a4','A4']]) {
+      db2.prepare(`INSERT INTO architects (slug,name,photo_url) VALUES (?,?,?)`).run(slug, name, `mimarlar-thumb/${slug}.jpg`);
+    }
+    const ids = db2.prepare(`SELECT id, slug FROM architects ORDER BY id`).all();
+    for (const r of ids) await registerEntityMedia(env2, 'architect', r.id, [`mimarlar-thumb/${r.slug}.jpg`], { defaultStatus: 'unknown' });
+    // 2. ve 4. kayıt açılır -> onlar başa, kendi aralarında ESKİ sırayla gelmeli.
+    for (const slug of ['a2', 'a4']) {
+      const id = ids.find(r => r.slug === slug).id;
+      db2.prepare(`UPDATE media_rights SET rights_status='approved', public_original_allowed=1 WHERE entity_type='architect' AND entity_id=?`).run(id);
+    }
+    const ordered = await orderRowsByRightsBucket(env2, 'architect', ids);
+    assert.deepEqual(ordered.map(r => r.slug), ['a2', 'a4', 'a1', 'a3']);
+  });
+
+  await test('entityRightsBucketFrom: medyasız kayıt NÖTR (1), hepsi ihtilaflıysa 2', () => {
+    assert.equal(entityRightsBucketFrom([]), 1);
+    assert.equal(entityRightsBucketFrom([{ rights_status: 'approved', public_original_allowed: 1 }]), 0);
+    assert.equal(entityRightsBucketFrom([{ rights_status: 'unknown', public_original_allowed: 0 }]), 1);
+    assert.equal(entityRightsBucketFrom([{ rights_status: 'disputed', public_original_allowed: 0 }]), 2);
   });
 }
 

@@ -1,4 +1,5 @@
 import { json, errorJson, readJson } from '../lib/http.js';
+import { orderRowsByRightsBucket } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint, invalidatePublicCache } from '../lib/publicCache.js';
@@ -53,7 +54,12 @@ export async function fetchArchitectPool(env) {
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
     ).all();
 
-    return results.map(row => {
+    // TELİF GRUBU ÖNCE (kullanıcı isteği, 2026-09-09 ikinci tur). Bu havuzu /kisi listesi VE ana
+    // sayfa mini-carousel'i birlikte tüketiyor, dolayısıyla tek sıralama iki yüzeyi de kapsar.
+    // Grup içindeki mevcut sıra (yukarıdaki ORDER BY a.id DESC) aynen korunur.
+    const ordered = await orderRowsByRightsBucket(env, 'architect', results);
+
+    return ordered.map(row => {
       const a = parseCanonicalRow('architects', row);
       let officeAwards = [];
       if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }

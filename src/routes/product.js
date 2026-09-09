@@ -1,4 +1,5 @@
 import { json, errorJson } from '../lib/http.js';
+import { orderRowsByRightsBucket } from '../lib/mediaRights.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
@@ -68,12 +69,16 @@ export async function fetchProductPool(env) {
       // göre "son eklenen ilk" sırasını korur; 2026-09-05 Koleksiyon partisinin 37 yeni satırına
       // atanan >=1 değerleri onları katalog sayfaları arasına serpiştirir (aksi halde hepsi en
       // yüksek id olarak 1. sayfaya yığılırdı).
-      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY COALESCE(display_order, 0) ASC, id DESC`).all(),
+      env.DB.prepare(`SELECT id, slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY COALESCE(display_order, 0) ASC, id DESC`).all(),
       env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
     ]);
     const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
 
-    return productsRes.results.map(row => {
+    // TELİF GRUBU ÖNCE — /urun listesi ve ana sayfa ürün carousel'i aynı havuzu tüketir. `id`
+    // yalnızca bu aramada kullanılır; aşağıdaki .map() yeni bir nesne kurduğundan yüke sızmaz.
+    const ordered = await orderRowsByRightsBucket(env, 'product', productsRes.results);
+
+    return ordered.map(row => {
       const p = shapeProductItem(row);
       const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
       const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;

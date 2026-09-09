@@ -1,4 +1,5 @@
 import { errorJson } from '../lib/http.js';
+import { orderRowsByRightsBucket } from '../lib/mediaRights.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
@@ -71,7 +72,10 @@ export async function fetchOfficePool(env) {
       ).all(),
       fetchOfficeProductCounts(env),
     ]);
-    return results.map(row => {
+    // TELİF GRUBU ÖNCE — /firma, /marka listeleri ve ana sayfa firma carousel'i aynı havuzu tüketir.
+    const ordered = await orderRowsByRightsBucket(env, 'office', results);
+
+    return ordered.map(row => {
       const o = parseCanonicalRow('offices', row);
       // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
       // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de

@@ -17,7 +17,7 @@
 // gerekiyor).
 
 import { newId } from './crypto.js';
-import { syncProjectMediaRights } from './mediaRights.js';
+import { syncEntityMediaRights, syncProjectMediaRights } from './mediaRights.js';
 import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
@@ -803,6 +803,12 @@ async function syncOffice(env, row) {
   }
 
   if (row.founders && row.founders.length) await syncOfficeFoundersFromNames(env, result.id, row.founders);
+
+  // TELİF KAYITLARI (kullanıcı isteği, 2026-09-09 ikinci tur) — proje tarafındakiyle AYNI desen:
+  // canonical satırı yazan TEK fonksiyon burası olduğundan, hangi gönderi/admin yolundan gelinirse
+  // gelinsin medya kaydı tek noktadan kurulur. Sahiplenilmiş kayıtta medya AÇIK, değilse KİLİTLİ
+  // başlar (bkz. isEntityClaimBacked).
+  await syncEntityMediaRights(env, 'office', result.id, { ownerUserId: row.owner_user_id || null });
   return result;
 }
 
@@ -957,6 +963,12 @@ async function syncArchitect(env, row) {
   await syncOfficeFounderLink(env, architectId, founderLinkIds, founderPendingIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
   if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'architects', claimedKey);
+
+  // TELİF KAYITLARI (kullanıcı isteği, 2026-09-09 ikinci tur) — proje tarafındakiyle AYNI desen:
+  // canonical satırı yazan TEK fonksiyon burası olduğundan, hangi gönderi/admin yolundan gelinirse
+  // gelinsin medya kaydı tek noktadan kurulur. Sahiplenilmiş kayıtta medya AÇIK, değilse KİLİTLİ
+  // başlar (bkz. isEntityClaimBacked).
+  await syncEntityMediaRights(env, 'architect', architectId, { ownerUserId: row.owner_user_id || null });
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(architectId).first();
 }
 
@@ -1382,6 +1394,12 @@ async function syncProduct(env, row, kind) {
     const projectIds = await resolveProductProjectLinks(env, row.projects, `${kind}_submission:${row.id}`);
     await setProjectProductLinks(env, 'product', 'product_id', productId, 'project_id', projectIds);
   }
+
+  // TELİF KAYITLARI (kullanıcı isteği, 2026-09-09 ikinci tur) — proje tarafındakiyle AYNI desen:
+  // canonical satırı yazan TEK fonksiyon burası olduğundan, hangi gönderi/admin yolundan gelinirse
+  // gelinsin medya kaydı tek noktadan kurulur. Sahiplenilmiş kayıtta medya AÇIK, değilse KİLİTLİ
+  // başlar (bkz. isEntityClaimBacked).
+  await syncEntityMediaRights(env, 'product', productId, { ownerUserId: row.owner_user_id || null });
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first();
 }
 

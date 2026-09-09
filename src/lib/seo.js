@@ -6,7 +6,7 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // ikinci bir sezgi yazmak yerine AYNI kaynak paylaşılır, aksi halde popup ile SSR farklı
 // sınıflandırma üretebilirdi.
 import { isOfficeName } from './projectPool.js';
-import { applyProjectImageRights, fetchProjectMediaRights } from './mediaRights.js';
+import { applyProjectImageRights, fetchProjectMediaRights, safeMediaUrlsFor } from './mediaRights.js';
 import { officePath, isBrandUrlOffice } from './officeUrl.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
 // proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
@@ -641,7 +641,7 @@ function architectMetaFromRecord(a, officeName, slug, officeSlug, projects = [])
       ['Projeler', projectLinksHtml(projects)],
     ]),
   ].filter(Boolean).join('');
-  return { title, h1: a.name, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl), bodyHtml, bodyImage: photoUrl, bodyImageAlt: a.name };
+  return { title, h1: a.name, description, canonicalUrl, image: (a.photoLocked ? null : photoUrl) || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl), bodyHtml, bodyImage: photoUrl, bodyImageAlt: a.name };
 }
 
 async function buildArchitectMeta(slug, env) {
@@ -652,9 +652,14 @@ async function buildArchitectMeta(slug, env) {
   // dob/profession/awards — popup künyesinin gösterdiği alanlar (bkz. POPUP KÜNYE SÖZLEŞMESİ);
   // hepsi ZATEN okunan `architects` satırında, ek sorgu yok. awards parseCanonicalRow tarafından
   // JSON'dan diziye çevrilmiştir.
+  // TELİF KİLİDİ (kullanıcı isteği, 2026-09-09 ikinci tur) — kilitli bir profil fotoğrafının
+  // ORİJİNAL yolu sayfa kaynağından okunabilmemeli. Gövde güvenli sürümü gösterir; og:image ise
+  // kilitliyse hiç verilmez (bkz. safeMediaUrlsFor'daki kural).
+  const photoSafe = await safeMediaUrlsFor(env, 'architect', row.id, [a.photo_url]);
   return architectMetaFromRecord({
-    name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept, about: a.about,
+    name: a.name, role: a.position, photo: photoSafe.urls[0] || null, school: a.school, dept: a.dept, about: a.about,
     dob: a.dob, profession: a.profession, awards: a.awards,
+    photoLocked: photoSafe.urls[0] ? photoSafe.locked.has(photoSafe.urls[0]) : false,
   }, row.office_name || null, row.slug, row.office_slug || null, projects);
 }
 
@@ -764,7 +769,7 @@ async function officeMetaFromRecord(o, slug, env) {
       ['Website', site ? `<a href="${escapeHtml(site)}" rel="nofollow noopener" target="_blank">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>` : null],
     ]),
   ].filter(Boolean).join('');
-  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl, isBrandUrl ? { label: 'Markalar', path: '/marka' } : null), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
+  return { title, h1: o.name, description, canonicalUrl, image: (o.logoLocked ? null : logoUrl) || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl, isBrandUrl ? { label: 'Markalar', path: '/marka' } : null), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
 }
 
 // slug: kaydın GERÇEK canonical o.slug'ı — bkz. findArchitectRow'daki AYNI denetim notu
@@ -775,9 +780,13 @@ async function buildOfficeMeta(slug, env) {
   const o = parseCanonicalRow('offices', row);
   // cats/social_links — popup künyesinin gösterdiği alanlar (Hizmet Alanı / Ürün Kategorisi satırı
   // ve sosyal ikon şeridi); ikisi de ZATEN okunan `offices` satırında, ek sorgu yok.
+  // TELİF KİLİDİ — kişi fotoğrafıyla AYNI kural (logo ve kapak görseli).
+  const logoSafe = await safeMediaUrlsFor(env, 'office', row.id, [o.logo_url]);
   return officeMetaFromRecord({
-    id: row.id, name: o.name, about: o.about, yil: o.yil, loc: o.loc, logo: o.logo_url, website: o.website,
-    cats: o.cats, social_links: o.social_links,
+    id: row.id, name: o.name, about: o.about, yil: o.yil, loc: o.loc,
+    logo: logoSafe.urls[0] || null,
+    logoLocked: logoSafe.urls[0] ? logoSafe.locked.has(logoSafe.urls[0]) : false,
+    website: o.website, cats: o.cats, social_links: o.social_links,
   }, row.slug, env);
 }
 
@@ -957,13 +966,18 @@ function productMetaFromRecord(record, canonicalUrl) {
   const rawDesc = meaningfulText(record.description) || generatedProductDesc;
   const description = truncate(rawDesc, 200);
   const images = (record.images || []).map(absoluteUrl).filter(Boolean);
+  // Kilitli görseller arama motoruna İLAN EDİLMEZ (bkz. buildProjectMeta'daki aynı gerekçe);
+  // sayfa gövdesi yine güvenli sürümü gösterir. lockedImages verilmezse (gönderi kökenli eski
+  // dal) davranış eskisiyle birebir aynı kalır.
+  const lockedAbs = new Set([...(record.lockedImages || [])].map(absoluteUrl).filter(Boolean));
+  const publicImages = images.filter(u => !lockedAbs.has(u));
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Product', name: record.title, url: canonicalUrl };
   if (record.description) jsonLd.description = record.description;
   // gerçek bulgu (denetim raporu): fotoğrafsız bir ürün/malzeme kaydında (spec-sheet-only başvuru)
   // bu satır jsonLd.image'ı hiç set etmiyordu — Google Rich Results Product tipi için `image`'ı
   // zorunlu görüyor. meta.image (OG/Twitter) zaten DEFAULT_IMAGE'a düşüyor, JSON-LD de AYNI görsel
   // varsayılanını kullanmalı ki sayfada görünen içerikle tutarlı, geçerli bir Product şeması olsun.
-  jsonLd.image = images.length ? images : [DEFAULT_IMAGE];
+  jsonLd.image = publicImages.length ? publicImages : [DEFAULT_IMAGE];
   // SEO denetimi (2026-09-03) — buildProjectMeta#creator ile AYNI gerekçe: marka gerçek bir firma
   // kaydına bağlıysa (record.brandOfficeSlug, bkz. findProductRow#brand_office_slug — aşağıdaki
   // görünür brandHtml zaten bu slug'ı kullanıyor) Brand düğümüne `url` eklenir; böylece Google
@@ -1033,7 +1047,7 @@ function productMetaFromRecord(record, canonicalUrl) {
       ['Teknik Özellikler', specsText ? escapeHtml(specsText) : null],
     ]),
   ].filter(Boolean).join('');
-  return { title, h1: record.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl), bodyHtml, bodyImage: images[0] || null, bodyImageAlt: record.title };
+  return { title, h1: record.title, description, canonicalUrl, image: publicImages[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl), bodyHtml, bodyImage: images[0] || null, bodyImageAlt: record.title };
 }
 
 // urun.html/rating-widget.js'in target_id olarak kullandığı ANAHTARLA (bkz. src/routes/product.js#
@@ -1100,10 +1114,14 @@ async function buildProductMeta(key, env) {
     fetchProductAggregateRating(env, row.kind === 'material' ? 'material' : 'product', ratingKey),
     fetchDesignerLinks(env, p.designer),
   ]);
+  // TELİF KİLİDİ — proje galerisiyle AYNI kural: gövde güvenli sürümü gösterir, JSON-LD/OG'ye
+  // yalnızca gerçekten açık görseller yazılır (bkz. productMetaFromRecord#lockedImages).
+  const productSafe = await safeMediaUrlsFor(env, 'product', row.id, p.images);
   return productMetaFromRecord({
     title: p.title, brand: p.brand_name_raw, brandOfficeSlug: row.brand_office_slug || null,
     brandOfficePath: row.brand_office_slug ? officePath(row.brand_office_slug, row.brand_office_cats, row.brand_office_product_count) : null,
-    category: p.category, description: p.description, images: p.images, rating,
+    category: p.category, description: p.description, images: productSafe.urls,
+    lockedImages: productSafe.locked, rating,
     designers, year: p.year, variants: p.variants, specs: p.specs,
   }, canonicalUrl);
 }

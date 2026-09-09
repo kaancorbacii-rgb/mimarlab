@@ -436,10 +436,14 @@ const API_PAYLOAD_VERSION = 'v25';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
-  // Admin yükü TARANMAZ: admin paneli kilitli medyanın gerçek yolunu görebilmeli (hak yönetimi
-  // ekranı orijinali önizler ve durumunu değiştirir). Bu bir kapı deliği değil — bu dal zaten
-  // yalnızca admin oturumu taşıyan isteklerde çalışır ve yanıtı asla önbelleğe girmez.
-  if (admin) { const data = await computeData(); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
+  // ADMIN YÜKÜ DE TARANIR. İlk sürümde admin bilerek muaf tutulmuştu ("panel gerçek yolu görsün")
+  // ama bu, kilit avatar/logolara genişletilince AKTİF OLARAK ZARARLI hâle geldi: kapı yol bazlı
+  // çalışır ve oturuma bakmaz, yani admin'in tarayıcısı da kilitli orijinalden 404 alır. Ham yolu
+  // vermek admin panelinde görselin GÖRÜNMESİNİ sağlamaz, yalnızca KIRIK görüntü üretirdi.
+  // Taranmış yük ise güvenli uçtan gerçek (küçük) görseli gösterir. Hak yönetimi ekranı zaten
+  // durumu metinle sunar (bkz. src/routes/projectRights.js#getRights — orası ayrı bir uçtur ve
+  // yetkili kullanıcıya gerçek yolu vermeye devam eder).
+  if (admin) { const data = await scrubLockedMediaPayload(env, await computeData()); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
 
   // TELİF SIZINTISINA KARŞI ÇIKIŞ TARAMASI (bkz. src/lib/mediaRights.js#scrubLockedMediaPayload).
   // Bu, sitedeki TÜM public okuma uçlarının ortak çıkışıdır — proje uçları zaten anlamsal katmandan
