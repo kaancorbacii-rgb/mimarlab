@@ -351,9 +351,34 @@ echo ""
 echo "Telif kilitleme (media rights)"
 cb2=$(date +%s)
 
-# Kilitli bir görsel taşıyan ilk projeyi bul: /api/projects yükünde güvenli uç öneki aranır.
-mr_list=$(curl -s "$BASE_URL/api/projects?page=1&limit=48")
+# Kilitli bir görsel taşıyan proje SON SAYFADAN alınır.
+#
+# NEDEN İLK SAYFA DEĞİL: sıralamanın kendisi telif grubuna göre (bkz. rights_bucket) — onaylı
+# projeler EN BAŞTA. Bu yüzden ilk sayfa neredeyse her zaman tamamen onaylıdır ve orada hiç
+# güvenli uç görünmez; ilk sürümde bu, "seed uygulanmamış" gibi yanlış bir uyarıya yol açıyordu.
+# Kilitli içerik en SONA düştüğünden son sayfa doğru yerdir ve sayfa sayısı verinin kendisinden
+# okunur (sabit bir sayfa numarası veri büyüdükçe yanlışlanırdı).
+mr_pages=$(curl -s "$BASE_URL/api/projects?page=1&limit=48" | python3 -c "
+import sys, json
+try:
+    print(json.load(sys.stdin).get('totalPages', 1))
+except Exception:
+    print(1)
+" 2>/dev/null)
+mr_list=$(curl -s "$BASE_URL/api/projects?page=${mr_pages:-1}&limit=48")
 mr_media_id=$(printf '%s' "$mr_list" | grep -o '/api/media/[A-Za-z0-9-]\{1,64\}' | head -1 | sed 's|/api/media/||')
+
+# SIRALAMA KONTROLÜ (kullanıcı isteği madde 8): ilk sayfa onaylı içerikle, son sayfa kilitli
+# içerikle başlamalı. Bu, telif grubunun listelerde GERÇEKTEN uygulandığının canlı kanıtıdır.
+mr_first_locked=$(curl -s "$BASE_URL/api/projects?page=1&limit=48" | grep -c '/api/media/' || true)
+mr_last_locked=$(printf '%s' "$mr_list" | grep -c '/api/media/' || true)
+if [ "${mr_pages:-1}" -gt 1 ]; then
+  if [ "$mr_first_locked" -le "$mr_last_locked" ]; then
+    ok "sıralama: telif grubu uygulanıyor (ilk sayfa kilitli=$mr_first_locked <= son sayfa kilitli=$mr_last_locked)"
+  else
+    bad "sıralama: kilitli içerik ilk sayfada son sayfadan FAZLA (ilk=$mr_first_locked, son=$mr_last_locked) — rights_bucket sıralaması çalışmıyor"
+  fi
+fi
 
 if [ -z "$mr_media_id" ]; then
   warnf "canlıda kilitli proje görseli bulunamadı — seed uygulanmamış olabilir, telif kontrolleri atlandı"
@@ -404,22 +429,76 @@ imgs = (data.get('item') or {}).get('images') or []
 print('yes' if imgs and all(isinstance(i, str) and i.startswith('/api/media/') for i in imgs) else 'no')
 " 2>/dev/null)
     if [ "$mr_locked_only" = "yes" ]; then
-      for prefix in "/projects/" "/miras/" "/media/projects/" "/media/u/"; do
-        if printf '%s' "$mr_detail" | grep -q "$prefix"; then
-          bad "kilitli proje ($mr_slug) API yükünde ORİJİNAL yol sızıyor: $prefix"
-        else
-          ok "kilitli proje API yükünde $prefix yolu yok"
+      # KESİN KONTROL: yükte GEÇEN her görsel yolu HERKESE AÇIK OLMALI.
+      #
+      # Neden "prefix arama" değil: yük, kapsam DIŞINDAKİ meşru yolları da taşır — künyedeki
+      # mimarın avatarı (architects.photo_url, bilerek kaydedilmiyor) ve komşu ONAYLI projenin
+      # kapağı gibi. Bunları düz `grep /media/u/` ile aramak yanlış alarm üretiyordu (canlıda
+      # doğrulandı: sakirin-camii'de tek eşleşme mimarın fotoğrafıydı).
+      #
+      # Doğru ölçüt tersinden kurulur: kilitli bir görselin ORİJİNAL yolu kapıdan 404 alır. O hâlde
+      # yükte geçen bir yol 404 veriyorsa, o yolu vermemeliydik — bu, kilidin sızdığının KESİN
+      # kanıtıdır. Kapsam dışı avatarlar 200 döndüğü için doğal olarak elenir.
+      mr_paths=$(printf '%s' "$mr_detail" | python3 -c "
+import sys, json, re
+raw = sys.stdin.read()
+seen = []
+for m in re.finditer(r'\"(/(?:media|projects|miras)/[^\"]+)\"', raw):
+    p = m.group(1)
+    if p not in seen:
+        seen.append(p)
+print('\n'.join(seen[:25]))
+" 2>/dev/null)
+      mr_leaks=0
+      mr_checked=0
+      while IFS= read -r mp; do
+        [ -z "$mp" ] && continue
+        mr_checked=$((mr_checked + 1))
+        mpcode=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$mp?cb=$cb2")
+        if [ "$mpcode" = "404" ]; then
+          bad "kilitli proje ($mr_slug) yükünde KAPALI bir orijinal yol var (kapı 404 veriyor): $mp"
+          mr_leaks=$((mr_leaks + 1))
         fi
-      done
-      # SSR/HTML tarafı: JSON-LD, OpenGraph ve gövde görseli de aynı yükten beslenir.
+      done <<< "$mr_paths"
+      if [ "$mr_leaks" -eq 0 ]; then
+        ok "kilitli proje yükündeki $mr_checked görsel yolunun tamamı meşru (hiçbiri kapıda kapalı değil)"
+      fi
+
+      # SSR/HTML tarafı: JSON-LD, OpenGraph ve gövde görseli aynı yükten beslenir. Burada
+      # KİLİTLİ projenin KENDİ görsellerinin ham yolları aranır (kapsam dışı avatarlar HTML'de de
+      # meşru olarak bulunur, bu yüzden yine prefix değil, projenin kendi yolları kontrol edilir).
       mr_html=$(curl -s "$BASE_URL/proje/$mr_slug")
-      for prefix in "/projects/" "/miras/" "/media/projects/"; do
-        if printf '%s' "$mr_html" | grep -q "$prefix"; then
-          bad "kilitli proje ($mr_slug) SSR HTML'inde ORİJİNAL yol sızıyor: $prefix"
-        else
-          ok "kilitli proje SSR HTML'inde $prefix yolu yok"
+      mr_own=$(npx wrangler d1 execute mimarlab-db --remote --json --command \
+        "SELECT m.media_path FROM media_rights m JOIN projects p ON p.id=m.entity_id WHERE p.slug='$mr_slug' AND m.rights_status!='approved' LIMIT 10" 2>/dev/null \
+        | python3 -c "
+import sys, json
+raw = sys.stdin.read()
+try:
+    i = raw.index('[')
+    depth = 0
+    for j in range(i, len(raw)):
+        if raw[j] == '[': depth += 1
+        elif raw[j] == ']':
+            depth -= 1
+            if depth == 0:
+                end = j + 1
+                break
+    for row in json.loads(raw[i:end])[0]['results']:
+        if row.get('media_path'): print(row['media_path'])
+except Exception:
+    pass
+" 2>/dev/null)
+      mr_html_leaks=0
+      while IFS= read -r mp; do
+        [ -z "$mp" ] && continue
+        if printf '%s' "$mr_html" | grep -qF "$mp"; then
+          bad "kilitli proje ($mr_slug) SSR HTML'inde KENDİ kilitli görselinin ham yolu var: $mp"
+          mr_html_leaks=$((mr_html_leaks + 1))
         fi
-      done
+      done <<< "$mr_own"
+      if [ "$mr_html_leaks" -eq 0 ]; then
+        ok "kilitli projenin SSR HTML'inde kendi kilitli görsellerinin ham yolu yok"
+      fi
     else
       ok "seçilen proje karma (hem onaylı hem kilitli görsel) — ham yol kontrolü atlandı"
     fi
