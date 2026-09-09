@@ -263,19 +263,6 @@ else
 fi
 rm -f /tmp/preflight_omnames
 
-# TELİF/YAYIN HAKKI KİLİTLEME (kullanıcı isteği, 2026-09-09) — kilitli medyanın orijinal baytlarının
-# ve YOLUNUN hiçbir yüzeyden (API, SSR, JSON-LD/OG, srcset, doğrudan /media ve /projects istekleri,
-# türev yolları) çıkmadığını, onay/ihtilaf geçişlerinin erişimi ve SIRALAMAYI anında değiştirdiğini
-# doğrular. Deploy öncesi zorunlu: bu testlerden biri düşerse kilit sessizce delinmiş demektir.
-# Bkz. scripts/test-media-rights.mjs dosya başı (kullanıcı isteğindeki 15 kontrol numaralı).
-if node scripts/test-media-rights.mjs >/tmp/preflight_rights 2>&1; then
-  ok "telif kilitleme testleri geçti ($(grep -c '^  ok ' /tmp/preflight_rights) test)"
-else
-  bad "telif kilitleme testleri BAŞARISIZ:"
-  tail -25 /tmp/preflight_rights >&2
-fi
-rm -f /tmp/preflight_rights
-
 # slugify TR/aksan haritası BEŞ dosyada kopyalı (bkz. src/lib/slugify.js dosya başı: save-widget.js
 # ve *-ekle.html tarayıcıda modülsüz çalıştığından bilerek kopyalanmış). Biri sapan bir kopya SESSİZ
 # bir hatadır: sunucunun ürettiği slug ile istemcinin kaydet/takip anahtarı ayrışır ve buton durumu

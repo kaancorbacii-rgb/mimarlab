@@ -1,5 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-import { orderRowsByRightsBucket } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint, invalidatePublicCache } from '../lib/publicCache.js';
@@ -54,12 +53,7 @@ export async function fetchArchitectPool(env) {
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
     ).all();
 
-    // TELİF GRUBU ÖNCE (kullanıcı isteği, 2026-09-09 ikinci tur). Bu havuzu /kisi listesi VE ana
-    // sayfa mini-carousel'i birlikte tüketiyor, dolayısıyla tek sıralama iki yüzeyi de kapsar.
-    // Grup içindeki mevcut sıra (yukarıdaki ORDER BY a.id DESC) aynen korunur.
-    const ordered = await orderRowsByRightsBucket(env, 'architect', results);
-
-    return ordered.map(row => {
+    return results.map(row => {
       const a = parseCanonicalRow('architects', row);
       let officeAwards = [];
       if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
@@ -595,19 +589,15 @@ async function buildArchitectPayload(env, key) {
       const parsed = parseCanonicalRow('projects', p);
       // type — künyedeki "Grup" alanı; pop-up'taki grup filtresi (bkz. js/components/
       // project-group-filter.js) bunun üzerinden çalışır.
-      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date), _bucket: Number(p.rights_bucket) || 0 };
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
     })
-    // TELİF GÜVENLİĞİ GRUBU ÖNCE, mevcut sıra (yeniden eskiye) GRUBUN İÇİNDE — proje listesi ve
-    // ana sayfa karuseliyle AYNI kural (bkz. src/lib/projectPool.js#fetchActiveProjectPool'daki
-    // ORDER BY). Grup içindeki davranış BİREBİR eskisi gibi: yılı olmayanlar sona düşer.
     .sort((a, b) => {
-      if (a._bucket !== b._bucket) return a._bucket - b._bucket;
       if (a._year == null && b._year == null) return 0;
       if (a._year == null) return 1;
       if (b._year == null) return -1;
       return b._year - a._year;
     })
-    .map(({ _year, _bucket, ...rest }) => rest);
+    .map(({ _year, ...rest }) => rest);
   const relatedProjects = shapeProjectsNewestFirst(relatedRes.results);
   const photographedProjects = shapeProjectsNewestFirst(photographedRes.results);
   // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla

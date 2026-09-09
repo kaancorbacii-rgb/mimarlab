@@ -1,9 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-// TELİF KİLİDİ (kullanıcı isteği, 2026-09-09 madde 7). Pano öğeleri, kaydedildikleri ANDAKİ görsel
-// URL'sini collection_items.image'a KOPYALAR — yani bir görsel sonradan kilitlense bile eski URL
-// panoda durmaya devam eder. Paylaşılan pano ucu (/api/collections/shared/:token) ayrıca HERKESE
-// AÇIKTIR. İkisi de cachedPublicJson'dan geçmediğinden tarama burada uygulanır.
-import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
@@ -223,9 +218,9 @@ async function listCollections(env, user) {
     if (preview.length < 4) { preview.push(row.image); previewByCollection.set(row.collection_id, preview); }
   }
 
-  return json(await scrubLockedMediaPayload(env, {
+  return json({
     items: all.map(({ row, role }) => shapeCollection(row, countByCollection.get(row.id) || 0, previewByCollection.get(row.id) || [], role)),
-  }));
+  });
 }
 
 async function getCollection(env, user, id) {
@@ -236,11 +231,11 @@ async function getCollection(env, user, id) {
     env.DB.prepare(`SELECT * FROM board_strokes WHERE collection_id = ? ORDER BY created_at`).bind(id).all(),
   ]);
   const previewImages = results.filter(r => r.image).slice(0, 4).map(r => r.image);
-  return json(await scrubLockedMediaPayload(env, {
+  return json({
     item: shapeCollection(access.collection, results.length, previewImages, access.role),
     items: results.map(shapeItem),
     strokes: strokeRows.map(shapeStroke),
-  }));
+  });
 }
 
 async function createCollection(request, env, user) {
@@ -496,7 +491,7 @@ async function getSharedCollection(env, token) {
   // Paylaşılan görünümde pano id'si sızdırılmaz: id'yi bilen biri yazma uçlarını deneyemesin
   // (denese de findOwnCollection user_id ile eşleşmediğinden 404 alırdı — bu ek bir savunma katmanı).
   delete shaped.id;
-  return json(await scrubLockedMediaPayload(env, { item: shaped, items: results.map(shapeItem), strokes: strokeRows.map(shapeStroke) }));
+  return json({ item: shaped, items: results.map(shapeItem), strokes: strokeRows.map(shapeStroke) });
 }
 
 // Not stili (kullanıcı isteği madde 2) — TEK öğe PATCH'i, yalnızca gönderilen alanlar güncellenir.

@@ -69,11 +69,6 @@
 
 import { json, errorJson } from '../lib/http.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
-// Savunma derinliği: bu ucun beslendiği havuz (fetchActiveProjectPoolCached) ZATEN hak dönüşümünden
-// geçmiş kapaklar taşır, yani tarama normalde hiçbir şey bulmaz ve tek bir D1 sorgusu bile açmaz
-// (bkz. scrubLockedMediaPayload'ın erken dönüşü). Yine de duruyor: bu uç cachedPublicJson'dan
-// geçmediğinden, havuz yolu ileride değişirse ortak çıkış taramasının koruması burada olmazdı.
-import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { fetchActiveProjectPoolCached, parseProjectDateYear } from './project.js';
 import { fetchProductPool } from './product.js';
 import { emptyPlan, searchProjectPool } from '../lib/searchEngine.js';
@@ -950,11 +945,7 @@ export async function handleVisualSearchRoute(request, env, url) {
     { projectPool, productPool, projectIndex, productIndex, projectImageIndex, productImageIndex },
     imageQueryVec);
 
-  // TELİF KİLİDİ — bu uç cachedPublicJson'dan GEÇMEZ (POST + form-data), yani ortak çıkış
-  // taramasına takılmaz; yükü burada ayrıca taramak zorunda (bkz. src/lib/mediaRights.js#
-  // scrubLockedMediaPayload'ın dosya başındaki "iki katman" notu). Sonuç kartları proje/ürün
-  // kapaklarını taşıyor ve onlar kilitli olabilir.
-  return json(await scrubLockedMediaPayload(env, {
+  return json({
     ok: true,
     cached,
     aiCalls,
@@ -994,7 +985,7 @@ export async function handleVisualSearchRoute(request, env, url) {
     projects: resolved.projects,
     products: resolved.products,
     productsSuppressed: resolved.productsSuppressed,
-  }));
+  });
 }
 
 // ---------------------------------------------------------------------------------------------

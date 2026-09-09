@@ -780,43 +780,6 @@
         </label>
       </div>
 
-      <!-- ZORUNLU TELİF/YAYIN HAKKI BEYANI (kullanıcı isteği, 2026-09-09 madde 4). Yukarıdaki
-           ai-consent-field'dan AYRIDIR: o yalnızca AI ile otomatik doldurulan gönderilerde görünür,
-           bu ise HER gönderide zorunludur. Metin sürümlenmiştir (bkz. src/lib/mediaRights.js#
-           RIGHTS_DECLARATION_VERSION); metin değişirse orada sürüm de artırılmalı, çünkü hangi
-           beyana onay verildiği denetim kaydında bu sürümle saklanıyor.
-           Kutu bir YETKİ SINIRI DEĞİLDİR — sunucu aynı kontrolü ayrıca yapar (bkz.
-           src/routes/submissions.js#rightsDeclarationErrorFor), burada olmasının sebebi kullanıcıya
-           gönderimden ÖNCE net bir bilgilendirme vermektir. -->
-      <div class="form-field" id="rights-declaration-field">
-        <label class="check-pill" style="width:100%; box-sizing:border-box; align-items:flex-start; line-height:1.45;">
-          <input type="checkbox" id="rights-declaration-checkbox" style="margin-top:3px;">
-          <span>Yüklediğim tüm görsellerin yayın haklarına sahip olduğumu veya ilgili eser sahiplerinden (mimari fotoğrafçı, işveren vb.) gerekli izinleri aldığımı; 3. şahısların telif haklarının ihlali durumunda tüm hukuki ve mali sorumluluğun tarafıma ait olduğunu kabul ederim.</span>
-        </label>
-        <div class="form-hint" id="rights-declaration-hint">Bu onay olmadan gönderim yapılamaz. Onayın; hesabın, tarih/saat ve metin sürümüyle birlikte kayıt altına alınır.</div>
-      </div>
-
-      <!-- YALNIZCA DÜZENLEME MODUNDA ve YALNIZCA YETKİLİ KULLANICIYA (mountProjectRightsPanel).
-           Görsellerin ORİJİNAL çözünürlükte herkese açılmasını sağlayan onay budur; işaretlenmeden
-           galeri kilitli (düşük çözünürlüklü/bulanık) kalır. Karar SUNUCUDA doğrulanır
-           (POST /api/project-rights/:slug, bkz. src/routes/projectRights.js). -->
-      <div class="form-field" id="rights-approval-field" style="display:none;">
-        <label class="check-pill" style="width:100%; box-sizing:border-box; align-items:flex-start; line-height:1.45;">
-          <input type="checkbox" id="rights-approval-checkbox" style="margin-top:3px;">
-          <span>Telif/yayın haklarını onaylıyorum — bu projenin görselleri tam çözünürlükte yayınlanabilir.</span>
-        </label>
-        <div class="form-hint" id="rights-approval-hint"></div>
-        <!-- İhtilaf / kaldırma — YALNIZCA ADMIN (kullanıcı isteği madde 11). Bir hak sahibi itiraz
-             ettiğinde içerik fiziksel olarak silinmez: durumu 'disputed'/'removed' olur, denetim
-             kaydına yazılır ve geri alınabilir. Yetki yine sunucuda: bu aksiyonlar admin dışında
-             403 döner (bkz. src/routes/projectRights.js#ADMIN_ONLY_ACTIONS). -->
-        <div id="rights-admin-row" style="display:none; gap:8px; flex-wrap:wrap; margin-top:10px;">
-          <button type="button" class="form-danger-btn" id="rights-dispute-btn">İhtilaflı İşaretle</button>
-          <button type="button" class="form-danger-btn form-danger-btn-delete" id="rights-takedown-btn">Yayından Kaldır</button>
-          <button type="button" class="form-danger-btn" id="rights-restore-btn">Geri Al</button>
-        </div>
-      </div>
-
       <button class="form-submit" type="submit">Projeyi Gönder</button>
       <!-- Arşivle/Sil — artık proje popup'ında DEĞİL, buradalar (bkz. kullanıcı isteği: "Arşivle ve
            Sil butonlarını popup'tan kaldır, Projeyi Düzenle sayfasında Değişiklikleri Kaydet'in
@@ -2290,101 +2253,9 @@ async function prefillForClaim(){
 // yalnızca yetki zaten onaylandıktan SONRA (prefillForClaim'in canEdit erken-dönüşü GEÇİLDİYSE,
 // prefillForEdit'in item başarıyla YÜKLENDİYSE) ulaşır — o yüzden burada AYRICA bir yetki kontrolü
 // yapılmaz.
-// TELİF ONAY KUTUSU — YALNIZCA DÜZENLEME MODUNDA (kullanıcı isteği, 2026-09-09 madde 10).
-//
-// Yetki İSTEMCİDE HESAPLANMAZ: kutu yalnızca GET /api/project-rights/:slug 200 dönerse gösterilir,
-// ve o uç yetkiyi sunucuda kurar (bkz. src/routes/projectRights.js — canUserEditProjectBySlug).
-// Yetkisiz kullanıcıda uç 403 döner ve kutu hiç görünmez; görünse bile POST aynı kapıya çarpar.
-//
-// Değişiklik ANINDA uygulanır (formun "Gönder"ine bağlı değil): telif onayı, gönderi içeriğinden
-// bağımsız bir karardır ve gönderi moderasyondan geçerken beklememelidir. Ayrıca bir onayın geri
-// alınması (revoke) acil bir işlem olabilir.
-async function mountProjectRightsPanel(){
-  const slug = claimSlug || existingSlug;
-  if(!slug) return;
-  const field = document.getElementById('rights-approval-field');
-  const box = document.getElementById('rights-approval-checkbox');
-  const hint = document.getElementById('rights-approval-hint');
-  let state = null;
-  try{
-    const res = await fetch(`/api/project-rights/${encodeURIComponent(slug)}`);
-    if(!res.ok) return;
-    state = await res.json();
-  }catch(err){ return; }
-
-  // Sayaçlar HER paint'te yeniden hesaplanır — onay/iptal sonrası state yeniden çekiliyor, dışarıda
-  // dondurulmuş bir sayaç ilk çekilişin değerinde kalırdı.
-  function paint(){
-    const media = state.media || [];
-    const openCount = media.filter(m => m.status === 'approved' && m.publicOriginalAllowed).length;
-    box.checked = !!state.copyrightApproved;
-    hint.textContent = state.copyrightApproved
-      ? `Onaylı — ${media.length} görselin ${openCount} tanesi tam çözünürlükte yayında.`
-      : `Onay bekliyor — ${media.length} görsel şu an düşük çözünürlüklü ve bulanık gösteriliyor.`;
-  }
-  field.style.display = '';
-  paint();
-
-  if(currentUserRole === 'admin'){
-    const adminRow = document.getElementById('rights-admin-row');
-    adminRow.style.display = 'flex';
-    const ADMIN_ACTIONS = [
-      { id: 'rights-dispute-btn', action: 'dispute', confirm: 'Bu projenin TÜM görselleri "ihtilaflı" olarak işaretlenecek: orijinal erişimi kapanır, listelerde en sona düşer. Devam edilsin mi?' },
-      { id: 'rights-takedown-btn', action: 'takedown', confirm: 'Bu projenin TÜM görselleri yayından kaldırılacak: hiçbir yerde (güvenli sürüm dahil) gösterilmez. Dosyalar silinmez, karar geri alınabilir. Devam edilsin mi?' },
-      { id: 'rights-restore-btn', action: 'restore', confirm: 'Kaldırma/ihtilaf kararı geri alınacak; görseller kilitli (onay bekleyen) duruma döner. Devam edilsin mi?' },
-    ];
-    for(const cfg of ADMIN_ACTIONS){
-      document.getElementById(cfg.id).addEventListener('click', async () => {
-        if(!confirm(cfg.confirm)) return;
-        const reason = prompt('Gerekçe (denetim kaydına yazılır):', '') || '';
-        hint.textContent = 'İşleniyor...';
-        try{
-          const res = await fetch(`/api/project-rights/${encodeURIComponent(slug)}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: cfg.action, reason }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if(!res.ok){ hint.textContent = data.error || 'İşlem tamamlanamadı.'; return; }
-          const refreshed = await fetch(`/api/project-rights/${encodeURIComponent(slug)}`).then(r => r.ok ? r.json() : null).catch(() => null);
-          if(refreshed) state = refreshed;
-          paint();
-        }catch(err){ hint.textContent = 'Bağlantı hatası, tekrar dene.'; }
-      });
-    }
-  }
-
-  box.addEventListener('change', async () => {
-    const approving = box.checked;
-    box.disabled = true;
-    hint.textContent = approving ? 'Onaylanıyor...' : 'Onay kaldırılıyor...';
-    try{
-      const res = await fetch(`/api/project-rights/${encodeURIComponent(slug)}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: approving ? 'approve' : 'revoke', declaration: approving }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if(!res.ok){
-        box.checked = !approving;
-        hint.textContent = data.error || 'İşlem tamamlanamadı, tekrar dene.';
-        return;
-      }
-      state.copyrightApproved = !!data.copyrightApproved;
-      const refreshed = await fetch(`/api/project-rights/${encodeURIComponent(slug)}`).then(r => r.ok ? r.json() : null).catch(() => null);
-      if(refreshed) state = refreshed;
-      paint();
-    }catch(err){
-      box.checked = !approving;
-      hint.textContent = 'Bağlantı hatası, tekrar dene.';
-    }finally{
-      box.disabled = false;
-    }
-  });
-}
-
 function mountProjectAdminActions(){
   const slug = claimSlug || existingSlug;
   if(!slug) return;
-  mountProjectRightsPanel();
   const row = document.getElementById('p-danger-row');
   const archiveBtn = document.getElementById('p-archive-btn');
   const deleteBtn = document.getElementById('p-delete-btn');
@@ -2786,12 +2657,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(!document.getElementById('rights-declaration-checkbox').checked){
-    notice.textContent = 'Devam etmek için görsellerin yayın haklarına sahip olduğunu ya da gerekli izinleri aldığını onaylamalısın.';
-    notice.classList.add('show');
-    document.getElementById('rights-declaration-field').scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
 
   submitBtn.disabled = true;
   loading.classList.add('show');
@@ -2826,10 +2691,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     images,
     // bkz. collectImageHotspots — collectImages()'tan SONRA çağrılmalı (nihai url'lere ihtiyaç var).
     imageHotspots: collectImageHotspots(),
-    // Telif beyanı — sunucu bunu ZORUNLU tutar ve denetim kaydına (kim/ne zaman/IP/sürüm) yazar
-    // (bkz. src/routes/submissions.js#recordRightsDeclaration). Metin sürümünü istemci GÖNDERMEZ;
-    // sunucu kendi sabitinden yazar, aksi halde istemci eski bir sürümü beyan edebilirdi.
-    rightsDeclaration: true,
   };
   // Yalnızca admin'e görünen alan (bkz. yukarıdaki meReady#p-publish-date-row) — sunucu tarafı da
   // admin olmayan gönderen için bunu ayrıca siler (bkz. src/routes/submissions.js), currentUserRole

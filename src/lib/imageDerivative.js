@@ -19,11 +19,6 @@ const SITE_HOSTS = new Set(['mimarlab.com', 'www.mimarlab.com']);
 function toLocalPath(path) {
   if (typeof path !== 'string' || !path) return null;
   if (path.startsWith('data:') || path.startsWith('blob:')) return null;
-  // TELİF KİLİDİ: /api/media/<id> (kilitli medyanın güvenli ucu) BİR TÜREV YOLU DEĞİLDİR ve asla
-  // yeniden yazılmamalı — "/media/_derived/w400/s/api/media/<id>" gibi var olmayan bir anahtar
-  // üretmek, kilitli her görselin bozuk görünmesine yol açardı. Uç zaten w400 boyutunda güvenli
-  // baytları döndürüyor (bkz. src/routes/media.js), küçültülecek bir şey de yok.
-  if (path.startsWith('/api/media/')) return null;
   if (!/^(https?:)?\/\//i.test(path)) return path;
   try {
     const parsed = new URL(path.startsWith('//') ? `https:${path}` : path);

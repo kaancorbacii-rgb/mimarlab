@@ -1,10 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-// TELİF KİLİDİ (kullanıcı isteği, 2026-09-09 ikinci tur) — kilit artık kişi fotoğraflarını ve
-// firma logolarını da kapsıyor. Bu uç oturum gerektirir ve cachedPublicJson'dan GEÇMEZ, yani ortak
-// çıkış taramasına takılmaz. TARAMA BURADA SIZINTI DEĞİL, KIRIK GÖRSEL sorununu çözer: kapı yol
-// bazlı çalıştığından kilitli bir avatarın ham yolu artık 404 döner — taranmazsa avatar hiç
-// görünmezdi. Tarama, gated yol bulunmayan yükte tek bir D1 sorgusu bile açmaz (erken dönüş).
-import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
@@ -252,7 +246,7 @@ async function getThread(env, user, threadId) {
      WHERE m.thread_id = ? ORDER BY m.created_at ASC`
   ).bind(threadId).all();
 
-  return json(await scrubLockedMediaPayload(env, {
+  return json({
     id: thread.id,
     profileType: thread.profile_type,
     profileKey: thread.profile_key,
@@ -272,7 +266,7 @@ async function getThread(env, user, threadId) {
       senderName: m.sender_display_name,
       isMe: m.sender_user_id === user.id,
     })),
-  }));
+  });
 }
 
 async function replyThread(request, env, user, threadId) {
@@ -397,7 +391,7 @@ async function listMyThreads(env, user) {
     };
   }).sort((a, b) => b.updatedAt - a.updatedAt);
 
-  return json(await scrubLockedMediaPayload(env, { items }));
+  return json({ items });
 }
 
 // Silinmiş satırlar HARİÇ tutulur (deleted_at IS NULL): silinmiş bir profilin fotoğrafını

@@ -1,5 +1,4 @@
 import { errorJson } from '../lib/http.js';
-import { orderRowsByRightsBucket } from '../lib/mediaRights.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
@@ -72,10 +71,7 @@ export async function fetchOfficePool(env) {
       ).all(),
       fetchOfficeProductCounts(env),
     ]);
-    // TELİF GRUBU ÖNCE — /firma, /marka listeleri ve ana sayfa firma carousel'i aynı havuzu tüketir.
-    const ordered = await orderRowsByRightsBucket(env, 'office', results);
-
-    return ordered.map(row => {
+    return results.map(row => {
       const o = parseCanonicalRow('offices', row);
       // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
       // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
@@ -718,19 +714,15 @@ export async function buildOfficePayload(env, key) {
       const parsed = parseCanonicalRow('projects', p);
       // type — künyedeki "Grup" alanı; pop-up'taki grup filtresi (bkz. js/components/
       // project-group-filter.js) bunun üzerinden çalışır.
-      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date), _bucket: Number(p.rights_bucket) || 0 };
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
     })
-    // TELİF GÜVENLİĞİ GRUBU ÖNCE, mevcut sıra (yeniden eskiye) GRUBUN İÇİNDE — proje listesi ve
-    // ana sayfa karuseliyle AYNI kural (bkz. src/lib/projectPool.js#fetchActiveProjectPool'daki
-    // ORDER BY). Grup içindeki davranış BİREBİR eskisi gibi: yılı olmayanlar sona düşer.
     .sort((a, b) => {
-      if (a._bucket !== b._bucket) return a._bucket - b._bucket;
       if (a._year == null && b._year == null) return 0;
       if (a._year == null) return 1;
       if (b._year == null) return -1;
       return b._year - a._year;
     })
-    .map(({ _year, _bucket, ...rest }) => rest);
+    .map(({ _year, ...rest }) => rest);
   // Bu profil bir MARKA mı? (bkz. office-kind.js) — yalnızca hiçbir mimarlık hizmeti sunmayan saf
   // üreticiler için true. Popup'taki başlıkları ("Şehirdeki Diğer Markalar"), claim kutusunun
   // metnini ("Bu marka sana mı ait?") ve Düzenle bağlantısının hedefini (marka-ekle.html) bu belirler

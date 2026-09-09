@@ -1,10 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-// TELİF KİLİDİ — KİŞİSEL LİSTELER (kullanıcı isteği, 2026-09-09 madde 7).
-// Bu uçlar oturum gerektirir ve cachedPublicJson'dan GEÇMEZ, yani ortak çıkış taramasına takılmaz.
-// Taşıdıkları küçük resimler projects.images'ten doğrudan geliyor; kilitli bir görselin ORİJİNAL
-// YOLU buradan sızabilirdi. (Baytlar yine kapıdan korunuyordu — o yol istense 404 dönerdi — ama
-// madde 7 yolun kendisinin de dönmemesini istiyor.)
-import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { getActiveBadge, getPersonalAdminBadgesForUsers, higherRankBadge } from '../lib/badgeAccess.js';
@@ -88,7 +82,7 @@ async function listComments(env, url) {
     return item;
   });
 
-  return json(await scrubLockedMediaPayload(env, { items }));
+  return json({ items });
 }
 
 // GET /api/comments/mine — hesabim.html'in "Yorumlarım" kutusu için, giriş yapmış kullanıcının
@@ -129,7 +123,7 @@ export async function myComments(env, user) {
     if (!shaped) continue;
     items.push({ id: r.id, type: r.target_type, body: r.body, status: r.status, createdAt: r.created_at, ...shaped });
   }
-  return json(await scrubLockedMediaPayload(env, { items }));
+  return json({ items });
 }
 
 async function createComment(request, env) {

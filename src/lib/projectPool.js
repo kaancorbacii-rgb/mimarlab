@@ -6,7 +6,6 @@
 // bulgusu, 2026-08-14); bu dosya paylaşılan mantığı doğru katmana (lib) taşır, routes/project.js
 // de aynı fonksiyonları artık buradan import eder (davranış değişmedi, yalnızca konum).
 import { parseCanonicalRow } from './canonicalRead.js';
-import { applyRightsToShapedProjects, fetchAllProjectMediaRights } from './mediaRights.js';
 // bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu — il-ilce-data.js proje.html'deki
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
 // burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor.
@@ -49,10 +48,7 @@ export const OFFICE_NAMES_SQL = `GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS of
 // `p.type` (künyedeki "Grup" alanı) 2026-09-04'te eklendi — kişi/firma pop-up'larındaki "Projeler"
 // başlığının yanındaki grup filtresi (bkz. js/components/project-group-filter.js) bu kartların
 // KENDİ üzerinden çalışır, ayrı bir istek açmaz.
-// p.rights_bucket (2026-09-09) — kişi/firma pop-up'larındaki proje ızgaraları da telif güvenliği
-// grubuna göre sıralanır (kullanıcı isteği madde 8). Üç sorgu da bu sabiti paylaştığından kolon
-// TEK yerde eklenir; `SELECT DISTINCT` semantiği değişmez (p.id zaten satırları tekilleştiriyor).
-export const PROJECT_CARD_COLUMNS = 'p.id, p.slug, p.title, p.category, p.type, p.images, p.lat, p.lng, p.project_date, p.location, p.rights_bucket';
+export const PROJECT_CARD_COLUMNS = 'p.id, p.slug, p.title, p.category, p.type, p.images, p.lat, p.lng, p.project_date, p.location';
 
 export function designerNamesFrom(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
@@ -149,15 +145,8 @@ export function isOfficeName(name) {
 // yarışma/fikir/konsept projeleri, bkz. migrations/0037_project_build_status.sql).
 // Parametre verilmezse eski/harici çağıranlarla (ör. index.html vitrin carousel'i) geriye dönük
 // uyumluluk için 'built' varsayılır — canlıda halihazırda var olan TÜM projeler bu kategoridedir.
-// opts.withRights === false — YALNIZCA facet sayaçları için (bkz. src/lib/facetCounts.js).
-// O yol havuzu sadece Tür/Tip/Grup/Yer/Yıl gibi alanları saymak için okuyor, `images` alanına hiç
-// dokunmuyor; hak dönüşümü orada tek kazanç sağlamadan tur başına ~10 bin satırlık ek bir
-// media_rights okuması getirirdi (facet yeniden hesabı HER içerik yazımından sonra çalışır —
-// bkz. proje notu: "D1 bütçe merdiveni"). SIRALAMA yine rights_bucket'lıdır: sayaçlar sıradan
-// bağımsız olduğundan bu bir fark yaratmaz, sorgu da tek bir ORDER BY biçiminde kalır.
-export async function fetchActiveProjectPool(env, buildStatus, opts) {
+export async function fetchActiveProjectPool(env, buildStatus) {
   const status = buildStatus === 'concept' ? 'concept' : 'built';
-  const withRights = !(opts && opts.withRights === false);
   // ORDER BY COALESCE(p.publish_date, p.created_at) DESC — proje.html#render()'daki varsayılan
   // sıralamayla (sort seçilmemişse) birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
   // handleProjectFiltersRoute/recomputeProjectFacets) sıradan bağımsız olduğundan etkilenmez.
@@ -178,58 +167,17 @@ export async function fetchActiveProjectPool(env, buildStatus, opts) {
   // display_order (bkz. migrations/0087_project_display_order.sql) — proje.html#render()'daki
   // varsayılan sıralamayla (sort seçilmemişse) BİREBİR aynı olmalı, bkz. fetchProjectPageRows'daki
   // AYNI COALESCE(display_order,0) notu (src/routes/project.js).
-  // TELİF GÜVENLİĞİ SIRALAMASI (kullanıcı isteği, 2026-09-09 madde 13/14): sıralamanın BAŞINA
-  // p.rights_bucket gelir, ONDAN SONRA mevcut editoryal sıra (display_order -> yayın tarihi -> id)
-  // AYNEN uygulanır. Yani grupların içindeki bugünkü sıra hiç değişmez, yalnızca gruplar üst üste
-  // dizilir. ORDER BY RANDOM() bu depoda hiç kullanılmadı ve kullanılmaz — sıra tamamen
-  // deterministiktir, son kriter olan p.id DESC eşitlikleri de kesin biçimde çözer.
-  // rights_bucket D1 trigger'larıyla tutulur (bkz. migrations/0106_media_rights.sql) ve
-  // idx_projects_rights_order bu ORDER BY ile birebir aynı kolon sırasına sahiptir.
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
-            p.image_hotspots, p.is_copyright_approved, p.rights_bucket,
+            p.image_hotspots,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?
-     GROUP BY p.id ORDER BY p.rights_bucket ASC, COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(status).all();
-  // Hak satırları TEK sorguda okunur (bkz. fetchAllProjectMediaRights'taki maliyet gerekçesi) ve
-  // sonuç havuzun İÇİNE pişer: havuz KV'de 30 dk önbelleklendiğinden istek başına ek maliyet YOK.
-  if (!withRights) return results.map(row => reduceToCover(shapeProjectItem(row)));
-  const rightsByProject = await fetchAllProjectMediaRights(env);
-  // KAPAK, HAK SIRALAMASINDAN SONRA SEÇİLİR. shapeProjectItem'a coverOnly:true verilseydi kapak,
-  // hak dönüşümünden ÖNCEki images[0] olurdu — yani takedown almış (removed) ya da ihtilaflı bir
-  // görsel, galerideki onaylı bir fotoğraf dururken karta/carousel'e kapak olarak çıkardı. Bu
-  // yüzden önce TAM dizi şekillendirilip haklar uygulanır (applyProjectImageRights diziyi gruba
-  // göre yeniden sıralar ve 'removed' olanları düşürür), kapak ANCAK ONDAN SONRA alınır.
-  // Nihai havuz yükü yine proje başına TEK görseldir — tam dizi yalnızca bu fonksiyonun içinde,
-  // 30 dakikada bir çalışan havuz kurulumu sırasında geçici olarak yaşar.
-  const pairs = results.map(row => ({
-    id: row.id, approved: Number(row.is_copyright_approved) === 1, item: shapeProjectItem(row),
-  }));
-  await applyRightsToShapedProjects(env, pairs, rightsByProject);
-  return pairs.map(pair => reduceToCover(pair.item));
-}
-
-// Tam galeriyi taşıyan bir kart öğesini liste/havuz yüküne indirger: yalnızca kapak görseli, yalnızca
-// kapağın işaretçileri ve yalnızca kapağın hak bilgisi kalır (shapeProjectItem'ın eski coverOnly
-// davranışıyla BİREBİR aynı sonuç, yalnızca haklar uygulandıktan SONRA hesaplanır).
-export function reduceToCover(item) {
-  const cover = Array.isArray(item.images) ? item.images[0] : null;
-  item.images = cover ? [cover] : [];
-  if (item.imageHotspots) {
-    const spots = cover ? item.imageHotspots[cover] : null;
-    if (spots) item.imageHotspots = { [cover]: spots };
-    else delete item.imageHotspots;
-  }
-  if (item.imageRights) {
-    const right = cover ? item.imageRights[cover] : null;
-    if (right) item.imageRights = { [cover]: right };
-    else delete item.imageRights;
-  }
-  return item;
+  return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }
 
 // proje.html sunucudan gelen filters.designer/designerOffice listelerini olduğu gibi render eder,

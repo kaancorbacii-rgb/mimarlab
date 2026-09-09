@@ -15,7 +15,6 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { notifySubmissionApproved } from '../lib/notify.js';
 import { foldTr } from '../lib/textMatch.js';
-import { RIGHTS_DECLARATION_VERSION, recordRightsAudit, requestIp } from '../lib/mediaRights.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
 // Meslek etiketi <-> slug çevirisinin TEK kaynağı (bkz. profession-shared.js dosya başı yorumu:
@@ -308,44 +307,6 @@ async function syncOwnArchitectToAccount(env, user, typeKey, row, selfMatchName)
   }
 }
 
-
-// ZORUNLU TELİF/YAYIN HAKKI BEYANI (kullanıcı isteği, 2026-09-09 madde 4).
-//
-// Kapı SUNUCUDA: proje-ekle.html'deki onay kutusu bir UX aracıdır, yetki sınırı değildir — bu uç
-// doğrudan (devtools/curl) da çağrılabilir. İstemcinin kutuyu işaretlemiş olması `rightsDeclaration`
-// alanıyla bildirilir ve burada ZORUNLU tutulur.
-//
-// DÜZENLEMEDE ESKİ BEYAN KABUL EDİLİR: daha önce beyan alınmış bir taslak yeniden kaydedilirken
-// kullanıcıya aynı kutuyu tekrar zorlamak, kutuyu "tıkla geç" bir engele çevirirdi. Beyanın
-// KENDİSİ (kim, ne zaman, hangi IP, hangi sürüm) her yeni onayda ayrıca denetim kaydına yazılır.
-//
-// KAPSAM: yalnızca proje gönderileri. Diğer tiplerin (kişi/firma/ürün) medyası bu turda hak
-// sistemine kaydedilmiyor (bkz. migrations/0106_media_rights.sql başlığındaki kapsam notu), onlara
-// zorunlu bir beyan eklemek karşılığı olmayan bir sürtünme olurdu.
-function rightsDeclarationErrorFor(typeKey, body, existing) {
-  if (typeKey !== 'projects') return null;
-  const accepted = body && (body.rightsDeclaration === true || body.rightsDeclaration === 'true');
-  if (accepted) return null;
-  if (existing && existing.rights_declaration_version) return null;
-  return errorJson('Devam etmek için görsellerin yayın haklarına sahip olduğunu ya da gerekli izinleri aldığını onaylamalısın.');
-}
-
-// Beyanı denetim kaydına yazar. content_id olarak GÖNDERİ id'si kullanılır: canonical proje satırı
-// bu noktada henüz var olmayabilir (moderasyon kuyruğundaki bir gönderi hiç onaylanmayabilir) ama
-// beyan yine de kayıt altına alınmalıdır.
-async function recordRightsDeclaration(request, env, user, typeKey, submissionId, body) {
-  if (typeKey !== 'projects') return;
-  if (!(body && (body.rightsDeclaration === true || body.rightsDeclaration === 'true'))) return;
-  try {
-    await recordRightsAudit(env, {
-      contentId: submissionId, contentType: 'project', action: 'declare',
-      reason: 'project_submissions.id', requestedBy: user.id, processedBy: null,
-      previousStatus: null, newStatus: 'declared',
-      declarationVersion: RIGHTS_DECLARATION_VERSION, ip: requestIp(request),
-    });
-  } catch { /* denetim kaydı yazılamazsa gönderi akışı BOZULMAZ — kayıt ikincil, içerik birincil */ }
-}
-
 async function createSubmission(request, env, user, typeKey) {
   // Hiçbir gönderi tipinde (products/materials dahil, bkz. kullanıcı isteği: rozet şartı kaldırıldı)
   // aylık bir üst sınır yok — oturum açmış tek bir hesabın kısa vadede admin moderasyon kuyruğunu
@@ -378,9 +339,6 @@ async function createSubmission(request, env, user, typeKey) {
   // düzenleme) doğrudan çağırırsa (ör. tarayıcı devtools'tan) alan sessizce yok sayılır, admin
   // olmayan HİÇBİR yoldan bu değer yazılamaz. updateOwnSubmission'da da AYNI kontrol tekrarlanır.
   if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
-  const declarationError = rightsDeclarationErrorFor(typeKey, body, null);
-  if (declarationError) return declarationError;
-  if (typeKey === 'projects') body.rights_declaration_version = RIGHTS_DECLARATION_VERSION;
 
   // Kişi dizini kendi-kendine-yayın (kullanıcı isteği, 2026-09-06): Hesabım'daki "Kişi sayfasında
   // görünmek istiyorum: Evet" akışı (bkz. auth-modal.js#submitArchitectSyncIfNeeded) artık admin
@@ -467,8 +425,6 @@ async function createSubmission(request, env, user, typeKey) {
   await env.DB.prepare(
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
-
-  await recordRightsDeclaration(request, env, user, typeKey, id, body);
 
   // Kişi profili -> hesap profili geri senkronu (bkz. syncOwnArchitectToAccount). Yeni kayıtta
   // "kendisi mi" testi kaydın KENDİ adıyla yapılır: bir kullanıcı ancak kendi adıyla açtığı kaydı
@@ -681,12 +637,6 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // bkz. createSubmission'daki AYNI kontrol/gerekçe — publishDate yalnızca admin yazabilir, bu uç
   // admin başka birinin gönderisini düzenlerken de (line 373) kullanıldığından burada da tekrarlanır.
   if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
-  const updateDeclarationError = rightsDeclarationErrorFor(typeKey, body, existing);
-  if (updateDeclarationError) return updateDeclarationError;
-  if (typeKey === 'projects') {
-    body.rights_declaration_version = (body.rightsDeclaration === true || body.rightsDeclaration === 'true')
-      ? RIGHTS_DECLARATION_VERSION : (existing.rights_declaration_version || null);
-  }
 
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
@@ -746,8 +696,6 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   await env.DB.prepare(
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
-
-  await recordRightsDeclaration(request, env, user, typeKey, id, body);
 
   // Galeriden çıkarılan/üzerine yeni yükleme ile değiştirilen görsellerin eski R2 nesnelerini
   // temizle (bkz. src/lib/canonicalSync.js#cleanupReplacedR2Media) — D1 yazısı BAŞARILI olduktan

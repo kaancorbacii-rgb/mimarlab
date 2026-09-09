@@ -15,9 +15,6 @@ import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
 import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
-import { handleSafeMediaRoute } from './routes/media.js';
-import { handleProjectRightsRoute } from './routes/projectRights.js';
-import { SAFE_MEDIA_PREFIX, gatePathFor, lookupGateDecision, rightsEpoch } from './lib/mediaRights.js';
 import { derivedImageUrl, derivedSrcset } from './lib/imageDerivative.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
@@ -967,11 +964,6 @@ async function routeAsset(request, env, url, ctx) {
     return serveGundemListPage(request, env, url, ctx);
   }
 
-  // Telif kapısı — statik proje görselleri (bkz. serveGatedStaticImage). gatePathFor yalnızca
-  // /projects/** için dolu döner, diğer tüm statik yollar aşağıdaki mevcut akışta kalır.
-  const staticGatePath = (request.method === 'GET' || request.method === 'HEAD') ? gatePathFor(url.pathname) : null;
-  if (staticGatePath) return serveGatedStaticImage(request, env, url, ctx, staticGatePath);
-
   const response = await env.ASSETS.fetch(request);
   // HEAD DE BU DALA GİRER (hardening denetimi, 2026-09-07). Koşul eskiden yalnızca 'GET'ti; HEAD
   // istekleri buradan düşüp aşağıdaki withStaticAssetCacheHeaders'a gidiyor ve Cloudflare Assets'in
@@ -1447,63 +1439,6 @@ function versionAssetUrls(rewriter, env) {
   } });
 }
 
-// TELİF KAPISI — STATİK PROJE GÖRSELLERİ (/projects/**), kullanıcı isteği 2026-09-09 madde 5/16.7.
-//
-// `run_worker_first: true` (bkz. wrangler.jsonc) sayesinde Cloudflare Assets'ten servis edilen
-// statik dosyalar da bu Worker'dan GEÇER — yani kilitli bir proje görselinin orijinal baytları
-// "statik dosya" olduğu için kapıyı atlayamaz. Kapı YALNIZCA /projects/** altında çalışır
-// (bkz. mediaRights.js#GATED_STATIC_PREFIXES): logos/, mimarlar/, miras/, fontlar ve script'ler
-// hiç sorgulanmaz, onların davranışı BİREBİR eskisi gibi kalır.
-//
-// ÖNBELLEK ANAHTARINDA EPOCH: handleMediaRoute'takiyle AYNI desen — bir edge girdisi ancak o
-// epoch'ta kapıdan geçmiş bir istekten doğar, bir hak durumu değişince epoch artar ve tüm eski
-// girdiler yetim kalır.
-//
-// TARAYICI ÖMRÜ 7 GÜN -> 1 GÜN (yalnızca kapıya tabi yollarda): STATIC_IMAGE_CACHE_HEADERS'ın
-// `stale-while-revalidate=2592000`'i, bir takedown sonrasında ziyaretçinin tarayıcısının 30 güne
-// kadar eski (açık) kopyayı sunmasına izin verirdi. Edge tarafı (s-maxage) 30 günde kalır ve zaten
-// epoch ile anında temizlenir; değişen yalnızca tarayıcının kendi kopyasının azami yaşıdır. Bedel
-// günde bir koşullu istektir (ETag ile 304), kazanç ise geri alınabilir bir yayın hakkıdır.
-const GATED_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=86400, s-maxage=2592000' };
-
-async function serveGatedStaticImage(request, env, url, ctx, gatePath) {
-  const epoch = await rightsEpoch(env);
-  const cacheUrl = new URL(url.toString());
-  cacheUrl.searchParams.set('__rv', epoch);
-  const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
-  let cache = null;
-  try { cache = caches.default; } catch { /* yerel wrangler dev'de Cache API olmayabilir */ }
-  if (cache) {
-    try {
-      const hit = await cache.match(cacheKey);
-      if (hit) return request.method === 'HEAD' ? new Response(null, { status: hit.status, headers: hit.headers }) : hit;
-    } catch { /* okunamazsa taze yola düş */ }
-  }
-
-  const decision = await lookupGateDecision(env, gatePath);
-  if (decision.gated && !decision.allowed) {
-    const denied = errorJson('Bulunamadı', 404, { 'Cache-Control': 'public, max-age=60, s-maxage=300' });
-    if (cache && request.method !== 'HEAD') {
-      const put = cache.put(cacheKey, denied.clone()).catch(() => {});
-      if (ctx) ctx.waitUntil(put);
-    }
-    return denied;
-  }
-
-  const assetRes = await env.ASSETS.fetch(request);
-  if (assetRes.status !== 200) return assetRes;
-  const headers = new Headers(assetRes.headers);
-  for (const [k, v] of Object.entries(decision.gated ? GATED_IMAGE_CACHE_HEADERS : STATIC_IMAGE_CACHE_HEADERS)) headers.set(k, v);
-  headers.set('X-Content-Type-Options', 'nosniff');
-  if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
-  const out = new Response(assetRes.body, { status: 200, headers });
-  if (cache) {
-    const put = cache.put(cacheKey, out.clone()).catch(() => {});
-    if (ctx) ctx.waitUntil(put);
-  }
-  return out;
-}
-
 function withStaticAssetCacheHeaders(url, response) {
   if (response.status !== 200) return response;
   const extHeaders = IMAGE_EXT_RE.test(url.pathname) ? STATIC_IMAGE_CACHE_HEADERS
@@ -1951,11 +1886,6 @@ async function routeApi(request, env, url, ctx) {
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
   // ctx: türev yazımları yanıt döndükten SONRA ctx.waitUntil ile tamamlanır (bkz.
   // src/routes/upload.js#handleUploadRoute) — yükleme yanıtı bekletilmez.
-  // Kilitli medyanın TEK çıkış kapısı (bkz. src/routes/media.js). /api/uploads'tan ÖNCE gelmesi
-  // gerekmez (yollar çakışmıyor) ama medya uçları bir arada dursun diye buraya konuldu.
-  if (path.startsWith(SAFE_MEDIA_PREFIX)) return handleSafeMediaRoute(request, env, url, ctx);
-  // Proje telif hakkı yönetimi (bkz. src/routes/projectRights.js) — yetki sunucuda kurulur.
-  if (path.startsWith('/api/project-rights/')) return handleProjectRightsRoute(request, env, url);
   if (path === '/api/uploads') return handleUploadRoute(request, env, ctx);
   if (path === '/api/uploads/file') return handleFileUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);

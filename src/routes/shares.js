@@ -1,10 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-// TELİF KİLİDİ — KİŞİSEL LİSTELER (kullanıcı isteği, 2026-09-09 madde 7).
-// Bu uçlar oturum gerektirir ve cachedPublicJson'dan GEÇMEZ, yani ortak çıkış taramasına takılmaz.
-// Taşıdıkları küçük resimler projects.images'ten doğrudan geliyor; kilitli bir görselin ORİJİNAL
-// YOLU buradan sızabilirdi. (Baytlar yine kapıdan korunuyordu — o yol istense 404 dönerdi — ama
-// madde 7 yolun kendisinin de dönmemesini istiyor.)
-import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
@@ -76,7 +70,7 @@ export async function listShares(env, user) {
     if (row === undefined) return true;
     return !!row && !row.deleted_at && !row.hidden_at;
   });
-  return json(await scrubLockedMediaPayload(env, { items }));
+  return json({ items });
 }
 
 async function createShare(request, env, user) {

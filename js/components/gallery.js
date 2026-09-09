@@ -215,21 +215,6 @@ function initDetailGallery(opts){
   }
   // openHotspotIndex: şeritteki bir işaretçiden büyütmeye geçilirken (bkz. mountThumbHotspots)
   // hangi ürün kartının hemen açılacağı — normal gezinmede (ok/swipe/klavye) verilmez.
-  // Kilit rozeti lightbox'ın İÇİNE (position:fixed bir kutu) eklenir ve swap()'lar arasında
-  // yeniden kullanılır — tıpkı .lightbox-bottombar/.lightbox-grid gibi (bkz. yukarısı).
-  function updateLockedNote(locked){
-    let note = lightbox.querySelector('.ml-locked-note');
-    if(!locked){ if(note) note.remove(); return; }
-    if(!note){
-      const wrap = document.createElement('div');
-      wrap.innerHTML = lockedMediaNoteHtml();
-      note = wrap.firstElementChild;
-      lightbox.appendChild(note);
-    }
-    // Alt barla çakışmasın: sayaç/etiket butonu zaten altta duruyor, rozet onun üstüne alınır.
-    note.style.bottom = lightboxBar ? '64px' : '12px';
-  }
-
   function showLightboxImage(i, openHotspotIndex){
     const st = galleryEl._pmGalleryState;
     if(!st.images.length) return;
@@ -241,17 +226,10 @@ function initDetailGallery(opts){
     // indiriliyordu. Şerit/ızgaradaki AYNI cdnImg/cdnSrcset deseni burada da uygulanır — lightbox tam
     // ekran genişliğinde göründüğünden sizes="100vw", üst sınır 2000px (ekranların büyük çoğunluğu için
     // yeterli çözünürlük, yine de orijinalden belirgin küçük).
-    // TELİF KİLİDİ (kullanıcı isteği, 2026-09-09 madde 9): kilitli görselde büyütme ORİJİNALİ
-    // AÇMAZ. Ekstra bir kontrole gerek yok — st.images kilitli öğeler için zaten yalnızca güvenli
-    // ucu (/api/media/<id>) taşıyor (bkz. src/lib/mediaRights.js#applyProjectImageRights) ve
-    // cdnImg/cdnSrcset bu öneke DOKUNMAZ (bkz. image-cdn.js#toLocalPath), yani burada orijinal
-    // çözünürlük istenemez. Mevcut UX (aynı lightbox, aynı gezinme, aynı klavye) korunur; görsel
-    // güvenli/küçük sürümüyle ve bulanık gösterilir, üstüne kısa bir bilgi rozeti eklenir.
     const srcset = cdnSrcset(img, [800, 1200, 1600, 2000]);
     lightboxImg.src = cdnImg(img, 1600);
     if(srcset){ lightboxImg.srcset = srcset; lightboxImg.sizes = '100vw'; }
     else { lightboxImg.removeAttribute('srcset'); lightboxImg.removeAttribute('sizes'); }
-    updateLockedNote(isLockedMediaUrl(img));
     if(lightboxCounter) lightboxCounter.textContent = `${st.lightboxIndex + 1} / ${st.images.length}`;
     mountLightboxHotspots(img, openHotspotIndex);
   }

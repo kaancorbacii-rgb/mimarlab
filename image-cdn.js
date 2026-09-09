@@ -69,11 +69,6 @@ function derivativeWidthFor(width) {
 function toLocalPath(path) {
   if (typeof path !== 'string' || !path) return null;
   if (path.startsWith('data:') || path.startsWith('blob:')) return null;
-  // TELİF KİLİDİ: /api/media/<id> (kilitli medyanın güvenli ucu) BİR TÜREV YOLU DEĞİLDİR ve asla
-  // yeniden yazılmamalı — "/media/_derived/w400/s/api/media/<id>" gibi var olmayan bir anahtar
-  // üretmek, kilitli her görselin bozuk görünmesine yol açardı. Uç zaten w400 boyutunda güvenli
-  // baytları döndürüyor (bkz. src/routes/media.js), küçültülecek bir şey de yok.
-  if (path.startsWith('/api/media/')) return null;
   if (!/^(https?:)?\/\//i.test(path)) return path;
   // Protokol-göreli ("//host/...") ve tam URL'ler — tarayıcıda location.origin ile karşılaştırılır.
   try {
@@ -132,72 +127,4 @@ function cdnSrcset(path, widths) {
   // `sizes` ile birlikte doğru çalışması için olduğu gibi bırakılır. Hiç aday yoksa boş dize
   // döner ve çağrı noktaları srcset özniteliğini hiç yazmaz (mevcut davranış).
   return parts.join(', ');
-}
-
-// ---------------------------------------------------------------------------------------------
-// TELİF KİLİDİ — SİTE GENELİ GÖRSEL DAVRANIŞI (kullanıcı isteği, 2026-09-09 madde 8)
-// ---------------------------------------------------------------------------------------------
-// Kilitli her görsel, sitedeki TEK bir adres biçiminden gelir: /api/media/<opak id> (bkz.
-// src/lib/mediaRights.js#SAFE_MEDIA_PREFIX). Bu, kilidin görsel dilini TEK bir CSS seçicisiyle
-// kurmayı mümkün kılıyor:
-//
-//     img[src^="/api/media/"]
-//
-// NEDEN BU YOL: proje kapağı ondan fazla ayrı yerde render ediliyor (proje kartları, ana sayfa
-// karuseli, kişi/firma pop-up ızgaraları, İlgili Yapılar, arama sonuçları, En İyi 100, Panolarım,
-// takip akışı...). Her birine "kilitliyse şu class'ı ekle" mantığı yazmak, yeni bir yüzey
-// eklendiğinde sessizce unutulacak bir kural olurdu — bu depodaki tekrar eden kök neden tam olarak
-// budur. Adres biçimi ise sunucu tarafından garanti edilir: kilitli olmayan hiçbir görsel bu
-// önekten gelmez, kilitli olan hiçbir görsel başka bir önekten gelemez.
-//
-// BULANIKLIK BİR GÜVENLİK SINIRI DEĞİLDİR (kullanıcı isteği madde 8'in kendi ifadesi). Gerçek
-// koruma sunucudadır: bu URL'nin arkasında zaten yalnızca küçük/güvenli baytlar var, orijinal
-// dosya hiçbir yoldan servis edilmiyor. Buradaki blur, ziyaretçiye "bu görselin yayın hakkı
-// doğrulanmadı" mesajını veren bir SUNUM katmanıdır. Aynı sebeple sağ tık engellenmez; yalnızca
-// sürükle-bırak/seçim gibi kazara kopyalamayı azaltan UX önlemleri uygulanır.
-//
-// scale(1.03): CSS blur, elemanın kenarlarında saydamlığa doğru dağılır ve ince bir hâle bırakır;
-// hafif bir büyütme bu hâleyi kutunun dışına taşır. object-fit zaten çağrı noktalarında ayarlı,
-// bu yüzden görüntü oranı bozulmaz.
-(function injectLockedMediaStyle() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('ml-locked-media-style')) return;
-  var css = [
-    'img[src^="/api/media/"]{',
-    '  filter: blur(7px) saturate(0.85);',
-    '  transform: scale(1.03);',
-    '  -webkit-user-drag: none;',
-    '  user-select: none;',
-    '  -webkit-user-select: none;',
-    '}',
-    'a:has(> img[src^="/api/media/"]), .gallery-item:has(img[src^="/api/media/"]){ overflow: hidden; }',
-    '.ml-locked-note{',
-    '  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);',
-    '  display:inline-flex; align-items:center; gap:6px;',
-    '  background:rgba(27,42,61,0.82); color:#fff; border-radius:999px;',
-    '  padding:6px 12px; font-size:12px; line-height:1; letter-spacing:0.01em;',
-    '  pointer-events:none; z-index:3; max-width:calc(100% - 24px);',
-    '}',
-    '.ml-locked-note svg{ width:13px; height:13px; flex:0 0 auto; }',
-    '.lightbox.grid-mode .ml-locked-note{ display:none; }',
-    '@media (max-width:640px){ .ml-locked-note{ font-size:11px; padding:5px 10px; bottom:8px; } }',
-  ].join('\n');
-  var style = document.createElement('style');
-  style.id = 'ml-locked-media-style';
-  style.textContent = css;
-  (document.head || document.documentElement).appendChild(style);
-})();
-
-// Kilit rozeti (asma kilit ikonu + kısa metin). Galeri/lightbox gibi metnin sığdığı yüzeylerde
-// kullanılır; kartlarda yalnızca yukarıdaki blur uygulanır (küçük bir kartta rozet görseli tamamen
-// kapatırdı).
-function lockedMediaNoteHtml() {
-  return '<div class="ml-locked-note">'
-    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">'
-    + '<rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>'
-    + 'Görsel yayın hakkı doğrulanmadı</div>';
-}
-
-function isLockedMediaUrl(url) {
-  return typeof url === 'string' && url.indexOf('/api/media/') === 0;
 }

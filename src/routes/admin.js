@@ -1,5 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-import { openMediaForClaimKey } from '../lib/mediaRights.js';
 import { getSessionUser, publicUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { updateUserProfileFields } from './auth.js';
@@ -843,11 +842,6 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // madde 3) — bkz. src/lib/claimedProfiles.js#fillUserFromArchitectProfile: yalnızca BOŞ alanlar
     // doldurulur, hem Hesabım formu hem admin panelindeki Üyeler ekranı aynı users satırını okur.
     if (profileType === 'architect') await fillUserFromArchitectProfile(env, userId, profileKey);
-    // TELİF KİLİDİ (kullanıcı isteği, 2026-09-09 ikinci tur): bir profil sahiplenildiği anda o
-    // profilin, projelerinin ve (marka ise) ürünlerinin kilitli medyası açılır — seed kuralının
-    // çalışma zamanı karşılığı. Bu olmadan kullanıcı "sahiplendim ama görsellerim hâlâ bulanık"
-    // durumunda kalırdı. 'disputed'/'removed' satırlara DOKUNULMAZ (bkz. openMediaForClaimedEntity).
-    await openMediaForClaimKey(env, profileType, profileKey);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, profileType, profileKey);
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[profileType] || profileType;
@@ -929,11 +923,6 @@ async function handleClaimsAdmin(request, env, url, segments) {
     if (body.status === 'approved' && claim.profile_type === 'architect') {
       await fillUserFromArchitectProfile(env, claim.user_id, claim.profile_key);
     }
-    // TELİF KİLİDİ (kullanıcı isteği, 2026-09-09 ikinci tur): bir profil sahiplenildiği anda o
-    // profilin, projelerinin ve (marka ise) ürünlerinin kilitli medyası açılır — seed kuralının
-    // çalışma zamanı karşılığı. Bu olmadan kullanıcı "sahiplendim ama görsellerim hâlâ bulanık"
-    // durumunda kalırdı. 'disputed'/'removed' satırlara DOKUNULMAZ (bkz. openMediaForClaimedEntity).
-    if (body.status === 'approved') await openMediaForClaimKey(env, claim.profile_type, claim.profile_key);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, claim.profile_type, claim.profile_key);
 

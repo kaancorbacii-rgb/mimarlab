@@ -1,11 +1,6 @@
 .DS_Store
 .wrangler/
 scripts/output/
-# Telif seed'inin ürettiği SQL parçaları + eksik türev listesi (bkz. scripts/backfill-media-rights.mjs).
-# Üretilen dosyalar canlı D1'e uygulanmak üzeredir, kaynak kodun parçası değildir.
-# NOT: .assetsignore'da `scripts` zaten var, yani bu dosyalar deploy edilen public varlıklara da
-# girmez (bkz. proje notu: ".gitignore ≠ .assetsignore" — ikisi ayrı ayrı kontrol edilmeli).
-scripts/.out/
 # Gizli anahtarlar (IYZICO_API_KEY, GOOGLE_CLIENT_SECRET vb.) `wrangler secret put` ile ayrı ayrı
 # tanımlanır (bkz. wrangler.jsonc#vars yorumu), hiçbir zaman bu dosyalarda YAŞAMAZ — ama biri yerel
 # geliştirme için böyle bir dosya oluşturursa (henüz oluşturulmadı) yine de güvenlik payı olarak

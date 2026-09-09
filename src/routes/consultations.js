@@ -1,5 +1,4 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-import { scrubLockedMediaPayload } from '../lib/mediaRights.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
@@ -235,9 +234,7 @@ async function getRoomState(request, env, user, roomUuid) {
   if (!row) return errorJson('Görüşme odası bulunamadı.', 404);
   const access = await resolveConsultationAccess(env, user, row);
   if (!access.allowed) return errorJson('Bu görüşmeye erişim yetkin yok.', 403);
-  // TELİF KİLİDİ (2026-09-09 ikinci tur) — danışmanın profil fotoğrafı kilitli olabilir; ham yol
-  // kapıdan 404 döndüğü için taranmazsa görsel KIRIK görünürdü (bkz. src/routes/messages.js).
-  return json(await scrubLockedMediaPayload(env, buildRoomState(env, row, access, await maybeRetryMeetOnAccess(env, row))));
+  return json(buildRoomState(env, row, access, await maybeRetryMeetOnAccess(env, row)));
 }
 
 // Saf/yan etkisiz yanıt gövdesi — scripts/test-meet-gateway.mjs sahte saatle doğrudan bunu test eder.

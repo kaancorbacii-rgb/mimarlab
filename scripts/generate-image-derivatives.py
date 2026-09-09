@@ -175,7 +175,7 @@ def load_source(path):
     return curl_bytes(public_url(path))
 
 
-def process_one(path, dry_run=False, for_locked_media=False):
+def process_one(path, dry_run=False):
     result = {'path': path, 'written': 0, 'skipped': 0, 'failed': 0, 'bytes': 0, 'note': ''}
     ext = os.path.splitext(path.split('?')[0])[1].lower()
     if ext in SKIP_EXT:
@@ -195,11 +195,7 @@ def process_one(path, dry_run=False, for_locked_media=False):
         result['failed'] = len(missing)
         result['note'] = 'source-fetch-failed'
         return result
-    # MIN_SOURCE_BYTES: normalde 40 KB altı kaynaklara türev üretmek anlamsızdır (kazanç yok).
-    # TELİF KİLİDİ İSTİSNASI: kilitli medyada türevin YOKLUĞU yer tutucu demektir, bu yüzden bu
-    # eşik --for-locked-media modunda uygulanmaz. Canlı ölçüm (2026-09-09): türevi eksik 1.968
-    # kilitli görselin büyük çoğunluğu tam olarak bu eşiğe takıldığı için türevsiz kalmıştı.
-    if len(raw) < MIN_SOURCE_BYTES and not for_locked_media:
+    if len(raw) < MIN_SOURCE_BYTES:
         result['skipped'] = len(missing)
         result['note'] = f'source-too-small({len(raw)})'
         return result
@@ -224,25 +220,14 @@ def process_one(path, dry_run=False, for_locked_media=False):
         # ASLA BÜYÜTME: kaynak zaten bu basamaktan darsa türev üretmek dosyayı büyütmekten başka
         # işe yaramaz. İstemci bu URL'yi yine isteyebilir; Worker o zaman orijinale geri düşer ve
         # doğru (zaten küçük) görseli servis eder.
-        #
-        # TELİF KİLİDİ İSTİSNASI (--for-locked-media, 2026-09-09): kilitli medyada Worker orijinale
-        # ASLA geri düşmez (bkz. src/routes/media.js#readSafeBytes) — türev yoksa ziyaretçi
-        # fotoğraf yerine kilit yer tutucusu görür. Bu modda türev, kaynağın KENDİ genişliğinde
-        # (yine büyütmeden) üretilir: amaç dosyayı küçültmek değil, orijinalden AYRI bir nesnenin
-        # var olmasıdır.
-        target_w = w
         if src_w <= w:
-            if not for_locked_media:
-                result['skipped'] += 1
-                continue
-            target_w = src_w
-        h = max(1, round(im.height * target_w / src_w))
+            result['skipped'] += 1
+            continue
+        h = max(1, round(im.height * w / src_w))
         out = io.BytesIO()
-        im.resize((target_w, h), Image.LANCZOS).save(out, 'WEBP', quality=QUALITY, method=6)
+        im.resize((w, h), Image.LANCZOS).save(out, 'WEBP', quality=QUALITY, method=6)
         data = out.getvalue()
-        # KAZANÇ EŞİĞİ aynı gerekçeyle kilitli medyada uygulanmaz: burada kazanç değil, orijinalden
-        # ayrı bir kopyanın VARLIĞI aranıyor.
-        if not for_locked_media and len(data) > len(raw) * MIN_SAVING_RATIO:
+        if len(data) > len(raw) * MIN_SAVING_RATIO:
             result['skipped'] += 1
             continue
         if dry_run:
@@ -263,12 +248,6 @@ def main():
     ap.add_argument('--limit', type=int, default=0)
     ap.add_argument('--concurrency', type=int, default=8)
     ap.add_argument('--dry-run', action='store_true')
-    # Telif kilitleme sistemi için (bkz. src/lib/mediaRights.js): kilitli medyada Worker orijinale
-    # geri DÜŞMEZ, bu yüzden "kazanç yoksa yazma" ve "kaynak zaten dar" atlamaları burada bir
-    # eksiklik üretir — yer tutucu gösterilir. Bu bayrak ikisini de devre dışı bırakır; büyütme
-    # yine YAPILMAZ (türev kaynağın kendi genişliğinde üretilir).
-    ap.add_argument('--for-locked-media', action='store_true',
-                    help='Kilitli medya için: kazanç eşiğini ve "kaynak zaten dar" atlamasını uygulama.')
     ap.add_argument('--report', default='')
     # Galeri kareleri (stage2) için yalnızca küçük basamaklar üretmek üzere: o görseller SADECE
     # pop-up'ın 480 px'lik galeri şeridinde ve 240 px'lik küçük resimlerinde kullanılıyor; 1600 px
@@ -293,7 +272,7 @@ def main():
     done = 0
     started = time.time()
     with concurrent.futures.ThreadPoolExecutor(args.concurrency) as ex:
-        futs = {ex.submit(process_one, p, args.dry_run, args.for_locked_media): p for p in paths}
+        futs = {ex.submit(process_one, p, args.dry_run): p for p in paths}
         for fut in concurrent.futures.as_completed(futs):
             r = fut.result()
             for k in totals:
