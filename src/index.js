@@ -722,7 +722,16 @@ export default {
       // <head>'in BAŞINA: <head>'deki senkron shim'ler ondan sonra çalışmalı.
       const versionMeta = `<meta name="ml-asset-version" content="${deployVersion(env)}">`;
       rewriter.on('head', { element(el) { el.prepend(versionMeta, { html: true }); } });
-      body = rewriter.transform(new Response(body, { status: 200, headers: { 'Content-Type': 'text/html' } })).body;
+      // charset=utf-8 ZORUNLU (kullanıcı isteği, 2026-09-10: "projeler sayfasına girince yazılar
+      // bozuluyor"). HTMLRewriter belgenin kodlamasını Content-Type'ın charset parametresinden
+      // alır; parametre YOKSA HTML spesifikasyonunun ön-taramasına düşer ve o yalnızca İLK 1024
+      // BAYTA bakar. Liste/hub sayfalarında <meta charset> o pencerenin dışındaydı (proje.html'de
+      // 2107, marka.html'de 3787 bayt) — ön-tarama başarısız olunca kodlama UTF-8 DIŞINDA bir
+      // varsayılana düşüyor ve rewriter'ın yeniden serileştirdiği metin "DOÇEM" yerine "DOÃ‡EM"
+      // olarak çıkıyordu. Bu satır kodlamayı ÖN-TARAMADAN BAĞIMSIZ hale getirir (asıl kök çözüm);
+      // meta'nın konumu da ayrıca düzeltildi (bkz. scripts/preflight-check.sh'taki koruma) ki
+      // ön-taramaya dayanan BAŞKA tüketiciler de (tarayıcı sniff'i, botlar) doğru kodlamayı görsün.
+      body = rewriter.transform(new Response(body, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })).body;
       headers.delete('Content-Length');
     }
     return new Response(body, { status: response.status, statusText: response.statusText, headers });
@@ -1018,9 +1027,12 @@ async function routeAsset(request, env, url, ctx) {
       headExtra += `<script id="ml-home-data" type="application/json">${JSON.stringify(homeData).replace(/</g, '\\u003c')}</script>`;
     }
     if (hubListData) headExtra += hubListData.preload;
-    // Hub verisi <head>'in BAŞINA (shim'den önce) — bkz. HUB_SSR yorumu. Yanıt zaten
-    // `Content-Type: text/html; charset=utf-8` başlığı taşıdığından <meta charset>'in ilk 1024
-    // bayttan sonraya kayması sorun yaratmaz (başlık meta'dan önceliklidir).
+    // Hub verisi <head>'in BAŞINA (shim'den önce) — bkz. HUB_SSR yorumu.
+    // ESKİ NOT YANLIŞTI ve bir hataya yol açtı: "başlık meta'dan önceliklidir" yalnızca TARAYICI
+    // için doğru. HTMLRewriter kendi kodlamasını Content-Type'ın charset'inden alır; charset yoksa
+    // ilk 1024 baytlık <meta> ön-taramasına düşer — ve bu blok <head>'in en başına KB'larca JSON
+    // koyduğu için meta o pencerenin daha da dışına itiliyordu (bkz. fetch handler'daki düzeltme ve
+    // <meta charset>'in artık <head>'in İLK çocuğu olması).
     const headFirst = hubListData ? `<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>` : '';
     const rewriter = new HTMLRewriter();
     if (headExtra || headFirst) rewriter.on('head', { element(el) {

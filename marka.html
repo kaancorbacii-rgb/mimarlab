@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
 <!-- marka.html — firma.html'in TÜRETİLMİŞ kopyası (kullanıcı isteği, 2026-08-31: "Ana menüdeki
      FİRMA sayfasının aynısını kopyala ve ismini MARKA koy. Bu sayfada üretici ürün firmaları
      yayınlanacak ve artık isimleri MARKA olacak"). firma.html'den SADECE üç şey farklı:
@@ -13,8 +17,6 @@
           mimarlık yapan hem ürün tasarlayan kayıtlar /firma/:slug'da KALIR ve firma.html tarafından
           servis edilir. Yanlış önekle gelen istekler 301 ile kanonik adrese gider (bkz.
           src/index.js#serveDetailPage), yani eski /firma/:slug bağlantıları kırılmaz. -->
-<html lang="tr">
-<head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <!-- İki işi olan tek bir senkron <head> betiği (performans denetimi, 2026-09-06 madde 3 ve 4).
      BURADA olmasının sebebi ikisinin de HTML ayrıştırmasının EN BAŞINDA olması gerekmesidir:
@@ -41,7 +43,6 @@ if(/^\/marka\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boo
 ['/js/components/office-modal.js','/js/components/modal-shell.js'].forEach(function(s){var mv=document.querySelector('meta[name="ml-asset-version"]');var v=mv&&mv.getAttribute('content');var l=document.createElement('link');l.rel='preload';l.as='script';l.href=v?s+'?v='+v:s;document.head.appendChild(l);});return;}
 if(p.replace(/\/+$/,'')==='/marka'&&!location.search){var u='/api/offices?page=1&limit=24&brands=1';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
 }catch(e){}})();</script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">

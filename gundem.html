@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <!-- Erken liste fetch'i (performans denetimi deseni, 2026-09-06 madde 3 — kisi/firma/marka/proje ile
      AYNI mekanizma): liste isteğini HTML ayrıştırmasının en başında başlatır, js/pages/gundem.js
@@ -15,7 +16,6 @@
 <script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname.replace(/\/+$/,'');
 if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
 }catch(e){}})();</script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">

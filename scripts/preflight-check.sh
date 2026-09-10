@@ -72,6 +72,26 @@ done
 [ "$fail" -eq 0 ] && ok "tüm kontrol edilen HTML sayfalarının inline script'leri temiz"
 
 echo ""
+echo "3b) <meta charset> ilk 1024 baytta mı (mojibake regresyon koruması)"
+# GERÇEK BULGU (kullanıcı isteği, 2026-09-10: "projeler sayfasına girince yazılar bozuluyor"):
+# HTML spesifikasyonunun kodlama ÖN-TARAMASI yalnızca belgenin İLK 1024 BAYTINA bakar. Liste/hub
+# sayfalarında <meta charset> çok geride kalmıştı (proje.html 2107, marka.html 3787 bayt) ve
+# HTMLRewriter'a charset'siz bir Content-Type verildiği için kodlama UTF-8 dışı bir varsayılana
+# düşüyor, Türkçe karakterler "DOÇEM" yerine "DOÃ‡EM" olarak çıkıyordu. Sunucu tarafı artık
+# charset'i açıkça veriyor (src/index.js), ama meta'nın konumu da spesifikasyona uygun kalmalı:
+# ön-taramaya dayanan diğer tüketiciler (tarayıcı sniff'i, botlar, ara katmanlar) için tek güvence bu.
+for f in *.html; do
+  [ -f "$f" ] || continue
+  off=$(node -e "const b=require('fs').readFileSync('$f');const i=b.indexOf('charset=');process.stdout.write(String(i));")
+  if [ "$off" = "-1" ]; then
+    bad "$f — <meta charset> hiç yok"
+  elif [ "$off" -gt 1024 ]; then
+    bad "$f — <meta charset> $off. baytta (ilk 1024 baytta olmalı; mojibake riski)"
+  fi
+done
+[ "$fail" -eq 0 ] && ok "tüm HTML sayfalarında <meta charset> ilk 1024 baytta"
+
+echo ""
 echo "4) P1 düzeltmesi regresyon korumaları (kaynak-seviyeli, statik)"
 if grep -q "document.addEventListener('DOMContentLoaded'" index.html; then
   ok "index.html — ilk render zinciri hâlâ DOMContentLoaded'a alınmış"

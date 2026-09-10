@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <!-- (a) DETAY yolu: pm-boot-loading "boot veil"i — mevcut davranış, değişmedi. Burada modül
      preload'ı YOK: proje popup'ının bağımlılık zinciri bu sayfada zaten <script defer> ile
@@ -22,7 +23,6 @@ var dm=p.match(/^\/proje\/([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[
 if(/^\/proje\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);return;}
 if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?buildStatus=built&page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);var u2='/api/projects/filters?buildStatus=built';window.__mlPrefetch[u2]=mlPre(u2);}
 }catch(e){}})();</script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">

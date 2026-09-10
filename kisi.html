@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <!-- İki işi olan tek bir senkron <head> betiği (performans denetimi, 2026-09-06 madde 3 ve 4).
      BURADA olmasının sebebi ikisinin de HTML ayrıştırmasının EN BAŞINDA olması gerekmesidir:
@@ -27,7 +28,6 @@ if(/^\/kisi\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot
 ['/js/components/architect-modal.js','/js/components/modal-shell.js'].forEach(function(s){var mv=document.querySelector('meta[name="ml-asset-version"]');var v=mv&&mv.getAttribute('content');var l=document.createElement('link');l.rel='preload';l.as='script';l.href=v?s+'?v='+v:s;document.head.appendChild(l);});return;}
 if(p.replace(/\/+$/,'')==='/kisi'&&!location.search){var u='/api/architects?page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
 }catch(e){}})();</script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">

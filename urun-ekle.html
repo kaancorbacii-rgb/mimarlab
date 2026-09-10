@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
@@ -1025,6 +1025,10 @@ async function prefillForEdit(){
     // ORİJİNAL ürünü geri açmak yerine İKİNCİ bir ürün satırı yaratıyordu. proje-ekle.html#
     // prefillForEdit bu bağı zaten geri yüklüyordu (bkz. oradaki AYNI satır), bu sayfa sapmıştı.
     if(item.claimed_slug) claimSlug = item.claimed_slug;
+    // Telif kutucuğu ÖN İŞARETLİ, YALNIZCA kayıt canlıda yayındaysa (kullanıcı isteği, 2026-09-10
+    // madde 3). ARŞİVDEKİ kayıtta bilerek işaretlenmez: orada onay, yayına almanın kapısıdır
+    // (madde 2/4 — "telif butonunu onaylamadan içeriği yayınlayamasın").
+    if(window.RightsConsent && item.status !== 'archived') RightsConsent.setAcceptedWhenReady(true);
     applyPrefillItem(item);
     mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -1040,6 +1044,8 @@ async function prefillForAdminEdit(){
     const item = (await res.json()).item;
     adminEditSlug = item.slug;
     adminEditKind = item.kind === 'material' ? 'materials' : 'products';
+    // bkz. prefillForEdit'teki AYNI gerekçe (madde 3) — ?adminedit= canonical (yayındaki) kaydı açar.
+    if(window.RightsConsent) RightsConsent.setAcceptedWhenReady(true);
     applyPrefillItem(item);
     mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -1073,6 +1079,8 @@ async function prefillForClaim(){
     }
   }catch{}
   claimKind = merged.kind === 'material' ? 'materials' : 'products';
+  // bkz. prefillForEdit'teki AYNI gerekçe (madde 3) — ?claim= yayındaki canonical ürünü açar.
+  if(window.RightsConsent) RightsConsent.setAcceptedWhenReady(true);
 
   // Bu ürün için zaten (bu sahiplenmeyle) oluşturulmuş bir düzenleme satırı varsa PATCH moduna geç.
   try{

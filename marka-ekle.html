@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
 <!-- marka-ekle.html — firma-ekle.html'in TÜRETİLMİŞ kopyası (kullanıcı isteği, 2026-08-31: "Marka
      sayfasına özel marka ekle/düzenle url'si aç ve bu sayfada firma yazan tüm isimleri marka yap.
      Hizmet alanı seçeneklerini de markalara özel olarak değiştir"). firma-ekle.html'den SADECE
@@ -10,10 +13,7 @@
      Yazdığı tablo/uç AYNI (office_submissions, POST/PATCH /api/offices) — markalar da birer
      `offices` satırı olduğundan ayrı bir gönderi tipi/tablo açılmadı; hangi kaydın marka sayılacağı
      office-kind.js#isBrandOffice/isPureBrandOffice ile TEK noktadan belirlenir. -->
-<html lang="tr">
-<head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
@@ -1052,6 +1052,10 @@ async function prefillForEdit(){
       }
     }
     document.querySelector('.eyebrow').textContent = 'Marka Düzenle';
+    // Telif kutucuğu ÖN İŞARETLİ, YALNIZCA kayıt canlıda yayındaysa (kullanıcı isteği, 2026-09-10
+    // madde 3). ARŞİVDEKİ kayıtta bilerek işaretlenmez: orada onay, yayına almanın kapısıdır
+    // (madde 2/4 — "telif butonunu onaylamadan içeriği yayınlayamasın").
+    if(window.RightsConsent && item.status !== 'archived') RightsConsent.setAcceptedWhenReady(true);
     document.querySelector('.page-head h1').textContent = 'Markanı düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
@@ -1102,6 +1106,10 @@ async function prefillForEdit(){
 async function prefillForClaim(){
   if(!claimName) return;
   await currentUserReady;
+  // Telif kutucuğu ÖN İŞARETLİ (kullanıcı isteği, 2026-09-10 madde 3): ?claim= yolu YALNIZCA canlıda
+  // yayında olan bir kaydı açar (arşivlenmiş kayıtta canonical uç item:null döner, bkz.
+  // prefillForEdit'teki arşiv istisnası) — yayındaki içerik beyanı zaten bir kez almıştır.
+  if(window.RightsConsent) RightsConsent.setAcceptedWhenReady(true);
   document.querySelector('.eyebrow').textContent = 'Marka Düzenle';
   document.querySelector('.page-head h1').textContent = 'Markanı düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';

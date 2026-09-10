@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <script>(function(){try{if(/^\/urun\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
 <!-- Erken liste fetch'i + mlPre (performans turu, 2026-09-08): Worker, sorgu dizesiz girişte bu shim'in ÜRETECEĞİ URL'lerin
@@ -13,7 +14,6 @@
 var dm=p.match(/^\/urun\/([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/product/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
 if(p.replace(/\/+$/,'')==='/urun'&&!location.search){var u='/api/products?page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);var u2='/api/products?page=1&limit=1';window.__mlPrefetch[u2]=mlPre(u2);}
 }catch(e){}})();</script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">

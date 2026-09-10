@@ -180,6 +180,37 @@
     return false;
   }
 
+  // Kutuyu programatik olarak işaretler/temizler (kullanıcı isteği, 2026-09-10 madde 3:
+  // "Arşivlenmemiş ve canlıda yayında olan tüm ... içeriklerde düzenle sayfasında telif kutucuğu
+  // işaretlenmiş olsun."). Zaten YAYINDA olan bir kayıt, beyanı bir kez almış demektir; kullanıcıyı
+  // her düzenlemede yeniden tikletmek anlamsız bir sürtünme. ARŞİVDEKİ kayıtlarda BİLEREK
+  // çağrılmaz — orada onay, yayına almanın kapısıdır (bkz. madde 2/4).
+  // Kutu şablonu form yüklendikten SONRA kurulmuş olabileceğinden (autoMount DOMContentLoaded'da
+  // çalışır, prefill ise async'tir) kutu henüz yoksa kısa bir yeniden deneme yapılır.
+  function setAccepted(value, root) {
+    var applied = false;
+    boxesIn(root).forEach(function (b) {
+      var input = b.querySelector('[data-rights-consent-input]');
+      if (!input) return;
+      input.checked = !!value;
+      syncBox(b);
+      if (value) clearWarning(b);
+      applied = true;
+    });
+    return applied;
+  }
+
+  // setAccepted'in "kutu henüz DOM'da yoksa bekle" hâli — prefill akışları form kutusundan önce
+  // bitebilir.
+  function setAcceptedWhenReady(value, root) {
+    if (setAccepted(value, root)) return;
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      if (setAccepted(value, root) || tries > 40) clearInterval(timer);
+    }, 50);
+  }
+
   function reset(root) {
     boxesIn(root).forEach(function (b) {
       var input = b.querySelector('[data-rights-consent-input]');
@@ -234,6 +265,8 @@
     autoMount: autoMount,
     isAccepted: isAccepted,
     require: requireAccepted,
+    setAccepted: setAccepted,
+    setAcceptedWhenReady: setAcceptedWhenReady,
     reset: reset,
     payload: payload,
   };
