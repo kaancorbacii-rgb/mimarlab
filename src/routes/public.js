@@ -161,7 +161,22 @@ async function handlePublicCheckName(request, env, url) {
         return f === folded && !(excludeFolded && f === excludeFolded);
       });
       if (!match) return { exists: false, href: null };
-      return { exists: true, href: match.hidden_at ? null : hrefFor(match.slug) };
+      // name + claimed (kullanıcı isteği, 2026-09-10 madde 3): "Bu profil zaten yüklü" uyarısının
+      // yanında bir de "bu profili sahiplen" bağlantısı çıkar (bkz. js/components/
+      // duplicate-name-check.js). Bağlantının SAHİPLENME ANAHTARI olarak canonical `name` döner —
+      // profile_claims.profile_key'in tek kabul edilen biçimi budur (bkz. src/lib/canonicalRead.js#
+      // resolveCanonicalName); slug gönderilseydi yazılan satır profili adıyla sorgulayan hiçbir
+      // yerden görünmezdi. `claimed` ise zaten onaylı sahibi olan bir profilde daveti hiç
+      // göstermemek için — /api/public/claim-status'ün AYNI sorgusu.
+      const claimedRow = await env.DB.prepare(
+        `SELECT 1 FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved' LIMIT 1`
+      ).bind(type === 'architects' ? 'architect' : 'office', match.name).first();
+      return {
+        exists: true,
+        href: match.hidden_at ? null : hrefFor(match.slug),
+        name: match.name,
+        claimed: !!claimedRow,
+      };
     }
     if (type === 'projects') {
       const { results } = await env.DB.prepare(`SELECT title, slug, hidden_at FROM projects WHERE deleted_at IS NULL`).all();

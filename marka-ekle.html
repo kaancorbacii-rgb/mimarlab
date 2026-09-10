@@ -332,7 +332,7 @@
         <h2>Marka Bilgileri</h2>
         <div class="form-field">
           <label for="o-name">Marka Adı <span class="req" aria-hidden="true">*</span></label>
-          <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
+          <input type="text" id="o-name" name="name" required>
         </div>
         <div class="form-row">
           <div class="form-field">
@@ -411,13 +411,13 @@
         </div>
         <div class="form-field ac-field" id="ac-kurucular-field">
           <label for="o-founders">Kurucular / Ortaklar <span class="opt">(opsiyonel)</span></label>
-          <input type="text" id="o-founders" name="founders" placeholder="ör. Emre Arolat, Gonca Paşolar" autocomplete="off">
+          <input type="text" id="o-founders" name="founders" autocomplete="off">
           <div class="ac-suggestions" id="ac-kurucular-suggestions"></div>
           <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
         </div>
         <div class="form-field ac-field" id="ac-ekip-field">
           <label for="o-team">Ekip <span class="opt">(opsiyonel)</span></label>
-          <input type="text" id="o-team" name="team" placeholder="ör. Ahmet Yılmaz, Ayşe Demir" autocomplete="off">
+          <input type="text" id="o-team" name="team" autocomplete="off">
           <div class="ac-suggestions" id="ac-ekip-suggestions"></div>
           <div class="form-hint">Markada çalışabilecek kişileri virgülle ayırarak yaz. Kişi profili olanlar aşağıda önerilir.</div>
         </div>
@@ -582,6 +582,10 @@ const dupNameCheck = DuplicateNameCheck.attach({
   type: 'offices',
   message: 'Bu profil zaten yüklü,',
   getExclude: () => originalName,
+  // Marka da offices tablosunda bir satırdır (bkz. office-kind.js), bu yüzden tip 'offices' kalır;
+  // yalnızca sahiplenme popup'ının metni "firma" yerine "marka" der.
+  claimTitle: 'Bu marka sana mı ait?',
+  claimNoun: 'marka',
 });
 
 function escapeAttr(s){

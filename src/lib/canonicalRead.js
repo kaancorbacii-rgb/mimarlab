@@ -34,6 +34,30 @@ export async function canonicalRowExistsByKey(env, table, key) {
   return !!row;
 }
 
+// AYNI arama, ama VARLIK yerine canonical ADI döner (satır yoksa null).
+//
+// NEDEN VAR (kullanıcı isteği, 2026-09-10: "firmaya yönetici atadım ama 'Bu firma sana mı ait?'
+// kutusu kaybolmadı"): profile_claims.profile_key'in tek bir kanonik biçimi YOKTU — yazan her
+// çağıran kendi elindeki anahtarı koyuyordu. Kişi/firma popup'ı kutuyu `name` ile sorguluyor
+// (office-modal.js#getProfileKey -> o.name), ama önizleme kartlarının sahiplenme popup'ı
+// (js/components/preview-cards.js) SLUG gönderiyordu ve POST /api/claims slug'ı da kabul edip
+// (canonicalRowExistsByKey name|slug|legacy_key'in ÜÇÜNÜ de eşliyor) aynen yazıyordu. Sonuç:
+// canlıda "udesign-mimarlik" ve "melis-varkal" anahtarlı iki ONAYLI satır — sahibinin gerçekten
+// yetkisi var ama profil adıyla yapılan HİÇBİR sorgu onları görmüyor, yani davet kutusu
+// kaybolmuyor, "Düzenle" butonu çıkmıyor, rozet/JOIN'ler ıskalıyordu.
+//
+// Bu yüzden anahtar artık YAZARKEN kanonik ada çevrilir (bkz. src/routes/claims.js#createClaim,
+// src/routes/admin.js#handleClaimsAdmin, src/lib/claimedProfiles.js#ensurePendingOfficeClaims) —
+// okuyan onlarca yeri alias'a toleranslı hâle getirmek yerine, tek bir yazma biçimi zorlanır.
+export async function resolveCanonicalName(env, table, key) {
+  if (!env || !env.DB || !table || !key) return null;
+  const row = await env.DB.prepare(
+    `SELECT name FROM ${table} WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?)
+      ORDER BY CASE WHEN name = ? THEN 0 ELSE 1 END LIMIT 1`
+  ).bind(key, key, key, key).first();
+  return row?.name || null;
+}
+
 export function parseCanonicalRow(entityType, row) {
   if (!row) return row;
   const out = { ...row };

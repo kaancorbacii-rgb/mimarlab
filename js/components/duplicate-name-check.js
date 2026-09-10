@@ -18,6 +18,14 @@ const DuplicateNameCheck = (function () {
     materials: 'Ürüne git.',
   };
 
+  // Sahiplenme popup'ının tip başına metinleri. marka-ekle.html de `offices` tipini kullanır
+  // (marka, offices tablosunda bir satırdır — bkz. office-kind.js), bu yüzden başlık formun
+  // kendi `claimTitle` seçeneğiyle geçersiz kılınabilir; verilmezse buradaki firma metni geçerlidir.
+  const CLAIM_CFG = {
+    architects: { profileType: 'architect', title: 'Bu profil sana mı ait?', noun: 'profil' },
+    offices: { profileType: 'office', title: 'Bu firma sana mı ait?', noun: 'firma' },
+  };
+
   function foldTr(s) {
     return (s || '')
       .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
@@ -34,6 +42,12 @@ const DuplicateNameCheck = (function () {
       .dup-name-warning.show{display:block;}
       .dup-name-warning-link{color:#B84C4C; text-decoration:underline; font-weight:600; margin-left:4px;}
       .dup-name-warning-link:hover{color:#8f3838;}
+      /* "bu profili sahiplen." — uyarının ikinci bağlantısı (kullanıcı isteği, 2026-09-10 madde 3).
+         <a href> DEĞİL <button>: sayfa değiştirmez, aynı sekmede sahiplenme popup'ını açar. Görsel
+         olarak diğer bağlantıyla birebir aynı görünmesi için buton varsayılanları sıfırlanır. */
+      .dup-name-warning-claim{color:#B84C4C; text-decoration:underline; font-weight:600; margin-left:4px;
+        background:none; border:0; padding:0; font:inherit; cursor:pointer;}
+      .dup-name-warning-claim:hover{color:#8f3838;}
       .form-field input.dup-name-input-error{border-color:#B84C4C !important; background:rgba(184,76,76,0.06) !important;}
     `;
     document.head.appendChild(style);
@@ -60,25 +74,57 @@ const DuplicateNameCheck = (function () {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.style.display = 'none';
+    // "bu profili sahiplen." — yalnızca kişi/firma/marka formlarında ve profilin ONAYLI bir sahibi
+    // YOKKEN gösterilir (bkz. src/routes/public.js#handlePublicCheckName -> claimed). Kullanıcı
+    // formu doldurmaya devam etmek zorunda kalmasın diye: aynı isimde bir profil zaten varsa
+    // yapılacak doğru şey yeni kayıt açmak değil, var olanı sahiplenmektir.
+    const claimBtn = document.createElement('button');
+    claimBtn.type = 'button';
+    claimBtn.className = 'dup-name-warning-claim';
+    claimBtn.textContent = 'bu profili sahiplen.';
+    claimBtn.style.display = 'none';
     hint.appendChild(msgSpan);
     hint.appendChild(link);
+    hint.appendChild(claimBtn);
     input.insertAdjacentElement('afterend', hint);
+
+    claimBtn.addEventListener('click', () => {
+      const cfg = CLAIM_CFG[getType()];
+      // MLClaimPopup js/components/preview-cards.js'ten gelir; o script yüklenmemişse (bir sayfa
+      // onu dahil etmeyi unutursa) buton hiç gösterilmez — bkz. setError.
+      if (!cfg || !claimKey || !window.MLClaimPopup) return;
+      window.MLClaimPopup.open({
+        profileType: cfg.profileType,
+        profileKey: claimKey,
+        title: opts.claimTitle || cfg.title,
+        description: claimKey + ' — bu ' + (opts.claimNoun || cfg.noun) + ' MİMARLAB\'da zaten kayıtlı. Sahibiysen yeni bir kayıt açmak yerine talep gönder; onaylandığında mevcut profili düzenleyebilirsin.',
+      });
+    });
 
     let duplicate = false;
     let debounceTimer = null;
     let requestSeq = 0;
+    // Eşleşen kaydın CANONICAL adı — sahiplenme talebinin anahtarı (bkz. src/routes/public.js#
+    // handlePublicCheckName'in `name` alanı). Slug DEĞİL: profile_claims.profile_key'in tek kabul
+    // edilen biçimi canonical addır (bkz. src/lib/canonicalRead.js#resolveCanonicalName).
+    let claimKey = '';
 
     function clearError() {
       duplicate = false;
+      claimKey = '';
       input.classList.remove('dup-name-input-error');
       hint.classList.remove('show');
       link.style.display = 'none';
       link.removeAttribute('href');
+      claimBtn.style.display = 'none';
     }
-    function setError(href) {
+    function setError(href, data) {
       duplicate = true;
       input.classList.add('dup-name-input-error');
       hint.classList.add('show');
+      claimKey = (data && data.name) || '';
+      const canClaim = !!CLAIM_CFG[getType()] && !!claimKey && !(data && data.claimed) && !!window.MLClaimPopup;
+      claimBtn.style.display = canClaim ? '' : 'none';
       // href boşsa (bkz. handlePublicCheckName — eşleşen kayıt hidden_at'lı, detay sayfası zaten
       // "bulunamadı" gösterir) kırık bir linke yönlendirmektense link hiç gösterilmez.
       if (href) {
@@ -114,7 +160,7 @@ const DuplicateNameCheck = (function () {
         if (!res.ok) return;
         const data = await res.json();
         if (seq !== requestSeq) return; // eskimiş yanıt (daha yeni bir tuş vuruşu araya girdi)
-        if (data.exists) setError(data.href); else clearError();
+        if (data.exists) setError(data.href, data); else clearError();
       } catch (e) { /* sessizce geç — asıl engelleme sunucu tarafında (bkz. dosya başı yorumu) */ }
     }
 

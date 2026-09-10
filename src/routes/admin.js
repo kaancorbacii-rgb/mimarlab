@@ -35,6 +35,7 @@ import { SAFE_STORAGE_BYTES, SAFE_OPS_PER_MONTH } from '../lib/r2Quota.js';
 import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
 import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
 import { removeEntityImages } from '../lib/imageEmbedStore.js';
+import { resolveCanonicalName } from '../lib/canonicalRead.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -1053,13 +1054,18 @@ async function handleClaimsAdmin(request, env, url, segments) {
     const body = await readJson(request);
     const userId = (body.userId || '').trim();
     const profileType = body.profileType;
-    const profileKey = (body.profileKey || '').trim();
-    if (!userId || !['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz istek.');
+    const requestedKey = (body.profileKey || '').trim();
+    if (!userId || !['architect', 'office'].includes(profileType) || !requestedKey) return errorJson('Geçersiz istek.');
     const userRow = await env.DB.prepare('SELECT id, position FROM users WHERE id = ?').bind(userId).first();
     if (!userRow) return errorJson('Kullanıcı bulunamadı.', 404);
     const table = PROFILE_OPTION_TABLE[profileType];
-    const profileRow = await env.DB.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(profileKey).first();
-    if (!profileRow) return errorJson('Böyle bir profil bulunamadı.', 404);
+    // Anahtar KANONİK ADA çevrilir (kullanıcı isteği, 2026-09-10) — bu uç eskiden yalnızca `name`
+    // eşliyordu, yani slug gönderen bir admin ekranı sessizce 404 alırdı; artık slug/legacy_key de
+    // kabul edilir ama satıra HER ZAMAN canonical `name` yazılır. Sahiplenmeyi adıyla sorgulayan
+    // her yerin (popup davet kutusu, Düzenle butonu, rozet JOIN'leri) tek beklediği biçim budur —
+    // bkz. src/lib/canonicalRead.js#resolveCanonicalName.
+    const profileKey = await resolveCanonicalName(env, table, requestedKey);
+    if (!profileKey) return errorJson('Böyle bir profil bulunamadı.', 404);
     const now = Date.now();
     // bkz. migrations/0068 — office_position, admin BU ANDA gördüğü/onayladığı position'ın
     // dondurulmuş kopyası; kullanıcının sonradan kendi profilinden değiştirdiği position bu

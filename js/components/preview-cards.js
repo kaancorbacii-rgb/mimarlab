@@ -188,7 +188,12 @@
     if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
-  function openClaimPopup(cfg, slug, label) {
+  // opts: { profileType, profileKey, title, description }
+  //   profileKey — POST /api/claims'e gönderilecek anahtar. ÖNİZLEME kartlarından slug gelir;
+  //   sunucu onu canonical ada çevirip öyle yazar (bkz. src/lib/canonicalRead.js#
+  //   resolveCanonicalName), yani buradan slug göndermek artık görünmez bir sahiplik satırı
+  //   ÜRETMEZ. Yeni çağıranlar yine de elindeki canonical adı göndermelidir.
+  function openClaimPopup(opts) {
     closePop();
     var overlay = document.createElement('div');
     overlay.className = 'ml-claim-pop-overlay';
@@ -203,9 +208,8 @@
           '<button type="button" class="primary" data-act="send">Talep Gönder</button>' +
         '</div>' +
       '</div>';
-    overlay.querySelector('h2').textContent = cfg.title;
-    overlay.querySelector('p').textContent =
-      (label ? label + ' — ' : '') + 'Bu ' + cfg.noun + ' şu an önizleme modunda ve yayında değil. Sahibiysen talep gönder; onaylandığında ' + cfg.noun + ' yayına alınır ve düzenleyebilirsin.';
+    overlay.querySelector('h2').textContent = opts.title;
+    overlay.querySelector('p').textContent = opts.description;
     document.body.appendChild(overlay);
 
     var msg = overlay.querySelector('.ml-claim-pop-msg');
@@ -219,7 +223,7 @@
       btn.textContent = 'Gönderiliyor…';
       fetch('/api/claims', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileType: cfg.profileType, profileKey: slug, note: overlay.querySelector('textarea').value.trim() || null }),
+        body: JSON.stringify({ profileType: opts.profileType, profileKey: opts.profileKey, note: overlay.querySelector('textarea').value.trim() || null }),
       }).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; });
       }).then(function (res) {
@@ -250,9 +254,23 @@
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     if (e.type !== 'click') return; // orta tık / yeni sekme: yalnızca engelle, popup açma
     var hit = claimKindFor(root.dataset.mlPreviewHref || '');
+    if (!hit) return;
     // Kart metni çok satırlı (ad + alt satır) ve girintili gelir — popup başlığında tek satıra indirilir.
-    if (hit) openClaimPopup(hit.cfg, hit.slug, (root.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60));
+    var label = (root.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    openClaimPopup({
+      profileType: hit.cfg.profileType,
+      profileKey: hit.slug,
+      title: hit.cfg.title,
+      description: (label ? label + ' — ' : '') + 'Bu ' + hit.cfg.noun + ' şu an önizleme modunda ve yayında değil. Sahibiysen talep gönder; onaylandığında ' + hit.cfg.noun + ' yayına alınır ve düzenleyebilirsin.',
+    });
   }
+
+  // Popup'ı DIŞARI AÇ (kullanıcı isteği, 2026-09-10 madde 3): kişi/firma/marka ekle
+  // formlarındaki "Bu profil zaten yüklü" uyarısı da aynı sahiplenme kutusunu açar (bkz.
+  // js/components/duplicate-name-check.js). Aynı kutunun ikinci bir kopyasını yazmak yerine bu
+  // dosya tek kaynak olarak kalır — stiller de (injectStyles) buradan gelir.
+  // window'a asılır, top-level `const` DEĞİL (bkz. proje notu: const global'ler window'a YAZILMAZ).
+  window.MLClaimPopup = { open: function (opts) { injectStyles(); openClaimPopup(opts); }, close: closePop };
 
   function start() {
     injectStyles();

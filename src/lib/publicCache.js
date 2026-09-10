@@ -432,8 +432,13 @@ async function withSingleFlight(key, fn) {
 // üretilir; sıralama kodu değişse de VERİ değişmediğinden parmak izi aynı kalır ve caches.default
 // HIT'i eski gövdeyi servis etmeye devam eder (canlıda tam olarak bu oldu: /api/architects ve
 // /api/offices'te önizleme kartları hâlâ başta çıkıyordu, cache-bust'la doğru sıra geliyordu).
+// v27: /api/public/check-name'in architects/offices yanıtı iki YENİ alan taşıyor — `name`
+// (sahiplenme anahtarı olarak canonical ad) ve `claimed` (zaten onaylı sahibi var mı). Bunlar
+// olmadan "Bu profil zaten yüklü" uyarısının yanındaki yeni "bu profili sahiplen" bağlantısı
+// (bkz. js/components/duplicate-name-check.js) çizilemez; bump edilmezse eski gövde 304 ile
+// servis edilmeye devam eder ve bağlantı canlıda hiç görünmezdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v26';
+const API_PAYLOAD_VERSION = 'v27';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

@@ -54,18 +54,23 @@ export async function ensurePendingOfficeClaims(env, user, officeNames, newId) {
   if (!names.length) return;
   const now = Date.now();
   for (const name of names) {
+    // Satıra YAZILACAK anahtar, kullanıcının yazdığı metin değil canonical `name`'dir (kullanıcı
+    // isteği, 2026-09-10): eşleşme COLLATE NOCASE ve legacy_key üzerinden de kurulduğundan, ham
+    // metni yazmak "udesign mimarlik"/legacy anahtar gibi biçimlerde profili adıyla sorgulayan
+    // hiçbir yerin göremediği bir sahiplik satırı bırakırdı. Bkz. canonicalRead.js#resolveCanonicalName.
     const canonical = await env.DB.prepare(
-      `SELECT id FROM offices WHERE deleted_at IS NULL AND (name = ? COLLATE NOCASE OR legacy_key = ?) LIMIT 1`
+      `SELECT name FROM offices WHERE deleted_at IS NULL AND (name = ? COLLATE NOCASE OR legacy_key = ?) LIMIT 1`
     ).bind(name, name).first();
     if (!canonical) continue;
+    const profileKey = canonical.name;
     const existing = await env.DB.prepare(
       `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ?`
-    ).bind(user.id, name).first();
+    ).bind(user.id, profileKey).first();
     if (existing) continue;
     await env.DB.prepare(
       `INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at)
        VALUES (?, ?, 'office', ?, 'pending', ?, ?, ?)`
-    ).bind(newId(), user.id, name, 'Kişi profilindeki "Firma veya Marka" alanından oluşturuldu.', now, now).run();
+    ).bind(newId(), user.id, profileKey, 'Kişi profilindeki "Firma veya Marka" alanından oluşturuldu.', now, now).run();
   }
 }
 

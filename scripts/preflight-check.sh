@@ -293,6 +293,19 @@ else
 fi
 rm -f /tmp/preflight_prevsearch
 
+# profile_claims.profile_key'in KANONİK BİÇİMİ (kullanıcı isteği, 2026-09-10: "firmaya yönetici
+# atadım ama 'Bu firma sana mı ait?' kutusu kaybolmadı"). Anahtarı yazan ÜÇ yol var (POST
+# /api/claims, POST /api/admin/claims, ensurePendingOfficeClaims) ve OKUYAN her yer canonical ADI
+# bekliyor; biri slug/legacy_key yazarsa sahiplik sessizce görünmez olur — canlıda tam olarak bu
+# oldu. Bkz. scripts/test-claim-key-canonical.mjs dosya başı.
+if node scripts/test-claim-key-canonical.mjs >/tmp/preflight_claimkey 2>&1; then
+  ok "sahiplenme anahtarı kanonik biçim testleri geçti ($(grep -c '^  ok ' /tmp/preflight_claimkey) test)"
+else
+  bad "sahiplenme anahtarı kanonik biçim testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_claimkey >&2
+fi
+rm -f /tmp/preflight_claimkey
+
 # Unicode NFC normalizasyonu (kullanıcı isteği, 2026-09-10: "doçem yazınca çıkmıyor, docem yazınca
 # çıkıyor"). İki nedenle deploy'u durduracak kadar önemli: (a) ayrışık yazılan Türkçe harf sitedeki
 # HİÇBİR aramada eşleşmiyordu; (b) foldTr'nin çıktısı D1'in name_fold/title_fold/brand_fold

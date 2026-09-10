@@ -2,7 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
-import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
+import { resolveCanonicalName } from '../lib/canonicalRead.js';
 import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 
@@ -135,9 +135,9 @@ async function createClaim(request, env, user) {
 
   const body = await readJson(request);
   const profileType = body.profileType;
-  const profileKey = (body.profileKey || '').trim();
+  const requestedKey = (body.profileKey || '').trim();
   const note = (body.note || '').trim().slice(0, 1000) || null;
-  if (!PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
+  if (!PROFILE_TYPES.has(profileType) || !requestedKey) return errorJson('Geçersiz istek.');
 
   // gerçek bulgu (denetim, 2026-09-04): bu uç profileKey'in GERÇEKTEN bir canonical mimar/firma
   // satırına karşılık gelip gelmediğini hiç kontrol etmiyordu — POST /api/admin/claims'in (admin'in
@@ -147,7 +147,15 @@ async function createClaim(request, env, user) {
   // düzenleme yetkisi vermez (verifyClaimedProfileKey canonical satırı bulamaz), Hesabım'da
   // slug/görsel'siz hayalet bir satır olarak görünür. Yerel veritabanında bu yolla oluşmuş
   // "Nonexistent Test Architect 1/2/3" satırları vardı.
-  if (!(await canonicalRowExistsByKey(env, CLAIM_CANONICAL_TABLE[profileType], profileKey))) {
+  //
+  // VE ANAHTAR KANONİK ADA ÇEVRİLİR (kullanıcı isteği, 2026-09-10). Eskiden yalnızca "var mı"
+  // sorulup çağıranın gönderdiği anahtar AYNEN yazılıyordu; oysa bu kontrol name|slug|legacy_key'in
+  // üçünü birden kabul ediyor, yani slug gönderen bir çağıran (bkz. js/components/preview-cards.js)
+  // slug anahtarlı bir satır bırakıyordu. Profili adıyla sorgulayan her yer (popup'taki "Bu profil
+  // sana mı ait?" kutusu, Düzenle butonu, rozet JOIN'leri) o satırı GÖREMİYOR, onaylı sahiplik
+  // görünmez kalıyordu. Bkz. src/lib/canonicalRead.js#resolveCanonicalName.
+  const profileKey = await resolveCanonicalName(env, CLAIM_CANONICAL_TABLE[profileType], requestedKey);
+  if (!profileKey) {
     return errorJson('Böyle bir profil bulunamadı. Sayfayı yenileyip tekrar dene.', 404);
   }
 
