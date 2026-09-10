@@ -22,6 +22,19 @@ import { safeFetch, limitResponseSize } from './safeFetch.js';
 const FEED_MAX_BYTES = 3 * 1024 * 1024;
 const PAGE_MAX_BYTES = 1.5 * 1024 * 1024;
 const FEED_TIMEOUT_MS = 12000;
+// KAYNAĞA ÖZEL ZAMAN AŞIMI TAVANI (canlı bulgu, denetim 2026-09-10). Bir kaynak `feedTimeoutMs`
+// ile varsayılanı yükseltebilir, ama bu tavanın üstüne çıkamaz: tur bütçesi 120sn ve feed'ler
+// 3'erli gruplar hâlinde çekiliyor (bkz. gundemIngest.js#sourceConcurrency), yani tek bir yavaş
+// kaynağın kendi grubunu kilitlemesine izin verilemez.
+const FEED_TIMEOUT_MAX_MS = 25000;
+
+// Kaynağın kendi zaman aşımı (yoksa varsayılan). Tavanla kelepçelenir, geçersiz/negatif değer
+// varsayılana düşer — yapılandırma hatası turu yavaşlatamaz.
+export function feedTimeoutFor(source) {
+  const raw = Number(source && source.feedTimeoutMs);
+  if (!Number.isFinite(raw) || raw <= 0) return FEED_TIMEOUT_MS;
+  return Math.min(FEED_TIMEOUT_MAX_MS, Math.max(FEED_TIMEOUT_MS, raw));
+}
 const PAGE_TIMEOUT_MS = 10000;
 
 // XML/HTML varlıkları. Feed'lerde pratikte görülen küme — tanınmayan varlık OLDUĞU GİBİ bırakılır
@@ -227,7 +240,7 @@ export function extractPageMeta(html, baseUrl) {
 // src/lib/gundemHtmlList.js) AYNI şekilde item dizisi döner — çağıran taraf farkı görmez.
 export async function fetchFeed(feedUrl, source = null) {
   const isHtml = source && source.type === 'html';
-  const { response, finalUrl } = await safeFetch(feedUrl, { timeoutMs: FEED_TIMEOUT_MS, maxRedirects: 4, headers: {
+  const { response, finalUrl } = await safeFetch(feedUrl, { timeoutMs: feedTimeoutFor(source), maxRedirects: 4, headers: {
     Accept: isHtml
       ? 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1'
       : 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.1',

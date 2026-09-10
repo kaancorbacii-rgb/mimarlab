@@ -39,6 +39,10 @@
 //  type             'rss' | 'atom' (gundemFeed.js ikisini de aynı ayrıştırıcıyla okur) |
 //                   'html' (liste sayfası; çıkarıcı src/lib/gundemHtmlList.js'te kaynak id'sine kayıtlı)
 //  enabled          false ise tur sırasında hiç DOKUNULMAZ (ağ isteği bile yapılmaz)
+//  feedTimeoutMs    (ops.) bu kaynağın feed isteği için zaman aşımı. Varsayılan 12sn
+//                   (gundemFeed.js#FEED_TIMEOUT_MS); yalnızca YUKARI çekilebilir ve 25sn ile
+//                   kelepçelenir (bkz. feedTimeoutFor). Yalnızca ÖLÇÜLMÜŞ bir yavaşlık için
+//                   kullan — tur bütçesi 120sn ve feed'ler 3'erli gruplar hâlinde çekiliyor.
 //  defaultCategory  AI'nin kategori önerisi whitelist dışına düşerse/emin olmazsa kullanılan değer
 //  categoryHints    feed'in kendi <category> etiketlerinden kategori türetme kuralları (AI'den ÖNCE)
 //  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron DÖRT SAATTE BİR çalışır: TR
@@ -471,6 +475,14 @@ export const GUNDEM_SOURCES = [
     feedUrl: 'https://bigumigu.com/feed/',
     type: 'rss',
     enabled: true,
+    // ZAMAN AŞIMI YÜKSELTİLDİ (canlı bulgu, denetim 2026-09-10): son 18 cron turunun 9'unda bu
+    // kaynak `The operation was aborted due to timeout` ile düştü — yani turların YARISINDA hiç
+    // içerik vermedi. Ölçüm (5 gerçek istek): 7,96s / 10,42s / 10,55s / 10,83s / 11,34s — bağlantı
+    // 0,1s, yani gecikme tamamen yayıncının kendi üretim süresi. Varsayılan 12sn tam bu dağılımın
+    // ÜSTÜNE denk geliyor, o yüzden kayıp rastgele. 20sn hem ölçülen en kötü değerin iki katı
+    // hem de tur bütçesinin (120sn) çok altında; feed'ler 3'erli gruplar hâlinde çekildiğinden
+    // en kötü etki tek bir grubun ~8sn uzamasıdır. Bkz. gundemFeed.js#feedTimeoutFor.
+    feedTimeoutMs: 20000,
     defaultCategory: 'haber',
     categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
     fetchIntervalMin: 180,

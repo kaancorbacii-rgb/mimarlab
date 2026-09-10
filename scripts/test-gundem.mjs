@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { parseFeed, stripHtml, decodeEntities, normalizeImageUrl, extractPageMeta } from '../src/lib/gundemFeed.js';
+import { parseFeed, stripHtml, decodeEntities, normalizeImageUrl, extractPageMeta, feedTimeoutFor } from '../src/lib/gundemFeed.js';
 import {
   normalizeSourceUrl, titleKey, contentHash, isAllowedImageHost, validateAiOutput,
   wordCount, isSingleParagraph, looksTurkish, looksEnglish, englishWordHits, titleLanguageOk, titleOverlapsSource,
@@ -693,6 +693,35 @@ await test('GUNDEM_IMAGE_HOSTS = etkin kaynakların host\'larının birleşimi (
   for (const h of disabledHosts) {
     if (!expected.includes(h)) assert.ok(!GUNDEM_IMAGE_HOSTS.includes(h), `kapalı kaynağın host'u CSP'de: ${h}`);
   }
+});
+
+await test('feedTimeoutFor — kaynağa özel zaman aşımı varsayılanın ALTINA inemez ve tavanla kelepçelenir', () => {
+  // CANLI BULGU (denetim, 2026-09-10): bigumigu son 18 cron turunun 9'unda zaman aşımıyla düştü;
+  // ölçülen gerçek yanıt süreleri 7,96-11,34 sn, varsayılan zaman aşımı ise 12 sn — yani kayıp
+  // rastgeleydi. Kaynağa özel `feedTimeoutMs` eklendi; bu test o alanın sözleşmesini sabitler.
+  const D = feedTimeoutFor(null);                       // varsayılan
+  assert.equal(feedTimeoutFor(undefined), D);
+  assert.equal(feedTimeoutFor({}), D, 'alan yoksa varsayılan');
+  assert.equal(feedTimeoutFor({ feedTimeoutMs: 0 }), D, 'geçersiz değer varsayılana düşmeli');
+  assert.equal(feedTimeoutFor({ feedTimeoutMs: -5 }), D);
+  assert.equal(feedTimeoutFor({ feedTimeoutMs: 'abc' }), D);
+  assert.equal(feedTimeoutFor({ feedTimeoutMs: D - 5000 }), D, 'varsayılanın ALTINA indirilemez');
+  assert.equal(feedTimeoutFor({ feedTimeoutMs: 20000 }), 20000);
+  assert.ok(feedTimeoutFor({ feedTimeoutMs: 10 * 60000 }) <= 25000, 'tavanı aşamaz');
+});
+
+await test('feedTimeoutMs kullanan her kaynak tur bütçesinin çok altında kalır', () => {
+  // Tur bütçesi 120 sn (gundemIngest.js#runBudgetMs) ve feed'ler 3'erli gruplar hâlinde çekiliyor.
+  for (const src of activeGundemSources()) {
+    if (src.feedTimeoutMs === undefined) continue;
+    assert.ok(Number.isFinite(src.feedTimeoutMs) && src.feedTimeoutMs > 0, `${src.id}: geçersiz feedTimeoutMs`);
+    assert.ok(feedTimeoutFor(src) <= 25000, `${src.id}: tavanı aşıyor`);
+    assert.ok(feedTimeoutFor(src) * 3 < 120000, `${src.id}: tek grup tur bütçesini yiyebilir`);
+  }
+  // Bulgunun kendisi: bigumigu ölçülen en kötü değerin (11,34 sn) en az iki katını beklemeli.
+  const bigumigu = activeGundemSources().find(s => s.id === 'bigumigu');
+  assert.ok(bigumigu, 'bigumigu kaynağı kayboldu');
+  assert.ok(feedTimeoutFor(bigumigu) >= 20000, 'bigumigu zaman aşımı 12sn varsayılanına geri döndürülmüş');
 });
 
 await test('Etkin kaynakların gerçek görselleri kalite kapısından geçer', () => {

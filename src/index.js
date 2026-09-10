@@ -2221,6 +2221,15 @@ async function handleHealthRoute(env) {
     // secret'ların gerçekten yüklenip yüklenmediğini dışarıdan (scripts/health-check.sh) tek
     // bakışta görebilmek için — token'ın KENDİSİ değil, yalnızca var/yok bilgisi döner.
     globalCachePurge: isGlobalPurgeConfigured(env),
+    // assetVersion — HTML'e enjekte edilen <meta name="ml-asset-version"> ile BİREBİR aynı değer
+    // (deployVersion(env)). scripts/health-check.sh 4b eskiden bunu ANASAYFA HTML'İNİ ÇEKEREK
+    // doğruluyordu; o sayfa edge'de s-maxage=300 ile önbelleklendiği ve zone-geneli purge kapalı
+    // olduğu için deploy'dan hemen sonra ÖNCEKİ sürümün enjekte edildiği bayat bir kopya dönüyor,
+    // kontrol YANLIŞ YERE başarısız oluyor ve deploy.sh smoke-test'i hiç çalıştırmadan duruyordu
+    // (canlıda yaşandı, 2026-09-10). Bu alan `private, no-store` olan bu uçtan geldiği için
+    // hiçbir önbellek katmanından geçmez — asıl regresyon (deployVersion'ın SSR_CACHE_VERSION'a
+    // düşmesi, bkz. o fonksiyon) artık ÖNBELLEKTEN BAĞIMSIZ doğrulanır.
+    assetVersion: deployVersion(env),
     // Gündem CRON sağlığı (2026-09-07) — YALNIZCA ingest_mode='cron' turlarından; backfill bu
     // alanları etkilemez. gundemCronStatus: no_run | stale | failed | disabled | anomaly |
     // ok_no_content | ok | read_error. "0 içerik" sağlıklıdır; "tur yok" değildir. Tablo yoksa

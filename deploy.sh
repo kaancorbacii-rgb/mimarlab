@@ -6,21 +6,6 @@
 set -eo pipefail
 cd "$(dirname "$0")"
 
-MIN_MIRAS_FILES=2500
-MAIN_REPO_MIRAS="/Users/kaancorbaci/Projects/mimarlab/miras"
-
-miras_count=$(find miras -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')
-
-if [ "$miras_count" -lt "$MIN_MIRAS_FILES" ]; then
-  echo "DEPLOY DURDURULDU: miras/ klasöründe sadece $miras_count dosya var (beklenen: >= $MIN_MIRAS_FILES)." >&2
-  echo "miras/ .gitignore'da olduğu için her git worktree'nin kendi ayrı kopyası olmalı - bu worktree'de eksik/boş görünüyor." >&2
-  echo "Deploy etmeden önce ana repodan kopyala:" >&2
-  echo "  rsync -a \"$MAIN_REPO_MIRAS/\" ./miras/" >&2
-  exit 1
-fi
-
-echo "miras/ kontrolü geçti ($miras_count dosya)."
-
 # EŞZAMANLI DEPLOY KİLİDİ (hardening denetimi, 2026-09-07).
 # Aşağıdaki dal/working-tree kontrollerinin hepsi TEK BİR ANIN fotoğrafını çeker. İki deploy.sh
 # aynı anda çalışırsa ikisi de kendi kontrollerinden geçer, sonra ikisi de `wrangler deploy`
@@ -53,68 +38,12 @@ echo $$ > "$LOCK_DIR/pid"
 trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
 echo "Deploy kilidi alındı."
 
-# Gerçek bulgu (2026-08-13): main ve bir Claude oturumu worktree'si (claude/terminal-yaz-
-# sorusu-e4c8aa) aynı noktadan ayrışıp saatlerce birbirinden habersiz commit aldı; deploy hep
-# main'den (worktree'lerin GERİSİNDE kalmış bir daldan) çalıştırıldığından o günün TÜM hesabım
-# pop-up/mimar-ekle senkron/footer/rozet işi canlıdan saatlerce yok görünmüştü — kod hiç
-# kaybolmamıştı, sadece deploy edilen dal yanlış/eskiydi. Bu kontrol, deploy edilecek dalın
-# başka bir worktree'nin dalından GERİDE olduğu (yani o dalda burada olmayan commit'ler
-# bulunduğu) durumu tespit edip deploy'u durdurur - `git worktree list --porcelain` paylaşılan
-# .git nesnelerinden dolayı diğer worktree'lerin dallarını da (checkout edilmemiş olsalar bile)
-# görebilir.
-current_branch=$(git branch --show-current)
-# DETACHED HEAD ARTIK SESSİZCE GEÇMİYOR (hardening denetimi, 2026-09-07).
-# `git branch --show-current` detached HEAD'de BOŞ döner ve buradaki `if [ -n ... ]` yüzünden
-# aşağıdaki worktree ayrışma kontrolünün TAMAMI atlanıyordu — yani guard'ın korumak için var
-# olduğu senaryoda guard hiç çalışmıyordu. Bu, proje belleğinde zaten kayıtlı bilinen bir açıktı
-# (bkz. "Concurrent deploy race 2026-08-19": detached-HEAD worktree'ler dal guard'ını atlatır).
-# Kontrol edilemiyorsa doğru davranış "sessizce geç" değil, DURMAKTIR.
-if [ -z "$current_branch" ]; then
-  echo "DEPLOY DURDURULDU: bu worktree detached HEAD durumunda (HEAD=$(git rev-parse --short HEAD))." >&2
-  echo "Dal adı okunamadığı için diğer worktree'lerle ayrışma kontrolü YAPILAMAZ — eski/eksik kod" >&2
-  echo "deploy etme riski var. Önce bir dala geç:  git checkout <dal>" >&2
-  exit 1
-fi
-if [ -n "$current_branch" ]; then
-  behind_found=0
-  wt_path=""
-  while IFS= read -r line; do
-    case "$line" in
-      worktree\ *) wt_path="${line#worktree }" ;;
-      branch\ refs/heads/*)
-        wt_branch="${line#branch refs/heads/}"
-        if [ "$wt_path" != "$(pwd)" ] && [ "$wt_branch" != "$current_branch" ]; then
-          ahead=$(git rev-list --count "$current_branch..$wt_branch" 2>/dev/null || echo 0)
-          if [ "$ahead" -gt 0 ]; then
-            echo "DEPLOY DURDURULDU: '$wt_branch' dalı ($wt_path worktree'sinde) bu daldan ($current_branch) $ahead commit ileride." >&2
-            echo "Bu tam olarak main/terminal-yaz-sorusu-e4c8aa'nın ayrışıp canlıya eksik kod deploy edilmesine yol açtığı senaryo - önce birleştir:" >&2
-            echo "  git merge $wt_branch" >&2
-            behind_found=1
-          fi
-        fi
-        ;;
-    esac
-  done < <(git worktree list --porcelain)
-  if [ "$behind_found" -eq 1 ]; then
-    exit 1
-  fi
-  echo "Git dal senkronizasyon kontrolü geçti (diğer worktree'lerde eksik commit yok)."
-fi
-
-# Deploy drift kapanışı (remediation, 2026-08-23) — yukarıdaki guard yalnızca COMMIT edilmiş
-# dallar arasındaki farkı görüyor; bu worktree'nin KENDİ working tree'sindeki commit edilmemiş
-# değişiklikleri görmüyor. `wrangler deploy` her zaman working tree'yi (son commit'i değil) deploy
-# eder - bu yüzden commit edilmemiş yerel bir değişiklik, hiçbir git commit'ine karşılık gelmeyen,
-# izlenemeyen bir production deploy'una yol açabilir (kök neden - bkz. 2026-08-23 remediation
-# raporu, acb26e27'den sonraki commit'siz deeb1be9/dd4a68d2 deploy'ları).
-dirty="$(git status --short)"
-if [ -n "$dirty" ]; then
-  echo "DEPLOY DURDURULDU: working tree temiz değil, commit edilmemiş değişiklikler var:" >&2
-  echo "$dirty" >&2
-  echo "wrangler deploy WORKING TREE'yi deploy eder (son commit'i değil) - bu commit'siz/izlenemeyen bir production versiyonuna yol açar. Önce commit edin ya da değişiklikleri geri alın." >&2
-  exit 1
-fi
-echo "Working tree temizliği kontrolü geçti (commit edilmemiş değişiklik yok)."
+# VERİ-GÜVENLİĞİ KAPILARI (miras/ dolu mu · başka bir worktree'nin dalı ileride mi · working tree
+# temiz mi) artık scripts/deploy-guard.sh'te TEK KAYNAK olarak duruyor ve AYNI betik wrangler'ın
+# build hook'undan da çalışıyor (bkz. wrangler.jsonc#build.command) — böylece çıplak
+# `npx wrangler deploy` de aynı kapılardan geçer. Kilit ALINDIKTAN SONRA çağrılır: kontroller ile
+# deploy arasındaki pencerede başka bir deploy araya giremesin.
+./scripts/deploy-guard.sh
 
 # P2 hardening (denetim raporu, 2026-08-23) — "test → build/check → deploy → health check →
 # smoke test" akışının İLK adımı: tamamen yerel/statik (ağ isteği yok, `wrangler dev` başlatmıyor)
@@ -141,7 +70,9 @@ deploy_log="$(mktemp)"
 # ama artık HERHANGİ bir deploy'un onu unutması canlıyı bozmaz.
 deploy_version="$(git rev-parse --short=10 HEAD)"
 echo "DEPLOY_VERSION=$deploy_version (bilgilendirici — asıl önbellek sürümü CF_VERSION_METADATA.id'den gelir)"
-npx wrangler deploy --var "DEPLOY_VERSION:$deploy_version" "$@" | tee "$deploy_log"
+# MIMARLAB_DEPLOY_GUARD=1 — build hook'a "kapılar zaten geçildi, kilit bende, deploy sonrası
+# health/smoke ben çalıştıracağım" der; hook o zaman hiçbir şey yapmadan çıkar.
+MIMARLAB_DEPLOY_GUARD=1 npx wrangler deploy --var "DEPLOY_VERSION:$deploy_version" "$@" | tee "$deploy_log"
 deployed_version=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$deploy_log" | tail -1 || true)
 rm -f "$deploy_log"
 

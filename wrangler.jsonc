@@ -1,6 +1,13 @@
 {
   "name": "mimarlab",
   "main": "src/index.js",
+  // ÇIPLAK `wrangler deploy` KAPISI (denetim, 2026-09-10). wrangler build komutunu HER
+  // deploy/versions-upload öncesi çalıştırır ve komutun adını `WRANGLER_COMMAND` ile verir;
+  // betik yalnızca gerçekten yayına çıkaran komutlarda kapıları uygular (`wrangler dev` ve
+  // `--dry-run` etkilenmez). deploy.sh, MIMARLAB_DEPLOY_GUARD=1 ile bunu no-op'a çevirir —
+  // kapıları zaten kendisi çalıştırmış, kilidi tutuyor ve deploy sonrası health/smoke'u da
+  // o koşturuyor. Ayrıntı: scripts/deploy-guard.sh dosya başı.
+  "build": { "command": "bash scripts/deploy-guard.sh --hook" },
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {

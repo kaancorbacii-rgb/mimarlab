@@ -348,6 +348,16 @@ fi
 # (kullanıcı isteği, 2026-09-10 dokuzuncu tur). Ad normalizasyonu YAZMA anında yapılır (name aynı
 # zamanda ANAHTAR, bkz. src/lib/textMatch.js#titleCasePersonName); davet kutusu kapısı ise TEK bir
 # istemci satırı — bu test o satırın sessizce geri alınmasını yakalar.
+# Cascade silmede slug çakışması (canlı bulgu, denetim 2026-09-10): slugify TEKİL DEĞİL —
+# "r.a.f.studio" ile "r.a.f. studio" aynı etkileşim anahtarına düşüyor ve mükerreri silmek hayatta
+# kalan kaydın kaydettiklerini/paylaştıklarını da siliyordu.
+if node scripts/test-cascade-delete-slug-collision.mjs >/tmp/preflight_cascadeslug 2>&1; then
+  ok "cascade silme slug çakışması testleri geçti ($(grep -c '^  ok ' /tmp/preflight_cascadeslug) test)"
+else
+  bad "cascade silme slug çakışması testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_cascadeslug >&2
+fi
+
 # Doğrulanmamış girdi -> D1 500 sınıfı (canlı bulgular, denetim 2026-09-10): (1) 49+ karakterlik TEK
 # bir arama kelimesi "LIKE or GLOB pattern too complex" ile, (2) devasa bir ?page= değeri güvenli
 # tamsayı aralığını aşarak sorguyu düşürüyordu. İkisi de artık tek bir yardımcıdan geçiyor
@@ -590,6 +600,50 @@ else
 fi
 
 rm -f /tmp/preflight_gundem
+
+echo ""
+echo "5b) Deploy kapıları — çıplak wrangler deploy bypass'ı kapalı mı"
+# CANLI BULGU (denetim, 2026-09-10): miras/, worktree-dal ve working-tree kapıları YALNIZCA
+# deploy.sh içindeydi; başka bir terminalden çıplak `npx wrangler deploy` üçünü birden atlıyordu
+# (2026-08-23'te tam bu yolla iki commit'siz production deploy'u oluştu). Kapılar artık
+# scripts/deploy-guard.sh'te tek kaynak ve wrangler'ın build hook'undan da çalışıyor. Bu üç kontrol,
+# o zincirin sessizce kopmasını yakalar.
+if [ -f scripts/deploy-guard.sh ]; then
+  ok "scripts/deploy-guard.sh mevcut"
+else
+  bad "scripts/deploy-guard.sh KAYIP — deploy kapıları tek kaynağını yitirdi"
+fi
+if grep -q 'deploy-guard.sh --hook' wrangler.jsonc; then
+  ok "wrangler.jsonc — build hook deploy-guard'ı çağırıyor (çıplak deploy kapıdan geçer)"
+else
+  bad "wrangler.jsonc — build.command deploy-guard.sh'i ÇAĞIRMIYOR; çıplak 'wrangler deploy' tüm kapıları atlar"
+fi
+if grep -q '^\./scripts/deploy-guard\.sh$' deploy.sh && grep -q 'MIMARLAB_DEPLOY_GUARD=1 npx wrangler deploy' deploy.sh; then
+  ok "deploy.sh — kapıları guard'dan çağırıyor ve hook'u bypass değişkeniyle no-op yapıyor"
+else
+  bad "deploy.sh — deploy-guard.sh çağrısı ya da MIMARLAB_DEPLOY_GUARD bypass'ı kayıp"
+fi
+# Deploy sonrası sürüm doğrulaması ÖNBELLEKTEN BAĞIMSIZ olmalı (canlı bulgu, denetim 2026-09-10):
+# 4b eskiden anasayfa HTML'ini çekiyordu; o sayfa edge'de s-maxage=300 ile durduğundan deploy'dan
+# hemen sonra ÖNCEKİ sürümü taşıyan bayat bir kopya dönüyor, kontrol yanlış yere başarısız oluyor ve
+# deploy.sh smoke-test'i HİÇ çalıştırmadan duruyordu.
+if grep -q "assetVersion: deployVersion(env)" src/index.js; then
+  ok "/api/_health assetVersion döndürüyor (önbeleksiz sürüm doğrulaması)"
+else
+  bad "src/index.js — /api/_health assetVersion alanı kayıp; health-check 4b tekrar bayat HTML'e bağımlı kalır"
+fi
+if grep -q "jq -r '.assetVersion // empty'" scripts/health-check.sh; then
+  ok "health-check 4b sürümü /api/_health'ten okuyor (HTML'den değil)"
+else
+  bad "scripts/health-check.sh — 4b assetVersion'ı /api/_health'ten okumuyor"
+fi
+
+# Kapıların KENDİSİ hâlâ deploy.sh'te kopyalanmış olmasın (iki kaynak = biri unutulur).
+if grep -q 'MIN_MIRAS_FILES' deploy.sh; then
+  bad "deploy.sh miras kontrolünü hâlâ kendi içinde yapıyor — kapılar iki yerde, biri ayrışır"
+else
+  ok "deploy.sh kapıları kopyalamıyor (tek kaynak: scripts/deploy-guard.sh)"
+fi
 
 echo ""
 echo "6) schema.sql sözdizimi (varsa sqlite3 ile)"

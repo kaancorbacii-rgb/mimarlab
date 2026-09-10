@@ -130,14 +130,33 @@ echo "4b) ml-asset-version meta etiketi worker_version ile hizalı mı (src/inde
 # ardından çalışır; asıl olay SAATLER SONRA başka bir deploy'la gerçekleşiyordu). deployVersion() artık
 # birincil kaynak olarak env.CF_VERSION_METADATA.id'yi kullanıyor (her deploy'da otomatik, --var'a
 # bağlı değil) — bu kontrol meta etiketin GERÇEKTEN o değeri taşıdığını doğrular.
-asset_version=$(curl -s "$BASE_URL/" | grep -oE '<meta name="ml-asset-version" content="[^"]*"' | sed -E 's/.*content="([^"]*)"/\1/')
+# ÖNBELLEKTEN BAĞIMSIZ ASIL KONTROL (denetim, 2026-09-10): kaynak artık /api/_health'in
+# `assetVersion` alanı — HTML'e enjekte edilen değerin TA KENDİSİ, ama `private, no-store` bir
+# uçtan geliyor. Eski hâli anasayfa HTML'ini çekiyordu; o sayfa edge'de s-maxage=300 ile duruyor ve
+# zone-geneli purge kapalı olduğundan deploy'dan hemen sonra ÖNCEKİ sürümü taşıyan bayat bir kopya
+# dönüyordu -> kontrol yanlış yere BAŞARISIZ oluyor, deploy.sh smoke-test'i hiç çalıştırmadan
+# duruyordu (canlıda yaşandı). Bu, kontrolü ZAYIFLATMAZ: korunan regresyon (deployVersion'ın
+# SSR_CACHE_VERSION'a düşmesi) sunucu tarafındadır ve tam olarak burada görünür.
+asset_version=$(echo "$health_json" | jq -r '.assetVersion // empty')
 if [ -z "$asset_version" ]; then
-  echo "  UYARI: ml-asset-version meta etiketi bulunamadı (HTMLRewriter kancası kaldırılmış olabilir)" >&2
+  echo "  UYARI: /api/_health assetVersion alanını döndürmedi — eski worker sürümü olabilir" >&2
 elif [ -n "$deployed_version" ] && [ "$asset_version" != "$deployed_version" ]; then
-  echo "  BAŞARISIZ: ml-asset-version ($asset_version) canlı worker_version ($deployed_version) ile eşleşmiyor — lazy modal script'leri (modal-shell.js vb.) immutable önbellekte ESKİ KALABİLİR" >&2
+  echo "  BAŞARISIZ: assetVersion ($asset_version) canlı worker_version ($deployed_version) ile eşleşmiyor — lazy modal script'leri (modal-shell.js vb.) immutable önbellekte ESKİ KALABİLİR" >&2
   fail=1
 else
-  echo "  OK: ml-asset-version = $asset_version (worker_version ile hizalı)"
+  echo "  OK: assetVersion = $asset_version (worker_version ile hizalı)"
+fi
+
+# İKİNCİ KATMAN — meta etiketi HTML'e GERÇEKTEN basılıyor mu (HTMLRewriter kancası duruyor mu).
+# Bu kontrol edge önbelleğini geçemediği için SÜRÜM uyuşmazlığı BAŞARISIZLIK SAYILMAZ, yalnızca
+# bilgi olarak yazılır; etiketin TAMAMEN KAYIP olması ise gerçek bir regresyondur (uyarı).
+html_asset_version=$(curl -s "$BASE_URL/" | grep -oE '<meta name="ml-asset-version" content="[^"]*"' | sed -E 's/.*content="([^"]*)"/\1/')
+if [ -z "$html_asset_version" ]; then
+  echo "  UYARI: ml-asset-version meta etiketi HTML'de YOK (HTMLRewriter kancası kaldırılmış olabilir)" >&2
+elif [ "$html_asset_version" != "$asset_version" ]; then
+  echo "  BİLGİ: anasayfanın edge kopyası hâlâ eski sürümü taşıyor ($html_asset_version) — s-maxage 300sn içinde kendiliğinden yenilenir."
+else
+  echo "  OK: anasayfa HTML'indeki ml-asset-version da hizalı ($html_asset_version)"
 fi
 
 # Zone-geneli önbellek temizliği (production audit 2026-09-01, madde E) — YALNIZCA bilgi amaçlı,

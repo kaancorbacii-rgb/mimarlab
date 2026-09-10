@@ -18,6 +18,33 @@ async function deleteEngagement(env, type, key) {
   await env.DB.prepare(`DELETE FROM follows WHERE followed_type = ? AND followed_key = ?`).bind(type, key).run();
 }
 
+// ETKİLEŞİM ANAHTARI ÇAKIŞMASI KORUMASI (canlı bulgu, denetim 2026-09-10).
+//
+// comments/ratings/saved_items/shared_items/follows satırları `slugify(name)` ile anahtarlanır
+// (bkz. save-widget.js/share-button.js), AMA `slugify` TEKİL DEĞİLDİR: canlı veride
+// slugify("r.a.f.studio") === slugify("r.a.f. studio") === "r-a-f-studio" — yani AYNI slug'a düşen
+// İKİ AYRI ofis kaydı vardı. Mükerrer olanı silmek, hayatta kalan kaydın etkileşim satırlarını da
+// (ölçüldü: 1 shared_items satırı) beraberinde götürüyordu.
+//
+// Kural: etkileşim satırları YALNIZCA bu anahtar başka HİÇBİR (silinmemiş) kayda ait değilse
+// temizlenir. Aksi halde temizlik ATLANIR — geride kalan birkaç satır, hayatta kalan bir profilin
+// kaydettiklerini/paylaştıklarını silmekten çok daha ucuz bir hatadır.
+// Bkz. proje notu: "Duplicate name key limitation".
+async function deleteEngagementUnlessKeyShared(env, type, table, name) {
+  const key = slugify(name);
+  if (!key) return;
+  const { results } = await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL`).all();
+  const sharedWith = (results || []).filter(r => r.name !== name && slugify(r.name) === key).map(r => r.name);
+  if (sharedWith.length) {
+    console.log(JSON.stringify({
+      event: 'cascade_engagement_skipped', type, key, name,
+      reason: 'slug_shared_with_surviving_row', sharedWith: sharedWith.slice(0, 5),
+    }));
+    return;
+  }
+  await deleteEngagement(env, type, key);
+}
+
 // Bir <tip>_submissions JSON dizi kolonundan (designer/brands/founders) belirli bir ismi çıkarıp
 // geri yazar — LIKE yerine tüm satırları çekip JS'te filtreler (isimde SQL LIKE özel karakterleri
 // (%, _) olsa bile yanlış eşleşme riski olmasın diye; tablo boyutları bu siteye göre küçük).
@@ -67,7 +94,7 @@ export async function cascadeDeleteArchitect(env, name) {
   await env.DB.prepare(`DELETE FROM profile_claims WHERE profile_type = 'architect' AND profile_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM profile_corrections WHERE profile_type = 'architect' AND profile_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM admin_badges WHERE profile_type = 'architect' AND profile_key = ?`).bind(name).run();
-  await deleteEngagement(env, 'architect', slugify(name));
+  await deleteEngagementUnlessKeyShared(env, 'architect', 'architects', name);
   await pullNameFromArrayColumn(env, 'office_submissions', 'founders', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'designer', name);
   await pullNameFromCsvColumn(env, 'product_submissions', name);
@@ -85,7 +112,7 @@ export async function cascadeDeleteOffice(env, user, name) {
   await env.DB.prepare(`DELETE FROM profile_corrections WHERE profile_type = 'office' AND profile_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM badge_requests WHERE target_type = 'office' AND target_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM admin_badges WHERE profile_type = 'office' AND profile_key = ?`).bind(name).run();
-  await deleteEngagement(env, 'office', slugify(name));
+  await deleteEngagementUnlessKeyShared(env, 'office', 'offices', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'designer', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'brands', name);
 
