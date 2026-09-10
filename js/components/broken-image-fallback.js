@@ -53,16 +53,30 @@
     if (img.parentNode) img.parentNode.replaceChild(box, img);
   }
 
-  // ZATEN BAŞARISIZ OLMUŞ görselleri tarar. Dinleyici `defer` ile geç bağlandığından, HTML'in
-  // ilk boyamasında yer alan bir görsel biz dinlemeye başlamadan ÖNCE hata vermiş olabilir — o
-  // durumda `error` olayı bir daha atılmaz ve kırık ikon ekranda kalır (canlıda ölçüldü: /urun'de
-  // 2 görsel bu şekilde kalıyordu). `complete && naturalWidth === 0` başarısız yüklemenin standart
-  // imzasıdır.
+  // ZATEN BAŞARISIZ OLMUŞ görselleri tarar. Dinleyici `defer` ile geç bağlandığından, HTML'in ilk
+  // boyamasında yer alan bir görsel biz dinlemeye başlamadan ÖNCE hata vermiş olabilir; o durumda
+  // `error` olayı bir daha atılmaz ve kırık ikon ekranda kalır.
+  //
+  // `complete && naturalWidth === 0` TEK BAŞINA YETERLİ DEĞİL — YANLIŞ POZİTİF üretir (canlıda
+  // ölçüldü: /proje ve /urun'de bu imzayı taşıyan iki görselin İKİSİ de aslında sağlamdı, ayrı bir
+  // Image() ile sorunsuz yüklendi; muhtemelen henüz çözülmemiş/ertelenmiş kartlar). O imzaya
+  // güvenip doğrudan yer tutucu koymak SAĞLAM görselleri baş harflerle değiştirirdi — kırık
+  // görselden çok daha kötü bir regresyon. Bu yüzden imza yalnızca ADAY belirler; karar, URL'yi
+  // ayrı bir Image() ile yeniden deneyip GERÇEKTEN hata alıp almadığına bakılarak verilir.
+  function verifyThenFallback(img) {
+    var src = img.getAttribute('src');
+    if (!src || img.dataset.mlFallbackChecked === '1') return;
+    img.dataset.mlFallbackChecked = '1';
+    var probe = new Image();
+    probe.onerror = function () { handle({ target: img }); };
+    probe.src = src;
+  }
+
   function sweep() {
     var imgs = document.querySelectorAll('img');
     for (var i = 0; i < imgs.length; i++) {
       var img = imgs[i];
-      if (img.complete && img.naturalWidth === 0) handle({ target: img });
+      if (img.complete && img.naturalWidth === 0) verifyThenFallback(img);
     }
   }
 
