@@ -120,7 +120,7 @@
   const ENTITY_MODULES = {
     architect: {
       src: 'js/components/architect-modal.js', globalName: 'ArchitectModal',
-      owner: 'architect', pathRe: /^\/kisi\/([^/?#]+)/, parallelDeps: true,
+      owner: 'architect', pathRe: /^\/kisi\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
       // kisi.html'in architect-modal.js'ten ÖNCE yüklediği ama proje/urun/firma/marka.html'de
       // BULUNMAYAN modüller. MessageWidget/SocialLinks/ConsultationModal architect-modal.js içinde
       // `typeof … !== 'undefined'` ile korunuyor (eksik olsalar çökmez, yalnızca o bölümler
@@ -150,7 +150,7 @@
       // açar, ayrım yalnızca kanonik URL'dedir (kullanıcı isteği, 2026-09-06 madde 2; bkz.
       // office-kind.js#isPureBrandOffice ve js/components/office-modal.js#syncCanonicalBasePath).
       src: 'js/components/office-modal.js', globalName: 'OfficeModal',
-      owner: 'office', pathRe: /^\/(?:firma|marka)\/([^/?#]+)/, parallelDeps: true,
+      owner: 'office', pathRe: /^\/(?:firma|marka)\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
       // firma.html/marka.html'in office-modal.js'ten önce yüklediği aynı üçlü (ConsultationModal
       // firma popup'ında kullanılmıyor) + logoyu büyüten image-lightbox (bkz. architect'teki AYNI
       // markup-üzerinden-bağımlılık notu).
@@ -159,7 +159,7 @@
     },
     product: {
       src: 'js/components/product-modal.js', globalName: 'ProductModal',
-      owner: 'product', pathRe: /^\/urun\/([^/?#]+)/, parallelDeps: true,
+      owner: 'product', pathRe: /^\/urun\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
       // product-modal.js initDetailGallery (gallery.js) ve mountRateButton (rating-widget.js)
       // çağırıyor; ilki KORUMASIZ. Diğer bağımlılıkları (RelatedStrip/ProjectGroupFilter/
       // ShareWidget/cdnImg/savedWidgetReady) kişi/firma/marka sayfalarında zaten yüklü.
@@ -171,7 +171,7 @@
     },
     project: {
       src: 'js/components/project-modal.js', globalName: 'ProjectModal',
-      owner: 'project', pathRe: /^\/proje\/([^/?#]+)/, preloadedOnly: true,
+      owner: 'project', pathRe: /^\/proje\/(?!sayfa-\d+\/?$)([^/?#]+)/, preloadedOnly: true,
     },
   };
 

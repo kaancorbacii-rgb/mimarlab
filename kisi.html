@@ -23,7 +23,7 @@
      Yaş alt sınırı −5dk: istemci saati sunucudan geride olabilir (canlıda görüldü: −61ms, veri
      bu yüzden reddedilip boşuna fetch'e düşüyordu) — negatif yaş "gelecekten" değil saat sapmasıdır. -->
 <script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
-var dm=p.match(/^\/kisi\/([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/architect/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
+var dm=p.match(/^\/kisi\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/architect/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
 if(/^\/kisi\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
 ['/js/components/architect-modal.js','/js/components/modal-shell.js'].forEach(function(s){var mv=document.querySelector('meta[name="ml-asset-version"]');var v=mv&&mv.getAttribute('content');var l=document.createElement('link');l.rel='preload';l.as='script';l.href=v?s+'?v='+v:s;document.head.appendChild(l);});return;}
 if(p.replace(/\/+$/,'')==='/kisi'&&!location.search){var u='/api/architects?page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
@@ -983,7 +983,7 @@ window.addEventListener('popstate', ()=>{
   // tanımadığımız bir varlık yolunda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan
   // popup'ı hemen kapatırdı). Aynı gerekçe js/pages/proje.js'te de var.
   if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
-  const m = location.pathname.match(/^\/kisi\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/kisi\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
   // Modül henüz yüklenmemişken (kullanıcı hiç kart açmadan geri/ileri bastı) iki durum da
   // güvenlidir: bir /kisi/:slug yoluna GİDİLİYORSA modül indirilip popup açılır; modül yüklü
   // değilse AÇIK bir popup da olamayacağından "açık popup'ı kapat" dalı hiç çalıştırılmamalıdır.
@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // deferred script'lerin (ArchitectModal dahil) KESİN olarak tanımlanmış olmasını garantiler —
 // render()/network zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
-  const m = location.pathname.match(/^\/kisi\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/kisi\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
   if (!m) return;
   // bkz. <head>'deki pm-boot-loading senkron script'i (AYNI gerçek bulgu, proje.html'e bkz.) — çıplak
   // SSR içeriğini bir "boot veil" ile örttü; ArchitectModal.open()'ın Promise'i renderItem()/

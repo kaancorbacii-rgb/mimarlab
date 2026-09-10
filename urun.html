@@ -11,7 +11,7 @@
      Yaş alt sınırı −5dk: istemci saati sunucudan geride olabilir (canlıda görüldü: −61ms, veri
      bu yüzden reddedilip boşuna fetch'e düşüyordu) — negatif yaş "gelecekten" değil saat sapmasıdır. -->
 <script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
-var dm=p.match(/^\/urun\/([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/product/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
+var dm=p.match(/^\/urun\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/product/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
 if(p.replace(/\/+$/,'')==='/urun'&&!location.search){var u='/api/products?page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);var u2='/api/products?page=1&limit=1';window.__mlPrefetch[u2]=mlPre(u2);}
 }catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1202,7 +1202,7 @@ window.addEventListener('popstate', ()=>{
   // tanımadığımız bir varlık yolunda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan
   // popup'ı hemen kapatırdı). Aynı gerekçe js/pages/proje.js'te de var.
   if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
-  const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/urun\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
   if(m){ ProductModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(ProductModal.isOpen()){ ProductModal.handlePopState(null); return; }
   applyStateFromUrl();
@@ -1251,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       // çözülmediğinden, GERÇEK modal tam opak açılana kadar veil kaldırılmaz. try/catch + zaman
       // aşımı: defer script hiç yüklenmezse (ağ hatası) veil'in sonsuza dek takılı kalmaması için
       // (bkz. proje.js'teki AYNI gerçek bulgu).
-      const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+      const m = location.pathname.match(/^\/urun\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
       if (m) {
         const clearBootVeil = () => document.documentElement.classList.remove('pm-boot-loading');
         const bootVeilSafety = setTimeout(clearBootVeil, 8000);

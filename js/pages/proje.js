@@ -1143,13 +1143,13 @@ window.addEventListener('popstate', ()=>{
   // /kisi/:slug gibi bir yolda aşağıdaki "açık popup'ı kapat" dalı, az önce açılan popup'ı hemen
   // kapatırdı; (b) tanıdığımız yollarda aynı handlePopState iki kez çağrılırdı.
   if(window.LazyModals && LazyModals.ownsPath(location.pathname)) return;
-  const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/proje\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
   if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
   // kullanıcı isteği (2026-09-01 madde 2): bu sayfa artık ürün popup'ını da barındırıyor (bkz.
   // proje.html'deki product-modal.js <script>'i), dolayısıyla geri/ileri tuşu /urun/:slug girdilerine
   // de uğrayabilir — onları ProductModal'a yönlendirmezsek geri tuşu ürün popup'ını hiç açmaz/kapatmaz
   // ve URL ile ekran birbirinden ayrışırdı (urun.html'deki AYNI yönlendirmenin karşılığı).
-  const pu = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  const pu = location.pathname.match(/^\/urun\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
   if(pu && typeof ProductModal !== 'undefined'){ ProductModal.handlePopState(decodeURIComponent(pu[1])); return; }
   // Ürün popup'ı kapanırken (bkz. ProductModal.close#goBackAndWait) buraya, ürünün AÇILDIĞI
   // /proje/:slug girdisine dönülür — o dal yukarıdaki ilk if'te işlenir. Buraya düşmek yalnızca
@@ -1190,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // (ProjectModal dahil) KESİN olarak tanımlanmış olmasını garantiler — render()/network
 // zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
-  const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/proje\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);
   if (!m) return;
   // bkz. proje.html <head>'deki pm-boot-loading senkron script'i AYNI gerçek bulgu — o script ilk
   // boyamadan önce çıplak SSR içeriğini bir "boot veil" (blur/karartma) ile örttü; ProjectModal.open()
