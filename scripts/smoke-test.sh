@@ -88,7 +88,10 @@ for kind in project architect firm product; do
     continue
   fi
   ok "/api/$ep -> items[] dolu"
-  slug=$(echo "$json" | jq -r '.items[0].slug // empty')
+  # ÖNİZLEME kartları atlanır (bkz. migrations/0107_preview_state.sql): liste havuzunda görünürler
+  # ama detay uçları bilerek 410 döner — örnek detay kaydı olarak seçilirlerse bu kontrol yanlış
+  # alarm verir (gerçek bulgu, 2026-09-10).
+  slug=$(echo "$json" | jq -r '[.items[] | select(.preview != true)][0].slug // empty')
   if [ -z "$slug" ]; then
     warnf "$kind için örnek slug bulunamadı, detay/SSR kontrolü atlandı"
     continue
@@ -290,7 +293,9 @@ live_detail_path() {
   local prefix="$1" api="$2" fallback="$3"
   if [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$prefix/$fallback")" = "200" ]; then echo "$prefix/$fallback"; return; fi
   local slug
-  slug="$(curl -s "$BASE_URL$api?limit=1" | sed -n 's/.*"items":\[{[^}]*"slug":"\([^"]*\)".*/\1/p' | head -1)"
+  # limit=1 YETMEZ: ilk kayıt önizleme olabilir (detayı 410 döner, bkz. yukarıdaki AYNI gerekçe).
+  # Daha geniş bir sayfa çekilip önizleme OLMAYAN ilk kayıt seçilir.
+  slug="$(curl -s "$BASE_URL$api?limit=24" | jq -r '[.items[]? | select(.preview != true)][0].slug // empty' 2>/dev/null)"
   if [ -n "$slug" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$prefix/$slug")" = "200" ]; then echo "$prefix/$slug"; return; fi
   echo ""
 }
