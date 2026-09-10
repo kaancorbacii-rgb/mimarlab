@@ -85,8 +85,14 @@
     if (pending) return;
     pending = true;
     // Kartlar toplu basılır (innerHTML) — her düğüm için ayrı tarama yapmak yerine tek bir
-    // mikro-görevde bir kez taranır.
-    requestAnimationFrame(function () { pending = false; markAll(document); });
+    // gecikmeli turda bir kez taranır.
+    //
+    // requestAnimationFrame KULLANILMAZ (gerçek bulgu, canlıda ölçüldü): rAF ARKA PLANDAKİ/gizli
+    // sekmede HİÇ çalışmaz. Popup şeritleri (İlgili Projeler vb.) sekme arka plandayken basılırsa
+    // işaretleme hiç yapılmıyor, kullanıcı sekmeye döndüğünde önizleme kartları SOLUK OLMADAN ve
+    // TIKLANABİLİR görünüyordu (ölçüm: 47 proje bağlantısından yalnızca 6'sı taranmıştı).
+    // setTimeout arka planda kısılır ama ÇALIŞIR — bu iş için doğru zamanlayıcı odur.
+    setTimeout(function () { pending = false; markAll(document); }, 0);
   }
 
   // Tıklamayı YAKALAMA fazında durdurur: kartın kendi dinleyicisi (ör. proje.html'in popup açan
