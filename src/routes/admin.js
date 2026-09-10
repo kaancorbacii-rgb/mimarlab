@@ -17,6 +17,8 @@ const { isBrandOffice } = officeKindJs;
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
+// Telif beyanı denetim kaydı — atamayla yayına alınan içerikler için (bkz. activateClaimedProfile).
+import { recordRightsAcceptance } from '../lib/rightsConsent.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { handleTop100AdminRoute } from './top100.js';
@@ -820,57 +822,198 @@ async function purgeClaimProfileCaches(env, profileType, profileKey) {
   await purgeSsrDetailCache(type, profileKey, env);
 }
 
-// Bir profil bir kullanıcıya ATANDIĞINDA önizleme ("soluk") durumundan çıkarılır — kullanıcı isteği,
-// 2026-09-10: "Sadece kişi, firma ve marka profillerine bir kullanıcı atanırsa aktif olsunlar ama
-// proje ve ürünler hemen aktif olmasın."
+// Bir profil bir kullanıcıya ATANDIĞINDA, O PROFİLLE İLGİLİ TÜM İÇERİK EŞ ZAMANLI OLARAK YAYINA
+// ALINIR (kullanıcı isteği, 2026-09-10 altıncı tur: "Bir kullanıcıya kişi, firma veya marka yetkisi
+// verdiğimde bu kişi, firma ve markayla alakalı tüm içerikler otomatik ve eş zamanlı olarak yayına
+// alınsın. Ayrıca yayına alınan tüm içeriklerde telif kutucuğu da işaretli olsun.").
 //
-// Yalnızca architects/offices için çağrılır. Proje ve ürünler BİLEREK kapsam dışıdır: onlar ancak
-// sahibi telif beyanını onaylayıp kaydettiğinde (bkz. src/routes/submissions.js#updateOwnSubmission
-// -> unhideIfClaimedApproved -> setLegacyHidden) yayına döner.
-async function activateClaimedProfile(env, profileType, profileKey) {
-  const table = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
-  if (!table || !profileKey) return;
-  // relisted_at: bkz. migrations/0108_relisted_at.sql — atamayla yayına dönen profil listede
-  // canlılar arasında en öne geçer.
-  const now = new Date().toISOString();
-  await env.DB.prepare(
-    `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
-     WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?)`
-  ).bind(now, profileKey, profileKey, profileKey).run();
+// GERÇEK BULGU (canlı, bu turun tetikleyicisi): "Melis Varkal" kişisi bir kullanıcıya atandığında
+// yalnızca O KİŞİ yayına dönüyordu — kurucu ortağı olduğu "ofisvesaire" firması ve diğer ortağı
+// "Mustafa Gökhan Çelikağ" önizlemede (soluk) kalıyordu. Yani atamadan sonra kişi canlı, ama
+// profilinde görünen firması tıklanamaz bir hayaletti.
+//
+// ETKİNLEŞTİRME KÜMESİ — iki hamleyle sınırlı, KASITLI olarak "bağlı bileşenin tamamı" DEĞİL:
+//   offices    = atanan firma  ∪  atanan kişinin firmaları        (office_founders + architects.office_id)
+//   architects = atanan kişi   ∪  yukarıdaki firmaların ortakları  (office_founders)
+//   projects   = bu kişi/firmalara künyeden bağlı projeler         (project_designers)
+//   products   = bu firmaların markalı ürünleri + bu kişilerin tasarladığı ürünler
+// Neden burada duruyoruz: bir ortağın BAŞKA firmalarını da eklemek zinciri sürdürür ve tek bir
+// atama sitenin yarısını yayına alabilirdi. "Bu kişi/firmayla alakalı" tam olarak bu iki hamledir.
+//
+// ÜRÜNLER ARTIK KAPSAM İÇİNDE: 2026-09-10'un daha erken bir turunda ürünler bilerek dışarıda
+// bırakılmıştı ("proje ve ürünler hemen aktif olmasın"); bu tur onu "TÜM içerikler" lehine geri
+// alır.
+//
+// TELİF KUTUCUĞU: yayına alınan her kaydın ARŞİV TASLAĞI da 'archived' -> 'approved' yapılır ve
+// rights_acceptances'a bir kayıt düşülür. İkisi de şart:
+//   * taslak 'archived' kalırsa kayıt CANLI olmasına rağmen kullanıcının Hesabım > Arşivim
+//     kutusunda durmaya devam ediyordu (bkz. src/routes/archive.js#fetchArchivedRows),
+//   * ve *-ekle.html?edit= formu telif kutucuğunu `item.status !== 'archived'` koşuluyla
+//     işaretlediğinden kutu BOŞ açılıyordu (bkz. kisi-ekle.html#prefillForEdit'teki AYNI satır).
+// Beyan, atamayı yapan admin'in kararıyla ATANAN KULLANICI adına kaydedilir (source:
+// 'admin-assign'), yani denetim izinde normal bir form onayından ayırt edilebilir.
 
-  // PROFİLİN PROJELERİ DE YAYINA DÖNER (kullanıcı isteği, 2026-09-10 beşinci tur, madde 4:
-  // "profili sahiplenilmiş firma ve kişilerin; kişi, firma ve PROJE içerikleri yayında olsunlar,
-  // blurlu olmasınlar"). Bu, arşiv sınıflandırmasının zaten uyguladığı kuralın (künyesi onaylı bir
-  // profile bağlı proje canlı kalır) atama ANINDA da geçerli olmasını sağlar — aksi halde yalnızca
-  // atamadan ÖNCE sınıflandırılmış projeler önizlemede takılı kalırdı (canlıda AZAKSU Mimarlık'ta
-  // tam olarak bu oldu). Ürünler BİLEREK kapsam dışı: onlar sahibi telif beyanını onaylayınca
-  // yayına döner (bkz. dosya başı akış).
-  const col = profileType === 'architect' ? 'architect_id' : 'office_id';
-  await env.DB.prepare(
-    `UPDATE projects SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
-     WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND id IN (
-       SELECT pd.project_id FROM project_designers pd
-       JOIN ${table} t ON t.id = pd.${col}
-       WHERE t.name = ? OR t.slug = ? OR t.legacy_key = ?
-     )`
-  ).bind(now, profileKey, profileKey, profileKey).run();
+// Düz IN(...) listeleri için üst sınır — bkz. [[project_sqlite_expression_tree_depth_100]].
+// Tek bir hesabın onlarca firmayı/ortağı birden yönetmesi beklenmez; sınır yalnızca uç veriye
+// karşı emniyet supabıdır.
+const ACTIVATE_ID_LIMIT = 60;
 
-  // FİRMA ORTAKLARININ KİŞİ PROFİLLERİ DE YAYINA DÖNER (kullanıcı isteği, 2026-09-10: "Dürrin Süer
-  // kişi ve firma profilini sahiplenen bir kullanıcı. Bu kullanıcı firma ortağı Metin Kılıç'ın da
-  // profilini düzenleme yetkisine sahip olsun ve Metin Kılıç'ın profili de blurlu değil yayında
-  // olsun."). Düzenleme yetkisi ZATEN vardı (bkz. src/lib/claimedProfiles.js#
-  // canEditArchitectViaOfficeMembership) — eksik olan görünürlüktü: firma yayında ama Kurucular/Ekip
-  // listesindeki kişiler soluk kalıyordu. Bağ office_founders üzerinden okunur (firma künyesinin
-  // TEK yapılandırılmış kişi bağı). Yalnızca firma/marka atamalarında çalışır.
+async function idsFrom(env, sql, binds) {
+  const { results } = await env.DB.prepare(sql).bind(...binds).all();
+  return (results || []).map(r => r.id).filter(id => id !== null && id !== undefined);
+}
+
+// preview_at'i olan satırları yayına döndürür. relisted_at: bkz. migrations/0108_relisted_at.sql —
+// atamayla yayına dönen kayıt listede canlılar arasında en öne geçer.
+async function unpreviewByIds(env, table, ids, nowIso) {
+  if (!ids.length) return [];
+  const capped = ids.slice(0, ACTIVATE_ID_LIMIT);
+  const ph = capped.map(() => '?').join(', ');
+  // Hangi satırların GERÇEKTEN değiştiğini bilmek gerekir (telif kaydı ve cache purge yalnızca
+  // onlar için yapılsın diye) — UPDATE'ten ÖNCE okunur.
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM ${table} WHERE id IN (${ph}) AND preview_at IS NOT NULL AND deleted_at IS NULL`
+  ).bind(...capped).all();
+  const changed = (results || []).map(r => r.id);
+  if (!changed.length) return [];
+  const cph = changed.map(() => '?').join(', ');
+  await env.DB.prepare(
+    `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = ? WHERE id IN (${cph})`
+  ).bind(nowIso, ...changed).run();
+  return changed;
+}
+
+// Yayına dönen canonical satırların ARŞİV TASLAKLARINI da 'approved' yapar (bkz. yukarıdaki
+// "TELİF KUTUCUĞU" notu) ve her biri için bir telif beyanı kaydı düşer.
+// primaryKey — telif kaydına yazılacak "insan tarafından okunur" anahtar. matchCols — taslağın
+// claimed_* kolonunun İÇEREBİLECEĞİ kolonlar: arşiv taslağı oluşturulduğu ANDAKİ anahtarı taşır ve
+// bu ad/slug o günden beri değişmiş olabilir (bkz. renameArchitectEverywhere), bu yüzden üç aday da
+// denenir.
+const ACTIVATE_DRAFT_TABLE = {
+  architects: { table: 'architect_submissions', keyCol: 'claimed_profile_key', primaryKey: 'name', matchCols: ['name', 'slug', 'legacy_key'], contentType: 'architects' },
+  offices: { table: 'office_submissions', keyCol: 'claimed_profile_key', primaryKey: 'name', matchCols: ['name', 'slug', 'legacy_key'], contentType: 'offices' },
+  projects: { table: 'project_submissions', keyCol: 'claimed_slug', primaryKey: 'slug', matchCols: ['slug', 'legacy_key'], contentType: 'projects' },
+  products: { table: 'product_submissions', keyCol: 'claimed_slug', primaryKey: 'slug', matchCols: ['slug', 'legacy_key'], contentType: 'products' },
+};
+
+async function approveArchivedDraftsAndRecordRights(env, userId, table, ids) {
+  const config = ACTIVATE_DRAFT_TABLE[table];
+  if (!config || !ids.length) return;
+  const ph = ids.map(() => '?').join(', ');
+  const { results: rows } = await env.DB.prepare(
+    `SELECT ${config.matchCols.join(', ')} FROM ${table} WHERE id IN (${ph})`
+  ).bind(...ids).all();
+  const candidates = [...new Set((rows || []).flatMap(r => config.matchCols.map(c => r[c])).filter(Boolean))];
+  const now = Date.now();
+  if (candidates.length) {
+    const kph = candidates.map(() => '?').join(', ');
+    const { results: drafts } = await env.DB.prepare(
+      `SELECT id FROM ${config.table} WHERE status = 'archived' AND ${config.keyCol} IN (${kph})`
+    ).bind(...candidates).all();
+    for (const d of drafts || []) {
+      await env.DB.prepare(`UPDATE ${config.table} SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, d.id).run();
+    }
+  }
+  // Telif beyanı, taslağı olsun olmasın YAYINA ALINAN HER kayıt için düşer — kullanıcı isteği
+  // "yayına alınan TÜM içeriklerde" diyor, yalnızca taslaklı olanlar için değil.
+  for (const r of rows || []) {
+    if (!r[config.primaryKey]) continue;
+    await recordRightsAcceptance(env, { id: userId }, {
+      contentType: config.contentType, contentKey: r[config.primaryKey], submissionId: null, source: 'admin-assign',
+    });
+  }
+}
+
+async function activateClaimedProfile(env, profileType, profileKey, userId) {
+  const seedTable = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
+  if (!seedTable || !profileKey) return;
+  const nowIso = new Date().toISOString();
+  const keyBinds = [profileKey, profileKey, profileKey];
+  const byKey = `(name = ? OR slug = ? OR legacy_key = ?)`;
+
+  const seedIds = await idsFrom(env, `SELECT id FROM ${seedTable} WHERE deleted_at IS NULL AND ${byKey}`, keyBinds);
+  if (!seedIds.length) return;
+
+  let officeIds = [], architectIds = [];
   if (profileType === 'office') {
-    await env.DB.prepare(
-      `UPDATE architects SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
-       WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND id IN (
-         SELECT f.architect_id FROM office_founders f
-         JOIN offices o ON o.id = f.office_id
-         WHERE o.name = ? OR o.slug = ? OR o.legacy_key = ?
-       )`
-    ).bind(now, profileKey, profileKey, profileKey).run();
+    officeIds = seedIds;
+    // Firmanın Kurucular/Ekip listesindeki kişiler (kullanıcı isteği, 2026-09-10: "Metin Kılıç'ın
+    // profili de blurlu değil yayında olsun"). office_founders — firma künyesinin TEK yapılandırılmış
+    // kişi bağı (bkz. src/routes/office.js#buildOfficePayload).
+    architectIds = await idsFrom(env,
+      `SELECT DISTINCT f.architect_id AS id FROM office_founders f WHERE f.office_id IN (${officeIds.map(() => '?').join(', ')})`, officeIds);
+  } else {
+    architectIds = seedIds;
+    // Kişinin firmaları — İKİ bağ da okunur: yapısal office_founders VE architects.office_id
+    // ("birincil firma", bkz. src/lib/canonicalSync.js#syncArchitect). Biri kurulmuş diğeri
+    // kurulmamış olabilir; ikisini birden almazsak firma önizlemede takılı kalır (canlı bulgu:
+    // "Melis Varkal" -> "ofisvesaire").
+    const aph = architectIds.map(() => '?').join(', ');
+    officeIds = [...new Set([
+      ...await idsFrom(env, `SELECT DISTINCT f.office_id AS id FROM office_founders f WHERE f.architect_id IN (${aph})`, architectIds),
+      ...await idsFrom(env, `SELECT DISTINCT a.office_id AS id FROM architects a WHERE a.id IN (${aph}) AND a.office_id IS NOT NULL`, architectIds),
+    ])];
+    // ... ve o firmaların DİĞER ortakları (canlı bulgu: "Mustafa Gökhan Çelikağ").
+    if (officeIds.length) {
+      const oph = officeIds.slice(0, ACTIVATE_ID_LIMIT).map(() => '?').join(', ');
+      const partners = await idsFrom(env,
+        `SELECT DISTINCT f.architect_id AS id FROM office_founders f WHERE f.office_id IN (${oph})`, officeIds.slice(0, ACTIVATE_ID_LIMIT));
+      architectIds = [...new Set([...architectIds, ...partners])];
+    }
+  }
+  officeIds = officeIds.slice(0, ACTIVATE_ID_LIMIT);
+  architectIds = architectIds.slice(0, ACTIVATE_ID_LIMIT);
+
+  // Künyesi bu kişi/firmalara bağlı projeler (project_designers — canUserEditProjectBySlug'ın
+  // kullandığı AYNI bağ, yani "yayına alınan" ile "düzenlenebilen" küme örtüşür).
+  const projectIds = [];
+  if (architectIds.length) {
+    const ph = architectIds.map(() => '?').join(', ');
+    projectIds.push(...await idsFrom(env, `SELECT DISTINCT pd.project_id AS id FROM project_designers pd WHERE pd.architect_id IN (${ph})`, architectIds));
+  }
+  if (officeIds.length) {
+    const ph = officeIds.map(() => '?').join(', ');
+    projectIds.push(...await idsFrom(env, `SELECT DISTINCT pd.project_id AS id FROM project_designers pd WHERE pd.office_id IN (${ph})`, officeIds));
+  }
+
+  // Ürünler: markası bu firmalardan biri olanlar (brand_office_id, o boşsa marka ADI — bkz.
+  // src/lib/projectClaimAccess.js#canUserEditProductBySlug'daki AYNI eşleşme kuralı) + künyesinde
+  // bu kişiler geçenler (product_architects).
+  const productIds = [];
+  if (officeIds.length) {
+    const ph = officeIds.map(() => '?').join(', ');
+    productIds.push(...await idsFrom(env,
+      `SELECT DISTINCT p.id AS id FROM products p
+         JOIN offices o ON o.id IN (${ph})
+        WHERE p.deleted_at IS NULL AND (p.brand_office_id = o.id OR p.brand_name_raw = o.name COLLATE NOCASE)`, officeIds));
+  }
+  if (architectIds.length) {
+    const ph = architectIds.map(() => '?').join(', ');
+    productIds.push(...await idsFrom(env, `SELECT DISTINCT pa.product_id AS id FROM product_architects pa WHERE pa.architect_id IN (${ph})`, architectIds));
+  }
+
+  const activated = {
+    architects: await unpreviewByIds(env, 'architects', architectIds, nowIso),
+    offices: await unpreviewByIds(env, 'offices', officeIds, nowIso),
+    projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso),
+    products: await unpreviewByIds(env, 'products', [...new Set(productIds)], nowIso),
+  };
+
+  if (userId) {
+    for (const table of Object.keys(activated)) {
+      await approveArchivedDraftsAndRecordRights(env, userId, table, activated[table]);
+    }
+  }
+
+  // Detay uçları/SSR HTML'i fingerprint taşımaz (bkz. purgeClaimProfileCaches'teki AYNI gerekçe) —
+  // yayına dönen HER kişi/firmanın kendi sayfası da temizlenmeli, yalnızca atanan profil değil.
+  // Proje/ürün detayları BİLEREK atlanır: sayıları büyük olabilir ve en fazla 5 dakikalık s-maxage
+  // penceresi kadar bayat kalırlar (bkz. purgeClaimProfileCaches'teki AYNI ödünleşim).
+  for (const [table, type] of [['architects', 'architect'], ['offices', 'office']]) {
+    if (!activated[table].length) continue;
+    const ph = activated[table].map(() => '?').join(', ');
+    const { results } = await env.DB.prepare(`SELECT name FROM ${table} WHERE id IN (${ph})`).bind(...activated[table]).all();
+    for (const r of results || []) await purgeSsrDetailCache(type, r.name, env);
   }
 }
 
@@ -912,7 +1055,7 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // doldurulur, hem Hesabım formu hem admin panelindeki Üyeler ekranı aynı users satırını okur.
     if (profileType === 'architect') await fillUserFromArchitectProfile(env, userId, profileKey);
     // Atama, kişi/firma/marka profilini önizleme modundan çıkarır (bkz. activateClaimedProfile).
-    await activateClaimedProfile(env, profileType, profileKey);
+    await activateClaimedProfile(env, profileType, profileKey, userId);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, profileType, profileKey);
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[profileType] || profileType;
@@ -996,7 +1139,7 @@ async function handleClaimsAdmin(request, env, url, segments) {
     }
     // Önizleme modundan çıkarma da İKİ atama yolunun İKİSİNE birden eklenmeli (bkz. yukarıdaki
     // "Atamanın İKİ admin yolu" notu ve activateClaimedProfile).
-    if (body.status === 'approved') await activateClaimedProfile(env, claim.profile_type, claim.profile_key);
+    if (body.status === 'approved') await activateClaimedProfile(env, claim.profile_type, claim.profile_key, claim.user_id);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, claim.profile_type, claim.profile_key);
 

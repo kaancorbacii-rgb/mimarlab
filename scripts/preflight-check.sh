@@ -307,6 +307,18 @@ else
 fi
 rm -f /tmp/preflight_r2
 
+# Atama -> ilgili tüm içeriğin eş zamanlı yayına alınması (kullanıcı isteği, 2026-09-10 altıncı tur).
+# Kural tek yerde (admin.js#activateClaimedProfile) ama atamanın İKİ admin yolu da onu çağırıyor;
+# sapması "kişi canlı ama firması soluk hayalet" durumunu geri getirir (canlı bulgu: Melis Varkal).
+# Bkz. scripts/test-claim-activation-cascade.mjs dosya başı.
+if node scripts/test-claim-activation-cascade.mjs >/tmp/preflight_actv 2>&1; then
+  ok "atama cascade + telif kutucuğu testleri geçti ($(grep -c '^  ok ' /tmp/preflight_actv) test)"
+else
+  bad "atama cascade + telif kutucuğu testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_actv >&2
+fi
+rm -f /tmp/preflight_actv
+
 # Firma/marka üyelik listesi — kisi-ekle.html ile Profili Düzenle'nin (auth-modal.js) ORTAK
 # birleştiricisi (kullanıcı isteği, 2026-09-08: "admin tarafından dahi olsa görevlendiriliyorsa kişi
 # ekle/düzenle sayfasında da gözüksün"). Regresyon: kisi-ekle yalnızca kaydın `office` metnini okuyordu,
