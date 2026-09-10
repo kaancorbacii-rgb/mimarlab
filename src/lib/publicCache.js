@@ -427,7 +427,13 @@ async function withSingleFlight(key, fn) {
 //     v5-v22'nin AYNI tuzağı: yeni alan yanıtın ŞEKLİNİ değiştirir ama listFingerprint'i (COUNT +
 //     MAX(updated_at)) değiştirmez, sürüm artırılmazsa pop-up'ı daha önce açmış ziyaretçiler 304
 //     ile portfolyosuz eski gövdede takılırdı.
-const API_PAYLOAD_VERSION = 'v25'; // v25: kartlara `preview` alanı eklendi (bkz. migrations/0107_preview_state.sql)
+// v26: liste SIRALAMASI değişti (yayındakiler önce, önizlemeler sonra — bkz. migrations/
+// 0108_relisted_at.sql). GEREKÇE: ETag yalnızca pathname+payload sürümü+veri parmak izinden
+// üretilir; sıralama kodu değişse de VERİ değişmediğinden parmak izi aynı kalır ve caches.default
+// HIT'i eski gövdeyi servis etmeye devam eder (canlıda tam olarak bu oldu: /api/architects ve
+// /api/offices'te önizleme kartları hâlâ başta çıkıyordu, cache-bust'la doğru sıra geliyordu).
+// Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
+const API_PAYLOAD_VERSION = 'v26';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
