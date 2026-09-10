@@ -1033,7 +1033,7 @@ async function routeAsset(request, env, url, ctx) {
     // ilk 1024 baytlık <meta> ön-taramasına düşer — ve bu blok <head>'in en başına KB'larca JSON
     // koyduğu için meta o pencerenin daha da dışına itiliyordu (bkz. fetch handler'daki düzeltme ve
     // <meta charset>'in artık <head>'in İLK çocuğu olması).
-    const headFirst = hubListData ? `<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>` : '';
+    const headFirst = hubListData ? `${SSR_CHARSET_META}<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>` : '';
     const rewriter = new HTMLRewriter();
     if (headExtra || headFirst) rewriter.on('head', { element(el) {
       if (headFirst) el.prepend(headFirst, { html: true });
@@ -1634,9 +1634,17 @@ async function serveGundemListPage(request, env, url, ctx) {
 
 // #ml-list-data (head başı) + preload bağlantıları (head sonu) — LIST dalındaki AYNI enjeksiyon,
 // Cache API'den dönen bir yanıta da uygulanabilsin diye ayrı fonksiyon. Veri yoksa yanıt aynen döner.
+// #ml-list-data <head>'in EN BAŞINA girer (shim'den önce çalışmalı) ve KB'larca JSON taşır — bu,
+// sayfanın kendi <meta charset>'ini HTML spesifikasyonunun 1024 baytlık kodlama ön-taramasının
+// dışına iter. Worker artık HTMLRewriter'a charset'i AÇIKÇA verdiğinden bizim tarafımızda sorun
+// yok, tarayıcı da HTTP başlığındaki charset'i meta'dan üstün tutar; ama SERVİS EDİLEN BAYTLARIN
+// kendisi de spesifikasyona uygun kalmalı (ön-taramaya dayanan ara katmanlar/botlar için). Bu
+// yüzden bloğun önüne bir charset bildirimi konur — sayfada zaten bir tane olması zararsızdır,
+// ilk bildirim geçerlidir ve ikisi de utf-8'dir.
+const SSR_CHARSET_META = '<meta charset="utf-8">';
 function withHubListData(response, hubListData) {
   if (!hubListData) return response;
-  const headFirst = `<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>`;
+  const headFirst = `${SSR_CHARSET_META}<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>`;
   const rewritten = new HTMLRewriter().on('head', { element(el) {
     el.prepend(headFirst, { html: true });
     if (hubListData.preload) el.append(hubListData.preload, { html: true });
