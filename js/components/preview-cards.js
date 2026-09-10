@@ -200,7 +200,8 @@
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     if (e.type !== 'click') return; // orta tık / yeni sekme: yalnızca engelle, popup açma
     var hit = claimKindFor(hrefKey(a.getAttribute('href')) || '');
-    if (hit) openClaimPopup(hit.cfg, hit.slug, (a.textContent || '').trim().slice(0, 60));
+    // Kart metni çok satırlı (ad + alt satır) ve girintili gelir — popup başlığında tek satıra indirilir.
+    if (hit) openClaimPopup(hit.cfg, hit.slug, (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60));
   }
 
   function start() {
