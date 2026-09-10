@@ -905,6 +905,11 @@ document.getElementById('specs-add-btn').addEventListener('click', ()=> addSpecR
 // Aksi halde payload'da hiç yer almaz → sunucu (canonicalSync#syncProduct) içe aktarılan versiyonlara
 // dokunmaz (0086'nın güvencesi). "Hiç dokunmadım" ile "hepsini sildim" böylece ayrışır.
 const VARIANT_OPTION_PRESETS = ['Model', 'Renk', 'Ebat', 'Malzeme', 'Kumaş', 'Kaplama', 'Ayak Tipi', 'Sırt Yüksekliği', 'Kapasite'];
+// escapeHtml bu sayfada GLOBAL değil (site-chrome.js/auth-nav.js kendi IIFE'lerinde tanımlar) —
+// önizleme metni için yerel bir kaçış yardımcısı; escapeAttr (yukarıda, sayfanın kendi global'i)
+// öznitelikler için kullanılmaya devam eder.
+const escapeHtmlV = (typeof escapeHtml === 'function') ? escapeHtml
+  : (v) => String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const variantRowsEl = document.getElementById('variant-rows');
 const variantPreviewEl = document.getElementById('variant-preview');
 const variantPreviewBody = document.getElementById('variant-preview-body');
@@ -1078,13 +1083,13 @@ function renderVariantPreview(){
   const cur = variants[variantPreviewIndex] || {};
   const avail = api.availability(variants, groups, variantPreviewIndex);
   variantPreviewBody.innerHTML = groups.map((g, gi) => `<div class="pr-variant-group">
-    <div class="pr-variant-group-label">${escapeHtml(g.label)}</div>
+    <div class="pr-variant-group-label">${escapeHtmlV(g.label)}</div>
     <div class="pr-variant-pills">${g.values.map(val => {
       const active = g.byVariantLabel ? cur.label === val : api.optionValue(cur, g.label) === val;
       const off = !active && avail.get(g.label) && !avail.get(g.label).has(val);
-      return `<button type="button" class="pr-variant-pill${off ? ' is-off' : ''}" data-group="${gi}" data-value="${escapeAttr(val)}" aria-pressed="${active ? 'true' : 'false'}"${off ? ' title="Bu kombinasyon mevcut değil"' : ''}>${escapeHtml(val)}</button>`;
+      return `<button type="button" class="pr-variant-pill${off ? ' is-off' : ''}" data-group="${gi}" data-value="${escapeAttr(val)}" aria-pressed="${active ? 'true' : 'false'}"${off ? ' title="Bu kombinasyon mevcut değil"' : ''}>${escapeHtmlV(val)}</button>`;
     }).join('')}</div>
-  </div>`).join('') + `<p class="pr-variant-current">Seçili versiyon: <strong>${escapeHtml(cur.label || '')}</strong></p>`;
+  </div>`).join('') + `<p class="pr-variant-current">Seçili versiyon: <strong>${escapeHtmlV(cur.label || '')}</strong></p>`;
   variantPreviewBody.querySelectorAll('.pr-variant-pill').forEach(btn => btn.addEventListener('click', ()=>{
     const g = groups[parseInt(btn.dataset.group, 10)];
     const idx = api.pickIndex(variants, groups, variantPreviewIndex, g, btn.dataset.value);

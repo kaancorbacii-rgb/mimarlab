@@ -208,6 +208,36 @@ const InfoModal = (function () {
     #im-panel.im-nm .nm-graph .nm-node text.nm-sub{font-size:11px; font-weight:500; fill:var(--ink-soft); letter-spacing:0;}
 
     #im-panel.im-nm .nm-roles{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px;}
+    /* 3 ADIM + KARŞILAŞTIRMA (kullanıcı isteği, 2026-09-10 on birinci tur madde 3) — neden-mimarlab.html
+       (sunum modu) ile AYNI blok, #im-panel.im-nm ile scope'lu. */
+    #im-panel.im-nm .nm-steps{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:6px;}
+    #im-panel.im-nm .nm-step{position:relative; padding:26px 22px 22px; border:1px solid var(--line); border-radius:16px; background:var(--paper-card); overflow:hidden;}
+    #im-panel.im-nm .nm-step-ico{width:54px; height:54px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:var(--paper-alt); color:var(--walnut); margin-bottom:16px; transition:background .35s ease, color .35s ease;}
+    #im-panel.im-nm .nm-step-ico svg{width:26px; height:26px;}
+    #im-panel.im-nm .nm-step-no{position:absolute; top:16px; right:18px; font-size:44px; font-weight:800; letter-spacing:-0.04em; color:var(--line); line-height:1;}
+    #im-panel.im-nm .nm-step h3{margin:0 0 6px; font-size:16.5px;}
+    #im-panel.im-nm .nm-step p{margin:0; font-size:13.5px;}
+    #im-panel.im-nm .nm-step::after{content:''; position:absolute; left:0; bottom:0; height:3px; width:0; background:var(--brass); transition:width .9s ease;}
+    #im-panel.im-nm .nm-step.is-on::after{width:100%;}
+    #im-panel.im-nm .nm-step.is-on .nm-step-ico{background:var(--ink); color:var(--paper);}
+    #im-panel.im-nm .nm-compare{margin-top:34px; border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--paper-card);}
+    #im-panel.im-nm .nm-compare-row{display:grid; grid-template-columns:1.4fr 1fr 1fr; align-items:center; border-top:1px solid var(--line-soft);}
+    #im-panel.im-nm .nm-compare-row:first-child{border-top:none; background:var(--paper-alt);}
+    #im-panel.im-nm .nm-compare-row > div{padding:13px 16px; font-size:13.5px; color:var(--ink-soft);}
+    #im-panel.im-nm .nm-compare-row > div:first-child{color:var(--ink); font-weight:600;}
+    #im-panel.im-nm .nm-compare-row:first-child > div{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);}
+    #im-panel.im-nm .nm-compare-row:first-child > div:last-child{color:var(--walnut);}
+    #im-panel.im-nm .nm-compare-cell{display:flex; align-items:center; gap:8px;}
+    #im-panel.im-nm .nm-compare-cell svg{width:18px; height:18px; flex-shrink:0;}
+    #im-panel.im-nm .nm-compare-no{color:#B84C4C;}
+    #im-panel.im-nm .nm-compare-yes{color:var(--sage, #4c7c59); font-weight:600;}
+    #im-panel.im-nm .nm-compare-row > div:last-child{background:rgba(224,138,62,0.06);}
+    @media (max-width:720px){
+      #im-panel.im-nm .nm-steps{grid-template-columns:1fr;}
+      #im-panel.im-nm .nm-compare-row{grid-template-columns:1.2fr 1fr 1fr;}
+      #im-panel.im-nm .nm-compare-row > div{padding:11px 10px; font-size:12.5px;}
+    }
+    @media (prefers-reduced-motion: reduce){ #im-panel.im-nm .nm-step::after{transition:none;} #im-panel.im-nm .nm-step-ico{transition:none;} }
     #im-panel.im-nm .nm-role{display:block; padding:26px 22px; border:1px solid var(--line); border-radius:16px; background:var(--paper-card); color:var(--ink); transition:border-color .15s ease, transform .15s ease;}
     #im-panel.im-nm .nm-role:hover{border-color:var(--walnut); transform:translateY(-2px);}
     #im-panel.im-nm .nm-role svg{width:30px; height:30px; color:var(--walnut); margin-bottom:14px;}
@@ -1531,6 +1561,31 @@ const InfoModal = (function () {
       </div>
     </section>
 
+    <!-- 3 ADIM + KARŞILAŞTIRMA (kullanıcı isteği, 2026-09-10 on birinci tur madde 3): archiproducts
+         business/trade-program deseni ("how it works" + "without / with"). Adımlar görünür olunca
+         sırayla yanar (bkz. mountNedenMimarlab#lightSteps). neden-mimarlab.html (sunum modu) ile aynı. -->
+    <section class="nm-sec nm-how-sec" id="nm-sec-nasil" aria-labelledby="nm-nasil-h">
+      <div class="nm-wrap">
+        <h2 class="nm-h2" id="nm-nasil-h">Üç adımda görünür ol</h2>
+        <div class="nm-steps" id="nm-steps">
+          <div class="nm-step"><span class="nm-step-no" aria-hidden="true">1</span><div class="nm-step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg></div><h3>Yayınla</h3><p>Projeni, ürününü ya da profilini ekle. Teknik dosyalar (BIM, CAD, katalog) ve versiyonlar tek kayıtta.</p></div>
+          <div class="nm-step"><span class="nm-step-no" aria-hidden="true">2</span><div class="nm-step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/></svg></div><h3>Bağla</h3><p>Fotoğraftaki ürünü işaretle, künyeye mimarı ve markayı yaz — her kayıt diğerine açılır.</p></div>
+          <div class="nm-step"><span class="nm-step-no" aria-hidden="true">3</span><div class="nm-step-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h8M8 7h5"/></svg></div><h3>Ulaşılabilir ol</h3><p>Profilini sahiplen; mimarlar ve markalar sana doğrudan mesaj gönderir, künyenden bulunursun.</p></div>
+        </div>
+        <div class="nm-compare" role="table" aria-label="Sahiplenilmemiş ve sahiplenilmiş profil karşılaştırması">
+          <div class="nm-compare-row" role="row"><div role="columnheader">&nbsp;</div><div role="columnheader">Sahiplenilmemiş</div><div role="columnheader">MİMARLAB'da sahiplenilmiş</div></div>
+          <div class="nm-compare-row" role="row"><div role="cell">Görseller</div><div role="cell"><span class="nm-compare-cell nm-compare-no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>Bulanık önizleme</span></div><div role="cell"><span class="nm-compare-cell nm-compare-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Tam çözünürlük, galeri ve büyütme</span></div></div>
+          <div class="nm-compare-row" role="row"><div role="cell">Künye</div><div role="cell"><span class="nm-compare-cell nm-compare-no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>"Doğrulanmamış" ibaresi</span></div><div role="cell"><span class="nm-compare-cell nm-compare-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Sen düzenlersin, ibare kalkar</span></div></div>
+          <div class="nm-compare-row" role="row"><div role="cell">Mesaj</div><div role="cell"><span class="nm-compare-cell nm-compare-no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>Kapalı</span></div><div role="cell"><span class="nm-compare-cell nm-compare-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Doğrudan mesaj alırsın</span></div></div>
+          <div class="nm-compare-row" role="row"><div role="cell">Ürün ve projeler</div><div role="cell"><span class="nm-compare-cell nm-compare-no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>Kilitli</span></div><div role="cell"><span class="nm-compare-cell nm-compare-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Yayında, versiyonlu, dosyalı</span></div></div>
+        </div>
+        <div class="nm-btn-row" style="margin-top:22px;">
+          <a class="nm-btn" href="/kisi" data-ml-event="neden_mimarlab_claim_cta">Profilini bul ve sahiplen</a>
+          <a class="nm-btn nm-btn-ghost" href="/urun-ekle">Ürün ekle</a>
+        </div>
+      </div>
+    </section>
+
     <!-- YAYIN DÖNGÜSÜ — metin yerine tek bir eş merkezli diyagram. -->
     <section class="nm-sec nm-band-alt nm-funnel-sec" id="nm-sec-dongu" aria-labelledby="nm-dongu-h">
       <div class="nm-wrap">
@@ -1584,6 +1639,19 @@ const InfoModal = (function () {
   // çalışır (şablon her seferinde yeniden yazıldığından dinleyiciler de yeniden bağlanmalı) —
   // dışarıya hiçbir durum sızdırmaz, tüm state bu kapanışın içindedir.
   function mountNedenMimarlab(root) {
+    // 3 adım bloğu: görünür olunca kartlar 350ms arayla "yanar" (setTimeout — arka planda da biter).
+    (function lightSteps() {
+      const stepsHost = root.querySelector('#nm-steps');
+      if (!stepsHost) return;
+      const steps = stepsHost.querySelectorAll('.nm-step');
+      let done = false;
+      const light = () => { if (done) return; done = true; steps.forEach((el, i) => setTimeout(() => el.classList.add('is-on'), 200 + i * 350)); };
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((en) => { en.forEach((e) => { if (e.isIntersecting) { light(); io.disconnect(); } }); }, { rootMargin: '0px 0px -10% 0px' });
+        io.observe(stepsHost);
+        setTimeout(light, 6000);
+      } else light();
+    })();
     const fmt = new Intl.NumberFormat('tr-TR');
     const $ = (id) => root.querySelector('#' + id);
     // cdnImg (bkz. image-cdn.js) her sayfada yüklü DEĞİL — orijinal sayfadaki AYNI korumalı çağrı.
