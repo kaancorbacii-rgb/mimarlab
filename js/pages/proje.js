@@ -124,13 +124,19 @@ async function refreshMap(){
 // resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /proje/:slug
 // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK proje içeriğinin üzerine ProjectModal
 // kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
-ModalShell.setSsrDefaults({
+// DOMContentLoaded'a alındı (2026-09-10): bu dosya artık modal-shell.js'ten ÖNCE çalışıyor (bkz.
+// proje.html'deki <script> yorumu); ModalShell o anda henüz tanımsız. Derin bağlantı modalı da
+// DOMContentLoaded'da açıldığından (aşağıda) sıralama korunur.
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof ModalShell === 'undefined') return;
+  ModalShell.setSsrDefaults({
   title: 'Projeler — MİMARLAB',
   h1: 'Projeler',
   description: "Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.",
   canonicalUrl: 'https://mimarlab.com/proje',
   ogType: 'website',
   image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
+  });
 });
 
 // il-ilce-data.js#parseLocationFull artık 81 ilin tamamında ilçe -> il çözümlemesi yapıyor
@@ -922,7 +928,9 @@ if(typeof savedWidgetReady !== 'undefined'){
 function listFetch(url){
   const store = window.__mlPrefetch;
   if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
-  return fetch(url);
+  // Zaman aşımı + bir kez yeniden deneme (bkz. js/components/site-chrome.js#mlFetch): mobil ağda
+  // askıda kalan tek bir istek listeyi sonsuza kadar boş bırakıyordu.
+  return window.mlFetch ? window.mlFetch(url, { timeoutMs: 12000, retries: 1 }) : fetch(url);
 }
 
 let renderRequestId = 0;
@@ -932,6 +940,7 @@ async function render(){
   const top100List = document.getElementById('top100-list');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
+  if(!reuse && !grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
   top100List.style.opacity = '0.5';
 
   if(top100ViewActive){
@@ -969,8 +978,8 @@ async function render(){
 
   if(!data){
     grid.innerHTML = '';
-    empty.textContent = 'Projeler yüklenemedi, lütfen sayfayı yenile.';
-    empty.style.display = 'block';
+    if(window.mlListError) window.mlListError(empty, 'Projeler yüklenemedi.', () => render());
+    else { empty.textContent = 'Projeler yüklenemedi, lütfen sayfayı yenile.'; empty.style.display = 'block'; }
     document.getElementById('pagination').innerHTML = '';
     document.getElementById('result-count').textContent = '';
     return;
@@ -1167,17 +1176,13 @@ window.addEventListener('popstate', ()=>{
   render();
 });
 
-// İlk otomatik render() DOMContentLoaded'a ertelenir — render() içindeki cdnImg() (image-cdn.js,
-// defer ile yüklenir) de tıpkı aşağıdaki ProjectModal yorumunda anlatılan AYNI riskle karşı
-// karşıya: /api/projects isteği bazen deferred script'ten daha hızlı dönebiliyor, bu da
-// "cdnImg is not defined" hatasıyla proje listesini sessizce boş bırakabiliyordu (bkz.
-// urun.html'deki BİREBİR AYNI gerçek bulgu/düzeltme — orada catalogCardMediaHtml ile yaşandı).
-// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
-document.addEventListener('DOMContentLoaded', () => {
-  applyInitialFiltersFromQuery();
-  buildSidebar();
-  render();
-});
+// İLK ÇİZİM ARTIK HEMEN (kullanıcı isteği, 2026-09-10): bu defer script çalıştığında belge ayrıştırılmış,
+// senkron bağımlılıklar (image-cdn.js, il-ilce-data.js) çalışmış ve proje.html'deki sıra gereği
+// badge-shared.js/catalog-taxonomy.js de gelmiş durumda. DOMContentLoaded'ı beklemek, kendisinden
+// SONRAKİ ağır modal script'lerinin (~150 KB) inmesini beklemek demekti — mobilde biri askıda
+// kalınca liste hiç çizilmiyordu. typeof kapısı yalnızca emniyet.
+function bootList(){ applyInitialFiltersFromQuery(); buildSidebar(); render(); }
+if (typeof cdnImg === 'function') bootList(); else document.addEventListener('DOMContentLoaded', bootList);
 
 // Doğrudan /proje/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
 // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir geçmiş

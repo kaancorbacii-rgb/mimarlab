@@ -514,7 +514,11 @@ if(p.replace(/\/+$/,'')==='/firma'&&!location.search){var u='/api/offices?page=1
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
-<script src="image-cdn.js" defer></script>
+<!-- image-cdn.js SENKRON (kullanıcı isteği, 2026-09-10): ilk liste çizimi artık DOMContentLoaded'ı
+     (yani 16 deferred script'in TAMAMININ inmesini) beklemiyor — bkz. aşağıdaki bootList. Çizimin
+     tek harici bağımlılığı cdnImg/cdnSrcset olduğundan bu 8 KB'lık dosya index.html/proje.html'deki
+     gibi senkron yüklenir. -->
+<script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -864,8 +868,15 @@ function applyStateFromUrl(){
 function listFetch(url){
   const store = window.__mlPrefetch;
   if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
-  return fetch(url);
+  // Zaman aşımı + bir kez yeniden deneme (bkz. js/components/site-chrome.js#mlFetch): mobil ağda
+  // askıda kalan tek bir istek listeyi sonsuza kadar boş bırakıyordu.
+  return window.mlFetch ? window.mlFetch(url, { timeoutMs: 12000, retries: 1 }) : fetch(url);
 }
+
+// verifiedBadgeHtml badge-shared.js'ten (defer) gelir. İlk çizim artık deferred script'leri
+// beklemediğinden rozet fonksiyonu o anda henüz tanımsız olabilir: rozetsiz çizilir, badge-shared.js
+// yüklenip 'mimarlab-badges-ready' atınca aynı veriyle yeniden çizilir (render({reuse:true})).
+function badgeHtmlSafe(){ return (typeof verifiedBadgeHtml === 'function') ? verifiedBadgeHtml.apply(null, arguments) : ''; }
 
 let renderRequestId = 0;
 // Son başarılı liste yanıtı (URL'siyle) — 'mimarlab-badges-ready' yeniden çizimi için. GERÇEK BULGU
@@ -890,6 +901,7 @@ async function render(opts){
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
+  if(!reuse && !grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
 
   let data = null;
   if(reuse){
@@ -906,8 +918,8 @@ async function render(opts){
 
   if(!data){
     grid.innerHTML = '';
-    empty.textContent = 'Firmalar yüklenemedi, lütfen sayfayı yenile.';
-    empty.style.display = 'block';
+    if(window.mlListError) window.mlListError(empty, 'Firmalar yüklenemedi.', () => render());
+    else { empty.textContent = 'Firmalar yüklenemedi, lütfen sayfayı yenile.'; empty.style.display = 'block'; }
     document.getElementById('pagination').innerHTML = '';
     document.getElementById('result-count').textContent = '';
     return;
@@ -920,6 +932,7 @@ async function render(opts){
 
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan firma bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
+  try{ performance.mark('ml-list-render'); }catch(e){}
 
   // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.
   // yukarıdaki <style>) — sabit "4" varsayımı mobilde (2 sütun) 3./4. kartı aslında ikinci satırda
@@ -950,7 +963,7 @@ async function render(opts){
         <div class="office-card-logo${logo ? '' : ' no-logo'}" data-initials="${safeInitialsAttr}"${logo ? '' : ` style="background:${officeColor(o.name)}"`}>${logo ? `<img src="${escapeAttr(cdnImg(logo, 400))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 90px, 118px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('no-logo'); this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
       </div>
       <div class="office-card-body">
-        <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
+        <div class="office-card-name">${escapeHtml(o.name)}${badgeHtmlSafe('office', o.name, o.badges)}</div>
         <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>
       </div>
     </a>`;
@@ -1028,16 +1041,17 @@ window.addEventListener('popstate', ()=>{
 
 
 
-// İlk otomatik render() DOMContentLoaded'a ertelenir — render() içindeki cdnImg() (image-cdn.js,
-// defer ile yüklenir) de tıpkı aşağıdaki OfficeModal yorumunda anlatılan AYNI riskle karşı
-// karşıya: /api/offices isteği bazen deferred script'ten daha hızlı dönebiliyor, bu da
-// "cdnImg is not defined" hatasıyla firma listesini sessizce boş bırakabiliyordu (bkz.
-// urun.html'deki BİREBİR AYNI gerçek bulgu/düzeltme — orada catalogCardMediaHtml ile yaşandı).
-// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
-document.addEventListener('DOMContentLoaded', () => {
-  applyStateFromUrl();
-  render();
-});
+// İLK ÇİZİM ARTIK HEMEN (kullanıcı isteği, 2026-09-10: "mobilde firma listesi hiçbir gönderi olmadan
+// takılı kaldı"). Eskiden DOMContentLoaded'a ertelenmişti — gerekçesi cdnImg'in defer ile yüklenen
+// image-cdn.js'ten gelmesiydi. Ama DOMContentLoaded, sayfadaki 16 deferred script'in (~110 KB gz,
+// modal kabuğu dahil) TAMAMI inip çalışmadan tetiklenmez: mobil ağda bu saniyeler sürer, tek bir
+// istek askıda kalırsa HİÇ tetiklenmez — ve veri (#ml-list-data) çoktan elde olduğu hâlde liste boş
+// kalır. Gerekli senkron bağımlılıklar artık yerinde (bkz. <script> etiketlerindeki yorum), bu
+// inline script gövdenin sonunda çalıştığından DOM da hazır; çizim hemen yapılır. Rozetler
+// badgeHtmlSafe ile sonradan gelir. typeof kapısı yalnızca emniyet: bağımlılık yoksa eski
+// davranışa (DOMContentLoaded) düşülür.
+function bootList(){ applyStateFromUrl(); render(); }
+if (typeof cdnImg === 'function') bootList(); else document.addEventListener('DOMContentLoaded', bootList);
 
 // Doğrudan /firma/:slug adresine girildiğinde ya da o adreste F5 yapıldığında firma modalı
 // otomatik açılsın (bkz. kullanıcı isteği). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek

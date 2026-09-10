@@ -60,6 +60,64 @@
     } catch (_) {}
   }, true);
 
+  // ---------------------------------------------------------------------------------------------
+  // LİSTE AĞ DAYANIKLILIĞI (kullanıcı isteği, 2026-09-10: "mobilde kişiler sayfası hiçbir gönderi
+  // olmadan takılı kaldı"). Hub sayfalarının canlı liste isteğinde zaman aşımı, yeniden deneme ve
+  // görünür bir hata/tekrar-dene durumu YOKTU: mobil ağda askıda kalan tek bir fetch, boş bir grid'i
+  // sonsuza kadar boş bırakıyordu (ekranda ne iskelet ne hata). Üç yardımcı, 31 sayfada senkron
+  // yüklenen bu dosyadan tek kaynak olarak verilir; hub sayfaları listFetch/render içinden çağırır.
+  //   mlFetch(url, {timeoutMs, retries, init}) — AbortController zaman aşımı + 5xx/ağ hatasında
+  //     bir kez daha dener. Var olan fetch(url) çağrısının yerine geçer; yanıtı aynen döndürür.
+  //   mlListSkeleton(grid, n) — grid BOŞKEN (ilk yükleme) n adet iskelet kart basar; veri gelince
+  //     render zaten innerHTML'i ezer.
+  //   mlListError(el, text, onRetry) — "yüklenemedi" metni + Tekrar dene düğmesi.
+  (function(){
+    const style = document.createElement('style');
+    style.id = 'ml-net-style';
+    style.textContent = '.ml-skel{display:block;border-radius:14px;aspect-ratio:4/5;background:linear-gradient(100deg,rgba(0,0,0,.05) 30%,rgba(0,0,0,.09) 50%,rgba(0,0,0,.05) 70%);background-size:200% 100%;animation:ml-skel 1.2s ease-in-out infinite}'
+      + '@keyframes ml-skel{0%{background-position:120% 0}100%{background-position:-80% 0}}'
+      + '.ml-retry-btn{display:inline-block;margin-left:8px;padding:6px 14px;border-radius:100px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}';
+    (document.head || document.documentElement).appendChild(style);
+  })();
+  window.mlFetch = function(url, opts){
+    opts = opts || {};
+    const timeoutMs = opts.timeoutMs || 12000;
+    const retries = opts.retries == null ? 1 : opts.retries;
+    const init = opts.init || {};
+    function attempt(n){
+      const ac = ('AbortController' in window) ? new AbortController() : null;
+      const timer = setTimeout(function(){ if(ac) ac.abort(); }, timeoutMs);
+      const req = Object.assign({}, init, ac ? { signal: ac.signal } : {});
+      return fetch(url, req).then(function(r){
+        clearTimeout(timer);
+        if(r.status >= 500 && n < retries) return attempt(n + 1);
+        return r;
+      }, function(err){
+        clearTimeout(timer);
+        if(n < retries) return attempt(n + 1);
+        throw err;
+      });
+    }
+    return attempt(0);
+  };
+  window.mlListSkeleton = function(grid, count){
+    if(!grid || grid.children.length) return;
+    let html = '';
+    for(let i = 0; i < (count || 8); i++) html += '<div class="ml-skel" aria-hidden="true"></div>';
+    grid.innerHTML = html;
+  };
+  window.mlListError = function(el, text, onRetry){
+    if(!el) return;
+    el.textContent = text;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ml-retry-btn';
+    btn.textContent = 'Tekrar dene';
+    btn.addEventListener('click', function(){ onRetry && onRetry(); });
+    el.appendChild(btn);
+    el.style.display = 'block';
+  };
+
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 

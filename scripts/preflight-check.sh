@@ -306,6 +306,27 @@ else
 fi
 rm -f /tmp/preflight_claimkey
 
+# Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde
+# kişiler sayfası takılı kaldı"). İlk liste çizimi artık DOMContentLoaded'ı beklemiyor; bu yüzden
+# çizimin dokunduğu image-cdn.js (tüm hub'lar) ve catalog-taxonomy.js (urun) defer OLMADAN yüklenmeli,
+# proje.html'de ise js/pages/proje.js modal-shell.js'ten ÖNCE gelmeli. Biri geri dönerse kart çizimi
+# "cdnImg is not defined" ile sessizce boş kalır — bu kontrol o gerilemeyi deploy'dan önce yakalar.
+for page in index.html proje.html kisi.html firma.html marka.html urun.html; do
+  if grep -q '<script src="image-cdn.js" defer>' "$page"; then
+    bad "$page — image-cdn.js defer ile yükleniyor; ilk çizim senkron cdnImg bekler"
+  else
+    ok "$page — image-cdn.js senkron"
+  fi
+done
+if grep -q '<script src="catalog-taxonomy.js" defer>' urun.html; then bad "urun.html — catalog-taxonomy.js defer; ilk katalog çizimi senkron bekler"; else ok "urun.html — catalog-taxonomy.js senkron"; fi
+proje_js_line=$(grep -n 'src="js/pages/proje.js"' proje.html | head -1 | cut -d: -f1)
+modal_shell_line=$(grep -n 'src="js/components/modal-shell.js"' proje.html | head -1 | cut -d: -f1)
+if [ -n "$proje_js_line" ] && [ -n "$modal_shell_line" ] && [ "$proje_js_line" -lt "$modal_shell_line" ]; then
+  ok "proje.html — js/pages/proje.js modal-shell.js'ten önce (ilk çizim modal kodunu beklemez)"
+else
+  bad "proje.html — js/pages/proje.js modal-shell.js'ten SONRA (proje_js=$proje_js_line, modal_shell=$modal_shell_line)"
+fi
+
 # Unicode NFC normalizasyonu (kullanıcı isteği, 2026-09-10: "doçem yazınca çıkmıyor, docem yazınca
 # çıkıyor"). İki nedenle deploy'u durduracak kadar önemli: (a) ayrışık yazılan Türkçe harf sitedeki
 # HİÇBİR aramada eşleşmiyordu; (b) foldTr'nin çıktısı D1'in name_fold/title_fold/brand_fold

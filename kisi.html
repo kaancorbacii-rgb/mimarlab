@@ -462,7 +462,11 @@ if(p.replace(/\/+$/,'')==='/kisi'&&!location.search){var u='/api/architects?page
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
-<script src="image-cdn.js" defer></script>
+<!-- image-cdn.js SENKRON (kullanıcı isteği, 2026-09-10): ilk liste çizimi artık DOMContentLoaded'ı
+     (yani 16 deferred script'in TAMAMININ inmesini) beklemiyor — bkz. aşağıdaki bootList. Çizimin
+     tek harici bağımlılığı cdnImg/cdnSrcset olduğundan bu 8 KB'lık dosya index.html/proje.html'deki
+     gibi senkron yüklenir. -->
+<script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -846,8 +850,15 @@ function applyStateFromUrl(){
 function listFetch(url){
   const store = window.__mlPrefetch;
   if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
-  return fetch(url);
+  // Zaman aşımı + bir kez yeniden deneme (bkz. js/components/site-chrome.js#mlFetch): mobil ağda
+  // askıda kalan tek bir istek listeyi sonsuza kadar boş bırakıyordu.
+  return window.mlFetch ? window.mlFetch(url, { timeoutMs: 12000, retries: 1 }) : fetch(url);
 }
+
+// verifiedBadgeHtml badge-shared.js'ten (defer) gelir. İlk çizim artık deferred script'leri
+// beklemediğinden rozet fonksiyonu o anda henüz tanımsız olabilir: rozetsiz çizilir, badge-shared.js
+// yüklenip 'mimarlab-badges-ready' atınca aynı veriyle yeniden çizilir (render({reuse:true})).
+function badgeHtmlSafe(){ return (typeof verifiedBadgeHtml === 'function') ? verifiedBadgeHtml.apply(null, arguments) : ''; }
 
 let renderRequestId = 0;
 // Son başarılı liste yanıtı (URL'siyle) — 'mimarlab-badges-ready' yeniden çizimi için. GERÇEK BULGU
@@ -872,6 +883,7 @@ async function render(opts){
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
+  if(!reuse && !grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
 
   let data = null;
   if(reuse){
@@ -888,8 +900,8 @@ async function render(opts){
 
   if(!data){
     grid.innerHTML = '';
-    empty.textContent = 'Kişiler yüklenemedi, lütfen sayfayı yenile.';
-    empty.style.display = 'block';
+    if(window.mlListError) window.mlListError(empty, 'Kişiler yüklenemedi.', () => render());
+    else { empty.textContent = 'Kişiler yüklenemedi, lütfen sayfayı yenile.'; empty.style.display = 'block'; }
     document.getElementById('pagination').innerHTML = '';
     document.getElementById('result-count').textContent = '';
     return;
@@ -902,6 +914,7 @@ async function render(opts){
 
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan kişi bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
+  try{ performance.mark('ml-list-render'); }catch(e){}
 
   // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.
   // yukarıdaki <style>) — "ilk satır katlanma çizgisinin üstünde" varsayımı sabit 4 kullanırsa
@@ -919,7 +932,7 @@ async function render(opts){
     <a class="person-card" href="/kisi/${encodeURIComponent(a.slug || slugify(a.name))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
-        <div class="person-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
+        <div class="person-card-name">${escapeHtml(a.name)}${badgeHtmlSafe('architect', a.name, a.badges)}</div>
         ${sub ? `<div class="person-card-office">${escapeHtml(sub)}</div>` : ''}
       </div>
     </a>`;
@@ -1000,16 +1013,17 @@ window.addEventListener('popstate', ()=>{
 
 
 
-// İlk otomatik render() DOMContentLoaded'a ertelenir — render() içindeki cdnImg() (image-cdn.js,
-// defer ile yüklenir) de tıpkı aşağıdaki ArchitectModal yorumunda anlatılan AYNI riskle karşı
-// karşıya: /api/architects isteği bazen deferred script'ten daha hızlı dönebiliyor, bu da
-// "cdnImg is not defined" hatasıyla mimar listesini sessizce boş bırakabiliyordu (bkz.
-// urun.html'deki BİREBİR AYNI gerçek bulgu/düzeltme — orada catalogCardMediaHtml ile yaşandı).
-// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
-document.addEventListener('DOMContentLoaded', () => {
-  applyStateFromUrl();
-  render();
-});
+// İLK ÇİZİM ARTIK HEMEN (kullanıcı isteği, 2026-09-10: "mobilde kişi listesi hiçbir gönderi olmadan
+// takılı kaldı"). Eskiden DOMContentLoaded'a ertelenmişti — gerekçesi cdnImg'in defer ile yüklenen
+// image-cdn.js'ten gelmesiydi. Ama DOMContentLoaded, sayfadaki 16 deferred script'in (~110 KB gz,
+// modal kabuğu dahil) TAMAMI inip çalışmadan tetiklenmez: mobil ağda bu saniyeler sürer, tek bir
+// istek askıda kalırsa HİÇ tetiklenmez — ve veri (#ml-list-data) çoktan elde olduğu hâlde liste boş
+// kalır. Gerekli senkron bağımlılıklar artık yerinde (bkz. <script> etiketlerindeki yorum), bu
+// inline script gövdenin sonunda çalıştığından DOM da hazır; çizim hemen yapılır. Rozetler
+// badgeHtmlSafe ile sonradan gelir. typeof kapısı yalnızca emniyet: bağımlılık yoksa eski
+// davranışa (DOMContentLoaded) düşülür.
+function bootList(){ applyStateFromUrl(); render(); }
+if (typeof cdnImg === 'function') bootList(); else document.addEventListener('DOMContentLoaded', bootList);
 
 // Doğrudan /kisi/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
 // otomatik açılsın (bkz. kullanıcı isteği). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek

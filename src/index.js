@@ -1009,6 +1009,15 @@ async function routeAsset(request, env, url, ctx) {
     return serveGundemListPage(request, env, url, ctx);
   }
 
+  // HUB KABUĞU ÖNBELLEĞİ (kullanıcı isteği, 2026-09-10: "ana sayfada yüklenme/geç yüklenme sorunu",
+  // "mobilde kişiler sayfası hiç gönderi olmadan takılı kaldı"). GET ile gelen sekiz hub sayfası
+  // önce buradan servis edilir; bkz. serveHubListPage'in üstündeki ölçüm ve gerekçe. Asset 200
+  // dönmezse null döner ve aşağıdaki eski yol (404 sayfası vb.) aynen devreye girer.
+  if (request.method === 'GET' && LIST_PAGE_PATHS.has(url.pathname)) {
+    const served = await serveHubListPage(request, env, url, ctx);
+    if (served) return served;
+  }
+
   const response = await env.ASSETS.fetch(request);
   // HEAD DE BU DALA GİRER (hardening denetimi, 2026-09-07). Koşul eskiden yalnızca 'GET'ti; HEAD
   // istekleri buradan düşüp aşağıdaki withStaticAssetCacheHeaders'a gidiyor ve Cloudflare Assets'in
@@ -1022,6 +1031,8 @@ async function routeAsset(request, env, url, ctx) {
   // tarayıcı değil bağlantı denetleyicileri, önbellek/izleme probları ve bazı crawler'lardır; bir
   // ara katman probu HEAD'e bakıp sayfayı "önbelleklenemez" sayabiliyordu.
   const isReadRequest = request.method === 'GET' || request.method === 'HEAD';
+  // GET artık yukarıdaki serveHubListPage'den servis edilir; bu dal pratikte yalnızca HEAD (ve
+  // serveHubListPage'in null döndüğü uç durumlar) için çalışır — başlık sözleşmesi orada da aynı.
   if (isReadRequest && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
     // HUB SAYFALARINA ItemList YAPILANDIRILMIŞ VERİSİ (SEO). Bu beş sayfanın ham HTML'inde detay
     // sayfalarına dair HİÇBİR sinyal yoktu — 4.000 detay sayfasının keşfi tamamen sitemap'e
@@ -1412,6 +1423,77 @@ async function loadDetailData(env, ctx, type, rawSlug) {
   })();
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), HUB_SSR_TIMEOUT_MS));
   try { return await Promise.race([load, timeout]); } catch { return null; }
+}
+
+// ---------------------------------------------------------------------------------------------
+// HUB KABUĞU ÖNBELLEĞİ (kullanıcı isteği, 2026-09-10 — "yüklenme ve geç yüklenme sorunu ... kökten
+// çöz").
+//
+// ÖLÇÜM (canlı, curl, TLS sonrası Worker süresi): statik bir .js dosyası ~150 ms, /hakkinda (statik
+// kabuk + sabit meta) ~150-450 ms, /kisi ~460 ms, /kisi?x=1 (SSR verisi YOK) ~500 ms. Yani hub
+// sayfasının ek maliyeti SSR verisinden DEĞİL, her istekte yeniden yapılan kabuk işinden geliyordu:
+// Assets fetch + hubItemListJsonLd (KV havuzu okuması, binlerce URL'lik ItemList) + HTMLRewriter.
+// Yanıttaki `cf-cache-status: HIT` YANILTICIYDI — Assets'in iç yanıtından kopyalanıyor, sayfanın
+// edge'de önbellekli olduğu anlamına GELMİYORDU; LIST dalı caches.default'u hiç kullanmıyordu.
+//
+// ÇÖZÜM serveGundemListPage ile AYNI desen: kullanıcıdan bağımsız KABUK (asset + JSON-LD + sürümlü
+// asset bağlantıları) Cache API'de saklanır; ziyaretçiye/zamana bağlı SSR verisi (#ml-list-data,
+// #ml-home-data, preload'lar) ÖNBELLEĞİN DIŞINDA, her yanıta (HIT dahil) o an eklenir — böylece
+// yeni onaylanan bir kayıt kabuk önbelleğinden bağımsız olarak anında görünür (kullanıcının "yeni
+// proje 1. sayfada hemen çıksın" beklentisi korunur). Kabuk anahtarı deploy sürümüne bağlıdır: her
+// deploy'da kendiliğinden yenilenir, ayrı bir purge gerekmez; içerik değişimi kabuğu etkilemez
+// (JSON-LD'nin en fazla s-maxage kadar geride kalması SEO sinyali için önemsizdir).
+// X-ML-Shell-Cache: HIT|MISS — scripts/health-check.sh deploy sonrası bunu doğrular.
+function hubShellCacheKey(pathname, env) {
+  return new Request(`https://mimarlab.com${pathname}?__shell=${deployVersion(env)}`, { method: 'GET' });
+}
+
+async function serveHubListPage(request, env, url, ctx) {
+  const shellKey = hubShellCacheKey(url.pathname, env);
+  const [cachedShell, homeData, hubListData] = await Promise.all([
+    cacheMatch(shellKey),
+    url.pathname === '/' ? loadHomeData(env, ctx) : null,
+    hubSsrEntryFor(url) ? loadHubListData(env, ctx, url) : null,
+  ]);
+  let shell = cachedShell;
+  let shellStatus = 'HIT';
+  if (!shell) {
+    shellStatus = 'MISS';
+    const [assetResponse, hubJsonLd] = await Promise.all([
+      env.ASSETS.fetch(request),
+      isHubPath(url.pathname) ? hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname)) : null,
+    ]);
+    if (assetResponse.status !== 200) return null;
+    const headers = new Headers(assetResponse.headers);
+    for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
+    const rewriter = new HTMLRewriter();
+    if (hubJsonLd) {
+      // injectMeta'daki AYNI kaçış kuralı: '<' escape edilmezse veri script bağlamından çıkabilir.
+      const ld = JSON.stringify(hubJsonLd).replace(/</g, '\\u003c');
+      rewriter.on('head', { element(el) { el.append(`<script type="application/ld+json">${ld}</script>`, { html: true }); } });
+    }
+    versionAssetUrls(rewriter, env);
+    shell = new Response(rewriter.transform(assetResponse).body, { status: 200, statusText: assetResponse.statusText, headers });
+    if (ctx) ctx.waitUntil(cachePut(shellKey, shell.clone()));
+  }
+  // İsteğe özel veri — ÖNBELLEĞİN DIŞINDA (bkz. yukarıdaki gerekçe).
+  let headExtra = '';
+  if (homeData) {
+    headExtra += buildHomePreloadLinks(homeData);
+    headExtra += `<script id="ml-home-data" type="application/json">${JSON.stringify(homeData).replace(/</g, '\\u003c')}</script>`;
+  }
+  if (hubListData) headExtra += hubListData.preload;
+  const headFirst = hubListData ? `${SSR_CHARSET_META}<script id="ml-list-data" type="application/json">${JSON.stringify(hubListData.json).replace(/</g, '\\u003c')}</script>` : '';
+  const headers = new Headers(shell.headers);
+  headers.set('X-ML-Shell-Cache', shellStatus);
+  let body = shell.body;
+  if (headExtra || headFirst) {
+    body = new HTMLRewriter().on('head', { element(el) {
+      if (headFirst) el.prepend(headFirst, { html: true });
+      if (headExtra) el.append(headExtra, { html: true });
+    } }).transform(new Response(shell.body, { status: 200, headers: shell.headers })).body;
+  }
+  return new Response(body, { status: 200, statusText: shell.statusText, headers });
 }
 
 function hubSsrEntryFor(url) {

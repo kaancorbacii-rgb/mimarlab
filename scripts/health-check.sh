@@ -79,6 +79,23 @@ else
   fail=1
 fi
 
+echo "3z) Hub kabuğu önbelleği (src/index.js#serveHubListPage) — X-ML-Shell-Cache + gömülü SSR verisi"
+# Kullanıcı isteği 2026-09-10: hub HTML'i her istekte yeniden kuruluyordu; artık kabuk Cache API'de,
+# SSR verisi önbelleğin dışında her yanıta eklenir. Başlık HIT|MISS olmalı ve gövde #ml-list-data
+# taşımalı (veri kabuktan bağımsız geldiğinden HIT'te de bulunmalı).
+for hub in /kisi /proje; do
+  curl -s -o /dev/null "$BASE_URL$hub" >/dev/null
+  hub_hdr=$(curl -s -D - -o /tmp/hc_hub_body.html "$BASE_URL$hub" | tr -d '\r' | grep -i '^x-ml-shell-cache:' | awk '{print $2}')
+  if [ "$hub_hdr" != "HIT" ] && [ "$hub_hdr" != "MISS" ]; then
+    echo "  BAŞARISIZ: $hub -> X-ML-Shell-Cache yok ('$hub_hdr') — serveHubListPage devrede değil" >&2; fail=1
+  elif ! grep -q 'id="ml-list-data"' /tmp/hc_hub_body.html; then
+    echo "  BAŞARISIZ: $hub -> kabuk $hub_hdr ama #ml-list-data yok (SSR verisi önbelleğin dışında eklenmeliydi)" >&2; fail=1
+  else
+    echo "  OK: $hub -> kabuk $hub_hdr + #ml-list-data gömülü"
+  fi
+done
+rm -f /tmp/hc_hub_body.html
+
 echo "4) Deploy edilen worker_version teyidi (/api/_health)"
 # Deploy hemen sonrası tüm Cloudflare PoP'ları aynı anda güncellenmeyebilir (edge propagation
 # gecikmesi, gerçekte gözlemlendi) — version uyuşmazlığında birkaç saniye arayla birkaç kez dener.

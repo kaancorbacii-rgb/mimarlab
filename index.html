@@ -923,7 +923,10 @@ const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next
 // bu tarayıcı önbelleğini tamamen devre dışı bırakır — güncellik artık yalnızca edge/CDN katmanının
 // s-maxage=300 (5dk) + publicCache.js#invalidatePublicCache ile sınırlanır.
 function fetchPublicJson(url){
-  return fetch(url, { cache: 'no-store' })
+  // Zaman aşımı + bir kez yeniden deneme (bkz. js/components/site-chrome.js#mlFetch, kullanıcı
+  // isteği 2026-09-10: "ana sayfada yüklenme/geç yüklenme") — mobilde askıda kalan tek bir istek
+  // karuselleri süresiz gri kutu olarak bırakıyordu. cache:'no-store' gerekçesi yukarıda, korunur.
+  return (window.mlFetch ? window.mlFetch(url, { timeoutMs: 12000, retries: 1, init: { cache: 'no-store' } }) : fetch(url, { cache: 'no-store' }))
     .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
     .catch(()=>({items:[], failed:true}));
 }

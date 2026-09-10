@@ -1040,6 +1040,13 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
 <script src="rating-widget.js" defer></script>
 <script src="badge-shared.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
+<!-- js/pages/proje.js buraya, modal-shell/gallery/lazy-modals gibi AĞIR deferred script'lerin ÖNÜNE
+     alındı (kullanıcı isteği, 2026-09-10 — açılış hızı). defer script'ler belge sırasıyla çalışır:
+     sayfanın listesini çizen bu dosya en sonda dururken, ilk çizim ~150 KB modal kodunun inmesini
+     bekliyor, mobilde onlardan biri askıda kalırsa liste hiç çizilmiyordu. Gerçek bağımlılıkları
+     (image-cdn.js senkron, badge-shared.js ve catalog-taxonomy.js) hâlâ ondan ÖNCE geliyor;
+     ModalShell'e dokunan tek üst-seviye çağrısı DOMContentLoaded'a alındı (bkz. dosya içi yorum). -->
+<script src="js/pages/proje.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
 <script src="js/components/image-hotspots.js" defer></script>
 <script src="js/components/gallery.js" defer></script>
@@ -1136,6 +1143,5 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
   <footer id="site-footer-mount"></footer>
 
 <script src="il-ilce-data.js"></script>
-<script src="js/pages/proje.js" defer></script>
 </body>
 </html>

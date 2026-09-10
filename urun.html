@@ -437,7 +437,10 @@ if(p.replace(/\/+$/,'')==='/urun'&&!location.search){var u='/api/products?page=1
 <script src="save-widget.js" defer></script>
 <script src="rating-widget.js" defer></script>
 <script src="badge-shared.js" defer></script>
-<script src="catalog-taxonomy.js" defer></script>
+<!-- catalog-taxonomy.js SENKRON (kullanıcı isteği, 2026-09-10): ilk katalog çizimi artık DOMContentLoaded'ı
+     (tüm deferred script'lerin inmesini) beklemiyor — bkz. aşağıdaki bootCatalog; çizimin harici
+     bağımlılıkları catalogCardMediaHtml/CATALOG_TAXONOMY (bu dosya) ve cdnImg (image-cdn.js, zaten senkron). -->
+<script src="catalog-taxonomy.js"></script>
 <script src="js/components/gallery.js" defer></script>
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
@@ -773,7 +776,9 @@ function submissionTypeFor(p){ return p.kind === 'material' ? 'materials' : 'pro
 function listFetch(url){
   const store = window.__mlPrefetch;
   if(store && store[url]){ const p = store[url]; delete store[url]; return p; }
-  return fetch(url);
+  // Zaman aşımı + bir kez yeniden deneme (bkz. js/components/site-chrome.js#mlFetch): mobil ağda
+  // askıda kalan tek bir istek listeyi sonsuza kadar boş bırakıyordu.
+  return window.mlFetch ? window.mlFetch(url, { timeoutMs: 12000, retries: 1 }) : fetch(url);
 }
 
 let renderRequestId = 0;
@@ -782,6 +787,7 @@ async function render(){
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
+  if(!reuse && !grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
 
   const params = currentQueryParams();
   params.set('page', String(currentPage));
@@ -797,8 +803,8 @@ async function render(){
 
   if(!data){
     grid.innerHTML = '';
-    empty.textContent = 'Ürünler yüklenemedi, lütfen sayfayı yenile.';
-    empty.style.display = 'block';
+    if(window.mlListError) window.mlListError(empty, 'Ürünler yüklenemedi.', () => render());
+    else { empty.textContent = 'Ürünler yüklenemedi, lütfen sayfayı yenile.'; empty.style.display = 'block'; }
     document.getElementById('pagination').innerHTML = '';
     document.getElementById('result-count').textContent = '';
     return;
@@ -811,6 +817,7 @@ async function render(){
 
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan ürün bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
+  try{ performance.mark('ml-list-render'); }catch(e){}
 
   const pageItems = data.items;
   // denetim bulgusu (2026-09-01, LCP): catalogCardMediaHtml HER kart görselini loading="lazy" ile
@@ -1219,6 +1226,26 @@ window.addEventListener('popstate', ()=>{
 // deferred script'in yüklenmesinden daha hızlı dönüyor. Sonraki tüm render()/renderLanding()
 // çağrıları (filtre/sıralama/mega menü tıklaması) kullanıcı etkileşimiyle tetiklendiğinden zaten
 // DOMContentLoaded sonrası gerçekleşiyor, bu yüzden yalnızca İLK otomatik çağrı sarmalanır.
+// İLK ÇİZİM ARTIK HEMEN (kullanıcı isteği, 2026-09-10) — bkz. kisi.html'deki AYNI gerekçe: DOMContentLoaded
+// tüm deferred script'lerin (modal kabuğu dahil) inmesini bekler, mobilde tek bir istek askıda kalınca
+// katalog hiç çizilmiyordu. Çizimin bağımlılıkları (catalog-taxonomy.js + image-cdn.js) artık senkron.
+// ModalShell'e dokunan setSsrDefaults ve derin bağlantıdaki ProductModal açılışı DOMContentLoaded'da
+// KALIR (modal script'leri defer) — modal, çizim tamamlandıktan sonra açılır (bootPromise).
+function bootCatalog(){
+  applyStateFromUrl();
+  if(currentViewMode() === 'landing'){
+    updateHeader('landing');
+    document.querySelector('.grid-layout').style.display = 'none';
+    document.getElementById('group-landing').style.display = '';
+    renderLanding();
+    return Promise.resolve();
+  }
+  updateHeader('listing');
+  buildSidebar();
+  return render();
+}
+let bootPromise = null;
+if (typeof catalogCardMediaHtml === 'function' && typeof cdnImg === 'function') bootPromise = Promise.resolve(bootCatalog());
 document.addEventListener('DOMContentLoaded', ()=>{
   // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
   // resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#page-title/meta değerleri, /urun/:slug
@@ -1234,16 +1261,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     ogType: 'website',
     image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
   });
-  applyStateFromUrl();
-  if(currentViewMode() === 'landing'){
-    updateHeader('landing');
-    document.querySelector('.grid-layout').style.display = 'none';
-    document.getElementById('group-landing').style.display = '';
-    renderLanding();
-  } else {
-    updateHeader('listing');
-    buildSidebar();
-    render().then(()=>{
+  if(!bootPromise) bootPromise = Promise.resolve(bootCatalog());
+  if(currentViewMode() !== 'landing'){
+    Promise.resolve(bootPromise).then(()=>{
       // Doğrudan /urun/:slug adresine girildiğinde ya da o adreste F5 yapıldığında ürün modalı
       // otomatik açılsın (bkz. proje.html'deki AYNI desen). .finally(): <head>'deki pm-boot-loading
       // senkron script'i (bkz. o dosyadaki AYNI gerçek bulgu) çıplak SSR içeriğini bir "boot veil"

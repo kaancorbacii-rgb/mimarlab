@@ -29,7 +29,24 @@ export const DEFAULT_SETTINGS = {
   gundem_automation_enabled: '1',
 };
 
+// ISOLATE İÇİ MEMO (kullanıcı isteği, 2026-09-10 — sayfa açılış hızı). Bu fonksiyon HER sayfa
+// isteğinde (bakım modu kapısı) çalışır ve her seferinde bir KV turu yapıyordu — canlıda tek başına
+// ~400-600 ms TTFB'li bir uç (/api/public/site-settings aynı okumadır). Aynı isolate'e art arda
+// gelen isteklerde 15 sn boyunca son değer elde tutulur; KV'nin kendi 60 sn TTL'i zaten bu kadar
+// gecikmeyi kabul ediyordu, yani bakım modu/duyuru yayılması pratikte değişmez. setSiteSetting aynı
+// isolate'teki kopyayı hemen düşürür.
+const MEMO_TTL_MS = 15000;
+let memo = { value: null, expiresAt: 0 };
+
 export async function getSiteSettings(env) {
+  const now = Date.now();
+  if (memo.value && memo.expiresAt > now) return memo.value;
+  const settings = await readSiteSettings(env);
+  memo = { value: settings, expiresAt: now + MEMO_TTL_MS };
+  return settings;
+}
+
+async function readSiteSettings(env) {
   // bkz. src/index.js#maybeServeMaintenancePage — bu fonksiyon HEMEN HEMEN HER sayfa isteğinde
   // (bakım modu kontrolü) çalışır, bu yüzden env.FACET_CACHE.get()/put() src/lib/publicCache.js#
   // getCachedFingerprint'teki AYNI try/catch korumasına sahip olmalı: KV geçici olarak başarısız
@@ -61,4 +78,5 @@ export async function setSiteSetting(env, key, value) {
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   ).bind(key, String(value ?? ''), Date.now()).run();
   if (env.FACET_CACHE) await env.FACET_CACHE.delete(KV_KEY);
+  memo = { value: null, expiresAt: 0 };
 }
