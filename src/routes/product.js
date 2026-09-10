@@ -1,8 +1,8 @@
-import { json, errorJson } from '../lib/http.js';
+import { json, errorJson, pageParam } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
-import { foldedPrefixThenSubstring, escapeLike } from '../lib/searchFold.js';
+import { foldedPrefixThenSubstring, likePattern } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -183,7 +183,7 @@ export async function handleProductBrandSearchRoute(request, env, url) {
     // brand_fold/name_fold kolonları da COALESCE ile birleştirilir.
     const foldExpr = `COALESCE(p.brand_fold, o.name_fold)`;
     const cond = q ? ` AND ${foldExpr} LIKE ? ESCAPE '\\'` : '';
-    const params = q ? [`%${escapeLike(q)}%`] : [];
+    const params = q ? [likePattern(q)] : [];
     const { results } = await env.DB.prepare(
       `SELECT DISTINCT COALESCE(p.brand_name_raw, o.name) AS name
        FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
@@ -459,7 +459,7 @@ export async function handleProductListRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const page = pageParam(url.searchParams);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
     const groupParam = url.searchParams.get('group') || '';

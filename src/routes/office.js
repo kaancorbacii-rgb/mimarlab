@@ -1,4 +1,4 @@
-import { errorJson } from '../lib/http.js';
+import { errorJson, pageParam } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
@@ -230,7 +230,7 @@ export async function handleOfficeListRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const page = pageParam(url.searchParams);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
     // kullanıcı isteği (2026-09-01 madde 1): "Firma ve marka sayfalarındaki filtreler kısmını da

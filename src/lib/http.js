@@ -26,9 +26,38 @@ export function errorJson(message, status = 400, headers = {}) {
 // yazdığı metin anlam olarak değişmez — yalnızca ekranda zaten aynı görünen iki gösterimden
 // kanonik olanı seçilir. Birleşme işareti taşımayan dizelerde (ezici çoğunluk) tek bir regex
 // taramasıyla erken çıkılır, megabaytlık base64 alanlar normalize() çağırmaz.
+// SAYFA NUMARASI ÜST SINIRI (canlı bulgu, denetim 2026-09-10).
+//
+// `?page=999999999999999999` -> parseInt 1e18 döner; bu değer Number.MAX_SAFE_INTEGER'ın ÜSTÜNDE.
+// Liste uçlarının bir kısmı sayfalamayı JS'te (KV havuzu üzerinde slice) yapıyor ve orada zararsız
+// bir boş dizi çıkıyordu, ama D1'e OFFSET olarak BAĞLAYAN yollar (src/routes/project.js'in D1
+// sayfalama hızlı yolu ve src/routes/gundem.js) sorguyu düşürüyordu: canlıda
+// /api/projects?page=999999999999999999 ve /api/gundem?page=999999999999999999 -> 500.
+//
+// Sınır bilerek çok yüksek (100.000): gerçek trafikte en büyük liste ~75 sayfa, yani hiçbir meşru
+// istek bu tavana değmez — tek yaptığı, güvenli tamsayı aralığının dışına çıkan girdileri
+// (limit <= 96 ile OFFSET en fazla ~9,6 milyon) zararsız bir "boş sayfa" yanıtına çevirmek.
+export const MAX_PAGE = 100000;
+
+// Tüm liste uçlarının page parametresini AYNI şekilde okuması için (aksi halde her uç kendi
+// parseInt'ini yazar ve biri sınırı unutur — bu hatanın kökeni tam olarak buydu).
+export function pageParam(params, fallback = 1) {
+  const raw = parseInt(params.get('page'), 10);
+  if (!Number.isFinite(raw)) return fallback;
+  return Math.min(MAX_PAGE, Math.max(1, raw));
+}
+
+// HER ZAMAN bir NESNE döner (canlı bulgu, denetim 2026-09-10). Gövde geçersiz JSON ise zaten {}
+// dönüyordu, AMA geçerli-ama-nesne-olmayan bir gövde (`null`, `[]`, `3`, `"x"`) olduğu gibi
+// geçiyordu ve çağıranların hepsi sonucu `body.alan` diye okuyor: `null` gövdesi TypeError'a,
+// yani yakalanmış bir 500'e dönüşüyordu. Canlıda doğrulandı: `POST /api/auth/login` gövdesi `null`
+// -> 500 (bu uç kimlik doğrulamadan ÖNCE gövdeyi okuyan, oturumsuz erişilebilen bir uçtur).
+// 70 çağıranın hepsi sonucu alan-alan okuduğundan (hiçbiri diziyi doğrudan kullanmıyor; dizi
+// bekleyenler `body.points`/`body.keys` gibi ALANLARA bakıyor) tek noktada garanti etmek doğru yer.
 export async function readJson(request) {
   try {
-    return deepNormalizeNfc(await request.json());
+    const parsed = deepNormalizeNfc(await request.json());
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
   } catch {
     return {};
   }

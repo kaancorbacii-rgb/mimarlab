@@ -29,7 +29,7 @@
 // öngörülebilir klasik kanaldır; arama.html ikisini birleştirir.
 
 import { foldTr } from './textMatch.js';
-import { foldSqlExpr, stripPunctSqlExpr, foldAccentsSqlExpr, foldAccents, escapeLike, SQL_MAX_WORDS } from './searchFold.js';
+import { foldSqlExpr, stripPunctSqlExpr, foldAccentsSqlExpr, foldAccents, likePattern, SQL_MAX_WORDS } from './searchFold.js';
 import { stemTr, hardenFinal, phraseInHay } from './searchConcepts.js';
 import { fetchOfficeProductCounts } from './officeProductCounts.js';
 import { normalizeOfficeCats, officePath } from './officeUrl.js';
@@ -180,7 +180,7 @@ function likeCondition(columns, words) {
   const params = [];
   const cond = columns.map(rawCol => {
     const col = foldAccentsSqlExpr(stripPunctSqlExpr(rawCol));
-    return `(${variants.map(vs => `(${vs.map(v => { params.push(`%${escapeLike(v)}%`); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ')})`;
+    return `(${variants.map(vs => `(${vs.map(v => { params.push(likePattern(v)); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ')})`;
   }).join(' OR ');
   return { cond: `(${cond})`, params };
 }

@@ -92,6 +92,45 @@ done
 [ "$fail" -eq 0 ] && ok "tüm HTML sayfalarında <meta charset> ilk 1024 baytta"
 
 echo ""
+echo "3c) Statik görsel dosyaları GERÇEKTEN görsel mi (bozuk varlık koruması)"
+# CANLI BULGU (denetim, 2026-09-10): mimarlar/arkiv ve mimarlar-thumb/arkiv altındaki 6 dosya
+# .jpg uzantılı olmasına rağmen bir arşiv sitesinin HTML dizin listesiydi (her biri 667 KB).
+# Tarayıcıda bozuk görsel olarak çıkarlardı ve deploy edilen asset manifest'inde 3,8 MB yer
+# kaplıyorlardı. Bu kontrol aynı sınıf bir kazayı (kazıma sırasında hata sayfasının görsel diye
+# kaydedilmesi) deploy'dan ÖNCE yakalar. NOT: bazı miras/*.webp dosyalarının gerçekte PNG/JPEG
+# baytları taşıması BİLİNEN ve ZARARSIZ bir durumdur (tarayıcı içeriği sniff eder), bu yüzden
+# kontrol "hiçbir görsel biçimi DEĞİL" durumuna bakar, uzantı-içerik uyumuna değil.
+bad_assets=$(node -e '
+const fs = require("fs"), path = require("path");
+const roots = ["mimarlar", "mimarlar-thumb", "logos", "logos-thumb", "projects", "miras"];
+const exts = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
+const out = [];
+const walk = (dir) => {
+  let entries; try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) { walk(p); continue; }
+    if (!exts.has(path.extname(e.name).toLowerCase())) continue;
+    const fd = fs.openSync(p, "r"); const buf = Buffer.alloc(12);
+    fs.readSync(fd, buf, 0, 12, 0); fs.closeSync(fd);
+    const isImage = (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+      || buf.slice(0, 4).toString("latin1") === "\x89PNG"
+      || buf.slice(0, 4).toString("latin1") === "RIFF"
+      || buf.slice(0, 4).toString("latin1") === "GIF8";
+    if (!isImage) out.push(p);
+  }
+};
+roots.forEach(walk);
+if (out.length) { console.log(out.slice(0, 20).join("\n")); process.exit(1); }
+' 2>/dev/null)
+if [ -n "$bad_assets" ]; then
+  bad "görsel olmayan içerik taşıyan görsel dosya(lar) var:"
+  echo "$bad_assets" >&2
+else
+  ok "tüm statik görsel dosyaları geçerli bir görsel imzasıyla başlıyor"
+fi
+
+echo ""
 echo "4) P1 düzeltmesi regresyon korumaları (kaynak-seviyeli, statik)"
 if grep -q "document.addEventListener('DOMContentLoaded'" index.html; then
   ok "index.html — ilk render zinciri hâlâ DOMContentLoaded'a alınmış"
@@ -309,6 +348,17 @@ fi
 # (kullanıcı isteği, 2026-09-10 dokuzuncu tur). Ad normalizasyonu YAZMA anında yapılır (name aynı
 # zamanda ANAHTAR, bkz. src/lib/textMatch.js#titleCasePersonName); davet kutusu kapısı ise TEK bir
 # istemci satırı — bu test o satırın sessizce geri alınmasını yakalar.
+# Doğrulanmamış girdi -> D1 500 sınıfı (canlı bulgular, denetim 2026-09-10): (1) 49+ karakterlik TEK
+# bir arama kelimesi "LIKE or GLOB pattern too complex" ile, (2) devasa bir ?page= değeri güvenli
+# tamsayı aralığını aşarak sorguyu düşürüyordu. İkisi de artık tek bir yardımcıdan geçiyor
+# (searchFold.js#likePattern, http.js#pageParam); bu test o kapıların kalmasını sağlar.
+if node scripts/test-input-limits.mjs >/tmp/preflight_inputlimits 2>&1; then
+  ok "girdi sınırı (LIKE deseni + ?page=) testleri geçti ($(grep -c '^  ok ' /tmp/preflight_inputlimits) test)"
+else
+  bad "girdi sınırı (LIKE deseni + ?page=) testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_inputlimits >&2
+fi
+
 if node scripts/test-2026-09-10-round9.mjs >/tmp/preflight_round9 2>&1; then
   ok "kişi adı baş harfi + davet kutusu + geri bildirim testleri geçti ($(grep -c '^  ok ' /tmp/preflight_round9) test)"
 else
@@ -322,7 +372,11 @@ rm -f /tmp/preflight_claimkey
 # çizimin dokunduğu image-cdn.js (tüm hub'lar) ve catalog-taxonomy.js (urun) defer OLMADAN yüklenmeli,
 # proje.html'de ise js/pages/proje.js modal-shell.js'ten ÖNCE gelmeli. Biri geri dönerse kart çizimi
 # "cdnImg is not defined" ile sessizce boş kalır — bu kontrol o gerilemeyi deploy'dan önce yakalar.
-for page in index.html proje.html kisi.html firma.html marka.html urun.html; do
+# arama.html EKLENDİ (canlı bulgu, 2026-09-10 audit): bu sayfa da ilk çizimini DOMContentLoaded'ı
+# beklemeden yapıyor (top-level runSearch()) ama image-cdn.js'i defer ile yüklüyordu — /arama?q=…
+# konsolunda her aramada "cdnImg is not defined" hatası oluşuyor, sonuçlar ancak rozetler gelince
+# yapılan İKİNCİ render'da görünüyordu.
+for page in index.html proje.html kisi.html firma.html marka.html urun.html arama.html; do
   if grep -q '<script src="image-cdn.js" defer>' "$page"; then
     bad "$page — image-cdn.js defer ile yükleniyor; ilk çizim senkron cdnImg bekler"
   else

@@ -6,7 +6,7 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { MAX_HOTSPOTS_PER_IMAGE } from '../lib/submissionTypes.js';
 import { foldTr } from '../lib/textMatch.js';
-import { escapeLike } from '../lib/searchFold.js';
+import { likePattern } from '../lib/searchFold.js';
 import { hasAnyActiveBadge } from '../lib/badgeAccess.js';
 
 // ============================================================================================
@@ -248,7 +248,7 @@ async function listTaggableProducts(env, user, url) {
     // ürün) LIMIT 40 ile sınırlanır; düz substring araması bu boyutta ölçülebilir bir maliyet
     // getirmiyor. % ve _ kullanıcı girdisinde joker anlamı kazanmasın diye kaçışlanır.
     where += " AND (p.title_fold LIKE ? ESCAPE '\\' OR p.brand_fold LIKE ? ESCAPE '\\')";
-    const like = `%${escapeLike(q)}%`;
+    const like = likePattern(q);
     params.push(like, like);
   }
   const { results } = await env.DB.prepare(

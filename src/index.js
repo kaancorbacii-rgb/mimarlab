@@ -718,6 +718,20 @@ export default {
     }
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+    // GİDEN yanıtta da charset=utf-8 (canlı denetim bulgusu, 2026-09-10): aşağıdaki HTMLRewriter
+    // bloğu charset'i yalnızca KENDİ girdi Response'una veriyordu (yani rewriter'ın çözümlemesini
+    // düzeltiyordu) — ama tarayıcıya giden `headers` env.ASSETS/SSR yanıtından kopyalandığı için
+    // düz `text/html` kalıyordu. Canlıda doğrulandı: TÜM HTML sayfaları (/, /proje, /kisi/:slug…)
+    // charset parametresi OLMADAN servis ediliyordu. Bugün mojibake görünmüyor çünkü <meta charset>
+    // artık ilk 1024 baytta (bkz. scripts/preflight-check.sh'taki koruma) ve tarayıcı ön-taramaya
+    // düşüyor — yani sayfa DOĞRU kodlamayı yalnızca ikinci bir savunma hattı sayesinde buluyor.
+    // Bu satır asıl sözleşmeyi geri koyar: kodlama artık ön-taramadan tamamen bağımsız (bkz.
+    // [[project_meta_charset_prescan_1024]]). Yalnızca charset'i EKSİK olan text/html yanıtlara
+    // dokunur; JSON/görsel/XML ve zaten charset taşıyan yanıtlar aynen geçer.
+    const outContentType = headers.get('Content-Type') || '';
+    if (/^text\/html/i.test(outContentType) && !/charset=/i.test(outContentType)) {
+      headers.set('Content-Type', 'text/html; charset=utf-8');
+    }
     logRequest({ request, url, env, requestId, startedAt, status: response.status, errorMessage });
     // SÜRÜMLÜ SCRIPT/STYLESHEET BAĞLANTILARI — TÜM HTML yanıtları için TEK yerde (kullanıcı isteği,
     // 2026-09-08: "detay sayfalarını da sürümlü script'e geçir"). Önceden yalnızca LIST_PAGE_PATHS

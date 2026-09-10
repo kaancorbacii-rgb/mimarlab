@@ -1,9 +1,9 @@
-import { json, errorJson } from '../lib/http.js';
+import { json, errorJson, pageParam } from '../lib/http.js';
 import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 import { getSessionUser } from '../lib/auth.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
-import { foldedPrefixThenSubstring, escapeLike } from '../lib/searchFold.js';
+import { foldedPrefixThenSubstring, likePattern } from '../lib/searchFold.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -286,7 +286,7 @@ export async function handlePhotographerSearchRoute(request, env, url) {
     // name_fold: foldTr()'nin SQL karşılığı olan indexli generated column (bkz. migrations/0079) —
     // filtre Worker'a hiç satır taşımadan SQLite içinde uygulanır.
     const cond = q ? ` AND name_fold LIKE ? ESCAPE '\\'` : '';
-    const params = q ? [`%${escapeLike(q)}%`] : [];
+    const params = q ? [likePattern(q)] : [];
     // Ofis dalı q BOŞKEN çalıştırılmaz: boş kutuya odaklanma senaryosu "ilk fotoğrafçıları göster"
     // içindir, 745 ofisin alfabetik ilk beşini oraya koymak yalnızca gürültü olurdu.
     const [archRes, officeRes] = await Promise.all([
@@ -857,7 +857,7 @@ export async function handleProjectListRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const page = pageParam(url.searchParams);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
     const buildStatus = url.searchParams.get('buildStatus') === 'concept' ? 'concept' : 'built';

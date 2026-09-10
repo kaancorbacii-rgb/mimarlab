@@ -229,7 +229,15 @@ if(location.pathname.replace(/\/+$/,'')==='/arama'){var q=(new URLSearchParams(l
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
-<script src="image-cdn.js" defer></script>
+<!-- image-cdn.js SENKRON (defer DEĞİL): bu sayfanın ilk çizimi (aşağıdaki top-level runSearch()
+     çağrısı) DOMContentLoaded'ı BEKLEMİYOR, ama defer'lı script'ler ancak DOMContentLoaded'dan
+     hemen ÖNCE çalışır — yani ilk render sırasında cdnImg/cdnSrcset henüz TANIMSIZDI ve
+     projectRow/officeRow "cdnImg is not defined" ile patlıyordu (canlıda doğrulandı, 2026-09-10:
+     /arama?q=galata konsolunda ReferenceError; sonuçlar ancak 'mimarlab-badges-ready' ile gelen
+     İKİNCİ render'da görünüyordu, rozet isteği başarısız olursa hiç görünmüyordu). Hub sayfaları
+     (index/proje/kisi/firma/marka/urun) AYNI nedenle zaten senkron yüklüyor; bkz.
+     scripts/preflight-check.sh'taki "image-cdn.js senkron" kontrolü. -->
+<script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>

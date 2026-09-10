@@ -361,6 +361,30 @@ gw_api=$(curl -s "$BASE_URL/api/consultations/room/$gw_uuid")
 if [[ "$gw_api" == *"meet.google.com"* ]]; then bad "/api/consultations/room oturumsuz yanıtta Meet adresi sızıyor"; else ok "/api/consultations/room oturumsuz yanıtta Meet adresi yok"; fi
 
 echo ""
+echo "15) HTML yanıtlarında Content-Type charset=utf-8 (mojibake regresyon koruması)"
+# CANLI BULGU (denetim, 2026-09-10): TÜM HTML sayfaları `text/html` olarak, charset parametresi
+# OLMADAN servis ediliyordu. Sayfalar yine doğru görünüyordu çünkü tarayıcı <meta charset>
+# ön-taramasına düşüyor — yani kodlama YALNIZCA ikinci savunma hattıyla doğruydu. src/index.js
+# giden yanıtta charset'i artık açıkça yazıyor; bu kontrol o sözleşmenin canlıda kalmasını sağlar
+# (statik olarak doğrulanamaz, gerçek bir yanıt başlığı gerekir).
+for p in / /proje /kisi /firma /marka /urun /gundem /arama /hakkinda; do
+  ct=$(curl -sI "$BASE_URL$p" | tr -d '\r' | grep -i '^content-type:' | head -1)
+  case "$ct" in
+    *charset=utf-8*|*charset=UTF-8*) ok "$p — $ct" ;;
+    "") bad "$p — Content-Type başlığı yok" ;;
+    *) bad "$p — charset eksik ($ct)" ;;
+  esac
+done
+# Detay (SSR + Cache API'den de dönebilen) sayfaları da aynı sözleşmeye tabi.
+for p in /proje/galataport /kisi/mimar-sinan /firma/udesign-mimarlik; do
+  ct=$(curl -sI "$BASE_URL$p" | tr -d '\r' | grep -i '^content-type:' | head -1)
+  case "$ct" in
+    *charset=utf-8*|*charset=UTF-8*) ok "$p — charset=utf-8" ;;
+    *) bad "$p — charset eksik ($ct)" ;;
+  esac
+done
+
+echo ""
 if [ "$fail" -eq 1 ]; then
   echo "Smoke test BAŞARISIZ oldu." >&2
   exit 1

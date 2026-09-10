@@ -29,6 +29,49 @@ function escapeLike(q) {
   return q.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
+// D1'İN LIKE DESEN UZUNLUĞU SINIRI (canlı bulgu, denetim 2026-09-10).
+//
+// SQLite, LIKE desenini `SQLITE_MAX_LIKE_PATTERN_LENGTH` ile sınırlar ve aşılırsa sorguyu
+// "LIKE or GLOB pattern too complex: SQLITE_ERROR" ile REDDEDER. D1'de bu sınır 50 BAYT — yani
+// `%` + 49 karakterlik tek bir kelime + `%` = 51 baytlık desen sorguyu düşürüyordu. Canlıda
+// ölçüldü: q 48 karakterken 200, 49 karakterken 500. Etkilenen uçlar: /api/public/search-suggest,
+// /api/public/search, /api/photographers/search, /api/architects|offices|products/search — yani
+// üst navigasyondaki arama kutusuna uzun bir metin yapıştıran HER ziyaretçi 500 alıyordu
+// (kullanıcıya "Sunucu hatası oluştu", Worker'da yakalanmış bir D1 istisnası).
+//
+// ÇÖZÜM DESENİ KISALTMAK: LIKE deseni bu kod tabanında HER ZAMAN bir ADAY ÜST KÜMESİ üretir
+// (bkz. classicSearch.js#likeCondition'ın "yanlış negatifi olmayan ÜST KÜME" sözleşmesi) —
+// kısaltılmış bir `%...%` deseni DAHA GENİŞ eşleşir, dolayısıyla üst küme olma garantisi korunur;
+// asıl eleme zaten JS skorlamasında yapılır. Bu kadar uzun tek bir kelime gerçek veride
+// eşleşmediğinden pratikte sonuç kümesi de değişmez.
+const LIKE_PATTERN_MAX_BYTES = 50;
+
+const LIKE_ENCODER = new TextEncoder();
+function utf8Len(s) { return LIKE_ENCODER.encode(s).length; }
+
+// Kaçışlanmış değeri, `lead`/`trail` jokerleriyle birlikte sınırın altında kalacak şekilde
+// (gerekiyorsa) kısaltıp tam LIKE desenini döner. İki incelik:
+//   * kesme KOD NOKTASI sınırında yapılır (for..of) — UTF-8 dizisi ya da vekil çifti bölünmez;
+//   * kesme sonrası tek başına kalan bir `\` bırakılmaz — ESCAPE '\' ile biten bir desen SQLite'ta
+//     geçersizdir ve sorguyu yine düşürürdü.
+export function likePattern(value, lead = '%', trail = '%') {
+  const budget = LIKE_PATTERN_MAX_BYTES - utf8Len(lead) - utf8Len(trail);
+  const escaped = escapeLike(String(value == null ? '' : value));
+  if (utf8Len(escaped) <= budget) return `${lead}${escaped}${trail}`;
+  let out = '';
+  let used = 0;
+  for (const ch of escaped) {
+    const n = utf8Len(ch);
+    if (used + n > budget) break;
+    out += ch;
+    used += n;
+  }
+  let backslashes = 0;
+  for (let i = out.length - 1; i >= 0 && out[i] === '\\'; i--) backslashes++;
+  if (backslashes % 2 === 1) out = out.slice(0, -1);
+  return `${lead}${out}${trail}`;
+}
+
 // Önek aralığının üst sınırı: q ile başlayan HER dize, q + U+10FFFF'ten küçüktür (UTF-8 bayt sırası
 // kod noktası sırasıyla aynıdır ve U+10FFFF Unicode'un en büyük kod noktasıdır) — bu yüzden
 // `fold >= q AND fold < upper` tam olarak "q ile başlayanlar" kümesini verir ve index'i kullanır.
@@ -58,7 +101,7 @@ export async function foldedPrefixThenSubstring({ runQuery, sqlFor, foldColumn, 
   const seen = new Set(prefixRows.map(keyOf));
   const substringRows = await runQuery(
     sqlFor(`AND ${foldAccentsSqlExpr(foldColumn)} LIKE ? ESCAPE '\\'`, limit),
-    [`%${escapeLike(foldAccents(q))}%`]
+    [likePattern(foldAccents(q))]
   );
   const merged = prefixRows.slice();
   for (const row of substringRows) {
@@ -199,7 +242,7 @@ export async function foldedMultiFieldSearch({ runQuery, sqlFor, foldColumns, in
     .map(c => `(${sqlWords.map(() => `${c} LIKE ? ESCAPE '\\'`).join(' AND ')})`)
     .join(' OR ')})`;
   const subParams = [];
-  foldColumns.forEach(() => sqlWords.forEach(w => subParams.push(`%${escapeLike(w)}%`)));
+  foldColumns.forEach(() => sqlWords.forEach(w => subParams.push(likePattern(w))));
   const subRows = await runQuery(sqlFor(subCond, limit), subParams);
 
   const merged = prefixRows.slice();

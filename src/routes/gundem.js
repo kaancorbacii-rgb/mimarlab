@@ -13,7 +13,7 @@
 // çağırıyor) gelir ve yalnızca istemcide birleştirilir — böylece public gövde herkes için birebir
 // aynı bayt kalır ve paylaşılan önbellekte güvenle tutulabilir.
 
-import { json, errorJson } from '../lib/http.js';
+import { json, errorJson, pageParam } from '../lib/http.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { GUNDEM_CATEGORIES, isValidGundemCategory } from '../lib/gundemCategories.js';
 import { GUNDEM_SOURCES } from '../lib/gundemSources.js';
@@ -153,7 +153,7 @@ export async function handleGundemRoute(request, env, url) {
 async function handleGundemList(request, env, url) {
   const params = url.searchParams;
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(params.get('limit'), 10) || GUNDEM_PAGE_SIZE));
-  const page = Math.max(1, parseInt(params.get('page'), 10) || 1);
+  const page = pageParam(params);
   const categoryParam = params.get('category');
   const category = isValidGundemCategory(categoryParam) ? categoryParam : null;
   const sourceParam = (params.get('source') || '').trim();
