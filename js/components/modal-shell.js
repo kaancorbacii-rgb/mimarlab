@@ -822,7 +822,18 @@ const ModalShell = (function () {
   // değil /marka) BURADA OLMAK ZORUNDA: eksik olduğu sürece markRealPage bir marka POPUP'ını
   // "son gerçek sayfa" sanıp kaydediyor, dolayısıyla sonraki popup kapatıldığında kullanıcı bir
   // önceki POPUP'a dönüyordu (madde 1'in kök nedenlerinden biri).
-  const ENTITY_POPUP_RE = /^\/(proje|kisi|firma|marka|urun|mimar)\/[^/]+/;
+  // (?!sayfa-\d+) — TEMİZ SAYFALAMA ADRESİ popup DEĞİLDİR (gerçek bulgu, kullanıcı bildirimi
+  // 2026-09-10: "proje-sayfa-5'teyken bir proje popup'ı açıp kapadığımda tekrar sayfa 1'e
+  // dönüyorum"). 2026-09-10'daki temiz sayfalama turu (?page=7 -> /proje/sayfa-7, bkz. js/pages/
+  // proje.js#listPagePath ve src/index.js#matchPagedListPath) bu deseni GÜNCELLEMEMİŞTİ: /proje/
+  // sayfa-5 de "/proje/<slug>" biçimine uyduğundan bir varlık popup'ı sayılıyor, dolayısıyla
+  // (a) markRealPage onu "gerçek sayfa" olarak HİÇ kaydetmiyor (kayıt belge yüklenişindeki çıplak
+  // /proje'de kalıyordu), (b) popupChainRealBase false dönüyor ve kapanış goBackAndWait yerine
+  // returnToPreviousPage'e düşüp o bayat /proje kaydına location.replace ile gidiyordu — yani
+  // 1. sayfaya. Canlıda doğrulandı: /proje/sayfa-5'te açılan popup'ın history.state'i
+  // {realBase:false}, sessionStorage kaydı null. lazy-modals.js#ENTITY_MODULES.pathRe ve
+  // proje.js'in popstate deseni AYNI dışlamayı zaten taşıyordu; burası eksikti.
+  const ENTITY_POPUP_RE = /^\/(proje|kisi|firma|marka|urun|mimar)\/(?!sayfa-\d+\/?$)[^/]+/;
   function sameOriginUrl(href) {
     try { const u = new URL(href, location.href); return u.origin === location.origin ? u : null; } catch { return null; }
   }

@@ -35,6 +35,47 @@ export async function anyProfileClaimed(env, names) {
   return !!row;
 }
 
+// KİŞİ PROFİLİ İÇİN GENİŞLETİLMİŞ KURAL (kullanıcı isteği, 2026-09-10 onuncu tur madde 1: "Bir
+// firmaya ve kişiye kullanıcı atayınca o firmanın KURUCULARININ popup'larında da 'Bu profil sana
+// mı ait?' butonu ve 'Kamuya açık kaynaklardan derlenmiştir...' yazısı silinsin — hâlâ bazı
+// profillerde duruyor"; canlı örnek: VEN Mimarlık'a yönetici atanmış, firma popup'ında kutu yok,
+// ama kurucusu Gül Güven'in popup'ında ikisi de duruyordu).
+//
+// Kişi şu iki durumdan birinde "sahiplenilmiş" sayılır:
+//   (a) kendi adına onaylı bir profile_claims satırı var (anyProfileClaimed — eski kural), ya da
+//   (b) KURUCUSU/ORTAĞI olduğu bir firma/markanın onaylı bir sahibi/yetkilisi var. Kurucu bağı,
+//       firma popup'ının "Kurucular / Ortaklar" listesini besleyen AYNI iki kaynaktan okunur:
+//       office_founders join tablosu ve architects.office_id (bkz. src/routes/architect.js#
+//       buildArchitectPayload — kişi popup'ındaki "Kurucu · VEN Mimarlık" satırı da bunlardan gelir).
+//
+// NEDEN: o uyarı "kimsenin doğrulamadığı içerik" demektir. Firmanın künyesini artık onaylı bir
+// yetkili yönetiyorsa ve o yetkili kişiyi Kurucular kutusunda tutuyorsa, kurucunun profili de
+// doğrulanmış bir kaynaktan geliyor demektir; "sana mı ait?" daveti de anlamsızdır — profil
+// zaten firmanın yetkilisi tarafından (bkz. canEditArchitectViaOfficeMembership) yönetilebilir.
+//
+// İki tüketicisi var ve İKİSİ DE bu fonksiyondan geçmeli (aksi halde ibare ile kutu birbirinden
+// ayrışır): /api/architect/:key'in `claimed` bayrağı (kaynak ibaresi) ve /api/public/claim-status
+// (davet kutusu, bkz. js/components/claim-correction-box.js#loadClaimCard).
+//
+// TEK SORGU, ÜST SINIR YOK: bir kişinin kurucusu olduğu firma sayısı küçüktür (join, IN listesi
+// değil). profile_type BİLEREK 'office' ile sınırlı — (a) dalı zaten tipsiz soruluyor.
+export async function isArchitectProfileClaimed(env, keys) {
+  if (await anyProfileClaimed(env, keys)) return true;
+  const unique = [...new Set((keys || []).map(n => (n || '').trim()).filter(Boolean))].slice(0, 4);
+  if (!unique.length) return false;
+  const ph = unique.map(() => '?').join(', ');
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM architects a
+       JOIN offices o ON o.deleted_at IS NULL
+        AND (o.id = a.office_id OR o.id IN (SELECT f.office_id FROM office_founders f WHERE f.architect_id = a.id))
+       JOIN profile_claims c ON c.status = 'approved' AND c.profile_type = 'office'
+        AND (c.profile_key = o.name OR (o.legacy_key IS NOT NULL AND c.profile_key = o.legacy_key))
+      WHERE a.deleted_at IS NULL AND (a.name IN (${ph}) OR a.legacy_key IN (${ph}))
+      LIMIT 1`
+  ).bind(...unique, ...unique).first();
+  return !!row;
+}
+
 
 // Bir kişi kaydının "Firma veya Marka" alanına yazılan her ad için, sahibi adına BEKLEYEN bir
 // profile_claims('office') talebi açar (kullanıcı isteği, 2026-09-08 madde 1).

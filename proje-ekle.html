@@ -737,7 +737,7 @@
           <div class="form-field" id="credit-url-field">
             <label for="p-credit-url" id="p-credit-url-label">Kaynak <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="p-credit-url" name="photoCreditUrl" autocomplete="off" inputmode="url">
-            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır.</div>
+            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma ya da marka yazarsan web sitesi buraya otomatik gelir.</div>
           </div>
         </div>
       </div>
@@ -1275,12 +1275,48 @@ document.getElementById('dd-grup-btn').addEventListener('click', () => {
   setTimeout(() => search.focus(), 0);
 });
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
-// "Fotoğrafçı" kutusuna bir mimarlık firmasının adı yazıldığında yanındaki "Kaynak" kutusunu o
-// firmanın web sitesiyle OTOMATİK dolduran mantık (GET /api/office/:key + data-autofilled bayrağı)
-// 2026-09-01'de kaldırılmıştı ve GERİ GETİRİLMEDİ: kutu artık yeniden görünür olsa da, kullanıcının
-// yazdığı isimden türetilen bir URL'yi sessizce ikinci bir alana yazmak sürpriz bir yan etki olurdu
-// — "Kaynak" kutusunu kullanıcı kendi doldurur (bkz. formdaki AYNI not).
-wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search');
+// "Fotoğrafçı" kutusuna bir FİRMA ya da MARKA adı yazıldığında/seçildiğinde yanındaki "Kaynak"
+// kutusu o profilin web sitesiyle OTOMATİK dolar (kullanıcı isteği, 2026-09-10 onuncu tur madde 3:
+// "fotoğrafçı kısmına bir firmayı ya da markayı yazdığımız zaman bu firma ya da markanın websitesi
+// otomatik olarak kaynak kısmını doldursun"). Bu mantık 2026-09-01'de kaldırılmıştı; şimdi GERİ
+// GELDİ, iki tetikleyiciyle:
+//   * öneri listesinden `kind:'office'` taşıyan bir satır seçilince (bkz. src/routes/project.js#
+//     handlePhotographerSearchRoute — kişi satırlarında bu alan yok, fotoğrafçı seçimi Kaynak'a
+//     DOKUNMAZ),
+//   * kutu elle yazılıp terk edilince (change): virgülle ayrılmış her ad sırayla GET /api/office/:key
+//     ile denenir, web sitesi olan İLK firma/marka kazanır. Uç yalnızca canonical offices satırını
+//     bulur; kişi/fotoğrafçı adları `item:null` döner ve atlanır.
+// Kullanıcının kendi yazdığı bir Kaynak ASLA ezilmez: yalnızca boş ya da daha önce BURADAN dolmuş
+// (data-autofilled) kutu yazılır; kutuya elle dokunulunca bayrak kalkar (aşağıdaki input dinleyicisi).
+// Düzenleme modunda (?edit=) sunucudan gelen photo_credit_url bayraksız yüklendiğinden korunur.
+const creditUrlInput = document.getElementById('p-credit-url');
+creditUrlInput.addEventListener('input', () => { delete creditUrlInput.dataset.autofilled; });
+function creditUrlIsFillable(){
+  return !creditUrlInput.value.trim() || creditUrlInput.dataset.autofilled === '1';
+}
+async function fillSourceFromOffice(officeName){
+  const name = (officeName || '').trim();
+  if(!name || !creditUrlIsFillable()) return false;
+  try{
+    const res = await fetch(`/api/office/${encodeURIComponent(name)}`);
+    if(!res.ok) return false;
+    const data = await res.json();
+    const website = data && data.item && typeof data.item.website === 'string' ? data.item.website.trim() : '';
+    if(!website) return false;
+    // Yanıt beklenirken kullanıcı Kaynak'ı elle doldurmuş olabilir — yarış durumunda ezme.
+    if(!creditUrlIsFillable()) return false;
+    creditUrlInput.value = website;
+    creditUrlInput.dataset.autofilled = '1';
+    return true;
+  }catch{ return false; }
+}
+wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search', {
+  onPick: (item) => { if(item && item.kind === 'office') fillSourceFromOffice(item.label); },
+});
+document.getElementById('p-credit-text').addEventListener('change', async () => {
+  const names = document.getElementById('p-credit-text').value.split(',').map(s => s.trim()).filter(Boolean);
+  for(const name of names){ if(await fillSourceFromOffice(name)) break; }
+});
 // Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
 // üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
 // Ekip/Kurucular bölümünü besleyen AYNI birleşik listeyi döner (bkz. src/routes/office.js#

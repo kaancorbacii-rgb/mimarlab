@@ -889,6 +889,20 @@ async function purgeClaimProfileCaches(env, profileType, profileKey) {
   const type = profileType === 'office' ? 'office' : profileType === 'architect' ? 'architect' : null;
   if (!type || !profileKey) return;
   await purgeSsrDetailCache(type, profileKey, env);
+  // FİRMA/MARKA claim'i değiştiğinde KURUCULARININ kişi detayları da purge edilir (kullanıcı isteği,
+  // 2026-09-10 onuncu tur madde 1): kurucunun `claimed` bayrağı artık firmanın claim durumundan
+  // türüyor (bkz. src/lib/claimedProfiles.js#isArchitectProfileClaimed), oysa atama hiçbir
+  // architects satırına dokunmaz — purge olmadan admin "firmayı atadım ama kurucunun popup'ında
+  // ibare hâlâ duruyor" derdi. Kurucu sayısı küçüktür (proje/ürün purge'ünün aksine, bkz. yukarıdaki
+  // NOT); yine de uç veriye karşı 50 ile sınırlandı.
+  if (type !== 'office') return;
+  const { results } = await env.DB.prepare(
+    `SELECT DISTINCT a.name FROM architects a
+       JOIN offices o ON o.deleted_at IS NULL AND (o.name = ?1 OR o.legacy_key = ?1)
+      WHERE a.deleted_at IS NULL AND (a.office_id = o.id OR a.id IN (SELECT f.architect_id FROM office_founders f WHERE f.office_id = o.id))
+      LIMIT 50`
+  ).bind(profileKey).all();
+  for (const r of results || []) await purgeSsrDetailCache('architect', r.name, env);
 }
 
 // Bir profil bir kullanıcıya ATANDIĞINDA, O PROFİLLE İLGİLİ TÜM İÇERİK EŞ ZAMANLI OLARAK YAYINA

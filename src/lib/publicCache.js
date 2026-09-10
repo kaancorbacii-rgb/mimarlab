@@ -444,8 +444,15 @@ async function withSingleFlight(key, fn) {
 //     v5-v27'nin AYNI tuzağı: yeni alanlar hiçbir canonical satırın updated_at'ini değiştirmez,
 //     yani parmak izi aynı kalır; bump edilmezse pop-up'ı daha önce açmış ziyaretçiler 304 ile
 //     eski gövdede takılıp fotoğrafçı çipini tıklanamaz görmeye devam ederdi.
+// v28 -> v29 (kullanıcı isteği, 2026-09-10 onuncu tur madde 1): /api/architect/:key'in `claimed`
+//     bayrağı artık kişinin KURUCUSU olduğu firma/marka sahiplenilmişse de true (bkz. src/lib/
+//     claimedProfiles.js#isArchitectProfileClaimed); /api/photographers/search'ün firma/marka
+//     satırları da `kind:'office'` taşıyor (proje-ekle.html'deki Kaynak otomatik doldurma). v22->v23
+//     ile AYNI tuzak: bir firmayı atamak hiçbir architects satırının updated_at'ini değiştirmez,
+//     bump edilmezse kurucunun popup'ını daha önce açmış ziyaretçiler 304 ile eski gövdede takılıp
+//     ibareyi görmeye devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v28';
+const API_PAYLOAD_VERSION = 'v29';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

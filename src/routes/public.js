@@ -10,6 +10,7 @@ import { handlePlatformRoute } from './platform.js';
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
 import { foldTr } from '../lib/textMatch.js';
+import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
@@ -65,6 +66,11 @@ async function handlePublicClaimStatus(request, env, url) {
   // tek bir in-flight Promise'e bağlanıp BİRBİRİNİN yanıtını alıyordu. `url.search` eklenerek her
   // parametre kombinasyonu kendi anahtarını alır (davranış değişmez, yalnızca karışma kalkar).
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    // KİŞİ (kullanıcı isteği, 2026-09-10 onuncu tur madde 1): kurucusu/ortağı olduğu firma ya da
+    // marka sahiplenilmişse kişi de sahiplenilmiş sayılır — /api/architect/:key'in `claimed`
+    // bayrağıyla (kaynak ibaresi) AYNI fonksiyon, davet kutusu ile ibare birlikte kalkar (bkz.
+    // src/lib/claimedProfiles.js#isArchitectProfileClaimed).
+    if (profileType === 'architect') return { claimed: await isArchitectProfileClaimed(env, [profileKey]) };
     const row = await env.DB.prepare(
       `SELECT id FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved' LIMIT 1`
     ).bind(profileType, profileKey).first();

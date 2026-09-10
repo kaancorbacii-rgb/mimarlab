@@ -317,7 +317,10 @@ export async function handlePhotographerSearchRoute(request, env, url) {
       if (seen.has(key)) continue;
       seen.add(key);
       const kindLabel = isBrandOffice(r.cats, 0) ? 'Marka' : 'Firma';
-      items.push({ label: r.name, sub: [kindLabel, r.loc].filter(Boolean).join(' · ') });
+      // kind:'office' — proje-ekle.html, öneri listesinden bir FİRMA/MARKA seçildiğinde yanındaki
+      // "Kaynak" kutusunu o profilin web sitesiyle doldurur (kullanıcı isteği, 2026-09-10 onuncu tur
+      // madde 3, bkz. proje-ekle.html#fillSourceFromOffice). Kişi satırlarında alan yok.
+      items.push({ label: r.name, sub: [kindLabel, r.loc].filter(Boolean).join(' · '), kind: 'office' });
     }
     return { items };
   });

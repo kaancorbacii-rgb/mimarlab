@@ -375,6 +375,16 @@ else
   bad "kişi adı baş harfi + davet kutusu + geri bildirim testleri BAŞARISIZ:"
   tail -25 /tmp/preflight_round9 >&2
 fi
+
+# Kullanıcı isteği, 2026-09-10 onuncu tur: sahiplenilmiş firmanın kurucusu da sahiplenilmiş sayılır
+# (kaynak ibaresi + davet kutusu), /proje/sayfa-N popup URL'i değildir (modal-shell.js), Fotoğrafçı
+# kutusundaki firma/marka Kaynak'ı web sitesiyle doldurur. Bkz. scripts/test-2026-09-10-round10.mjs.
+if node scripts/test-2026-09-10-round10.mjs >/tmp/preflight_round10 2>&1; then
+  ok "kurucu sahiplenme + sayfalama popup deseni + Kaynak otomatik doldurma testleri geçti ($(grep -c '^  ok ' /tmp/preflight_round10) test)"
+else
+  bad "kurucu sahiplenme + sayfalama popup deseni + Kaynak otomatik doldurma testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_round10 >&2
+fi
 rm -f /tmp/preflight_claimkey
 
 # Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde

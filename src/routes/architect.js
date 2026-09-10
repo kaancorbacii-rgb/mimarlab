@@ -10,7 +10,7 @@ import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 import { TR_UNIVERSITIES } from '../lib/universities.js';
-import { anyProfileClaimed } from '../lib/claimedProfiles.js';
+import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
@@ -668,7 +668,10 @@ async function buildArchitectPayload(env, key) {
   // "yanlışlık için bize ulaş" çağrısı kalır. legacy_key de sorulur: sonradan yeniden adlandırılmış statik profillerde claim
   // satırı hâlâ ORİJİNAL adı taşıyor olabilir (bkz. renameArchitectEverywhere'in UPDATE OR IGNORE
   // dalı — UNIQUE çakışmasında eski anahtar korunur).
-  const claimed = await anyProfileClaimed(env, [a.name, a.legacy_key]);
+  // isArchitectProfileClaimed (kullanıcı isteği, 2026-09-10 onuncu tur madde 1): kurucusu olduğu
+  // firma/marka sahiplenilmişse de true — bkz. src/lib/claimedProfiles.js'teki gerekçe. Aynı kural
+  // /api/public/claim-status'te de uygulanır, ibare ile davet kutusu birlikte kalkar.
+  const claimed = await isArchitectProfileClaimed(env, [a.name, a.legacy_key]);
 
   return {
     item,
