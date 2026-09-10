@@ -550,7 +550,11 @@ if(p.replace(/\/+$/,'')==='/kisi'&&!location.search){var u='/api/architects?page
      officeColor/verifiedBadgeHtml, bkz. aşağıdaki render()) ve artık defer ile yüklenir: defer
      çalışma sırasını ve "DOMContentLoaded'dan önce biter" garantisini korur, yalnızca HTML
      ayrıştırmasını bloklamayı bırakır. -->
-<script src="badge-shared.js" defer></script>
+<!-- badge-shared.js SENKRON (2026-09-10): kart çiziminin initials/officeColor/logoUrl/verifiedBadgeHtml
+     yardımcıları buradan gelir ve ilk çizim artık DOMContentLoaded'ı beklemiyor (bkz. bootList). Canlı
+     bulgu: defer iken erken çizim "officeColor is not defined" ile düşüyor, liste ancak badges-ready
+     yeniden çizimiyle doluyordu. Dosya 15 KB; içindeki /api/public/badges isteği zaten asenkron. -->
+<script src="badge-shared.js"></script>
 <script src="js/analytics-beacon.js" defer></script>
 <script>
 // Faz 3 sonrası: kisi.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
@@ -929,7 +933,7 @@ async function render(opts){
     // alttakiler lazy kalır.
     const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
-    <a class="person-card" href="/kisi/${encodeURIComponent(a.slug || slugify(a.name))}">
+    <a class="person-card" href="/kisi/${encodeURIComponent(a.slug || (typeof slugify === 'function' ? slugify(a.name) : ''))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
         <div class="person-card-name">${escapeHtml(a.name)}${badgeHtmlSafe('architect', a.name, a.badges)}</div>
@@ -952,6 +956,9 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(!a) return;
   const m = (a.getAttribute('href') || '').match(/^\/kisi\/([^/?#]+)/);
   if(!m) return;
+  // lazy-modals.js (defer) henüz gelmediyse bağlantı doğal davranışla SSR detay sayfasına gider —
+  // ilk çizim artık deferred script'leri beklemediğinden bu pencere gerçek (2026-09-10).
+  if(typeof LazyModals === 'undefined') return;
   e.preventDefault();
   // architect-modal.js artık bu sayfada <script> etiketiyle YÜKLENMİYOR (bkz. yukarıdaki
   // performans notu) — ilk kart tıklamasında lazy-modals.js zincirinden indirilir, sonraki

@@ -618,7 +618,8 @@ function renderCards(items){
       </div>
     </a>`;
   }).join('');
-  wireSaveButtons('project');
+  // save-widget.js (defer) henüz gelmediyse bayrak bırak; DOMContentLoaded'daki geçiş bağlar (bkz. bootList).
+  if(typeof wireSaveButtons === 'function') wireSaveButtons('project'); else pendingCardWire = true;
 }
 
 // ---------- EN İYİ 100 SATIR TASARIMI — en-iyi-100.html#renderTop100() İLE BİREBİR AYNI (bkz.
@@ -940,7 +941,7 @@ async function render(){
   const top100List = document.getElementById('top100-list');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
-  if(!reuse && !grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
+  if(!grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
   top100List.style.opacity = '0.5';
 
   if(top100ViewActive){
@@ -1027,6 +1028,9 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   const m = (a.getAttribute('href') || '').match(/^\/proje\/([^/?#]+)/);
   if(!m) return;
   const slug = decodeURIComponent(m[1]);
+  // Modal script'i (defer) henüz gelmediyse bağlantı doğal davranışla /proje/:slug SSR detay sayfasına
+  // gider — ilk çizim artık modal kodunu beklemediğinden bu pencere gerçek (2026-09-10).
+  if(typeof ProjectModal === 'undefined') return;
   e.preventDefault();
   ProjectModal.open(slug, { triggerEl: a });
 });
@@ -1181,6 +1185,10 @@ window.addEventListener('popstate', ()=>{
 // badge-shared.js/catalog-taxonomy.js de gelmiş durumda. DOMContentLoaded'ı beklemek, kendisinden
 // SONRAKİ ağır modal script'lerinin (~150 KB) inmesini beklemek demekti — mobilde biri askıda
 // kalınca liste hiç çizilmiyordu. typeof kapısı yalnızca emniyet.
+let pendingCardWire = false;
+document.addEventListener('DOMContentLoaded', () => {
+  if(pendingCardWire && typeof wireSaveButtons === 'function'){ pendingCardWire = false; wireSaveButtons('project'); }
+});
 function bootList(){ applyInitialFiltersFromQuery(); buildSidebar(); render(); }
 if (typeof cdnImg === 'function') bootList(); else document.addEventListener('DOMContentLoaded', bootList);
 

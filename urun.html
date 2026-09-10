@@ -787,7 +787,7 @@ async function render(){
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
-  if(!reuse && !grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
+  if(!grid.children.length && window.mlListSkeleton) window.mlListSkeleton(grid, PAGE_SIZE);
 
   const params = currentQueryParams();
   params.set('page', String(currentPage));
@@ -845,11 +845,7 @@ async function render(){
         ${p.kind !== 'material' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(`${p.brand || ''}|||${p.title}`)}"></span>` : ''}
       </div>
     </div>`).join('');
-  wireSaveButtons('product');
-  mountAllRatingWidgets();
-  applyEditButtons('products');
-  applyEditButtons('materials');
-  applyAdminActions();
+  enhanceCatalogCards();
   grid.querySelectorAll('.content-card').forEach((card, i)=>{
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
@@ -860,6 +856,10 @@ async function render(){
       const anchor = e.target.closest('a');
       if(anchor && !anchor.classList.contains('content-card-titlelink')) return;
       if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // Modal script'i (defer) henüz gelmediyse başlık bağlantısı tarayıcının doğal davranışıyla
+      // /urun/:slug SSR detay sayfasına gider — ilk çizim artık deferred script'leri beklemediğinden
+      // bu pencere gerçek (2026-09-10).
+      if(typeof ProductModal === 'undefined'){ window.location.href = '/urun/' + encodeURIComponent(pageItems[i].slug); return; }
       e.preventDefault();
       // Ürün modalı (bkz. js/components/product-modal.js) proje.html#card-grid'in AYNI deseniyle
       // sayfa yenilenmeden açılsın diye tam sayfa yönlendirme yerine modal açılır.
@@ -871,6 +871,21 @@ async function render(){
       ProductModal.open(pageItems[i].slug, { triggerEl: card });
     });
   });
+}
+
+// Kart sonrası zenginleştirme (kaydet/puan/düzenle/admin butonları) — bu fonksiyonlar save-widget.js/
+// rating-widget.js'ten (defer) gelir. İlk çizim artık DOMContentLoaded'ı beklemediğinden (bkz.
+// bootCatalog) ilk çağrıda henüz tanımsız olabilirler: o durumda bayrak bırakılır ve DOMContentLoaded'daki
+// geçiş (tüm defer script'ler gelmiş olur) aynı kartları bir kez bağlar. Sonraki render()'lar normal yol.
+let pendingCatalogEnhance = false;
+function enhanceCatalogCards(){
+  if(typeof wireSaveButtons !== 'function' || typeof mountAllRatingWidgets !== 'function' || typeof applyEditButtons !== 'function'){ pendingCatalogEnhance = true; return; }
+  pendingCatalogEnhance = false;
+  wireSaveButtons('product');
+  mountAllRatingWidgets();
+  applyEditButtons('products');
+  applyEditButtons('materials');
+  applyAdminActions();
 }
 
 // Admin, ürün kartlarında "Gönderiyi Düzenle"nin yanına Arşivle/Sil butonları görür (bkz. kullanıcı
@@ -1262,6 +1277,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
   });
   if(!bootPromise) bootPromise = Promise.resolve(bootCatalog());
+  if(pendingCatalogEnhance) enhanceCatalogCards(); // erken çizilen kartların kaydet/puan/düzenle butonları
   if(currentViewMode() !== 'landing'){
     Promise.resolve(bootPromise).then(()=>{
       // Doğrudan /urun/:slug adresine girildiğinde ya da o adreste F5 yapıldığında ürün modalı
