@@ -129,10 +129,14 @@ const ModalShell = (function () {
       /* Leaflet'in KENDİ karoları ve işaretçi ikonları muaf: bunlar MİMARLAB medyası değil (OSM
          karoları / kütüphanenin PNG'leri) ve blurlandıklarında harita bozuk görünüyor. Harita
          balonundaki PROJE görselleri (.pm-project-popup img) muaf DEĞİL — onlar yukarıdaki genel
-         kurala girer ve blurlu kalır. */
-      .modal-shell-overlay.preview-blur .leaflet-tile-pane img,
-      .modal-shell-overlay.preview-blur img.leaflet-marker-icon,
-      .modal-shell-overlay.preview-blur .leaflet-control-container img{filter:none; transform:none;}
+         kurala girer ve blurlu kalır.
+         ÖZGÜLLÜK (canlıda ölçüldü): yukarıdaki blur seçicisi 4 sınıf + 1 eleman değerinde
+         (.modal-shell-overlay + .preview-blur + .modal-shell-body + :not(...) + img). Bu muafiyet
+         ilk yazıldığında 3 sınıf değerindeydi ve kaybediyordu — harita canlıda blurlu çıktı.
+         Seçiciler bu yüzden bilerek 5 sınıf taşıyor. */
+      .modal-shell-overlay.preview-blur .modal-shell-body .leaflet-tile-pane img.leaflet-tile,
+      .modal-shell-overlay.preview-blur .modal-shell-body .leaflet-pane img.leaflet-marker-icon,
+      .modal-shell-overlay.preview-blur .modal-shell-body .leaflet-control-container .leaflet-control img{filter:none; transform:none;}
       /* Kapatma (X) butonu + içerik aksiyonları (Kaydet/Paylaş/Takip Et) — proje/mimar/firma/ürün
          modallarının HEPSİ tarafından paylaşılan tek bir header satırı (bkz. kullanıcı isteği:
          aksiyon butonları X'in yanına taşınsın). Her modal kendi butonlarını

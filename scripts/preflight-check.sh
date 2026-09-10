@@ -387,6 +387,16 @@ else
 fi
 rm -f /tmp/preflight_claimkey
 
+# Kullanıcı isteği, 2026-09-10 on birinci tur: claim kutusu flash'ı, önizleme kişi/firma/marka
+# popup'larının açılabilir olması (görseller blurlu), withSingleFlight bayat girdi koruması.
+# Bkz. scripts/test-2026-09-10-round11.mjs.
+if node scripts/test-2026-09-10-round11.mjs >/tmp/preflight_round11 2>&1; then
+  ok "önizleme popup + claim flash + single-flight testleri geçti ($(grep -c '^  ok ' /tmp/preflight_round11) test)"
+else
+  bad "önizleme popup + claim flash + single-flight testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_round11 >&2
+fi
+
 # Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde
 # kişiler sayfası takılı kaldı"). İlk liste çizimi artık DOMContentLoaded'ı beklemiyor; bu yüzden
 # çizimin dokunduğu image-cdn.js (tüm hub'lar) ve catalog-taxonomy.js (urun) defer OLMADAN yüklenmeli,

@@ -248,18 +248,33 @@ function statusFor(data) {
 // (Workers'ta paylaşımlı bir mutex birincil olarak yok) — yine de en sık görülen "aynı PoP'ta art arda
 // gelen çoklu istek" senaryosunu (asıl stampede riski) kapsar, ek altyapı (Durable Object vb.)
 // gerektirmez.
+//
+// BAYAT GİRDİ KORUMASI (canlı bulgu, 2026-09-10 on birinci tur): bu Map'in bir ZAMAN AŞIMI YOKTU.
+// computeData() bir kez (geçici bir D1 duraklaması vb.) hiç SETTLE OLMAZSA `finally` çalışmaz,
+// girdi Map'te kalır ve aynı isolate'e düşen SONRAKİ HER istek o asla bitmeyen promise'i bekler —
+// isolate geri dönüştürülene kadar. Canlıda tam olarak bu görüldü: /api/office/tumertekin-architects
+// tarayıcıdan (keep-alive ile hep aynı colo/isolate) süresiz askıda kalırken, aynı kaydın
+// /api/office/T%C3%BCmertekin%20Architects adresi (FARKLI anahtar) aynı tarayıcıda 300ms'de
+// dönüyor, curl ise (yeni bağlantı / zone-cache HIT) hiç etkilenmiyordu. Diğer 13 önizleme firması
+// da sorunsuzdu — yani hata veri ya da kod yolunda değil, tek bir takılı in-flight girdisindeydi.
+// Çözüm: girdi başlangıç zamanıyla saklanır; SINGLE_FLIGHT_STALE_MS'den eskiyse paylaşılmaz, yeni
+// bir hesaplama başlatılıp Map'teki girdi onunla değiştirilir. Takılı promise'in kendisi bir gün
+// settle olursa `finally` yalnızca KENDİ girdisini siler (kimlik kontrolü), yenisine dokunmaz.
 const inFlight = new Map();
+const SINGLE_FLIGHT_STALE_MS = 15000;
 async function withSingleFlight(key, fn) {
-  if (inFlight.has(key)) return inFlight.get(key);
-  const promise = (async () => {
+  const existing = inFlight.get(key);
+  if (existing && (Date.now() - existing.startedAt) < SINGLE_FLIGHT_STALE_MS) return existing.promise;
+  const entry = { startedAt: Date.now(), promise: null };
+  entry.promise = (async () => {
     try {
       return await fn();
     } finally {
-      inFlight.delete(key);
+      if (inFlight.get(key) === entry) inFlight.delete(key);
     }
   })();
-  inFlight.set(key, promise);
-  return promise;
+  inFlight.set(key, entry);
+  return entry.promise;
 }
 
 // GET /api/public/* + sayfalanmış liste uçlarının ortak sarmalayıcısı. computeData(), yanıt

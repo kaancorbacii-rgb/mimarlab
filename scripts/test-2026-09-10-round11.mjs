@@ -200,5 +200,15 @@ await test('loadClaimCard kutuyu önce GİZLER, yalnızca gösterilecek dallarda
   assert.equal(shows, 3, `3 göster dalı bekleniyordu, ${shows} bulundu`);
 });
 
+section('withSingleFlight — takılı in-flight girdisi anahtarı sonsuza dek kilitlemez');
+
+await test('takılı (hiç settle olmayan) girdi bayatlayınca yeni hesaplama başlar', async () => {
+  const src = readFileSync(new URL('../src/lib/publicCache.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('const SINGLE_FLIGHT_STALE_MS'), 'bayatlık eşiği tanımlı olmalı');
+  assert.ok(/existing\.startedAt\) < SINGLE_FLIGHT_STALE_MS\) return existing\.promise/.test(src));
+  assert.ok(src.includes('if (inFlight.get(key) === entry) inFlight.delete(key);'), 'finally yalnızca KENDİ girdisini silmeli');
+  assert.ok(src.includes('return entry.promise;'));
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`  - ${f.name}: ${f.message}`); process.exit(1); }
