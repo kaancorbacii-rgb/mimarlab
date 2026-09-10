@@ -34,3 +34,11 @@ scratch-test-vecs*.json
 # guard'i sayesinde fark edildi). Yildiz, bundan sonraki partileri de kapsar.
 docs/epostalar-*.md
 docs/gonderim-listesi*.csv
+
+# Şişecam ürün görsellerinin KAYNAK klasörü (2026-09-10): kullanıcı 60 görseli elle indirip repo
+# köküne koydu; hepsi WebP olarak R2'ye (import/products/...) yüklendi, yani sitenin ihtiyacı olan
+# kopya artık R2'de. 7 MB'lık bu kaynak seti repoya girmemeli. .assetsignore'a da eklendi — ikisi
+# AYRI dosyadır (bkz. memory: ".gitignore ≠ .assetsignore"): yalnızca .gitignore'da olsaydı klasör
+# commit'lenmezdi ama `wrangler deploy` onu YİNE DE public statik varlık olarak yayınlardı
+# (https://mimarlab.com/sisecam-urunler/... ile herkese açık olurdu).
+sisecam-urunler/
