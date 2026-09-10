@@ -1112,7 +1112,10 @@ const OfficeModal = (function () {
       if (!slot || typeof MessageWidget === 'undefined') return;
       const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.office && dynamicBadges.office[o.name]) || [];
       const badges = dynamic.length ? dynamic : (o.badges || []);
-      if (!badges.length) { slot.innerHTML = ''; return; }
+      // Sahiplenilmiş firma/markada da aktif (kullanıcı isteği, 2026-09-10 on birinci tur madde 6) —
+      // bkz. architect-modal.js#renderMessageIcon'daki AYNI gerekçe; alıcı kuralı sunucuda
+      // (messages.js#resolveRecipients: yetkili pozisyon ya da kişisel rozet).
+      if (!badges.length && !payload.claimed) { slot.innerHTML = ''; return; }
       if (slot.querySelector('.msg-btn')) return;
       slot.innerHTML = MessageWidget.html('om-message-btn');
       MessageWidget.wire('om-message-btn', () => ({

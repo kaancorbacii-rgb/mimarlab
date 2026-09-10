@@ -1,7 +1,8 @@
 import { json, errorJson, readJson } from '../lib/http.js';
+import { fetchUnclaimedPhotographerSlugs } from '../lib/claimedProfiles.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidFilesField } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidFilesField, findInvalidVariantsField } from '../lib/submissionTypes.js';
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { slugify } from '../lib/slugify.js';
@@ -93,6 +94,7 @@ async function handleAdminProductDetail(env, id) {
       id: p.id, slug: p.slug, kind: p.kind, title: p.title, brand: p.brand_name_raw, website: p.website,
       category: p.category, description: p.description, images: p.images, specs: p.specs, files: p.files,
       designer: p.designer, year: p.year,
+      variants: p.variants, // "Versiyonlar" — form artık düzenliyor (bkz. migrations/0110)
     },
   });
 }
@@ -105,6 +107,8 @@ async function handleAdminProductEdit(request, env, id) {
   if (!title) return errorJson('Başlık zorunlu.');
   const invalidFilesError = findInvalidFilesField('products', body);
   if (invalidFilesError) return errorJson(invalidFilesError);
+  const invalidVariantsError = findInvalidVariantsField('products', body); // body.variants'ı normalize eder
+  if (invalidVariantsError) return errorJson(invalidVariantsError);
 
   let brandOfficeId = null;
   if (body.brand) {
@@ -130,7 +134,11 @@ async function handleAdminProductEdit(request, env, id) {
   // reconcileVariantImages versiyonları SİLMEZ (0086'nın güvencesi korunur): ortak görseller yeni
   // sıraya dizilir, ürün galerisinden çıkarılan görsel versiyondan da düşer, versiyona ÖZEL
   // görseller (teknik çizim gibi, ürün galerisinde hiç bulunmayanlar) dokunulmadan kalır.
-  const nextVariants = reconcileVariantImages(row.variants, row.images, images);
+  // body.variants bir DİZİYSE form versiyonları açıkça düzenledi (kullanıcı isteği, 2026-09-10 on
+  // birinci tur madde 2) — olduğu gibi yazılır; yoksa eski uyarlama (bkz. canonicalSync#syncProduct).
+  const nextVariants = Array.isArray(body.variants)
+    ? JSON.stringify(body.variants)
+    : reconcileVariantImages(row.variants, row.images, images);
   const variantSet = nextVariants === null ? '' : ', variants = ?';
   const variantVal = nextVariants === null ? [] : [nextVariants];
   await env.DB.prepare(
@@ -266,6 +274,10 @@ async function fetchPreviewMap(env) {
   out.architects = await q('architects');
   out.offices = await q('offices');
   out.products = await q('products');
+  // photographerBlur — sahiplenilmemiş fotoğrafçıların /kisi/ slug'ları (kullanıcı isteği, 2026-09-10
+  // on birinci tur madde 7); önizleme listeleriyle AYNI "tek sinyal, DOM'da eşle" deseni, bkz.
+  // src/lib/claimedProfiles.js#fetchUnclaimedPhotographerSlugs ve preview-cards.js#markAll.
+  out.photographerBlur = await fetchUnclaimedPhotographerSlugs(env);
   return out;
 }
 

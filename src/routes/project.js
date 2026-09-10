@@ -425,7 +425,14 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // ekranı yerine profilin ADINI gösterir ve "Bu profil sana mı ait?" / "Geri Bildirim" kutularını
     // çalışır hâlde mount eder (kullanıcı isteği, 2026-09-10 yedinci tur madde 2). Yalnızca bu iki
     // alan sızar — kaydın geri kalanı (item) hâlâ null'dır, yani 410'un koruması aynen sürer.
-    if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at, previewTitle: row.preview_at ? row.title : null, previewSlug: row.preview_at ? row.slug : null };
+    //
+    // ÖNİZLEME ("soluk") PROJELER ARTIK TAM GÖVDE DÖNER (kullanıcı isteği, 2026-09-10 on birinci tur
+    // madde 7: "Blurlu proje popupları da açılabilir olsun ama popuplardaki tüm görseller blurlu ve
+    // medya kısmı kilitli olsun — telif hakkından kurtulmak için"). src/routes/architect.js'teki AYNI
+    // kural: preview_at DOLU satır 200 + normal payload + `preview:true`; istemci (project-modal.js)
+    // görselleri blurlar ve galeriyi kilitler (lightbox/işaretçi/etiketleme kapalı). Arşivlenmiş
+    // (preview_at BOŞ) kayıtlarda 410 koruması aynen sürer. ÜRÜNLER bilerek dışarıda kaldı.
+    if (row.hidden_at && !row.preview_at) return { item: null, hidden: true, preview: false, previewTitle: null, previewSlug: null };
     const item = shapeProjectItem(row);
     const [designerDetails, rawNames, owner, photographerDetails, photographerOffices] = await Promise.all([
       fetchDesignerDetails(env, row.id),
@@ -501,7 +508,8 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/project-modal.js#
     // renderItem yalnızca item'ı alır, payload'ı değil.
     item.claimed = !!owner || await anyProfileClaimed(env, designerDetails.map(d => d.name));
-    return { item, hidden: false };
+    // preview: bkz. yukarıdaki önizleme notu — popuptaki blur/medya kilidinin tek kaynağı.
+    return { item, hidden: false, preview: !!row.preview_at };
   });
 }
 

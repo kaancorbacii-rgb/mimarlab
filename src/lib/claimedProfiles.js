@@ -414,3 +414,30 @@ function parseNameList(value) {
     return Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string') : [];
   } catch { return []; }
 }
+
+// SAHİPLENİLMEMİŞ FOTOĞRAFÇILAR (kullanıcı isteği, 2026-09-10 on birinci tur madde 7: "profilini
+// henüz sahiplenmeyen fotoğrafçı profil fotoğraflarını da blurla" — telif gerekçesi). Mesleği
+// "Fotoğrafçı" içeren ve isArchitectProfileClaimed'in ÜÇ yolundan (kendi onaylı talebi / kurucusu
+// olduğu sahiplenilmiş firma / kendi yayınladığı profil) hiçbirine girmeyen kişilerin slug'ları.
+// /api/public/preview'a eklenir (bkz. src/routes/legacyContent.js#fetchPreviewMap) ve
+// js/components/preview-cards.js DOM'daki /kisi/<slug> kartlarının görselini blurlar — kişi
+// profilinin KENDİ fotoğrafı ise architect payload'ındaki `photoBlur` bayrağıyla (aynı kural,
+// isArchitectProfileClaimed) blurlanır. Tek sorgu, tek liste: fotoğrafçı sayısı küçüktür.
+export async function fetchUnclaimedPhotographerSlugs(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT a.slug FROM architects a
+      WHERE a.deleted_at IS NULL AND a.slug IS NOT NULL AND a.slug != ''
+        AND a.profession LIKE '%Fotoğrafçı%'
+        AND NOT EXISTS (SELECT 1 FROM profile_claims c WHERE c.status = 'approved'
+                          AND (c.profile_key = a.name OR (a.legacy_key IS NOT NULL AND c.profile_key = a.legacy_key)))
+        AND NOT EXISTS (SELECT 1 FROM offices o
+                          JOIN profile_claims c ON c.status = 'approved' AND c.profile_type = 'office'
+                           AND (c.profile_key = o.name OR (o.legacy_key IS NOT NULL AND c.profile_key = o.legacy_key))
+                         WHERE o.deleted_at IS NULL
+                           AND (o.id = a.office_id OR o.id IN (SELECT f.office_id FROM office_founders f WHERE f.architect_id = a.id)))
+        AND NOT EXISTS (SELECT 1 FROM architect_submissions s JOIN users u ON u.id = s.owner_user_id
+                         WHERE ('submission:' || s.id) = a.legacy_key AND s.status = 'approved'
+                           AND u.name IS NOT NULL AND a.name = u.name COLLATE NOCASE)`
+  ).all();
+  return (results || []).map(r => r.slug).filter(Boolean);
+}

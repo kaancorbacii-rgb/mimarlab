@@ -1391,7 +1391,14 @@ async function syncProduct(env, row, kind) {
     // (Gizle/Arşivle) bir daha bu satırı BULAMAZDI. İdempotency zaten claimedSlug'lı satırlarda
     // slug'a (products/materials asla yeniden adlandırılmadığından SABİT), claimsız satırlarda ise
     // legacy_key='submission:<id>'in kendisine (aşağıdaki arama koşulu, hiç değişmez) dayanır.
-    const nextVariants = reconcileVariantImages(existing.variants, existing.images, images);
+    // FORMDAN GELEN VERSİYONLAR (kullanıcı isteği, 2026-09-10 on birinci tur madde 2): row.variants
+    // bir DİZİYSE (parseSubmissionRow, nullableArrayFields sayesinde "hiç gönderilmedi"yi null
+    // bırakır) kullanıcının niyeti olduğu gibi yazılır — boş dizi de "versiyon yok" demektir.
+    // null ise eski davranış: içe aktarılan versiyonlara dokunulmaz, yalnızca galeri düzenlemesi
+    // onlara uyarlanır (reconcileVariantImages, 0086'nın güvencesi).
+    const nextVariants = Array.isArray(row.variants)
+      ? JSON.stringify(row.variants)
+      : reconcileVariantImages(existing.variants, existing.images, images);
     const variantSet = nextVariants === null ? '' : ', variants = ?';
     const variantVal = nextVariants === null ? [] : [nextVariants];
     await env.DB.prepare(
@@ -1408,9 +1415,11 @@ async function syncProduct(env, row, kind) {
     const clash = await env.DB.prepare(`SELECT id FROM products WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, files, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, marker, row.owner_user_id));
+      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, files, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id, variants)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?, ?)`
+    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, marker, row.owner_user_id,
+      // variants — bkz. UPDATE dalındaki not; yeni üründe null = "versiyon yok".
+      Array.isArray(row.variants) && row.variants.length ? JSON.stringify(row.variants) : null));
     productId = insert.meta.last_row_id;
     // bkz. syncProject'teki AYNI "claimedSlug'lı ama hedef bulunamadı" durumu ve gerekçesi (ör.
     // sahiplenilen ürün claim onaylanmadan ÖNCE silindiyse) — stale link'ler ARAYA yeni bir

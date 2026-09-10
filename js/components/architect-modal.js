@@ -828,8 +828,12 @@ const ArchitectModal = (function () {
     logoEl.innerHTML = '';
     logoEl.textContent = initials(a.name);
     logoEl.style.background = officeColor(a.name);
+    // photoBlur (kullanıcı isteği, 2026-09-10 on birinci tur madde 7): sahiplenilmemiş fotoğrafçının
+    // profil fotoğrafı blurlu (telif) — sunucu kararı (bkz. src/routes/architect.js#photoBlur), stil
+    // js/components/preview-cards.js#injectStyles'daki .ml-photo-blur (kartlarla AYNI ton).
+    logoEl.classList.toggle('ml-photo-blur', !!payload.photoBlur);
     const photoUrl = a.photo ? safeUrl(a.photo) : '';
-    if (photoUrl) {
+    if (photoUrl && !payload.photoBlur) {
       const img = document.createElement('img');
       // .profile-logo 64x64 px (bkz. injectStyles) — DPR 2'de 128 px yeter, en küçük türev basamağı
       // (400 px) fazlasıyla karşılar. Final image audit'te ölçüldü: burası ham URL kullandığından
@@ -850,6 +854,15 @@ const ArchitectModal = (function () {
     } else {
       logoEl.classList.remove('img-zoomable');
       logoEl.removeAttribute('data-lightbox-src');
+      // Blurlu fotoğraf: görsel yine basılır (kullanıcı profili tanısın) ama büyütme yok — tam
+      // çözünürlük telif riskinin kendisidir.
+      if (photoUrl && payload.photoBlur) {
+        const img = document.createElement('img');
+        img.src = (typeof cdnImg === 'function') ? cdnImg(photoUrl, 400) : photoUrl;
+        img.alt = ''; img.decoding = 'async'; img.draggable = false;
+        img.onerror = () => img.remove();
+        logoEl.appendChild(img);
+      }
     }
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
@@ -1149,7 +1162,11 @@ const ArchitectModal = (function () {
       if (!slot || typeof MessageWidget === 'undefined') return;
       const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.architect && dynamicBadges.architect[a.name]) || [];
       const badges = dynamic.length ? dynamic : (a.badges || []);
-      if (!badges.length) { slot.innerHTML = ''; return; }
+      // Mesaj butonu SAHİPLENİLMİŞ profilde de aktif (kullanıcı isteği, 2026-09-10 on birinci tur
+      // madde 6): alıcı, onaylı profile_claims sahibidir (bkz. src/routes/messages.js#
+      // resolveRecipients — rozetsiz kişi sahibi de alıcı listesine girer). payload.claimed sunucudan
+      // gelir (src/lib/claimedProfiles.js); rozet kuralı eskisi gibi ek bir kapı olarak kalır.
+      if (!badges.length && !payload.claimed) { slot.innerHTML = ''; return; }
       if (slot.querySelector('.msg-btn')) return;
       slot.innerHTML = MessageWidget.html('am-message-btn');
       MessageWidget.wire('am-message-btn', () => ({

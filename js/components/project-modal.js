@@ -496,7 +496,13 @@ const ProjectModal = (function () {
   // bulgu (kullanıcı isteği, 2026-09-01 madde 4): her başarısızlığı null'a indirgemek, geçici bir
   // 429/5xx/ağ hatasında yayında olan bir projeyi "Proje bulunamadı" olarak gösteriyordu.
   function fetchItem(slug) {
-    return ModalShell.fetchEntity(`/api/project/${encodeURIComponent(slug)}`);
+    return ModalShell.fetchEntity(`/api/project/${encodeURIComponent(slug)}`).then(result => {
+      // preview (kullanıcı isteği, 2026-09-10 on birinci tur madde 7): sunucu bayrağı gövdenin
+      // KÖKÜNDE gelir (bkz. src/routes/project.js) ama bu modal renderItem'a yalnızca item'ı taşır —
+      // bayrak burada item'a bindirilir ki galeri kilidi/blur tek yerden (renderItem) okunsun.
+      if (result && result.status === 'ok' && result.payload && result.payload.preview) result.item.preview = true;
+      return result;
+    });
   }
 
   // renderByline KALDIRILDI (kullanici istegi, 2026-09-09: "kimin proje ve urunu yayinladigi dair
@@ -805,6 +811,13 @@ const ProjectModal = (function () {
     // atanmamışsa "kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır" + aynı çağrı (bkz.
     // modal-shell.js#setSourceDisclaimer ve src/lib/claimedProfiles.js).
     ModalShell.setSourceDisclaimer('pm-source-disclaimer', item.claimed);
+    // ÖNİZLEME ("soluk") PROJE ARTIK TAM AÇILIR (kullanıcı isteği, 2026-09-10 on birinci tur madde
+    // 7): popuptaki TÜM görseller blurlanır (modal-shell.js#setPreviewBlur) ve MEDYA KİLİTLİ —
+    // galeri küçük resimleri lightbox açmaz, işaretçi/etiketleme yok (bkz. project-gallery.js →
+    // gallery.js#initDetailGallery opts.locked). Bayrak her render'da KOŞULSUZ yazılır.
+    ModalShell.setPreviewBlur(!!item.preview);
+    ModalShell.clearPreviewNote();
+    if (item.preview) ModalShell.showPreviewNote(document.getElementById('pm-title'));
     updateHeadMeta(item);
     // Proje görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
     if (window.MimarlabAnalytics) MimarlabAnalytics.view('project', item.slug);
@@ -869,6 +882,7 @@ const ProjectModal = (function () {
     const previewTitle = (result && result.previewTitle) || null;
     hideLoadingSkeleton();
     ModalShell.clearLoadError();
+    ModalShell.setPreviewBlur(false); // bir önceki (önizleme) içeriğin bluru burada asılı kalmasın
     const titleEl = document.getElementById('pm-title');
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';

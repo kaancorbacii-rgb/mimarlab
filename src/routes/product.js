@@ -89,6 +89,9 @@ export async function fetchProductPool(env) {
       return {
         slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
         image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
+        // images: kart karuseli için ilk 6 görsel (bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES
+        // ve js/components/card-carousel.js). `image` (kapak) geriye dönük uyumluluk için kalır.
+        images: (p.images || []).slice(0, 6),
         year: p.year || null, designers,
         // preview: bkz. src/lib/projectPool.js#shapeProjectItem'daki AYNI alan/gerekçe.
         ...(row.preview_at ? { preview: true } : {}),

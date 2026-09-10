@@ -606,7 +606,7 @@ function renderCards(items){
     const cardSrcset = cardImg ? cdnSrcset(cardImg, [400, 600, 800]) : '';
     return `
     <a class="content-card" href="/proje/${encodeURIComponent(p.slug)}">
-      <div class="content-card-photo">
+      <div class="content-card-photo"${(p.images && p.images.length > 1) ? ` data-images="${escapeAttr(JSON.stringify(p.images.slice(0, 6)))}"` : ''}>
         ${cardImg ? `<img src="${escapeAttr(cdnImg(cardImg, 600))}"${cardSrcset ? ` srcset="${escapeAttr(cardSrcset)}"` : ''} alt="${escapeAttr(p.title)}" ${imgAttrs} decoding="async" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
         <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr((p.images && p.images[0])||'')}" data-href="/proje/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>

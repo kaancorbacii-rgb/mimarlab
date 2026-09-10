@@ -451,11 +451,13 @@ if(p.replace(/\/+$/,'')==='/urun'&&!location.search){var u='/api/products?page=1
 <script src="js/components/related-strip.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 <script src="js/components/project-group-filter.js" defer></script>
+<script src="js/components/product-variants.js" defer></script>
 <script src="js/components/product-modal.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="urun"></div>
   <script src="js/components/site-chrome.js"></script>
   <script src="js/components/preview-cards.js" defer></script>
+  <script src="js/components/card-carousel.js" defer></script>
   <script src="js/components/broken-image-fallback.js" defer></script>
 
   <div class="breadcrumb-bar" id="breadcrumb-bar">
@@ -832,7 +834,7 @@ async function render(){
   const cols = window.innerWidth <= 720 ? 2 : 3;
   grid.innerHTML = pageItems.map((p, i) => `
     <div class="content-card">
-      <div class="content-card-photo">
+      <div class="content-card-photo"${(p.images && p.images.length > 1) ? ` data-images="${escapeAttr(JSON.stringify(p.images.slice(0, 6)))}"` : ''}>
         ${catalogCardMediaHtml(p, escapeHtml, escapeAttr, i < cols)}
         <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="/urun/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
@@ -849,7 +851,7 @@ async function render(){
   grid.querySelectorAll('.content-card').forEach((card, i)=>{
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
-      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot')) return;
+      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('.ccar-btn')) return;
       // Kartın KENDİ ürün bağlantısı (başlık) dışındaki bağlantılar (ör. "Gönderiyi Düzenle")
       // tarayıcının doğal davranışına bırakılır; başlık bağlantısı düz sol tıklamada modalı açar,
       // Cmd/Ctrl/orta tıkta ise gerçek bir yeni sekme açılır (bkz. .content-card-titlelink yorumu).

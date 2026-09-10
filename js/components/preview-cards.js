@@ -45,11 +45,19 @@
   // Bu adres bir KİŞİ/FİRMA/MARKA profiline mi gidiyor? (kullanıcı isteği, 2026-09-10 on birinci tur
   // madde 2: "Blurlu kişi, firma ve marka popupları açılabilir olsun, kilitlerini kaldır ... Hâli
   // hazırdaki blurlu projeler ve ürünler ... kilitli ve blurlu kalmaya devam etsin.")
-  var PROFILE_PREFIXES = ['/kisi/', '/firma/', '/marka/'];
+  // '/proje/' de AÇILABİLİR (aynı turun madde 7'si): önizleme projesi popup'ta görselleri blurlu ve
+  // medyası kilitli açılır (bkz. project-modal.js#renderItem). Yalnızca ÜRÜN kartı kilitli kalır.
+  var PROFILE_PREFIXES = ['/kisi/', '/firma/', '/marka/', '/proje/'];
   function isProfileKey(key) {
     for (var i = 0; i < PROFILE_PREFIXES.length; i++) if (key.indexOf(PROFILE_PREFIXES[i]) === 0) return true;
     return false;
   }
+
+  // Sahiplenilmemiş FOTOĞRAFÇI profilleri (kullanıcı isteği, 2026-09-10 on birinci tur madde 7:
+  // "profilini henüz sahiplenmeyen fotoğrafçı profil fotoğraflarını da blurla"): /api/public/preview
+  // #photographerBlur'daki slug'lar; bu kişilere giden her kartın/çipin GÖRSELİ blurlanır — kartın
+  // kendisi soluklaşmaz ve tıklanabilir kalır (profil yayında, yalnızca fotoğrafı korunuyor).
+  var blurPhotoHrefs = null; // Set<string> — "/kisi/slug"
 
   function injectStyles() {
     if (document.getElementById('preview-cards-styles')) return;
@@ -83,6 +91,8 @@
          ALMAZ, yani soluk/blurlu görünür ama normal kart gibi tıklanıp popup açar. Popupta
          görsellerin blurlu kalması modal tarafında yapılır (bkz. modal-shell.js#setPreviewBlur). */
       '.ml-preview-locked *{pointer-events:none;}',
+      /* Fotoğrafçı bluru — yalnızca görsel; opacity/pointer-events yok. Aynı ton (bkz. yukarısı). */
+      '.ml-photo-blur img{filter:blur(9px) grayscale(.5); transform:scale(1.06);}',
       /* "Bu profil sana mı ait?" mini popup'ı (kullanıcı isteği, 2026-09-10 madde 4). Kendi
          katmanında, sitenin modal kabuğundan BAĞIMSIZ: bu bileşen her sayfada yüklü ve ModalShell
          her sayfada yüklü DEĞİL. */
@@ -111,7 +121,7 @@
   }
 
   function markAll(root) {
-    if (!previewHrefs || !previewHrefs.size) return;
+    if (!(previewHrefs && previewHrefs.size) && !(blurPhotoHrefs && blurPhotoHrefs.size)) return;
     var scope = (root && root.querySelectorAll) ? root : document;
     var links = scope.querySelectorAll('a[href]');
     for (var i = 0; i < links.length; i++) {
@@ -129,7 +139,8 @@
       }
       if (!relevant) continue;
       a.dataset.mlPreviewChecked = '1';
-      if (!previewHrefs.has(key)) continue;
+      if (blurPhotoHrefs && blurPhotoHrefs.has(key)) cardRootFor(a).classList.add('ml-photo-blur');
+      if (!previewHrefs || !previewHrefs.has(key)) continue;
       var cardRoot = cardRootFor(a);
       cardRoot.classList.add('ml-preview-card');
       // Hedef adres kapsayıcıda saklanır — hangi kaydın önizleme olduğu DOM'dan okunabilsin diye
@@ -310,6 +321,11 @@
       .then(function (data) {
         if (!data) return;
         previewHrefs = new Set();
+        blurPhotoHrefs = new Set();
+        (data.photographerBlur || []).forEach(function (slug) {
+          blurPhotoHrefs.add('/kisi/' + encodeURIComponent(slug));
+          blurPhotoHrefs.add('/kisi/' + slug);
+        });
         Object.keys(PREFIX_BY_KIND).forEach(function (kind) {
           (data[kind] || []).forEach(function (slug) {
             PREFIX_BY_KIND[kind].forEach(function (prefix) {

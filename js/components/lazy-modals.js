@@ -167,7 +167,8 @@
       // etiketleri o üç sayfadan kaldırıldığından ENTITY_UI_DEPS burada da açıkça listelenmeli —
       // aksi halde bir firma popup'ından tıklanan `/urun/:slug` bağlantısı ModalShell'siz açılmaya
       // çalışıp ReferenceError verirdi. urun.html/proje.html'de dördü de zaten etiketli, no-op.
-      deps: [...ENTITY_UI_DEPS, 'js/components/gallery.js', 'rating-widget.js'],
+      // product-variants.js — Versiyonlar seçicisinin paylaşılan mantığı (bkz. o dosya başı).
+      deps: [...ENTITY_UI_DEPS, 'js/components/gallery.js', 'rating-widget.js', 'js/components/product-variants.js'],
     },
     project: {
       src: 'js/components/project-modal.js', globalName: 'ProjectModal',

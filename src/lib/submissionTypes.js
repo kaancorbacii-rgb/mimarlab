@@ -94,16 +94,21 @@ export const SUBMISSION_TYPES = {
     // 0088_product_claimed_slug.sql, kullanıcı isteği: "ürün ekle/düzenle de proje ekle/düzenle'deki
     // entegre sistemle aynı olsun"): doluysa bu satır yeni bir ürün DEĞİL, canonical products'taki
     // statik bir kaydın ÜZERİNE bindirilen bir marka sahiplenme düzenlemesidir.
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'claimed_slug', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs', 'files', 'projects'],
+    // variants — "Versiyonlar" (bkz. migrations/0110_product_submission_variants.sql). nullableArrayFields:
+    // gövdede HİÇ yoksa NULL ("içe aktarılan versiyonlara dokunma"), varsa (boş dizi dahil) yazılır.
+    // Öğeler nesne olduğundan urlArrayFields'a girmez; doğrulama findInvalidVariantsField'de.
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'variants', 'claimed_slug', 'source_url', 'ai_generated'],
+    arrayFields: ['images', 'specs', 'files', 'projects', 'variants'],
+    nullableArrayFields: ['variants'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
   },
   materials: {
     table: 'material_submissions',
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'claimed_slug', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs', 'files', 'projects'],
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'variants', 'claimed_slug', 'source_url', 'ai_generated'],
+    arrayFields: ['images', 'specs', 'files', 'projects', 'variants'],
+    nullableArrayFields: ['variants'], // bkz. products'taki not
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
@@ -320,6 +325,71 @@ export function findInvalidFilesField(type, body) {
     total += size;
   }
   if (total > MAX_PRODUCT_FILES_TOTAL_BYTES) return 'Toplam dosya boyutu sınırı aşıldı (en fazla 30 MB).';
+  return null;
+}
+
+// body.variants — "Versiyonlar" (kullanıcı isteği, 2026-09-10 on birinci tur madde 2; biçim bkz.
+// migrations/0086_product_variants.sql). findInvalidFilesField ile AYNI gerekçe: öğeler nesne,
+// urlArrayFields'ın düz-string kontrolü uygulanamaz; doğrudan API'ye giden bir istek buraya
+// gelişigüzel bir yapı yazabilirdi. Bu fonksiyon hem DOĞRULAR hem de body.variants'ı YERİNDE
+// KANONİK biçime indirger (bilinmeyen anahtarlar düşer, boş satırlar atılır) — böylece canonical
+// satıra yalnızca sözleşmedeki alanlar yazılır. Alan gövdede yoksa/NULL ise dokunulmaz ("form
+// göndermedi", bkz. nullableArrayFields). Hata varsa açıklayıcı bir mesaj döner.
+const MAX_VARIANTS = 40;
+const MAX_VARIANT_OPTIONS = 8;
+const MAX_VARIANT_IMAGES = 20;
+const MAX_VARIANT_SPECS = 40;
+const isPlainStr = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+export function findInvalidVariantsField(type, body) {
+  if (type !== 'products' && type !== 'materials') return null;
+  if (!('variants' in body) || body.variants == null) return null;
+  const raw = body.variants;
+  if (!Array.isArray(raw)) return 'Versiyonlar alanı geçersiz.';
+  if (raw.length > MAX_VARIANTS) return `En fazla ${MAX_VARIANTS} versiyon ekleyebilirsin.`;
+  const out = [];
+  for (const v of raw) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return 'Versiyonlar alanı geçersiz.';
+    if (!isPlainStr(v.label, 120)) return 'Her versiyonun bir adı olmalı (en fazla 120 karakter).';
+    const options = [];
+    for (const o of (Array.isArray(v.options) ? v.options : [])) {
+      if (!o || typeof o !== 'object') return 'Versiyon seçenekleri geçersiz.';
+      if (!isPlainStr(o.label, 60) || !isPlainStr(o.value, 80)) return 'Versiyon seçeneği için grup adı ve değer zorunlu.';
+      options.push({ label: o.label.trim(), value: o.value.trim() });
+    }
+    if (options.length > MAX_VARIANT_OPTIONS) return `Bir versiyonda en fazla ${MAX_VARIANT_OPTIONS} seçenek olabilir.`;
+    const images = [];
+    for (const u of (Array.isArray(v.images) ? v.images : [])) {
+      if (typeof u !== 'string' || !u || !isSafeUrlValue(u)) return 'Versiyon görsel bağlantısı geçersiz.';
+      images.push(u);
+    }
+    if (images.length > MAX_VARIANT_IMAGES) return `Bir versiyona en fazla ${MAX_VARIANT_IMAGES} görsel bağlanabilir.`;
+    const specs = [];
+    for (const sp of (Array.isArray(v.specs) ? v.specs : [])) {
+      if (!sp || typeof sp !== 'object') return 'Versiyon teknik özellikleri geçersiz.';
+      const label = typeof sp.label === 'string' ? sp.label.trim() : '';
+      const value = typeof sp.value === 'string' ? sp.value.trim() : '';
+      if (!label && !value) continue;
+      if (label.length > 120 || value.length > 500) return 'Versiyon teknik özelliği çok uzun.';
+      specs.push({ label, value });
+    }
+    if (specs.length > MAX_VARIANT_SPECS) return `Bir versiyonda en fazla ${MAX_VARIANT_SPECS} teknik özellik olabilir.`;
+    const description = typeof v.description === 'string' ? v.description.trim().slice(0, 1500) : '';
+    const sourceUrl = typeof v.sourceUrl === 'string' && v.sourceUrl ? v.sourceUrl : '';
+    if (sourceUrl && !isSafeUrlValue(sourceUrl)) return 'Versiyon kaynak bağlantısı geçersiz.';
+    // files: formdan gelmez; içe aktarılmış bir versiyonun dosyaları (varsa) korunur, yalnızca
+    // {url,filename,format,size} nesneleri kabul edilir.
+    const files = [];
+    for (const fl of (Array.isArray(v.files) ? v.files : [])) {
+      if (!fl || typeof fl !== 'object' || typeof fl.url !== 'string' || !isSafeUrlValue(fl.url)) continue;
+      files.push({ url: fl.url, filename: typeof fl.filename === 'string' ? fl.filename : '', format: typeof fl.format === 'string' ? fl.format : '', size: Number(fl.size) || null });
+    }
+    const entry = { label: v.label.trim(), options, images, specs };
+    if (files.length) entry.files = files;
+    if (description) entry.description = description;
+    if (sourceUrl) entry.sourceUrl = sourceUrl;
+    out.push(entry);
+  }
+  body.variants = out;
   return null;
 }
 

@@ -1075,11 +1075,13 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
      yine bu projeye denk gelir ve proje popup'ı geri gelir. Yükleme sırası ÖNEMLİ: modal-shell.js'ten
      SONRA gelmeli (defer sırayı korur) ve ProjectModal'ın delege dinleyicisi `typeof ProductModal`e
      baktığından bu satırın varlığı davranışı açıp kapatan tek anahtardır. -->
+<script src="js/components/product-variants.js" defer></script>
 <script src="js/components/product-modal.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="proje"></div>
   <script src="js/components/site-chrome.js"></script>
   <script src="js/components/preview-cards.js" defer></script>
+  <script src="js/components/card-carousel.js" defer></script>
   <script src="js/components/broken-image-fallback.js" defer></script>
 
   <div class="breadcrumb-bar">

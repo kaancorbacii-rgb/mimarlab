@@ -687,9 +687,14 @@ export async function buildArchitectPayload(env, key) {
   // /api/public/claim-status'te de uygulanır, ibare ile davet kutusu birlikte kalkar.
   const claimed = await isArchitectProfileClaimed(env, [a.name, a.legacy_key]);
 
+  // photoBlur (kullanıcı isteği, 2026-09-10 on birinci tur madde 7): sahiplenilmemiş bir
+  // FOTOĞRAFÇININ profil fotoğrafı popup'ta blurlanır (telif). Kural isArchitectProfileClaimed ile
+  // AYNI — bkz. src/lib/claimedProfiles.js#fetchUnclaimedPhotographerSlugs (kart tarafı).
+  const photoBlur = !claimed && professionLabelList(a.profession).includes('Fotoğrafçı');
   return {
     item,
     claimed,
+    photoBlur,
     office: office ? { name: office.name, loc: office.loc, cats: office.cats, yil: office.yil, logo: office.logo_url, badges: [] } : null,
     offices: [
       ...offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),

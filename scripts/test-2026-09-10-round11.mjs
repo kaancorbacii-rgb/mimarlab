@@ -210,5 +210,220 @@ await test('takılı (hiç settle olmayan) girdi bayatlayınca yeni hesaplama ba
   assert.ok(src.includes('return entry.promise;'));
 });
 
+// =============================================================================================
+// ON BİRİNCİ TUR, İKİNCİ PARTİ (madde 2, 5, 6, 7)
+// =============================================================================================
+import { findInvalidVariantsField, normalizeSubmission, parseSubmissionRow } from '../src/lib/submissionTypes.js';
+import { fetchUnclaimedPhotographerSlugs } from '../src/lib/claimedProfiles.js';
+import { handleProjectDetailRoute } from '../src/routes/project.js';
+import vm from 'node:vm';
+
+section('madde 2 — versiyonlar: doğrulama + normalize (submissionTypes)');
+
+await test('alan gövdede yoksa null kalır ("dokunma"), varsa normalize edilir', () => {
+  const body = { title: 'X', brand: 'Y' };
+  assert.equal(findInvalidVariantsField('products', body), null);
+  assert.ok(!('variants' in body));
+  const row = normalizeSubmission('products', body);
+  assert.equal(row.variants, null, 'nullableArrayFields: gönderilmeyen alan NULL yazılmalı');
+  const parsed = parseSubmissionRow('products', { ...row, variants: null });
+  assert.equal(parsed.variants, null);
+});
+
+await test('geçerli versiyon listesi kanonik biçime iner (bilinmeyen anahtarlar düşer)', () => {
+  const body = { variants: [
+    { label: ' Ecosol 50 · Nötral ', options: [{ label: 'Model', value: '50' }, { label: 'Renk', value: 'Nötral' }], images: ['/media/u/a.webp'], specs: [{ label: 'Kalınlık', value: '6 mm' }, { label: '', value: '' }], zzz: 1 },
+    { label: 'Ecosol 62', options: [{ label: 'Model', value: '62' }], images: [], specs: [], description: 'x', sourceUrl: 'https://sisecam.com' },
+  ] };
+  assert.equal(findInvalidVariantsField('products', body), null);
+  assert.deepEqual(body.variants[0], { label: 'Ecosol 50 · Nötral', options: [{ label: 'Model', value: '50' }, { label: 'Renk', value: 'Nötral' }], images: ['/media/u/a.webp'], specs: [{ label: 'Kalınlık', value: '6 mm' }] });
+  assert.equal(body.variants[1].description, 'x');
+  assert.equal(body.variants[1].sourceUrl, 'https://sisecam.com');
+  const row = normalizeSubmission('products', { title: 'X', brand: 'Y', variants: body.variants });
+  assert.equal(typeof row.variants, 'string');
+  assert.equal(parseSubmissionRow('products', row).variants.length, 2);
+  const empty = normalizeSubmission('products', { title: 'X', brand: 'Y', variants: [] });
+  assert.equal(empty.variants, '[]', 'boş dizi "versiyonları kaldır" — NULL değil');
+});
+
+await test('geçersiz yapılar reddedilir', () => {
+  assert.match(findInvalidVariantsField('products', { variants: 'x' }), /geçersiz/);
+  assert.match(findInvalidVariantsField('products', { variants: [{ label: '' }] }), /ad/);
+  assert.match(findInvalidVariantsField('products', { variants: [{ label: 'A', options: [{ label: 'Renk', value: '' }] }] }), /grup adı ve değer/);
+  assert.match(findInvalidVariantsField('products', { variants: [{ label: 'A', images: ['javascript:alert(1)'] }] }), /görsel/);
+  assert.equal(findInvalidVariantsField('architects', { variants: 'x' }), null, 'yalnızca ürün/malzeme');
+});
+
+section('madde 2 — product-variants.js: gruplar, en yakın versiyon, kapalı hap\'lar');
+
+function loadVariantsApi() {
+  const src = readFileSync(new URL('../js/components/product-variants.js', import.meta.url), 'utf8');
+  const ctx = { window: {} };
+  vm.runInNewContext(src, ctx);
+  return ctx.window.MLProductVariants;
+}
+const VARIANTS = [
+  { label: '50 · Nötral', options: [{ label: 'Model', value: '50' }, { label: 'Renk', value: 'Nötral' }] },
+  { label: '50 · Füme', options: [{ label: 'Model', value: '50' }, { label: 'Renk', value: 'Füme' }] },
+  { label: 'T 21 · Füme', options: [{ label: 'Model', value: 'T 21' }, { label: 'Renk', value: 'Füme' }] },
+  { label: 'T 21 · Bronz', options: [{ label: 'Model', value: 'T 21' }, { label: 'Renk', value: 'Bronz' }] },
+];
+
+await test('buildGroups: sıra korunur, tek değerli gruplar elenir', () => {
+  const api = loadVariantsApi();
+  const groups = api.buildGroups(VARIANTS);
+  // vm bağlamının Array'i farklı realm'den — deepEqual yerine JSON karşılaştırması.
+  assert.equal(JSON.stringify(groups.map(g => g.label)), JSON.stringify(['Model', 'Renk']));
+  assert.equal(JSON.stringify(groups[1].values), JSON.stringify(['Nötral', 'Füme', 'Bronz']));
+  const single = api.buildGroups([{ label: 'A', options: [{ label: 'Renk', value: 'X' }] }, { label: 'B', options: [{ label: 'Renk', value: 'X' }] }]);
+  assert.equal(single.length, 1); assert.ok(single[0].byVariantLabel);
+});
+
+await test('availability: seçili modelde olmayan renkler KAPALI (ekteki örnek: bir modelin bir rengi yoksa)', () => {
+  const api = loadVariantsApi();
+  const groups = api.buildGroups(VARIANTS);
+  const av = api.availability(VARIANTS, groups, 0); // 50 · Nötral seçili
+  assert.deepEqual([...av.get('Renk')].sort(), ['Füme', 'Nötral'].sort(), 'Model 50 için Bronz kapalı');
+  assert.deepEqual([...av.get('Model')].sort(), ['50'], 'Nötral için T 21 kapalı');
+  const av2 = api.availability(VARIANTS, groups, 2); // T 21 · Füme
+  assert.deepEqual([...av2.get('Renk')].sort(), ['Bronz', 'Füme'].sort());
+});
+
+await test('pickIndex: kapalı hap\'a tıklamak en yakın gerçek versiyona düşer (çıkmaz yok)', () => {
+  const api = loadVariantsApi();
+  const groups = api.buildGroups(VARIANTS);
+  // 50 · Nötral'dayken "Bronz" (Model 50'de yok) → T 21 · Bronz (Bronz zorlanır, en yakın)
+  assert.equal(api.pickIndex(VARIANTS, groups, 0, groups[1], 'Bronz'), 3);
+  // 50 · Nötral'dayken "T 21" (Nötral'da yok) → T 21 · Füme ya da Bronz (ilk eşleşen, skor eşit)
+  assert.equal(api.pickIndex(VARIANTS, groups, 0, groups[0], 'T 21'), 2);
+  assert.equal(api.pickIndex(VARIANTS, groups, 0, groups[1], 'Yok'), -1);
+});
+
+await test('product-modal.js kapalı hap sınıfını yazıyor; form ve popup aynı modülü kullanıyor', () => {
+  const pm = readFileSync(new URL('../js/components/product-modal.js', import.meta.url), 'utf8');
+  assert.ok(pm.includes("btn.classList.toggle('is-off', off && !active)"));
+  assert.ok(pm.includes('.pr-variant-pill.is-off{'));
+  assert.ok(pm.includes('window.MLProductVariants'));
+  const form = readFileSync(new URL('../urun-ekle.html', import.meta.url), 'utf8');
+  assert.ok(form.includes('id="variants-section"'));
+  assert.ok(form.includes('js/components/product-variants.js'));
+  assert.ok(form.includes('if(variantsDirty){'), 'dokunulmadıysa alan gönderilmemeli');
+  const lm = readFileSync(new URL('../js/components/lazy-modals.js', import.meta.url), 'utf8');
+  assert.ok(lm.includes("'js/components/product-variants.js'"), 'tembel yüklenen ürün modalı da modülü almalı');
+});
+
+section('madde 7 — önizleme PROJESİ tam açılır (görseller blurlu, medya kilitli); ürün kilitli kalır');
+
+function projectDb() {
+  const db = freshDb();
+  db.exec(`
+    INSERT INTO projects (slug, title, images, build_status, source, hidden_at, preview_at) VALUES
+      ('canli-proje', 'Canlı Proje', '["/media/a.webp"]', 'built', 'legacy_static', NULL, NULL),
+      ('onizleme-proje', 'Önizleme Proje', '["/media/b.webp","/media/c.webp"]', 'built', 'legacy_static', '${NOW}', '${NOW}'),
+      ('arsiv-proje', 'Arşiv Proje', '["/media/d.webp"]', 'built', 'legacy_static', '${NOW}', NULL);
+  `);
+  return db;
+}
+async function projectPayload(slug) {
+  const db = projectDb();
+  const url = new URL('https://mimarlab.com/api/project/' + slug);
+  const res = await handleProjectDetailRoute(new Request(url), { DB: d1(db), IMG_KV: null, FACET_CACHE: null }, url, slug);
+  return { status: res.status, body: await res.json() };
+}
+
+await test('ÖNİZLEME proje: 200 + item dolu + preview:true', async () => {
+  const p = await projectPayload('onizleme-proje');
+  assert.equal(p.status, 200, JSON.stringify(p.body).slice(0, 200));
+  assert.ok(p.body.item && p.body.item.title === 'Önizleme Proje');
+  assert.equal(p.body.hidden, false);
+  assert.equal(p.body.preview, true);
+});
+await test('ARŞİV proje: 410 + item null (koruma sürüyor); canlı proje preview:false', async () => {
+  const a = await projectPayload('arsiv-proje');
+  assert.equal(a.status, 410); assert.equal(a.body.item, null); assert.equal(a.body.preview, false);
+  const c = await projectPayload('canli-proje');
+  assert.equal(c.status, 200); assert.equal(c.body.preview, false);
+});
+
+await test('istemci: /proje/ kartı açılabilir, /urun/ kilitli; proje modalı blur + kilit uyguluyor', () => {
+  assert.ok(/PROFILE_PREFIXES = \['\/kisi\/', '\/firma\/', '\/marka\/', '\/proje\/'\]/.test(previewCardsSrc.includes('/proje/') ? readFileSync(new URL('../js/components/preview-cards.js', import.meta.url), 'utf8') : ''), '/proje/ açılabilir öneklere eklenmeli');
+  const pm = readFileSync(new URL('../js/components/project-modal.js', import.meta.url), 'utf8');
+  assert.ok(pm.includes('ModalShell.setPreviewBlur(!!item.preview);'));
+  assert.ok(pm.includes('result.item.preview = true'), 'payload.preview item\'a taşınmalı');
+  const pg = readFileSync(new URL('../js/components/project-gallery.js', import.meta.url), 'utf8');
+  assert.ok(pg.includes('locked: !!item.preview'));
+  const g = readFileSync(new URL('../js/components/gallery.js', import.meta.url), 'utf8');
+  assert.ok(g.includes('if(galleryEl._pmGalleryState.locked) return;'), 'kilitli galeri lightbox açmamalı');
+  assert.ok(g.includes('if(locked) return; // önizleme: işaretçi yok'));
+  const prod = readFileSync(new URL('../src/routes/product.js', import.meta.url), 'utf8');
+  assert.ok(prod.includes('if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at'), 'ürün 410 önizleme yolu DEĞİŞMEMELİ');
+});
+
+section('madde 7 — sahiplenilmemiş fotoğrafçı profil fotoğrafı bluru');
+
+await test('fetchUnclaimedPhotographerSlugs: sahipsiz fotoğrafçı listede, sahiplenilmiş/mimar değil', async () => {
+  const db = freshDb();
+  const now = Date.now();
+  db.exec(`
+    INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u1', 'a@b.c', 'x', 'Sahip Foto', 'user', ${now});
+    INSERT INTO offices (id, slug, name) VALUES (1, 'foto-studyo', 'Foto Stüdyo');
+    INSERT INTO architects (id, slug, name, profession) VALUES
+      (1, 'sahipsiz-foto', 'Sahipsiz Foto', 'Fotoğrafçı'),
+      (2, 'sahip-foto', 'Sahip Foto', 'Mimar, Fotoğrafçı'),
+      (3, 'mimar', 'Mimar Kişi', 'Mimar'),
+      (4, 'kurucu-foto', 'Kurucu Foto', 'Fotoğrafçı');
+    INSERT INTO office_founders (office_id, architect_id) VALUES (1, 4);
+    INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES
+      ('c1', 'u1', 'architect', 'Sahip Foto', 'approved', ${now}, ${now}),
+      ('c2', 'u1', 'office', 'Foto Stüdyo', 'approved', ${now}, ${now});
+  `);
+  const slugs = await fetchUnclaimedPhotographerSlugs({ DB: d1(db) });
+  assert.deepEqual(slugs, ['sahipsiz-foto']);
+});
+
+await test('architect payload photoBlur: sahipsiz fotoğrafçı true, mimar false', async () => {
+  const db = freshDb();
+  db.exec(`INSERT INTO architects (slug, name, profession) VALUES ('foto', 'Foto Kişi', 'Fotoğrafçı'), ('mimar', 'Mimar Kişi', 'Mimar');`);
+  const { buildArchitectPayload } = await import('../src/routes/architect.js');
+  assert.equal((await buildArchitectPayload({ DB: d1(db), IMG_KV: null }, 'foto')).photoBlur, true);
+  assert.equal((await buildArchitectPayload({ DB: d1(db), IMG_KV: null }, 'mimar')).photoBlur, false);
+  const pc = readFileSync(new URL('../js/components/preview-cards.js', import.meta.url), 'utf8');
+  assert.ok(pc.includes('data.photographerBlur'), 'preview-cards /api/public/preview#photographerBlur okumalı');
+  assert.ok(pc.includes(".ml-photo-blur img{"));
+});
+
+section('madde 6 — mesaj butonu sahiplenilmiş profilde de aktif');
+await test('architect/office modal: rozet YOK ama claimed ise buton kalır', () => {
+  for (const [name, src] of [['architect-modal', architectModalSrc], ['office-modal', officeModalSrc]]) {
+    assert.ok(src.includes('if (!badges.length && !payload.claimed) { slot.innerHTML = \'\'; return; }'), name);
+  }
+});
+
+section('madde 5 — kart karuseli: liste yükü çoklu görsel, kart data-images, modül');
+await test('liste yükleri ilk 6 görseli taşıyor; kartlar data-images basıyor; modül iki sayfada da yüklü', () => {
+  const pool = readFileSync(new URL('../src/lib/projectPool.js', import.meta.url), 'utf8');
+  assert.ok(pool.includes('export const CARD_CAROUSEL_IMAGES = 6;'));
+  assert.ok(pool.includes('p.images.slice(0, CARD_CAROUSEL_IMAGES)'));
+  const prod = readFileSync(new URL('../src/routes/product.js', import.meta.url), 'utf8');
+  assert.ok(prod.includes('images: (p.images || []).slice(0, 6),'));
+  const pj = readFileSync(new URL('../js/pages/proje.js', import.meta.url), 'utf8');
+  assert.ok(pj.includes('data-images='));
+  const uh = readFileSync(new URL('../urun.html', import.meta.url), 'utf8');
+  assert.ok(uh.includes('data-images=') && uh.includes('js/components/card-carousel.js'));
+  assert.ok(readFileSync(new URL('../proje.html', import.meta.url), 'utf8').includes('js/components/card-carousel.js'));
+  const cc = readFileSync(new URL('../js/components/card-carousel.js', import.meta.url), 'utf8');
+  assert.ok(cc.includes("document.addEventListener('click', function (e) {") && cc.includes('}, true);'), 'oklar capture fazında durdurulmalı');
+  const pcv = readFileSync(new URL('../src/lib/publicCache.js', import.meta.url), 'utf8');
+  assert.ok(/const API_PAYLOAD_VERSION = 'v3[1-9]';/.test(pcv), 'liste şekli değişti — sürüm bump');
+});
+
+section('madde 4 — lightbox sağ altında fotoğrafçı adı');
+await test('gallery.js kredi etiketi + project-gallery kredi kaynağı', () => {
+  const g = readFileSync(new URL('../js/components/gallery.js', import.meta.url), 'utf8');
+  assert.ok(g.includes(".lightbox-credit{") && g.includes("creditEl.textContent = credit ? `© ${credit}` : '';"));
+  const pg = readFileSync(new URL('../js/components/project-gallery.js', import.meta.url), 'utf8');
+  assert.ok(pg.includes('credit: photographerCredit(item)') && pg.includes('item.photoCredit && item.photoCredit.text'));
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`  - ${f.name}: ${f.message}`); process.exit(1); }

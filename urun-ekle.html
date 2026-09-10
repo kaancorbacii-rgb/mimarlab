@@ -294,6 +294,49 @@
   .specs-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
   .specs-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; color:var(--walnut);}
   .specs-add-btn:hover{border-color:var(--brass); background:var(--paper-alt);}
+  /* ---------- VERSİYONLAR (kullanıcı isteği, 2026-09-10 on birinci tur madde 2) ----------
+     Popup'taki "Versiyonlar" künyesinin form karşılığı. Her versiyon bir kart: ad + seçenek çiftleri
+     (grup: değer) + galeriden seçilen görseller + versiyona özel teknik özellikler. Altta popup'ın
+     hap görünümünün canlı önizlemesi (js/components/product-variants.js — popup ile AYNI türetme,
+     mevcut olmayan kombinasyon burada da "kapalı" hap olarak görünür). Bölüm tamamen opsiyonel:
+     hiç versiyon eklenmezse form eskisi gibi tek ürün gönderir. */
+  .variant-card{border:1px solid var(--line); border-radius:14px; padding:16px 16px 14px; margin-bottom:12px; background:var(--paper);}
+  .variant-card-head{display:flex; gap:10px; align-items:center; margin-bottom:12px;}
+  .variant-card-head .variant-no{flex-shrink:0; width:26px; height:26px; border-radius:50%; background:var(--ink); color:var(--paper-card); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .variant-card-head input{flex:1; min-width:0; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--paper-card); font-family:inherit; font-size:13.5px; color:var(--ink);}
+  .variant-card-head .specs-remove-btn{flex-shrink:0;}
+  .variant-sub{font-size:12px; font-weight:600; color:var(--ink-soft); margin:12px 0 7px;}
+  .variant-sub:first-of-type{margin-top:0;}
+  .variant-opt-row{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) auto; gap:8px; margin-bottom:8px; align-items:start;}
+  .variant-opt-row input, .variant-opt-row select{width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--line); background:var(--paper-card); font-family:inherit; font-size:13px; color:var(--ink);}
+  .variant-opt-row .spec-label-wrap{display:flex; flex-direction:column; gap:6px;}
+  .variant-spec-row{display:grid; grid-template-columns:1fr 1fr auto; gap:8px; margin-bottom:8px;}
+  .variant-spec-row input{width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--line); background:var(--paper-card); font-family:inherit; font-size:13px; color:var(--ink);}
+  .variant-mini-add{display:inline-flex; align-items:center; gap:5px; background:transparent; border:1px dashed var(--line); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; color:var(--walnut);}
+  .variant-mini-add:hover{border-color:var(--brass); background:var(--paper-alt);}
+  .variant-pick-grid{display:flex; flex-wrap:wrap; gap:8px;}
+  .variant-pick{position:relative; width:64px; height:64px; border-radius:8px; overflow:hidden; border:2px solid var(--line); background:var(--paper-card); padding:0; cursor:pointer; opacity:.72; transition:border-color .15s ease, opacity .15s ease;}
+  .variant-pick img{width:100%; height:100%; object-fit:cover; display:block; pointer-events:none;}
+  .variant-pick[aria-pressed="true"]{border-color:var(--ink); opacity:1;}
+  .variant-pick[aria-pressed="true"]::after{content:'✓'; position:absolute; right:3px; top:3px; width:18px; height:18px; border-radius:50%; background:var(--ink); color:var(--paper-card); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .variant-pick-empty{font-size:12.5px; color:var(--ink-soft);}
+  .variant-preview{margin-top:16px; padding:16px; border:1px dashed var(--line); border-radius:14px; background:var(--paper-card);}
+  .variant-preview-title{font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;}
+  .variant-preview-empty{font-size:12.5px; color:var(--ink-soft); margin:0;}
+  /* Popup'taki .pr-variant-* ile AYNI görünüm (js/components/product-modal.js#injectStyles) —
+     önizleme kullanıcıya birebir aynı şeyi göstersin. */
+  .pr-variant-group{margin-bottom:12px;}
+  .pr-variant-group:last-child{margin-bottom:0;}
+  .pr-variant-group-label{font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:7px;}
+  .pr-variant-pills{display:flex; flex-wrap:wrap; gap:8px;}
+  .pr-variant-pill{display:inline-flex; align-items:center; justify-content:center; background:var(--paper); border:1px solid var(--line-soft); border-radius:100px; padding:7px 15px; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; line-height:1.2;}
+  .pr-variant-pill[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+  .pr-variant-pill.is-off{opacity:.45; border-style:dashed; text-decoration:line-through; background:transparent;}
+  .pr-variant-current{margin:10px 0 0; font-size:12.5px; color:var(--ink-soft);}
+  .pr-variant-current strong{color:var(--ink); font-weight:600;}
+  @media (max-width: 640px){
+    .variant-opt-row{grid-template-columns:1fr 1fr auto;}
+  }
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
@@ -364,6 +407,7 @@
 <script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 <script src="image-upload.js" defer></script>
+<script src="js/components/product-variants.js" defer></script>
 <script src="catalog-taxonomy.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
 <script src="js/components/rights-consent.js" defer></script>
@@ -464,6 +508,21 @@
         </label>
         <p class="image-spec-hint">Galeriye eklenecek görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir ürüne en fazla 20 görsel yükleyebilirsin.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <!-- Versiyonlar (kullanıcı isteği, 2026-09-10 on birinci tur madde 2): popup'taki
+           "Versiyonlar" künyesinin form karşılığı — bkz. .variant-card CSS notu. Görseller
+           bölümünün ARDINDA durur: bir versiyona görsel bağlamak için önce galerinin dolu olması
+           gerekir (görseller galeriden seçilir, ikinci bir yükleyici yoktur). -->
+      <div class="form-section" id="variants-section">
+        <h2>Versiyonlar <span class="opt">(opsiyonel)</span></h2>
+        <p class="section-hint">Aynı ürünün model, renk, ebat gibi türevlerini tek ürün çatısı altında topla. Her versiyona bir ad ver, seçeneklerini (ör. Model: T 21 · Renk: Füme) yaz ve galeriden ona ait görselleri işaretle. Boş bırakırsan ürün tek versiyon olarak yayınlanır.</p>
+        <div id="variant-rows"></div>
+        <button type="button" class="specs-add-btn" id="variant-add-btn">+ Versiyon Ekle</button>
+        <div class="variant-preview" id="variant-preview" hidden>
+          <p class="variant-preview-title">Popup önizlemesi</p>
+          <div id="variant-preview-body"></div>
+        </div>
       </div>
 
       <div class="form-section">
@@ -621,6 +680,8 @@ function setExistingImages(urls){
 }
 
 function renderPreviews(){
+  // Versiyon kartlarındaki galeri seçim ızgaraları galeriyle birlikte tazelenir (bkz. Versiyonlar).
+  if(typeof refreshVariantPickGrids === 'function') refreshVariantPickGrids();
   previewGrid.innerHTML = mediaItems.map((item, i) => {
     const isCover = i === 0;
     const isLast = i === mediaItems.length - 1;
@@ -832,6 +893,216 @@ function collectSpecs(){
 }
 document.getElementById('specs-add-btn').addEventListener('click', ()=> addSpecRow());
 
+// ===================== VERSİYONLAR (kullanıcı isteği, 2026-09-10 on birinci tur madde 2) =====================
+// Veri modeli products.variants ile AYNI (bkz. migrations/0086_product_variants.sql):
+//   { label, options:[{label,value}], images:[url], specs:[{label,value}], description?, sourceUrl?, files? }
+// Formda görseller GALERİDEN seçilir: her .variant-pick bir mediaItems anahtarını (key) taşır; gönderimde
+// collectImages() her öğeye nihai URL'ini (finalUrl) yazdığından anahtar → URL eşlemesi orada yapılır.
+// Galeride OLMAYAN (içe aktarılmış, versiyona özel) görseller `extraImages`'ta saklanıp olduğu gibi
+// geri gönderilir — düzenleme içe aktarılan versiyon fotoğraflarını sessizce düşürmesin.
+//
+// variantsDirty: alan YALNIZCA kullanıcı dokunduysa ya da önceden dolduysa (prefill) gönderilir.
+// Aksi halde payload'da hiç yer almaz → sunucu (canonicalSync#syncProduct) içe aktarılan versiyonlara
+// dokunmaz (0086'nın güvencesi). "Hiç dokunmadım" ile "hepsini sildim" böylece ayrışır.
+const VARIANT_OPTION_PRESETS = ['Model', 'Renk', 'Ebat', 'Malzeme', 'Kumaş', 'Kaplama', 'Ayak Tipi', 'Sırt Yüksekliği', 'Kapasite'];
+const variantRowsEl = document.getElementById('variant-rows');
+const variantPreviewEl = document.getElementById('variant-preview');
+const variantPreviewBody = document.getElementById('variant-preview-body');
+let variantsDirty = false;
+let variantSeq = 0;
+let variantPreviewIndex = 0;
+
+function markVariantsDirty(){ variantsDirty = true; }
+
+function variantOptionRowHtml(label, value){
+  const isPreset = label && VARIANT_OPTION_PRESETS.includes(label);
+  const isCustom = !!label && !isPreset;
+  return `<div class="variant-opt-row">
+    <div class="spec-label-wrap">
+      <select class="variant-opt-label">
+        <option value="">Grup seç...</option>
+        ${VARIANT_OPTION_PRESETS.map(p => `<option value="${escapeAttr(p)}"${p === label ? ' selected' : ''}>${escapeAttr(p)}</option>`).join('')}
+        <option value="__custom__"${isCustom ? ' selected' : ''}>Diğer (özel grup)</option>
+      </select>
+      <input type="text" class="variant-opt-custom" placeholder="Grup adı (ör. Doku)" value="${escapeAttr(isCustom ? label : '')}" style="${isCustom ? '' : 'display:none;'}" maxlength="60">
+    </div>
+    <input type="text" class="variant-opt-value" placeholder="Değer (ör. T 21, Füme, 120x60)" value="${escapeAttr(value || '')}" maxlength="80">
+    <button type="button" class="specs-remove-btn" aria-label="Seçeneği kaldır">✕</button>
+  </div>`;
+}
+function variantSpecRowHtml(label, value){
+  return `<div class="variant-spec-row">
+    <input type="text" class="variant-spec-label" placeholder="Özellik (ör. Kalınlık)" value="${escapeAttr(label || '')}" maxlength="120">
+    <input type="text" class="variant-spec-value" placeholder="Değer (ör. 6 mm)" value="${escapeAttr(value || '')}" maxlength="500">
+    <button type="button" class="specs-remove-btn" aria-label="Özelliği kaldır">✕</button>
+  </div>`;
+}
+
+// Galeri seçim ızgarası — mediaItems'ın o anki hâli. selectedKeys: bu versiyonun işaretli anahtarları.
+function variantPickGridHtml(selectedKeys){
+  if(!mediaItems.length) return `<p class="variant-pick-empty">Önce yukarıdaki Görseller bölümüne görsel ekle; sonra bu versiyona ait olanları burada işaretleyebilirsin. İşaretlenmezse ürünün galerisi gösterilir.</p>`;
+  return `<div class="variant-pick-grid">${mediaItems.map(item =>
+    `<button type="button" class="variant-pick" data-media-key="${escapeAttr(item.key)}" aria-pressed="${selectedKeys.has(item.key) ? 'true' : 'false'}" title="Bu görseli versiyona bağla"><img src="${escapeAttr(mediaItemSrc(item))}" alt=""></button>`
+  ).join('')}</div>`;
+}
+
+function addVariantRow(v){
+  v = v || {};
+  const row = document.createElement('div');
+  row.className = 'variant-card';
+  row.dataset.variantId = 'v' + (variantSeq++);
+  // Galeride bulunmayan görseller (içe aktarılmış versiyon fotoğrafları) — dokunulmadan korunur.
+  const galleryUrls = new Set(mediaItems.filter(it => it.kind === 'existing').map(it => it.url));
+  row._extraImages = (v.images || []).filter(u => !galleryUrls.has(u));
+  row._passthrough = { description: v.description || '', sourceUrl: v.sourceUrl || '', files: v.files || [] };
+  const selectedKeys = new Set(mediaItems.filter(it => it.kind === 'existing' && (v.images || []).includes(it.url)).map(it => it.key));
+  row._selectedKeys = selectedKeys;
+  row.innerHTML = `
+    <div class="variant-card-head">
+      <span class="variant-no"></span>
+      <input type="text" class="variant-label" placeholder="Versiyon adı (ör. Ecosol 50 · Nötral)" value="${escapeAttr(v.label || '')}" maxlength="120">
+      <button type="button" class="specs-remove-btn variant-remove" aria-label="Versiyonu kaldır">✕</button>
+    </div>
+    <div class="variant-sub">Seçenekler <span class="opt" style="font-weight:400">(grup + değer — ör. Model: T 21)</span></div>
+    <div class="variant-options">${(v.options || []).map(o => variantOptionRowHtml(o.label, o.value)).join('')}</div>
+    <button type="button" class="variant-mini-add variant-opt-add">+ Seçenek</button>
+    <div class="variant-sub">Bu versiyonun görselleri <span class="opt" style="font-weight:400">(galeriden seç, opsiyonel)</span></div>
+    <div class="variant-pick-wrap">${variantPickGridHtml(selectedKeys)}</div>
+    <div class="variant-sub">Teknik özellikler <span class="opt" style="font-weight:400">(yalnızca bu versiyona özgü olanlar, opsiyonel)</span></div>
+    <div class="variant-specs">${(v.specs || []).map(sp => variantSpecRowHtml(sp.label, sp.value)).join('')}</div>
+    <button type="button" class="variant-mini-add variant-spec-add">+ Özellik</button>
+  `;
+  row.querySelector('.variant-remove').addEventListener('click', ()=>{ row.remove(); markVariantsDirty(); renumberVariants(); renderVariantPreview(); });
+  row.querySelector('.variant-opt-add').addEventListener('click', ()=>{
+    row.querySelector('.variant-options').insertAdjacentHTML('beforeend', variantOptionRowHtml('', ''));
+    markVariantsDirty();
+  });
+  row.querySelector('.variant-spec-add').addEventListener('click', ()=>{
+    row.querySelector('.variant-specs').insertAdjacentHTML('beforeend', variantSpecRowHtml('', ''));
+    markVariantsDirty();
+  });
+  // Delege: seçenek/özellik satırlarındaki ✕, grup select'in "Diğer" dalı, görsel seçimi.
+  row.addEventListener('click', (e)=>{
+    const rm = e.target.closest('.variant-opt-row .specs-remove-btn, .variant-spec-row .specs-remove-btn');
+    if(rm){ rm.closest('.variant-opt-row, .variant-spec-row').remove(); markVariantsDirty(); renderVariantPreview(); return; }
+    const pick = e.target.closest('.variant-pick');
+    if(pick){
+      const key = pick.dataset.mediaKey;
+      if(row._selectedKeys.has(key)) row._selectedKeys.delete(key); else row._selectedKeys.add(key);
+      pick.setAttribute('aria-pressed', row._selectedKeys.has(key) ? 'true' : 'false');
+      markVariantsDirty();
+    }
+  });
+  row.addEventListener('change', (e)=>{
+    const sel = e.target.closest('.variant-opt-label');
+    if(sel){
+      const custom = sel.parentElement.querySelector('.variant-opt-custom');
+      const showCustom = sel.value === '__custom__';
+      custom.style.display = showCustom ? '' : 'none';
+      if(showCustom) custom.focus();
+    }
+    markVariantsDirty(); renderVariantPreview();
+  });
+  row.addEventListener('input', ()=>{ markVariantsDirty(); scheduleVariantPreview(); });
+  variantRowsEl.appendChild(row);
+  renumberVariants();
+  renderVariantPreview();
+  return row;
+}
+function renumberVariants(){
+  variantRowsEl.querySelectorAll('.variant-card').forEach((row, i) => { row.querySelector('.variant-no').textContent = String(i + 1); });
+}
+// Galeri değişince (ekleme/silme/sıralama) her versiyonun görsel ızgarası yenilenir — seçimler
+// anahtar bazlı tutulduğundan korunur, silinen görselin anahtarı doğal olarak düşer.
+function refreshVariantPickGrids(){
+  // renderPreviews() bu blok çalışmadan ÖNCE de çağrılabiliyor (galeri kurulumunda) — const'a
+  // (TDZ) değil DOM'a bakılır; kart yoksa iş yok.
+  const host = document.getElementById('variant-rows');
+  if(!host) return;
+  host.querySelectorAll('.variant-card').forEach(row => {
+    const alive = new Set(mediaItems.map(it => it.key));
+    row._selectedKeys.forEach(k => { if(!alive.has(k)) row._selectedKeys.delete(k); });
+    row.querySelector('.variant-pick-wrap').innerHTML = variantPickGridHtml(row._selectedKeys);
+  });
+}
+// Satırlardan veri modeli. resolveUrl: mediaItems anahtarını URL'e çevirir (gönderimde finalUrl,
+// önizlemede mevcut/objectUrl). Boş satırlar (ad yok, seçenek yok, görsel yok) atılır.
+function readVariantRows(resolveUrl){
+  const out = [];
+  variantRowsEl.querySelectorAll('.variant-card').forEach(row => {
+    const label = row.querySelector('.variant-label').value.trim();
+    const options = Array.from(row.querySelectorAll('.variant-opt-row')).map(r => {
+      const sel = r.querySelector('.variant-opt-label');
+      const glabel = sel.value === '__custom__' ? r.querySelector('.variant-opt-custom').value.trim() : sel.value;
+      return { label: glabel, value: r.querySelector('.variant-opt-value').value.trim() };
+    }).filter(o => o.label && o.value);
+    const specs = Array.from(row.querySelectorAll('.variant-spec-row')).map(r => ({
+      label: r.querySelector('.variant-spec-label').value.trim(), value: r.querySelector('.variant-spec-value').value.trim(),
+    })).filter(sp => sp.label || sp.value);
+    const picked = mediaItems.filter(it => row._selectedKeys.has(it.key)).map(resolveUrl).filter(Boolean);
+    const images = picked.concat(row._extraImages || []);
+    if(!label && !options.length && !images.length && !specs.length) return;
+    const entry = { label, options, images, specs };
+    const pt = row._passthrough || {};
+    if(pt.description) entry.description = pt.description;
+    if(pt.sourceUrl) entry.sourceUrl = pt.sourceUrl;
+    if(pt.files && pt.files.length) entry.files = pt.files;
+    out.push(entry);
+  });
+  return out;
+}
+// Gönderim: her satırın adı zorunlu (sunucu da aynı kuralı uygular, bkz. submissionTypes.js#
+// findInvalidVariantsField) — kullanıcı boş bir kart bıraktıysa burada anlaşılır bir mesajla durdurulur.
+function collectVariants(){
+  const variants = readVariantRows(it => it.finalUrl || (it.kind === 'existing' ? it.url : null));
+  const unnamed = variants.find(v => !v.label);
+  if(unnamed) throw new Error('Her versiyona bir ad ver (ör. "Ecosol 50 · Nötral") ya da boş versiyon kartını kaldır.');
+  return variants;
+}
+// Canlı önizleme — popup'ın hap görünümü (js/components/product-variants.js ile AYNI türetme).
+let variantPreviewTimer = null;
+function scheduleVariantPreview(){ clearTimeout(variantPreviewTimer); variantPreviewTimer = setTimeout(renderVariantPreview, 150); }
+function renderVariantPreview(){
+  const api = window.MLProductVariants;
+  const rows = variantRowsEl.querySelectorAll('.variant-card').length;
+  if(!rows || !api){ variantPreviewEl.hidden = true; return; }
+  variantPreviewEl.hidden = false;
+  const variants = readVariantRows(it => mediaItemSrc(it)).map(v => ({ ...v, label: v.label || '(adsız versiyon)' }));
+  if(variants.length < 2){
+    variantPreviewBody.innerHTML = `<p class="variant-preview-empty">Seçici, en az iki versiyon olduğunda görünür. Tek versiyonlu ürün popup'ta normal ürün gibi gösterilir.</p>`;
+    return;
+  }
+  const groups = api.buildGroups(variants);
+  if(!groups.length){ variantPreviewBody.innerHTML = `<p class="variant-preview-empty">Versiyonları ayırt edecek bir seçenek (grup + değer) ekle — ör. Renk: Nötral / Füme.</p>`; return; }
+  if(variantPreviewIndex >= variants.length) variantPreviewIndex = 0;
+  const cur = variants[variantPreviewIndex] || {};
+  const avail = api.availability(variants, groups, variantPreviewIndex);
+  variantPreviewBody.innerHTML = groups.map((g, gi) => `<div class="pr-variant-group">
+    <div class="pr-variant-group-label">${escapeHtml(g.label)}</div>
+    <div class="pr-variant-pills">${g.values.map(val => {
+      const active = g.byVariantLabel ? cur.label === val : api.optionValue(cur, g.label) === val;
+      const off = !active && avail.get(g.label) && !avail.get(g.label).has(val);
+      return `<button type="button" class="pr-variant-pill${off ? ' is-off' : ''}" data-group="${gi}" data-value="${escapeAttr(val)}" aria-pressed="${active ? 'true' : 'false'}"${off ? ' title="Bu kombinasyon mevcut değil"' : ''}>${escapeHtml(val)}</button>`;
+    }).join('')}</div>
+  </div>`).join('') + `<p class="pr-variant-current">Seçili versiyon: <strong>${escapeHtml(cur.label || '')}</strong></p>`;
+  variantPreviewBody.querySelectorAll('.pr-variant-pill').forEach(btn => btn.addEventListener('click', ()=>{
+    const g = groups[parseInt(btn.dataset.group, 10)];
+    const idx = api.pickIndex(variants, groups, variantPreviewIndex, g, btn.dataset.value);
+    if(idx >= 0){ variantPreviewIndex = idx; renderVariantPreview(); }
+  }));
+}
+document.getElementById('variant-add-btn').addEventListener('click', ()=>{ markVariantsDirty(); addVariantRow(); });
+// Düzenleme/AI ön doldurması: mevcut versiyonlar karta çevrilir; alan artık "dolu" sayılır (dirty),
+// yani gönderimde olduğu gibi geri gider — kullanıcı hiçbirini silmediyse liste değişmez.
+function setVariantsFromItem(variants){
+  variantRowsEl.innerHTML = '';
+  variantSeq = 0;
+  const list = Array.isArray(variants) ? variants : [];
+  if(!list.length){ renderVariantPreview(); return; }
+  list.forEach(v => addVariantRow(v));
+  variantsDirty = true;
+}
+
 const MAX_PRODUCT_IMAGES = 20;
 
 function addFiles(fileList){
@@ -995,6 +1266,11 @@ function applyPrefillItem(item){
   setExistingFiles(item.files);
   renderFilePreviews();
   (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
+  // Versiyonlar (bkz. setVariantsFromItem): gönderi satırı (?edit=) parseSubmissionRow ile null
+  // dönebilir — "form hiç göndermedi"; canonical kayıt (?claim=/?adminedit=) ise diziyi taşır.
+  // null ise satırlar boş kalır ve alan gönderilmez (içe aktarılan versiyonlar korunur); ama
+  // sahiplenilmiş bir taslakta (claimed_slug) canonical versiyonlar prefillForEdit'te ayrıca çekilir.
+  setVariantsFromItem(Array.isArray(item.variants) ? item.variants : null);
   // Kullanılan Projeler — gönderi satırındaki `projects` JSON'u (bkz. migrations/
   // 0072_product_project_links.sql). ?adminedit= (canonical legacy kayıt) modunda bu alan yoktur,
   // liste boş kalır ve o akış zaten project_products'a hiç dokunmaz.
@@ -1031,6 +1307,15 @@ async function prefillForEdit(){
     // madde 3). ARŞİVDEKİ kayıtta bilerek işaretlenmez: orada onay, yayına almanın kapısıdır
     // (madde 2/4 — "telif butonunu onaylamadan içeriği yayınlayamasın").
     if(window.RightsConsent && item.status !== 'archived') RightsConsent.setAcceptedWhenReady(true);
+    // Taslak versiyon taşımıyorsa (eski taslak / form bu alanı hiç göndermemiş) ama canonical bir
+    // ürüne bağlıysa, popup'ta görünen versiyonlar buraya çekilir — kullanıcı onları burada görüp
+    // düzenleyebilsin (aksi halde alan boş görünür, dokunmadıkça yine de korunurdu).
+    if(!Array.isArray(item.variants) && item.claimed_slug){
+      try{
+        const cRes = await fetch(`/api/product/${encodeURIComponent(item.claimed_slug)}`);
+        if(cRes.ok){ const cData = await cRes.json(); if(cData.item && Array.isArray(cData.item.variants) && cData.item.variants.length) item.variants = cData.item.variants; }
+      }catch{}
+    }
     applyPrefillItem(item);
     mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -1538,6 +1823,16 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   };
   if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
   if(claimSlug) payload.claimed_slug = claimSlug;
+  // Versiyonlar — YALNIZCA dokunulduysa/önceden dolduysa gönderilir (bkz. variantsDirty notu);
+  // boş dizi "versiyonları kaldır" demektir, alanın yokluğu "dokunma".
+  if(variantsDirty){
+    try{ payload.variants = collectVariants(); }
+    catch(err){
+      notice.textContent = err.message; notice.classList.add('show'); notice.scrollIntoView({behavior:'smooth', block:'center'});
+      submitBtn.disabled = false; loading.classList.remove('show');
+      return;
+    }
+  }
 
   // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu bu iki alanı
   // ZORUNLU kılar (src/lib/rightsConsent.js#requireRightsAcceptance); kutu işaretlenmeden gönderim

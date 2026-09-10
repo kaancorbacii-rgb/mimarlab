@@ -16,6 +16,13 @@ const ProjectGallery = (function () {
     return (images || []).map(url => ({ type: 'photo', url }));
   }
 
+  function photographerCredit(item) {
+    const names = (item.photographerDetails || []).map(d => d && d.name).filter(Boolean);
+    if (names.length) return names.join(', ');
+    const text = item.photoCredit && item.photoCredit.text;
+    return (text || '').trim();
+  }
+
   function render(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const media = toMediaItems(item.images);
@@ -30,6 +37,13 @@ const ProjectGallery = (function () {
       // buton hiç oluşturulmaz. Yetki burada sorulmaz, sunucu karar verir (bkz.
       // js/components/hotspot-tagger.js dosya başı).
       tagging: item.slug ? { projectSlug: item.slug } : null,
+      // locked (kullanıcı isteği, 2026-09-10 on birinci tur madde 7): ÖNİZLEME projesinde medya
+      // kilitli — küçük resimler büyütülmez, işaretçi/etiketleme yok; görseller zaten blurlu (bkz.
+      // project-modal.js#renderItem → ModalShell.setPreviewBlur).
+      locked: !!item.preview,
+      // credit (madde 4): lightbox'ın sağ altında "© Fotoğrafçı". Künyedeki eşleşmiş fotoğrafçı
+      // profilleri (photographerDetails) önce, yoksa serbest metin fotoğraf kredisi.
+      credit: photographerCredit(item),
       title: item.title,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`,
       ids: mergedIds,

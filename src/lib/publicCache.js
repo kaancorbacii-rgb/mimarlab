@@ -474,8 +474,13 @@ async function withSingleFlight(key, fn) {
 //     önbelleğini tazelemez; oradaki geçiş, PUBLIC_LIST_CACHE_HEADERS'ın 5dk s-maxage'ı dolunca
 //     (ya da bir sonraki invalidatePublicCache() ile) kendiliğinden tamamlanır. Sabit yine de
 //     aşağıdaki kurala uymak ve şekil değişimini kayda geçirmek için artırıldı.
+// v30 -> v31 (kullanıcı isteği, 2026-09-10 on birinci tur madde 5): /api/projects kartları artık
+//     ilk 6 görseli (`images`), /api/products kartları yeni bir `images` dizisini taşıyor (kart
+//     karuseli). v5-v29'un AYNI tuzağı: hiçbir satırın updated_at'i değişmez, bump edilmezse liste
+//     sayfasını daha önce açmış ziyaretçiler 304 ile tek görselli eski gövdede takılırdı. KV havuzu
+//     (POOL_CACHE_KINDS) da eski şekli taşıyabilir — deploy sonrası invalidatePublicCache şart.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v30';
+const API_PAYLOAD_VERSION = 'v31';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

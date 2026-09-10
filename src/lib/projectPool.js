@@ -82,6 +82,9 @@ function parseHotspots(raw) {
 // kartlar/İlgili Yapılar/Mimarın Diğer Yapıları her zaman yalnızca `images[0]`'ı render ediyor.
 // Tekil proje detayı ve handleProjectFiltersRoute'un kendi ayrı havuzu bu fonksiyonu opts'suz
 // çağırmaya devam ediyor — varsayılan (opts yok) davranış ESKİSİYLE BİREBİR AYNI (tam images dizisi).
+// Kart karuselinin taşıdığı en fazla görsel — bkz. shapeProjectItem#images (coverOnly).
+export const CARD_CAROUSEL_IMAGES = 6;
+
 export function shapeProjectItem(row, opts) {
   const p = parseCanonicalRow('projects', row);
   const coverOnly = opts && opts.coverOnly;
@@ -106,7 +109,11 @@ export function shapeProjectItem(row, opts) {
     period: p.period, designer: designerNamesFrom(row.designer_names),
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
-    description: p.description, images: coverOnly ? p.images.slice(0, 1) : p.images,
+    // coverOnly: kart karuseli için İLK 6 görsel (kullanıcı isteği, 2026-09-10 on birinci tur madde
+    // 5: "proje ve ürün önizlemelerinde fotoğraflar arasında ileri-geri yapabilelim"). Kart yalnızca
+    // kapağı DOM'a basar, diğerleri oka basılınca tembel yüklenir (bkz. js/components/card-carousel.js);
+    // liste JSON'una düşen maliyet yalnızca 5 ek URL/kart. İşaretçiler (hotspots) hâlâ yalnızca kapak.
+    description: p.description, images: coverOnly ? p.images.slice(0, CARD_CAROUSEL_IMAGES) : p.images,
     // Görsel üzerindeki ürün işaretçileri (bkz. migrations/0076_project_image_hotspots.sql).
     // Detay yükünde TÜM görsellerinki, liste/kart yükünde (coverOnly) yalnızca KAPAK görselininki
     // taşınır (bkz. yukarıdaki hesap). parseCanonicalRow'un JSON_COLUMNS listesine EKLENMEZ: o

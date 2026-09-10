@@ -109,6 +109,10 @@ const ProductModal = (function () {
       }
       .pr-variant-pill:hover{border-color:var(--brass);}
       .pr-variant-pill[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+      /* Mevcut olmayan kombinasyon — kapalı görünüm (bkz. syncVariantPills): soluk, kesikli çerçeve,
+         üstü çizili. cursor:pointer korunur — tıklanınca en yakın gerçek versiyona geçilir. */
+      .pr-variant-pill.is-off{opacity:.45; border-style:dashed; text-decoration:line-through; background:transparent;}
+      .pr-variant-pill.is-off:hover{opacity:.7;}
       /* Seçili kombinasyonun tam adı — hap satırlarının altında tek satır, kullanıcı hangi
          versiyona baktığını hap'lara bakıp zihninde birleştirmek zorunda kalmasın. */
       .pr-variant-current{margin:10px 0 0; font-size:12.5px; color:var(--ink-soft);}
@@ -751,54 +755,15 @@ const ProductModal = (function () {
   // ---------------------------------------------------------------------------------------
   let currentVariantIndex = 0;
 
-  function variantOptionValue(v, label) {
-    const o = ((v && v.options) || []).find(x => x && x.label === label);
-    return o ? o.value : null;
-  }
-
-  // Seçenek grupları AYRICA saklanmaz, varyant dizisinden türetilir (tek kaynak = dizi).
-  // Sıra korunur: gruplar ilk görüldükleri, değerler ilk göründükleri sırada dizilir — böylece
-  // içe aktarma sırasındaki anlamlı sıralama ("Alçak / Orta / Yüksek", "S / M / L") ekranda da
-  // aynen çıkar, alfabetik sıraya bozulmaz.
-  // TEK DEĞERLİ gruplar ELENİR: her versiyonda aynı olan bir seçenek bir "seçim" değildir; hap
-  // olarak gösterilirse tıklanamaz/anlamsız bir buton olurdu.
-  function buildVariantGroups(variants) {
-    const groups = [];
-    const byLabel = new Map();
-    variants.forEach(v => ((v && v.options) || []).forEach(o => {
-      if (!o || !o.label || !o.value) return;
-      let g = byLabel.get(o.label);
-      if (!g) { g = { label: o.label, values: [] }; byLabel.set(o.label, g); groups.push(g); }
-      if (!g.values.includes(o.value)) g.values.push(o.value);
-    }));
-    const multi = groups.filter(g => g.values.length > 1);
-    // Hiç seçenek ekseni yoksa (ya da hepsi tek değerliyse) versiyonların KENDİ adları tek bir
-    // grup olur — "Versiyon: Tekli / İkili / Üçlü" gibi. Böylece options'ı olmayan bir varyant
-    // listesi de çalışır durumda kalır.
-    if (multi.length) return multi;
-    const labels = variants.map(v => (v && v.label) || '').filter(Boolean);
-    return labels.length > 1 ? [{ label: 'Versiyon', values: labels, byVariantLabel: true }] : [];
-  }
-
-  // Bir hap'a tıklanınca hangi versiyona geçilecek. Varyant matrisi SEYREK olabilir (ör. Toya'nın
-  // her sırt yüksekliğinde her ayak tipi yok); bu yüzden "değişen ekseni zorla, kalan eksenlerde
-  // mevcut seçime EN ÇOK benzeyeni al" puanlaması yapılır — hiç eşleşme olmayan bir kombinasyona
-  // tıklamak mümkün değil, en yakın gerçek versiyona düşülür.
-  function pickVariantIndex(variants, groups, curIdx, group, value) {
-    const cur = variants[curIdx] || {};
-    let best = -1, bestScore = -1;
-    variants.forEach((v, i) => {
-      const matches = group.byVariantLabel ? (v && v.label) === value : variantOptionValue(v, group.label) === value;
-      if (!matches) return;
-      let score = 0;
-      groups.forEach(g => {
-        if (g === group || g.byVariantLabel) return;
-        if (variantOptionValue(v, g.label) === variantOptionValue(cur, g.label)) score++;
-      });
-      if (score > bestScore) { bestScore = score; best = i; }
-    });
-    return best;
-  }
+  // buildVariantGroups/pickVariantIndex/variantOptionValue ARTIK js/components/product-variants.js'te
+  // (paylaşılan modül — ürün ekle/düzenle formu da aynı türetmeyi kullanıyor, kullanıcı isteği
+  // 2026-09-10 on birinci tur madde 2). Bu sarmalayıcılar eski çağıranları değiştirmeden modüle
+  // yönlendirir; modül yüklü değilse (lazy-modals deps'i ya da sayfa etiketi eksikse) versiyon
+  // seçici sessizce gizlenir — ReferenceError ile popup'ın tamamını düşürmez.
+  function variantsApi() { return window.MLProductVariants || null; }
+  function variantOptionValue(v, label) { const api = variantsApi(); return api ? api.optionValue(v, label) : null; }
+  function buildVariantGroups(variants) { const api = variantsApi(); return api ? api.buildGroups(variants) : []; }
+  function pickVariantIndex(variants, groups, curIdx, group, value) { const api = variantsApi(); return api ? api.pickIndex(variants, groups, curIdx, group, value) : -1; }
 
   function renderVariantSwitcher(p) {
     const section = document.getElementById('pr-variants-section');
@@ -839,11 +804,21 @@ const ProductModal = (function () {
   function syncVariantPills(p, groups) {
     const variants = p.variants || [];
     const cur = variants[currentVariantIndex] || {};
+    // KAPALI HAP'LAR (kullanıcı isteği, 2026-09-10 on birinci tur madde 2: "bir modelin bir rengi
+    // mevcut değilse o renkler kapalı butonlar olmalı"): mevcut seçimin diğer eksenleriyle birlikte
+    // gerçek bir versiyon oluşturmayan değerler .is-off alır (soluk + üstü çizili, aria-disabled).
+    // Tıklanabilir KALIR — bkz. product-variants.js dosya başındaki "seyrek matris" gerekçesi.
+    const api = variantsApi();
+    const avail = api ? api.availability(variants, groups, currentVariantIndex) : null;
     document.querySelectorAll('#pr-variant-groups .pr-variant-pill').forEach(btn => {
       const g = groups[parseInt(btn.dataset.group, 10)];
       const active = g.byVariantLabel ? cur.label === btn.dataset.value
         : variantOptionValue(cur, g.label) === btn.dataset.value;
       btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      const off = !!(avail && avail.get(g.label) && !avail.get(g.label).has(btn.dataset.value));
+      btn.classList.toggle('is-off', off && !active);
+      if (off && !active) { btn.setAttribute('aria-disabled', 'true'); btn.title = 'Bu kombinasyon mevcut değil — tıklayınca en yakın versiyona geçilir.'; }
+      else { btn.removeAttribute('aria-disabled'); btn.removeAttribute('title'); }
     });
     const cap = document.getElementById('pr-variant-current');
     if (cap) {

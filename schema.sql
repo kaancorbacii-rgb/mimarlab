@@ -137,7 +137,8 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   year TEXT, -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
   files TEXT, -- JSON dizi [{url,filename,format,size}] — "Dosyalar (BIM, CAD, 3D, Katalog)" ekleri, images İLE AYNI desen (bkz. migrations/0071_product_files.sql)
   projects TEXT, -- JSON dizi [{slug,title}] — urun-ekle.html'deki "Kullanılan Projeler" kutusu, project_submissions.brands ile AYNI desen (bkz. migrations/0072_product_project_links.sql)
-  claimed_slug TEXT -- project_submissions.claimed_slug İLE AYNI desen — bkz. migrations/0088_product_claimed_slug.sql
+  claimed_slug TEXT, -- project_submissions.claimed_slug İLE AYNI desen — bkz. migrations/0088_product_claimed_slug.sql
+  variants TEXT -- JSON dizi, products.variants ile AYNI biçim; NULL = form göndermedi ("dokunma") — bkz. migrations/0110_product_submission_variants.sql
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status_created ON product_submissions(status, created_at DESC);
@@ -168,7 +169,8 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   year TEXT, -- bkz. product_submissions.year açıklaması
   files TEXT, -- bkz. product_submissions.files açıklaması
   projects TEXT, -- bkz. product_submissions.projects açıklaması
-  claimed_slug TEXT -- bkz. product_submissions.claimed_slug açıklaması
+  claimed_slug TEXT, -- bkz. product_submissions.claimed_slug açıklaması
+  variants TEXT -- bkz. product_submissions.variants açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_claimed_slug ON material_submissions(claimed_slug);

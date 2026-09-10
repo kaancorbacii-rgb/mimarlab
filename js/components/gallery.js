@@ -49,6 +49,17 @@ function injectGalleryBarStyles(){
     /* Izgara ("Tumunu Gor") modunda tekli gorsel gizli — alt cubuk da onunla birlikte gider,
        aksi halde izgaranin uzerinde islevsiz bir "Urun Etiketle" butonu asili kalirdi. */
     .lightbox.grid-mode .lightbox-bottombar{display:none;}
+    /* Fotoğrafçı kredisi — sağ alt köşe (kullanıcı isteği, 2026-09-10 on birinci tur madde 4). */
+    .lightbox-credit{
+      position:absolute; right:22px; bottom:22px; z-index:3; pointer-events:none;
+      font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size:12.5px; color:rgba(237,240,243,0.92); background:rgba(27,42,61,0.55);
+      padding:5px 10px; border-radius:6px; max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .lightbox.grid-mode .lightbox-credit{display:none;}
+    /* Kilitli (önizleme) galeri: küçük resimler tıklanabilir görünmesin. */
+    .gallery-locked a.gallery-item{cursor:default;}
+    .lightbox-tag-btn.is-locked{display:none !important;}
     /* Isaretleme modunda gorselin uzerinde nisangah imleci + yardim serigi. */
     .lightbox.tagging-armed img{cursor:crosshair;}
     .lightbox-tag-hint{
@@ -86,6 +97,14 @@ function initDetailGallery(opts){
   // yetkisiz/ürünsüz kullanıcıya orada açıklayıcı bir mesaj gösterir. Böylece buton "her görselde
   // gözüksün" isteği karşılanırken yetki kararı TEK yerde (sunucuda) kalır.
   const tagging = (opts && opts.tagging) || null;
+  // locked — ÖNİZLEME (soluk) projede medya KİLİTLİ (kullanıcı isteği, 2026-09-10 on birinci tur
+  // madde 7): küçük resimler lightbox AÇMAZ, işaretçiler kurulmaz, "Ürün Etiketle" gizlenir. Kilit
+  // canlı state'ten okunur (bkz. aşağıdaki _pmGalleryState gerekçesi) — dinleyiciler ilk çağrıda
+  // bağlandığından bir sonraki (kilitsiz) projede aynı dinleyiciler normal çalışır.
+  const locked = !!(opts && opts.locked);
+  // credit — lightbox'ın sağ altında fotoğrafçı adı (madde 4: archiproducts'taki "© Pietro
+  // Savorelli" deseni). Boşsa etiket hiç görünmez.
+  const credit = (opts && opts.credit) ? String(opts.credit) : '';
 
   const galleryEl = document.getElementById(ids.gallery || 'detail-gallery');
   const galleryPrevBtn = document.getElementById(ids.galleryPrev || 'gallery-prev');
@@ -178,6 +197,22 @@ function initDetailGallery(opts){
   // yukarıdaki _pmGalleryState gerekçesi: ilk çağrıda bağlanan dinleyiciler sonraki projelerde de
   // doğru çalışmalı — aksi halde N. projede hâlâ 1. projenin slug'ına etiket gönderilirdi).
   state.tagging = tagging;
+  state.locked = locked;
+  state.credit = credit;
+  // Fotoğraf kredisi etiketi — lightbox DOM'unda kalıcı, metni showLightboxImage her görselde
+  // (state'ten) tazeler. Kilitli galeride lightbox zaten açılmaz, etiket önemsizdir.
+  let creditEl = lightbox.querySelector('.lightbox-credit');
+  if(!creditEl){
+    creditEl = document.createElement('div');
+    creditEl.className = 'lightbox-credit';
+    lightbox.appendChild(creditEl);
+  }
+  creditEl.textContent = credit ? `© ${credit}` : '';
+  creditEl.hidden = !credit;
+  // is-locked sınıfı: HotspotTagger.hasAccess() geri çağrısı style.display'i geri açabildiğinden
+  // hidden özniteliği yerine CSS sınıfı (display:none !important) kullanılır.
+  if(tagBtn) tagBtn.classList.toggle('is-locked', locked);
+  galleryEl.classList.toggle('gallery-locked', locked);
   state.galleryIndex = 0;
   state.lightboxIndex = 0;
   // scrollLeft, galleryEl'in İÇERİĞİNE değil KENDİSİNE ait bir özellik — innerHTML'i aşağıda
@@ -274,6 +309,7 @@ function initDetailGallery(opts){
   // orada açar. Görsel henüz yüklenmemiş olabileceğinden (naturalWidth 0) mount, ImageHotspots'un
   // kendi 'load' dinleyicisiyle kendini yeniden konumlandırır.
   function mountThumbHotspots(){
+    if(locked) return; // önizleme: işaretçi yok (bkz. opts.locked)
     if(typeof ImageHotspots === 'undefined' || !hasHotspots) return;
     const st = galleryEl._pmGalleryState;
     galleryEl.querySelectorAll('a.gallery-item').forEach(a=>{
@@ -342,6 +378,7 @@ function initDetailGallery(opts){
   galleryEl.querySelectorAll('a.gallery-item').forEach(a=>{
     a.addEventListener('click', (e)=>{
       e.preventDefault();
+      if(galleryEl._pmGalleryState.locked) return; // önizleme: medya kilitli, büyütme yok
       showLightboxImage(parseInt(a.dataset.index, 10));
       setGridMode(false);
       lightbox.classList.add('open');
