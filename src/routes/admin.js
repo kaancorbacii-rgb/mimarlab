@@ -832,10 +832,28 @@ async function activateClaimedProfile(env, profileType, profileKey) {
   if (!table || !profileKey) return;
   // relisted_at: bkz. migrations/0108_relisted_at.sql — atamayla yayına dönen profil listede
   // canlılar arasında en öne geçer.
+  const now = new Date().toISOString();
   await env.DB.prepare(
     `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
      WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?)`
-  ).bind(new Date().toISOString(), profileKey, profileKey, profileKey).run();
+  ).bind(now, profileKey, profileKey, profileKey).run();
+
+  // PROFİLİN PROJELERİ DE YAYINA DÖNER (kullanıcı isteği, 2026-09-10 beşinci tur, madde 4:
+  // "profili sahiplenilmiş firma ve kişilerin; kişi, firma ve PROJE içerikleri yayında olsunlar,
+  // blurlu olmasınlar"). Bu, arşiv sınıflandırmasının zaten uyguladığı kuralın (künyesi onaylı bir
+  // profile bağlı proje canlı kalır) atama ANINDA da geçerli olmasını sağlar — aksi halde yalnızca
+  // atamadan ÖNCE sınıflandırılmış projeler önizlemede takılı kalırdı (canlıda AZAKSU Mimarlık'ta
+  // tam olarak bu oldu). Ürünler BİLEREK kapsam dışı: onlar sahibi telif beyanını onaylayınca
+  // yayına döner (bkz. dosya başı akış).
+  const col = profileType === 'architect' ? 'architect_id' : 'office_id';
+  await env.DB.prepare(
+    `UPDATE projects SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
+     WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND id IN (
+       SELECT pd.project_id FROM project_designers pd
+       JOIN ${table} t ON t.id = pd.${col}
+       WHERE t.name = ? OR t.slug = ? OR t.legacy_key = ?
+     )`
+  ).bind(now, profileKey, profileKey, profileKey).run();
 }
 
 async function handleClaimsAdmin(request, env, url, segments) {
