@@ -588,7 +588,10 @@ export async function handleProjectFiltersRoute(request, env, url) {
     if (otherParams.length === 0 && buildStatus === 'built') {
       const cached = await getCachedFacetCounts(env, 'projects');
       if (Object.keys(cached).length) {
-        const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = 'built'`).first();
+        // Önizleme satırları liste havuzunda göründüğü için toplam sayaç da onları içermeli
+        // (bkz. migrations/0107_preview_state.sql) — aksi halde filtre çubuğundaki "N proje
+        // listeleniyor" sayısı listede görünen kart sayısıyla ayrışırdı.
+        const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = 'built'`).first();
         const out = {};
         for (const [key, counts] of Object.entries(cached)) {
           const options = Object.keys(counts).sort((a, b) => (key === 'dateBucket' ? dateBucketSortKey(b) - dateBucketSortKey(a) : counts[b] - counts[a] || a.localeCompare(b)));
@@ -694,10 +697,10 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
-            p.image_hotspots,
+            p.image_hotspots, p.preview_at,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
-           WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?
+           WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?
            ORDER BY COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
            LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
      GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
@@ -762,8 +765,11 @@ async function fetchRatingsForSlugs(env, slugs) {
 // D1-seviyeli hızlı yolu. `total`/`totalPages`/`page` hesaplaması handleProjectListRoute'daki JS
 // yoluyla BİREBİR AYNI formülü kullanır (bkz. aşağıdaki Math.min(page,totalPages) kırpması) — TEK
 // fark COUNT(*) ve sayfa satırlarının D1'den zaten süzülmüş gelmesi.
+// ÖNİZLEME satırları da dahil (bkz. migrations/0107_preview_state.sql) — bu, filtresiz hızlı yolun
+// (D1 sayfalama) fetchActiveProjectPool ile AYNI kapsamı görmesini sağlar; ikisi ayrışırsa aynı
+// liste, filtre uygulanınca birden farklı sayıda kayıt gösterirdi.
 async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
-  const where = `deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?`;
+  const where = `deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?`;
   const rawOffset = (page - 1) * limit;
   // COUNT(*) ve sayfa sorgusu PARALEL çalışır — page normal önyüz kullanımında (bilinen totalPages
   // içinde) hemen hemen HER ZAMAN aralık içinde olduğundan (frontend asla kendi hesapladığı
