@@ -6,6 +6,10 @@ import { handlePublicHidden, handlePublicPreview, handlePublicSearchSuggest, han
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { getSiteSettings } from '../lib/siteSettings.js';
 import { handlePlatformRoute } from './platform.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { foldTr } from '../lib/textMatch.js';
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
@@ -108,15 +112,6 @@ async function handlePublicFollowCount(request, env, url) {
     ).bind(followedType, followedKey).first();
     return { count: row?.count || 0 };
   });
-}
-
-// bkz. src/routes/legacyContent.js#foldTr (AYNI desen, dosyalar arası paylaşılan bir modüle
-// çıkarılmadan kopyalanmış — o dosyanın başındaki yorumla aynı gerekçe).
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
 const CHECK_NAME_TYPES = new Set(['projects', 'architects', 'offices', 'products', 'materials']);
@@ -260,5 +255,4 @@ async function handlePublicProjectEdits(request, env) {
     return out;
   });
 }
-
 

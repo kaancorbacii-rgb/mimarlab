@@ -271,8 +271,12 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // Türkçe büyük/küçük + aksan-bağımsız eşleştirme — src/lib/textMatch.js#foldTr ve sunucudaki diğer
 // kopyalarla BİREBİR aynı. Burada yalnızca "Sayfalar" bölümünün (sabit, istemci tarafı liste)
 // eşleştirmesi için gerekiyor; diğer tüm bölümler eşleştirmeyi zaten sunucuda yapıyor.
-function trLower(s){ return (s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase(); }
-function foldTr(s){ return trLower(s).replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o'); }
+// NFC/birleşme-işareti adımı: bu sayfanın sorgusu bir metin kutusundan DEĞİL, ?q= ile URL'den
+// geliyor — yani site-chrome.js'teki site geneli giriş normalizasyonu buraya hiç uğramıyor
+// (paylaşılan bir bağlantı, yer imi ya da başka bir siteden gelen link ayrışık yazım taşıyabilir).
+// Kök neden için bkz. src/lib/textMatch.js dosya başı.
+function trLower(s){ return (s || '').normalize('NFC').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase(); }
+function foldTr(s){ return trLower(s).replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o'); }
 
 const MAX_PER_GROUP = 20;
 

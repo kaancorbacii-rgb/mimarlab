@@ -38,6 +38,9 @@ import { handleHotspotTagsRoute } from './routes/hotspotTags.js';
 import { handleMessagesRoute } from './routes/messages.js';
 import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
+// Unicode NFC normalizasyonu — bkz. src/lib/textMatch.js başındaki kök neden açıklaması
+// ("doçem" NFD hâlde hiçbir aramada eşleşmiyordu).
+import { normalizeSearchParams } from './lib/textMatch.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 // Hub sayfalarının SSR iç link grafiği (SEO denetimi, 2026-09-05) — bkz. o dosyanın başındaki ölçüm.
 import { isHubPath, hubItemListJsonLd } from './lib/hubLinks.js';
@@ -679,6 +682,13 @@ export default {
     const startedAt = performance.now();
     const requestId = crypto.randomUUID();
     const url = new URL(request.url);
+    // SORGU DİZESİ NFC'YE ÇEKİLİR — sitedeki HER arama/otomatik-tamamlama ucu sorgusunu
+    // url.searchParams'tan okur, bu yüzden normalizasyon için tek doğru yer burasıdır (bkz.
+    // src/lib/textMatch.js başındaki kök neden: ayrışık yazılmış "doçem" hiçbir şey bulamıyordu).
+    // Yol (pathname) BİLEREK dışarıda: slug'lar slugify() ile üretildiğinden zaten saf ASCII'dir.
+    // url.search'ü burada düzeltmek publicCache'in `url.pathname + url.search` anahtarını da
+    // düzeltir — ayrışık ve birleşik yazım artık AYNI cache girdisinde buluşur.
+    normalizeSearchParams(url.searchParams);
     let response;
     let errorMessage = null;
     // Faz 4D — bu try/catch artık YALNIZCA /api/ dalını değil TÜM dalları (asset/media/sitemap)

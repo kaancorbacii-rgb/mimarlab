@@ -5,20 +5,18 @@ import { slugify } from './slugify.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { createNotification } from './notify.js';
 import { MANAGER_POSITION } from './projectClaimAccess.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { foldTr } from './textMatch.js';
 
 // src/routes/office.js#trLower ile BİREBİR aynı (bu dosyada da aynı sebeple yerel olarak tekrar
 // tanımlanmış — bkz. o dosyadaki yorum) — Kurucular/Ekip kutusundaki bir isim, o firmaya onaylı bir
 // profile_claims hesabıyla eşleştirilirken Türkçe İ/I/ı/i büyük-küçük harf katlamasının SQL LIKE'ın
 // bilmediği kurallarla doğru yapılması gerekir.
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
 
 // trLower + aksan katlaması — src/lib/textMatch.js#foldTr ile BİREBİR aynı (bkz. src/routes/
 // office.js#foldTr'deki aynı yerel kopya/gerekçe).
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
 
 const ARCHITECT_COPY_FIELDS = ['dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'];
 

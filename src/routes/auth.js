@@ -8,6 +8,7 @@ import {
   isLinkedInConfigured, buildLinkedInAuthUrl, handleLinkedInCallback,
 } from '../lib/oauth.js';
 import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
+import { foldTr } from '../lib/textMatch.js';
 import { createNotification } from '../lib/notify.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -166,15 +167,12 @@ async function oauthCallback(request, env, url, provider) {
 // ASCII harfleri katladığından (bkz. src/routes/office.js#trLower'daki AYNI gerçek bulgu) eşleştirme
 // JS tarafında yapılır; tablo birkaç yüz satır olduğundan bu tam tarama ucuzdur ve
 // /api/public/check-name'in kullandığı normalize ile BİREBİR aynı sonucu verir.
+// Katlamanın kendisi src/lib/textMatch.js#foldTr'dedir (yerel kopya 2026-09-10'da kaldırıldı — o
+// kopya Unicode NFC adımını taşımıyordu, bkz. o dosyanın başındaki kök neden). Buradaki EK adım
+// yalnızca boşluk sadeleştirmesi: ad alanları serbest metin olduğundan "Ali  Veli" ile "Ali Veli"
+// aynı sayılmalıdır.
 function foldTrName(v) {
-  return (v || '')
-    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
-    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
-    .toLocaleLowerCase('tr')
-    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u').replace(/ö/g, 'o')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return foldTr(v).replace(/\s+/g, ' ').trim();
 }
 
 export async function findArchitectByFoldedName(env, name) {

@@ -23,6 +23,10 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 // sınıflandırma referansı. Burada yalnızca "Fotoğrafçı veya Kaynak" önerilerinde bir ofisin
 // FİRMA mı MARKA mı diye etiketlenmesi için kullanılır (bkz. handlePhotographerSearchRoute).
 import officeKindJs from '../../office-kind.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { foldTr } from '../lib/textMatch.js';
 
 const { isBrandOffice } = officeKindJs;
 
@@ -473,10 +477,7 @@ export async function fetchActiveProjectPoolCached(env, buildStatus) {
   return getCachedPool(env, `projects:${status}`, () => fetchActiveProjectPool(env, status));
 }
 
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-
+// foldTr NEDEN VAR (tanımı için bkz. src/lib/textMatch.js):
 // trLower zaten BÜYÜK->küçük Türkçe eşlemesini doğru yapıyor ama bu yüzden ASCII "I" (ör. ALL-CAPS
 // "SANKAI" gibi Türkçe olmayan/İngilizce yazılmış başlıklarda) küçük harfe 'ı' (noktasız) olarak
 // döner — kullanıcı normal klavyeyle "sankai" yazdığında (zaten küçük 'i', trLower'dan etkilenmez)
@@ -485,9 +486,6 @@ function trLower(s) {
 // sorunu çözüyordu) trLower'ın üstüne Türkçe harfleri ASCII benzerlerine de indirger (ı/i, ş/s, ç/c,
 // ğ/g, ü/u, ö/o) — sorgu VE hedef metin AYNI foldTr'den geçirildiğinden hangi yazımla arandığından
 // bağımsız tutarlı eşleşir.
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
 
 // project_date SERBEST METİN bir alan (admin panelinden elle girilir) — "1506-1513", "MÖ 360",
 // "19. Yüzyıl", "MÖ 479 / MS 324", "4-5. yüzyıl / 1458", "16. yy / 2026" gibi çok çeşitli

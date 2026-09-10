@@ -24,6 +24,10 @@ import { releaseR2StorageBytes } from './r2Quota.js';
 import { clearPendingForKeys } from './derivativeIngest.js';
 import { SUBMISSION_TYPES, dateBucketFor } from './submissionTypes.js';
 import { slugify } from './slugify.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { foldTr } from './textMatch.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
@@ -97,12 +101,6 @@ async function resolveClaimedByUserId(env, ownerUserId) {
 // fonksiyonun yorumu) — arama eşleştirmesiyle aynı davranışı istemeden ayrı bir kopya tutmak yerine
 // paylaşılan bir modüle çıkarmak ileride yapılabilecek bir sadeleştirme, şimdilik mevcut kod
 // convention'ıyla (5 dosyada zaten ayrı ayrı kopyalanmış) tutarlı kalınıyor.
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
 
 // src/routes/submissions.js#createSubmission'ın sunucu tarafı doğrulaması için — istemci tarafı
 // canlı uyarı (bkz. src/routes/public.js#handlePublicCheckName, AYNI foldTr TAM eşleşme deseni)

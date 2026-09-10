@@ -14,6 +14,10 @@ import { isBrandUrlOffice } from '../lib/officeUrl.js';
 import { fetchOfficeProductCounts } from '../lib/officeProductCounts.js';
 import { MANAGER_POSITION } from '../lib/projectClaimAccess.js';
 import officeKindJs from '../../office-kind.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { foldTr } from '../lib/textMatch.js';
 
 const { isBrandOffice, isPureBrandOffice, officeCatList, OFFICE_SERVICE_CATS, BRAND_CATS, LEGACY_BRAND_CAT } = officeKindJs;
 const OFFICE_SERVICE_CAT_SET = new Set(OFFICE_SERVICE_CATS);
@@ -109,19 +113,12 @@ async function findOffice(env, key) {
 
 // SQL LIKE yalnızca ASCII harfleri case-insensitive katlar — Türkçe İ/I/ı/i çiftlerini bilmediğinden
 // D1 tarafında bu normalizasyon yapılamıyor (bkz. gerçek bulgu: küçük harfle "birim" yazınca "BİRİM
-// Design" çıkmıyordu). src/routes/project.js#trLower/src/routes/legacyContent.js#trLower ile BİREBİR
-// aynı — bu dosyalarda da aynı sebeple yerel olarak tekrar tanımlanmış.
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
+// Design" çıkmıyordu); trLower/foldTr'nin tanımı src/lib/textMatch.js'tedir.
 
 // trLower Türkçe BÜYÜK->küçük eşlemesini doğru yapar ama bu yüzden ASCII "I" (ör. Türkçe olmayan/
 // ALL-CAPS yazılmış isimlerde) noktasız 'ı'ya döner — kullanıcı normal klavyeyle (düz 'i' ile)
 // yazdığında eşleşme kaçırılabiliyordu (bkz. src/routes/project.js#foldTr'deki AYNI gerçek bulgu/
 // gerekçe — SANKAI proje arama hatası). Sorgu VE hedef metin AYNI foldTr'den geçirilir.
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
 
 // src/routes/project.js#parseProjectDateYear ile AYNI serbest-metin project_date ayrıştırma
 // mantığı — firma popup'ındaki "Projeler" kartlarını en yeniden en eskiye sıralamak için burada

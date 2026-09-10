@@ -1,3 +1,4 @@
+import { deepNormalizeNfc } from './textMatch.js';
 // Faz 4B — güvenli varsayılan: çağıran kendi Cache-Control'ünü (ör. src/lib/publicCache.js'teki
 // public uç başlıkları) vermediği sürece HER yanıt private/no-store olur. Bu, admin/auth gerektiren
 // onlarca uç noktayı (src/routes/admin.js, auth.js, submissions.js, comments.js vb.) tek tek
@@ -17,9 +18,17 @@ export function errorJson(message, status = 400, headers = {}) {
   return json({ error: message }, status, headers);
 }
 
+// TÜM JSON gövdeleri buradan geçer (repo çapında `request.json()`'ın tek sarmalayıcısı) — bu yüzden
+// yazma tarafının Unicode normalizasyonu için tek doğru yer burasıdır. Ayrışık (NFD) yazılmış bir
+// başlık/ad D1'e olduğu gibi yazılsaydı, o satırın name_fold/title_fold generated kolonu da ayrışık
+// olur ve kayıt normal klavyeyle yazılan hiçbir sorguda BULUNAMAZDI (bkz. src/lib/textMatch.js
+// başındaki kök neden). NFC kanonik BİRLEŞTİRMEdir: kayıpsızdır, hiçbir karakter atılmaz, kullanıcının
+// yazdığı metin anlam olarak değişmez — yalnızca ekranda zaten aynı görünen iki gösterimden
+// kanonik olanı seçilir. Birleşme işareti taşımayan dizelerde (ezici çoğunluk) tek bir regex
+// taramasıyla erken çıkılır, megabaytlık base64 alanlar normalize() çağırmaz.
 export async function readJson(request) {
   try {
-    return await request.json();
+    return deepNormalizeNfc(await request.json());
   } catch {
     return {};
   }

@@ -1,3 +1,4 @@
+import { foldTr } from './textMatch.js';
 import professionShared from '../../profession-shared.js';
 
 // "Bu kayıt bir üyeye atanmış mı?" — kişi/firma/marka/proje/ürün pop-up'larındaki kaynak
@@ -163,19 +164,12 @@ export async function fetchOwnArchitectRows(env, user) {
         WHERE c.user_id = ? AND c.profile_type = 'architect' AND c.status = 'approved'`
     ).bind(user.id).all(),
     user.name
-      ? env.DB.prepare(`SELECT id, name, slug, position FROM architects WHERE deleted_at IS NULL AND name_fold = ?`).bind(foldTrLocal(user.name)).all()
+      ? env.DB.prepare(`SELECT id, name, slug, position FROM architects WHERE deleted_at IS NULL AND name_fold = ?`).bind(foldTr(user.name)).all()
       : Promise.resolve({ results: [] }),
   ]);
   const claimed = claimedRes.results || [];
   const claimedIds = new Set(claimed.map(r => r.id));
   return { claimed, selfNamed: (selfRes.results || []).filter(r => !claimedIds.has(r.id)) };
-}
-
-// src/lib/textMatch.js#foldTr ile BİREBİR aynı (bu dosya tarayıcıya hiç gitmiyor ama depodaki
-// yerleşik kopyalama kuralı korunur — bkz. o dosyanın başındaki not).
-function foldTrLocal(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase()
-    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
 // GET /api/claims/mine'ın `officeLinks` alanı: kişi profilinin office_founders üzerinden bağlı
@@ -319,7 +313,7 @@ export async function canEditArchitectViaOfficeMembership(env, user, architectKe
   const { results: offices } = await env.DB.prepare(
     `SELECT id, name, legacy_key FROM offices WHERE id IN (${placeholders})`
   ).bind(...officeIds).all();
-  const wanted = foldTrLocal(arch.name);
+  const wanted = foldTr(arch.name);
   for (const o of offices || []) {
     const submissionId = (o.legacy_key || '').startsWith('submission:') ? o.legacy_key.slice('submission:'.length) : '';
     const row = await env.DB.prepare(
@@ -328,7 +322,7 @@ export async function canEditArchitectViaOfficeMembership(env, user, architectKe
     ).bind(o.name, o.legacy_key || '', submissionId).first();
     if (!row) continue;
     const names = [...parseNameList(row.founders), ...parseNameList(row.team)];
-    if (names.some(n => foldTrLocal(n) === wanted)) return true;
+    if (names.some(n => foldTr(n) === wanted)) return true;
   }
   return false;
 }

@@ -13,6 +13,10 @@ import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 // bkz. src/routes/project.js'teki AYNI CJS-interop yorumu (il-ilce-data.js için) — bu dosya da
 // canonical veri DEĞİL, salt statik bir taksonomi referans tablosu.
 import catalogTaxonomyJs from '../../catalog-taxonomy.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { foldTr } from '../lib/textMatch.js';
 
 const { CATALOG_TAXONOMY, CATALOG_MENU_COLUMNS, taxonomyGroupOf } = catalogTaxonomyJs;
 
@@ -424,17 +428,10 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
   });
 }
 
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-
 // trLower Türkçe BÜYÜK->küçük eşlemesini doğru yapar ama bu yüzden ASCII "I" (ör. Türkçe olmayan/
 // ALL-CAPS yazılmış isimlerde) noktasız 'ı'ya döner — kullanıcı normal klavyeyle (düz 'i' ile)
 // yazdığında eşleşme kaçırılabiliyordu (bkz. src/routes/project.js#foldTr'deki AYNI gerçek bulgu/
 // gerekçe — SANKAI proje arama hatası). Sorgu VE hedef metin AYNI foldTr'den geçirilir.
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
 
 // rating-widget.js#ratingBuckets ile BİREBİR aynı — "en az N yıldız" kovaları.
 function ratingBuckets(average) {

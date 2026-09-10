@@ -11,6 +11,10 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 import { TR_UNIVERSITIES } from '../lib/universities.js';
 import { anyProfileClaimed } from '../lib/claimedProfiles.js';
+// trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
+// 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
+// bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
+import { trLower, foldTr } from '../lib/textMatch.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -87,20 +91,13 @@ async function findArchitect(env, key) {
 }
 
 // SQL LIKE yalnızca ASCII harfleri case-insensitive katlar — Türkçe İ/I/ı/i çiftlerini bilmediğinden
-// D1 tarafında bu normalizasyon yapılamıyor (bkz. src/routes/office.js#trLower'daki AYNI gerekçe/
-// gerçek bulgu). project.js/legacyContent.js'deki AYNI trLower ile birebir aynı — her dosyada
-// yerel olarak tekrar tanımlanmış.
-function trLower(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
+// D1 tarafında bu normalizasyon yapılamıyor (bkz. src/routes/office.js'teki AYNI gerekçe/gerçek
+// bulgu); trLower/foldTr'nin tanımı src/lib/textMatch.js'tedir.
 
 // trLower Türkçe BÜYÜK->küçük eşlemesini doğru yapar ama bu yüzden ASCII "I" (ör. Türkçe olmayan/
 // ALL-CAPS yazılmış isimlerde) noktasız 'ı'ya döner — kullanıcı normal klavyeyle (düz 'i' ile)
 // yazdığında eşleşme kaçırılabiliyordu (bkz. src/routes/project.js#foldTr'deki AYNI gerçek bulgu/
 // gerekçe — SANKAI proje arama hatası). Sorgu VE hedef metin AYNI foldTr'den geçirilir.
-function foldTr(s) {
-  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
 
 // src/routes/project.js#parseProjectDateYear ile AYNI serbest-metin project_date ayrıştırma
 // mantığı — mimar popup'ındaki "Projeler" kartlarını en yeniden en eskiye sıralamak için burada

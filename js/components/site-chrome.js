@@ -9,6 +9,57 @@
 // sayfa ayrıştırılırken (deferred script'ler çalışmadan ÖNCE) erişiyor. Footer ise DOMContentLoaded'da
 // mount edilir — hiçbir script footer elemanlarına erken erişmiyor.
 (function(){
+  // ---------------------------------------------------------------------------------------------
+  // UNICODE NFC NORMALİZASYONU — SİTE GENELİ METİN GİRİŞİ (kullanıcı isteği, 2026-09-10:
+  // "doçem yazınca çıkmıyor ama docem yazınca çıkıyor ... kökten çöz").
+  //
+  // KÖK NEDEN: "ç" harfinin ekranda BİREBİR AYNI görünen iki Unicode gösterimi var — birleşik
+  // U+00E7 ve ayrışık 'c' + U+0327 (birleşme çengeli). Ayrışık hâl macOS'tan kopyala-yapıştırda,
+  // bazı klavye/IME'lerde ve PDF/web alıntılarında düzenli olarak geliyor. Türkçe katlaması (foldTr)
+  // yalnızca birleşik hâli tanıdığından, ayrışık yazılan "doçem" sorgusu hiçbir kayda dönüşmüyor,
+  // kullanıcı ise kutuda doğru yazdığını gördüğü için sorunu "Türkçe karakterle arama bozuk" diye
+  // yaşıyordu. Canlıda doğrulandı (2026-09-10): aynı görünen iki sorgudan biri 1, diğeri 0 sonuç
+  // veriyordu.
+  //
+  // NEDEN BURADA (tek yer): site-chrome.js sitedeki 31 HTML sayfasının HEPSİNDE senkron yükleniyor
+  // ve yakalama (capture) fazındaki tek bir dinleyici, sayfaların kendi arama/otomatik-tamamlama
+  // kutularının 'input' işleyicilerinden ÖNCE çalışır. Alternatif, her sayfadaki her katlama
+  // kopyasına (arama, office-picker, duplicate-name-check, auth-modal, proje.js, ...) ayrı ayrı
+  // normalize eklemekti — bir sonraki kutuda yine unutulurdu. Sunucu tarafındaki eşi:
+  // src/index.js (sorgu dizesi) ve src/lib/http.js#readJson (JSON gövdeleri).
+  //
+  // KAYIPSIZ: NFC salt kanonik BİRLEŞTİRMEdir — hiçbir karakter atılmaz, kullanıcının yazdığı metin
+  // anlamca değişmez, yalnızca aynı görünen iki gösterimden kanonik olanı seçilir (W3C'nin metin
+  // girişi için önerdiği biçim). Şifre kutuları BİLEREK DIŞARIDA (aşağıdaki izin listesinde yoklar):
+  // mevcut bir hesabın parolası ayrışık hâlde belirlenmiş olabilir ve onu girişte sessizce
+  // değiştirmek o hesabı kilitlerdi.
+  //
+  // TİP İZİN LİSTESİ (kara liste DEĞİL): yalnızca serbest metin taşıyan kutulara dokunulur.
+  // <input type="file"> özellikle önemli — .value'ya YAZMAK SecurityError fırlatır ve macOS dosya
+  // adları düzenli olarak ayrışık gelir ("Şişli.jpg"), yani kara listede unutulsaydı görsel yükleme
+  // akışı ilk Türkçe dosya adında kırılırdı.
+  const NORMALIZE_INPUT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel', '']);
+  const COMBINING_MARKS_RE = /[\u0300-\u036f]/;
+  document.addEventListener('input', function(e){
+    const el = e.target;
+    if(!el) return;
+    const tag = el.tagName;
+    if(tag !== 'TEXTAREA' && !(tag === 'INPUT' && NORMALIZE_INPUT_TYPES.has((el.type || '').toLowerCase()))) return;
+    const value = el.value;
+    if(typeof value !== 'string' || !COMBINING_MARKS_RE.test(value)) return;
+    const normalized = value.normalize('NFC');
+    if(normalized === value) return;
+    // İmleç, birleşen karakter sayısı kadar sola kayar — aksi halde kullanıcı yazmaya devam
+    // ettiğinde harfler yanlış yere düşerdi. setSelectionRange bazı input tiplerinde (email,
+    // number) fırlatır; oradaki tek kayıp imleç konumu olur, değerin düzelmesi yine de kalır.
+    const caret = el.selectionStart;
+    el.value = normalized;
+    try {
+      const pos = caret == null ? normalized.length : Math.max(0, caret - (value.length - normalized.length));
+      el.setSelectionRange(pos, pos);
+    } catch (_) {}
+  }, true);
+
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 

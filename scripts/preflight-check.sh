@@ -293,6 +293,19 @@ else
 fi
 rm -f /tmp/preflight_prevsearch
 
+# Unicode NFC normalizasyonu (kullanıcı isteği, 2026-09-10: "doçem yazınca çıkmıyor, docem yazınca
+# çıkıyor"). İki nedenle deploy'u durduracak kadar önemli: (a) ayrışık yazılan Türkçe harf sitedeki
+# HİÇBİR aramada eşleşmiyordu; (b) foldTr'nin çıktısı D1'in name_fold/title_fold/brand_fold
+# generated kolonlarıyla BİREBİR aynı kalmak zorunda (bazı uçlar eşitlik kurar) — bu test o
+# sözleşmeyi sabitler. Bkz. scripts/test-unicode-normalize.mjs dosya başı.
+if node scripts/test-unicode-normalize.mjs >/tmp/preflight_nfc 2>&1; then
+  ok "Unicode NFC + fold kolonu sözleşmesi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_nfc) test)"
+else
+  bad "Unicode NFC + fold kolonu sözleşmesi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_nfc >&2
+fi
+rm -f /tmp/preflight_nfc
+
 # Kişi->firma ters cascade + yetkiye bağlı arşivle/sil (kullanıcı isteği, 2026-09-10 ikinci tur
 # madde 1/2). İkisi de tek yerde yaşayan ve BİRDEN FAZLA yüzeyden okunan kurallar:
 # cascadeRemovedOfficesFromArchitect (POST ve PATCH /api/architects) ve canAccessSubmissionRow
