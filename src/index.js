@@ -647,6 +647,16 @@ const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
 // KULLANICI ETKİLEŞİMİNİN sonucudur (JS zaten çalışıyor), doğrudan bir giriş/bot yolu değildir;
 // burada olmasının tek sebebi kabuğun Cloudflare Assets varsayılanı `max-age=0, must-revalidate`
 // yerine diğer liste sayfalarıyla aynı 60sn/300sn başlığını almasıdır (performans denetimi madde 6).
+// /proje/sayfa-7 -> '/proje' (bkz. çağrı noktasındaki gerekçe). Yalnızca bu beş liste yolu ve
+// yalnızca `sayfa-<pozitif tam sayı>` biçimi kabul edilir; başka her şey normal detay yoluna düşer.
+const PAGED_LIST_BASES = ['/proje', '/kisi', '/firma', '/marka', '/urun'];
+const PAGED_LIST_RE = /^(\/(?:proje|kisi|firma|marka|urun))\/sayfa-([1-9]\d{0,4})$/;
+function matchPagedListPath(pathname) {
+  const m = PAGED_LIST_RE.exec(pathname.replace(/\/+$/, ''));
+  if (!m) return null;
+  return PAGED_LIST_BASES.includes(m[1]) ? m[1] : null;
+}
+
 const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/arama', '/en-iyi-100', '/gundem']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
@@ -947,6 +957,21 @@ async function routeAsset(request, env, url, ctx) {
     return serveMeetingRoomPage(request, env, url);
   }
   if (url.pathname === '/gorusme') return notFoundPageResponse();
+
+  // TEMİZ SAYFALAMA ADRESLERİ — /proje/sayfa-7, /kisi/sayfa-2, /firma/sayfa-3, /marka/sayfa-2,
+  // /urun/sayfa-4 (kullanıcı isteği, 2026-09-10 madde 5: "/proje?buildStatus=built&page=7 gibi
+  // URL'leri düzelt, /proje/sayfa-7 gibi olması gerekiyor").
+  //
+  // DETAY YOLUNDAN ÖNCE eşleşmesi ŞART: /proje/:slug kalıbı "sayfa-7"yi bir proje slug'ı sanıp
+  // "Proje bulunamadı" gösterirdi. Sayfa numarası SUNUCUDA kullanılmaz — liste sayfası zaten
+  // istemci tarafında sayfalanıyor (bkz. js/pages/proje.js#applyStateFromUrl, adresi kendisi okur);
+  // burada yapılan tek şey doğru liste kabuğunu servis etmek. Sorgu dizesi (filtreler) korunur.
+  const pagedList = matchPagedListPath(url.pathname);
+  if (pagedList) {
+    const listUrl = new URL(url);
+    listUrl.pathname = pagedList;
+    return routeAsset(new Request(listUrl, request), env, listUrl, ctx);
+  }
 
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
   if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);

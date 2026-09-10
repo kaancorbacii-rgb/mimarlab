@@ -483,7 +483,7 @@ export async function buildOfficePayload(env, key) {
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], preferringOffices: [], preferringArchitects: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], preferringOffices: [], preferringArchitects: [], hidden: true, preview: !!row.preview_at };
   const o = parseCanonicalRow('offices', row);
   // MİMARLAB AI, Faz 2 — Knowledge Graph katmanı Firma↔Şehir ilişkisi (bkz. kullanıcı isteği:
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye

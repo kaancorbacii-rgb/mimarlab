@@ -854,6 +854,24 @@ async function activateClaimedProfile(env, profileType, profileKey) {
        WHERE t.name = ? OR t.slug = ? OR t.legacy_key = ?
      )`
   ).bind(now, profileKey, profileKey, profileKey).run();
+
+  // FİRMA ORTAKLARININ KİŞİ PROFİLLERİ DE YAYINA DÖNER (kullanıcı isteği, 2026-09-10: "Dürrin Süer
+  // kişi ve firma profilini sahiplenen bir kullanıcı. Bu kullanıcı firma ortağı Metin Kılıç'ın da
+  // profilini düzenleme yetkisine sahip olsun ve Metin Kılıç'ın profili de blurlu değil yayında
+  // olsun."). Düzenleme yetkisi ZATEN vardı (bkz. src/lib/claimedProfiles.js#
+  // canEditArchitectViaOfficeMembership) — eksik olan görünürlüktü: firma yayında ama Kurucular/Ekip
+  // listesindeki kişiler soluk kalıyordu. Bağ office_founders üzerinden okunur (firma künyesinin
+  // TEK yapılandırılmış kişi bağı). Yalnızca firma/marka atamalarında çalışır.
+  if (profileType === 'office') {
+    await env.DB.prepare(
+      `UPDATE architects SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
+       WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND id IN (
+         SELECT f.architect_id FROM office_founders f
+         JOIN offices o ON o.id = f.office_id
+         WHERE o.name = ? OR o.slug = ? OR o.legacy_key = ?
+       )`
+    ).bind(now, profileKey, profileKey, profileKey).run();
+  }
 }
 
 async function handleClaimsAdmin(request, env, url, segments) {

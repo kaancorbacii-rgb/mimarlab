@@ -280,8 +280,9 @@ function applyInitialFiltersFromQuery(){
   const searchParam = params.get('search');
   localSearchQuery = searchParam || '';
   document.getElementById('g-sort').value = params.get('sort') || '';
-  const pageParam = parseInt(params.get('page'), 10);
-  currentPage = (pageParam > 1) ? pageParam : 1;
+  // Sayfa numarası artık YOLDAN okunur (/proje/sayfa-7); eski ?page=N bağlantıları da çalışır
+  // (bkz. pageFromUrl).
+  currentPage = pageFromUrl();
 }
 
 function trLower(s){
@@ -305,11 +306,31 @@ function currentQueryParams(){
 // duruma döner, link paylaşılabilir, bkz. kullanıcı isteği). push=false: replaceState (serbest
 // metin arama kutusunda her debounce tetiklemesinde YENİ bir geçmiş girdisi açmamak için — aksi
 // halde "istanbul" yazarken 8 harf 8 ayrı geri tuşu adımına dönüşürdü).
+// TEMİZ SAYFALAMA ADRESİ (kullanıcı isteği, 2026-09-10 madde 5): sayfa numarası sorgu dizesinde
+// değil YOLDA taşınır — /proje?page=7 yerine /proje/sayfa-7. Sunucu bu yolu liste kabuğuna
+// eşler (bkz. src/index.js#matchPagedListPath). Filtreler sorgu dizesinde kalmaya devam eder.
+// listBasePath: adres /proje/sayfa-7 iken bile TABAN yol ('/proje') gerekir.
+function listBasePath(){
+  return location.pathname.replace(/\/sayfa-\d+\/?$/, '').replace(/\/+$/, '') || '/';
+}
+function listPagePath(page){
+  const base = listBasePath();
+  return page > 1 ? base + '/sayfa-' + page : base;
+}
+// Eski ?page=N bağlantıları KIRILMAZ: adres yolunda sayfa yoksa sorgu dizesine düşülür.
+function pageFromUrl(){
+  const m = /\/sayfa-(\d+)\/?$/.exec(location.pathname);
+  if(m) return Math.max(1, parseInt(m[1], 10) || 1);
+  const p = parseInt(new URLSearchParams(location.search).get('page'), 10);
+  return p > 1 ? p : 1;
+}
 function syncBrowserUrl(push){
   const params = currentQueryParams();
-  if(currentPage > 1) params.set('page', String(currentPage));
+  // buildStatus=built VARSAYILAN — adres çubuğunda gösterilmez (kullanıcı isteği madde 5).
+  // Sunucu/istemci bu parametre yokken zaten 'built' varsayar.
+  if(params.get('buildStatus') === 'built') params.delete('buildStatus');
   const qs = params.toString();
-  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  const newUrl = listPagePath(currentPage) + (qs ? '?' + qs : '');
   if(newUrl === location.pathname + location.search) return;
   if(push) history.pushState({}, '', newUrl);
   else history.replaceState({}, '', newUrl);

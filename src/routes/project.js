@@ -379,7 +379,7 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
        WHERE p.slug = ? AND p.deleted_at IS NULL GROUP BY p.id`
     ).bind(slug).first();
     if (!row) return { item: null, hidden: false };
-    if (row.hidden_at) return { item: null, hidden: true };
+    if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at };
     const item = shapeProjectItem(row);
     const [designerDetails, rawNames, owner, photographerDetails] = await Promise.all([
       fetchDesignerDetails(env, row.id),

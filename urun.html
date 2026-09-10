@@ -697,11 +697,27 @@ async function buildSidebar(){
   });
 }
 
+// TEMİZ SAYFALAMA ADRESİ — bkz. js/pages/proje.js#listPagePath (AYNI sözleşme, aynı gerekçe):
+// sayfa numarası sorgu dizesinde değil YOLDA taşınır (/kisi/sayfa-2). Sunucu bu yolu liste
+// kabuğuna eşler (src/index.js#matchPagedListPath); filtreler sorgu dizesinde kalır.
+function listBasePath(){
+  return location.pathname.replace(/\/sayfa-\d+\/?$/, '').replace(/\/+$/, '') || '/';
+}
+function listPagePath(page){
+  const base = listBasePath();
+  return page > 1 ? base + '/sayfa-' + page : base;
+}
+// Eski ?page=N bağlantıları KIRILMAZ.
+function pageFromUrl(){
+  const m = /\/sayfa-(\d+)\/?$/.exec(location.pathname);
+  if(m) return Math.max(1, parseInt(m[1], 10) || 1);
+  const p = parseInt(new URLSearchParams(location.search).get('page'), 10);
+  return p > 1 ? p : 1;
+}
 function syncBrowserUrl(push){
   const params = currentQueryParams();
-  if(currentPage > 1) params.set('page', String(currentPage));
   const qs = params.toString();
-  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  const newUrl = listPagePath(currentPage) + (qs ? '?' + qs : '');
   if(newUrl === location.pathname + location.search) return;
   if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
   if(window.ModalShell && ModalShell.markRealPage) ModalShell.markRealPage();
@@ -711,8 +727,8 @@ function applyStateFromUrl(){
   FILTER_GROUPS.forEach(g => { activeFilters[g.key].clear(); params.getAll(g.key).forEach(v => activeFilters[g.key].add(v)); });
   localSearchQuery = params.get('search') || '';
   document.getElementById('g-sort').value = params.get('sort') || '';
-  const pageParam = parseInt(params.get('page'), 10);
-  currentPage = (pageParam > 1) ? pageParam : 1;
+  // Sayfa numarası artık YOLDAN okunur (/kisi/sayfa-2); eski ?page=N de çalışır (bkz. pageFromUrl).
+  currentPage = pageFromUrl();
 }
 function goToPage(p){
   currentPage = p;

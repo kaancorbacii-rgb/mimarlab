@@ -1047,12 +1047,20 @@ const ModalShell = (function () {
         const res = await ((attempt === 0 && takePrefetched(path)) || fetch(path));
         // 404/410 = kaydın kendisi yok/kaldırılmış (bkz. src/lib/publicCache.js#statusFor) — bu
         // KESİN bir cevap, tekrar denemek anlamsız.
-        if (res.status === 404 || res.status === 410) return { status: 'missing' };
+        // ÖNİZLEME ("soluk") kaydı da 410 döner ama "bulunamadı" DEĞİLDİR — kullanıcı isteği
+        // (2026-09-10): blurlu bir içeriğe sağ tık > yeni sekmede aç denince "Proje bulunamadı"
+        // yerine "Bu içerik önizleme modunda, henüz yayında değil." yazmalı. Bu yüzden 410'da gövde
+        // yine okunur ve sunucunun `preview` bayrağına bakılır (bkz. src/routes/project.js vb.).
+        if (res.status === 404 || res.status === 410) {
+          let body = null;
+          try { body = await res.json(); } catch { /* gövdesiz 404/410 — normal "yok" durumu */ }
+          return { status: (body && body.preview) ? 'preview' : 'missing' };
+        }
         if (!res.ok) { if (attempt === 0) { await sleep(ENTITY_RETRY_DELAY_MS); continue; } return { status: 'error' }; }
         const data = await res.json();
         // Gövde item:null (ya da hidden:true) taşıyorsa — eski/ara sürüm yanıtlar bunu 200 ile de
         // dönebiliyordu — bu da "yok" demektir.
-        if (!data || !data.item || data.hidden) return { status: 'missing' };
+        if (!data || !data.item || data.hidden) return { status: (data && data.preview) ? 'preview' : 'missing' };
         return { status: 'ok', item: data.item, payload: data };
       } catch {
         // Ağ/DNS/çevrimdışı/JSON parse — hiçbiri "kayıt yok" anlamına gelmez.

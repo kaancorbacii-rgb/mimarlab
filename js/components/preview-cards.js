@@ -40,10 +40,32 @@
       /* Kart TAMAMEN kaybolmaz, "önizleme" olduğu belli olacak kadar soluklaşır ve tıklama alır
          ama hiçbir şey yapmaz (pointer-events:none kullanılmaz: o zaman imleç bile değişmez ve
          kullanıcı kartın neden tepkisiz olduğunu anlamaz — cursor:default + başlık ipucu daha açık). */
-      '.ml-preview-card{opacity:.45; filter:grayscale(.35); cursor:default;}',
-      '.ml-preview-card:hover{opacity:.55;}',
-      /* Kart içindeki alt butonlar (kaydet/paylaş) da devre dışı görünsün. */
+      /* TON (kullanıcı isteği, 2026-09-10: "Blurlama tonunu birazcık daha arttır. Telif hakkı
+         doğmasın."): asıl telif riski GÖRSELDE olduğundan görsele GERÇEK bir blur uygulanır —
+         yalnızca opacity düşürmek görseli hâlâ okunabilir/kullanılabilir bırakırdı. Metin
+         (başlık/altyazı) blurlanmaz, yalnızca soluklaşır: kullanıcı kaydın NE olduğunu görebilmeli,
+         sadece görselden yararlanamamalı. */
+      '.ml-preview-card{opacity:.62; cursor:pointer;}',
+      '.ml-preview-card img, .ml-preview-card .related-card-placeholder, .ml-preview-card [style*="background-image"]{',
+      '  filter:blur(9px) grayscale(.5); transform:scale(1.06);',
+      '}',
+      '.ml-preview-card:hover{opacity:.72;}',
+      /* Kart içindeki alt butonlar (kaydet/paylaş) da devre dışı görünsün — tıklama zaten
+         yakalama fazında durduruluyor (bkz. #guard). */
       '.ml-preview-card *{pointer-events:none;}',
+      /* "Bu profil sana mı ait?" mini popup'ı (kullanıcı isteği, 2026-09-10 madde 4). Kendi
+         katmanında, sitenin modal kabuğundan BAĞIMSIZ: bu bileşen her sayfada yüklü ve ModalShell
+         her sayfada yüklü DEĞİL. */
+      '.ml-claim-pop-overlay{position:fixed; inset:0; z-index:9998; background:rgba(20,18,15,.45); display:flex; align-items:center; justify-content:center; padding:20px;}',
+      '.ml-claim-pop{background:var(--paper-card, #fff); color:var(--ink, #1d1b18); border-radius:16px; max-width:420px; width:100%; padding:22px 22px 18px; box-shadow:0 24px 60px rgba(0,0,0,.28); font-family:inherit;}',
+      '.ml-claim-pop h2{font-size:18px; font-weight:700; margin:0 0 6px;}',
+      '.ml-claim-pop p{font-size:13px; line-height:1.55; color:var(--ink-soft, #6b655c); margin:0 0 14px;}',
+      '.ml-claim-pop textarea{width:100%; box-sizing:border-box; min-height:74px; padding:10px 12px; border-radius:10px; border:1px solid var(--line, #dcd7cd); background:var(--paper, #fffdf9); font-family:inherit; font-size:13px; color:var(--ink, #1d1b18); resize:vertical;}',
+      '.ml-claim-pop-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items:center;}',
+      '.ml-claim-pop button{font-family:inherit; font-size:13px; font-weight:600; border-radius:100px; padding:9px 16px; cursor:pointer; border:1px solid var(--line, #dcd7cd); background:transparent; color:var(--ink, #1d1b18);}',
+      '.ml-claim-pop button.primary{background:var(--ink, #1d1b18); color:var(--paper-card, #fff); border-color:var(--ink, #1d1b18);}',
+      '.ml-claim-pop button[disabled]{opacity:.55; cursor:default;}',
+      '.ml-claim-pop-msg{font-size:12.5px; margin:10px 0 0; color:var(--walnut, #7a5c3e);}',
     ].join('\n');
     document.head.appendChild(el);
   }
@@ -95,6 +117,79 @@
     setTimeout(function () { pending = false; markAll(document); }, 0);
   }
 
+  // PROFİL SAHİPLENME MİNİ POPUP'I (kullanıcı isteği, 2026-09-10 madde 4): kişi/firma/marka
+  // önizleme kartına tıklayınca "Bu profil/firma/marka sana mı ait?" kutusu açılır ve kullanıcı
+  // buradan sahiplenme talebi gönderir. PROJE ve ÜRÜN kartlarında böyle bir akış YOKTUR (onların
+  // sahipliği künyedeki firma/kişi üzerinden gelir), orada tıklama sessizce engellenmeye devam eder.
+  var CLAIM_KIND_BY_PREFIX = {
+    '/kisi/': { profileType: 'architect', title: 'Bu profil sana mı ait?', noun: 'profil' },
+    '/firma/': { profileType: 'office', title: 'Bu firma sana mı ait?', noun: 'firma' },
+    '/marka/': { profileType: 'office', title: 'Bu marka sana mı ait?', noun: 'marka' },
+  };
+
+  function claimKindFor(key) {
+    for (var prefix in CLAIM_KIND_BY_PREFIX) {
+      if (key.indexOf(prefix) === 0) {
+        return { cfg: CLAIM_KIND_BY_PREFIX[prefix], slug: decodeURIComponent(key.slice(prefix.length)) };
+      }
+    }
+    return null;
+  }
+
+  function closePop() {
+    var el = document.querySelector('.ml-claim-pop-overlay');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  function openClaimPopup(cfg, slug, label) {
+    closePop();
+    var overlay = document.createElement('div');
+    overlay.className = 'ml-claim-pop-overlay';
+    overlay.innerHTML =
+      '<div class="ml-claim-pop" role="dialog" aria-modal="true">' +
+        '<h2></h2>' +
+        '<p></p>' +
+        '<textarea placeholder="İstersen kısa bir not ekle (ör. firmadaki görevin)."></textarea>' +
+        '<p class="ml-claim-pop-msg" hidden></p>' +
+        '<div class="ml-claim-pop-actions">' +
+          '<button type="button" data-act="cancel">Vazgeç</button>' +
+          '<button type="button" class="primary" data-act="send">Talep Gönder</button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('h2').textContent = cfg.title;
+    overlay.querySelector('p').textContent =
+      (label ? label + ' — ' : '') + 'Bu ' + cfg.noun + ' şu an önizleme modunda ve yayında değil. Sahibiysen talep gönder; onaylandığında ' + cfg.noun + ' yayına alınır ve düzenleyebilirsin.';
+    document.body.appendChild(overlay);
+
+    var msg = overlay.querySelector('.ml-claim-pop-msg');
+    function say(text) { msg.textContent = text; msg.hidden = false; }
+
+    overlay.addEventListener('click', function (ev) {
+      if (ev.target === overlay || ev.target.getAttribute('data-act') === 'cancel') { closePop(); return; }
+      if (ev.target.getAttribute('data-act') !== 'send') return;
+      var btn = ev.target;
+      btn.disabled = true;
+      btn.textContent = 'Gönderiliyor…';
+      fetch('/api/claims', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileType: cfg.profileType, profileKey: slug, note: overlay.querySelector('textarea').value.trim() || null }),
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; });
+      }).then(function (res) {
+        if (res.status === 401) { say('Talep göndermek için önce giriş yapmalısın.'); btn.disabled = false; btn.textContent = 'Talep Gönder'; return; }
+        if (!res.ok) { say(res.d.error || 'Talep gönderilemedi, tekrar dene.'); btn.disabled = false; btn.textContent = 'Talep Gönder'; return; }
+        say('Talebin alındı. Onaylandığında bilgilendirileceksin.');
+        btn.textContent = 'Gönderildi';
+      }).catch(function () {
+        say('Sunucuya ulaşılamadı, tekrar dene.');
+        btn.disabled = false; btn.textContent = 'Talep Gönder';
+      });
+    });
+    document.addEventListener('keydown', function esc(ev) {
+      if (ev.key === 'Escape') { closePop(); document.removeEventListener('keydown', esc); }
+    });
+  }
+
   // Tıklamayı YAKALAMA fazında durdurur: kartın kendi dinleyicisi (ör. proje.html'in popup açan
   // delegated handler'ı) çalışmadan önce. Sayfa geçişi de (varsayılan davranış) engellenir.
   function guard(e) {
@@ -103,6 +198,9 @@
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    if (e.type !== 'click') return; // orta tık / yeni sekme: yalnızca engelle, popup açma
+    var hit = claimKindFor(hrefKey(a.getAttribute('href')) || '');
+    if (hit) openClaimPopup(hit.cfg, hit.slug, (a.textContent || '').trim().slice(0, 60));
   }
 
   function start() {

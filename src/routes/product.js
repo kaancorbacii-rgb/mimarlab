@@ -384,7 +384,7 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     // edip "bulunamadı" gösteriyor, ama /api/product/:key'i doğrudan çağıran biri tam veriyi
     // alabiliyordu — src/routes/project.js#handleProjectDetailRoute'un AYNI durumda zaten yaptığı
     // gibi item burada da null'lanır.
-    if (row.hidden_at) return { item: null, hidden: true };
+    if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at };
     const item = shapeProductItem(row);
     // ratingKey: puanlama/kaydetme (ratings.target_id / saved_items.item_key) hâlâ BURADAKİ
     // ratingKeyFor ile üretilen eski anahtarı kullanıyor (bkz. dosya başı yorumu — slug'dan BİLEREK

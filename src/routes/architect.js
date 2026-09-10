@@ -466,7 +466,7 @@ async function buildArchitectPayload(env, key) {
   // "bulunamadı" gösteriyor, ama /api/architect/:key'i doğrudan çağıran biri tam veriyi alabiliyordu
   // — src/routes/project.js#handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada
   // da null'lanır.
-  if (row.hidden_at) return { item: null, hidden: true };
+  if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at };
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id

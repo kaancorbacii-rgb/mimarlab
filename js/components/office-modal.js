@@ -1150,7 +1150,12 @@ const OfficeModal = (function () {
       ModalShell.showLoadError(titleEl, 'Firma profili şu an yüklenemedi', () => { if (slug) open(slug, { pushHistory: false }); });
       return;
     }
-    titleEl.textContent = 'Firma bulunamadı';
+    // ÖNİZLEME ("soluk") kaydı: 410 dönen bu içerik SİLİNMİŞ değil, henüz yayına alınmamış
+    // (kullanıcı isteği, 2026-09-10 — blurlu bir karta sağ tık > yeni sekmede aç). fetchEntity
+    // sunucunun `preview` bayrağını 'preview' durumuna çevirir (bkz. modal-shell.js#fetchEntity).
+    titleEl.textContent = status === 'preview'
+      ? 'Bu içerik önizleme modunda, henüz yayında değil.'
+      : 'Firma bulunamadı';
   }
 
   function wireInternalNav() {
