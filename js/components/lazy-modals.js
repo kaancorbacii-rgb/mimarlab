@@ -331,6 +331,28 @@
   //   * Aynı yol bir kez ön-yüklenir (prefetchedPaths) — imleç gidip gelse de tek istek.
   //   * Veri tasarrufu modu (navigator.connection.saveData) açıksa hiç yapılmaz.
   //   * Yalnızca okuma uçları, yalnızca sol tıkla açılabilecek düz bağlantılar (target/download yok).
+  // LİSTE SAYFASINDA POPUP MODÜLÜNÜ BOŞTA ÖN-YÜKLE (kullanıcı isteği, 2026-09-10: "popup'ların
+  // açılmasında yavaşlık"). Canlı ölçüm: /kisi'de ilk karta tıklandığında popup içeriği ~1,6 sn'de
+  // geliyordu — kisi/firma/marka.html modal kabuğunu <script> ile YÜKLEMEZ; ilk tıklamada
+  // modal-shell.js + architect/office-modal.js + beş yardımcı (~250 KB) indirilip çalıştırılıyor,
+  // ardından /api/<tip>/<slug> çekiliyordu. Aşağıdaki hover/touchstart ön-yüklemesi mobilde dokunmanın
+  // KENDİSİYLE başladığından tıklama yolundan hiçbir şey çıkarmıyordu. Şimdi liste sayfasının kendi
+  // varlık tipinin modülü, sayfa yüklendikten sonra boşta (<link rel="preload" as="script">, yalnızca
+  // bayt — değerlendirme yok) indirilir; ilk tıklama artık yalnızca çalıştırma + veri isteği öder.
+  // saveData / 2g bağlantılarda atlanır. /proje ve /urun kendi modal script'lerini zaten <script>
+  // etiketiyle yüklüyor (preloadedOnly / defer), onlara dokunulmaz; ana sayfa dört tipe birden
+  // bağlandığından bilerek kapsam dışıdır (400 KB'yi her ziyaretçiye indirtmek isabetsiz).
+  const LIST_PAGE_ENTITY_MODULE = { '/kisi': 'architect', '/firma': 'office', '/marka': 'office', '/urun': 'product' };
+  (function warmListPageModule() {
+    const key = LIST_PAGE_ENTITY_MODULE[location.pathname.replace(/\/+$/, '') || '/'];
+    if (!key) return;
+    const conn = navigator.connection;
+    if (conn && (conn.saveData || /(^|[^3-5])2g/.test(conn.effectiveType || ''))) return;
+    const run = () => { try { preloadModuleAssets(key); } catch { /* ön-yükleme sayfayı asla bozmamalı */ } };
+    const idle = () => (window.requestIdleCallback ? requestIdleCallback(run, { timeout: 4000 }) : setTimeout(run, 1500));
+    if (document.readyState === 'complete') idle(); else window.addEventListener('load', idle, { once: true });
+  })();
+
   const PREFETCH_HOVER_DELAY_MS = 100;
   const ENTITY_API_PREFIX = { '/proje/': '/api/project/', '/kisi/': '/api/architect/', '/firma/': '/api/office/', '/marka/': '/api/office/', '/urun/': '/api/product/' };
   const prefetchedPaths = new Set();

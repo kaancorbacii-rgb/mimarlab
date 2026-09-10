@@ -609,7 +609,27 @@ function fingerprintCacheKey(kind) { return `fingerprint:${kind}`; }
 // başarısız olursa (binding yok, ağ hatası vb.) sessizce her istekte D1'den taze hesaplamaya
 // DÜŞER (mevcut ESKİ davranışla birebir aynı, davranış BOZULMAZ) — kullanıcı isteği: "cache
 // invalidation başarısız olduğunda sistemin güvenli şekilde çalışmaya devam edeceği bir fallback".
+// ISOLATE İÇİ MEMO (kullanıcı isteği, 2026-09-10 — açılış hızı). cachedPublicJson HER cache HIT'inde
+// listFingerprint() çağırır (tazelik kapısı, bkz. yukarıdaki gerekçe) ve bu fonksiyon her seferinde
+// bir KV turu yapıyordu — canlıda liste/detay API'lerinin TLS sonrası ~200-400 ms'lik maliyetinin
+// büyük kısmı (statik dosya tabanı ~150 ms). Aynı isolate'e gelen ardışık isteklerde parmak izi
+// 5 sn boyunca elde tutulur. Tazelik semantiği değişmez: KV'nin kendi TTL'i zaten 60 sn ve
+// invalidatePublicCache hem KV anahtarını hem bu memoyu düşürür; başka bir isolate en fazla 5 sn
+// daha eski bir parmak iziyle HIT servis edebilir — bu, eski davranıştaki 60 sn KV penceresinin
+// içinde kalır, yeni bir bayatlık sınıfı açmaz.
+const FINGERPRINT_MEMO_TTL_MS = 5000;
+const fingerprintMemo = new Map();
+
 export async function getCachedFingerprint(env, kind, computeFingerprint) {
+  const now = Date.now();
+  const memo = fingerprintMemo.get(kind);
+  if (memo && memo.expiresAt > now) return memo.value;
+  const fp = await readFingerprint(env, kind, computeFingerprint);
+  fingerprintMemo.set(kind, { value: fp, expiresAt: now + FINGERPRINT_MEMO_TTL_MS });
+  return fp;
+}
+
+async function readFingerprint(env, kind, computeFingerprint) {
   if (env.FACET_CACHE) {
     try {
       const cached = await env.FACET_CACHE.get(fingerprintCacheKey(kind));
@@ -638,6 +658,7 @@ export async function getCachedFingerprint(env, kind, computeFingerprint) {
 // binding'ine (FACET_CACHE) erişmek için gerekli, öncesinde bu fonksiyon parametresizdi; TÜM çağıran
 // noktalar (13 tanesi) buna göre güncellendi.
 export async function invalidatePublicCache(env) {
+  fingerprintMemo.clear(); // bkz. getCachedFingerprint — yazma anında bu isolate'in memosu da düşer
   // production audit (2026-09-01, madde E): aşağıdaki caches.default.delete() çağrıları YALNIZCA bu
   // isteği işleyen PoP'u temizler. purgeGlobalUrls, AYNI yol listesini Cloudflare'ın purge-by-URL
   // REST API'siyle TÜM PoP'larda temizler — ama yalnızca CF_ZONE_ID + CF_PURGE_TOKEN secret'ları
