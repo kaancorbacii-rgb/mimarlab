@@ -74,8 +74,17 @@ for kind in project architect firm product; do
   prefix=$(detail_prefix_for "$kind")
   combined=$(fetch_body_and_status "/api/$ep?limit=3")
   json=$(split_body "$combined")
-  if ! echo "$json" | jq -e '.items and (.items | type == "array") and (.items | length > 0)' >/dev/null 2>&1; then
-    bad "/api/$ep beklenen şekilde değil ya da boş: $(echo "$json" | head -c 200)"
+  if ! echo "$json" | jq -e '.items and (.items | type == "array")' >/dev/null 2>&1; then
+    bad "/api/$ep beklenen şekilde değil: $(echo "$json" | head -c 200)"
+    continue
+  fi
+  # BOŞ LİSTE ARTIK HATA DEĞİL, UYARI (2026-09-10): bir içerik türünün TAMAMI arşivlenmiş olabilir
+  # (bkz. src/routes/unassignedArchive.js — "üzerine kullanıcı atanmamış içerikleri arşive taşı"
+  # turunda 753 ürünün hepsi yayından çekildi). Bu, sitenin BOZULDUĞU değil, yönetimsel bir
+  # DURUM'dur; şekil kontrolü (items[] bir dizi mi) yine yapılır, ama boş liste deploy'u
+  # durdurmamalı — aksi halde her deploy kalıcı olarak "BAŞARISIZ" raporlardı.
+  if [ "$(echo "$json" | jq -r '.items | length')" = "0" ]; then
+    warnf "/api/$ep boş — bu türdeki tüm kayıtlar arşivde görünüyor, detay/SSR kontrolü atlandı"
     continue
   fi
   ok "/api/$ep -> items[] dolu"
@@ -273,17 +282,23 @@ has_list_jsonld() { curl -s "$BASE_URL$1" | grep -c 'id="list-jsonld"' || true; 
 # çalışırken YANLIŞ alarm verdi). Önce eski sabit slug 200 dönüyorsa o, değilse liste API'sinin ilk
 # kaydı (yayında olduğu KESİN) kullanılır. Materyaller de /urun altında ve aynı API'de olduğundan
 # ürün için dinamik seçim yeterli.
+# Yayında TEK BİR kayıt bile kalmamışsa (bkz. 2. bölümdeki AYNI durum — türün tamamı arşivde) hiçbir
+# slug 200 dönmez; bu durumda boş dize dönülür ve çağıran kontrolü ATLAR. Eskiden bu dal sabit
+# fallback slug'ını döndürüyordu, o da 410 Gone verdiği için (410 hub şablonunu list-jsonld ile
+# birlikte servis eder) kontrol YANLIŞ alarm veriyordu.
 live_detail_path() {
   local prefix="$1" api="$2" fallback="$3"
   if [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$prefix/$fallback")" = "200" ]; then echo "$prefix/$fallback"; return; fi
   local slug
   slug="$(curl -s "$BASE_URL$api?limit=1" | sed -n 's/.*"items":\[{[^}]*"slug":"\([^"]*\)".*/\1/p' | head -1)"
   if [ -n "$slug" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$prefix/$slug")" = "200" ]; then echo "$prefix/$slug"; return; fi
-  echo "$prefix/$fallback"
+  echo ""
 }
 for pair in "$(live_detail_path /proje /api/projects bil-s-magaza):/proje" "$(live_detail_path /kisi /api/architects emre-arolat):/kisi" "$(live_detail_path /firma /api/offices eaa-emre-arolat-architecture):/firma" "$(live_detail_path /urun /api/products vivi-outdoor-masa-b-t-design):/urun"; do
   detail_path="${pair%%:*}"; hub_path="${pair#*:}"
-  if [ "$(has_list_jsonld "$detail_path")" = "0" ]; then
+  if [ -z "$detail_path" ]; then
+    warnf "$hub_path — yayında örnek detay kaydı yok (tümü arşivde), detay kontrolü atlandı"
+  elif [ "$(has_list_jsonld "$detail_path")" = "0" ]; then
     ok "$detail_path — liste CollectionPage şeması kaldırılmış"
   else
     bad "$detail_path — liste CollectionPage şeması hâlâ detay sayfasında (injectMeta#list-jsonld kuralı çalışmıyor)"
