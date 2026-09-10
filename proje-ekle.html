@@ -708,25 +708,37 @@
           <label for="p-desc" id="p-desc-label">Proje Açıklaması <span class="req" aria-hidden="true">*</span></label>
           <textarea id="p-desc" name="description" maxlength="1500" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
-        <!-- kullanıcı isteği (2026-09-01): yanındaki "Bağlantı" kutusu kaldırıldı, bu kutu artık tek
-             başına TAM satır — o yüzden iki sütunlu .form-row sarmalayıcısı da kaldırıldı. -->
-        <div class="form-field ac-field" id="ac-credit-field">
-          <label for="p-credit-text" id="p-credit-text-label">Fotoğrafçı veya Kaynak <span class="req" aria-hidden="true">*</span></label>
-          <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
-          <div class="ac-suggestions" id="ac-credit-suggestions"></div>
-          <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
-               öneriler MİMARLAB'daki gerçek fotoğrafçı profillerinden gelir (bkz. src/routes/
-               project.js#handlePhotographerSearchRoute) ve profilli bir isim seçilirse proje o
-               kişinin popup'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz. migrations/
-               0080_project_photographers.sql). Profili olmayan isimler eskisi gibi serbest metin
-               olarak kaydedilmeye devam eder. -->
-          <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Öneri listesinden seçtiğin fotoğrafçılar profillerine bağlanır.</div>
-          <!-- "Bağlantı" kutusu formdan kaldırıldı (yukarıdaki nota bkz.) ama photo_credit_url
-               kolonu ve onu okuyan/yazan tüm yollar (bkz. src/lib/canonicalSync.js, projectPool.js)
-               duruyor: alan GİZLİ bir input olarak korunuyor, böylece daha önce bir bağlantısı olan
-               projeler düzenlenip kaydedildiğinde o değer SİLİNMEZ (element tamamen kaldırılsaydı
-               kaydetme yolundaki getElementById('p-credit-url').value çağrıları da patlardı). -->
-          <input type="hidden" id="p-credit-url" name="photoCreditUrl">
+        <!-- kullanıcı isteği (2026-09-10 madde 4): "Kaynak" kutusu GERİ GELDİ — Fotoğrafçı ile YAN
+             YANA, tek satırda iki sütun. 2026-09-01'de kutu formdan çıkarılırken photo_credit_url
+             alanı gizli bir input olarak korunmuştu (bkz. aşağıdaki not); şimdi aynı alan yeniden
+             görünür hale getirildi, yani veri yolunda (submissionTypes.js#urlFields ->
+             canonicalSync -> projectPool) değişen bir şey yok. Fotoğrafçı kutusunun başlığı da
+             "Fotoğrafçı veya Kaynak" yerine sadece "Fotoğrafçı" oldu: kaynak artık kendi
+             kutusunda. -->
+        <div class="form-row">
+          <div class="form-field ac-field" id="ac-credit-field">
+            <label for="p-credit-text" id="p-credit-text-label">Fotoğrafçı <span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
+            <div class="ac-suggestions" id="ac-credit-suggestions"></div>
+            <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
+                 öneriler MİMARLAB'daki gerçek fotoğrafçı profillerinden gelir (bkz. src/routes/
+                 project.js#handlePhotographerSearchRoute) ve profilli bir isim seçilirse proje o
+                 kişinin popup'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz. migrations/
+                 0080_project_photographers.sql). Profili olmayan isimler eskisi gibi serbest metin
+                 olarak kaydedilmeye devam eder. -->
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Öneri listesinden seçtiğin fotoğrafçılar profillerine bağlanır.</div>
+          </div>
+          <!-- Kaynak: görselin/projenin alındığı sayfanın bağlantısı. photo_credit_url kolonu ve onu
+               okuyan/yazan tüm yollar (bkz. src/lib/canonicalSync.js, projectPool.js) zaten vardı:
+               kutu 2026-09-01'de yalnızca GİZLENMİŞTİ (kolon hiç kaldırılmadı), şimdi geri açıldı.
+               type="url" DEĞİL: tarayıcının kendi doğrulaması "mimarlab.com" gibi şemasız girişleri
+               reddedip formu sessizce bloke ederdi; doğrulama sunucuda tek yerde yapılır (bkz.
+               submissionTypes.js#urlFields -> findInvalidUrlField). -->
+          <div class="form-field" id="credit-url-field">
+            <label for="p-credit-url" id="p-credit-url-label">Kaynak <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="p-credit-url" name="photoCreditUrl" placeholder="ör. https://arkitera.com/proje/..." autocomplete="off" inputmode="url">
+            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır.</div>
+          </div>
         </div>
       </div>
 
@@ -1263,12 +1275,11 @@ document.getElementById('dd-grup-btn').addEventListener('click', () => {
   setTimeout(() => search.focus(), 0);
 });
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
-// "Fotoğrafçı veya Kaynak" kutusuna bir mimarlık firmasının adı yazıldığında Bağlantı kutusunu o
+// "Fotoğrafçı" kutusuna bir mimarlık firmasının adı yazıldığında yanındaki "Kaynak" kutusunu o
 // firmanın web sitesiyle OTOMATİK dolduran mantık (GET /api/office/:key + data-autofilled bayrağı)
-// buradan kaldırıldı: Bağlantı kutusu 2026-09-01'de formdan çıkarıldığı için otomatik doldurmanın
-// görünür bir hedefi kalmadı — kullanıcının göremediği/düzeltemediği/temizleyemediği gizli bir
-// alana sessizce URL yazmak istenmeyen bir yan etki olurdu. photo_credit_url alanı yalnızca
-// düzenleme sırasında MEVCUT değeri koruyan gizli bir input olarak duruyor (bkz. formdaki not).
+// 2026-09-01'de kaldırılmıştı ve GERİ GETİRİLMEDİ: kutu artık yeniden görünür olsa da, kullanıcının
+// yazdığı isimden türetilen bir URL'yi sessizce ikinci bir alana yazmak sürpriz bir yan etki olurdu
+// — "Kaynak" kutusunu kullanıcı kendi doldurur (bkz. formdaki AYNI not).
 wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search');
 // Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
 // üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
@@ -2652,7 +2663,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   // "en az bir mimar ya da firma adı gir" kontrolü gönderimi durduruyordu; kaldırıldı.
   // Sunucu tarafı zaten bu ikisini hiç zorunlu tutmuyordu (bkz. src/lib/submissionTypes.js
   // projects.required), yani bu yalnızca istemci tarafı bir kısıttı.
-  // Kullanıcı isteği (2026-09-02): Tür / Tip / Grup / Fotoğrafçı veya Kaynak zorunlu. Bu dördü
+  // Kullanıcı isteği (2026-09-02): Tür / Tip / Grup / Fotoğrafçı zorunlu ("Kaynak" opsiyonel). Bu dördü
   // <select>/<input required> DEĞİL (çoklu seçim açılır menüleri ve serbest metin autocomplete'i),
   // bu yüzden tarayıcının kendi required kontrolü onları kapsamıyor — yukarıdaki Konum/Tarih/Mimar
   // guard'larıyla AYNI desende burada elle kontrol edilirler. Sunucu tarafı karşılığı:
@@ -2661,7 +2672,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   if(!discipline.length) missingChoices.push('Tür');
   if(!category.length) missingChoices.push('Tip');
   if(!type.length) missingChoices.push('Grup');
-  if(!document.getElementById('p-credit-text').value.trim()) missingChoices.push('Fotoğrafçı veya Kaynak');
+  if(!document.getElementById('p-credit-text').value.trim()) missingChoices.push('Fotoğrafçı');
   if(missingChoices.length){
     notice.textContent = missingChoices.length === 1
       ? `${missingChoices[0]} alanını doldur.`

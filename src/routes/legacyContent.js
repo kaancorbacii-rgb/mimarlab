@@ -294,6 +294,12 @@ export async function handlePublicSearchSuggest(request, env, url) {
     // href'ler artık kanonik slug kolonundan (eskiden slugify(name) — ad ile slug ayrışmış
     // kayıtlarda "bulunamadı"ya götürüyordu) ve saf markalar için /marka/ önekiyle (bkz.
     // src/lib/officeUrl.js) üretilir.
+    // ÖNİZLEME KAYITLARI (kullanıcı isteği, 2026-09-10 madde 5): classicSearch artık arşivdeki
+    // "önizleme" satırlarını da döndürüyor, o yüzden burada AYRI bir iş yok — satırlar sıradan
+    // /kisi/, /firma/, /marka/, /proje/, /urun/ bağlantıları olarak basılır ve
+    // js/components/preview-cards.js (bu sayfada da yüklü) onları DOM'da yakalayıp soluklaştırır,
+    // tıklanınca "Bu profil sana mı ait?" popup'ını açar. Bilerek ek bir bayrak taşınmaz: bileşenin
+    // tüm tasarım gerekçesi "render noktası başına kontrol serpiştirmemek"tir.
     const groups = [
       { label: 'Kişi', items: r.architects.map(a => ({ title: a.name, meta: a.office || 'Kişi', href: `/kisi/${encodeURIComponent(a.slug)}`, image: a.photo || null, score: a.score })) },
       { label: 'Firma', items: r.offices.map(o => ({ title: o.name, meta: o.loc || '', href: o.href, image: o.logo || null, label: o.pureBrand ? 'Marka' : 'Firma', score: o.score })) },

@@ -223,32 +223,32 @@ export async function classicSearch(env, rawQ, { perGroup = 20 } = {}) {
 
   const [archRows, officeRows, projRows, prodRows, productCounts] = await Promise.all([
     all(env,
-      `SELECT a.id, a.slug, a.name, a.photo_url, o.name AS office_name
+      `SELECT a.id, a.slug, a.name, a.photo_url, a.preview_at, o.name AS office_name
          FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND ${archCond.cond}
+        WHERE a.deleted_at IS NULL AND (a.hidden_at IS NULL OR a.preview_at IS NOT NULL) AND ${archCond.cond}
         ORDER BY length(a.name) ASC LIMIT ${RETRIEVAL_LIMIT}`, archCond.params),
     all(env,
-      `SELECT o.id, o.slug, o.name, o.loc, o.cats, o.logo_url
+      `SELECT o.id, o.slug, o.name, o.loc, o.cats, o.logo_url, o.preview_at
          FROM offices o
-        WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL AND ${officeCond.cond}
+        WHERE o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL) AND ${officeCond.cond}
         ORDER BY length(o.name) ASC LIMIT ${RETRIEVAL_LIMIT}`, officeCond.params),
     // Künye (designer_names) GROUP_CONCAT olduğundan koşul HAVING'de — SQLite HAVING'de toplu
     // olmayan kolonlara da izin verir (bkz. legacyContent.js#handlePublicSearchFull'un eski sorgusu).
     all(env,
-      `SELECT p.id, p.slug, p.title, p.location, p.project_date,
+      `SELECT p.id, p.slug, p.title, p.location, p.project_date, p.preview_at,
               GROUP_CONCAT(COALESCE(ar.name, ofc.name), '') AS designer_names
          FROM projects p
          LEFT JOIN project_designers pd ON pd.project_id = p.id
          LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
          LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
-        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
+        WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL)
         GROUP BY p.id
        HAVING ${projCond.cond}
         ORDER BY length(p.title) ASC LIMIT ${RETRIEVAL_LIMIT}`, projCond.params),
     all(env,
-      `SELECT id, slug, title, category, brand_name_raw
+      `SELECT id, slug, title, category, brand_name_raw, preview_at
          FROM products
-        WHERE deleted_at IS NULL AND hidden_at IS NULL AND ${prodCond.cond}
+        WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND ${prodCond.cond}
         ORDER BY length(title) ASC LIMIT ${RETRIEVAL_LIMIT}`, prodCond.params),
     fetchOfficeProductCounts(env),
   ]);
@@ -274,6 +274,16 @@ export async function classicSearch(env, rawQ, { perGroup = 20 } = {}) {
       { get: r => r.category, weight: W.tertiary },
     ], words, r => r.title),
   };
+
+  // ÖNİZLEME ("soluk") KAYITLARI ARAMADA (kullanıcı isteği, 2026-09-10 madde 5: "Arama çubuğunda
+  // canlıdaki arşiv içerikleri bulunabilsin"). Liste havuzlarındaki AYNI kural (bkz.
+  // src/lib/projectPool.js#`ORDER BY (p.preview_at IS NOT NULL) ASC`): önizleme satırları listeden
+  // DÜŞMEZ ama HER ZAMAN canlı sonuçların ARKASINA gider — bir arşiv kaydı, gerçekten yayında olan
+  // bir kaydın önüne geçemez. Skor sıralaması kendi içlerinde korunur (rankRows zaten sıralı
+  // döndürüyor, Array#sort kararlıdır).
+  for (const k of ['architects', 'offices', 'projects', 'products']) {
+    ranked[k].sort((a, b) => (a.row.preview_at ? 1 : 0) - (b.row.preview_at ? 1 : 0));
+  }
 
   const topProjects = ranked.projects.slice(0, perGroup);
   const topProducts = ranked.products.slice(0, perGroup);

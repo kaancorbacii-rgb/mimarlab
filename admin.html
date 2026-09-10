@@ -419,6 +419,12 @@
           </div>
           <div id="unassigned-archive-progress" style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;"></div>
         </div>
+        <!-- Üye arama çubuğu (kullanıcı isteği, 2026-09-10 madde 1). Arşiv sekmesindeki
+             #archive-search ile AYNI desen/gerekçe: liste tek istekte TAMAMEN istemciye geliyor
+             (bkz. src/routes/admin.js#listUsers, LIMIT 2000), bu yüzden filtreleme istemcide anında
+             yapılır — her tuş vuruşunda yeni bir istek atmaya gerek yok. -->
+        <input type="search" id="users-search" placeholder="Üye ara (ad, e-posta, okul…)"
+               style="width:100%; max-width:420px; padding:9px 12px; margin-bottom:14px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
         <div id="users-list"></div>
       </div>
 
@@ -1689,12 +1695,28 @@ async function runUnassignedArchive(){
 document.getElementById('unassigned-archive-refresh').addEventListener('click', loadUnassignedCounts);
 document.getElementById('unassigned-archive-run').addEventListener('click', runUnassignedArchive);
 
+// Üye listesi bir kez çekilip burada tutulur — arama kutusuna her yazışta yeniden istek atmamak
+// için (bkz. #users-search yanındaki AYNI gerekçe).
+let usersCache = null;
+let usersSearch = '';
+
 async function loadUsers(){
   const list = document.getElementById('users-list');
-  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api('/api/admin/users');
-  const items = data.items || [];
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Henüz üye yok.</div>'; return; }
+  if(!usersCache){
+    list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+    const data = await api('/api/admin/users');
+    usersCache = data.items || [];
+  }
+  const all = usersCache;
+  if(!all.length){ list.innerHTML = '<div class="admin-empty">Henüz üye yok.</div>'; return; }
+  // Arama: ad + e-posta + okul + bölüm üzerinde Türkçe-duyarsız alt dize (bkz. loadArchive'daki
+  // AYNI kural — sıralama/puanlama yok, yalnızca "içeriyor mu").
+  let items = all;
+  if(usersSearch){
+    const q = usersSearch.toLocaleLowerCase('tr');
+    items = all.filter(u => `${u.name || ''} ${u.email || ''} ${u.school || ''} ${u.dept || ''}`.toLocaleLowerCase('tr').includes(q));
+    if(!items.length){ list.innerHTML = `<div class="admin-empty">"${escapeHtml(usersSearch)}" ile eşleşen üye yok.</div>`; return; }
+  }
   list.innerHTML = items.map(u => `
     <div class="admin-card users-list-row" data-id="${escapeAttr(u.id)}">
       <div class="admin-card-head">
@@ -1709,6 +1731,19 @@ async function loadUsers(){
     row.addEventListener('click', () => openUserDetail(row.dataset.id));
   });
 }
+
+// Üye arama kutusu (kullanıcı isteği, 2026-09-10 madde 1) — wireArchiveSearch ile AYNI desen:
+// liste zaten istemcide olduğundan yeniden çizim ucuz, yine de her tuş vuruşunda tam render
+// etmemek için kısa bir gecikme uygulanır.
+(function wireUsersSearch(){
+  const box = document.getElementById('users-search');
+  if(!box) return;
+  let timer = null;
+  box.addEventListener('input', ()=>{
+    clearTimeout(timer);
+    timer = setTimeout(()=>{ usersSearch = box.value.trim(); loadUsers(); }, 200);
+  });
+})();
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
@@ -1793,6 +1828,7 @@ document.getElementById('ud-save-btn').addEventListener('click', async ()=>{
     if(data.error){ msg.textContent = data.error; }
     else{
       msg.textContent = 'Kaydedildi.';
+      usersCache = null; // ad değişmiş olabilir — liste yeniden çekilmeli (bkz. usersCache yorumu)
       loadUsers();
       document.getElementById('ud-title').textContent = data.user.name || '—';
     }
@@ -2295,7 +2331,8 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'consultation-actions') loadConsultationActions();
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
-    if(tab.dataset.tab === 'users') loadUsers();
+    // Sekmeye her girişte liste yeniden çekilir (arama kutusuna yazarken DEĞİL — bkz. usersCache).
+    if(tab.dataset.tab === 'users'){ usersCache = null; loadUsers(); }
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
     if(tab.dataset.tab === 'conflicts') loadMigrationConflicts();
     if(tab.dataset.tab === 'seo') loadSeo();

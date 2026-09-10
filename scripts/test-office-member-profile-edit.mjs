@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import { canEditArchitectViaOfficeMembership } from '../src/lib/claimedProfiles.js';
-import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../src/lib/projectClaimAccess.js';
+import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION, canUserEditProjectBySlug, canUserEditProductBySlug } from '../src/lib/projectClaimAccess.js';
 import { handleClaimsRoute } from '../src/routes/claims.js';
 import { handleSubmissionRoute } from '../src/routes/submissions.js';
 import { sha256Hex } from '../src/lib/crypto.js';
@@ -138,6 +138,40 @@ await test('serbest metin "Ekip" kutusundaki isim de kapsanır (office_founders 
   // aksan/büyük-küçük farkı da katlanır (foldTr)
   db.prepare(`UPDATE office_submissions SET team = '["serbest ekip uyesi"]' WHERE id = 's-rasa'`).run();
   assert.equal(await canEdit(env, 'u-tuna', 'Serbest Ekip Üyesi'), true);
+});
+
+// FİRMA/MARKA YÖNETİCİSİNİN PROJE VE ÜRÜNLERİ (kullanıcı isteği, 2026-09-10 madde 2: "Bir
+// kullanıcıya bir firma ya da marka için Yönetici yetkisi verdiğim bu kullanıcı firmanın/markanın
+// projeleri, ürünleri, kurucusu, ortağı, kurucu ortağı ve ekip lideri profillerini de düzenleme
+// yetkisine sahip olsun."). Kişi profilleri yukarıda test ediliyor; proje/ürün tarafı 'Yönetici'nin
+// OFFICE_EDIT_POSITIONS içinde olmasından TÜREDİĞİ için buraya kadar örtük kalmıştı — garanti artık
+// açıkça sınanıyor, aksi halde o kümeden çıkarılması sessizce fark edilmezdi.
+section('firma/marka yöneticisi -> firmanın projeleri ve markanın ürünleri');
+
+// project_designers üzerinden firmaya bağlı bir proje + markaya bağlı bir ürün ekler.
+function seedProjectAndProduct(db) {
+  db.exec(`
+    INSERT INTO projects (slug, title, source) VALUES ('ds-proje', 'DS Projesi', 'legacy_static');
+    INSERT INTO project_designers (project_id, office_id) VALUES (1, 2);
+    INSERT INTO products (slug, title, kind, brand_office_id, source) VALUES ('vitrium-urun', 'Vitrium Sandalye', 'product', 4, 'legacy_static');
+  `);
+}
+
+await test("'Yönetici' görevli hesap, firmanın künyeli projesini düzenleyebilir", async () => {
+  const db = freshDb(); seed(db); seedProjectAndProduct(db);
+  const env = { DB: d1(db) };
+  assert.equal(await canUserEditProjectBySlug(env, asUser('u-ds'), 'ds-proje'), true);
+  // Aynı firmadaki 'Ekip Üyesi' görevli hesap projeye de dokunamaz (firma künyesini de düzenleyemiyor).
+  assert.equal(await canUserEditProjectBySlug(env, asUser('u-ekip'), 'ds-proje'), false);
+  // Başka bir firmanın yöneticisi de hayır.
+  assert.equal(await canUserEditProjectBySlug(env, asUser('u-marka'), 'ds-proje'), false);
+});
+
+await test('marka yetkilisi, markanın ürününü düzenleyebilir', async () => {
+  const db = freshDb(); seed(db); seedProjectAndProduct(db);
+  const env = { DB: d1(db) };
+  assert.equal(await canUserEditProductBySlug(env, asUser('u-marka'), 'vitrium-urun'), true);
+  assert.equal(await canUserEditProductBySlug(env, asUser('u-ds'), 'vitrium-urun'), false);
 });
 
 section('yetkisiz durumlar');
