@@ -16,7 +16,7 @@ import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { notifySubmissionApproved } from '../lib/notify.js';
-import { foldTr } from '../lib/textMatch.js';
+import { foldTr, titleCasePersonName } from '../lib/textMatch.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
 // Meslek etiketi <-> slug çevirisinin TEK kaynağı (bkz. profession-shared.js dosya başı yorumu:
@@ -318,6 +318,12 @@ async function createSubmission(request, env, user, typeKey) {
   }
 
   const body = await readJson(request);
+  // Kişi adının baş harfleri (kullanıcı isteği, 2026-09-10 dokuzuncu tur madde 1) — TÜM doğrulama
+  // ve çakışma kontrollerinden ÖNCE, çünkü `name` bu tipte aynı zamanda ANAHTAR olarak yazılır
+  // (bkz. src/lib/textMatch.js#titleCasePersonName'in "neden yazma anında" notu). claimed_profile_key
+  // dalı body.name'i aşağıda zaten anahtarın kendisiyle EZDİĞİNDEN, sahiplenilmiş bir profili
+  // düzenlemek adı yeniden adlandırmaz — normalizasyon yalnızca serbest yazılan adlara dokunur.
+  if (typeKey === 'architects' && typeof body.name === 'string') body.name = titleCasePersonName(body.name);
   // Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — istemci kapısının
   // (js/components/rights-consent.js) sunucu tarafı karşılığı; bu uca doğrudan atılan isteklerde de
   // onay ZORUNLU. Diğer doğrulamalardan ÖNCE bakılır: onay yoksa gönderi hiç işlenmemeli.
@@ -694,6 +700,12 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (!existing || !(await canAccessSubmissionRow(env, user, typeKey, existing))) return errorJson('Bulunamadı', 404);
 
   const body = await readJson(request);
+  // Kişi adının baş harfleri (kullanıcı isteği, 2026-09-10 dokuzuncu tur madde 1) — TÜM doğrulama
+  // ve çakışma kontrollerinden ÖNCE, çünkü `name` bu tipte aynı zamanda ANAHTAR olarak yazılır
+  // (bkz. src/lib/textMatch.js#titleCasePersonName'in "neden yazma anında" notu). claimed_profile_key
+  // dalı body.name'i aşağıda zaten anahtarın kendisiyle EZDİĞİNDEN, sahiplenilmiş bir profili
+  // düzenlemek adı yeniden adlandırmaz — normalizasyon yalnızca serbest yazılan adlara dokunur.
+  if (typeKey === 'architects' && typeof body.name === 'string') body.name = titleCasePersonName(body.name);
   // bkz. createSubmission'daki AYNI kapı/gerekçe (kullanıcı isteği, 2026-09-10 madde 1) — düzenleme
   // de bir YAYINLAMA eylemidir (onaylı bir taslağın PATCH'i canonical satıra senkronlanır), bu
   // yüzden beyan burada da her seferinde aranır.

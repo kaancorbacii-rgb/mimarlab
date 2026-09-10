@@ -304,6 +304,17 @@ else
   bad "sahiplenme anahtarı kanonik biçim testleri BAŞARISIZ:"
   tail -25 /tmp/preflight_claimkey >&2
 fi
+
+# Kişi adı baş harfi + sahiplenilmiş firma/markada davet kutusunun gizlenmesi + Geri Bildirim metni
+# (kullanıcı isteği, 2026-09-10 dokuzuncu tur). Ad normalizasyonu YAZMA anında yapılır (name aynı
+# zamanda ANAHTAR, bkz. src/lib/textMatch.js#titleCasePersonName); davet kutusu kapısı ise TEK bir
+# istemci satırı — bu test o satırın sessizce geri alınmasını yakalar.
+if node scripts/test-2026-09-10-round9.mjs >/tmp/preflight_round9 2>&1; then
+  ok "kişi adı baş harfi + davet kutusu + geri bildirim testleri geçti ($(grep -c '^  ok ' /tmp/preflight_round9) test)"
+else
+  bad "kişi adı baş harfi + davet kutusu + geri bildirim testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_round9 >&2
+fi
 rm -f /tmp/preflight_claimkey
 
 # Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde

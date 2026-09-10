@@ -52,6 +52,54 @@ export function foldTr(s) {
   return trLower(s).replace(COMBINING_MARKS_G, '').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
+// KİŞİ ADI BAŞ HARFİ (kullanıcı isteği, 2026-09-10 dokuzuncu tur madde 1: "Kişi sayfasında kişi
+// isim ve soyismi otomatik olarak büyük harfle başlasın. örneğin kaan çorbacı yazılsa bile Kaan
+// Çorbacı olsun.").
+//
+// NEDEN YAZMA ANINDA, GÖSTERİM ANINDA DEĞİL: `architects.name` bu depoda yalnızca bir etiket değil,
+// AYNI ZAMANDA ANAHTAR — profile_claims.profile_key, office_founders eşleşmesi, künye adları ve
+// rozet JOIN'leri hep bu değeri kullanır (bkz. [[project_duplicate_name_key_limitation]]). Gösterim
+// anında büyütmek, kişi pop-up'ının başlığı ile firma pop-up'ındaki kurucu kartını / proje künyesini
+// ayrıştırırdı. Bu yüzden normalizasyon gönderi kaydedilirken TEK noktada yapılır ve o andan sonra
+// adı okuyan her yer aynı biçimi görür.
+//
+// İKİ KASITLI İSTİSNA:
+//   1. ZATEN büyük harfle başlayan kelimeye HİÇ dokunulmaz — "MEHMET", "McDonald", "IND" gibi
+//      yazımlar korunur. Yalnızca küçük harfle başlayanlar büyütülür, hiçbir harf küçültülmez.
+//   2. Ad ortasındaki bağlaç/ön ekler ("de", "van", "bin"...) küçük kalır — canlı veride bunun
+//      gerçek bir örneği var: "Eduardo de Nari" (architects #930), "Eduardo De Nari" olmamalı.
+//      İlk kelime bu listede olsa bile büyütülür (ad hep büyük harfle başlar).
+const NAME_PARTICLES = new Set([
+  'de', 'del', 'della', 'di', 'da', 'dos', 'du', 'van', 'von', 'der', 'den', 'ter', 'ten',
+  'bin', 'bint', 'ibn', 'el', 'al', 'la', 'le', 'les', 'y', 'e',
+]);
+
+// Türkçe'ye duyarlı baş harf büyütme: 'i' -> 'İ' (toLocaleUpperCase('tr') bunu doğru yapar ama
+// çalışma ortamının ICU verisi olmadan derlenmiş olma ihtimaline karşı açıkça yazılır), 'ı' -> 'I'.
+function upperFirstTr(ch) {
+  if (ch === 'i') return 'İ';
+  if (ch === 'ı') return 'I';
+  return ch.toLocaleUpperCase('tr-TR');
+}
+
+function titleCaseWord(word, isFirst) {
+  // Tireli adlar ("ali-can") her parçası ayrı bir ad gibi ele alınır.
+  if (word.includes('-')) return word.split('-').map((part, i) => titleCaseWord(part, isFirst && i === 0)).join('-');
+  if (!word) return word;
+  const first = word[0];
+  // Zaten büyük harfle (ya da harf olmayan bir karakterle) başlıyorsa dokunma.
+  if (first !== trLower(first)) return word;
+  if (!isFirst && NAME_PARTICLES.has(trLower(word))) return word;
+  return upperFirstTr(first) + word.slice(1);
+}
+
+export function titleCasePersonName(name) {
+  if (typeof name !== 'string') return name;
+  const cleaned = toNfc(name).trim().replace(/\s+/g, ' ');
+  if (!cleaned) return cleaned;
+  return cleaned.split(' ').map((w, i) => titleCaseWord(w, i === 0)).join(' ');
+}
+
 // URLSearchParams'ın TÜM değerlerini NFC'ye çeker. Hiçbir değer birleşme işareti taşımıyorsa
 // (ezici çoğunluk) hiçbir yazma yapılmaz ve `false` döner — URL dizesi bit bit olduğu gibi kalır
 // (aksi halde yalnızca iterasyon yüzünden bile `?a+b` -> `?a%20b` gibi yeniden serileştirme olur ve

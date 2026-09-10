@@ -309,7 +309,7 @@ const ArchitectModal = (function () {
     </details>
     <details class="feedback-card" id="correction-info-card">
       <summary>Geri Bildirim<span class="feedback-card-plus" aria-hidden="true"></span></summary>
-      <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
+      <p>Hatalı veya eksik bir bilgi görüyorsan ya da bu profilin sana ait olduğunu düşünüyorsan bize bildir.</p>
       <div id="correction-card-extra"></div>
     </details>`;
 
