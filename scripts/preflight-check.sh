@@ -281,6 +281,32 @@ else
 fi
 rm -f /tmp/preflight_rights
 
+# Aramada önizleme ("soluk") kayıtları (kullanıcı isteği, 2026-09-10 madde 5). classicSearch'ün dört
+# sorgusu HEM öneri penceresini HEM /arama'yı besler; biri `hidden_at IS NULL`a geri dönerse arşiv
+# kayıtları aramadan sessizce kaybolur (ya da tam arşivdekiler sızar).
+# Bkz. scripts/test-preview-search.mjs dosya başı.
+if node scripts/test-preview-search.mjs >/tmp/preflight_prevsearch 2>&1; then
+  ok "aramada önizleme kayıtları testleri geçti ($(grep -c '^  ok ' /tmp/preflight_prevsearch) test)"
+else
+  bad "aramada önizleme kayıtları testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_prevsearch >&2
+fi
+rm -f /tmp/preflight_prevsearch
+
+# Kişi->firma ters cascade + yetkiye bağlı arşivle/sil (kullanıcı isteği, 2026-09-10 ikinci tur
+# madde 1/2). İkisi de tek yerde yaşayan ve BİRDEN FAZLA yüzeyden okunan kurallar:
+# cascadeRemovedOfficesFromArchitect (POST ve PATCH /api/architects) ve canAccessSubmissionRow
+# (düzenleme + moderasyon aynı kapı). Sapması ya firma künyesinde hayalet isim bırakır ya da
+# kullanıcının kendi içeriğini arşivlemesini engeller.
+# Bkz. scripts/test-2026-09-10-round2.mjs dosya başı.
+if node scripts/test-2026-09-10-round2.mjs >/tmp/preflight_r2 2>&1; then
+  ok "ters cascade + yetkili arşivle/sil testleri geçti ($(grep -c '^  ok ' /tmp/preflight_r2) test)"
+else
+  bad "ters cascade + yetkili arşivle/sil testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_r2 >&2
+fi
+rm -f /tmp/preflight_r2
+
 # Firma/marka üyelik listesi — kisi-ekle.html ile Profili Düzenle'nin (auth-modal.js) ORTAK
 # birleştiricisi (kullanıcı isteği, 2026-09-08: "admin tarafından dahi olsa görevlendiriliyorsa kişi
 # ekle/düzenle sayfasında da gözüksün"). Regresyon: kisi-ekle yalnızca kaydın `office` metnini okuyordu,

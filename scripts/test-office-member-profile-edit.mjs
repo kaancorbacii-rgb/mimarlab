@@ -305,7 +305,10 @@ await test('POST /api/architects: yetkili ortak kaydedebilir, yetkisiz 403 alır
   assert.equal(denied.status, 403);
 });
 
-await test('delegasyon SİLME/ARŞİVLEME yetkisi vermez (yalnızca düzenleme)', async () => {
+// KURAL DEĞİŞTİ (kullanıcı isteği, 2026-09-10 madde 2): delegasyon ARTIK arşivleme/silme yetkisi
+// de verir — moderasyon kapısı düzenlemeyle AYNI (src/routes/submissions.js#canAccessSubmissionRow).
+// Bu testin eski hâli tam tersini iddia ediyordu ("delegasyon SİLME/ARŞİVLEME yetkisi vermez").
+await test('delegasyon ARTIK arşivleme/silme yetkisi de verir', async () => {
   const db = freshDb(); seed(db); await withSessions(db);
   const env = { DB: d1(db) };
   const created = await handleSubmissionRoute(
@@ -314,12 +317,28 @@ await test('delegasyon SİLME/ARŞİVLEME yetkisi vermez (yalnızca düzenleme)'
   );
   const id = (await created.json()).id;
   const res = await handleSubmissionRoute(
-    req('u-tuna', `/api/architects/${id}/moderate`, { method: 'POST', body: JSON.stringify({ action: 'delete' }) }),
+    req('u-tuna', `/api/architects/${id}/moderate`, { method: 'POST', body: JSON.stringify({ action: 'archive' }) }),
     env, new URL(`https://mimarlab.com/api/architects/${id}/moderate`),
   );
-  assert.equal(res.status, 403);
-  // kişi profili yerinde duruyor
-  assert.ok(db.prepare(`SELECT 1 AS x FROM architects WHERE name = 'Fatma Zeynep Altınbaşlı' AND deleted_at IS NULL`).get());
+  assert.equal(res.status, 200);
+  // Arşiv = canonical satır hidden_at ile canlıdan çekilir (SİLİNMEZ), taslak 'archived' olur.
+  const row = db.prepare(`SELECT hidden_at, deleted_at FROM architects WHERE name = 'Fatma Zeynep Altınbaşlı'`).get();
+  assert.ok(row.hidden_at, 'hidden_at damgalanmalı');
+  assert.equal(row.deleted_at, null);
+});
+
+await test('KENDİ SAHİBİ OLAN profile moderasyon kapısı da KAPALI (SINIR korunuyor)', async () => {
+  const db = freshDb(); seed(db); await withSessions(db);
+  // Fatma kendi profilini sahiplenmiş -> Tuna (Rasa Studio kurucusu) artık ne düzenleyebilir ne de
+  // arşivleyebilir. Bu, madde 2'nin tek güvenlik ağı (bkz. claimedProfiles.js#SINIR).
+  const now = Date.now();
+  db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES ('c-fatma-arch', 'u-fatma', 'architect', 'Fatma Zeynep Altınbaşlı', 'approved', ?, ?)`).run(now, now);
+  const env = { DB: d1(db) };
+  const created = await handleSubmissionRoute(
+    req('u-tuna', '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı', rightsAccepted: true }) }),
+    env, new URL('https://mimarlab.com/api/architects'),
+  );
+  assert.equal(created.status, 403);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

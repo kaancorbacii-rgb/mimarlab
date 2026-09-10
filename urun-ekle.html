@@ -1114,6 +1114,8 @@ function mountProductAdminActions(){
   const archiveBtn = document.getElementById('u-archive-btn');
   const deleteBtn = document.getElementById('u-delete-btn');
   row.style.display = '';
+  // (Bu fonksiyon yalnızca prefillForEdit/prefillForAdminEdit/prefillForClaim'in sonundan
+  //  çağrılır, yani üç moddan biri kesinlikle etkindir — yeni ürün formunda hiç çalışmaz.)
   const type = adminEditId ? adminEditKind : (claimSlug ? claimKind : (editTypeParam === 'materials' ? 'materials' : 'products'));
   async function run(action){
     const confirmText = action === 'delete'
@@ -1133,8 +1135,16 @@ function mountProductAdminActions(){
         res = await fetch('/api/admin/legacy/content-action', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         });
-      } else {
+      } else if(editId){
         res = await fetch(`/api/${type}/${encodeURIComponent(editId)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+        });
+      } else {
+        // ÜÇÜNCÜ YOL (kullanıcı isteği, 2026-09-10 madde 2): markanın yetkilisi bu ürünü ilk kez
+        // ?claim= ile açtığında kendi taslağı (editId) HENÜZ YOKTUR — kanonik slug'la çalışan uç
+        // kullanılır (bkz. src/routes/submissions.js#handleSelfContentModerate,
+        // kisi-ekle/firma-ekle'deki AYNI desen).
+        res = await fetch(`/api/product/${encodeURIComponent(claimSlug)}/moderate`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
         });
       }

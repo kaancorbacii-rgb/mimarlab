@@ -1232,7 +1232,11 @@ function mountOfficeAdminActions(){
   const key = claimName || originalName;
   const canAdmin = isAdmin && !!key;
   const canOwner = !isAdmin && !!editId;
-  if(!canAdmin && !canOwner) return;
+  // ÜÇÜNCÜ YOL (kullanıcı isteği, 2026-09-10 madde 2) — kisi-ekle.html#mountArchitectAdminActions
+  // ile BİREBİR AYNI gerekçe: kendi taslağı olmayan ama bu firmayı/markayı düzenleme yetkisi olan
+  // kullanıcı (buraya ?claim= ile gelir). Yetkiyi sunucu düzenlemeyle AYNI fonksiyondan doğrular.
+  const canClaimKey = !isAdmin && !editId && !!claimName;
+  if(!canAdmin && !canOwner && !canClaimKey) return;
   const row = document.getElementById('o-danger-row');
   const archiveBtn = document.getElementById('o-archive-btn');
   const deleteBtn = document.getElementById('o-delete-btn');
@@ -1252,7 +1256,12 @@ function mountOfficeAdminActions(){
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'offices', action, key }),
         })
-        : await fetch(`/api/offices/${encodeURIComponent(editId)}/moderate`, {
+        : canOwner
+        ? await fetch(`/api/offices/${encodeURIComponent(editId)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        })
+        : await fetch(`/api/office/${encodeURIComponent(claimName)}/moderate`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action }),
         });

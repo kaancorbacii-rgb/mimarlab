@@ -5,7 +5,7 @@ import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField, findInvalidFilesField, findInvalidProjectsField, findInvalidPortfolioField, findInvalidOfficeCats } from '../lib/submissionTypes.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
-import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
+import { cascadeRemovedFounders, cascadeRemovedProfileClaims, cascadeRemovedOfficesFromArchitect, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
@@ -456,6 +456,19 @@ async function createSubmission(request, env, user, typeKey) {
   // talep onaylandıktan sonra görünür (bkz. src/lib/canonicalSync.js#splitAdminApprovedOffices).
   if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, { ...row, claimed_profile_key: body.claimed_profile_key || null }, row.name)) {
     await ensurePendingOfficeClaims(env, user, (row.office || '').split(','), newId);
+    // TERS YÖN (kullanıcı isteği, 2026-09-10 madde 1) — bkz. updateOwnSubmission'daki AYNI çağrı.
+    // Burada "eski" değer canonical `architects` satırından okunur: bu, kullanıcının sahiplendiği
+    // bir profil için taslak HENÜZ YOKKEN (?claim= ile ilk kaydetme) izlenen yoldur, yani kutudan
+    // silinen firma yalnızca canonical satırda görünür. Taslak zaten varsa istemci PATCH'e düşer
+    // ve karşılaştırma orada existing.office ile yapılır.
+    const canonicalArchitect = await env.DB.prepare(
+      `SELECT a.name, o.name AS office_name FROM architects a
+         LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+        WHERE a.deleted_at IS NULL AND (a.name = ? OR a.legacy_key = ?) LIMIT 1`
+    ).bind(row.name, body.claimed_profile_key || row.name).first();
+    if (canonicalArchitect && canonicalArchitect.office_name) {
+      await cascadeRemovedOfficesFromArchitect(env, canonicalArchitect.name, canonicalArchitect.office_name, row.office, { claimUserId: user.id });
+    }
   }
 
   // GERÇEK BULGU (kullanıcı isteği, 2026-09-08 madde 3): Kurucular/Ekip kutusundan bir isim silmek
@@ -762,6 +775,15 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // (kullanıcı isteği, 2026-09-08 madde 1).
   if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, architectRowForSelfCheck, existing.name)) {
     await ensurePendingOfficeClaims(env, user, (row.office || '').split(','), newId);
+    // ... ve TERS YÖN (kullanıcı isteği, 2026-09-10 madde 1): alandan ÇIKARILAN her firma/marka,
+    // kişiyi kendi künyesinden de düşürmeli (bkz. src/lib/officeFounderCascade.js#
+    // cascadeRemovedOfficesFromArchitect). Yalnızca kullanıcının KENDİ profilinde çalışır — bu
+    // yüzden ensurePendingOfficeClaims ile AYNI isOwnArchitectRecord kapısının içindedir.
+    // 'office' body'de HİÇ yoksa (kısmi bir kaydetme) karşılaştırma yapılmaz: `row.office`
+    // undefined'ı boş dizeye çevirip "tüm firmalar silindi" sanmak yanlış olurdu.
+    if ('office' in body) {
+      await cascadeRemovedOfficesFromArchitect(env, existing.name, existing.office, row.office, { claimUserId: user.id });
+    }
   }
 
   // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle (bkz.
@@ -899,32 +921,60 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
 //     denk gelemez. Eşleşen canonical satır yoksa setLegacyHidden/findCanonicalRowByNaturalKey
 //     sessizce hiçbir şey yapmaz (bkz. o fonksiyonlar) — yalnızca gönderi satırı arşivlenir/silinir.
 const OWNER_MODERATE_TYPES = new Set(['products', 'materials', 'architects', 'offices']);
+// MODERASYON YETKİSİ ARTIK DÜZENLEME YETKİSİYLE AYNIDIR (kullanıcı isteği, 2026-09-10 madde 2:
+// "Kullanıcıların yetkisi oldukları firma, marka, proje, ürün ve kişi profillerini arşivleme ve
+// silme yetkileri olsun.") — kapı canAccessSubmissionRow, yani düzenlemeyle BİREBİR aynı kural:
+// owner_user_id, claimed_profile_key üzerinden onaylı talep/firma yetkisi, ya da claimed_slug
+// üzerinden proje künyesi / ürün markası.
+//
+// BU, 2026-09-08'DEKİ "DELEGASYON YALNIZCA DÜZENLEME YETKİSİDİR" KARARINI BİLEREK GERİ ALIR:
+// o tarihte bir firma yetkilisinin, ortağının KİŞİ profilini silmesi/arşivlemesi engellenmişti.
+// Kullanıcı bunun tersini istedi. Kalan güvenlik ağı claimedProfiles.js#
+// canEditArchitectViaOfficeMembership'in SINIR'ıdır: hedef kişi profilini BAŞKA bir hesap onaylı bir
+// profile_claims('architect') ile sahiplenmişse o profile bu kapı hiç açılmaz — yani bir firma
+// yetkilisi, profilinin sahibi olan bir ortağının profilini yine silemez. Bu ağ kalkarsa madde 2
+// "herkesin kendi profilini kaybedebilmesi" anlamına gelirdi.
+//
+// SİLME GERİ ALINAMAZ (runContentAction 'delete' -> deleteCanonicalRowFully) — arşivleme ise
+// geri alınabilir bir taslak bırakır.
 async function moderateOwnSubmission(request, env, user, typeKey, id) {
   if (!OWNER_MODERATE_TYPES.has(typeKey)) return errorJson('Bulunamadı', 404);
   const existing = await findOrHealSubmissionDraft(env, typeKey, id);
-  if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
-  // DELEGASYON YALNIZCA DÜZENLEME YETKİSİDİR (kullanıcı isteği, 2026-09-08): bir firma yetkilisi,
-  // ortağının kişi profilini düzenlediğinde kendi adına claimed_profile_key'li bir taslak oluşur ve
-  // bu taslak "Eklediklerim" listesinde çıkar — oradaki Sil/Arşivle ise runContentAction'ın
-  // claimedColumn dalı üzerinden o kişinin CANONICAL profilini tümden siler/gizler (bkz.
-  // src/routes/legacyContent.js#runContentAction). Bir ortağın profilini silmek düzenlemekle aynı
-  // şey değil: claimed_profile_key'li KİŞİ taslaklarında moderasyon profilin gerçek sahibine
-  // (onaylı profile_claims('architect')) ve admin'e ayrılır. Firma taslaklarında kural
-  // DEĞİŞMEZ — orada delegasyon yok, yetki zaten claim ya da Kurucular bağıyla gelir.
-  if (typeKey === 'architects' && existing.claimed_profile_key && user.role !== 'admin') {
-    // claimed_profile_key ORİJİNAL adı taşır, profile_claims.profile_key yeniden adlandırmayı takip
-    // eder (bkz. dosya başındaki AYNI not) — karşılaştırma güncel ad üzerinden yapılmalı, aksi halde
-    // adı değişmiş bir profilin GERÇEK sahibi kendi kaydını arşivleyemezdi.
-    const currentName = await resolveCurrentProfileName(env, typeKey, existing.claimed_profile_key);
-    const ownClaim = await env.DB.prepare(
-      `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved' LIMIT 1`
-    ).bind(user.id, currentName).first();
-    if (!ownClaim) return errorJson('Bu profili yalnızca sahibi silebilir ya da arşivleyebilir.', 403);
-  }
+  if (!existing || !(await canAccessSubmissionRow(env, user, typeKey, existing))) return errorJson('Bulunamadı', 404);
   const body = await readJson(request);
   if (!['delete', 'archive'].includes(body.action)) return errorJson('Geçersiz işlem.');
   const key = (typeKey === 'architects' || typeKey === 'offices') && !existing.claimed_profile_key
     ? `submission:${id}`
     : undefined;
   return runContentAction(env, user, { type: typeKey, action: body.action, id, key });
+}
+
+// KANONİK ANAHTARLA MODERASYON — src/routes/legacyContent.js#handleSelfProjectDelete/
+// handleSelfProjectModerate'in kişi/firma/marka/ürün karşılığı (kullanıcı isteği, 2026-09-10
+// madde 2). moderateOwnSubmission bir *_submissions satırının id'sini ister; bu ise kaydın
+// KENDİ anahtarını (kişi/firma adı ya da ürün slug'ı) alır.
+//
+// NEDEN GEREKLİ: yetkisi olan bir kullanıcının o kayıt için henüz bir taslağı OLMAYABİLİR —
+// bir firma yetkilisi ortağının profilini ilk kez açtığında (kisi-ekle.html?claim=…) ortada
+// düzenlenecek bir gönderi satırı yoktur, dolayısıyla id tabanlı uç kullanılamaz. runContentAction'ın
+// `key` dalı bu durumda canonical satırdan arşiv taslağını KENDİSİ üretir (ve owner_user_id'sini
+// çağırana yazar, yani kayıt o kullanıcının Hesabım > Arşivim kutusunda görünür).
+//
+// YETKİ, DÜZENLEMEYLE AYNI TEK KAYNAKTAN OKUNUR (verifyClaimedProfileKey /
+// verifyProductClaimedSlug) — istemci kuralı yeniden hesaplamaz, admin bypass'ı da o
+// fonksiyonların içindedir.
+export async function handleSelfContentModerate(request, env, typeKey, key, action) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  if (!['delete', 'archive'].includes(action)) return errorJson('Geçersiz işlem.');
+  if (typeKey === 'products') {
+    const err = await verifyProductClaimedSlug(env, user, key);
+    if (err) return err;
+  } else if (typeKey === 'architects' || typeKey === 'offices') {
+    const err = await verifyClaimedProfileKey(env, user, typeKey, key);
+    if (err) return err;
+  } else {
+    return errorJson('Bulunamadı', 404);
+  }
+  return runContentAction(env, user, { type: typeKey, action, key });
 }

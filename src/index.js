@@ -2,7 +2,7 @@ import { json, errorJson, clearSessionCookieHeader } from './lib/http.js';
 import { logRequest } from './lib/logger.js';
 import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
-import { handleSubmissionRoute } from './routes/submissions.js';
+import { handleSubmissionRoute, handleSelfContentModerate } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute, fetchArchitectPool } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeNamesRoute, handleOfficeListRoute, fetchOfficePool } from './routes/office.js';
@@ -1993,8 +1993,31 @@ async function routeApi(request, env, url, ctx) {
   // "Görsel URL'si yapıştır" kutusunun SSRF-korumalı görsel borusu (bkz. handleImageProxyRoute).
   if (path === '/api/ai/image-proxy') return handleImageProxyRoute(request, env, url);
   if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
-  if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
-  if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
+  // KANONİK ANAHTARLA ARŞİVLE/SİL (kullanıcı isteği, 2026-09-10 madde 2) — /api/project/:slug'daki
+  // AYNI desen: DELETE = sil, POST .../moderate {action:'archive'} = arşivle. GET detay ucuyla
+  // YOLU PAYLAŞIR, method'a göre ayrılır; '/moderate' soneki GET'e düşmeden ÖNCE yakalanmalı, aksi
+  // halde detay handler'ı anahtarı "isim/moderate" olarak arardı. Yetki, düzenlemeyle AYNI
+  // fonksiyondan okunur (bkz. src/routes/submissions.js#handleSelfContentModerate).
+  const selfModerate = async (typeKey, rest) => {
+    if (request.method === 'DELETE') return handleSelfContentModerate(request, env, typeKey, decodeURIComponent(rest), 'delete');
+    if (rest.endsWith('/moderate') && request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      return handleSelfContentModerate(request, env, typeKey, decodeURIComponent(rest.slice(0, -'/moderate'.length)), body && body.action);
+    }
+    return null;
+  };
+  if (path.startsWith('/api/architect/')) {
+    const rest = path.slice('/api/architect/'.length);
+    const moderated = await selfModerate('architects', rest);
+    if (moderated) return moderated;
+    return handleArchitectRoute(request, env, url, rest);
+  }
+  if (path.startsWith('/api/office/')) {
+    const rest = path.slice('/api/office/'.length);
+    const moderated = await selfModerate('offices', rest);
+    if (moderated) return moderated;
+    return handleOfficeRoute(request, env, url, rest);
+  }
   if (path.startsWith('/api/project/')) {
     const projectSlug = path.slice('/api/project/'.length);
     // DELETE: proje sahibinin (ya da admin'in) proje-ekle.html?claim=/?edit= sayfasından (bkz.
@@ -2026,6 +2049,9 @@ async function routeApi(request, env, url, ctx) {
     if (productSlug.endsWith('/can-edit') && request.method === 'GET') {
       return handleProductCanEditRoute(request, env, productSlug.slice(0, -'/can-edit'.length));
     }
+    // Arşivle/Sil — bkz. yukarıdaki selfModerate yardımcısı ve AYNI gerekçe.
+    const moderated = await selfModerate('products', productSlug);
+    if (moderated) return moderated;
     return handleProductDetailRoute(request, env, url, productSlug);
   }
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);

@@ -175,15 +175,21 @@ export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets
   const row = await findCanonicalRowByNaturalKey(env, type, key);
   if (!row) return; // henüz canonical karşılığı yoksa sessizce atla (ör. bozuk/eski bir anahtar)
   const table = CANONICAL_TABLE_BY_TYPE[type];
-  // preview_at DA temizlenir (kullanıcı isteği, 2026-09-10): bir kayıt yayına alındığında ÖNİZLEME
-  // ("soluk") durumundan da çıkmalı — aksi halde canlıya dönen kart listede hâlâ soluk/tıklanamaz
-  // görünürdü. Gizlerken (hidden=true) preview_at'e DOKUNULMAZ: toplu önizleme dönüşümü onu ayrıca
-  // yönetir ve tekil bir "Arşivle" işlemi kaydı önizlemeye değil TAM arşive almalıdır.
+  // preview_at HER İKİ YÖNDE DE temizlenir.
+  //   * Yayına alırken (hidden=false): kayıt ÖNİZLEME ("soluk") durumundan da çıkmalı — aksi halde
+  //     canlıya dönen kart listede hâlâ soluk/tıklanamaz görünürdü.
+  //   * Arşivlerken (hidden=true, kullanıcı isteği 2026-09-10 madde 2: "Kullanıcı arşivle butonuyla
+  //     kendi içeriğini arşivlerse bu blurlu gösterim değil direkt arşivleme olsun."): "Arşivle"
+  //     HER ZAMAN TAM arşiv demektir. Bu satır olmadan, ZATEN önizlemede olan bir kaydın
+  //     arşivlenmesi hiçbir şeyi değiştirmiyordu (hidden_at zaten doluydu, preview_at'e
+  //     dokunulmuyordu) — kayıt listelerde soluk kart olarak görünmeye devam ediyordu.
+  //     Toplu önizleme dönüşümü bundan ETKİLENMEZ: o, arşivlemeden SONRA preview_at'i ayrı bir
+  //     UPDATE ile damgalar (bkz. scripts/archive-unassigned.mjs --to-preview, archive-cinici.mjs).
   // relisted_at: önizlemeden çıkan kayıt liste sıralamasında canlılar arasında EN ÖNE geçsin diye
   // (kullanıcı isteği: "yeni bir paylaşım gibi ilk sıraya yerleşsin") — bkz.
   // migrations/0108_relisted_at.sql'deki sıralama sözleşmesi. YALNIZCA gerçekten önizlemedeyken
   // damgalanır: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına fırlatmamalı.
-  const previewSet = hidden ? '' : ', preview_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN ? ELSE relisted_at END';
+  const previewSet = hidden ? ', preview_at = NULL' : ', preview_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN ? ELSE relisted_at END';
   const previewBinds = hidden ? [] : [new Date().toISOString()];
   await env.DB.prepare(`UPDATE ${table} SET hidden_at = ?${previewSet} WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, ...previewBinds, row.id).run();
   if (!skipFacets && FACET_TYPES.has(type)) await bumpFacetCounts(env, type);

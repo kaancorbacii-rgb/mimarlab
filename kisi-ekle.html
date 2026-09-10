@@ -1475,7 +1475,14 @@ function mountArchitectAdminActions(){
   const key = claimName || originalName;
   const canAdmin = isAdmin && !!key;
   const canOwner = !isAdmin && !!editId;
-  if(!canAdmin && !canOwner) return;
+  // ÜÇÜNCÜ YOL (kullanıcı isteği, 2026-09-10 madde 2): kendi taslağı OLMAYAN ama bu profili
+  // düzenleme yetkisi olan kullanıcı (ör. bir firma yetkilisinin ortağının profili — buraya
+  // ?claim= ile gelir, editId yoktur). Kanonik anahtarla çalışan uç kullanılır; yetkiyi sunucu
+  // düzenlemeyle AYNI fonksiyondan doğrular (bkz. src/routes/submissions.js#
+  // handleSelfContentModerate), yani burada yetkisiz birine buton göstermek bir açık YARATMAZ —
+  // sunucu 403 döner.
+  const canClaimKey = !isAdmin && !editId && !!claimName;
+  if(!canAdmin && !canOwner && !canClaimKey) return;
   const row = document.getElementById('m-danger-row');
   const archiveBtn = document.getElementById('m-archive-btn');
   const deleteBtn = document.getElementById('m-delete-btn');
@@ -1495,7 +1502,12 @@ function mountArchitectAdminActions(){
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'architects', action, key }),
         })
-        : await fetch(`/api/architects/${encodeURIComponent(editId)}/moderate`, {
+        : canOwner
+        ? await fetch(`/api/architects/${encodeURIComponent(editId)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        })
+        : await fetch(`/api/architect/${encodeURIComponent(claimName)}/moderate`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action }),
         });

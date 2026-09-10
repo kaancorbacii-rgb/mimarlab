@@ -136,6 +136,86 @@ export async function cascadeRemovedProfileClaims(env, officeName, newNames, { f
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// TERS YÖN: KİŞİ PROFİLİNDEN BİR FİRMA/MARKA ÇIKARILINCA, FİRMANIN KÜNYESİNDEN DE ÇIKAR
+// (kullanıcı isteği, 2026-09-10: "Bir kullanıcı kendi kişi profilinden bir firmayı ya da markayı
+// silerse, o firmanın ya da markanın profilinden de bu kişi ismi otomatik olarak silinsin.")
+//
+// cascadeRemovedFounders'ın AYNADAKİ görüntüsü: o, firmanın Kurucular kutusundan çıkarılan ismin
+// kişi tarafındaki bağını temizler; bu ise kişinin "Firma veya Marka" alanından çıkarılan firmanın
+// künyesinden kişiyi siler.
+//
+// FİRMA POPUP'INDAKİ İSİM DÖRT KAYNAKTAN GELEBİLİR (bkz. src/routes/office.js#buildOfficePayload),
+// bu yüzden ÜÇÜNE birden dokunulur — dördüncüsü zaten başka yerde hallediliyor:
+//   1) office_founders (yapısal bağ) — canonicalSync.js#syncOfficeFounderLink kişi kaydedilirken
+//      YENİ listede olmayan bağları zaten siliyor, burada TEKRAR edilmez.
+//   2) office_submissions.founders / .team serbest metin kutuları — BURADA temizlenir.
+//   3) onaylı profile_claims('office') satırı — BURADA reddedilir (cascadeRemovedProfileClaims'in
+//      tek-kişilik karşılığı; kullanıcı firmayla bağını kendisi kopardığı için bildirim GÖNDERİLMEZ:
+//      reddedilen bir talep değil, kullanıcının kendi kararıdır).
+//   4) architects.office_id — syncArchitect zaten yeni listeye göre yazıyor.
+//
+// KAPSAM SINIRI — YALNIZCA KİŞİNİN KENDİSİ: bu cascade yalnızca düzenlenen kişi kaydı GERÇEKTEN
+// düzenleyen kullanıcının kendi profiliyse çalışır (isOwn), çünkü kullanıcı isteği "bir kullanıcı
+// KENDİ kişi profilinden" diyor. Aksi halde kisi-ekle.html'in asıl kullanımı (bir meslektaşını
+// eklemek/düzeltmek) sırasında birinin Firma alanını boşaltmak, o firmanın künyesini üçüncü bir
+// kişinin elinden değiştirirdi.
+export async function cascadeRemovedOfficesFromArchitect(env, architectName, oldOfficeField, newOfficeField, { claimUserId = null } = {}) {
+  const split = (value) => [...new Set(String(value || '').split(',').map(s => s.trim()).filter(Boolean))];
+  const newFolded = new Set(split(newOfficeField).map(foldTr));
+  const removed = split(oldOfficeField).filter(name => !newFolded.has(foldTr(name)));
+  if (!removed.length) return;
+
+  const wanted = foldTr(architectName);
+  for (const officeName of removed) {
+    const office = await env.DB.prepare(
+      `SELECT id, name, legacy_key FROM offices WHERE deleted_at IS NULL AND (name = ? COLLATE NOCASE OR legacy_key = ?) LIMIT 1`
+    ).bind(officeName, officeName).first();
+    if (!office) continue;
+
+    // (2) serbest metin Kurucular/Ekip kutuları. Firmanın taslağı, office.js#fetchRawFounderNames
+    // ile BİREBİR aynı sorgudan bulunur — orası popup'ta hangi satırın okunduğunu belirleyen tek
+    // kaynak, farklı bir satırı düzenlersek popup'ta isim durmaya devam ederdi.
+    const submissionId = (office.legacy_key || '').startsWith('submission:') ? office.legacy_key.slice('submission:'.length) : '';
+    const draft = await env.DB.prepare(
+      `SELECT id, founders, team FROM office_submissions
+        WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+    ).bind(office.name, office.legacy_key || '', submissionId).first();
+    if (draft) {
+      const filterOut = (raw) => {
+        let list;
+        try { list = JSON.parse(raw || '[]'); } catch { return null; }
+        if (!Array.isArray(list)) return null;
+        const kept = list.filter(n => typeof n !== 'string' || foldTr(n) !== wanted);
+        return kept.length === list.length ? null : JSON.stringify(kept);
+      };
+      const nextFounders = filterOut(draft.founders);
+      const nextTeam = filterOut(draft.team);
+      if (nextFounders !== null || nextTeam !== null) {
+        const sets = [], binds = [];
+        if (nextFounders !== null) { sets.push('founders = ?'); binds.push(nextFounders); }
+        if (nextTeam !== null) { sets.push('team = ?'); binds.push(nextTeam); }
+        sets.push('updated_at = ?'); binds.push(Date.now());
+        await env.DB.prepare(`UPDATE office_submissions SET ${sets.join(', ')} WHERE id = ?`).bind(...binds, draft.id).run();
+      }
+    }
+
+    // (3) kullanıcının o firmaya onaylı/bekleyen talebi. profile_key firmanın GÜNCEL adını taşır
+    // (bkz. renameOfficeEverywhere), bu yüzden office.name ile eşleştirilir. Bekleyen talep de
+    // düşürülür: kullanıcı firmayı alanından sildiyse o talebin onaylanmasını beklemiyordur —
+    // aksi halde admin, kullanıcının vazgeçtiği bir bağı onaylardı.
+    if (claimUserId) {
+      await env.DB.prepare(
+        `UPDATE profile_claims SET status = 'rejected', updated_at = ?
+          WHERE user_id = ? AND profile_type = 'office' AND profile_key = ? AND status IN ('approved', 'pending')`
+      ).bind(Date.now(), claimUserId, office.name).run();
+    }
+
+    // Firma detay ucu/SSR HTML'i bu listeleri taşır — bkz. cascadeRemovedProfileClaims'teki AYNI not.
+    await purgeSsrDetailCache('office', office.name, env);
+  }
+}
+
 export async function freshSlugFor(env, table, currentId, newName) {
   const base = slugify(newName) || `kayit-${currentId}`;
   let slug = base, n = 2;
