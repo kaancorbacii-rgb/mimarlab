@@ -303,7 +303,7 @@ const ArchitectModal = (function () {
       <div class="detail-desc" id="am-about"></div>
       <hr class="detail-info-divider">
     </div>
-    <details class="feedback-card" id="claim-info-card">
+    <details class="feedback-card" id="claim-info-card" style="display:none;">
       <summary>Bu profil sana mı ait?<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div id="claim-card-body"></div>
     </details>
@@ -758,6 +758,16 @@ const ArchitectModal = (function () {
   async function renderItem(payload) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
     ModalShell.clearPreviewNote(); // ... önizleme notu da (bkz. renderNotFound'un 'preview' dalı)
+    // ÖNİZLEME ("soluk") KAYDI ARTIK TAM AÇILIR (kullanıcı isteği, 2026-09-10 on birinci tur madde
+    // 2): sunucu preview_at DOLU satırlarda 410 yerine tam gövde + `preview:true` döner (bkz.
+    // src/routes/architect.js), popup normal render edilir ve yalnızca GÖRSELLER blurlanır — kullanıcı
+    // kaydın ne olduğunu görüp aşağıdaki "Bu profil/firma sana mı ait?" kutusundan sahiplenme
+    // talebi gönderebilsin. Bayrak her render'da KOŞULSUZ yazılır: yayındaki bir profile geçişte
+    // blurun geride kalmaması buna bağlı.
+    ModalShell.setPreviewBlur(!!payload.preview);
+    // Başlığın altındaki küçük "henüz yayında değil" notu, önizleme dışı kayıtlarda
+    // yukarıdaki clearPreviewNote() ile zaten kalkıyor.
+    if (payload.preview) ModalShell.showPreviewNote(document.getElementById('am-name-text'));
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
@@ -1183,6 +1193,7 @@ const ArchitectModal = (function () {
     const previewTitle = (result && result.previewTitle) || null;
     const previewSlug = (result && result.previewSlug) || currentSlug;
     ModalShell.clearLoadError();
+    ModalShell.setPreviewBlur(false); // bir önceki (önizleme) içeriğin bluru burada asılı kalmasın
     const titleEl = document.getElementById('am-name-text');
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';

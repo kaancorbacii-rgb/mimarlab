@@ -15,6 +15,12 @@
 // VERİ KAYNAĞI: /api/public/preview (bkz. src/routes/legacyContent.js#handlePublicPreview) —
 // /api/public/hidden ile AYNI desen: tek, önbelleklenmiş, herkese açık bir D1 sinyali.
 //
+// GÜNCELLEME (kullanıcı isteği, 2026-09-10 on birinci tur madde 2): "tıklanamasın" kuralı artık
+// YALNIZCA PROJE ve ÜRÜN kartları için geçerli. Kişi/firma/marka önizleme kartları soluk/blurlu
+// görünmeye devam eder ama AÇILABİLİR — popup içindeki görseller blurlu kalır (bkz.
+// js/components/modal-shell.js#setPreviewBlur) ve kullanıcı sahiplenme talebini popup'taki
+// "Bu profil/firma sana mı ait?" kutusundan gönderir.
+//
 // GÜVENLİK NOTU: bu YALNIZCA görsel/etkileşim katmanıdır. Asıl koruma sunucuda: önizleme
 // satırlarının hidden_at'i DOLU kalır, dolayısıyla detay uçları 410, sitemap/arama/JSON-LD hariç
 // (bkz. migrations/0107_preview_state.sql). Yani bu dosya devre dışı kalsa bile kimse önizleme
@@ -32,14 +38,29 @@
   var previewHrefs = null;   // Set<string> — "/proje/slug" biçiminde
   var pending = false;
 
+  // KİLİTLİ (tıklanamaz) önizleme kartlarının başlık ipucu. Yalnızca proje/ürün kartlarına yazılır
+  // — kişi/firma/marka kartları artık açılabildiğinden onlarda yanlış bilgi olurdu (bkz. markAll).
+  var LOCKED_TITLE = 'Bu içerik önizleme modunda — henüz yayında değil.';
+
+  // Bu adres bir KİŞİ/FİRMA/MARKA profiline mi gidiyor? (kullanıcı isteği, 2026-09-10 on birinci tur
+  // madde 2: "Blurlu kişi, firma ve marka popupları açılabilir olsun, kilitlerini kaldır ... Hâli
+  // hazırdaki blurlu projeler ve ürünler ... kilitli ve blurlu kalmaya devam etsin.")
+  var PROFILE_PREFIXES = ['/kisi/', '/firma/', '/marka/'];
+  function isProfileKey(key) {
+    for (var i = 0; i < PROFILE_PREFIXES.length; i++) if (key.indexOf(PROFILE_PREFIXES[i]) === 0) return true;
+    return false;
+  }
+
   function injectStyles() {
     if (document.getElementById('preview-cards-styles')) return;
     var el = document.createElement('style');
     el.id = 'preview-cards-styles';
     el.textContent = [
-      /* Kart TAMAMEN kaybolmaz, "önizleme" olduğu belli olacak kadar soluklaşır ve tıklama alır
-         ama hiçbir şey yapmaz (pointer-events:none kullanılmaz: o zaman imleç bile değişmez ve
-         kullanıcı kartın neden tepkisiz olduğunu anlamaz — cursor:default + başlık ipucu daha açık). */
+      /* Kart TAMAMEN kaybolmaz, "önizleme" olduğu belli olacak kadar soluklaşır. Kilitli (proje/
+         ürün) kartlarda tıklama alınır ama hiçbir şey yapmaz — kök elemanda pointer-events:none
+         kullanılmaz, o zaman imleç bile değişmez ve kullanıcı kartın neden tepkisiz olduğunu
+         anlamazdı (cursor:pointer + başlık ipucu daha açık). Profil kartlarında (kişi/firma/marka)
+         aynı imleç gerçekten çalışır: kart normal şekilde açılır. */
       /* TON (kullanıcı isteği, 2026-09-10: "Blurlama tonunu birazcık daha arttır. Telif hakkı
          doğmasın."): asıl telif riski GÖRSELDE olduğundan görsele GERÇEK bir blur uygulanır —
          yalnızca opacity düşürmek görseli hâlâ okunabilir/kullanılabilir bırakırdı. Metin
@@ -55,9 +76,13 @@
       '  filter:blur(9px) grayscale(.5); transform:scale(1.06);',
       '}',
       '.ml-preview-card:hover{opacity:.72;}',
-      /* Kart içindeki alt butonlar (kaydet/paylaş) da devre dışı görünsün — tıklama zaten
-         yakalama fazında durduruluyor (bkz. #guard). */
-      '.ml-preview-card *{pointer-events:none;}',
+      /* KİLİTLİ kartlar (proje + ürün): kart içindeki alt butonlar (kaydet/paylaş) da devre dışı
+         görünsün — tıklama zaten yakalama fazında durduruluyor (bkz. #guard).
+         KİLİT ARTIK YALNIZCA PROJE VE ÜRÜNDE (kullanıcı isteği, 2026-09-10 on birinci tur madde 2):
+         kişi/firma/marka önizleme kartları açılabilir olmalı — bunlar `ml-preview-locked` sınıfını
+         ALMAZ, yani soluk/blurlu görünür ama normal kart gibi tıklanıp popup açar. Popupta
+         görsellerin blurlu kalması modal tarafında yapılır (bkz. modal-shell.js#setPreviewBlur). */
+      '.ml-preview-locked *{pointer-events:none;}',
       /* "Bu profil sana mı ait?" mini popup'ı (kullanıcı isteği, 2026-09-10 madde 4). Kendi
          katmanında, sitenin modal kabuğundan BAĞIMSIZ: bu bileşen her sayfada yüklü ve ModalShell
          her sayfada yüklü DEĞİL. */
@@ -107,11 +132,20 @@
       if (!previewHrefs.has(key)) continue;
       var cardRoot = cardRootFor(a);
       cardRoot.classList.add('ml-preview-card');
-      // Hedef adres kapsayıcıda saklanır: tıklama artık <a>'da değil kapsayıcıda yakalanıyor
-      // (kartın kendi JS işleyicisi de orada), sahiplenme popup'ı slug'ı buradan okur.
+      // Hedef adres kapsayıcıda saklanır — hangi kaydın önizleme olduğu DOM'dan okunabilsin diye
+      // (hata ayıklama + ileride kart üzerinde rozet/etiket basmak isteyen kod için tek kaynak).
       cardRoot.dataset.mlPreviewHref = key;
+      // PROFİL kartları (kişi/firma/marka) artık AÇILABİLİR — yalnızca proje/ürün kilitli kalır
+      // (kullanıcı isteği, 2026-09-10 on birinci tur madde 2). Kilitli olmayan kartta aria-disabled
+      // ve "tıklanamaz" ipucu yanlış bilgi verirdi, bu yüzden ikisi de yalnızca kilitli dalda yazılır.
+      if (isProfileKey(key)) {
+        cardRoot.removeAttribute('aria-disabled');
+        if (cardRoot.getAttribute('title') === LOCKED_TITLE) cardRoot.removeAttribute('title');
+        continue;
+      }
+      cardRoot.classList.add('ml-preview-locked');
       cardRoot.setAttribute('aria-disabled', 'true');
-      if (!cardRoot.getAttribute('title')) cardRoot.setAttribute('title', 'Bu içerik önizleme modunda — henüz yayında değil.');
+      if (!cardRoot.getAttribute('title')) cardRoot.setAttribute('title', LOCKED_TITLE);
     }
   }
 
@@ -167,24 +201,15 @@
     setTimeout(function () { pending = false; markAll(document); }, 0);
   }
 
-  // PROFİL SAHİPLENME MİNİ POPUP'I (kullanıcı isteği, 2026-09-10 madde 4): kişi/firma/marka
-  // önizleme kartına tıklayınca "Bu profil/firma/marka sana mı ait?" kutusu açılır ve kullanıcı
-  // buradan sahiplenme talebi gönderir. PROJE ve ÜRÜN kartlarında böyle bir akış YOKTUR (onların
-  // sahipliği künyedeki firma/kişi üzerinden gelir), orada tıklama sessizce engellenmeye devam eder.
-  var CLAIM_KIND_BY_PREFIX = {
-    '/kisi/': { profileType: 'architect', title: 'Bu profil sana mı ait?', noun: 'profil' },
-    '/firma/': { profileType: 'office', title: 'Bu firma sana mı ait?', noun: 'firma' },
-    '/marka/': { profileType: 'office', title: 'Bu marka sana mı ait?', noun: 'marka' },
-  };
-
-  function claimKindFor(key) {
-    for (var prefix in CLAIM_KIND_BY_PREFIX) {
-      if (key.indexOf(prefix) === 0) {
-        return { cfg: CLAIM_KIND_BY_PREFIX[prefix], slug: decodeURIComponent(key.slice(prefix.length)) };
-      }
-    }
-    return null;
-  }
+  // PROFİL SAHİPLENME MİNİ POPUP'I ARTIK ÖNİZLEME KARTINDAN AÇILMIYOR (kullanıcı isteği, 2026-09-10
+  // on birinci tur madde 2: "artık önizleme tıklayınca çıkan küçük popup olmasın, kullanıcı açılan
+  // kişi, firma veya marka popupından 'Bu firma sana mı ait?' butonundan sahiplenme talebi
+  // göndersin"). Kişi/firma/marka önizleme kartları normal kart gibi açılıyor ve talep, popupun
+  // içindeki paylaşılan claim kutusundan gönderiliyor (bkz. js/components/claim-correction-box.js).
+  //
+  // openClaimPopup/MLClaimPopup yine de KALDI: kişi/firma/marka EKLE formlarındaki "bu profil zaten
+  // kayıtlı" uyarısı hâlâ bu kutuyu açıyor (bkz. js/components/duplicate-name-check.js) — tek kaynak
+  // olarak burada durur, stilleri de (injectStyles) buradan gelir.
 
   function closePop() {
     var el = document.querySelector('.ml-claim-pop-overlay');
@@ -258,22 +283,15 @@
     // Kapsayıcıdan yakalanır, <a>'dan DEĞİL: kartın kendi tıklama işleyicisi de kapsayıcıdadır
     // (bkz. #cardRootFor) — yalnızca bağlantıyı engellemek /urun'de popup'ın açılmasını
     // DURDURMUYORDU.
-    var root = e.target && e.target.closest ? e.target.closest('.ml-preview-card') : null;
+    //
+    // Seçici `.ml-preview-locked` (kullanıcı isteği, 2026-09-10 on birinci tur madde 2): kişi/firma/
+    // marka önizleme kartları bu sınıfı ALMAZ, yani buradan hiç geçmez ve normal kart gibi açılır —
+    // yalnızca proje ve ürün kartları kilitli kalmaya devam eder.
+    var root = e.target && e.target.closest ? e.target.closest('.ml-preview-locked') : null;
     if (!root) return;
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-    if (e.type !== 'click') return; // orta tık / yeni sekme: yalnızca engelle, popup açma
-    var hit = claimKindFor(root.dataset.mlPreviewHref || '');
-    if (!hit) return;
-    // Kart metni çok satırlı (ad + alt satır) ve girintili gelir — popup başlığında tek satıra indirilir.
-    var label = (root.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60);
-    openClaimPopup({
-      profileType: hit.cfg.profileType,
-      profileKey: hit.slug,
-      title: hit.cfg.title,
-      description: (label ? label + ' — ' : '') + 'Bu ' + hit.cfg.noun + ' şu an önizleme modunda ve yayında değil. Sahibiysen talep gönder; onaylandığında ' + hit.cfg.noun + ' yayına alınır ve düzenleyebilirsin.',
-    });
   }
 
   // Popup'ı DIŞARI AÇ (kullanıcı isteği, 2026-09-10 madde 3): kişi/firma/marka ekle

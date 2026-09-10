@@ -179,7 +179,16 @@ function createClaimCorrectionBox(config){
       }catch{}
       return;
     }
-    card.style.display = '';
+    // GERÇEK BULGU (kullanıcı isteği, 2026-09-10 on birinci tur madde 1: "claim butonu kaldırılmışsa
+    // popup açıldığında önce görünüyor, çok kısa bir süre içinde kayboluyor — hiç görünmemesi lazım"):
+    // burada kart KOŞULSUZ görünür yapılıyordu ve gizlenmesine ancak aşağıdaki 2-3 sıralı ağ
+    // isteği (claim-status + claims/status + rozetler) döndükten SONRA karar veriliyordu. Yani
+    // sahiplenilmiş/rozetli her profilde kutu ~200-500ms boyunca EKRANDA duruyor, sonra kayboluyordu.
+    // Kural tersine çevrildi: kutu varsayılan olarak GİZLİ (şablonda da style="display:none", bkz.
+    // architect-modal.js/office-modal.js) ve yalnızca gerçekten gösterilecek dallarda açılır.
+    // Buradaki 'none' ayrıca profilden profile geçişte (şablon kalıcı, bkz. claimContent) bir
+    // öncekinin açık bıraktığı kutunun taşınmasını da engeller.
+    card.style.display = 'none';
     if(config.ready) await config.ready;
     // gerçek bulgu (denetim, 2026-08-24): bu fonksiyonun aşağıdaki 2-3 sıralı await'i sürerken
     // kullanıcı hızlıca BAŞKA bir mimara/firmaya geçerse (ör. "Diğer Firma Ortakları"/"Kurucular"
@@ -225,6 +234,7 @@ function createClaimCorrectionBox(config){
       // rozetli bir profilde davet kutusunu göstermeden hemen çıkabiliriz.
       if(alreadyClaimed || badged){ card.style.display = 'none'; return; }
       body.innerHTML = `<p>${config.labels.loginPromptHtml}</p>`;
+      card.style.display = '';
       return;
     }
     try{
@@ -238,6 +248,7 @@ function createClaimCorrectionBox(config){
         card.style.display = 'none';
       } else if(data.status === 'pending'){
         body.innerHTML = `<p>${config.labels.pendingHtml}</p>`;
+        card.style.display = '';
       } else if(alreadyClaimed){
         card.style.display = 'none';
       } else {
@@ -246,6 +257,7 @@ function createClaimCorrectionBox(config){
             <textarea id="claim-note" placeholder=""></textarea>
             <button type="button" id="claim-btn">${config.labels.claimButtonText}</button>
           </div>`;
+        card.style.display = '';
         document.getElementById('claim-btn').addEventListener('click', async (e)=>{
           const btn = e.target;
           btn.disabled = true; btn.textContent = 'Gönderiliyor…';

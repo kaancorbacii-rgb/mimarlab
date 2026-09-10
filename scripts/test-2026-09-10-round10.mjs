@@ -145,8 +145,13 @@ await test('firma claim\'i değişince kurucuların kişi detay önbelleği de p
   assert.match(fn, /purgeSsrDetailCache\('architect', r\.name, env\)/);
 });
 
-await test('API_PAYLOAD_VERSION v29\'a çıkarıldı (claimed anlamı değişti, 304 tuzağı)', () => {
-  assert.match(read('../src/lib/publicCache.js'), /const API_PAYLOAD_VERSION = 'v29';/);
+await test('API_PAYLOAD_VERSION en az v29 (claimed anlamı değişti, 304 tuzağı)', () => {
+  // Sabit bir sürüme ÇAKILMAZ: sonraki turlar da (ör. 2026-09-10 on birinci tur, önizleme
+  // profillerinin tam gövde dönmesi) aynı sabiti artırıyor. Testin derdi "bu tur bump edildi mi",
+  // yani v29'dan GERİ gidilmemiş olması.
+  const m = read('../src/lib/publicCache.js').match(/const API_PAYLOAD_VERSION = 'v(\d+)';/);
+  assert.ok(m, 'API_PAYLOAD_VERSION okunamadı');
+  assert.ok(Number(m[1]) >= 29, `v29 veya üstü bekleniyordu, v${m[1]} bulundu`);
 });
 
 // ---------------------------------------------------------------------------------------------

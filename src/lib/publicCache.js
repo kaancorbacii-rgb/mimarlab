@@ -451,8 +451,16 @@ async function withSingleFlight(key, fn) {
 //     ile AYNI tuzak: bir firmayı atamak hiçbir architects satırının updated_at'ini değiştirmez,
 //     bump edilmezse kurucunun popup'ını daha önce açmış ziyaretçiler 304 ile eski gövdede takılıp
 //     ibareyi görmeye devam ederdi.
+// v29 -> v30 (kullanıcı isteği, 2026-09-10 on birinci tur madde 2): ÖNİZLEME ("soluk") durumundaki
+//     kişi/firma/marka kayıtları /api/architect/:key ve /api/office/:key'te artık 410 + yalnızca
+//     ad/slug yerine 200 + TAM gövde döner ve gövde yeni bir `preview` bayrağı taşır (popuptaki
+//     görsellerin blurlanması buna bağlı, bkz. js/components/modal-shell.js#setPreviewBlur).
+//     NOT: tekil detay uçları listFingerprint GEÇMEDİĞİNDEN ETag üretmez — bu bump onların
+//     önbelleğini tazelemez; oradaki geçiş, PUBLIC_LIST_CACHE_HEADERS'ın 5dk s-maxage'ı dolunca
+//     (ya da bir sonraki invalidatePublicCache() ile) kendiliğinden tamamlanır. Sabit yine de
+//     aşağıdaki kurala uymak ve şekil değişimini kayda geçirmek için artırıldı.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v29';
+const API_PAYLOAD_VERSION = 'v30';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

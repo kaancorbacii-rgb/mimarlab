@@ -452,7 +452,7 @@ async function fetchAdjacentArchitect(env, id) {
   return { prevItem: prev, nextItem: next };
 }
 
-async function buildArchitectPayload(env, key) {
+export async function buildArchitectPayload(env, key) {
   const row = await findArchitect(env, key);
   // bkz. gerçek bulgu: eski "eşleşme yoksa ilk kaydı döndür" fallback'i, silinmiş/eşleşmeyen bir key
   // için sessizce BAŞKA bir mimarın (her zaman en düşük id'li, silinmemiş satır) profilini
@@ -471,7 +471,21 @@ async function buildArchitectPayload(env, key) {
   // ekranı yerine profilin ADINI gösterir ve "Bu profil sana mı ait?" / "Geri Bildirim" kutularını
   // çalışır hâlde mount eder (kullanıcı isteği, 2026-09-10 yedinci tur madde 2). Yalnızca bu iki
   // alan sızar — kaydın geri kalanı (item) hâlâ null'dır, yani 410'un koruması aynen sürer.
-  if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at, previewTitle: row.preview_at ? row.name : null, previewSlug: row.preview_at ? row.slug : null };
+  //
+  // ÖNİZLEME ("soluk") KAYITLARI ARTIK TAM GÖVDE DÖNER (kullanıcı isteği, 2026-09-10 on birinci tur
+  // madde 2: "Blurlu kişi, firma ve marka popupları açılabilir olsun, kilitlerini kaldır — ama
+  // popuptaki TÜM görseller blurlu gözüksün ve kullanıcı 'Bu profil sana mı ait?' butonundan
+  // sahiplenme talebi göndersin"). Yani preview_at DOLU olan bir satır 410 + yalnızca ad/slug
+  // yerine 200 + normal payload döner; `preview: true` bayrağı istemciye popup'taki görselleri
+  // blurlaması gerektiğini söyler (bkz. js/components/modal-shell.js#setPreviewBlur).
+  //
+  // ARŞİVLENMİŞ (preview_at BOŞ, hidden_at DOLU) kayıtlarda hiçbir şey değişmez: item yine null,
+  // yanıt yine 410 — bkz. statusFor (src/lib/publicCache.js).
+  //
+  // Bunun proje/ürün karşılığı BİLEREK yapılmadı: kullanıcı isteğinin aynı maddesi "hâlihazırdaki
+  // blurlu projeler ve ürünler, bir kullanıcı firma/marka/kişi profilini sahiplenene kadar kilitli
+  // ve blurlu kalmaya devam etsin" diyor — o iki tip için 410 + önizleme ekranı korunur.
+  if (row.hidden_at && !row.preview_at) return { item: null, hidden: true, preview: false, previewTitle: null, previewSlug: null };
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id
@@ -690,7 +704,11 @@ async function buildArchitectPayload(env, key) {
     preferredBrands,
     prevItem: adjacent.prevItem,
     nextItem: adjacent.nextItem,
-    hidden: !!a.hidden_at,
+    // hidden: önizleme satırlarında hidden_at DOLU kalır (bkz. migrations/0107_preview_state.sql) —
+    // ama bu gövde artık gerçek bir kayıt taşıdığından `hidden` false olmalı: hem statusFor 200
+    // dönsün hem de istemcinin fetchEntity'si (modal-shell.js) gövdeyi "yok" saymasın.
+    hidden: !!a.hidden_at && !a.preview_at,
+    preview: !!a.preview_at,
   };
 }
 

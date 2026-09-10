@@ -489,7 +489,11 @@ export async function buildOfficePayload(env, key) {
   // ekranı yerine profilin ADINI gösterir ve "Bu profil sana mı ait?" / "Geri Bildirim" kutularını
   // çalışır hâlde mount eder (kullanıcı isteği, 2026-09-10 yedinci tur madde 2). Yalnızca bu iki
   // alan sızar — kaydın geri kalanı (item) hâlâ null'dır, yani 410'un koruması aynen sürer.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], preferringOffices: [], preferringArchitects: [], hidden: true, preview: !!row.preview_at, previewTitle: row.preview_at ? row.name : null, previewSlug: row.preview_at ? row.slug : null };
+  //
+  // ÖNİZLEME ("soluk") KAYITLARI ARTIK TAM GÖVDE DÖNER — bkz. src/routes/architect.js'teki AYNI
+  // dalın uzun gerekçesi (kullanıcı isteği, 2026-09-10 on birinci tur madde 2). Arşivlenmiş
+  // (preview_at BOŞ) kayıtlarda 410 koruması aynen sürer.
+  if (row.hidden_at && !row.preview_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], preferringOffices: [], preferringArchitects: [], hidden: true, preview: false, previewTitle: null, previewSlug: null };
   const o = parseCanonicalRow('offices', row);
   // MİMARLAB AI, Faz 2 — Knowledge Graph katmanı Firma↔Şehir ilişkisi (bkz. kullanıcı isteği:
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye
@@ -828,5 +832,9 @@ export async function buildOfficePayload(env, key) {
   // dahil) getiriyor.
   const claimed = (teamClaimRows.results || []).length > 0;
 
-  return { item, claimed, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, preferringOffices, preferringArchitects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, claimed, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, preferringOffices, preferringArchitects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem,
+    // bkz. src/routes/architect.js'teki AYNI iki alan: önizleme satırında hidden_at DOLU kalır ama
+    // gövde gerçek kaydı taşıdığından `hidden` false olmalı, `preview` ise istemciye görselleri
+    // blurlamasını söyler.
+    hidden: !!o.hidden_at && !o.preview_at, preview: !!o.preview_at };
 }

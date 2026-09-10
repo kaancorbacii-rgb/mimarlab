@@ -111,6 +111,28 @@ const ModalShell = (function () {
         }
       }
       .modal-shell-overlay.open .modal-shell-panel{opacity:1; transform:scale(1);}
+      /* ÖNİZLEME BLURU — bkz. setPreviewBlur'ün uzun gerekçesi. Değerler
+         js/components/preview-cards.js#injectStyles'daki kart bluruyla BİREBİR aynı
+         (blur(9px) grayscale(.5) + scale(1.06)); scale, blur'un kenarlarda bıraktığı saydam halkayı
+         kapatır. Metin blurlanmaz — yalnızca <img>, arka plan görseli taşıyan kutular ve harita
+         karoları. .related-card-placeholder gerçek bir görsel taşımaz ama ton bütünlüğü için
+         kart bluruyla aynı muameleyi görür.
+         :not(.preview-blur-exempt) — modalın KENDİ arayüz ikonları ileride muaf tutulabilsin diye;
+         bugün yalnızca aşağıdaki harita kuralı bu muafiyeti kullanıyor. */
+      .modal-shell-overlay.preview-blur .modal-shell-body img:not(.preview-blur-exempt),
+      .modal-shell-overlay.preview-blur .modal-shell-body .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body [style*="background-image"],
+      body[data-ml-preview-blur="1"] .lightbox img,
+      body[data-ml-preview-blur="1"] .lightbox [style*="background-image"]{
+        filter:blur(9px) grayscale(.5); transform:scale(1.06);
+      }
+      /* Leaflet'in KENDİ karoları ve işaretçi ikonları muaf: bunlar MİMARLAB medyası değil (OSM
+         karoları / kütüphanenin PNG'leri) ve blurlandıklarında harita bozuk görünüyor. Harita
+         balonundaki PROJE görselleri (.pm-project-popup img) muaf DEĞİL — onlar yukarıdaki genel
+         kurala girer ve blurlu kalır. */
+      .modal-shell-overlay.preview-blur .leaflet-tile-pane img,
+      .modal-shell-overlay.preview-blur img.leaflet-marker-icon,
+      .modal-shell-overlay.preview-blur .leaflet-control-container img{filter:none; transform:none;}
       /* Kapatma (X) butonu + içerik aksiyonları (Kaydet/Paylaş/Takip Et) — proje/mimar/firma/ürün
          modallarının HEPSİ tarafından paylaşılan tek bir header satırı (bkz. kullanıcı isteği:
          aksiyon butonları X'in yanına taşınsın). Her modal kendi butonlarını
@@ -596,6 +618,9 @@ const ModalShell = (function () {
   function close() {
     if (!opened) return;
     opened = false;
+    // Önizleme bluru bir SONRAKİ içeriğe taşınmasın (bkz. setPreviewBlur): sınıf overlay kökünde
+    // ve overlay sayfa ömrü boyunca tek sefer kurulup yeniden kullanılıyor.
+    setPreviewBlur(false);
     // bkz. closeOpenLightboxes yorumu — requestClose'dan GEÇMEYEN kapanış yolları da (popstate,
     // OverlayManager.closeOthers, doğrudan close() çağrıları) geride açık bir galeri bırakmamalı.
     closeOpenLightboxes();
@@ -648,6 +673,12 @@ const ModalShell = (function () {
     // isteği 2026-08-31 madde 5) başka türlü kapsamlanamazdı. isNewOwner kontrolünün DIŞINDA, her
     // çağrıda yazılır — aynı sahip için tekrar çağrıldığında da doğru kalması bedava.
     overlayEl.dataset.owner = ownerKey;
+    // Önizleme bluru (bkz. setPreviewBlur) HER içerik talebinde sıfırlanır — proje/ürün modalları
+    // onu hiç yazmadığından, önizleme durumundaki bir firma popup'ından ilgili bir projeye geçilirse
+    // (modal HİÇ kapanmadan, bkz. wireInternalNav) blur yeni içeriğin üstünde asılı kalırdı.
+    // architect/office modalları kendi renderItem'larında doğru değeri hemen geri yazar.
+    overlayEl.classList.remove('preview-blur');
+    delete document.body.dataset.mlPreviewBlur;
     const isNewOwner = ownerKey !== contentOwner;
     if (isNewOwner) {
       contentOwner = ownerKey;
@@ -1120,6 +1151,28 @@ const ModalShell = (function () {
     if (old && old.parentNode) old.parentNode.removeChild(old);
   }
 
+  // ÖNİZLEME BLURU (kullanıcı isteği, 2026-09-10 on birinci tur madde 2): önizleme durumundaki bir
+  // kişi/firma/marka profili artık popup olarak AÇILABİLİYOR (bkz. src/routes/architect.js —
+  // preview_at DOLU satırlar 410 yerine tam gövde döner), ama "telif hakkı doğmasın" gereği
+  // popuptaki TÜM görseller blurlu kalmalı. Metin blurlanmaz: kullanıcı kaydın ne olduğunu görüp
+  // "Bu profil/firma sana mı ait?" kutusundan sahiplenme talebi gönderebilmeli.
+  //
+  // Sınıf overlay KÖKÜNE yazılır, tek bir yerden: modalın içeriği dört ayrı modül tarafından
+  // basılıyor (sol/sağ panel, ilgili proje/ürün şeritleri, kurucu/ekip ızgaraları, galeri ve
+  // lightbox) — her render noktasına ayrı bir kontrol eklemek, bu depodaki tekrar eden kök nedeni
+  // (yeni bir render noktası eklenince sessizce atlanan yardımcı) davet ederdi.
+  // Seçiciler js/components/preview-cards.js#injectStyles'daki kart bluruyla AYNI değerleri
+  // kullanır — iki yüzey arasında ton farkı olmasın diye.
+  //
+  // Lightbox document.body'nin DOĞRUDAN çocuğu olabildiğinden (bkz. close()'daki üst-katman
+  // temizliği) kural ayrıca body[data-ml-preview-blur] üzerinden de yazılır.
+  function setPreviewBlur(on) {
+    ensureDom();
+    overlayEl.classList.toggle('preview-blur', !!on);
+    if (on) document.body.dataset.mlPreviewBlur = '1';
+    else delete document.body.dataset.mlPreviewBlur;
+  }
+
   const LOAD_ERROR_ID = 'modal-shell-load-error';
   // Kaynak ibaresinin TEK anahtarı (kullanıcı isteği, 2026-09-08 madde 5; metin 2026-09-08 ikinci
   // tur). Sunucu her tekil detay ucunda `claimed` döner (bkz. src/lib/claimedProfiles.js):
@@ -1175,7 +1228,7 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError, showPreviewNote, clearPreviewNote, setSourceDisclaimer };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError, showPreviewNote, clearPreviewNote, setPreviewBlur, setSourceDisclaimer };
 })();
 
 // KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-06 madde 2: "5. sayfadan proje popup'ı açıp
