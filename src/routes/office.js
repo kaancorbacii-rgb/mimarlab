@@ -60,14 +60,14 @@ export async function fetchOfficePool(env) {
     // filtresinin davranışı DEĞİŞMEZ.
     const [{ results }, productCounts] = await Promise.all([
       env.DB.prepare(
-        `SELECT o.id, o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url, o.preview_at,
+        `SELECT o.id, o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url, o.preview_at, o.relisted_at,
            (SELECT p.images FROM project_designers pd2 JOIN projects p ON p.id = pd2.project_id
             WHERE pd2.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
               AND p.images IS NOT NULL AND p.images != '' AND p.images != '[]'
             ORDER BY COALESCE(p.project_date, '') DESC, p.id DESC LIMIT 1) AS latest_project_images,
            (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
             WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
-         FROM offices o WHERE o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL) ORDER BY o.id DESC`
+         FROM offices o WHERE o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL) ORDER BY (o.preview_at IS NOT NULL) ASC, o.relisted_at DESC, o.id DESC`
       ).all(),
       fetchOfficeProductCounts(env),
     ]);

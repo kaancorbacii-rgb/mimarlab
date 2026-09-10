@@ -830,10 +830,12 @@ async function purgeClaimProfileCaches(env, profileType, profileKey) {
 async function activateClaimedProfile(env, profileType, profileKey) {
   const table = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
   if (!table || !profileKey) return;
+  // relisted_at: bkz. migrations/0108_relisted_at.sql — atamayla yayına dönen profil listede
+  // canlılar arasında en öne geçer.
   await env.DB.prepare(
-    `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL
+    `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = ?
      WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?)`
-  ).bind(profileKey, profileKey, profileKey).run();
+  ).bind(new Date().toISOString(), profileKey, profileKey, profileKey).run();
 }
 
 async function handleClaimsAdmin(request, env, url, segments) {

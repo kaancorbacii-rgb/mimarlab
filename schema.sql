@@ -1190,3 +1190,10 @@ CREATE INDEX IF NOT EXISTS idx_architects_preview ON architects(preview_at) WHER
 CREATE INDEX IF NOT EXISTS idx_offices_preview ON offices(preview_at) WHERE preview_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_preview ON projects(preview_at) WHERE preview_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_products_preview ON products(preview_at) WHERE preview_at IS NOT NULL;
+
+-- "Yeniden yayına alındı" damgası — bkz. migrations/0108_relisted_at.sql. Önizlemeden çıkan kayıt
+-- liste sıralamasında canlılar arasında EN ÖNE geçer (yeni paylaşım gibi).
+ALTER TABLE architects ADD COLUMN relisted_at TEXT;
+ALTER TABLE offices ADD COLUMN relisted_at TEXT;
+ALTER TABLE projects ADD COLUMN relisted_at TEXT;
+ALTER TABLE products ADD COLUMN relisted_at TEXT;

@@ -222,8 +222,14 @@ async function findUnassignedProjects(env, assigned, memberKeys, protectedNames,
     // (4) 1970 öncesi yıl — parseProjectDateYear EN KÜÇÜK yılı döner (null = yıl çözülemedi).
     const year = parseProjectDateYear(row.project_date);
     if (year !== null && year < PROJECT_KEEP_YEAR_BEFORE) continue;
-    // (5) üye yüklemesi
-    if (memberKeys.has(foldTr(row.title || '')) || (row.slug && memberKeys.has(foldTr(row.slug)))) continue;
+    // (5) ÜYE YÜKLEMESİ ARTIK TEK BAŞINA YETMEZ (kullanıcı isteği, 2026-09-10 beşinci tur, madde 6:
+    // "Kemalpaşa Kongre Merkezi'nin Not Mimarlık'a etiketli olması ve BLURLU olması gerekiyor").
+    // O proje admin olmayan bir üye tarafından yüklenmişti ama künyesindeki firma (Not Mimarlık)
+    // hiç kimseye ATANMAMIŞ — yani içeriğin telif sorumluluğunu üstlenen kimse yok. Bir üyenin
+    // ÜÇÜNCÜ TARAF içeriği yüklemiş olması, o içeriği yayında tutmak için gerekçe değildir; kural
+    // artık tek ölçüte bakar: künye ONAYLI bir profile bağlı mı (yukarıdaki (1)/(2)).
+    // Diğer tipler (kişi/firma/marka/ürün) için üye-yüklemesi muafiyeti AYNEN KORUNUR — orada kayıt
+    // zaten yükleyenin kendi profili/ürünüdür.
     out.push({ key: row.slug, name: row.title });
     if (limit && out.length >= limit) break;
   }

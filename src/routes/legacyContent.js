@@ -179,8 +179,13 @@ export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets
   // ("soluk") durumundan da çıkmalı — aksi halde canlıya dönen kart listede hâlâ soluk/tıklanamaz
   // görünürdü. Gizlerken (hidden=true) preview_at'e DOKUNULMAZ: toplu önizleme dönüşümü onu ayrıca
   // yönetir ve tekil bir "Arşivle" işlemi kaydı önizlemeye değil TAM arşive almalıdır.
-  const previewSet = hidden ? '' : ', preview_at = NULL';
-  await env.DB.prepare(`UPDATE ${table} SET hidden_at = ?${previewSet} WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, row.id).run();
+  // relisted_at: önizlemeden çıkan kayıt liste sıralamasında canlılar arasında EN ÖNE geçsin diye
+  // (kullanıcı isteği: "yeni bir paylaşım gibi ilk sıraya yerleşsin") — bkz.
+  // migrations/0108_relisted_at.sql'deki sıralama sözleşmesi. YALNIZCA gerçekten önizlemedeyken
+  // damgalanır: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına fırlatmamalı.
+  const previewSet = hidden ? '' : ', preview_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN ? ELSE relisted_at END';
+  const previewBinds = hidden ? [] : [new Date().toISOString()];
+  await env.DB.prepare(`UPDATE ${table} SET hidden_at = ?${previewSet} WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, ...previewBinds, row.id).run();
   if (!skipFacets && FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
 }
 

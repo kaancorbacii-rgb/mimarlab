@@ -778,6 +778,12 @@ async function syncOffice(env, row) {
     // bkz. src/routes/legacyContent.js#setLegacyHidden'daki AYNI gerekçe — onaylı senkron kaydı
     // yayına alır, dolayısıyla ÖNİZLEME durumundan da çıkarmalı.
     sets.push('preview_at = NULL');
+    // relisted_at: önizlemeden çıkan kayıt listede canlılar arasında EN ÖNE geçsin (kullanıcı isteği:
+    // "yeni bir paylaşım gibi ilk sıraya yerleşsin", bkz. migrations/0108_relisted_at.sql). CASE ile
+    // korunur: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına FIRLATMAMALI.
+    // Burada damgalanmalı, setLegacyHidden'da DEĞİL — çağrı sırası gereği oraya gelindiğinde
+    // preview_at bu satır tarafından ZATEN temizlenmiş olur ve koşul hiç tutmazdı.
+    sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     result = { ...target, id: target.id, name: row.name || target.name };
@@ -943,6 +949,12 @@ async function syncArchitect(env, row) {
     // bkz. src/routes/legacyContent.js#setLegacyHidden'daki AYNI gerekçe — onaylı senkron kaydı
     // yayına alır, dolayısıyla ÖNİZLEME durumundan da çıkarmalı.
     sets.push('preview_at = NULL');
+    // relisted_at: önizlemeden çıkan kayıt listede canlılar arasında EN ÖNE geçsin (kullanıcı isteği:
+    // "yeni bir paylaşım gibi ilk sıraya yerleşsin", bkz. migrations/0108_relisted_at.sql). CASE ile
+    // korunur: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına FIRLATMAMALI.
+    // Burada damgalanmalı, setLegacyHidden'da DEĞİL — çağrı sırası gereği oraya gelindiğinde
+    // preview_at bu satır tarafından ZATEN temizlenmiş olur ve koşul hiç tutmazdı.
+    sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     await syncOfficeFounderLink(env, target.id, founderLinkIds, founderPendingIds);
@@ -1169,7 +1181,7 @@ async function syncProject(env, row) {
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
-      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?', 'hidden_at = NULL', 'preview_at = NULL', `updated_at = datetime('now')`,
+      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?', 'hidden_at = NULL', `relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`, 'preview_at = NULL', `updated_at = datetime('now')`,
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
@@ -1345,7 +1357,7 @@ async function syncProduct(env, row, kind) {
     const variantSet = nextVariants === null ? '' : ', variants = ?';
     const variantVal = nextVariants === null ? [] : [nextVariants];
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, hidden_at = NULL, preview_at = NULL, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, hidden_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END, preview_at = NULL, updated_at = datetime('now') WHERE id = ?`
     ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, ...variantVal, existing.id).run();
     productId = existing.id;
   } else {

@@ -174,11 +174,11 @@ export async function fetchActiveProjectPool(env, buildStatus) {
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
-            p.image_hotspots, p.preview_at,
+            p.image_hotspots, p.preview_at, p.relisted_at,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL) AND p.build_status = ?
-     GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY (p.preview_at IS NOT NULL) ASC, p.relisted_at DESC, COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(status).all();
   return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }

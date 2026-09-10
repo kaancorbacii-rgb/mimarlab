@@ -280,7 +280,9 @@ await test('yalnızca korunmayan projeler arşivlenir (Autoban dahil)', async ()
   db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at, office_position) VALUES ('c-af', 'u-uye', 'office', 'Atanmış Firma', 'approved', ?, ?, 'Kurucu')`).run(now, now);
   const rows = await findUnassignedForScript(envRef.env, 'projects');
   const slugs = rows.map(r => r.key).sort();
-  assert.deepEqual(slugs, ['autoban-p', 'sade-p'], `beklenmeyen liste: ${JSON.stringify(slugs)}`);
+  // 'uye-p' de listede: bir ÜYENİN yüklemiş olması tek başına projeyi yayında tutmaz — künyesi
+  // onaylı bir profile bağlı olmalı (kullanıcı isteği, madde 6: Kemalpaşa Kongre Merkezi örneği).
+  assert.deepEqual(slugs, ['autoban-p', 'sade-p', 'uye-p'], `beklenmeyen liste: ${JSON.stringify(slugs)}`);
 });
 
 await test('1970 öncesi yıl taşıyan projeler (aralık ve yüzyıl biçimleri dahil) korunur', async () => {

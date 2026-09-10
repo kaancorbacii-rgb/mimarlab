@@ -473,6 +473,7 @@
   <div id="site-header-mount" data-nav-active=""></div>
   <script src="js/components/site-chrome.js"></script>
   <script src="js/components/preview-cards.js" defer></script>
+  <script src="js/components/broken-image-fallback.js" defer></script>
 
   <section class="hero">
     <!-- id="entity-h1": proje/kisi/firma/urun.html'deki AYNI kanca (bkz. src/index.js#injectMeta'nın
@@ -977,7 +978,10 @@ function loadHomeSections(useSsr){
     if(yapiRes.failed){
       renderSliderError('Projeler şu an yüklenemedi.');
     } else {
-      let pool = (yapiRes.items || []).filter(p => p.images && p.images[0]);
+      // ÖNİZLEME ("soluk") projeleri karusele GİRMEZ (kullanıcı isteği, 2026-09-10) — sunucu tarafı
+      // gömülü veri de aynı filtreyi uygular (bkz. src/index.js#loadHomeData); bu satır, gömülü veri
+      // yoksa devreye giren doğrudan fetch yolunu da kapsar.
+      let pool = (yapiRes.items || []).filter(p => !p.preview && p.images && p.images[0]);
       // Öne çıkan projeler bu havuz İÇİNDE başa alınır — tamamen istemci tarafında (sunucu tarafı
       // gömülü veride aynı işlem zaten yapılmıştır, burada tekrar uygulanması sonucu değiştirmez).
       const featured = (siteSettings && siteSettings.featuredProjectSlugs) || [];

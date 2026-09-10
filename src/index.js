@@ -1238,7 +1238,11 @@ async function loadHomeData(env, ctx) {
     let projectItems = null;
     if (projects && Array.isArray(projects.items)) {
       // index.html'deki AYNI seçim: yalnızca kapak görseli olanlar, öne çıkanlar başa, ilk 9.
-      let pool = projects.items.filter(p => p && Array.isArray(p.images) && p.images[0]);
+      // ÖNİZLEME ("soluk") projeleri ana sayfa karuselinde YER ALMAZ (kullanıcı isteği, 2026-09-10:
+      // "Ana sayfadaki caroselde de blurlu olan gönderiler yer almasın") — karusel sitenin vitrini,
+      // tıklanamayan bir kart oraya konmamalı. Liste sayfalarında (soluk kart olarak) görünmeye
+      // devam ederler; kısıt yalnızca karusele özgüdür.
+      let pool = projects.items.filter(p => p && !p.preview && Array.isArray(p.images) && p.images[0]);
       const featured = (settings && Array.isArray(settings.featuredProjectSlugs)) ? settings.featuredProjectSlugs : [];
       if (featured.length) {
         pool = [

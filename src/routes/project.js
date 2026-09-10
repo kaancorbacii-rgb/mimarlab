@@ -697,13 +697,13 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
-            p.image_hotspots, p.preview_at,
+            p.image_hotspots, p.preview_at, p.relisted_at,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
            WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?
-           ORDER BY COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
+           ORDER BY (preview_at IS NOT NULL) ASC, relisted_at DESC, COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
            LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
-     GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY (p.preview_at IS NOT NULL) ASC, p.relisted_at DESC, COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(buildStatus, limit, offset).all();
   return results;
 }
