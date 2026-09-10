@@ -1179,3 +1179,14 @@ CREATE TABLE IF NOT EXISTS rights_acceptances (
 CREATE INDEX IF NOT EXISTS idx_rights_acceptances_user ON rights_acceptances(user_id, accepted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rights_acceptances_content ON rights_acceptances(content_type, content_key);
 CREATE INDEX IF NOT EXISTS idx_rights_acceptances_submission ON rights_acceptances(submission_id);
+
+-- Önizleme ("soluk") durumu — bkz. migrations/0107_preview_state.sql.
+-- hidden_at DOLU + preview_at DOLU = liste havuzlarında soluk/tıklanamaz kart; detay uçları yine 410.
+ALTER TABLE architects ADD COLUMN preview_at TEXT;
+ALTER TABLE offices ADD COLUMN preview_at TEXT;
+ALTER TABLE projects ADD COLUMN preview_at TEXT;
+ALTER TABLE products ADD COLUMN preview_at TEXT;
+CREATE INDEX IF NOT EXISTS idx_architects_preview ON architects(preview_at) WHERE preview_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_offices_preview ON offices(preview_at) WHERE preview_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_projects_preview ON projects(preview_at) WHERE preview_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_preview ON products(preview_at) WHERE preview_at IS NOT NULL;

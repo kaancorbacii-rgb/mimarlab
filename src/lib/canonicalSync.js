@@ -775,6 +775,9 @@ async function syncOffice(env, row) {
     // sitede görünmez" kalıyordu (gerçek bulgu). claimed'lı satırlarda bu no-op'tur (zaten
     // unhideIfClaimedApproved ayrıca temizler), bu yüzden koşulsuz eklemek zararsız.
     sets.push('hidden_at = NULL');
+    // bkz. src/routes/legacyContent.js#setLegacyHidden'daki AYNI gerekçe — onaylı senkron kaydı
+    // yayına alır, dolayısıyla ÖNİZLEME durumundan da çıkarmalı.
+    sets.push('preview_at = NULL');
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     result = { ...target, id: target.id, name: row.name || target.name };
@@ -937,6 +940,9 @@ async function syncArchitect(env, row) {
     }
     // bkz. syncOffice'teki AYNI koşulsuz hidden_at temizliği ve gerekçesi.
     sets.push('hidden_at = NULL');
+    // bkz. src/routes/legacyContent.js#setLegacyHidden'daki AYNI gerekçe — onaylı senkron kaydı
+    // yayına alır, dolayısıyla ÖNİZLEME durumundan da çıkarmalı.
+    sets.push('preview_at = NULL');
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     await syncOfficeFounderLink(env, target.id, founderLinkIds, founderPendingIds);
@@ -1163,7 +1169,7 @@ async function syncProject(env, row) {
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
-      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?', 'hidden_at = NULL', `updated_at = datetime('now')`,
+      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?', 'hidden_at = NULL', 'preview_at = NULL', `updated_at = datetime('now')`,
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
@@ -1339,7 +1345,7 @@ async function syncProduct(env, row, kind) {
     const variantSet = nextVariants === null ? '' : ', variants = ?';
     const variantVal = nextVariants === null ? [] : [nextVariants];
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, hidden_at = NULL, preview_at = NULL, updated_at = datetime('now') WHERE id = ?`
     ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, ...variantVal, existing.id).run();
     productId = existing.id;
   } else {

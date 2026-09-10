@@ -100,6 +100,71 @@ if (!adminRow) throw new Error('Admin kullanıcı bulunamadı.');
 const user = { id: adminRow.id, role: 'admin' };
 console.log(`Admin: ${adminRow.email}${DRY ? '   [DRY-RUN]' : ''}\n`);
 
+
+// --to-preview: ARŞİVDEKİ kayıtları ÖNİZLEME ("soluk") durumuna geçirir (kullanıcı isteği,
+// 2026-09-10 dördüncü tur: "Arşivlediğin Kişi, firma, marka, ürün ve projeleri canlıya geri al ama
+// ... önizleme şeklinde soluk olarak görünsünler"). hidden_at DOLU KALIR (detay uçları yine 410,
+// sitemap/arama hariç); yalnızca preview_at set edilir ve liste havuzları o satırları geri alır
+// (bkz. migrations/0107_preview_state.sql).
+//
+// TAM ARŞİVDE KALACAK İSTİSNALAR (kullanıcı isteği): aşağıdaki kişi/firma profilleri VE o firmalara
+// ait projeler. Bunlarda preview_at HİÇ set edilmez, yani hiçbir yerde görünmezler.
+const FULLY_ARCHIVED_ARCHITECTS = ['Emre Arolat', 'Gonca Paşolar', 'Murat Tabanlıoğlu', 'Melkan Gürsel'];
+const FULLY_ARCHIVED_OFFICES = ['EAA (Emre Arolat Architecture)', 'Tabanlıoğlu Mimarlık', '+MURAT TABANLIOĞLU STUDIO'];
+
+if (process.argv.includes('--to-preview')) {
+  const now = new Date().toISOString();
+  const foldTr = (x) => (x || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
+    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase()
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+
+  // İstisna firmaların adları canlıda birebir eşleşmeyebilir (parantezli/uzun biçimler) — casefold
+  // edilmiş ALT DİZE eşleşmesi kullanılır ki "EAA (Emre Arolat Architecture)" gibi varyantlar da yakalansın.
+  const officeNeedles = FULLY_ARCHIVED_OFFICES.map(foldTr);
+  const architectNeedles = FULLY_ARCHIVED_ARCHITECTS.map(foldTr);
+  const matches = (name, needles) => { const f = foldTr(name); return needles.some(n => f === n || f.includes(n) || n.includes(f)); };
+
+  // İstisna firmalara ait proje id'leri (künye bağı üzerinden)
+  const { results: exOffices } = await env.DB.prepare(`SELECT id, name FROM offices WHERE deleted_at IS NULL`).all();
+  const exOfficeIds = (exOffices || []).filter(o => matches(o.name, officeNeedles)).map(o => o.id);
+  const { results: exArchitects } = await env.DB.prepare(`SELECT id, name FROM architects WHERE deleted_at IS NULL`).all();
+  const exArchitectIds = (exArchitects || []).filter(a => matches(a.name, architectNeedles)).map(a => a.id);
+  console.log(`Tam arşivde kalacak: ${exOfficeIds.length} firma, ${exArchitectIds.length} kişi`);
+
+  const keepProjectIds = new Set();
+  for (const ids of [exOfficeIds, exArchitectIds]) {
+    if (!ids.length) continue;
+    const col = ids === exOfficeIds ? 'office_id' : 'architect_id';
+    const ph = ids.map(() => '?').join(', ');
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT project_id AS pid FROM project_designers WHERE ${col} IN (${ph})`
+    ).bind(...ids).all();
+    for (const r of results || []) keepProjectIds.add(r.pid);
+  }
+  console.log(`Tam arşivde kalacak proje sayısı: ${keepProjectIds.size}`);
+
+  const exclude = { offices: new Set(exOfficeIds), architects: new Set(exArchitectIds), projects: keepProjectIds, products: new Set() };
+  let total = 0;
+  for (const [table, key] of [['architects','architects'], ['offices','offices'], ['projects','projects'], ['products','products']]) {
+    const { results } = await env.DB.prepare(
+      `SELECT id FROM ${table} WHERE hidden_at IS NOT NULL AND deleted_at IS NULL AND preview_at IS NULL`
+    ).all();
+    const ids = (results || []).map(r => r.id).filter(id => !exclude[key].has(id));
+    console.log(`${table}: ${results.length} arşivde, ${ids.length} önizlemeye alınacak`);
+    if (DRY) { total += ids.length; continue; }
+    for (let i = 0; i < ids.length; i += 40) {
+      const chunk = ids.slice(i, i + 40);
+      const ph = chunk.map(() => '?').join(', ');
+      await env.DB.prepare(`UPDATE ${table} SET preview_at = ? WHERE id IN (${ph})`).bind(now, ...chunk).run();
+      total += chunk.length;
+      process.stdout.write(`\r  ${Math.min(i + 40, ids.length)}/${ids.length}`);
+    }
+    process.stdout.write('\n');
+  }
+  console.log(`\n${total} kayıt önizleme durumuna alındı${DRY ? ' (DRY-RUN)' : ''}. (${queryCount} D1 sorgusu)`);
+  process.exit(0);
+}
+
 // --restore-protected: koruma kuralı arşivleme BAŞLADIKTAN sonra eklendiğinden (bkz.
 // src/routes/unassignedArchive.js#findArchivedProtected) o ana kadar yanlışlıkla arşivlenmiş
 // korunan kayıtları yayına geri alır ve çıkar.

@@ -15,6 +15,7 @@ import { handleSubmissionRoute } from '../src/routes/submissions.js';
 import { handleArchiveRoute } from '../src/routes/archive.js';
 import { runContentAction } from '../src/routes/legacyContent.js';
 import { findUnassignedForScript } from '../src/routes/unassignedArchive.js';
+import { setLegacyHidden } from '../src/routes/legacyContent.js';
 import { sha256Hex } from '../src/lib/crypto.js';
 
 let passed = 0, failed = 0;
@@ -297,6 +298,27 @@ await test('Kaan Çorbacı fotoğrafı: hem serbest metin künye hem project_pho
   const slugs = new Set((await findUnassignedForScript(envRef.env, 'projects')).map(r => r.key));
   assert.ok(!slugs.has('kaan-metin-p'), 'photo_credit_text bağı korunmalı');
   assert.ok(!slugs.has('kaan-tablo-p'), 'project_photographers bağı korunmalı');
+});
+
+section('önizleme ("soluk") durumu — kullanıcı isteği, 2026-09-10 dördüncü tur');
+
+await test('yayına alma hem hidden_at hem preview_at temizler', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  db.exec(`UPDATE offices SET hidden_at = '2026-09-10', preview_at = '2026-09-10' WHERE name = 'Atanmamış Mimarlık'`);
+  // GERÇEK BULGU: setLegacyHidden yalnızca hidden_at'i temizliyordu — canlıya dönen kart listede
+  // hâlâ soluk/tıklanamaz kalırdı.
+  await setLegacyHidden(envRef.env, { id: 'u-admin', role: 'admin' }, 'offices', 'Atanmamış Mimarlık', false);
+  const row = db.prepare(`SELECT hidden_at, preview_at FROM offices WHERE name = 'Atanmamış Mimarlık'`).get();
+  assert.equal(row.hidden_at, null);
+  assert.equal(row.preview_at, null, 'preview_at da temizlenmeli');
+});
+
+await test('arşivleme preview_at\'e DOKUNMAZ (tekil Arşivle tam arşivdir)', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await setLegacyHidden(envRef.env, { id: 'u-admin', role: 'admin' }, 'offices', 'Atanmamış Mimarlık', true);
+  const row = db.prepare(`SELECT hidden_at, preview_at FROM offices WHERE name = 'Atanmamış Mimarlık'`).get();
+  assert.ok(row.hidden_at);
+  assert.equal(row.preview_at, null);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

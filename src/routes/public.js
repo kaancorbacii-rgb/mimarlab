@@ -2,7 +2,7 @@ import { json, errorJson } from '../lib/http.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
 import { FOLLOW_TYPES } from './follows.js';
-import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
+import { handlePublicHidden, handlePublicPreview, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { getSiteSettings } from '../lib/siteSettings.js';
 import { handlePlatformRoute } from './platform.js';
@@ -10,6 +10,7 @@ import { handlePlatformRoute } from './platform.js';
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
+  if (segments[2] === 'preview') return handlePublicPreview(request, env);
   if (segments[2] === 'search-suggest') return handlePublicSearchSuggest(request, env, url);
   if (segments[2] === 'search') return handlePublicSearchFull(request, env, url);
   if (segments[2] === 'check-name') return handlePublicCheckName(request, env, url);

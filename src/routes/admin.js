@@ -820,6 +820,22 @@ async function purgeClaimProfileCaches(env, profileType, profileKey) {
   await purgeSsrDetailCache(type, profileKey, env);
 }
 
+// Bir profil bir kullanıcıya ATANDIĞINDA önizleme ("soluk") durumundan çıkarılır — kullanıcı isteği,
+// 2026-09-10: "Sadece kişi, firma ve marka profillerine bir kullanıcı atanırsa aktif olsunlar ama
+// proje ve ürünler hemen aktif olmasın."
+//
+// Yalnızca architects/offices için çağrılır. Proje ve ürünler BİLEREK kapsam dışıdır: onlar ancak
+// sahibi telif beyanını onaylayıp kaydettiğinde (bkz. src/routes/submissions.js#updateOwnSubmission
+// -> unhideIfClaimedApproved -> setLegacyHidden) yayına döner.
+async function activateClaimedProfile(env, profileType, profileKey) {
+  const table = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
+  if (!table || !profileKey) return;
+  await env.DB.prepare(
+    `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL
+     WHERE preview_at IS NOT NULL AND deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?)`
+  ).bind(profileKey, profileKey, profileKey).run();
+}
+
 async function handleClaimsAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'POST') {
     const body = await readJson(request);
@@ -857,6 +873,8 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // madde 3) — bkz. src/lib/claimedProfiles.js#fillUserFromArchitectProfile: yalnızca BOŞ alanlar
     // doldurulur, hem Hesabım formu hem admin panelindeki Üyeler ekranı aynı users satırını okur.
     if (profileType === 'architect') await fillUserFromArchitectProfile(env, userId, profileKey);
+    // Atama, kişi/firma/marka profilini önizleme modundan çıkarır (bkz. activateClaimedProfile).
+    await activateClaimedProfile(env, profileType, profileKey);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, profileType, profileKey);
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[profileType] || profileType;
@@ -938,6 +956,9 @@ async function handleClaimsAdmin(request, env, url, segments) {
     if (body.status === 'approved' && claim.profile_type === 'architect') {
       await fillUserFromArchitectProfile(env, claim.user_id, claim.profile_key);
     }
+    // Önizleme modundan çıkarma da İKİ atama yolunun İKİSİNE birden eklenmeli (bkz. yukarıdaki
+    // "Atamanın İKİ admin yolu" notu ve activateClaimedProfile).
+    if (body.status === 'approved') await activateClaimedProfile(env, claim.profile_type, claim.profile_key);
     await invalidatePublicCache(env);
     await purgeClaimProfileCaches(env, claim.profile_type, claim.profile_key);
 

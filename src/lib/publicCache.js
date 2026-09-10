@@ -60,7 +60,7 @@ const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxa
 // alınıp güvenilir şekilde temizlenemez; onlar yalnızca ANON_CACHE_HEADERS başlığıyla (tarayıcı
 // düzeyinde, kendiliğinden dolan) önbelleklenir.
 const CACHEABLE_PATHS = [
-  '/api/public/hidden', '/api/public/project-edits', '/api/public/profile-edits',
+  '/api/public/hidden', '/api/public/preview', '/api/public/project-edits', '/api/public/profile-edits',
   // '/api/public/news' KALDIRILDI (denetim, 2026-09-04): bu yolu servis eden BİR handler YOK —
   // src/routes/public.js'te karşılığı hiç bulunmuyor ve canlıda 404 dönüyor (doğrulandı; `news`
   // tablosu da 0 satır, haber özelliği kaldırıldı). Listede durduğu sürece invalidatePublicCache()
@@ -427,7 +427,7 @@ async function withSingleFlight(key, fn) {
 //     v5-v22'nin AYNI tuzağı: yeni alan yanıtın ŞEKLİNİ değiştirir ama listFingerprint'i (COUNT +
 //     MAX(updated_at)) değiştirmez, sürüm artırılmazsa pop-up'ı daha önce açmış ziyaretçiler 304
 //     ile portfolyosuz eski gövdede takılırdı.
-const API_PAYLOAD_VERSION = 'v24';
+const API_PAYLOAD_VERSION = 'v25'; // v25: kartlara `preview` alanı eklendi (bkz. migrations/0107_preview_state.sql)
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

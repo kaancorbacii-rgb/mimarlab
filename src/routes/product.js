@@ -68,7 +68,7 @@ export async function fetchProductPool(env) {
       // göre "son eklenen ilk" sırasını korur; 2026-09-05 Koleksiyon partisinin 37 yeni satırına
       // atanan >=1 değerleri onları katalog sayfaları arasına serpiştirir (aksi halde hepsi en
       // yüksek id olarak 1. sayfaya yığılırdı).
-      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY COALESCE(display_order, 0) ASC, id DESC`).all(),
+      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year, preview_at FROM products WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) ORDER BY COALESCE(display_order, 0) ASC, id DESC`).all(),
       env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
     ]);
     const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
@@ -86,6 +86,8 @@ export async function fetchProductPool(env) {
         slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
         image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
         year: p.year || null, designers,
+        // preview: bkz. src/lib/projectPool.js#shapeProjectItem'daki AYNI alan/gerekçe.
+        ...(row.preview_at ? { preview: true } : {}),
       };
     });
   });

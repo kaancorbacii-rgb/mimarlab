@@ -46,11 +46,11 @@ export async function fetchArchitectPool(env) {
       // kişinin KENDİ architects.awards kolonu havuz projeksiyonunda hiç yoktu — popup kişinin
       // kendi ödüllerini gösterirken (bkz. buildArchitectPayload) filtre onları hiç görmüyordu.
       // Artık ikisinin BİRLEŞİMİ kullanılır (bkz. aşağıdaki awards alanı).
-      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, a.awards, o.name AS office_name, o.awards AS office_awards,
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, a.awards, a.preview_at, o.name AS office_name, o.awards AS office_awards,
          (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
           WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
+       WHERE a.deleted_at IS NULL AND (a.hidden_at IS NULL OR a.preview_at IS NOT NULL) AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
     ).all();
 
     return results.map(row => {
@@ -65,7 +65,8 @@ export async function fetchArchitectPool(env) {
       // positionRaw: kisi.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: (a.school || '').trim() || null, awards, projectCount: row.project_count || 0, badges: [] };
+      // preview: bkz. src/lib/projectPool.js#shapeProjectItem'daki AYNI alan/gerekçe.
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: (a.school || '').trim() || null, awards, projectCount: row.project_count || 0, badges: [], ...(row.preview_at ? { preview: true } : {}) };
     });
   });
 }

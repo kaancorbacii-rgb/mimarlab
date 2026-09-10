@@ -175,7 +175,12 @@ export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets
   const row = await findCanonicalRowByNaturalKey(env, type, key);
   if (!row) return; // henüz canonical karşılığı yoksa sessizce atla (ör. bozuk/eski bir anahtar)
   const table = CANONICAL_TABLE_BY_TYPE[type];
-  await env.DB.prepare(`UPDATE ${table} SET hidden_at = ? WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, row.id).run();
+  // preview_at DA temizlenir (kullanıcı isteği, 2026-09-10): bir kayıt yayına alındığında ÖNİZLEME
+  // ("soluk") durumundan da çıkmalı — aksi halde canlıya dönen kart listede hâlâ soluk/tıklanamaz
+  // görünürdü. Gizlerken (hidden=true) preview_at'e DOKUNULMAZ: toplu önizleme dönüşümü onu ayrıca
+  // yönetir ve tekil bir "Arşivle" işlemi kaydı önizlemeye değil TAM arşive almalıdır.
+  const previewSet = hidden ? '' : ', preview_at = NULL';
+  await env.DB.prepare(`UPDATE ${table} SET hidden_at = ?${previewSet} WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, row.id).run();
   if (!skipFacets && FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
 }
 
@@ -226,6 +231,35 @@ async function fetchHiddenMap(env) {
 
 export async function handlePublicHidden(request, env) {
   return cachedPublicJson(request, env, '/api/public/hidden', () => fetchHiddenMap(env));
+}
+
+// GET /api/public/preview — ÖNİZLEME ("soluk") durumundaki kayıtların doğal anahtarları
+// (kullanıcı isteği, 2026-09-10: "önizleme şeklinde soluk olarak görünsünler, üzerlerine
+// tıklanamasın"). handlePublicHidden İLE AYNI desen/gerekçe: istemcinin tek bir D1 sinyaliyle
+// hangi kartın soluk olacağını bilmesi gerekiyor.
+//
+// NEDEN AYRI BİR UÇ (kartlardaki `preview` alanı zaten varken): kartları basan ~30 ayrı render
+// noktası var (liste sayfaları, popup şeritleri, ana sayfa karuseli, ilgili projeler...). Hepsine
+// tek tek `preview` kontrolü eklemek hem riskli hem de ileride eklenecek YENİ bir render noktasında
+// sessizce unutulur. js/components/preview-cards.js bu tek listeyi okuyup DOM'daki eşleşen TÜM
+// bağlantıları işaretler — yeni render noktaları otomatik kapsanır.
+async function fetchPreviewMap(env) {
+  const out = { projects: [], architects: [], offices: [], products: [] };
+  const q = async (table) => {
+    const { results } = await env.DB.prepare(
+      `SELECT slug FROM ${table} WHERE preview_at IS NOT NULL AND deleted_at IS NULL`
+    ).all();
+    return (results || []).map(r => r.slug).filter(Boolean);
+  };
+  out.projects = await q('projects');
+  out.architects = await q('architects');
+  out.offices = await q('offices');
+  out.products = await q('products');
+  return out;
+}
+
+export async function handlePublicPreview(request, env) {
+  return cachedPublicJson(request, env, '/api/public/preview', () => fetchPreviewMap(env));
 }
 
 // GET /api/public/search-suggest?q=<metin> — auth gerektirmez. Üst navigasyondaki arama
