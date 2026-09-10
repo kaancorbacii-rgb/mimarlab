@@ -863,9 +863,26 @@ async function idsFrom(env, sql, binds) {
   return (results || []).map(r => r.id).filter(id => id !== null && id !== undefined);
 }
 
-// preview_at'i olan satırları yayına döndürür. relisted_at: bkz. migrations/0108_relisted_at.sql —
-// atamayla yayına dönen kayıt listede canlılar arasında en öne geçer.
-async function unpreviewByIds(env, table, ids, nowIso) {
+// preview_at'i olan satırları yayına döndürür.
+//
+// relisted_at KİMDE DAMGALANIR (kullanıcı isteği, 2026-09-10 yedinci tur madde 5: "en son paylaşılan
+// projeleri proje sayfasında 1. basamağa otursun ama diğer projeleri diğer sayfalara orantılı
+// şekilde dağıtılsın. Ürünler için de aynı şekilde."):
+//
+// GERÇEK BULGU: liste sıralaması `relisted_at DESC` ile BAŞLIYOR (bkz. src/lib/projectPool.js ve
+// migrations/0108_relisted_at.sql), yani damgalanan HER satır tüm canlı içeriğin ÖNÜNE geçiyor.
+// Tek bir atama 11 projeyi birden yayına aldığında 11'i de 1. sayfayı dolduruyor, sitenin geri
+// kalanını aşağı itiyordu.
+//
+// Yeni kural: bir partide TİP BAŞINA yalnızca EN SON EKLENEN kayıt (en yüksek id — kayıtlar
+// kronolojik eklenir, yani "en son paylaşılan") damgalanır; kalanların relisted_at'i NULL yapılır
+// ve DOĞAL sıralarına (display_order + yayın tarihi) düşerler. Doğal sıra zaten tarihe göre
+// dağıldığından "diğer sayfalara orantılı dağılma" kendiliğinden olur — kümelenme YALNIZCA
+// damgalamadan kaynaklanıyordu. `forceRelistIds` — atanan profilin KENDİSİ gibi her zaman en öne
+// gelmesi gereken satırlar (kullanıcı atamayı yaptığı profili listenin başında görmeli).
+const RELIST_TOP_PER_TYPE = 1;
+
+async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [] } = {}) {
   if (!ids.length) return [];
   const capped = ids.slice(0, ACTIVATE_ID_LIMIT);
   const ph = capped.map(() => '?').join(', ');
@@ -876,10 +893,22 @@ async function unpreviewByIds(env, table, ids, nowIso) {
   ).bind(...capped).all();
   const changed = (results || []).map(r => r.id);
   if (!changed.length) return [];
-  const cph = changed.map(() => '?').join(', ');
-  await env.DB.prepare(
-    `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = ? WHERE id IN (${cph})`
-  ).bind(nowIso, ...changed).run();
+
+  const forced = new Set(forceRelistIds);
+  const newest = [...changed].sort((a, b) => b - a).slice(0, RELIST_TOP_PER_TYPE);
+  const relist = changed.filter(id => forced.has(id) || newest.includes(id));
+  const natural = changed.filter(id => !relist.includes(id));
+
+  if (relist.length) {
+    await env.DB.prepare(
+      `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = ? WHERE id IN (${relist.map(() => '?').join(', ')})`
+    ).bind(nowIso, ...relist).run();
+  }
+  if (natural.length) {
+    await env.DB.prepare(
+      `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = NULL WHERE id IN (${natural.map(() => '?').join(', ')})`
+    ).bind(...natural).run();
+  }
   return changed;
 }
 
@@ -992,9 +1021,11 @@ async function activateClaimedProfile(env, profileType, profileKey, userId) {
     productIds.push(...await idsFrom(env, `SELECT DISTINCT pa.product_id AS id FROM product_architects pa WHERE pa.architect_id IN (${ph})`, architectIds));
   }
 
+  // Atanan profilin KENDİSİ (seedIds) her zaman listenin başına gelir — admin atamayı yaptığı
+  // profili 1. sayfada görmeli. Diğerleri için bkz. unpreviewByIds'teki RELIST_TOP_PER_TYPE kuralı.
   const activated = {
-    architects: await unpreviewByIds(env, 'architects', architectIds, nowIso),
-    offices: await unpreviewByIds(env, 'offices', officeIds, nowIso),
+    architects: await unpreviewByIds(env, 'architects', architectIds, nowIso, { forceRelistIds: profileType === 'architect' ? seedIds : [] }),
+    offices: await unpreviewByIds(env, 'offices', officeIds, nowIso, { forceRelistIds: profileType === 'office' ? seedIds : [] }),
     projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso),
     products: await unpreviewByIds(env, 'products', [...new Set(productIds)], nowIso),
   };

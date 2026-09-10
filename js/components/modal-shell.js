@@ -1054,13 +1054,23 @@ const ModalShell = (function () {
         if (res.status === 404 || res.status === 410) {
           let body = null;
           try { body = await res.json(); } catch { /* gövdesiz 404/410 — normal "yok" durumu */ }
-          return { status: (body && body.preview) ? 'preview' : 'missing' };
+          // previewTitle/previewSlug — önizleme kaydının ADI ve slug'ı (bkz. src/routes/
+          // architect.js'teki AYNI alanlar): popup boş bir "yayında değil" ekranı yerine profilin
+          // adını gösterir ve sahiplenme/geri bildirim kutularını çalışır hâlde mount eder
+          // (kullanıcı isteği, 2026-09-10 yedinci tur madde 2).
+          return body && body.preview
+            ? { status: 'preview', previewTitle: body.previewTitle || null, previewSlug: body.previewSlug || null }
+            : { status: 'missing' };
         }
         if (!res.ok) { if (attempt === 0) { await sleep(ENTITY_RETRY_DELAY_MS); continue; } return { status: 'error' }; }
         const data = await res.json();
         // Gövde item:null (ya da hidden:true) taşıyorsa — eski/ara sürüm yanıtlar bunu 200 ile de
         // dönebiliyordu — bu da "yok" demektir.
-        if (!data || !data.item || data.hidden) return { status: (data && data.preview) ? 'preview' : 'missing' };
+        if (!data || !data.item || data.hidden) {
+          return data && data.preview
+            ? { status: 'preview', previewTitle: data.previewTitle || null, previewSlug: data.previewSlug || null }
+            : { status: 'missing' };
+        }
         return { status: 'ok', item: data.item, payload: data };
       } catch {
         // Ağ/DNS/çevrimdışı/JSON parse — hiçbiri "kayıt yok" anlamına gelmez.
@@ -1077,6 +1087,28 @@ const ModalShell = (function () {
   // silinmediği, yalnızca geçici bir sorun olduğu söylenir ve tek tıkla yeniden denenir. Stiller
   // burada inline: dört modalın CSS'i dört ayrı yerde tanımlı, tek bir sınıf eklemek için dördünü
   // birden düzenlemek gerekirdi.
+  // ÖNİZLEME NOTU — dört modalın da renderNotFound()'unda kullanılır (kullanıcı isteği, 2026-09-10
+  // yedinci tur madde 2: "blurlu olan kişi, firma, marka ekranlarında profilin başlığı açılan
+  // popupta gözüksün"). Başlık artık kaydın GERÇEK adını taşır; "yayında değil" bilgisi başlığın
+  // ALTINDA küçük bir not olarak durur. Stil inline: dört modalın CSS'i dört ayrı yerde tanımlı
+  // (bkz. showLoadError'daki AYNI gerekçe).
+  const PREVIEW_NOTE_ID = 'modal-shell-preview-note';
+  function showPreviewNote(afterEl) {
+    clearPreviewNote();
+    if (!afterEl || !afterEl.parentNode) return;
+    const el = document.createElement('p');
+    el.id = PREVIEW_NOTE_ID;
+    el.textContent = 'Bu içerik önizleme modunda, henüz yayında değil.';
+    el.style.cssText = 'margin:10px 0 0; font-size:13px; line-height:1.5; color:var(--ink-soft, #6b655c);';
+    // Başlık bir <h1>'in içindeki <span> olabilir — notu o <h1>'in ARDINA koy, içine değil.
+    const host = afterEl.closest ? (afterEl.closest('h1') || afterEl) : afterEl;
+    host.parentNode.insertBefore(el, host.nextSibling);
+  }
+  function clearPreviewNote() {
+    const old = document.getElementById(PREVIEW_NOTE_ID);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+  }
+
   const LOAD_ERROR_ID = 'modal-shell-load-error';
   // Kaynak ibaresinin TEK anahtarı (kullanıcı isteği, 2026-09-08 madde 5; metin 2026-09-08 ikinci
   // tur). Sunucu her tekil detay ucunda `claimed` döner (bkz. src/lib/claimedProfiles.js):
@@ -1122,7 +1154,7 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError, setSourceDisclaimer };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError, showPreviewNote, clearPreviewNote, setSourceDisclaimer };
 })();
 
 // KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-06 madde 2: "5. sayfadan proje popup'ı açıp

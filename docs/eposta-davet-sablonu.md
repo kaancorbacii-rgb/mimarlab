@@ -46,6 +46,33 @@ bağlanır. Gmail'de elle yazarken kelimeyi seçip Ctrl+K ile linki ekle; HTML
 gönderimde aşağıdaki HTML sürümünü kullan. Düz metinde link, kelimenin yanında
 parantez içinde açık yazılır.
 
+### "Redirect Notice" ara sayfası (2026-09-10)
+
+Alıcı linke tıkladığında bazen mimarlab.com yerine Google'ın
+**"Redirect Notice — The page you were on is trying to send you to
+https://mimarlab.com"** ara sayfası çıkıyor.
+
+**Bu sayfa mimarlab.com'dan gelmiyor, Gmail'den geliyor.** Gmail giden/gelen
+postalardaki her linki `google.com/url?q=…` sarmalayıcısına çevirir; Google bu
+sarmalayıcıyı normalde otomatik yönlendirir, ama imza parametresi (`usg=`)
+üretemediğinde araya bu onay sayfasını koyar. Sitede düzeltilecek bir şey yok —
+`https://mimarlab.com` doğrudan 200 döner, yönlendirme zinciri yoktur,
+robots.txt ve sitemap açıktır (2026-09-10'da tek tek doğrulandı).
+
+Pratikte azaltan iki şey:
+
+1. **HTML gövdeyi kullan, düz metni değil.** Düz metin gövdedeki çıplak URL'leri
+   Gmail kendisi linke çevirir; imzasız sarmalayıcı çoğunlukla bu otomatik
+   linklerde oluşur. Aşağıdaki HTML şablonundaki gerçek `<a href>` bağlantıları
+   bu riski büyük ölçüde ortadan kaldırır.
+2. **Bağlantı metni ile hedefi aynı tut.** `<a href="{FIRMA_URL}">{FIRMA_URL}</a>`
+   gibi, görünen metnin kendisi adres olsun — marka adına gömülü linkler
+   (`<a href="https://mimarlab.com">MİMARLAB</a>`) Google'ın temkinli davrandığı
+   biçimdir. Aşağıdaki şablonda bu yüzden imza bloğundaki adres açık yazılıdır.
+
+Ara sayfa yine de çıkarsa alıcı "https://mimarlab.com" bağlantısına tıklayarak
+devam eder; hedef adres doğrudur, sadece bir ara onay ekranıdır.
+
 ---
 
 ## Şablon — düz metin

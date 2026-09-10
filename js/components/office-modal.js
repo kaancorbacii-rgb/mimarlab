@@ -700,6 +700,7 @@ const OfficeModal = (function () {
 
   async function renderItem(payload) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
+    ModalShell.clearPreviewNote(); // ... önizleme notu da (bkz. renderNotFound'un 'preview' dalı)
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
@@ -1134,7 +1135,9 @@ const OfficeModal = (function () {
 
   // status: 'missing' (sunucu 404/410 dedi — kayıt gerçekten yok) | 'error' (geçici sorun; bkz.
   // modal-shell.js#fetchEntity kökten bulgusu — "bulunamadı" DEMEZ, tekrar denenebilir kutu gösterir).
-  function renderNotFound(status) {
+  function renderNotFound(status, result) {
+    const previewTitle = (result && result.previewTitle) || null;
+    const previewSlug = (result && result.previewSlug) || currentSlug;
     ModalShell.clearLoadError();
     const titleEl = document.getElementById('om-name-text');
     const headerActions = ModalShell.getHeaderActionsSlot();
@@ -1153,9 +1156,55 @@ const OfficeModal = (function () {
     // ÖNİZLEME ("soluk") kaydı: 410 dönen bu içerik SİLİNMİŞ değil, henüz yayına alınmamış
     // (kullanıcı isteği, 2026-09-10 — blurlu bir karta sağ tık > yeni sekmede aç). fetchEntity
     // sunucunun `preview` bayrağını 'preview' durumuna çevirir (bkz. modal-shell.js#fetchEntity).
-    titleEl.textContent = status === 'preview'
-      ? 'Bu içerik önizleme modunda, henüz yayında değil.'
-      : 'Firma bulunamadı';
+    if (status !== 'preview') { ModalShell.clearPreviewNote(); titleEl.textContent = 'Firma bulunamadı'; return; }
+    // ÖNİZLEME: başlıkta kaydın GERÇEK adı, altında küçük bir "yayında değil" notu ve ÇALIŞAN
+    // "Bu profil sana mı ait?" / "Geri Bildirim" kutuları (kullanıcı isteği, 2026-09-10 yedinci tur
+    // madde 2). Kutular renderItem()'da mount edildiğinden önizlemede BOŞ ve STİLSİZ kalıyordu
+    // (native <details> üçgeni + kenarlıksız kutu) — asıl bulgu buydu.
+    titleEl.textContent = previewTitle || 'Bu içerik önizleme modunda, henüz yayında değil.';
+    ModalShell.showPreviewNote(titleEl);
+    mountPreviewClaimBox(previewTitle, previewSlug);
+  }
+
+
+  // ÖNİZLEME ("soluk") KAYDINDA SAHİPLENME/GERİ BİLDİRİM KUTULARI (kullanıcı isteği, 2026-09-10
+  // yedinci tur madde 2). GERÇEK BULGU: bu iki <details> şablonda HER ZAMAN duruyor ama içerikleri
+  // ve STİLLERİ createClaimCorrectionBox().init() tarafından yazılıyor — o da yalnızca
+  // renderItem()'da çağrılıyordu. Önizlemede renderItem hiç çalışmadığından kullanıcı kenarlıksız,
+  // native ▶ üçgenli ve İÇİ BOŞ iki satır görüyordu.
+  //
+  // Buradaki config renderItem'dakinin MİNİMUM hâli: elimizde `item` yok, yalnızca sunucunun 410
+  // gövdesinde döndüğü ad ve slug var (bkz. src/routes/office.js#previewTitle). Sahiplenme talebi
+  // için gereken tek şey profilin ADI — kutu zaten yalnızca onu POST ediyor.
+  function mountPreviewClaimBox(previewTitle, previewSlug) {
+    if (!previewTitle) return;
+    // Firma mı marka mı: önizlemede `item.isBrand` YOK (item null), bu yüzden ayrım açık olan
+    // URL önekinden okunur — /marka/:slug ise marka (bkz. syncCanonicalBasePath'in AYNI eşlemesi).
+    const previewIsBrand = (basePathFromLocation() || currentBasePath) === '/marka/';
+    const previewKind = previewIsBrand ? 'marka' : 'firma';
+    // ready: save-widget.js'in global'i (const — window'a YAZILMAZ, bkz. proje notu), o dosya
+    // yüklenmemişse bare referans ReferenceError atardı; kutu `ready` olmadan da çalışır.
+    const ready = (typeof savedWidgetReady !== 'undefined') ? savedWidgetReady : null;
+    const box = createClaimCorrectionBox({
+      profileType: 'office',
+      ready,
+      isStale: () => false,
+      getProfileKey: () => previewTitle,
+      getClaimLinkKey: () => previewSlug || previewTitle,
+      getStaticBadges: () => [],
+      editUrlBase: previewIsBrand ? '/marka-ekle' : '/firma-ekle',
+      listUrl: previewIsBrand ? '/marka' : '/firma',
+      contentType: 'offices',
+      getModerationTarget: () => ({ key: previewTitle }),
+      labels: {
+        claimTitle: `Bu ${previewKind} sana mı ait?`,
+        loginPromptHtml: 'Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="/giris" class="info-card-link">giriş yap</a>.',
+        pendingHtml: `"Bu ${previewKind} bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.`,
+        claimNoteDescription: `Bu ${previewKind}nın sana ait olduğunu doğrulayabileceğimiz bir not ekle.`,
+        claimButtonText: 'Gönder',
+      },
+    });
+    box.init();
   }
 
   function wireInternalNav() {
@@ -1206,7 +1255,7 @@ const OfficeModal = (function () {
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
     syncCanonicalBasePath(result.item); // /firma/ <-> /marka/ (bkz. syncCanonicalBasePath)
     await renderItem(result.payload);
   }
@@ -1222,7 +1271,7 @@ const OfficeModal = (function () {
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
     syncCanonicalBasePath(result.item); // /firma/ <-> /marka/ (bkz. syncCanonicalBasePath)
     await renderItem(result.payload);
   }
@@ -1267,7 +1316,7 @@ const OfficeModal = (function () {
       const mySeq = ++requestSeq;
       const result = await fetchItem(slug);
       if (mySeq !== requestSeq || currentSlug !== slug) return;
-      if (result.status !== 'ok') { renderNotFound(result.status); return; }
+      if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
       syncCanonicalBasePath(result.item); // bkz. open()'daki AYNI çağrı
       await renderItem(result.payload);
     })();

@@ -227,6 +227,44 @@ await test('atama İKİNCİ admin yolundan (PATCH .../claims/:id) da aynı casca
   assert.equal(live(db, 'architects', 'Mustafa Gökhan Çelikağ'), true);
 });
 
+section('sıralama — parti 1. sayfayı doldurmaz (madde 5)');
+
+// relisted_at DESC sıralamanın İLK anahtarı (bkz. migrations/0108) — damgalanan her satır tüm canlı
+// içeriğin önüne geçer. Bu yüzden bir partide TİP BAŞINA yalnızca bir satır damgalanmalı.
+const relisted = (db, table, key, col = 'name') => db.prepare(`SELECT relisted_at FROM ${table} WHERE ${col} = ?`).get(key).relisted_at;
+
+await test('kişi atamasında yalnızca ATANAN profil + tip başına EN SON kayıt damgalanır', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  // ofisvesaire'e ikinci bir proje daha bağla — parti iki projeli olsun.
+  db.exec(`INSERT INTO projects (slug, title, source, hidden_at, preview_at) VALUES ('eski-proje', 'Eski Proje', 'legacy_static', '${PREV}', '${PREV}')`);
+  db.exec(`INSERT INTO project_designers (project_id, office_id) SELECT id, 1 FROM projects WHERE slug = 'eski-proje'`);
+  const env = { DB: d1(db) };
+  await assign(env, { profileType: 'architect', profileKey: 'Melis Varkal' });
+
+  // Atanan profil HER ZAMAN başta.
+  assert.ok(relisted(db, 'architects', 'Melis Varkal'), 'atanan profil damgalanmalı');
+  // Ortak damgalanmaz (partinin en son eklenen kişisi Melis'ten sonra gelen id'dir — burada Mustafa,
+  // id 2 > 1 — yani ikisinden biri damgalı, ikisi birden DEĞİL).
+  const stampedArchitects = db.prepare(`SELECT COUNT(*) AS n FROM architects WHERE relisted_at IS NOT NULL`).get().n;
+  assert.ok(stampedArchitects <= 2, `en fazla atanan + en son kayıt damgalanmalı, ${stampedArchitects} damgalı`);
+  // İKİ proje yayına alındı ama YALNIZCA biri damgalı — diğeri doğal sırasına düşer.
+  const stampedProjects = db.prepare(`SELECT COUNT(*) AS n FROM projects WHERE relisted_at IS NOT NULL`).get().n;
+  assert.equal(stampedProjects, 1, 'partide tek proje damgalanmalı');
+  // ...ve damgalanan, EN SON eklenen (en yüksek id) olmalı.
+  assert.ok(relisted(db, 'projects', 'eski-proje', 'slug'), 'en son eklenen proje damgalanmalı');
+  assert.equal(relisted(db, 'projects', 'izmir-g-evi', 'slug'), null, 'diğeri doğal sıraya düşmeli');
+});
+
+await test('damgalanmayan kayıtlar yine de YAYINA alınır (yalnızca sıralamaları değişir)', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  db.exec(`INSERT INTO projects (slug, title, source, hidden_at, preview_at) VALUES ('eski-proje', 'Eski Proje', 'legacy_static', '${PREV}', '${PREV}')`);
+  db.exec(`INSERT INTO project_designers (project_id, office_id) SELECT id, 1 FROM projects WHERE slug = 'eski-proje'`);
+  const env = { DB: d1(db) };
+  await assign(env, { profileType: 'architect', profileKey: 'Melis Varkal' });
+  assert.equal(live(db, 'projects', 'izmir-g-evi', 'slug'), true);
+  assert.equal(live(db, 'projects', 'eski-proje', 'slug'), true);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {
   console.error('\nBaşarısız testler:');

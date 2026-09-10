@@ -379,7 +379,11 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
        WHERE p.slug = ? AND p.deleted_at IS NULL GROUP BY p.id`
     ).bind(slug).first();
     if (!row) return { item: null, hidden: false };
-    if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at };
+    // previewTitle/previewSlug — ÖNİZLEME ("soluk") kaydında istemci popup'ı boş bir "yayında değil"
+    // ekranı yerine profilin ADINI gösterir ve "Bu profil sana mı ait?" / "Geri Bildirim" kutularını
+    // çalışır hâlde mount eder (kullanıcı isteği, 2026-09-10 yedinci tur madde 2). Yalnızca bu iki
+    // alan sızar — kaydın geri kalanı (item) hâlâ null'dır, yani 410'un koruması aynen sürer.
+    if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at, previewTitle: row.preview_at ? row.title : null, previewSlug: row.preview_at ? row.slug : null };
     const item = shapeProjectItem(row);
     const [designerDetails, rawNames, owner, photographerDetails] = await Promise.all([
       fetchDesignerDetails(env, row.id),

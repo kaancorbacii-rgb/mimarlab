@@ -466,7 +466,11 @@ async function buildArchitectPayload(env, key) {
   // "bulunamadı" gösteriyor, ama /api/architect/:key'i doğrudan çağıran biri tam veriyi alabiliyordu
   // — src/routes/project.js#handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada
   // da null'lanır.
-  if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at };
+  // previewTitle/previewSlug — ÖNİZLEME ("soluk") kaydında istemci popup'ı boş bir "yayında değil"
+  // ekranı yerine profilin ADINI gösterir ve "Bu profil sana mı ait?" / "Geri Bildirim" kutularını
+  // çalışır hâlde mount eder (kullanıcı isteği, 2026-09-10 yedinci tur madde 2). Yalnızca bu iki
+  // alan sızar — kaydın geri kalanı (item) hâlâ null'dır, yani 410'un koruması aynen sürer.
+  if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at, previewTitle: row.preview_at ? row.name : null, previewSlug: row.preview_at ? row.slug : null };
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id

@@ -893,6 +893,7 @@ const ProductModal = (function () {
 
   async function renderItem(p, key) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
+    ModalShell.clearPreviewNote(); // ... önizleme notu da (bkz. renderNotFound'un 'preview' dalı)
     currentItem = p;
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
@@ -1250,7 +1251,8 @@ const ProductModal = (function () {
 
   // status: 'missing' (sunucu 404/410 dedi — kayıt gerçekten yok) | 'error' (geçici sorun; bkz.
   // modal-shell.js#fetchEntity kökten bulgusu — "bulunamadı" DEMEZ, tekrar denenebilir kutu gösterir).
-  function renderNotFound(status) {
+  function renderNotFound(status, result) {
+    const previewTitle = (result && result.previewTitle) || null;
     ModalShell.clearLoadError();
     const titleEl = document.getElementById('pr-title');
     const headerActions = ModalShell.getHeaderActionsSlot();
@@ -1269,9 +1271,16 @@ const ProductModal = (function () {
     // ÖNİZLEME ("soluk") kaydı: 410 dönen bu içerik SİLİNMİŞ değil, henüz yayına alınmamış
     // (kullanıcı isteği, 2026-09-10 — blurlu bir karta sağ tık > yeni sekmede aç). fetchEntity
     // sunucunun `preview` bayrağını 'preview' durumuna çevirir (bkz. modal-shell.js#fetchEntity).
-    titleEl.textContent = status === 'preview'
-      ? 'Bu içerik önizleme modunda, henüz yayında değil.'
-      : 'Ürün bulunamadı';
+    // ÖNİZLEME: başlıkta kaydın GERÇEK adı, altında küçük bir not (kullanıcı isteği, 2026-09-10
+    // yedinci tur madde 2). Sahiplenme kutusu proje/üründe YOKTUR — sahiplik künyedeki firma/kişi
+    // üzerinden gelir (bkz. js/components/preview-cards.js#CLAIM_KIND_BY_PREFIX'teki AYNI ayrım).
+    if (status === 'preview') {
+      titleEl.textContent = previewTitle || 'Bu içerik önizleme modunda, henüz yayında değil.';
+      ModalShell.showPreviewNote(titleEl);
+    } else {
+      ModalShell.clearPreviewNote();
+      titleEl.textContent = 'Ürün bulunamadı';
+    }
   }
 
   function wireInternalNav() {
@@ -1318,7 +1327,7 @@ const ProductModal = (function () {
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
     await renderItem(result.item, slug);
   }
 
@@ -1333,7 +1342,7 @@ const ProductModal = (function () {
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
     await renderItem(result.item, slug);
   }
 
@@ -1376,7 +1385,7 @@ const ProductModal = (function () {
       const mySeq = ++requestSeq;
       const result = await fetchItem(slug);
       if (mySeq !== requestSeq || currentSlug !== slug) return;
-      if (result.status !== 'ok') { renderNotFound(result.status); return; }
+      if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
       await renderItem(result.item, slug);
     })();
   }

@@ -766,6 +766,7 @@ const ProjectModal = (function () {
   // durumu olur.
   function renderLoading() {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni yüklemede asılı kalmasın
+    ModalShell.clearPreviewNote(); // ... önizleme notu da (bkz. renderNotFound'un 'preview' dalı)
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
     const adminActions = ModalShell.getAdminActionsSlot();
@@ -864,7 +865,8 @@ const ProjectModal = (function () {
   // status: 'missing' (kayıt gerçekten yok — sunucu 404/410 dedi) | 'error' (geçici sorun).
   // İkinci durumda "bulunamadı" DEMEZ, tekrar denenebilir bir hata kutusu gösterir (bkz.
   // modal-shell.js#showLoadError ve fetchEntity'deki kökten bulgu).
-  function renderNotFound(status) {
+  function renderNotFound(status, result) {
+    const previewTitle = (result && result.previewTitle) || null;
     hideLoadingSkeleton();
     ModalShell.clearLoadError();
     const titleEl = document.getElementById('pm-title');
@@ -885,9 +887,16 @@ const ProjectModal = (function () {
     // ÖNİZLEME ("soluk") kaydı: 410 dönen bu içerik SİLİNMİŞ değil, henüz yayına alınmamış
     // (kullanıcı isteği, 2026-09-10 — blurlu bir karta sağ tık > yeni sekmede aç). fetchEntity
     // sunucunun `preview` bayrağını 'preview' durumuna çevirir (bkz. modal-shell.js#fetchEntity).
-    titleEl.textContent = status === 'preview'
-      ? 'Bu içerik önizleme modunda, henüz yayında değil.'
-      : 'Proje bulunamadı';
+    // ÖNİZLEME: başlıkta kaydın GERÇEK adı, altında küçük bir not (kullanıcı isteği, 2026-09-10
+    // yedinci tur madde 2). Sahiplenme kutusu proje/üründe YOKTUR — sahiplik künyedeki firma/kişi
+    // üzerinden gelir (bkz. js/components/preview-cards.js#CLAIM_KIND_BY_PREFIX'teki AYNI ayrım).
+    if (status === 'preview') {
+      titleEl.textContent = previewTitle || 'Bu içerik önizleme modunda, henüz yayında değil.';
+      ModalShell.showPreviewNote(titleEl);
+    } else {
+      ModalShell.clearPreviewNote();
+      titleEl.textContent = 'Proje bulunamadı';
+    }
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/', topRank = null } = {}) {
@@ -921,7 +930,7 @@ const ProjectModal = (function () {
     // renderItem() SONRASINDA arka planda çalışır, sonucu geldiğinde rozeti ayrıca günceller.
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return; // bu arada başka bir open/swap tetiklendi
-    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
     const item = result.item;
     await renderItem(item, mySeq);
     // ...ve artık render zincirinden büsbütün çıkarılıp BOŞTA ZAMANA ertelenir (performans denetimi,
@@ -965,7 +974,7 @@ const ProjectModal = (function () {
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
     const item = result.item;
     await renderItem(item, mySeq);
     // gerçek bulgu (kullanıcı isteği: iki açılış yolunun bire bir aynı görünmesi): rozet ÖNCEDEN
@@ -1050,7 +1059,7 @@ const ProjectModal = (function () {
       const mySeq = ++requestSeq;
       const result = await fetchItem(slug);
       if (mySeq !== requestSeq || currentSlug !== slug) return;
-      if (result.status !== 'ok') { renderNotFound(result.status); return; }
+      if (result.status !== 'ok') { renderNotFound(result.status, result); return; }
       const item = result.item;
       await renderItem(item, mySeq);
     })();
