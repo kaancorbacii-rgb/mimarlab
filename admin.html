@@ -364,6 +364,10 @@
         <input type="search" id="archive-search" placeholder="Arşivde ara (başlık, konum, marka…)"
                style="width:100%; max-width:420px; padding:9px 12px; margin-bottom:14px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
         <div id="archive-list"></div>
+        <!-- Sayfalama (kullanıcı isteği, 2026-09-10): bir sayfada en fazla 30 gönderi. Yayındaki
+             İçerikler sekmesindeki #content-pagination ile AYNI kap/desen — renderDashPagination
+             tek yerden çizer, ayrı bir sayfalama tasarımı icat EDİLMEZ. -->
+        <div class="dash-pagination" id="archive-pagination"></div>
       </div>
 
       <div class="admin-section" id="section-claims">
@@ -994,6 +998,11 @@ const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_
 const ARCHIVE_API_TYPE = { projects: 'projects', architects: 'architects', offices: 'offices', brands: 'offices', products: 'products', materials: 'materials' };
 let archiveType = 'projects';
 let archiveSearch = '';
+// Sayfalama (kullanıcı isteği, 2026-09-10): arşiv listesi tek istekte TAMAMEN istemciye
+// geldiğinden (bkz. loadArchive) dilimleme burada yapılır — Yayındaki İçerikler sekmesindeki
+// contentPage/CONTENT_PAGE_SIZE ile AYNI desen, aynı renderDashPagination çizici.
+let archivePage = 1;
+const ARCHIVE_PAGE_SIZE = 30;
 
 function archiveEditHref(type, item){
   const claimedColumn = ARCHIVE_CLAIMED_COLUMN[type];
@@ -1015,6 +1024,7 @@ async function loadArchive(){
       // Sekme değişince arama sıfırlanır — bir sekmede yazılan sorgunun başka bir sekmede
       // "hiç sonuç yok" göstermesi kafa karıştırıcı olurdu.
       archiveSearch = '';
+      archivePage = 1;
       const box = document.getElementById('archive-search');
       if(box) box.value = '';
       loadArchive();
@@ -1022,7 +1032,10 @@ async function loadArchive(){
   });
 
   const list = document.getElementById('archive-list');
+  const pager = document.getElementById('archive-pagination');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  // Boş/hatalı dallarda eski sayfa butonları ekranda kalmasın — her çizimde sıfırlanır.
+  if(pager) pager.innerHTML = '';
   const data = await api(`/api/admin/submissions?type=${ARCHIVE_API_TYPE[archiveType]}&status=archived`);
   let items = data.items || [];
   // Firma/Marka ayrımı (bkz. ARCHIVE_TYPE_LABELS yorumu) — ikisi de office_submissions'tan gelir.
@@ -1038,7 +1051,13 @@ async function loadArchive(){
     items = items.filter(it => `${itemTitle(apiType, it) || ''} ${itemMeta(apiType, it) || ''}`.toLocaleLowerCase('tr').includes(q));
     if(!items.length){ list.innerHTML = `<div class="admin-empty">"${escapeHtml(archiveSearch)}" ile eşleşen arşiv kaydı yok.</div>`; return; }
   }
-  list.innerHTML = items.map(item => `
+  // Sayfaya böl — arama/filtre UYGULANDIKTAN SONRA: sayfa sayısı GÖRÜNEN listeye göre olmalı.
+  const archiveTotalPages = Math.max(1, Math.ceil(items.length / ARCHIVE_PAGE_SIZE));
+  if(archivePage > archiveTotalPages) archivePage = archiveTotalPages;
+  const pageItems = items.slice((archivePage - 1) * ARCHIVE_PAGE_SIZE, archivePage * ARCHIVE_PAGE_SIZE);
+  renderDashPagination('archive-pagination', archivePage, archiveTotalPages, (p)=>{ archivePage = p; loadArchive(); });
+
+  list.innerHTML = pageItems.map(item => `
     <div class="admin-card" data-id="${item.id}">
       <div class="admin-card-head">
         <div class="admin-card-body">
@@ -1081,7 +1100,7 @@ async function loadArchive(){
   let timer = null;
   box.addEventListener('input', ()=>{
     clearTimeout(timer);
-    timer = setTimeout(()=>{ archiveSearch = box.value.trim(); loadArchive(); }, 200);
+    timer = setTimeout(()=>{ archiveSearch = box.value.trim(); archivePage = 1; loadArchive(); }, 200);
   });
 })();
 

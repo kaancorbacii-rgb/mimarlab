@@ -73,6 +73,39 @@ export async function isArchitectProfileClaimed(env, keys) {
       WHERE a.deleted_at IS NULL AND (a.name IN (${ph}) OR a.legacy_key IN (${ph}))
       LIMIT 1`
   ).bind(...unique, ...unique).first();
+  if (row) return true;
+  return isSelfPublishedArchitect(env, unique);
+}
+
+// (c) ÜYENİN KENDİ YAYINLADIĞI KİŞİ PROFİLİ (kullanıcı isteği, 2026-09-10: "MİMARLAB Robotu
+// profilindeki 'Bu profil sana mı ait?' butonunu ve 'Kamuya açık kaynaklardan derlenmiştir…'
+// yazısını kaldır").
+//
+// GERÇEK BULGU: sahipliğin İKİ yolu var (bkz. proje notu "Profil sahipliğinin İKİ yolu") ama bu
+// dosya bugüne kadar YALNIZCA profile_claims yolunu tanıyordu. Bir üye kendi kişi profilini
+// kisi-ekle.html'den ya da Hesabım > Profili Düzenle'den kendisi yayınladığında ortada SAHİPLENME
+// TALEBİ YOKTUR — kayıt zaten onundur (architect_submissions.owner_user_id) ve canonical satır
+// legacy_key = 'submission:<gönderi id>' markörünü taşır. Böyle bir profil "kamuya açık
+// kaynaklardan derlenmiş, doğrulanmamış" bir kayıt DEĞİLDİR; ne kaynak ibaresi ne de "sana mı
+// ait?" daveti anlamlıdır. (MİMARLAB Robotu bu duruma canlı örnek: architects#993,
+// legacy_key = 'submission:d0a63a6d-…', sahibi kendi hesabı.)
+//
+// AD EŞLEŞMESİ ŞART: kisi-ekle.html'in ASIL kullanımı BAŞKA birini eklemektir — bir meslektaşı
+// adına açılan kayıt üçüncü şahıs derlemesidir ve ibare orada KALMALIDIR. Bu yüzden gönderiyi
+// açan hesabın adı profilin adıyla eşleşmelidir; src/routes/submissions.js#isOwnArchitectRecord
+// ve #isSelfDirectoryListing'in kullandığı AYNI "bu kayıt kullanıcının kendisi mi?" kuralı.
+// SQL tarafında users'ta name_fold kolonu yok (architects'te var, bkz. migrations/0079), bu yüzden
+// karşılaştırma COLLATE NOCASE ile yapılır — ad zaten hesaptan kopyalandığından bu yeterlidir.
+async function isSelfPublishedArchitect(env, unique) {
+  const ph = unique.map(() => '?').join(', ');
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM architects a
+       JOIN architect_submissions s ON ('submission:' || s.id) = a.legacy_key AND s.status = 'approved'
+       JOIN users u ON u.id = s.owner_user_id
+      WHERE a.deleted_at IS NULL AND (a.name IN (${ph}) OR a.legacy_key IN (${ph}))
+        AND u.name IS NOT NULL AND a.name = u.name COLLATE NOCASE
+      LIMIT 1`
+  ).bind(...unique, ...unique).first();
   return !!row;
 }
 
