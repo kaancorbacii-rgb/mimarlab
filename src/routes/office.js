@@ -294,7 +294,15 @@ export async function handleOfficeListRoute(request, env, url) {
     const popularKey = brandsOnly
       ? (o => o.productCount || 0)
       : (o => o.projectCount || 0);
+    // ÖNİZLEME ("soluk") kayıtları HER sıralama seçeneğinde EN SONA düşer (kullanıcı isteği,
+    // 2026-09-10: "yayında olanlar ilk sıralarda olsunlar, üzeri blurlu olanlar sonraki sıralarda").
+    // Havuz sorgusundaki ORDER BY tek başına YETMEZ: aşağıdaki JS sıralaması onu tamamen ezer
+    // (gerçek bulgu — canlıda önizleme kartları listenin başında çıkıyordu). Bu yüzden ölçüt,
+    // seçilen sıralamadan BAĞIMSIZ olarak en başa konur; kendi içlerinde seçilen sıralama korunur.
+    const previewRank = (o) => (o.preview ? 1 : 0);
     filtered.sort((a, b) => {
+      const pr = previewRank(a) - previewRank(b);
+      if (pr) return pr;
       switch (sort) {
         case 'name_asc': return a.name.localeCompare(b.name, 'tr');
         case 'year_desc': return (b.yil || 0) - (a.yil || 0);

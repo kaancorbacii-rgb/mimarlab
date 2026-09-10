@@ -504,8 +504,14 @@ export async function handleProductListRoute(request, env, url) {
 
     const filtered = pool.filter(p => passes(p, null));
 
+    // ÖNİZLEME kayıtları her sıralamada EN SONA (bkz. src/routes/architect.js#previewRank'taki AYNI
+    // gerekçe — bir `sort` verildiğinde bu JS sıralaması havuzun ORDER BY'ını tamamen ezer).
+    // `sort` verilmediğinde havuz sırası zaten doğrudur, ek bir geçişe gerek yok.
     if (sort) {
+      const previewRank = (o) => (o.preview ? 1 : 0);
       filtered.sort((a, b) => {
+        const pr = previewRank(a) - previewRank(b);
+        if (pr) return pr;
         switch (sort) {
           case 'name_asc': return a.title.localeCompare(b.title, 'tr');
           case 'rating_desc': case 'rating_asc': {

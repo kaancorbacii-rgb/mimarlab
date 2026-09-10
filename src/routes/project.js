@@ -881,7 +881,14 @@ export async function handleProjectListRoute(request, env, url) {
         [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
       }
     } else if (sort) {
+      // ÖNİZLEME kayıtları her sıralamada EN SONA (bkz. src/routes/architect.js#previewRank'taki
+      // AYNI gerekçe — JS sıralaması havuzun ORDER BY'ını tamamen ezer). 'random' dalı BİLEREK
+      // kapsam dışı: orası bir sıralama değil, LIMIT'e kimin gireceğini belirleyen eşit-şans
+      // karıştırması (bkz. yukarıdaki yorum) ve öneri şeritlerini besler.
+      const previewRank = (o) => (o.preview ? 1 : 0);
       filtered = [...filtered].sort((a, b) => {
+        const pr = previewRank(a) - previewRank(b);
+        if (pr) return pr;
         switch (sort) {
           case 'name_asc': return a.title.localeCompare(b.title, 'tr');
           case 'date_desc': {

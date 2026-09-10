@@ -325,7 +325,15 @@ export async function handleArchitectListRoute(request, env, url) {
     // sort boşsa (varsayılan) ya da 'popular' ise en çok projesi olan mimar önce gelir, eşitlikte
     // isim A-Z (bkz. yukarıdaki "Varsayılan sıralama" notu). 'newest' — id DESC — anasayfa
     // carousel'inin AÇIKÇA istediği eski varsayılan davranış.
+    // ÖNİZLEME ("soluk") kayıtları HER sıralama seçeneğinde EN SONA düşer (kullanıcı isteği,
+    // 2026-09-10: "yayında olanlar ilk sıralarda olsunlar, üzeri blurlu olanlar sonraki sıralarda").
+    // Havuz sorgusundaki ORDER BY tek başına YETMEZ: aşağıdaki JS sıralaması onu tamamen ezer
+    // (gerçek bulgu — canlıda önizleme kartları listenin başında çıkıyordu). Bu yüzden ölçüt,
+    // seçilen sıralamadan BAĞIMSIZ olarak en başa konur; kendi içlerinde seçilen sıralama korunur.
+    const previewRank = (o) => (o.preview ? 1 : 0);
     filtered.sort((x, y) => {
+      const pr = previewRank(x) - previewRank(y);
+      if (pr) return pr;
       switch (sort) {
         case 'name_asc': return x.name.localeCompare(y.name, 'tr');
         case 'year_desc': return (y.dob || 0) - (x.dob || 0);
