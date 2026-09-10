@@ -272,7 +272,11 @@ async function findUnassigned(env, typeKey, assigned, memberKeys, protectedNames
     // Korunan bir markanın ürünleri de korunur: firma canlı kalırken ürün kataloğunun tamamen
     // arşivlenmesi profili yarım gösterirdi.
     if (brandFolded && protectedNames.offices.has(brandFolded)) continue;
-    if (memberKeys.has(foldTr(row.title || '')) || (row.slug && memberKeys.has(foldTr(row.slug)))) continue;
+    // ÜYE YÜKLEMESİ ARTIK TEK BAŞINA YETMEZ (kullanıcı isteği, 2026-09-10: "herhangi bir marka
+    // profilini sahiplenmediyse bu markaların ürünlerini de projeleri blurladığın gibi blurla").
+    // Projelerdeki AYNI daraltma: telif sorumluluğunu üstlenen bir taraf yoksa (markanın onaylı bir
+    // sahibi yoksa) ürün önizlemede kalır — bir üyenin ÜÇÜNCÜ TARAF ürününü yüklemiş olması o ürünü
+    // yayında tutmak için gerekçe değildir.
     out.push({ key: row.legacy_key || row.slug, name: row.title });
     if (limit && out.length >= limit) break;
   }

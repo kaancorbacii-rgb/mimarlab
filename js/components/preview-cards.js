@@ -46,6 +46,11 @@
          (başlık/altyazı) blurlanmaz, yalnızca soluklaşır: kullanıcı kaydın NE olduğunu görebilmeli,
          sadece görselden yararlanamamalı. */
       '.ml-preview-card{opacity:.62; cursor:pointer;}',
+      /* Görsel, bağlantının İÇİNDE olmayabilir: liste sayfalarında kart yapısı
+         .content-card > (.content-card-photo > img) + (.content-card-title > a) biçimindedir, yani
+         <a> yalnızca BAŞLIK bağlantısıdır. Bu yüzden sınıf KART KAPSAYICISINA uygulanır (bkz.
+         #cardRootFor) ve blur oradan aşağı iner — aksi halde ürün/proje listelerinde metin
+         soluklaşıyor ama GÖRSEL net kalıyordu (kullanıcı bulgusu: "ürünleri blurlamamışsın"). */
       '.ml-preview-card img, .ml-preview-card .related-card-placeholder, .ml-preview-card [style*="background-image"]{',
       '  filter:blur(9px) grayscale(.5); transform:scale(1.06);',
       '}',
@@ -97,10 +102,52 @@
       if (!relevant) continue;
       a.dataset.mlPreviewChecked = '1';
       if (!previewHrefs.has(key)) continue;
-      a.classList.add('ml-preview-card');
-      a.setAttribute('aria-disabled', 'true');
-      if (!a.getAttribute('title')) a.setAttribute('title', 'Bu içerik önizleme modunda — henüz yayında değil.');
+      var cardRoot = cardRootFor(a);
+      cardRoot.classList.add('ml-preview-card');
+      // Hedef adres kapsayıcıda saklanır: tıklama artık <a>'da değil kapsayıcıda yakalanıyor
+      // (kartın kendi JS işleyicisi de orada), sahiplenme popup'ı slug'ı buradan okur.
+      cardRoot.dataset.mlPreviewHref = key;
+      cardRoot.setAttribute('aria-disabled', 'true');
+      if (!cardRoot.getAttribute('title')) cardRoot.setAttribute('title', 'Bu içerik önizleme modunda — henüz yayında değil.');
     }
+  }
+
+  function isRelevantKey(key) {
+    for (var k in PREFIX_BY_KIND) {
+      var prefixes = PREFIX_BY_KIND[k];
+      for (var j = 0; j < prefixes.length; j++) if (key.indexOf(prefixes[j]) === 0) return true;
+    }
+    return false;
+  }
+
+  function countRelevantLinks(el) {
+    var links = el.querySelectorAll('a[href]');
+    var n = 0;
+    for (var i = 0; i < links.length; i++) {
+      var key = hrefKey(links[i].getAttribute('href'));
+      if (key && isRelevantKey(key)) n++;
+      if (n > 1) return n;
+    }
+    return n;
+  }
+
+  // Bağlantıdan KART KAPSAYICISINA çıkar. İki nedenle şart:
+  //   1) Görsel çoğu liste sayfasında <a>'nın DIŞINDA (bkz. CSS notu) — blur oradan uygulanmalı.
+  //   2) Kartın TIKLAMA İŞLEYİCİSİ de kapsayıcıda (ör. /urun'de .content-card cursor:pointer ile
+  //      popup açıyor), yani yalnızca <a>'yı engellemek kartı açmayı DURDURMUYORDU.
+  // En fazla 4 seviye çıkılır ve kapsayıcı BİRDEN FAZLA detay bağlantısı taşımamalı — aksi halde
+  // tüm ızgara tek bir "kart" sanılıp sayfanın tamamı blurlanırdı.
+  function cardRootFor(a) {
+    var el = a;
+    var best = a;
+    for (var hops = 0; hops < 4 && el && el.parentElement; hops++) {
+      el = el.parentElement;
+      if (!el.querySelectorAll || el === document.body) break;
+      if (countRelevantLinks(el) > 1) break;
+      best = el;
+      if (el.querySelector('img')) break; // görseli kapsayan ilk ata yeterli
+    }
+    return best;
   }
 
   function scheduleMark() {
@@ -193,15 +240,18 @@
   // Tıklamayı YAKALAMA fazında durdurur: kartın kendi dinleyicisi (ör. proje.html'in popup açan
   // delegated handler'ı) çalışmadan önce. Sayfa geçişi de (varsayılan davranış) engellenir.
   function guard(e) {
-    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-    if (!a || !a.classList.contains('ml-preview-card')) return;
+    // Kapsayıcıdan yakalanır, <a>'dan DEĞİL: kartın kendi tıklama işleyicisi de kapsayıcıdadır
+    // (bkz. #cardRootFor) — yalnızca bağlantıyı engellemek /urun'de popup'ın açılmasını
+    // DURDURMUYORDU.
+    var root = e.target && e.target.closest ? e.target.closest('.ml-preview-card') : null;
+    if (!root) return;
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     if (e.type !== 'click') return; // orta tık / yeni sekme: yalnızca engelle, popup açma
-    var hit = claimKindFor(hrefKey(a.getAttribute('href')) || '');
+    var hit = claimKindFor(root.dataset.mlPreviewHref || '');
     // Kart metni çok satırlı (ad + alt satır) ve girintili gelir — popup başlığında tek satıra indirilir.
-    if (hit) openClaimPopup(hit.cfg, hit.slug, (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60));
+    if (hit) openClaimPopup(hit.cfg, hit.slug, (root.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60));
   }
 
   function start() {
