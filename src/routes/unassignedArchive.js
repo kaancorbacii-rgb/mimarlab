@@ -23,14 +23,19 @@
 // yazmak arşiv taslağını hiç oluşturmaz ve kaydı GERİ ALINAMAZ hale getirir; Arşivim kutusunun
 // tamamı o taslağa dayanır).
 import { json, errorJson, readJson } from '../lib/http.js';
-import { runContentAction } from './legacyContent.js';
+import { runContentAction, runProjectAction } from './legacyContent.js';
+import { parseProjectDateYear } from './project.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { foldTr } from '../lib/textMatch.js';
 import officeKindJs from '../../office-kind.js';
 
 const { isBrandOffice } = officeKindJs;
 
-const TYPES = ['architects', 'offices', 'products', 'materials'];
+// SIRA ÖNEMLİ: projeler EN SONA konur. Bir projeyi arşivlemek proje facet sayaçlarını yeniden
+// hesaplatır (bkz. archiveUnassignedBatch#skipFacets) ve bu, havuzun o anki hâline bakar — önce
+// kişi/firma/ürün turunun bitmesi, sayaçların tek ve doğru bir son durumda kapanmasını sağlar.
+const TYPES = ['architects', 'offices', 'products', 'materials', 'projects'];
 // scripts/archive-unassigned.mjs bu ikisini import eder — toplu betik "atanmamış" tanımını
 // KOPYALAMAZ, panelin kullandığı AYNI taramayı çağırır (bkz. o dosyanın başındaki gerekçe).
 export const UNASSIGNED_TYPES = TYPES;
@@ -39,6 +44,7 @@ const SUBMISSION_TABLE = {
   offices: 'office_submissions',
   products: 'product_submissions',
   materials: 'material_submissions',
+  projects: 'project_submissions',
 };
 
 const MAX_BATCH = 25;
@@ -58,6 +64,24 @@ const MAX_BATCH = 25;
 // ikisi de okunur (bkz. [[project_office_membership_names_single_merge_2026_09_08]] — tek kaynağa
 // bakmak bağların bir kısmını kaçırır).
 const PROTECTED_ARCHITECT_NAMES = ['Kaan Çorbacı'];
+// Fotoğrafı bu kişilere ait olan projeler canlıda kalır (kullanıcı isteği: "Kaan Çorbacı'nın
+// paylaştığı fotoğraflarla oluşturulan projeler"). Bağ İKİ yerde olabilir: project_photographers
+// (yapılandırılmış, bkz. migrations/0080) ve projects.photo_credit_text (serbest metin künye) —
+// ikisi de kontrol edilir, biri tek başına eksik kalır.
+const PROTECTED_PHOTOGRAPHER_NAMES = ['Kaan Çorbacı'];
+// 1970'ten ÖNCE bir yıl taşıyan projeler canlıda kalır (kullanıcı isteği). Karşılaştırma
+// src/routes/project.js#parseProjectDateYear ile yapılır — o fonksiyon serbest metin künyeden
+// EN KÜÇÜK yılı çıkarır (yüzyıl ve MÖ biçimlerini de çözer), yani "1965-1972" de "MÖ 4. Yüzyıl" de
+// doğru şekilde eşiğin altında kalır.
+const PROJECT_KEEP_YEAR_BEFORE = 1970;
+
+// bkz. findUnassignedProjects — D1'in 100 bind değişkeni sınırı.
+const NAME_CHUNK = 40;
+function chunked(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
 
 async function fetchProtectedNames(env) {
   const architects = new Set(PROTECTED_ARCHITECT_NAMES.map(foldTr));
@@ -108,8 +132,11 @@ async function fetchAssignedNames(env) {
 // kümedeyse arkasında gerçek bir kullanıcı var demektir (bkz. dosya başı (3) numaralı koşul).
 async function fetchMemberOwnedKeys(env, typeKey) {
   const table = SUBMISSION_TABLE[typeKey];
-  const nameCol = (typeKey === 'products' || typeKey === 'materials') ? 'title' : 'name';
-  const claimedCol = (typeKey === 'products' || typeKey === 'materials') ? 'claimed_slug' : 'claimed_profile_key';
+  // projects/products/materials'ta görünen ad kolonu `title`, canonical bağ `claimed_slug`;
+  // architects/offices'te `name` + `claimed_profile_key`.
+  const usesTitle = typeKey === 'products' || typeKey === 'materials' || typeKey === 'projects';
+  const nameCol = usesTitle ? 'title' : 'name';
+  const claimedCol = usesTitle ? 'claimed_slug' : 'claimed_profile_key';
   const { results } = await env.DB.prepare(
     `SELECT s.${nameCol} AS nm, s.${claimedCol} AS ck FROM ${table} s
      JOIN users u ON u.id = s.owner_user_id
@@ -121,6 +148,86 @@ async function fetchMemberOwnedKeys(env, typeKey) {
     if (r.ck) keys.add(foldTr(r.ck));
   }
   return keys;
+}
+
+// PROJELER — kendi "canlıda kalsın" kural kümesi var (kullanıcı isteği, 2026-09-10 üçüncü tur:
+// "Bir üye tarafından sahiplenilmiş firma ve kişilerin projelerini, Kaan Çorbacı'nın paylaştığı
+// fotoğraflarla oluşturulan projeleri, iz bırakan mimarların projelerini ve künyesindeki tarih/yıl
+// kısmında 1970 yılından önceki yıllar yazan projeler canlıda kalmaya devam etsin. Bunların
+// dışındaki tüm projeleri arşivle.").
+//
+// Bir proje ŞU DURUMLARDA canlı kalır:
+//   1) künyesindeki (project_designers) bir mimar ya da firma ONAYLI bir profile_claims taşıyor,
+//   2) künyesinde 'iz-birakan' rozetli bir mimar/firma var — ya da o mimarların firmalarından biri
+//      (protectedNames.offices, bkz. fetchProtectedNames),
+//   3) fotoğrafçısı Kaan Çorbacı (project_photographers VEYA serbest metin photo_credit_text),
+//   4) project_date 1970'ten önce bir yıl taşıyor,
+//   5) admin olmayan bir üye tarafından yüklenmiş (diğer tiplerdeki AYNI kural).
+//
+// Sorgular BİLEREK toplu: 1.700+ proje için satır başına sorgu atmak (uzak D1 üzerinden) kabul
+// edilemez — üç küme tek seferde çekilip bellekte kesişim alınır.
+async function findUnassignedProjects(env, assigned, memberKeys, protectedNames, limit) {
+  const { results: liveRows } = await env.DB.prepare(
+    `SELECT id, slug, title, project_date FROM projects WHERE hidden_at IS NULL AND deleted_at IS NULL ORDER BY id`
+  ).all();
+  if (!liveRows || !liveRows.length) return [];
+
+  // (1)+(2) künyesi korunan/atanmış bir profile bağlı proje id'leri — TEK sorgu.
+  const keepNames = [...new Set([
+    ...assigned.architects, ...assigned.offices,
+    ...protectedNames.architects, ...protectedNames.offices,
+  ])];
+  const keepProjectIds = new Set();
+  // name_fold: migrations/0079_search_fold_columns.sql — Türkçe casefold edilmiş ad kolonu; foldTr
+  // ile üretilen anahtarlarla BİREBİR aynı normalizasyonu taşır, bu yüzden karşılaştırma SQL
+  // tarafında da güvenle yapılabilir (bkz.
+  // [[project_search_query_and_field_must_tokenize_alike_2026_09_08]]).
+  //
+  // PARÇALARA BÖLÜNÜR: D1 tek ifadede en fazla 100 bind değişkeni kabul eder ("too many SQL
+  // variables", canlıda ölçüldü) ve bu sorgu listeyi İKİ kez bind ediyor (mimar + firma kolonu).
+  // 40'lık parçalar 80 değişkende kalır. Ayrıca düz IN kullanılır, `A OR B` zinciri DEĞİL — bkz.
+  // [[project_sqlite_expression_tree_depth_100]].
+  for (const chunk of chunked(keepNames, NAME_CHUNK)) {
+    const ph = chunk.map(() => '?').join(', ');
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT pd.project_id AS pid FROM project_designers pd
+       LEFT JOIN architects ar ON ar.id = pd.architect_id
+       LEFT JOIN offices ofc ON ofc.id = pd.office_id
+       WHERE ar.name_fold IN (${ph}) OR ofc.name_fold IN (${ph})`
+    ).bind(...chunk, ...chunk).all();
+    for (const r of results || []) keepProjectIds.add(r.pid);
+  }
+
+  // (3) fotoğrafçı bağı — yapılandırılmış tablo + serbest metin künye.
+  const photographerFolded = PROTECTED_PHOTOGRAPHER_NAMES.map(foldTr);
+  for (const chunk of chunked(photographerFolded, NAME_CHUNK)) {
+    const ph = chunk.map(() => '?').join(', ');
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT pp.project_id AS pid FROM project_photographers pp
+       JOIN architects ar ON ar.id = pp.architect_id WHERE ar.name_fold IN (${ph})`
+    ).bind(...chunk).all();
+    for (const r of results || []) keepProjectIds.add(r.pid);
+  }
+  const { results: creditRows } = await env.DB.prepare(
+    `SELECT id, photo_credit_text FROM projects WHERE hidden_at IS NULL AND deleted_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text <> ''`
+  ).all();
+  for (const r of creditRows || []) {
+    const folded = foldTr(r.photo_credit_text || '');
+    if (photographerFolded.some(n => folded.includes(n))) keepProjectIds.add(r.id);
+  }
+
+  const out = [];
+  for (const row of liveRows) {
+    if (keepProjectIds.has(row.id)) continue;
+    // (4) 1970 öncesi yıl — parseProjectDateYear EN KÜÇÜK yılı döner (null = yıl çözülemedi).
+    const year = parseProjectDateYear(row.project_date);
+    if (year !== null && year < PROJECT_KEEP_YEAR_BEFORE) continue;
+    // (5) üye yüklemesi
+    if (memberKeys.has(foldTr(row.title || '')) || (row.slug && memberKeys.has(foldTr(row.slug)))) continue;
+    out.push({ key: row.slug, name: row.title });
+    if (limit && out.length >= limit) break;
+  }
+  return out.filter(r => !!r.key);
 }
 
 // Canlıda görünen (arşivlenmemiş, silinmemiş) canonical satırlar — atanmamış olanlar.
@@ -142,6 +249,7 @@ async function findUnassigned(env, typeKey, assigned, memberKeys, protectedNames
     }
     return out;
   }
+  if (typeKey === 'projects') return findUnassignedProjects(env, assigned, memberKeys, protectedNames, limit);
   // products/materials — canonical tablo TEK: `products`, ayrım `kind` kolonunda (bkz.
   // migrations/0022_id_first_entities.sql). Doğal anahtar legacy_key'dir; yoksa slug kullanılır
   // (findCanonicalRowByNaturalKey ikisini de tanır, bkz. src/lib/canonicalSync.js).
@@ -163,6 +271,19 @@ async function findUnassigned(env, typeKey, assigned, memberKeys, protectedNames
     if (limit && out.length >= limit) break;
   }
   return out.filter(r => !!r.key);
+}
+
+// Tek kaydı arşivler. Projeler AYRI bir fonksiyona gider (runProjectAction) — project_submissions'ın
+// alan kümesi ve claimed_slug semantiği architects/offices'tan farklıdır.
+//
+// skipFacets: proje arşivlemek `bumpFacetCounts('projects')`i tetikler ve o, TÜM aktif proje
+// havuzunu çekip facet_counts tablosunu baştan yazar (bkz. src/lib/facetCounts.js#
+// recomputeProjectFacets). Bu, tek bir admin işlemi için doğru ama 1.700 projelik toplu bir turda
+// 1.700 kez tam havuz taraması demek — kabul edilemez. Toplu yolda atlanır, parti sonunda bir kez
+// çalıştırılır; sonuç aynı, maliyet parti başına tek sefere iner.
+async function archiveOne(env, user, typeKey, key) {
+  if (typeKey === 'projects') return runProjectAction(env, user, { action: 'archive', slug: key, skipFacets: true });
+  return runContentAction(env, user, { type: typeKey, action: 'archive', key });
 }
 
 // GET /api/admin/unassigned-archive — her tip için kaç kayıt arşivlenecek (ÖNİZLEME, hiçbir şeyi
@@ -204,13 +325,15 @@ async function archiveUnassignedBatch(request, env, user) {
   let archived = 0;
   for (const row of batch) {
     try {
-      const res = await runContentAction(env, user, { type: typeKey, action: 'archive', key: row.key });
+      const res = await archiveOne(env, user, typeKey, row.key);
       if (res && res.status >= 400) errors.push({ key: row.key, status: res.status });
       else archived++;
     } catch (err) {
       errors.push({ key: row.key, reason: (err && err.message) || String(err) });
     }
   }
+  // Proje facet sayaçları parti başına TEK kez (bkz. archiveOne#skipFacets gerekçesi).
+  if (typeKey === 'projects' && archived) await bumpFacetCounts(env, 'projects');
   // runContentAction her kayıt için ayrıca invalidatePublicCache çağırıyor; parti sonunda bir kez
   // daha çağırmak ucuz ve son durumu garanti eder (bkz. o dosyadaki AYNI çağrı).
   await invalidatePublicCache(env);

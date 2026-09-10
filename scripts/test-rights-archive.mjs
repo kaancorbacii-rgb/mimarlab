@@ -14,6 +14,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { handleSubmissionRoute } from '../src/routes/submissions.js';
 import { handleArchiveRoute } from '../src/routes/archive.js';
 import { runContentAction } from '../src/routes/legacyContent.js';
+import { findUnassignedForScript } from '../src/routes/unassignedArchive.js';
 import { sha256Hex } from '../src/lib/crypto.js';
 
 let passed = 0, failed = 0;
@@ -234,6 +235,68 @@ await test('firma: cats DİZİ olarak saklanmışsa bile arşivleme patlamaz', a
   const res = await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Dizi Firma' });
   assert.equal(res.status, 200, await res.clone().text());
   assert.ok(db.prepare(`SELECT hidden_at FROM offices WHERE name = 'Dizi Firma'`).get().hidden_at);
+});
+
+section('proje arşivleme kuralları (kullanıcı isteği, 2026-09-10 üçüncü tur)');
+
+// Bir proje YALNIZCA şu beş durumdan hiçbirine uymuyorsa arşivlenir: künyesi atanmış bir profile
+// bağlı / künyesi 'iz-birakan' rozetli bir profile bağlı / fotoğrafçısı Kaan Çorbacı / künyesinde
+// 1970 öncesi bir yıl var / admin olmayan bir üye yüklemiş.
+function seedProjects(db) {
+  const now = Date.now();
+  db.exec(`
+    INSERT INTO architects (slug, name, source) VALUES
+      ('kaan-corbaci', 'Kaan Çorbacı', 'legacy_static'),
+      ('mimar-sinan', 'Mimar Sinan', 'legacy_static'),
+      ('sade-mimar', 'Sade Mimar', 'legacy_static');
+    INSERT INTO offices (slug, name, cats, source) VALUES ('autoban', 'Autoban', '"Mimarlık"', 'legacy_static');
+    INSERT INTO projects (slug, title, project_date, photo_credit_text, source) VALUES
+      ('autoban-p', 'Autoban Projesi', '2015', 'Bir Fotoğrafçı', 'legacy_static'),
+      ('atanmis-p', 'Atanmış Firma Projesi', '2018', NULL, 'legacy_static'),
+      ('sinan-p', 'Süleymaniye', '1557', NULL, 'legacy_static'),
+      ('eski-p', 'Eski Yapı', '1968', NULL, 'legacy_static'),
+      ('aralik-p', 'Aralıklı Yapı', '1965-1975', NULL, 'legacy_static'),
+      ('yy-p', 'Yüzyıl Yapısı', '16. Yüzyıl', NULL, 'legacy_static'),
+      ('kaan-metin-p', 'Kaan Fotoğrafladı', '2020', 'Fotoğraf: Kaan Çorbacı', 'legacy_static'),
+      ('kaan-tablo-p', 'Kaan Tablo Bağı', '2021', NULL, 'legacy_static'),
+      ('sade-p', 'Sade Proje', '2019', NULL, 'legacy_static'),
+      ('uye-p', 'Üye Projesi', '2022', NULL, 'legacy_static');
+    INSERT INTO project_designers (project_id, office_id) VALUES (1, 1), (2, 2);
+    INSERT INTO project_designers (project_id, architect_id) VALUES (3, 2), (9, 3);
+    INSERT INTO project_photographers (project_id, architect_id) VALUES (8, 1);
+    INSERT INTO admin_badges (profile_type, profile_key, badge_type, updated_at) VALUES ('architect', 'Mimar Sinan', 'iz-birakan', 0);
+  `);
+  db.prepare(`INSERT INTO project_submissions (id, owner_user_id, status, created_at, updated_at, title, slug) VALUES ('s-uye', 'u-uye', 'approved', ?, ?, 'Üye Projesi', 'uye-p')`).run(now, now);
+}
+
+await test('yalnızca korunmayan projeler arşivlenir (Autoban dahil)', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  // 'Atanmış Firma Projesi' künyesi seed()'deki 'Atanmamış Mimarlık'a değil, aşağıdaki atanmış
+  // firmaya bağlı olmalı — bu yüzden claim o firmaya verilir.
+  db.exec(`INSERT INTO offices (slug, name, cats, source) VALUES ('atanmis-firma', 'Atanmış Firma', '"Mimarlık"', 'legacy_static')`);
+  seedProjects(db);
+  const now = Date.now();
+  db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at, office_position) VALUES ('c-af', 'u-uye', 'office', 'Atanmış Firma', 'approved', ?, ?, 'Kurucu')`).run(now, now);
+  const rows = await findUnassignedForScript(envRef.env, 'projects');
+  const slugs = rows.map(r => r.key).sort();
+  assert.deepEqual(slugs, ['autoban-p', 'sade-p'], `beklenmeyen liste: ${JSON.stringify(slugs)}`);
+});
+
+await test('1970 öncesi yıl taşıyan projeler (aralık ve yüzyıl biçimleri dahil) korunur', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  seedProjects(db);
+  const slugs = new Set((await findUnassignedForScript(envRef.env, 'projects')).map(r => r.key));
+  for (const keep of ['sinan-p', 'eski-p', 'aralik-p', 'yy-p']) {
+    assert.ok(!slugs.has(keep), `${keep} arşivlenmemeliydi`);
+  }
+});
+
+await test('Kaan Çorbacı fotoğrafı: hem serbest metin künye hem project_photographers korunur', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  seedProjects(db);
+  const slugs = new Set((await findUnassignedForScript(envRef.env, 'projects')).map(r => r.key));
+  assert.ok(!slugs.has('kaan-metin-p'), 'photo_credit_text bağı korunmalı');
+  assert.ok(!slugs.has('kaan-tablo-p'), 'project_photographers bağı korunmalı');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -1622,10 +1622,10 @@ async function loadCommentsAdmin(){
 // bkz. src/routes/unassignedArchive.js — GET önizleme (sayım), POST tek parti arşivleme.
 // Buton, uç `remaining: 0` diyene kadar tip tip POST'u tekrarlar; her tur kendi ilerlemesini yazar,
 // böylece binlerce kayıtlık bir işlem tek bir Worker isteğine sıkışmaz.
-const UNASSIGNED_TYPE_LABELS = { architects:'Kişi', offices:'Firma', brands:'Marka', products:'Ürün', materials:'Malzeme' };
+const UNASSIGNED_TYPE_LABELS = { architects:'Kişi', offices:'Firma', brands:'Marka', products:'Ürün', materials:'Malzeme', projects:'Proje' };
 // POST'ta 'brands' AYRI bir tip DEĞİL (offices'ın marka olanları, bkz. office-kind.js) — sunucu
 // tarafı yalnızca bu dört tipi tanır.
-const UNASSIGNED_POST_TYPES = ['architects', 'offices', 'products', 'materials'];
+const UNASSIGNED_POST_TYPES = ['architects', 'offices', 'products', 'materials', 'projects'];
 let unassignedCounts = null;
 
 async function loadUnassignedCounts(){

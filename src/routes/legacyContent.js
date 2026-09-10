@@ -168,12 +168,15 @@ async function searchLegacy(env, url) {
 }
 
 // canonical satırın hidden_at kolonunu set/temizler.
-export async function setLegacyHidden(env, user, type, key, hidden) {
+// skipFacets: bkz. src/routes/unassignedArchive.js#archiveOne — toplu turda facet yeniden hesabı
+// KAYIT BAŞINA değil PARTİ BAŞINA yapılır (recomputeProjectFacets her çağrıda TÜM aktif proje
+// havuzunu tarar). Tekil admin işlemlerinde bu bayrak hiç geçilmez, davranış birebir aynı kalır.
+export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets = false } = {}) {
   const row = await findCanonicalRowByNaturalKey(env, type, key);
   if (!row) return; // henüz canonical karşılığı yoksa sessizce atla (ör. bozuk/eski bir anahtar)
   const table = CANONICAL_TABLE_BY_TYPE[type];
   await env.DB.prepare(`UPDATE ${table} SET hidden_at = ? WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, row.id).run();
-  if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
+  if (!skipFacets && FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
 }
 
 async function toggleLegacyHidden(request, env, user) {
@@ -338,7 +341,7 @@ async function handleProjectAction(request, env, user) {
 // Silme İzinleri") paylaştığı gerçek işlem mantığı — iki çağıran da (request gövdesi parse edilmiş
 // biçimde) BURAYA gelmeden önce KENDİ yetki kontrolünü (admin rolü / proje sahipliği) yapmış olmalı,
 // bu fonksiyon kendi başına hiçbir yetki kontrolü YAPMAZ.
-export async function runProjectAction(env, user, { action, id, slug } = {}) {
+export async function runProjectAction(env, user, { action, id, slug, skipFacets = false } = {}) {
   id = (id || '').trim();
   slug = (slug || '').trim();
   if (!['delete', 'archive', 'publish'].includes(action)) return errorJson('Geçersiz işlem.');
@@ -411,7 +414,7 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
       `INSERT INTO project_submissions (${columns.join(', ')}) VALUES (${placeholders})`
     ).bind(newId(), user.id, 'archived', now, now, slug, slug, ...bindProjectFields(fields)).run();
   }
-  await setLegacyHidden(env, user, 'projects', slug, true);
+  await setLegacyHidden(env, user, 'projects', slug, true, { skipFacets });
   await invalidatePublicCache(env);
   await purgeSsrDetailCache('project', slug, env);
   return json({ ok: true });

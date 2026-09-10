@@ -24,7 +24,8 @@
 //      taramaya girmez, `npx wrangler login` sonrası yeniden çalıştırmak kaldığı yerden devam eder.
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { runContentAction } from '../src/routes/legacyContent.js';
+import { runContentAction, runProjectAction } from '../src/routes/legacyContent.js';
+import { bumpFacetCounts } from '../src/lib/facetCounts.js';
 import { findUnassignedForScript, findArchivedProtected, UNASSIGNED_TYPES } from '../src/routes/unassignedArchive.js';
 
 const ACCOUNT_ID = '2e3cd3c1a471552e19436913b2368c4f';
@@ -131,13 +132,21 @@ for (const type of types) {
   const failures = [];
   for (const row of rows) {
     try {
-      const res = await runContentAction(env, user, { type, action: 'archive', key: row.key });
+      // bkz. src/routes/unassignedArchive.js#archiveOne — projeler runProjectAction'a gider ve
+      // facet yeniden hesabı kayıt başına DEĞİL, tur sonunda tek sefer yapılır.
+      const res = type === 'projects'
+        ? await runProjectAction(env, user, { action: 'archive', slug: row.key, skipFacets: true })
+        : await runContentAction(env, user, { type, action: 'archive', key: row.key });
       if (res && res.status >= 400) failures.push({ key: row.key, body: await res.text() });
       else done++;
     } catch (err) {
       failures.push({ key: row.key, body: (err && err.message) || String(err) });
     }
     if (done % 25 === 0 && done) process.stdout.write(`\r  ${done}/${rows.length} (${queryCount} sorgu)`);
+  }
+  if (type === 'projects' && done) {
+    process.stdout.write('\n  proje facet sayaçları yeniden hesaplanıyor…');
+    await bumpFacetCounts(env, 'projects');
   }
   process.stdout.write(`\r  ${done}/${rows.length} arşivlendi (${queryCount} sorgu)          \n`);
   if (failures.length) {
