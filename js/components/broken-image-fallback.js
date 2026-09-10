@@ -53,7 +53,25 @@
     if (img.parentNode) img.parentNode.replaceChild(box, img);
   }
 
+  // ZATEN BAŞARISIZ OLMUŞ görselleri tarar. Dinleyici `defer` ile geç bağlandığından, HTML'in
+  // ilk boyamasında yer alan bir görsel biz dinlemeye başlamadan ÖNCE hata vermiş olabilir — o
+  // durumda `error` olayı bir daha atılmaz ve kırık ikon ekranda kalır (canlıda ölçüldü: /urun'de
+  // 2 görsel bu şekilde kalıyordu). `complete && naturalWidth === 0` başarısız yüklemenin standart
+  // imzasıdır.
+  function sweep() {
+    var imgs = document.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      if (img.complete && img.naturalWidth === 0) handle({ target: img });
+    }
+  }
+
   injectStyles();
   // capture:true ŞART — `error` olayı bubble etmez (bkz. dosya başı yorumu).
   window.addEventListener('error', handle, true);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sweep);
+  else sweep();
+  // Görsellerin çoğu tembel/asenkron yüklenir; `load` anında bir tarama daha, ilk ekranda
+  // dinleyiciden önce düşenleri de kapatır.
+  window.addEventListener('load', sweep);
 })();
