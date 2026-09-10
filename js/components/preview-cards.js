@@ -71,6 +71,9 @@
       '.ml-claim-pop button.primary{background:var(--ink, #1d1b18); color:var(--paper-card, #fff); border-color:var(--ink, #1d1b18);}',
       '.ml-claim-pop button[disabled]{opacity:.55; cursor:default;}',
       '.ml-claim-pop-msg{font-size:12.5px; margin:10px 0 0; color:var(--walnut, #7a5c3e);}',
+      /* BAŞARI durumu (kullanıcı isteği, 2026-09-10): talep gönderildikten sonra not kutusu
+         kapanır ve mesaj YEŞİL görünür — kırmızımsı ceviz tonu hata mesajlarına ayrılır. */
+      '.ml-claim-pop-msg.ok{color:#1a7f37; font-weight:600;}',
     ].join('\n');
     document.head.appendChild(el);
   }
@@ -213,7 +216,11 @@
     document.body.appendChild(overlay);
 
     var msg = overlay.querySelector('.ml-claim-pop-msg');
-    function say(text) { msg.textContent = text; msg.hidden = false; }
+    function say(text, ok) {
+      msg.textContent = text;
+      msg.classList.toggle('ok', !!ok);
+      msg.hidden = false;
+    }
 
     overlay.addEventListener('click', function (ev) {
       if (ev.target === overlay || ev.target.getAttribute('data-act') === 'cancel') { closePop(); return; }
@@ -229,7 +236,11 @@
       }).then(function (res) {
         if (res.status === 401) { say('Talep göndermek için önce giriş yapmalısın.'); btn.disabled = false; btn.textContent = 'Talep Gönder'; return; }
         if (!res.ok) { say(res.d.error || 'Talep gönderilemedi, tekrar dene.'); btn.disabled = false; btn.textContent = 'Talep Gönder'; return; }
-        say('Talebin alındı. Onaylandığında bilgilendirileceksin.');
+        // Talep alındı: not kutusu artık işe yaramaz (ikinci kez gönderilemez), gizlenir —
+        // kullanıcı isteği, 2026-09-10: "gönderildi dedikten sonra yazı yazma kutucuğu kapatılsın".
+        var ta = overlay.querySelector('textarea');
+        if (ta) ta.hidden = true;
+        say('Talebin alındı, onaylandığında hesabım sayfasında bildirim olarak göreceksin.', true);
         btn.textContent = 'Gönderildi';
       }).catch(function () {
         say('Sunucuya ulaşılamadı, tekrar dene.');

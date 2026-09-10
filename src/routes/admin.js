@@ -13,7 +13,7 @@ import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { handleUnassignedArchiveAdmin } from './unassignedArchive.js';
 // bkz. src/routes/submissions.js'teki AYNI CJS-interop içe aktarma — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
-const { isBrandOffice } = officeKindJs;
+const { isBrandOffice, isPureBrandOffice } = officeKindJs;
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -36,6 +36,8 @@ import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
 import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
 import { removeEntityImages } from '../lib/imageEmbedStore.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
+import { foldTr } from '../lib/textMatch.js';
+import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -771,14 +773,80 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
 // name döner — SEO_TYPE_CONFIG'in (yukarıda) aynı tablo eşlemesini kullanır ama farklı bir anahtar
 // (name) döndürdüğü için o endpoint'i tekrar kullanmak yerine küçük, amaca özel bir uç eklendi.
 const PROFILE_OPTION_TABLE = { architect: 'architects', office: 'offices' };
+const PROFILE_OPTION_LIMIT = 50;
+// ARAMA (kullanıcı isteği, 2026-09-10 madde 4: "Admin panelindeki üyeler kısmında bir üyenin
+// üzerine tıklayınca açılan pencerede kişi, firma ve marka aramasında bazen aradıklarımı
+// bulamıyorum ... Türkçe karakterle aramalara dikkat et").
+//
+// KÖK NEDEN — bu uç `name LIKE '%q%'` kullanıyordu. SQLite'ın yerleşik LIKE'ı büyük/küçük harf
+// duyarsızlığını YALNIZCA ASCII A-Z için uygular; Türkçe harflerde uygulamaz. Yani:
+//   * "şişecam" yazınca "Şişecam" BULUNAMIYORDU (baş harf Ş vs ş),
+//   * "istanbul" yazınca "İstanbul Mimarlık" BULUNAMIYORDU (İ vs i),
+//   * "sisecam" (Türkçe klavyesiz yazım) hiçbir zaman eşleşmiyordu,
+//   * kaydın slug'ını ya da legacy anahtarını yazan admin de sonuç alamıyordu.
+// Site genelindeki otomatik tamamlamalar bu sorunu ÇOKTAN çözmüş durumda: name_fold generated
+// kolonu + foldedPrefixThenSubstring (bkz. migrations/0079_search_fold_columns.sql ve
+// src/lib/searchFold.js). Bu uç, o desenin dışında kalmış son yerlerden biriydi — artık aynı
+// yardımcıyı kullanıyor, yani önce indexli ÖNEK eşleşmeleri, sonra aksan-duyarsız substring.
+//
+// EK: `slug` ve `legacy_key` de aranır (admin panelinde elinde çoğu zaman URL/anahtar olur) ve
+// sonuçta ad'ın yanında ayırt edici bir alt satır döner — aynı adı taşıyan iki kayıt (bu depoda
+// mümkün, bkz. proje notu "Duplicate name key limitation") artık listede ayırt edilebilir.
+// Firma/marka ayrımı da (office-kind.js#isPureBrandOffice ile) `kind` alanında bildirilir:
+// admin "marka" ararken sonucun marka mı firma mı olduğunu görebilmeli.
 async function handleProfileOptionsAdmin(env, url) {
-  const table = PROFILE_OPTION_TABLE[url.searchParams.get('type')];
+  const type = url.searchParams.get('type');
+  const table = PROFILE_OPTION_TABLE[type];
   if (!table) return errorJson('Geçersiz tip.');
-  const q = (url.searchParams.get('q') || '').trim();
-  const rows = q
-    ? await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL AND name LIKE ? ORDER BY name LIMIT 50`).bind(`%${q}%`).all()
-    : await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL ORDER BY name LIMIT 50`).all();
-  return json({ items: rows.results.map(r => r.name) });
+  const q = foldTr((url.searchParams.get('q') || '').trim());
+  const isOffice = table === 'offices';
+  const extraCols = isOffice
+    ? 'o.slug, o.loc AS hint, o.cats, (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count'
+    : "o.slug, o.position AS hint, NULL AS cats, 0 AS product_count";
+  const baseSelect = `SELECT o.id, o.name, ${extraCols} FROM ${table} o WHERE o.deleted_at IS NULL`;
+
+  let rows;
+  if (q) {
+    rows = await foldedPrefixThenSubstring({
+      runQuery: (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results),
+      sqlFor: (cond, limit) => `${baseSelect} ${cond} ORDER BY o.name COLLATE NOCASE LIMIT ${limit}`,
+      foldColumn: 'o.name_fold',
+      q, limit: PROFILE_OPTION_LIMIT, keyOf: r => r.id,
+    });
+    // Ad üzerinden hiçbir şey bulunamadıysa (ya da liste dolmadıysa) slug/legacy_key denenir —
+    // admin panelinde elde çoğu zaman URL parçası olur. Ayrı bir sorgu olması bilinçli: fold
+    // yardımcısı tek bir kolon üzerinde çalışır, slug/legacy_key zaten katlanmış (ASCII) biçimdedir.
+    if (rows.length < PROFILE_OPTION_LIMIT) {
+      const seen = new Set(rows.map(r => r.id));
+      const like = `%${q.replace(/[\\%_]/g, (c) => '\\' + c)}%`;
+      const { results } = await env.DB.prepare(
+        `${baseSelect} AND (o.slug LIKE ? ESCAPE '\\' OR o.legacy_key LIKE ? ESCAPE '\\') ORDER BY o.name COLLATE NOCASE LIMIT ${PROFILE_OPTION_LIMIT}`
+      ).bind(like, like).all();
+      for (const r of results || []) {
+        if (rows.length >= PROFILE_OPTION_LIMIT) break;
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        rows.push(r);
+      }
+    }
+  } else {
+    const { results } = await env.DB.prepare(
+      `${baseSelect} ORDER BY o.name COLLATE NOCASE LIMIT ${PROFILE_OPTION_LIMIT}`
+    ).all();
+    rows = results || [];
+  }
+
+  // items — GERİYE UYUMLU: eskiden düz bir ad dizisiydi, hâlâ ad dizisi olarak da okunabilsin diye
+  // ayrı `options` alanı eklendi. admin.html yeni alanı okur (bkz. wireUdAssign).
+  return json({
+    items: rows.map(r => r.name),
+    options: rows.map(r => ({
+      name: r.name,
+      slug: r.slug || null,
+      hint: r.hint || null,
+      kind: isOffice ? (isPureBrandOffice(r.cats, r.product_count || 0) ? 'marka' : 'firma') : 'kisi',
+    })),
+  });
 }
 
 // /api/admin/claims?status=pending

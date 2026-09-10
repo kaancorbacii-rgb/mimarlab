@@ -52,6 +52,16 @@
 //
 // Gerçek bir kazanç aranıyorsa doğru yer istek sayısı değil, aşağıdaki limitlerdir (80/96 aday
 // toplanıp bir avuç kart gösteriliyor) — ama onlar "seen" rotasyonunu besliyor, bkz. Kural 3.
+// ÖNİZLEME ("blurlu") KAYITLARI BU ŞERİTLERE GİRMEZ — noPreview=1 (kullanıcı isteği, 2026-09-10
+// madde 3: "Benzer Projeler, Şehirdeki Diğer Projeler ... gibi kısımlarda blurlu içerikleri
+// gösterme, blursuz olanlardan örnekler ver. Blurlar yayınlanırsa bu alanlara dahil olsunlar").
+// Eleme SUNUCUDA yapılır (bkz. src/routes/project.js#noPreview), istemcide DEĞİL — bunun nedeni
+// bu şeritlerin sabit bir aday havuzundan (limit 80/96) sonra yalnızca 9 kart göstermesi: istemci
+// tarafında elemek havuzun kendisini önizleme kayıtlarıyla doldurup gösterilecek kart sayısını
+// sessizce düşürürdü. Sunucu tarafı eleme, havuzun 96'sının da yayındaki kayıtlardan gelmesini
+// sağlar. Parametre URL'in parçası olduğundan edge/Worker önbellek anahtarı da ayrışır — önizleme
+// içeren eski gövdeler bu şeritlere sızmaz. Bir kayıt yayına alındığı an (preview_at NULL olur)
+// hiçbir ek adım gerekmeden yeniden aday havuzuna girer.
 const projectQueryInflight = new Map();
 function fetchProjectQuery(url) {
   const hit = projectQueryInflight.get(url);
@@ -145,7 +155,7 @@ const ArchitectProjects = (function () {
     let totalPages = 1;
     try {
       do {
-        const data = await fetchProjectQuery(`/api/projects?${key}=${encodeURIComponent(name)}&buildStatus=${encodeURIComponent(buildStatus)}&limit=96&page=${page}`);
+        const data = await fetchProjectQuery(`/api/projects?${key}=${encodeURIComponent(name)}&buildStatus=${encodeURIComponent(buildStatus)}&limit=96&page=${page}&noPreview=1`);
         if (!data) break;
         items.push(...(data.items || []));
         totalPages = data.totalPages || 1;
@@ -334,6 +344,8 @@ const RelatedProjects = (function () {
     const params = new URLSearchParams();
     paramList.forEach(([k, v]) => params.append(k, v));
     params.set('limit', String(limit));
+    // noPreview=1 — bkz. bu dosyanın başındaki NOPREVIEW notu.
+    params.set('noPreview', '1');
     try {
       const data = await fetchProjectQuery(`/api/projects?${params.toString()}`);
       return (data && data.items) || [];
@@ -603,6 +615,7 @@ const CityProjects = (function () {
     params.set('buildStatus', buildStatus);
     params.set('sort', 'random');
     params.set('limit', '96');
+    params.set('noPreview', '1'); // bkz. bu dosyanın başındaki NOPREVIEW notu
     let items = [];
     try {
       const data = await fetchProjectQuery(`/api/projects?${params.toString()}`);

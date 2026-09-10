@@ -437,8 +437,15 @@ async function withSingleFlight(key, fn) {
 // olmadan "Bu profil zaten yüklü" uyarısının yanındaki yeni "bu profili sahiplen" bağlantısı
 // (bkz. js/components/duplicate-name-check.js) çizilemez; bump edilmezse eski gövde 304 ile
 // servis edilmeye devam eder ve bağlantı canlıda hiç görünmezdi.
+// v28 (kullanıcı isteği, 2026-09-10 madde 7): /api/project/:slug'ın `photographerDetails` dizisi
+//     iki YENİ alan taşıyor — `type` ('architect' | 'office') ve office satırları için hazır `href`
+//     (/firma/ ya da /marka/). Künyedeki "Fotoğraf:" adının bir FİRMA/MARKA profiline de
+//     bağlanabilmesi (ve profili olmayan adın kaynak bağlantısına dönüşmesi) buna dayanır.
+//     v5-v27'nin AYNI tuzağı: yeni alanlar hiçbir canonical satırın updated_at'ini değiştirmez,
+//     yani parmak izi aynı kalır; bump edilmezse pop-up'ı daha önce açmış ziyaretçiler 304 ile
+//     eski gövdede takılıp fotoğrafçı çipini tıklanamaz görmeye devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v27';
+const API_PAYLOAD_VERSION = 'v28';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

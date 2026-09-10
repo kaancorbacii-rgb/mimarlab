@@ -55,6 +55,20 @@ const ProjectMeta = (function () {
   }
   window.safeUrl = window.safeUrl || safeUrl;
 
+  // .designer-chip'in TÜM görsel kuralları sayfanın kendi CSS'inde (proje.html / en-iyi-100.html)
+  // duruyor; bu bileşen normalde hiç stil enjekte etmez. TEK istisna aşağıdaki kural: kaynak
+  // bağlantısı taşıyan fotoğrafçı etiketinin ALTI ÇİZİLİ olması (kullanıcı isteği, 2026-09-10
+  // madde 7). Sayfa CSS'ine yazılsaydı iki dosyada birden tekrarlanması ve proje popup'ının
+  // açılabildiği DİĞER sayfalarda (kisi/firma/marka/urun/ana sayfa — lazy-modals üzerinden) hiç
+  // uygulanmaması gerekirdi; kuralı çipi BASAN dosyaya koymak tek kaynak bırakır.
+  function injectSourceChipStyle() {
+    if (document.getElementById('project-meta-source-chip-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'project-meta-source-chip-styles';
+    style.textContent = 'a.designer-chip-source .designer-chip-name{text-decoration:underline; text-underline-offset:2px;}';
+    document.head.appendChild(style);
+  }
+
   function designerChipHtml(d) {
     const avatarClass = d.type === 'office' ? ' office-avatar' : '';
     // gerçek bulgu: fotoğraf/logo VARSA yalnızca <img> basılıyordu (baş harfler hiç DOM'a
@@ -88,12 +102,23 @@ const ProjectMeta = (function () {
       }
       return `<span class="designer-chip">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
     }
+    // d.externalUrl — MİMARLAB'da profili OLMAYAN bir fotoğrafçı/kaynak adı ama projenin "Kaynak"
+    // alanında bir bağlantı var (kullanıcı isteği, 2026-09-10 madde 7). Avatarsız, ALTI ÇİZİLİ ve
+    // YENİ SEKMEDE açılır. rel="noopener noreferrer nofollow": dış, kullanıcı tarafından girilmiş
+    // bir adres — açılan sayfaya window.opener verilmez ve bağlantıya SEO ağırlığı taşınmaz.
+    if (d.externalUrl) {
+      injectSourceChipStyle();
+      return `<a class="designer-chip designer-chip-no-avatar designer-chip-source" href="${escapeAttr(d.externalUrl)}" target="_blank" rel="noopener noreferrer nofollow"><span class="designer-chip-name">${escapeHtml(d.name)}</span></a>`;
+    }
     // d.slug: kaydın GERÇEK slug'ı (bkz. src/routes/project.js#fetchDesignerDetails/
     // fetchPhotographerDetails) — slugify(d.name) yalnızca eski çağıranların slug taşımadığı
     // durumlar için fallback olarak kalır. Bu ayrım fotoğrafçı çipleri için ŞART: slug'lar
     // isimden bağımsız olabiliyor (bkz. "legacy_static slug ≠ slugify(title)" notu).
     const key = encodeURIComponent(d.slug || slugify(d.name));
-    const href = d.type === 'architect' ? `/kisi/${key}` : `/firma/${key}`;
+    // d.href — sunucunun hazır verdiği yol (fotoğrafçı künyesinden çözülen firma/marka çipleri
+    // /firma/ ya da /marka/ olabilir, ayrımın tek kaynağı sunucudur — bkz. src/routes/project.js#
+    // fetchPhotographerOfficeDetails). Verilmediğinde eski davranış aynen korunur.
+    const href = d.href || (d.type === 'architect' ? `/kisi/${key}` : `/firma/${key}`);
     const badge = verifiedBadgeHtml(d.type, d.name, d.badges, 13);
     return `<a class="designer-chip" href="${href}">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}${badge}</span></a>`;
   }
@@ -127,9 +152,17 @@ const ProjectMeta = (function () {
   // Eşleşen isim designerChipHtml'e normal (avatarlı, /kisi/:slug'a giden) bir mimar çipi olarak,
   // eşleşmeyen isim ise unregistered olarak verilir — o dal zaten "avatarsız, tıklanamaz, yalnızca
   // isim" çipi üretiyor, yani istenen iki görünüm için ayrı bir şablona gerek yok.
+  // KAYNAK BAĞLANTISI (kullanıcı isteği, 2026-09-10 madde 7): proje düzenleme formundaki "Kaynak"
+  // kutusunda bir link varsa (projects.photo_credit_url), MİMARLAB'da profili OLMAYAN fotoğrafçı
+  // etiketi artık ölü bir metin değil — altı çizili bir bağlantı olur ve yeni sekmede kaynağı açar.
+  // ÖNCELİK SIRASI kullanıcının cümlesindekiyle aynı: "popup varsa popup açılsın yoksa linke
+  // gitsin" — yani bir kişi/firma/marka profiline bağlanabilen isim ASLA dış bağlantıya gitmez.
   function photographerChipList(item) {
     const matched = (item.photographerDetails || []).filter(p => p && p.name);
     const text = item.photoCredit && item.photoCredit.text ? item.photoCredit.text : '';
+    // Kaynak yalnızca gerçekten http(s)'e çözülüyorsa kullanılır (safeUrl, bu dosyada tanımlı) —
+    // javascript:/data: gibi bir değer künyeye yazılmış olsa bile bağlantıya dönüşmez.
+    const sourceUrl = (item.photoCredit && item.photoCredit.url) ? safeUrl(item.photoCredit.url) : '';
     const byName = new Map(matched.map(p => [p.name.trim().toLocaleLowerCase('tr'), p]));
     const chips = [];
     const seen = new Set();
@@ -137,8 +170,15 @@ const ProjectMeta = (function () {
       const key = name.toLocaleLowerCase('tr');
       if (seen.has(key)) return;
       seen.add(key);
-      chips.push(hit
-        ? { type: 'architect', name: hit.name, slug: hit.slug, photo: hit.photo }
+      if (hit) {
+        // hit.type — 'architect' (project_photographers kenarı) ya da 'office' (künye adının
+        // firma/marka karşılığı, bkz. src/routes/project.js#fetchPhotographerOfficeDetails).
+        // hit.href, office için sunucunun hazır verdiği /firma/ ya da /marka/ yoludur.
+        chips.push({ type: hit.type || 'architect', name: hit.name, slug: hit.slug, photo: hit.photo, href: hit.href || null });
+        return;
+      }
+      chips.push(sourceUrl
+        ? { type: 'architect', name, externalUrl: sourceUrl }
         : { type: 'architect', name, unregistered: true });
     };
     text.split(',').map(s => s.trim()).filter(Boolean).forEach(name => push(name, byName.get(name.toLocaleLowerCase('tr'))));

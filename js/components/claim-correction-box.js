@@ -195,12 +195,28 @@ function createClaimCorrectionBox(config){
     // Bu profil BAŞKA bir hesap tarafından da olsa zaten onaylı şekilde sahiplenildiyse (bkz.
     // /api/public/claim-status, auth gerektirmez), kutucuğu kimden bakılırsa bakılsın gizle —
     // aksi halde her ziyaretçi, profil zaten sahiplenilmiş olsa bile "sana mı ait?" davetini görürdü.
+    //
+    // FİRMA/MARKA İSTİSNASI (kullanıcı isteği, 2026-09-10 madde 5: "Birden fazla kullanıcı bir
+    // firmaya yönetici olabilsin"): bir firmanın/markanın birden çok yetkilisi (kurucu, ortak,
+    // yönetici) olabilir, dolayısıyla İLK sahiplenme sonrakileri KAPATMAMALI. Sunucu tarafı bunu
+    // zaten destekliyordu — profile_claims'in UNIQUE kısıtı (user_id, profile_type, profile_key)
+    // üçlüsündedir, yani aynı firmaya farklı kullanıcıların onaylı satırları yan yana durabilir ve
+    // mesaj/rozet/düzenleme yolları çoklu sahibi zaten okuyor (bkz. src/routes/messages.js#
+    // resolveRecipients'in DISTINCT user_id listesi). TEK engel bu istemci satırıydı: ilk onaydan
+    // sonra davet kutusu herkesten gizlendiği için ikinci bir yetkili talep bile gönderemiyordu.
+    // KİŞİ profilinde kural DEĞİŞMEZ: bir kişi profili tek bir gerçek insana karşılık gelir,
+    // sahiplenildikten sonra ikinci bir talep davetini göstermek yanlış olurdu.
     let alreadyClaimed = false;
-    try{
-      const claimStatusRes = await fetch(`/api/public/claim-status?profileType=${config.profileType}&profileKey=${encodeURIComponent(profileKey)}`);
-      if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
-    }catch{}
-    const badged = await hasActiveBadge(profileKey);
+    if(config.profileType === 'architect'){
+      try{
+        const claimStatusRes = await fetch(`/api/public/claim-status?profileType=${config.profileType}&profileKey=${encodeURIComponent(profileKey)}`);
+        if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
+      }catch{}
+    }
+    // badged — rozetli (doğrulanmış/altın) bir profilde davet kutusu gizlenir. FİRMA/MARKA'da bu
+    // kural da uygulanmaz (bkz. hemen yukarıdaki alreadyClaimed istisnası, aynı gerekçe): rozet
+    // profilin doğrulandığını söyler, ikinci bir yetkilinin talep gönderemeyeceğini değil.
+    const badged = config.profileType === 'architect' ? await hasActiveBadge(profileKey) : false;
     if(config.isStale && config.isStale()) return;
 
     if(!currentUser){

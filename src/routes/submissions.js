@@ -8,6 +8,7 @@ import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, cascadeRemovedOfficesFromArchitect, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
+import { projectEditGraceState } from '../lib/projectEditGrace.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -648,6 +649,12 @@ async function enrichSubmissionCrossLinks(env, typeKey, row, item) {
 // scripts/test-office-member-profile-edit.mjs'teki testi).
 async function canAccessSubmissionRow(env, user, typeKey, row) {
   if (user.role === 'admin') return true;
+  // KÜNYEDEN ÇIKARILMA (kullanıcı isteği, 2026-09-10 madde 2): owner_user_id dalı, projeyi bir kez
+  // düzenlemiş kullanıcıya SÜRESİZ erişim bırakıyordu — künyedeki firmasını kendi eliyle silmiş
+  // olsa bile. Damga olgunlaştığında (çıkarılmanın üzerinden 24 saat geçtiğinde) bu dal da kapanır;
+  // 24 saat dolmadan HİÇBİR şey değişmez, yani "yanlışlıkla sildim" senaryosu bozulmaz. Bkz.
+  // src/lib/projectEditGrace.js ve migrations/0109_project_edit_grace.sql.
+  if (typeKey === 'projects' && await projectEditRevokedForSubmission(env, user, row)) return false;
   if (row.owner_user_id && row.owner_user_id === user.id) return true;
   if (row.claimed_profile_key && CLAIM_PROFILE_TYPE[typeKey]) {
     if (!(await verifyClaimedProfileKey(env, user, typeKey, row.claimed_profile_key))) return true;
@@ -656,6 +663,19 @@ async function canAccessSubmissionRow(env, user, typeKey, row) {
     if (!(await claimedSlugVerifierFor(typeKey)(env, user, row.claimed_slug))) return true;
   }
   return false;
+}
+
+// canAccessSubmissionRow'un damga kapısı — taslağın işaret ettiği canonical proje satırını bulur
+// (claimed_slug DOLU ise onun üzerinden, değilse 'submission:<id>' marker'ı üzerinden; ikisi
+// src/lib/canonicalSync.js#syncProject'in projeyi bulmak için kullandığı AYNI iki yol) ve o proje
+// için kullanıcının damgasının olgunlaşıp olgunlaşmadığını sorar.
+async function projectEditRevokedForSubmission(env, user, row) {
+  const marker = `submission:${row.id}`;
+  const project = row.claimed_slug
+    ? await env.DB.prepare(`SELECT id FROM projects WHERE deleted_at IS NULL AND (legacy_key = ? OR slug = ?) LIMIT 1`).bind(row.claimed_slug, row.claimed_slug).first()
+    : await env.DB.prepare(`SELECT id FROM projects WHERE legacy_key = ? LIMIT 1`).bind(marker).first();
+  if (!project) return false;
+  return (await projectEditGraceState(env, project.id, user.id)) === 'revoked';
 }
 
 async function getOwnSubmission(env, user, typeKey, id) {

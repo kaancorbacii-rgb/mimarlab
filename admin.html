@@ -1925,9 +1925,20 @@ function wireUdAssign(profileType, inputId, resultsId, positionSelectId){
     clearTimeout(timer);
     timer = setTimeout(async ()=>{
       const data = await api(`/api/admin/profile-options?type=${profileType}&q=${encodeURIComponent(input.value.trim())}`);
-      const names = data.items || [];
-      results.innerHTML = names.length
-        ? names.map(n => `<div class="ud-assign-result-row" data-name="${escapeAttr(n)}">${escapeHtml(n)}</div>`).join('')
+      // options — ad + slug + firma/marka ayrımı + konum/görev ipucu (bkz. src/routes/admin.js#
+      // handleProfileOptionsAdmin). Eski düz `items` dizisine geri düşer: deploy anında edge'de
+      // duran eski bir gövde okunursa liste yine de dolar, yalnızca alt satır boş kalır.
+      const options = (data.options && data.options.length)
+        ? data.options
+        : (data.items || []).map(n => ({ name: n, slug: null, hint: null, kind: null }));
+      const KIND_LABEL = { marka: 'Marka', firma: 'Firma', kisi: 'Kişi' };
+      results.innerHTML = options.length
+        ? options.map(o => {
+            const meta = [o.kind ? KIND_LABEL[o.kind] : '', o.hint || '', o.slug ? '/' + o.slug : ''].filter(Boolean).join(' · ');
+            return `<div class="ud-assign-result-row" data-name="${escapeAttr(o.name)}">${escapeHtml(o.name)}` +
+              (meta ? `<span style="display:block; font-size:11.5px; color:var(--ink-soft);">${escapeHtml(meta)}</span>` : '') +
+              `</div>`;
+          }).join('')
         : '<div class="ud-assign-result-row" style="cursor:default; color:var(--ink-soft);">Sonuç yok.</div>';
       results.querySelectorAll('.ud-assign-result-row[data-name]').forEach(row=>{
         row.addEventListener('click', async ()=>{

@@ -1,3 +1,7 @@
+// Künyeden çıkarılan firma/kişi için 1 günlük düzenleme yetkisi penceresi (kullanıcı isteği,
+// 2026-09-10 madde 2) — kural ve tablo: src/lib/projectEditGrace.js, migrations/0109_project_edit_grace.sql.
+import { projectEditGraceState } from './projectEditGrace.js';
+
 // Bir mimar/firma profilini onaylı bir profile_claims ile sahiplenen (bkz. kullanıcı isteği: "Admin
 // bir mimar ya da firmayı bir kullanıcı üzerine atasın, kullanıcı o profildeki projelerde de
 // değişiklik yapabilsin") kullanıcının, o profile project_designers üzerinden (architect_id/office_id
@@ -26,14 +30,24 @@ export async function canUserEditProjectBySlug(env, user, slug) {
     `SELECT id FROM projects WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`
   ).bind(slug, slug).first();
   if (!project) return false;
+  if (await hasCreditBasedProjectAccess(env, user, project.id)) return true;
+  // ÖDEMESİZLİK PENCERESİ (kullanıcı isteği, 2026-09-10 madde 2): künyeden ÇIKARILDIYSA yetki
+  // hemen bitmez, 24 saat daha sürer — kullanıcı yanlışlıkla sildiği ismi geri koyabilsin diye
+  // (aksi halde düzenleme sayfasına bir daha hiç giremezdi). Bkz. src/lib/projectEditGrace.js.
+  return (await projectEditGraceState(env, project.id, user.id)) === 'grace';
+}
 
+// canUserEditProjectBySlug'ın "yetki KÜNYEDEN geliyor mu?" çekirdeği — ödemesizlik penceresinden
+// BAĞIMSIZ, saf canlı künye kuralı. Ayrı bir fonksiyon olması şart: pencere mantığı bu cevabı
+// yalnızca HAYIR olduğunda devreye sokar, EVET'i asla ezmez.
+async function hasCreditBasedProjectAccess(env, user, projectId) {
   const { results } = await env.DB.prepare(
     `SELECT ar.name AS ar_name, ofc.name AS ofc_name
      FROM project_designers pd
      LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
      LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
      WHERE pd.project_id = ?`
-  ).bind(project.id).all();
+  ).bind(projectId).all();
 
   const architectNames = [...new Set(results.map(r => r.ar_name).filter(Boolean))];
   const officeNames = [...new Set(results.map(r => r.ofc_name).filter(Boolean))];

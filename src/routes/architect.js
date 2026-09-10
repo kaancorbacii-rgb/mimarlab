@@ -317,7 +317,11 @@ export async function handleArchitectListRoute(request, env, url) {
       return true;
     }
 
-    const filtered = pool.filter(passes);
+    // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 3 ve 6) — öneri şeritleri ve ana sayfa
+    // karuselleri önizleme (blurlu) kayıtları HİÇ görmemeli; liste sayfası (kisi.html) gönderMEZ.
+    const noPreview = url.searchParams.get('noPreview') === '1';
+    const visiblePool = noPreview ? pool.filter(a => !a.preview) : pool;
+    const filtered = visiblePool.filter(passes);
 
     // sort boşsa (varsayılan) ya da 'popular' ise en çok projesi olan mimar önce gelir, eşitlikte
     // isim A-Z (bkz. yukarıdaki "Varsayılan sıralama" notu). 'newest' — id DESC — anasayfa
@@ -350,7 +354,7 @@ export async function handleArchitectListRoute(request, env, url) {
     // çizilmez. kisi-ekle.html#MESLEK_OPTIONS'taki bir meslek ilk kişisini alır almaz kendiliğinden
     // filtre olarak belirir; sıralaması kisi.html#PROFESSION_ORDER ile o formdaki sırayla eşlenir.
     const dobCounts = {}, awardCounts = {}, positionCounts = {}, professionCounts = {}, schoolCounts = {};
-    pool.forEach(a => {
+    visiblePool.forEach(a => {
       if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
       // (a.awards || []) — professions'takiyle AYNI eski-havuz koruması (bu alan officeAwards'ın
       // yerini aldı, artık kişinin KENDİ ödüllerini de içerir, bkz. fetchArchitectPool).

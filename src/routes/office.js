@@ -279,7 +279,12 @@ export async function handleOfficeListRoute(request, env, url) {
       return true;
     }
 
-    const filtered = pool.filter(passes);
+    // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 3 ve 6) — öneri şeritleri ve ana sayfa
+    // karuselleri önizleme (blurlu) kayıtları HİÇ görmemeli; liste sayfaları (firma/marka.html)
+    // bu parametreyi göndermez, orada önizleme kartları sahiplenme akışının girişi olarak kalır.
+    const noPreview = url.searchParams.get('noPreview') === '1';
+    const visiblePool = noPreview ? pool.filter(o => !o.preview) : pool;
+    const filtered = visiblePool.filter(passes);
 
     // sort boşsa (varsayılan) ya da 'popular' ise en çok projesi olan firma önce gelir, eşitlikte
     // isim A-Z (bkz. src/routes/architect.js#handleArchitectListRoute'daki AYNI desen). 'newest' —
@@ -321,7 +326,7 @@ export async function handleOfficeListRoute(request, env, url) {
     // (kullanıcı isteği: "Firma sayfasındaki filtrelerdeki ürün seçeneğini kaldır") — saf markalar
     // zaten havuzdan düştüğü için 'Ürün' pratikte hiç sayılmaz, ama bu süzgeç ileride 'Mimarlık ·
     // Ürün' gibi karma bir kayıt oluşsa bile firma filtresine marka kategorisi sızdırmaz.
-    const countPool = pool.filter(o => (brandsOnly
+    const countPool = visiblePool.filter(o => (brandsOnly
       ? isBrandOffice(o.cats, o.productCount)
       : !isPureBrandOffice(o.cats, o.productCount)));
     const allowedCatSet = brandsOnly ? BRAND_CAT_SET : OFFICE_SERVICE_CAT_SET;

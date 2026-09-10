@@ -1275,10 +1275,16 @@ async function internalApiJson(env, ctx, pathname) {
 async function loadHomeData(env, ctx) {
   const load = (async () => {
     const [projects, architects, offices, products, settings] = await Promise.all([
-      internalApiJson(env, ctx, `/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}`),
-      internalApiJson(env, ctx, `/api/architects?limit=${HOME_SLOTS}`),
-      internalApiJson(env, ctx, `/api/offices?limit=${HOME_SLOTS}`),
-      internalApiJson(env, ctx, `/api/products?limit=${HOME_SLOTS}`),
+      // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 6: "Ana sayfadaki carosellerde blurlu
+      // gönderileri gösterme") — proje karuseli bunu zaten aşağıdaki `!p.preview` süzgeciyle
+      // yapıyordu ama kişi/firma/ürün karuselleri YAPMIYORDU: onlarda eleme yoktu, dolayısıyla
+      // limit=9 isteğinin ilk 9'una giren önizleme kayıtları vitrine çıkıyordu. Elemeyi SUNUCUYA
+      // taşımak ayrıca "9 çekip 9'dan azını göster" sorununu da çözer — 9 slot artık her zaman
+      // yayındaki kayıtlarla dolar (bkz. src/routes/*.js#noPreview).
+      internalApiJson(env, ctx, `/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}&noPreview=1`),
+      internalApiJson(env, ctx, `/api/architects?limit=${HOME_SLOTS}&noPreview=1`),
+      internalApiJson(env, ctx, `/api/offices?limit=${HOME_SLOTS}&noPreview=1`),
+      internalApiJson(env, ctx, `/api/products?limit=${HOME_SLOTS}&noPreview=1`),
       internalApiJson(env, ctx, '/api/public/site-settings'),
     ]);
     let projectItems = null;

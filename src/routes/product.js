@@ -503,7 +503,15 @@ export async function handleProductListRoute(request, env, url) {
       return true;
     }
 
-    const filtered = pool.filter(p => passes(p, null));
+    // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 3 ve 6) — öneri şeritleri ("Benzer Ürünler",
+    // "Firmanın Diğer Ürünleri") ve ana sayfa karuselleri önizleme (blurlu) kayıtları HİÇ görmemeli.
+    // Liste sayfası (urun.html) bu parametreyi göndermez, orada önizleme kartları kalır.
+    // Yayına alınan kayıt preview_at'ini kaybettiği an bu şeritlere kendiliğinden geri girer.
+    // Eleme HAVUZUN KENDİSİNDE yapılır (yalnızca çıktı listesinde değil) ki faset sayaçları da
+    // (countsFor, aşağıda) gösterilen listeyle aynı kümeyi saysın.
+    const noPreview = url.searchParams.get('noPreview') === '1';
+    const visiblePool = noPreview ? pool.filter(p => !p.preview) : pool;
+    const filtered = visiblePool.filter(p => passes(p, null));
 
     // ÖNİZLEME kayıtları her sıralamada EN SONA (bkz. src/routes/architect.js#previewRank'taki AYNI
     // gerekçe — bir `sort` verildiğinde bu JS sıralaması havuzun ORDER BY'ını tamamen ezer).
@@ -532,7 +540,7 @@ export async function handleProductListRoute(request, env, url) {
     // orderIndex (opsiyonel) verilirse sayaç yerine o sıraya göre sıralanır — bkz. yukarıdaki
     // CATALOG_GROUP_ORDER/CATALOG_CATEGORY_ORDER yorumu (Grup/Kategori mega menü sırasını izler).
     function countsFor(key, fieldFn, orderIndex) {
-      const passing = pool.filter(p => passes(p, key));
+      const passing = visiblePool.filter(p => passes(p, key));
       const counts = {};
       passing.forEach(p => { (fieldFn(p) || []).forEach(v => { if (v) counts[v] = (counts[v] || 0) + 1; }); });
       const keys = Object.keys(counts);

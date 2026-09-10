@@ -27,6 +27,10 @@ import officeKindJs from '../../office-kind.js';
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
 import { foldTr } from '../lib/textMatch.js';
+// Fotoğrafçı künyesinden çözülen FİRMA/MARKA çipinin adresi — /firma/ mı /marka/ mı olduğunun
+// TEK kaynağı sunucudur (bkz. js/components/office-modal.js#item.isBrand'daki AYNI gerekçe;
+// office-kind.js proje.html'de yüklü DEĞİL, istemci bu ayrımı yeniden hesaplayamaz).
+import { officePath } from '../lib/officeUrl.js';
 
 const { isBrandOffice } = officeKindJs;
 
@@ -66,7 +70,38 @@ async function fetchPhotographerDetails(env, projectId) {
      JOIN architects ar ON ar.id = pp.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
      WHERE pp.project_id = ?`
   ).bind(projectId).all();
-  return results.map(r => ({ name: r.name, slug: r.slug, photo: r.photo_url || null }));
+  return results.map(r => ({ name: r.name, slug: r.slug, photo: r.photo_url || null, type: 'architect' }));
+}
+
+// Künyedeki "Fotoğraf:" metnindeki isimlerden FİRMA/MARKA karşılığı olanlar (kullanıcı isteği,
+// 2026-09-10 madde 7: "eğer bu fotoğrafçıda yazan kişinin mimarlab'da kişi, firma veya marka
+// popupı varsa fotoğrafçı etiketine tıklayınca bu popupa gitsin").
+//
+// NEDEN İSİMDEN ÇÖZÜLÜYOR (kenar tablosundan değil): project_photographers YALNIZCA architect_id
+// tutar (bkz. migrations/0080_project_photographers.sql — fotoğrafçı bir KİŞİ profilidir varsayımı).
+// Ama künyeye çoğu zaman bir STÜDYO adı yazılıyor ("Galataport Istanbul", "ALTKAT Architectural
+// Photography") ve bunların MİMARLAB'daki karşılığı bir offices satırıdır. Kenar tablosuna office
+// sütunu eklemek şema + canonicalSync + proje-ekle formu zincirinin tamamını değiştirmeyi
+// gerektirirdi; buradaki okuma-anı isim eşleşmesi aynı sonucu üretir ve HİÇBİR yazma yolunu
+// değiştirmez. Eşleşme name_fold üzerinden (Türkçe katlamalı, indexli) yapılır — künyeye yazılan
+// biçim ile kayıtlı ad büyük/küçük harf ve aksan bakımından ayrışabilir.
+// Düz IN(...) kullanılır, `A OR B` zinciri DEĞİL — bkz. proje notu: SQLite ifade-ağacı derinlik sınırı.
+async function fetchPhotographerOfficeDetails(env, creditText) {
+  const names = String(creditText || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+  if (!names.length) return [];
+  const folded = [...new Set(names.map(n => foldTr(n)))].filter(Boolean);
+  if (!folded.length) return [];
+  const { results } = await env.DB.prepare(
+    `SELECT name, slug, logo_url, cats, name_fold,
+            (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.brand_office_id = offices.id) AS product_count
+       FROM offices
+      WHERE deleted_at IS NULL AND hidden_at IS NULL AND name_fold IN (${folded.map(() => '?').join(', ')})`
+  ).bind(...folded).all();
+  return (results || []).map(r => ({
+    name: r.name, slug: r.slug, photo: r.logo_url || null, type: 'office',
+    // href — istemci /firma/ ile /marka/ arasında seçim YAPMAZ, hazır yolu kullanır.
+    href: officePath(r.slug, r.cats, r.product_count || 0),
+  }));
 }
 
 // proje-ekle.html'in Mimar/Firma alanlarına yazılan ama architects/offices'te eşleşen bir kaydı
@@ -389,14 +424,17 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // alan sızar — kaydın geri kalanı (item) hâlâ null'dır, yani 410'un koruması aynen sürer.
     if (row.hidden_at) return { item: null, hidden: true, preview: !!row.preview_at, previewTitle: row.preview_at ? row.title : null, previewSlug: row.preview_at ? row.slug : null };
     const item = shapeProjectItem(row);
-    const [designerDetails, rawNames, owner, photographerDetails] = await Promise.all([
+    const [designerDetails, rawNames, owner, photographerDetails, photographerOffices] = await Promise.all([
       fetchDesignerDetails(env, row.id),
       fetchRawDesignerNames(env, row),
       fetchOwnerByline(env, row.claimed_by_user_id),
       fetchPhotographerDetails(env, row.id),
+      fetchPhotographerOfficeDetails(env, row.photo_credit_text),
     ]);
     if (owner) Object.assign(item, owner);
-    item.photographerDetails = photographerDetails;
+    // Kişi eşleşmeleri ÖNCE gelir: aynı ad hem architects hem offices'te varsa (bu depoda mümkün,
+    // bkz. proje notu "Duplicate name key limitation") künyedeki "Fotoğraf" bir kişiye işaret eder.
+    item.photographerDetails = [...photographerDetails, ...photographerOffices];
     // Zaten eşleşmiş (profilli) isimlerin ÜZERİNE yazmayan, formda yazılan ama hiçbir profile
     // bağlanamamış isimler için künyede baş harfli, tıklanamaz bir "rozet" fallback'i (bkz. yukarıdaki
     // fetchRawDesignerNames yorumu ve kullanıcı isteği). rawNames.isLegacy=false (bkz. migrations/
@@ -694,7 +732,11 @@ function hasActiveProjectListFilters(url) {
 // elle serpiştirilmiş bir parti (bkz. B&T Design 43-proje partisi, 2026-09-04) sıralamayı burada
 // override eder. idx_projects_build_status_order bu ifadeyi AYNEN kapsayacak şekilde yeniden
 // oluşturuldu, ORDER BY dışta AYNEN tekrarlanır (bkz. yukarıdaki performans notu).
-async function fetchProjectPageRows(env, buildStatus, limit, offset) {
+async function fetchProjectPageRows(env, buildStatus, limit, offset, noPreview) {
+  // noPreview — bkz. fetchProjectListPageFromD1'deki gerekçe.
+  const innerWhere = noPreview
+    ? `deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?`
+    : `deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?`;
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
@@ -702,7 +744,7 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
             p.image_hotspots, p.preview_at, p.relisted_at,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
-           WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?
+           WHERE ${innerWhere}
            ORDER BY (preview_at IS NOT NULL) ASC, relisted_at DESC, COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
            LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
      GROUP BY p.id ORDER BY (p.preview_at IS NOT NULL) ASC, p.relisted_at DESC, COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
@@ -770,8 +812,16 @@ async function fetchRatingsForSlugs(env, slugs) {
 // ÖNİZLEME satırları da dahil (bkz. migrations/0107_preview_state.sql) — bu, filtresiz hızlı yolun
 // (D1 sayfalama) fetchActiveProjectPool ile AYNI kapsamı görmesini sağlar; ikisi ayrışırsa aynı
 // liste, filtre uygulanınca birden farklı sayıda kayıt gösterirdi.
-async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
-  const where = `deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?`;
+async function fetchProjectListPageFromD1(env, buildStatus, page, limit, noPreview) {
+  // noPreview (kullanıcı isteği, 2026-09-10 madde 3 ve 6): ÖNERİ ŞERİTLERİ ve ANA SAYFA
+  // KARUSELLERİ önizleme (blurlu) kayıtları HİÇ görmemeli — "blursuz olanlardan örnekler ver".
+  // Liste SAYFALARI (proje.html vb.) bu parametreyi göndermez, orada önizleme kartları görünmeye
+  // devam eder (sahiplenme akışının giriş noktası onlar, bkz. js/components/preview-cards.js).
+  // Yayına alınan bir kayıt preview_at'ini kaybettiği an her iki yol da onu yeniden içerir —
+  // ayrıca bir "geri ekleme" adımı YOK.
+  const where = noPreview
+    ? `deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?`
+    : `deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND build_status = ?`;
   const rawOffset = (page - 1) * limit;
   // COUNT(*) ve sayfa sorgusu PARALEL çalışır — page normal önyüz kullanımında (bilinen totalPages
   // içinde) hemen hemen HER ZAMAN aralık içinde olduğundan (frontend asla kendi hesapladığı
@@ -780,12 +830,12 @@ async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
   // eski JS yolundaki Math.min(page,totalPages) kırpmasıyla BİREBİR aynı sonuca düzeltilir.
   const [countRow, rawRows] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE ${where}`).bind(buildStatus).first(),
-    fetchProjectPageRows(env, buildStatus, limit, rawOffset),
+    fetchProjectPageRows(env, buildStatus, limit, rawOffset, noPreview),
   ]);
   const total = countRow?.n || 0;
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const clampedPage = Math.min(page, totalPages);
-  const rows = clampedPage === page ? rawRows : await fetchProjectPageRows(env, buildStatus, limit, (clampedPage - 1) * limit);
+  const rows = clampedPage === page ? rawRows : await fetchProjectPageRows(env, buildStatus, limit, (clampedPage - 1) * limit, noPreview);
 
   const items = rows.map(row => shapeProjectItem(row, { coverOnly: true }));
   const ratingBySlug = await fetchRatingsForSlugs(env, items.map(p => p.slug));
@@ -818,6 +868,8 @@ export async function handleProjectListRoute(request, env, url) {
     // (slug/title/lat/lng/kapak görseli) şekilde döner — kart listesinin taşıdığı description/designer/
     // awards vb. haritanın hiç ihtiyaç duymadığı alanları göndermez.
     const wantAll = url.searchParams.get('all') === '1';
+    // noPreview=1 — öneri şeritleri ve ana sayfa karuselleri (bkz. fetchProjectListPageFromD1).
+    const noPreview = url.searchParams.get('noPreview') === '1';
 
     // Faz 5 — D1 seviyesinde sayfalama (bkz. kullanıcı isteği: "Database-Level Filtering &
     // Pagination"). Hiçbir filtre/arama parametresi aktif değilken VE sort, pool'un zaten geldiği
@@ -832,7 +884,7 @@ export async function handleProjectListRoute(request, env, url) {
     // kullanıcı isteği: "riskli biçimde yeniden yazma" YASAĞI) — o durumda aşağıdaki eski tam-havuz
     // yolu AYNEN korunur.
     if (!wantAll && !hasActiveProjectListFilters(url) && !SORT_REQUIRES_JS_FILTER.has(sort)) {
-      return fetchProjectListPageFromD1(env, buildStatus, page, limit);
+      return fetchProjectListPageFromD1(env, buildStatus, page, limit, noPreview);
     }
 
     const [pool, ratingRows] = await Promise.all([
@@ -869,6 +921,9 @@ export async function handleProjectListRoute(request, env, url) {
     }
 
     let filtered = pool.filter(p => passesFilters(p));
+    // Havuz yolunda (filtre/arama aktifken veya sort=random'da) önizleme elemesi burada yapılır —
+    // D1 hızlı yolundaki WHERE ile AYNI sonuç (bkz. fetchProjectListPageFromD1#noPreview).
+    if (noPreview) filtered = filtered.filter(p => !p.preview);
 
     // proje.html#render()'daki sort switch'in BİREBİR aynısı — sort boşsa fetchActiveProjectPool
     // zaten ORDER BY COALESCE(publish_date, created_at) DESC döndürdüğünden ek bir sıralama gerekmez.

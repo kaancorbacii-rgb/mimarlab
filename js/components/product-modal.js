@@ -1105,7 +1105,11 @@ const ProductModal = (function () {
     // slug) değil /api/products'ın döndürdüğü ratingKey ile karşılaştırılmalı.
     const selfKey = p.ratingKey || key;
     try {
-      const params = new URLSearchParams({ limit: '96', brand: p.brand });
+      // noPreview=1 — önizleme ("blurlu") ürünleri bu şeride HİÇ gelmesin (kullanıcı isteği,
+      // 2026-09-10 madde 3). Eleme sunucuda yapılır (bkz. src/routes/product.js#noPreview) ki
+      // 96'lık aday havuzu tamamen yayındaki ürünlerden gelsin; yayına alınan ürün kendiliğinden
+      // geri döner.
+      const params = new URLSearchParams({ limit: '96', brand: p.brand, noPreview: '1' });
       const res = await fetch(`/api/products?${params.toString()}`);
       // GERÇEK BULGU (popup taraması, 2026-08-31): await'ten SONRA hiçbir bayatlık kontrolü yoktu —
       // observeOnce yalnızca ÇAĞRI anında currentItem'ı doğruluyor, fetch dönene kadar kullanıcı
@@ -1226,7 +1230,7 @@ const ProductModal = (function () {
     // artık ürünü kendi "Diğer Ürünler" listesinde tekrar gösterirdi.
     const selfKey = p.ratingKey || key;
     try {
-      const params = new URLSearchParams({ limit: '96', category: p.category });
+      const params = new URLSearchParams({ limit: '96', category: p.category, noPreview: '1' }); // bkz. loadCompanyProducts'taki AYNI gerekçe
       const res = await fetch(`/api/products?${params.toString()}`);
       if (currentItem !== p) return; // bkz. loadCompanyProducts'taki AYNI bayatlık koruması
       if (!res.ok) return;

@@ -435,6 +435,22 @@ CREATE TABLE IF NOT EXISTS profile_claims (
 CREATE INDEX IF NOT EXISTS idx_claims_status ON profile_claims(status);
 CREATE INDEX IF NOT EXISTS idx_claims_key ON profile_claims(profile_type, profile_key);
 
+-- Proje künyesinden ÇIKARILAN firma/kişi için 1 günlük düzenleme yetkisi penceresi (kullanıcı
+-- isteği, 2026-09-10 madde 2). Kök neden ve tam gerekçe: migrations/0109_project_edit_grace.sql;
+-- kural: src/lib/projectEditGrace.js. Özet: künyeden çıkarılma anında revoke_at = şimdi + 24 saat
+-- damgalanır — o ana kadar yetki sürer (yanlışlıkla silmeyi geri alabilmek için), o andan sonra
+-- hem künye-tabanlı yol hem de submissions.owner_user_id yolu kapanır. Ad künyeye geri eklenirse
+-- damga silinir.
+CREATE TABLE IF NOT EXISTS project_edit_grace (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  revoke_at INTEGER NOT NULL,   -- ms epoch; > now => hâlâ düzenleyebilir, <= now => yetki kalktı
+  removed_key TEXT,             -- hangi künye adının çıkarılması damgayı doğurdu (denetim izi)
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (project_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_edit_grace_user ON project_edit_grace(user_id);
+
 -- Bir mimar/marka profilindeki "Bilgi kaynağı" kutucuğundan gönderilen, sahiplenme iddiası
 -- OLMAYAN düzeltme önerileri (ör. yanlış bilgi bildirimi). profile_claims'ten ayrı: aynı kullanıcı
 -- aynı profil için birden fazla öneri gönderebilir (unique kısıtı yok), admin manuel düzeltip

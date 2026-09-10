@@ -1116,8 +1116,11 @@ const ModalShell = (function () {
   //     güvenli varsayılan): "Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır." + iletişim
   //     çağrısı;
   //   * kayıt sahiplenilmişse (kişi/firma/marka profili ile sahiplenilmiş firma/markaların proje ve
-  //     ürünleri) yalnızca iletişim çağrısı — künyeyi artık sahibi yönetiyor, "doğrulanmamıştır"
-  //     demek yanlış olurdu; ama yanlışlık bildirimi için adres yine de gösterilir.
+  //     ürünleri) ibare TAMAMEN KALDIRILIR (kullanıcı isteği, 2026-09-10 madde 8: "Eğer bir kişi,
+  //     firma veya markaya bir kullanıcısı atanmışsa ... yazısı silinsin, aynı 'Bu firma sana mı
+  //     ait?' butonunun silindiği gibi"). ÖNCEKİ davranış "yalnızca iletişim çağrısı"nı bırakmaktı;
+  //     artık sahiplenilmiş bir künyenin altında hiçbir kaynak/ihbar satırı görünmez — künyeyi
+  //     sahibi yönetiyor ve düzeltme yolu (Düzenle / sahibe mesaj) zaten popup'ın kendi içinde.
   // Ortak kural burada, .source-disclaimer CSS'iyle AYNI gerekçeyle (dört modal dosyası da kendi
   // stilini/markup'ını ayrı enjekte ediyor, kural tek yerde durmalı). İçerik SABİT metindir,
   // kullanıcı verisi taşımaz — innerHTML yalnızca mailto bağlantısı için kullanılır.
@@ -1126,7 +1129,14 @@ const ModalShell = (function () {
   function setSourceDisclaimer(id, claimed) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = claimed ? SOURCE_DISCLAIMER_CONTACT : SOURCE_DISCLAIMER_UNVERIFIED;
+    if (claimed) {
+      // Metin de temizlenir, yalnızca gizlenmez: aynı popup kabuğu bir sonraki (sahiplenilmemiş)
+      // kayıt için yeniden kullanıldığında eski gövde bir an görünmesin.
+      el.innerHTML = '';
+      el.style.display = 'none';
+      return;
+    }
+    el.innerHTML = SOURCE_DISCLAIMER_UNVERIFIED;
     el.style.display = '';
   }
 

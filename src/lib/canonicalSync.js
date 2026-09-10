@@ -28,6 +28,9 @@ import { slugify } from './slugify.js';
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
 import { foldTr } from './textMatch.js';
+// Künyeden çıkarılan firma/kişi için 1 günlük düzenleme yetkisi penceresi (kullanıcı isteği,
+// 2026-09-10 madde 2) — bkz. syncProject'teki project_designers yeniden yazma bloğu.
+import { recordProjectEditGrace, clearProjectEditGrace } from './projectEditGrace.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
@@ -1242,6 +1245,22 @@ async function syncProject(env, row) {
   // yazılır — `target` yalnızca UPDATE dalında (yukarı) doluysa DELETE'e gerek vardır, yeni bir
   // projede (INSERT dalı) silinecek eski satır yoktur.
   if ((row.designer && row.designer.length) || (row.office && row.office.length)) {
+    // KÜNYEDEN ÇIKARILAN ADLAR — 1 günlük düzenleme yetkisi penceresi için (kullanıcı isteği,
+    // 2026-09-10 madde 2; bkz. src/lib/projectEditGrace.js ve migrations/0109_project_edit_grace.sql).
+    // Eski küme, DELETE'ten ÖNCE okunmak ZORUNDA: aşağıdaki batch project_designers'ı baştan yazar,
+    // sonrasında "neyin çıkarıldığı" bilgisi hiçbir yerde kalmaz. Bu, künyeyi değiştiren TEK yazma
+    // noktasıdır (üye düzenlemesi, admin paneli, ?claim= akışı, AI akışı — hepsi buradan geçer),
+    // dolayısıyla damga da tek yerden yazılır.
+    const previousNames = target
+      ? await env.DB.prepare(
+          `SELECT ar.name AS ar_name, ofc.name AS ofc_name
+             FROM project_designers pd
+             LEFT JOIN architects ar ON ar.id = pd.architect_id
+             LEFT JOIN offices ofc ON ofc.id = pd.office_id
+            WHERE pd.project_id = ?`
+        ).bind(projectId).all().then(r => r.results || [])
+      : [];
+
     const links = [];
     for (const name of (row.designer || [])) {
       const resolved = await resolveArchitectLink(env, name, `project_submission:${row.id}`);
@@ -1257,6 +1276,27 @@ async function syncProject(env, row) {
       statements.push(env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`).bind(projectId, link.architect_id, link.office_id));
     }
     if (statements.length) await env.DB.batch(statements);
+
+    // Yeni künye adları: resolve edilen id'lerden DEĞİL, formda yazılan adlardan okunur — damga
+    // profile_claims.profile_key (= çıplak ad) ile eşleşir, id ile değil.
+    const currentNames = {
+      architects: [...(row.designer || [])],
+      offices: [...(row.office || [])],
+    };
+    const foldName = (n) => foldTr(String(n || '').trim());
+    const currentArchFold = new Set(currentNames.architects.map(foldName));
+    const currentOfficeFold = new Set(currentNames.offices.map(foldName));
+    const removedNames = {
+      architects: [...new Set(previousNames.map(r => r.ar_name).filter(Boolean))].filter(n => !currentArchFold.has(foldName(n))),
+      offices: [...new Set(previousNames.map(r => r.ofc_name).filter(Boolean))].filter(n => !currentOfficeFold.has(foldName(n))),
+    };
+    // Sıra ÖNEMLİ: önce geri eklenenlerin damgası silinir, sonra çıkarılanlarınki yazılır. Tersi
+    // olsaydı, aynı kaydetmede biri eklenip diğeri çıkarılan bir kullanıcının yeni damgası hemen
+    // silinirdi. (clearProjectEditGrace zaten yalnızca künyede KALAN adların sahiplerine dokunur.)
+    await clearProjectEditGrace(env, projectId, currentNames);
+    if (removedNames.architects.length || removedNames.offices.length) {
+      await recordProjectEditGrace(env, projectId, removedNames, currentNames);
+    }
   }
 
   // Fotoğrafçı bağlantıları (kullanıcı isteği, 2026-09-01 madde 6: "fotoğrafçılar kutucuğu da mimar

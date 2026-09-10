@@ -962,15 +962,19 @@ function loadHomeSections(useSsr){
     // proje.html'in kullandığı AYNI canonical uç (bkz. yukarıdaki PROJECT_CAROUSEL_FETCH_LIMIT
     // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
     // düzenlemeleri/gizlemeleri satırın kendisinde.
-    pick('projects', '/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
+    // noPreview=1 — önizleme ("blurlu") kayıtları karusele HİÇ gelmesin (kullanıcı isteği,
+    // 2026-09-10 madde 6). Sunucu tarafı gömülü veri de aynı parametreyle çekilir (bkz.
+    // src/index.js#loadHomeData); bu satırlar gömülü veri yoksa devreye giren doğrudan fetch
+    // yolunu kapsar. Yayına alınan bir kayıt kendiliğinden karusele geri girer.
+    pick('projects', '/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT + '&noPreview=1'),
     // Mimar/Firma mini-carousel'leri: proje.html/kisi.html/firma.html'in kendi listeleme
     // sayfalarında da kullandığı genel D1 uçları, Proje carousel'iyle AYNI slot sayısıyla
     // (PROJECT_CAROUSEL_SLOTS=9). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
     // src/routes/architect.js|office.js#handle*ListRoute — "Default Popularity-Based Sorting").
-    pick('architects', '/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS),
-    pick('offices', '/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS),
+    pick('architects', '/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
+    pick('offices', '/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
     // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
-    pick('products', '/api/products?limit=' + PROJECT_CAROUSEL_SLOTS),
+    pick('products', '/api/products?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
     // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
     // featured_project_slugs). Projeler gömülü veriden geliyorsa sunucu bu sıralamayı ZATEN uygulamış
     // olur, istek atılmaz. window.__siteSettingsPromise: auth-nav.js duyuru banner'ı için AYNI
@@ -1000,14 +1004,18 @@ function loadHomeSections(useSsr){
     // İstek başarısız olursa trackEl kalıcı olarak boş bir renkli kutu olarak kalmasın diye failed:true
     // ayrıca ele alınır. Mimar/Firma fotoğrafı/logosu OLMAYAN öğeleri havuzdan DÜŞÜRMEZ —
     // architectSlideHtml/officeSlideHtml eksik görselde kendi baş harf rozetine düşer.
+    // notPreview: sunucu zaten noPreview=1 ile eliyor (bkz. yukarısı) — bu süzgeç, deploy anında
+    // edge'de duran ESKİ bir gövdeyi (ya da eski bir gömülü ml-home-data'yı) okuyan tarayıcıda da
+    // blurlu kartın vitrine düşmemesini garanti eder; proje karuselindeki AYNI desen.
+    const notPreview = (list) => (list || []).filter(x => x && !x.preview);
     if(architectRes.failed) mimarSlider.renderError('Kişiler şu an yüklenemedi.');
-    else mimarSlider.render(architectRes.items || []);
+    else mimarSlider.render(notPreview(architectRes.items));
 
     if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
-    else markaSlider.render(officeRes.items || []);
+    else markaSlider.render(notPreview(officeRes.items));
 
     if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
-    else urunSlider.render(productRes.items || []);
+    else urunSlider.render(notPreview(productRes.items));
   });
 }
 
