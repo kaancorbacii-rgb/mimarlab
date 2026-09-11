@@ -11,6 +11,7 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 import { TR_UNIVERSITIES } from '../lib/universities.js';
 import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
+import { buildOfficePeople } from './office.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
@@ -567,12 +568,12 @@ export async function buildArchitectPayload(env, key) {
   const AGE_RANGE_YEARS = 5;
 
   const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes, usedProductsRes, preferredBrandsRes, photographedRes] = await Promise.all([
-    office
-      ? env.DB.prepare(
-          `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
-           WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL) AND ar.id != ?`
-        ).bind(office.id, a.id).all()
-      : Promise.resolve({ results: [] }),
+    // Firmadaki diğer kişiler — firma popup'ıyla AYNI Kurucular/Ekip kuralı ve AYNI üç kaynak
+    // (kullanıcı isteği, 2026-09-11: "Kişi popup'ında da aynı Kurucular/Ekip kuralı uygulansın");
+    // tek kaynak src/routes/office.js#buildOfficePeople. Eskiden yalnızca office_founders okunuyor
+    // ve görevine bakılmadan herkes "Ortaklar"a düşüyordu (Gökhan Aktan Altuğ'un popup'ında Ekip
+    // Lideri Müge Eker Eryakar ortak görünüyordu).
+    office ? buildOfficePeople(env, office) : Promise.resolve({ founders: [], team: [] }),
     // ÖNİZLEME projeleri de dahil (kullanıcı isteği, 2026-09-11: "blurlu kişi profillerinde de blurlu
     // firma profillerindeki gibi projeler ve harita kısmı ... gözükmeli") — src/routes/office.js#
     // relatedRes ile AYNI kural. Kartları preview-cards.js soluk+blurlu çizer, harita da bu listeden
@@ -651,7 +652,11 @@ export async function buildArchitectPayload(env, key) {
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
   // gelir (overlay merge-time'da zaten uygulandı) — eski request-time overlay hesaplaması gerekmiyor.
-  const colleagues = colleaguesRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
+  // Kişinin KENDİSİ iki listeden de çıkarılır (Türkçe casefold'lu ad — firma tarafındaki tekilleştirme
+  // de foldTr kullanır). colleagues = "Ortaklar", teammates = "Ekip Arkadaşları" (kullanıcı isteği).
+  const isSelf = (p) => foldTr(p.name || '') === foldTr(a.name || '');
+  const colleagues = colleaguesRes.founders.filter(p => !isSelf(p));
+  const teammates = colleaguesRes.team.filter(p => !isSelf(p));
   // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
   // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son
   // tasarlanandan en eskiye doğru dizilsin.
@@ -781,6 +786,7 @@ export async function buildArchitectPayload(env, key) {
       ...unregisteredOffices,
     ],
     colleagues,
+    teammates,
     relatedProjects,
     photographedProjects,
     relatedProjectsFromBrand,

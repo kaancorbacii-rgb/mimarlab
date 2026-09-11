@@ -200,5 +200,24 @@ await test('claim iptali popup ile AYNI kural: Kurucular\'da görünen Ortak, Ek
   assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE id = 'c-u-ortak'`).get().status, 'rejected', 'Kurucular listesinden silinince iptal edilmeli');
 });
 
+section('üçüncü tur — kişi popup\'ı: "Ortaklar" + "Ekip Arkadaşları", firma popup\'ıyla AYNI kural');
+
+await test('kişi payload\'ı: ortaklar Kurucu/Kurucu Ortak/Ortak, ekip arkadaşları diğerleri; kişinin kendisi yok', async () => {
+  const db = freshDb(); await seedRule(db);
+  // Gökhan'ın birincil firması Tago olsun (kişi popup'ı birincil firmanın kişilerini gösterir).
+  db.exec(`UPDATE architects SET office_id = 1 WHERE id = 10`);
+  const { buildArchitectPayload } = await import('../src/routes/architect.js');
+  const payload = await buildArchitectPayload({ DB: d1(db) }, 'gokhan-aktan-altug');
+  const c = new Set(payload.colleagues.map(x => x.name));
+  const t = new Set(payload.teammates.map(x => x.name));
+  assert.ok(!c.has('Gökhan Aktan Altuğ') && !t.has('Gökhan Aktan Altuğ'), 'kişinin kendisi listelenmemeli');
+  for (const name of ['Ortak Kişi', 'Hesaplı Ortak', 'Metinde Kurucu']) assert.ok(c.has(name) && !t.has(name), `${name} Ortaklar'da olmalı`);
+  for (const name of ['Müge Eker Eryakar', 'Akademisyen Kişi', 'Hesaplı Üye']) assert.ok(t.has(name) && !c.has(name), `${name} Ekip Arkadaşları'nda olmalı`);
+  const office = await buildOfficePayload({ DB: d1(db) }, 'tago-architects');
+  assert.deepEqual(
+    [...c].sort(), office.founders.map(x => x.name).filter(n => n !== 'Gökhan Aktan Altuğ').sort(),
+    'kişi popup\'ının Ortaklar\'ı = firma popup\'ının Kurucular\'ı (kişinin kendisi hariç)');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) process.exit(1);

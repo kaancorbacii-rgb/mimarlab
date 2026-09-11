@@ -328,10 +328,16 @@ const ArchitectModal = (function () {
         <h2 class="related-title">Firma / Marka</h2>
         <div class="related-grid-scroll" id="am-office-grid"></div>
       </div>
+      <!-- "Ortaklar" / "Ekip Arkadaşları" (kullanıcı isteği, 2026-09-11): firma popup'ının Kurucular /
+           Ortaklar + Ekip ayrımıyla AYNI kural — bkz. src/routes/office.js#buildOfficePeople. -->
       <div class="am-two-col-cell" id="am-colleagues-section" style="display:none;">
-        <h2 class="related-title">Firma / Marka Ortakları</h2>
+        <h2 class="related-title">Ortaklar</h2>
         <div class="related-grid-scroll" id="am-colleagues-grid"></div>
       </div>
+    </div>
+    <div class="related-section" id="am-team-section" style="display:none;">
+      <h2 class="related-title">Ekip Arkadaşları</h2>
+      <div class="related-grid-scroll" id="am-team-grid"></div>
     </div>
     <!-- Başlıktaki çentik + grup çipleri (kullanıcı isteği, 2026-09-04) — bkz. js/components/
          project-group-filter.js; künyedeki "Grup" (projects.type) değerlerine göre bu ızgarayı,
@@ -750,7 +756,7 @@ const ArchitectModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['am-office-pair', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['am-office-pair', 'am-office-section', 'am-colleagues-section', 'am-team-section','am-related-projects-section',
     'am-portfolio-section',
     'am-photographed-section',
     'am-related-architects-section', 'am-related-products-section', 'am-brands-products-pair',
@@ -955,11 +961,22 @@ const ArchitectModal = (function () {
 
     document.getElementById('am-colleagues-section').style.display = colleagues.length ? '' : 'none';
     function renderColleaguesGrid() {
-      RelatedStrip.render(document.getElementById('am-colleagues-grid'), colleagues, c =>
-        cardHtml(`/kisi/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
+      // unregistered — kişi profili olmayan ad (firmanın Kurucular kutusu ya da hesap üyeliği):
+      // tıklanabilir kart değil, pasif rozet (firma popup'ındaki AYNI ayrım).
+      RelatedStrip.render(document.getElementById('am-colleagues-grid'), colleagues, c => c.unregistered
+        ? unregisteredBadgeHtml(c.name)
+        : cardHtml(`/kisi/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
       );
     }
     renderColleaguesGrid();
+
+    // Ekip Arkadaşları — slug'lı olan gerçek kişi profilidir (tıklanabilir kart), olmayan pasif rozet.
+    const teammates = payload.teammates || [];
+    document.getElementById('am-team-section').style.display = teammates.length ? '' : 'none';
+    RelatedStrip.render(document.getElementById('am-team-grid'), teammates, t => t.slug
+      ? cardHtml(`/kisi/${encodeURIComponent(t.slug)}`, t.name, t.photo, t.role)
+      : unregisteredBadgeHtml(t.name)
+    );
 
     // Sarmalayıcı yalnızca en az bir sütun doluysa görünür (aksi halde boş bir bant + üst çizgi
     // kalırdı); ortadaki kısa dik çizgi ise yalnızca İKİSİ de doluyken çizilir.

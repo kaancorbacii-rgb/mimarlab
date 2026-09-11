@@ -498,6 +498,131 @@ async function fetchAdjacentOffice(env, id) {
   return { prevItem: prev, nextItem: next };
 }
 
+// FİRMANIN KİŞİLERİ — Kurucular/Ortaklar + Ekip (bkz. buildOfficePayload'daki TEK KURAL notu).
+// Firma popup'ı VE kişi popup'ı (src/routes/architect.js — "Firma / Marka Ortakları" + "Ekip",
+// kullanıcı isteği 2026-09-11: "Kişi popup'ında da aynı Kurucular/Ekip kuralı uygulansın") bu TEK
+// fonksiyondan beslenir; iki popup ayrı ayrı hesaplasaydı biri kuralı değiştirince öteki geride kalırdı.
+// `o` — parseCanonicalRow('offices', ...) satırı (id, name, legacy_key yeterli).
+export async function buildOfficePeople(env, o) {
+  const [foundersRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
+    env.DB.prepare(
+      // ÖNİZLEME kurucuları da gelir (kullanıcı isteği, 2026-09-11: "blurlu firma popup'larında
+      // kurucu/ortak kısımları blurlu olarak gözüksün") — kart /kisi/:slug'a gittiği için
+      // preview-cards.js onu zaten soluk+blurlu çizer. Tam arşiv (preview_at BOŞ) yine hariç.
+      `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
+       WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)`
+    ).bind(o.id).all(),
+    fetchRawFounderNames(env, o),
+    // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
+    // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
+    // bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı". Pozisyonu
+    // Kurucu/Kurucu Ortak olanlar aşağıda foundersFromClaims'e (Kurucular/Ortaklar'a karışır, isim
+    // eşleşmesi office_founders'daki gibi bir architects kaydına dayanmadığından hep `unregistered`
+    // rozet olarak render edilir), diğerleri Ekip'e (team) düşer.
+    // GÖREV KAYNAĞI (kullanıcı isteği, 2026-09-08 madde 2): admin'in atama/onay anında DONDURDUĞU
+    // c.office_position ASILDIR (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN); yalnızca o boşsa
+    // — eski, pozisyonsuz onaylarda — kullanıcının kendi profilindeki u.position'a düşülür. Eskiden
+    // yalnızca u.position okunuyordu: admin panelinden "Görev: Kurucu" ile atanan bir hesap, kendi
+    // profilinde pozisyon seçmediği için popup'ta Kurucular yerine Ekip'te görünüyordu.
+    env.DB.prepare(
+      `SELECT u.name, COALESCE(NULLIF(c.office_position, ''), u.position) AS position, u.photo_url
+         FROM profile_claims c JOIN users u ON u.id = c.user_id
+       WHERE c.profile_type = 'office' AND c.profile_key = ? AND c.status = 'approved'
+       ORDER BY u.name COLLATE NOCASE ASC`
+    ).bind(o.name).all(),
+    fetchRawTeamNames(env, o),
+  ]);
+
+  // Serbest metin Kurucular/Ekip isimlerinin kişi profili fotoğrafları (bkz.
+  // fetchArchitectsByRawNames'teki GERÇEK BULGU) — üç listenin isimleri TEK sorguda çözülür.
+  const rawNameMatches = await fetchArchitectsByRawNames(env, [
+    ...rawFounderNames,
+    ...rawTeamNames,
+    ...(teamClaimRows.results || []).map(r => r.name),
+  ]);
+  const matchFor = (name) => rawNameMatches.get(foldTr(name || '')) || null;
+
+  // AD TEKİLLEŞTİRME foldTr İLE (kullanıcı isteği, 2026-09-08 madde 6): eskiden trLower kullanılıyordu
+  // — o yalnızca Türkçe BÜYÜK->küçük eşlemesi yapar, aksanı KATLAMAZ. Canlı bulgu (IND
+  // [Inter.National.Design]): Kurucular'da kişi profilinden gelen "Arman Akdoğan", Ekip'te ise aynı
+  // kişinin hesabından gelen "Arman Akdogan" vardı; trLower'a göre "akdoğan" !== "akdogan" olduğundan
+  // aynı insan iki bölümde birden görünüyordu. foldTr ğ/ş/ı/ç/ü/ö'yü de katlar, ikisi tek isim olur.
+  // EKİP GÖREVLİLERİ EKİP'E (kullanıcı isteği, 2026-09-11: "Firmalarda Ekip Lideri ekip bölümünde yer
+  // alsın"). office_founders firmanın TEK yapısal kişi bağıdır — Kurucular kutusundan da, kişinin kendi
+  // profilindeki Firma alanından da (syncOfficeFounderLink) kurulur — yani bağlı olmak "kurucu" olmak
+  // demek DEĞİL. Eskiden bağlı herkes görevine bakılmadan Kurucular'a düşüyordu (canlı bulgu: Tago
+  // Architects'te Ekip Lideri Müge Eker Eryakar Kurucular'daydı). Hesap üzerinden gelen üyelerdeki
+  // FOUNDER_POSITIONS ayrımının (aşağıda) yapısal bağlardaki karşılığı. Ekip'e düşenler de gerçek bir
+  // kişi profiline sahip olduğundan `slug` taşır — popup onları tıklanabilir kart olarak çizer.
+  //
+  // TEK KURAL (kullanıcı isteği, 2026-09-11 ikinci tur: "Kurucu, kurucu ortak, ortak kişileri
+  // Kurucular / Ortaklar kısmında diğerleri ekip kısmında görünmeli"): görev FOUNDER_POSITIONS'taysa
+  // Kurucular/Ortaklar, DEĞİLSE (Ekip Lideri, Ekip Üyesi, Akademisyen, görevsiz...) Ekip. Üç kaynağın
+  // (yapısal bağ, hesap üyeliği, kutu metnindeki ad eşleşmesi) HEPSİ aynı kümeyle ayrılır; aynı küme
+  // src/lib/officeFounderCascade.js'te claim iptalinde de kullanılır — ikisi ayrışırsa bir kişi bir
+  // bölümde görünürken kaydetme onu öteki listeden "silinmiş" sayıp claim'ini iptal eder.
+  // Görevi BİLİNMEYEN tek durum kişi profili olmayan serbest metin adıdır — o yazıldığı kutuda kalır.
+  const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak']);
+  const structuredTeam = foundersRes.results
+    .filter(x => !FOUNDER_POSITIONS.has(x.position))
+    .map(x => ({ name: x.name, role: x.position || null, photo: x.photo_url, slug: x.slug }));
+  const founders = foundersRes.results
+    .filter(x => FOUNDER_POSITIONS.has(x.position))
+    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
+  const knownFounderNames = new Set(founders.map(f => foldTr(f.name)));
+  // Yapısal Ekip üyesi, Kurucular metnine de yazılmış olsa Kurucular'a geri eklenmesin.
+  for (const t of structuredTeam) knownFounderNames.add(foldTr(t.name));
+  const team = [...structuredTeam];
+  // Kutu metnindeki ad bir kişi profiliyle eşleşiyor ve profilin görevi BELLİYSE bölümü görev belirler.
+  const sectionFor = (name, box) => {
+    const position = (matchFor(name) || {}).position;
+    if (!position) return box;
+    return FOUNDER_POSITIONS.has(position) ? 'founders' : 'team';
+  };
+  for (const name of rawFounderNames) {
+    if (!name || knownFounderNames.has(foldTr(name))) continue;
+    knownFounderNames.add(foldTr(name));
+    const m = matchFor(name) || {};
+    if (sectionFor(name, 'founders') === 'team') team.push({ name, role: m.position, photo: m.photo || null });
+    else founders.push({ name, role: m.position || null, photo: m.photo || null, badges: [], unregistered: true });
+  }
+  for (const row of teamClaimRows.results || []) {
+    if (!row.name || knownFounderNames.has(foldTr(row.name))) continue;
+    // KURUMSAL YÖNETİCİ HESABI (kullanıcı isteği, 2026-09-08 madde 2): "Yönetici" görevi, firmanın
+    // KENDİ adına açtığı hesabı (ör. "DS Mimarlık" adlı üye) temsil eder — firma künyesini
+    // düzenleme yetkisi verir (bkz. OFFICE_EDIT_POSITIONS) ama bir İNSAN değildir, bu yüzden
+    // Kurucular'da da Ekip'te de LİSTELENMEZ. Eskiden böyle bir hesap firmanın kendi popup'ında
+    // "Ekip: DS Mimarlık" olarak görünüyordu.
+    if (row.position === MANAGER_POSITION) continue;
+    // photo: hesabın kendi profil fotoğrafı (users.photo_url) yoksa, aynı isimli kişi profilinin
+    // fotoğrafına düşülür — iki kayıt aynı kişiyi temsil ediyor (bkz. matchFor).
+    const photo = row.photo_url || (matchFor(row.name) || {}).photo || null;
+    if (FOUNDER_POSITIONS.has(row.position)) {
+      knownFounderNames.add(foldTr(row.name));
+      founders.push({ name: row.name, role: row.position, photo, badges: [], unregistered: true });
+    } else {
+      team.push({ name: row.name, role: row.position || null, photo });
+    }
+  }
+  // firma-ekle.html'deki opsiyonel "Ekip" kutusuna serbest metin girilen isimler — foundersFromClaims
+  // ile AYNI dedup (kurucu ya da hesap üzerinden zaten eklenmiş biriyle çakışan isim atlanır).
+  const knownTeamNames = new Set(team.map(t => foldTr(t.name)));
+  for (const name of rawTeamNames) {
+    if (!name || knownFounderNames.has(foldTr(name)) || knownTeamNames.has(foldTr(name))) continue;
+    const m = matchFor(name) || {};
+    if (sectionFor(name, 'team') === 'founders') {
+      knownFounderNames.add(foldTr(name));
+      founders.push({ name, role: m.position, photo: m.photo || null, badges: [], unregistered: true });
+      continue;
+    }
+    knownTeamNames.add(foldTr(name));
+    team.push({ name, role: m.position || null, photo: m.photo || null });
+  }
+  // claimed — firmanın en az bir onaylı profile_claims satırı var mı (Kurucular'a/Ekip'e düşenler VE
+  // listelenmeyen 'Yönetici' hesabı dahil). buildOfficePayload kaynak ibaresi için okur.
+  return { founders, team, claimed: (teamClaimRows.results || []).length > 0 };
+}
+
 // export: scripts/test-2026-09-08-round.mjs bu fonksiyonu doğrudan (cachedPublicJson/KV'siz)
 // çağırıp Kurucular/Ekip/claimed çıktısını node:sqlite üzerinde doğruluyor.
 export async function buildOfficePayload(env, key) {
@@ -539,14 +664,9 @@ export async function buildOfficePayload(env, key) {
   // kuralı (bkz. dosya başı tanım) — yeni bir ayrıştırma mantığı EKLENMEDİ.
   const officeCity = cityOf(o.loc);
 
-  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, preferringOfficesRes, preferringArchitectsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
-    env.DB.prepare(
-      // ÖNİZLEME kurucuları da gelir (kullanıcı isteği, 2026-09-11: "blurlu firma popup'larında
-      // kurucu/ortak kısımları blurlu olarak gözüksün") — kart /kisi/:slug'a gittiği için
-      // preview-cards.js onu zaten soluk+blurlu çizer. Tam arşiv (preview_at BOŞ) yine hariç.
-      `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
-       WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)`
-    ).bind(o.id).all(),
+  const [people, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, preferringOfficesRes, preferringArchitectsRes] = await Promise.all([
+    // Kurucular/Ekip — kişi popup'ı da AYNI fonksiyonu kullanır (bkz. buildOfficePeople).
+    buildOfficePeople(env, o),
     env.DB.prepare(
       // ÖNİZLEME projeleri de dahil (kullanıcı isteği, 2026-09-11: "projeler ve ürünlerin
       // önizlemeleri firma ve marka popuplarında gözüksünler ama blurlu olsunlar") — kart tarafında
@@ -706,112 +826,10 @@ export async function buildOfficePayload(env, key) {
        GROUP BY ar.id
        ORDER BY used_count DESC, ar.name COLLATE NOCASE`
     ).bind(o.id, o.name).all(),
-    fetchRawFounderNames(env, o),
-    // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
-    // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
-    // bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı". Pozisyonu
-    // Kurucu/Kurucu Ortak olanlar aşağıda foundersFromClaims'e (Kurucular/Ortaklar'a karışır, isim
-    // eşleşmesi office_founders'daki gibi bir architects kaydına dayanmadığından hep `unregistered`
-    // rozet olarak render edilir), diğerleri Ekip'e (team) düşer.
-    // GÖREV KAYNAĞI (kullanıcı isteği, 2026-09-08 madde 2): admin'in atama/onay anında DONDURDUĞU
-    // c.office_position ASILDIR (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN); yalnızca o boşsa
-    // — eski, pozisyonsuz onaylarda — kullanıcının kendi profilindeki u.position'a düşülür. Eskiden
-    // yalnızca u.position okunuyordu: admin panelinden "Görev: Kurucu" ile atanan bir hesap, kendi
-    // profilinde pozisyon seçmediği için popup'ta Kurucular yerine Ekip'te görünüyordu.
-    env.DB.prepare(
-      `SELECT u.name, COALESCE(NULLIF(c.office_position, ''), u.position) AS position, u.photo_url
-         FROM profile_claims c JOIN users u ON u.id = c.user_id
-       WHERE c.profile_type = 'office' AND c.profile_key = ? AND c.status = 'approved'
-       ORDER BY u.name COLLATE NOCASE ASC`
-    ).bind(o.name).all(),
-    fetchRawTeamNames(env, o),
   ]);
 
-  // Serbest metin Kurucular/Ekip isimlerinin kişi profili fotoğrafları (bkz.
-  // fetchArchitectsByRawNames'teki GERÇEK BULGU) — üç listenin isimleri TEK sorguda çözülür.
-  const rawNameMatches = await fetchArchitectsByRawNames(env, [
-    ...rawFounderNames,
-    ...rawTeamNames,
-    ...(teamClaimRows.results || []).map(r => r.name),
-  ]);
-  const matchFor = (name) => rawNameMatches.get(foldTr(name || '')) || null;
+  const { founders, team } = people;
 
-  // AD TEKİLLEŞTİRME foldTr İLE (kullanıcı isteği, 2026-09-08 madde 6): eskiden trLower kullanılıyordu
-  // — o yalnızca Türkçe BÜYÜK->küçük eşlemesi yapar, aksanı KATLAMAZ. Canlı bulgu (IND
-  // [Inter.National.Design]): Kurucular'da kişi profilinden gelen "Arman Akdoğan", Ekip'te ise aynı
-  // kişinin hesabından gelen "Arman Akdogan" vardı; trLower'a göre "akdoğan" !== "akdogan" olduğundan
-  // aynı insan iki bölümde birden görünüyordu. foldTr ğ/ş/ı/ç/ü/ö'yü de katlar, ikisi tek isim olur.
-  // EKİP GÖREVLİLERİ EKİP'E (kullanıcı isteği, 2026-09-11: "Firmalarda Ekip Lideri ekip bölümünde yer
-  // alsın"). office_founders firmanın TEK yapısal kişi bağıdır — Kurucular kutusundan da, kişinin kendi
-  // profilindeki Firma alanından da (syncOfficeFounderLink) kurulur — yani bağlı olmak "kurucu" olmak
-  // demek DEĞİL. Eskiden bağlı herkes görevine bakılmadan Kurucular'a düşüyordu (canlı bulgu: Tago
-  // Architects'te Ekip Lideri Müge Eker Eryakar Kurucular'daydı). Hesap üzerinden gelen üyelerdeki
-  // FOUNDER_POSITIONS ayrımının (aşağıda) yapısal bağlardaki karşılığı. Ekip'e düşenler de gerçek bir
-  // kişi profiline sahip olduğundan `slug` taşır — popup onları tıklanabilir kart olarak çizer.
-  //
-  // TEK KURAL (kullanıcı isteği, 2026-09-11 ikinci tur: "Kurucu, kurucu ortak, ortak kişileri
-  // Kurucular / Ortaklar kısmında diğerleri ekip kısmında görünmeli"): görev FOUNDER_POSITIONS'taysa
-  // Kurucular/Ortaklar, DEĞİLSE (Ekip Lideri, Ekip Üyesi, Akademisyen, görevsiz...) Ekip. Üç kaynağın
-  // (yapısal bağ, hesap üyeliği, kutu metnindeki ad eşleşmesi) HEPSİ aynı kümeyle ayrılır; aynı küme
-  // src/lib/officeFounderCascade.js'te claim iptalinde de kullanılır — ikisi ayrışırsa bir kişi bir
-  // bölümde görünürken kaydetme onu öteki listeden "silinmiş" sayıp claim'ini iptal eder.
-  // Görevi BİLİNMEYEN tek durum kişi profili olmayan serbest metin adıdır — o yazıldığı kutuda kalır.
-  const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak']);
-  const structuredTeam = foundersRes.results
-    .filter(x => !FOUNDER_POSITIONS.has(x.position))
-    .map(x => ({ name: x.name, role: x.position || null, photo: x.photo_url, slug: x.slug }));
-  const founders = foundersRes.results
-    .filter(x => FOUNDER_POSITIONS.has(x.position))
-    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
-  const knownFounderNames = new Set(founders.map(f => foldTr(f.name)));
-  // Yapısal Ekip üyesi, Kurucular metnine de yazılmış olsa Kurucular'a geri eklenmesin.
-  for (const t of structuredTeam) knownFounderNames.add(foldTr(t.name));
-  const team = [...structuredTeam];
-  // Kutu metnindeki ad bir kişi profiliyle eşleşiyor ve profilin görevi BELLİYSE bölümü görev belirler.
-  const sectionFor = (name, box) => {
-    const position = (matchFor(name) || {}).position;
-    if (!position) return box;
-    return FOUNDER_POSITIONS.has(position) ? 'founders' : 'team';
-  };
-  for (const name of rawFounderNames) {
-    if (!name || knownFounderNames.has(foldTr(name))) continue;
-    knownFounderNames.add(foldTr(name));
-    const m = matchFor(name) || {};
-    if (sectionFor(name, 'founders') === 'team') team.push({ name, role: m.position, photo: m.photo || null });
-    else founders.push({ name, role: m.position || null, photo: m.photo || null, badges: [], unregistered: true });
-  }
-  for (const row of teamClaimRows.results || []) {
-    if (!row.name || knownFounderNames.has(foldTr(row.name))) continue;
-    // KURUMSAL YÖNETİCİ HESABI (kullanıcı isteği, 2026-09-08 madde 2): "Yönetici" görevi, firmanın
-    // KENDİ adına açtığı hesabı (ör. "DS Mimarlık" adlı üye) temsil eder — firma künyesini
-    // düzenleme yetkisi verir (bkz. OFFICE_EDIT_POSITIONS) ama bir İNSAN değildir, bu yüzden
-    // Kurucular'da da Ekip'te de LİSTELENMEZ. Eskiden böyle bir hesap firmanın kendi popup'ında
-    // "Ekip: DS Mimarlık" olarak görünüyordu.
-    if (row.position === MANAGER_POSITION) continue;
-    // photo: hesabın kendi profil fotoğrafı (users.photo_url) yoksa, aynı isimli kişi profilinin
-    // fotoğrafına düşülür — iki kayıt aynı kişiyi temsil ediyor (bkz. matchFor).
-    const photo = row.photo_url || (matchFor(row.name) || {}).photo || null;
-    if (FOUNDER_POSITIONS.has(row.position)) {
-      knownFounderNames.add(foldTr(row.name));
-      founders.push({ name: row.name, role: row.position, photo, badges: [], unregistered: true });
-    } else {
-      team.push({ name: row.name, role: row.position || null, photo });
-    }
-  }
-  // firma-ekle.html'deki opsiyonel "Ekip" kutusuna serbest metin girilen isimler — foundersFromClaims
-  // ile AYNI dedup (kurucu ya da hesap üzerinden zaten eklenmiş biriyle çakışan isim atlanır).
-  const knownTeamNames = new Set(team.map(t => foldTr(t.name)));
-  for (const name of rawTeamNames) {
-    if (!name || knownFounderNames.has(foldTr(name)) || knownTeamNames.has(foldTr(name))) continue;
-    const m = matchFor(name) || {};
-    if (sectionFor(name, 'team') === 'founders') {
-      knownFounderNames.add(foldTr(name));
-      founders.push({ name, role: m.position, photo: m.photo || null, badges: [], unregistered: true });
-      continue;
-    }
-    knownTeamNames.add(foldTr(name));
-    team.push({ name, role: m.position || null, photo: m.photo || null });
-  }
   // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
   // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son
   // tasarlanandan en eskiye doğru dizilsin.
@@ -927,10 +945,10 @@ export async function buildOfficePayload(env, key) {
 
   // claimed (kullanıcı isteği, 2026-09-08 madde 5): bu firma/marka bir üyeye atanmışsa pop-up'taki
   // kaynak ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısı kalır (bkz.
-  // src/lib/claimedProfiles.js). Ayrı bir sorgu GEREKMİYOR — teamClaimRows zaten bu firmanın TÜM
+  // src/lib/claimedProfiles.js). Ayrı bir sorgu GEREKMİYOR — buildOfficePeople zaten bu firmanın TÜM
   // onaylı profile_claims satırlarını (Kurucular'a/Ekip'e düşenler VE gizli 'Yönetici' hesabı
-  // dahil) getiriyor.
-  const claimed = (teamClaimRows.results || []).length > 0;
+  // dahil) okuyup `claimed` olarak döndürüyor.
+  const claimed = people.claimed;
 
   return { item, claimed, founders, team, relatedProjects, relatedOffices, relatedOfficesScope, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, preferringOffices, preferringArchitects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem,
     // bkz. src/routes/architect.js'teki AYNI iki alan: önizleme satırında hidden_at DOLU kalır ama

@@ -481,7 +481,7 @@ async function withSingleFlight(key, fn) {
 //     sayfasını daha önce açmış ziyaretçiler 304 ile tek görselli eski gövdede takılırdı. KV havuzu
 //     (POOL_CACHE_KINDS) da eski şekli taşıyabilir — deploy sonrası invalidatePublicCache şart.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v33';
+const API_PAYLOAD_VERSION = 'v34';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
