@@ -691,7 +691,8 @@ CREATE INDEX IF NOT EXISTS idx_projects_live_updated ON projects(updated_at) WHE
 CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);
 -- 0087 — display_order NULL = atanmamış, COALESCE(...,0) ile mevcut/atanmış her değerden (>=1)
 -- küçük olduğundan gelecekteki normal proje ekleme akışı dokunulmadan en üstte kalmaya devam eder
--- (bkz. migrations/0087_project_display_order.sql).
+-- (bkz. migrations/0087_project_display_order.sql). 0111'de relisted_at kolonu eklendikten SONRA
+-- bu index tekrar DROP+CREATE edilir (bkz. aşağısı, migrations/0108/0111 uygulama sırası).
 CREATE INDEX IF NOT EXISTS idx_projects_build_status_order
   ON projects(build_status, COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC)
   WHERE deleted_at IS NULL AND hidden_at IS NULL;
@@ -1215,3 +1216,17 @@ ALTER TABLE architects ADD COLUMN relisted_at TEXT;
 ALTER TABLE offices ADD COLUMN relisted_at TEXT;
 ALTER TABLE projects ADD COLUMN relisted_at TEXT;
 ALTER TABLE products ADD COLUMN relisted_at TEXT;
+
+-- 0111 — GERÇEK BULGU (kullanıcı bildirimi, 2026-09-11 — "Withco CoWorking Central yeniden
+-- yüklendi ama proje sayfasında 1. sıraya yerleşmedi"): yukarıdaki relisted_at DESC, dört havuzda
+-- da (projects/offices/architects/products) publish_date/created_at'ten DAHA YÜKSEK öncelikli,
+-- AYRI bir sıralama anahtarıydı. SQLite'ta DESC sıralamada NULL SONA düşer, yani relisted_at'i BİR
+-- KEZ damgalanmış herhangi bir satır (tarihi ne kadar eski olursa olsun) relisted_at'i hiç set
+-- edilmemiş herhangi bir satırdan (created_at ne kadar yeni olursa olsun) SÜRESİZ önde kalıyordu.
+-- Düzeltme: relisted_at artık ayrı bir anahtar değil, publish_date/created_at ile AYNI COALESCE
+-- zincirinde (bkz. migrations/0111_relisted_at_sort_fix.sql, src/routes/project.js#fetchProjectPageRows,
+-- src/lib/projectPool.js, src/routes/office.js, src/routes/architect.js, src/routes/product.js).
+DROP INDEX IF EXISTS idx_projects_build_status_order;
+CREATE INDEX IF NOT EXISTS idx_projects_build_status_order
+  ON projects(build_status, COALESCE(display_order, 0) ASC, COALESCE(relisted_at, publish_date, created_at) DESC, id DESC)
+  WHERE deleted_at IS NULL AND hidden_at IS NULL;

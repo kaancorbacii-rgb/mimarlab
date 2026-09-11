@@ -41,6 +41,8 @@ export async function fetchArchitectPool(env) {
     // dışında kalır. Bu havuz aynı zamanda /api/public/platform'un "Mimar" sayacını da besliyor
     // (bkz. aşağıdaki dosya başı yorumu), yani sayaç da listelenenle aynı kalır.
     const { results } = await env.DB.prepare(
+      // ORDER BY'daki COALESCE(a.relisted_at, a.created_at) — bkz. src/routes/office.js#fetchOfficePool
+      // ve src/routes/project.js#fetchProjectPageRows'daki GERÇEK BULGU yorumu (2026-09-11).
       // a.school — kisi.html'in "Üniversite" filtre grubu (kullanıcı isteği, 2026-09-04). Sayaçlar
       // TÜM havuzdan hesaplandığından (bkz. aşağıdaki schoolCounts) bu kolon havuzda olmak
       // ZORUNDA; kart listesine sızmaz, items'a çıkmadan önce ayıklanır (bkz. items .map()).
@@ -54,7 +56,7 @@ export async function fetchArchitectPool(env) {
          (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
           WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND (a.hidden_at IS NULL OR a.preview_at IS NOT NULL) AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY (a.preview_at IS NOT NULL) ASC, a.relisted_at DESC, a.id DESC`
+       WHERE a.deleted_at IS NULL AND (a.hidden_at IS NULL OR a.preview_at IS NOT NULL) AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY (a.preview_at IS NOT NULL) ASC, COALESCE(a.relisted_at, a.created_at) DESC, a.id DESC`
     ).all();
 
     return results.map(row => {

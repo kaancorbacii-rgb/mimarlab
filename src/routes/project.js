@@ -743,6 +743,18 @@ function hasActiveProjectListFilters(url) {
 // elle serpiştirilmiş bir parti (bkz. B&T Design 43-proje partisi, 2026-09-04) sıralamayı burada
 // override eder. idx_projects_build_status_order bu ifadeyi AYNEN kapsayacak şekilde yeniden
 // oluşturuldu, ORDER BY dışta AYNEN tekrarlanır (bkz. yukarıdaki performans notu).
+//
+// GERÇEK BULGU (kullanıcı bildirimi, 2026-09-11 — "Withco CoWorking Central yeniden yüklendi ama
+// 1. sıraya yerleşmedi"): `relisted_at DESC` migrations/0108'de AYRI ve `COALESCE(publish_date,
+// created_at)`'ten DAHA YÜKSEK öncelikli bir sıralama anahtarıydı. SQLite'ta DESC sıralamada NULL
+// SONA düşer, yani relisted_at'i BİR KEZ damgalanmış HERHANGİ bir satır (tarihi ne kadar eski
+// olursa olsun — bu turda 2026-09-10'dan kalma 12 satır), relisted_at'i hiç set edilmemiş
+// HERHANGİ bir satırdan (created_at ne kadar yeni olursa olsun) SÜRESİZ önde kalıyordu. Withco
+// bugün (09-11) onaylandı, created_at en yeniydi, ama dünkü 12 "yeniden yayına alma" damgasının
+// arkasına düşüyordu. Düzeltme: relisted_at ARTIK ayrı bir anahtar değil, publish_date/created_at
+// ile AYNI COALESCE zincirinde — bir kayıt yeniden yayına alındığında (relisted_at=now) yine en
+// öne geçer (migrations/0108'in asıl amacı korunur), ama bu üstünlük SÜRESİZ değil: gerçekten daha
+// yeni bir created_at/relisted_at'e sahip başka bir satır çıkınca yerini ona bırakır.
 async function fetchProjectPageRows(env, buildStatus, limit, offset, noPreview) {
   // noPreview — bkz. fetchProjectListPageFromD1'deki gerekçe.
   const innerWhere = noPreview
@@ -756,9 +768,9 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset, noPreview) 
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
            WHERE ${innerWhere}
-           ORDER BY (preview_at IS NOT NULL) ASC, relisted_at DESC, COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
+           ORDER BY (preview_at IS NOT NULL) ASC, COALESCE(display_order, 0) ASC, COALESCE(relisted_at, publish_date, created_at) DESC, id DESC
            LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
-     GROUP BY p.id ORDER BY (p.preview_at IS NOT NULL) ASC, p.relisted_at DESC, COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY (p.preview_at IS NOT NULL) ASC, COALESCE(p.display_order, 0) ASC, COALESCE(p.relisted_at, p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(buildStatus, limit, offset).all();
   return results;
 }
