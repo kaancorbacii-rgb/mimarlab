@@ -488,8 +488,11 @@ export async function buildArchitectPayload(env, key) {
   if (row.hidden_at && !row.preview_at) return { item: null, hidden: true, preview: false, previewTitle: null, previewSlug: null };
   const a = parseCanonicalRow('architects', row);
 
+  // ÖNİZLEME firması/ortakları da gelir (kullanıcı isteği, 2026-09-11: "kişi popup'larında firma ve
+  // diğer ortaklar da blurlu olarak gözüksün") — kartlar /firma|kisi/:slug'a gittiği için
+  // preview-cards.js onları zaten soluk+blurlu çizer. Tam arşiv (preview_at BOŞ) yine hariç.
   const officeRow = a.office_id
-    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL AND hidden_at IS NULL`).bind(a.office_id).first()
+    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)`).bind(a.office_id).first()
     : null;
   const office = officeRow ? parseCanonicalRow('offices', officeRow) : null;
 
@@ -500,7 +503,7 @@ export async function buildArchitectPayload(env, key) {
   // office_founders'a bağlanmış olsa bile). Tekilleştirilmiş, office_id'deki varsa önce o sırayla.
   const { results: founderOfficeRows } = await env.DB.prepare(
     `SELECT o.* FROM office_founders f JOIN offices o ON o.id = f.office_id
-     WHERE f.architect_id = ? AND o.deleted_at IS NULL AND o.hidden_at IS NULL`
+     WHERE f.architect_id = ? AND o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL)`
   ).bind(a.id).all();
   const officesById = new Map();
   if (office) officesById.set(office.id, office);
@@ -530,7 +533,7 @@ export async function buildArchitectPayload(env, key) {
     office
       ? env.DB.prepare(
           `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
-           WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL AND ar.id != ?`
+           WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL) AND ar.id != ?`
         ).bind(office.id, a.id).all()
       : Promise.resolve({ results: [] }),
     env.DB.prepare(

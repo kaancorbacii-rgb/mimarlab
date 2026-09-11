@@ -445,7 +445,7 @@ async function fetchArchitectsByRawNames(env, names) {
   const placeholders = wanted.map(() => '?').join(', ');
   const { results } = await env.DB.prepare(
     `SELECT name, name_fold, slug, photo_url FROM architects
-     WHERE deleted_at IS NULL AND hidden_at IS NULL AND name_fold IN (${placeholders})`
+     WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND name_fold IN (${placeholders})`
   ).bind(...wanted).all();
   const map = new Map();
   for (const r of results || []) {
@@ -503,8 +503,11 @@ export async function buildOfficePayload(env, key) {
 
   const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, preferringOfficesRes, preferringArchitectsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
+      // ÖNİZLEME kurucuları da gelir (kullanıcı isteği, 2026-09-11: "blurlu firma popup'larında
+      // kurucu/ortak kısımları blurlu olarak gözüksün") — kart /kisi/:slug'a gittiği için
+      // preview-cards.js onu zaten soluk+blurlu çizer. Tam arşiv (preview_at BOŞ) yine hariç.
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
-       WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
+       WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)`
     ).bind(o.id).all(),
     env.DB.prepare(
       // ÖNİZLEME projeleri de dahil (kullanıcı isteği, 2026-09-11: "projeler ve ürünlerin
