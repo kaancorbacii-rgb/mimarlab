@@ -24,7 +24,7 @@
      bu yüzden reddedilip boşuna fetch'e düşüyordu) — negatif yaş "gelecekten" değil saat sapmasıdır. -->
 <script>(function(){function mlPre(u){try{var el=document.getElementById('ml-list-data');if(el){var d=JSON.parse(el.textContent);var age=Date.now()-(d.t||0);if(d.v===1&&age>-300000&&age<60000&&d.entries&&d.entries[u]){return Promise.resolve(new Response(JSON.stringify(d.entries[u]),{status:200,headers:{'Content-Type':'application/json; charset=utf-8'}}));}}}catch(e){}var f=fetch(u);f.catch(function(){});return f;}try{var p=location.pathname;
 var dm=p.match(/^\/firma\/(?!sayfa-\d+\/?$)([^/]+)\/?$/);if(dm){try{var ds=decodeURIComponent(dm[1]);var du='/api/office/'+encodeURIComponent(ds);(window.__mlPrefetch=window.__mlPrefetch||{})[du]=mlPre(du);}catch(e2){}}
-if(/^\/firma\/[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
+if(/^\/firma\/(?!sayfa-\d+\/?$)[^/]+\/?$/.test(p)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);
 ['/js/components/office-modal.js','/js/components/modal-shell.js'].forEach(function(s){var mv=document.querySelector('meta[name="ml-asset-version"]');var v=mv&&mv.getAttribute('content');var l=document.createElement('link');l.rel='preload';l.as='script';l.href=v?s+'?v='+v:s;document.head.appendChild(l);});return;}
 if(p.replace(/\/+$/,'')==='/firma'&&!location.search){var u='/api/offices?page=1&limit=24';(window.__mlPrefetch=window.__mlPrefetch||{})[u]=mlPre(u);}
 }catch(e){}})();</script>

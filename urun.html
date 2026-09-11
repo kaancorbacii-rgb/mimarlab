@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
-<script>(function(){try{if(/^\/urun\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
+<script>(function(){try{if(/^\/urun\/(?!sayfa-\d+\/?$)[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
 <!-- Erken liste fetch'i + mlPre (performans turu, 2026-09-08): Worker, sorgu dizesiz girişte bu shim'in ÜRETECEĞİ URL'lerin
      yanıtını <head>'in EN BAŞINA #ml-list-data olarak gömer (bkz. src/index.js#HUB_SSR). Gömülü
      yanıt varsa (ve 60sn'den yeniyse) ağa hiç çıkılmadan aynı __mlPrefetch sözlüğüne hazır bir
