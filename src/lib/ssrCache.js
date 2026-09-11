@@ -130,7 +130,10 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // zaman aşımı + önbellek kırıcılı yeniden deneme taşıyor. Önbellekteki eski detay gövdeleri hem eski
 // shim'i hem de (ml-asset-version üzerinden) eski modal-shell.js'i yükletirdi — e-postayla gönderilen
 // önizleme linkleri tam bu yol.
-export const SSR_CACHE_VERSION = 'v126';
+// v127 (2026-09-11): önizleme kişi/marka popup'larında projeler + harita + "Diğer ..." bölümleri —
+// office-modal.js (marka haritası, "MİMARLAB'daki Diğer" başlığı) değişti; önbellekteki detay
+// gövdeleri ml-asset-version üzerinden eski modülü yükletmesin.
+export const SSR_CACHE_VERSION = 'v127';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

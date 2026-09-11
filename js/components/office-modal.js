@@ -331,6 +331,9 @@ const OfficeModal = (function () {
       <h2 class="related-title" id="om-brand-product-projects-title">Markanın Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span><button type="button" class="pgf-toggle" id="om-brand-product-projects-filter-toggle" style="display:none;"></button></h2>
       <div class="pgf-chips" id="om-brand-product-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-brand-product-projects-grid"></div>
+      <!-- Marka haritası (kullanıcı isteği, 2026-09-11) — marka hiç proje TASARLAMADIYSA "Projeler"
+           bölümü (ve içindeki #om-projects-map-wrap) gizli kalır; harita o durumda bu listeden çizilir. -->
+      <div class="om-projects-map-wrap" id="om-brand-projects-map-wrap" style="display:none;"></div>
     </div>
     <!-- Tercih Eden Firmalar | Tercih Eden Mimarlar (kullanıcı isteği, 2026-09-01 madde 7) —
          hemen üstteki satırın devamı: o projeleri KİMLER tasarladı, yani bu markayı kimler tercih
@@ -443,8 +446,11 @@ const OfficeModal = (function () {
   // Marker'a tıklamak burada da (architect-modal.js#renderProjectsMap İLE AYNI gerekçe) doğrudan bir
   // <a href="/proje/..."> linkine gider — ProjectModal firma.html'de hiç yüklenmiyor, o adreste
   // ProjectModal kendi DOMContentLoaded'ında otomatik açılır.
-  function renderProjectsMap(projects) {
-    const wrap = document.getElementById('om-projects-map-wrap');
+  // wrapId: haritanın çizileceği kap — varsayılan "Projeler" bölümündeki; marka popup'ında (hiç
+  // tasarlanmış proje yoksa) "Markanın Kullanıldığı Projeler" bölümündeki kap (kullanıcı isteği,
+  // 2026-09-11). Tek Leaflet örneği (omProjectsMap) iki kap arasında paylaşılır.
+  function renderProjectsMap(projects, wrapId) {
+    const wrap = document.getElementById(wrapId || 'om-projects-map-wrap');
     if (!wrap) return;
     const pinned = (projects || []).filter(p => p.lat != null && p.lng != null);
     if (!pinned.length) {
@@ -937,7 +943,12 @@ const OfficeModal = (function () {
     // popuplarındaki 'Şehirdeki Diğer Firmalar' başlığını 'Şehirdeki Diğer Markalar' yap ve bu
     // kısımda sadece markalar gösterilsin") — listenin KENDİSİ zaten sunucuda süzülüyor (bkz.
     // src/routes/office.js#relatedOffices), burada yalnızca başlık metni ayarlanır.
-    document.getElementById('om-city-title').textContent = isBrandProfile ? 'Şehirdeki Diğer Markalar' : 'Şehirdeki Diğer Firmalar';
+    // relatedOfficesScope === 'site': liste site genelinden tamamlandı (bkz. src/routes/office.js#
+    // fetchOtherOfficesFallback, kullanıcı isteği 2026-09-11) — "Şehirdeki" artık doğru olmaz.
+    const officesSiteScope = payload.relatedOfficesScope === 'site';
+    document.getElementById('om-city-title').textContent = isBrandProfile
+      ? (officesSiteScope ? 'MİMARLAB\'daki Diğer Markalar' : 'Şehirdeki Diğer Markalar')
+      : (officesSiteScope ? 'MİMARLAB\'daki Diğer Firmalar' : 'Şehirdeki Diğer Firmalar');
     // Gündem şeridi — profil yükünden bağımsız, kendi ucundan (bkz. loadGundemStrip).
     // o.slug eski/legacy satırlarda boş olabilir — dosyanın geri kalanındaki AYNI fallback.
     loadGundemStrip('office', o.slug || slugify(o.name));
@@ -1034,6 +1045,10 @@ const OfficeModal = (function () {
         cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0], p.location)
       );
       document.getElementById('om-brand-product-projects-count').textContent = list.length ? ` (${list.length})` : '';
+      // Marka hiç proje tasarlamadıysa harita bu listeden çizilir (bkz. #om-brand-projects-map-wrap);
+      // tasarladıysa harita "Projeler" bölümündekidir, bu kap gizli kalır.
+      if (!relatedProjectsData.length) renderProjectsMap(list, 'om-brand-projects-map-wrap');
+      else document.getElementById('om-brand-projects-map-wrap').style.display = 'none';
     }
     document.getElementById('om-brand-product-projects-section').style.display = brandProductProjectsData.length ? '' : 'none';
     paintBrandProductProjects(brandProductProjectsData);

@@ -440,6 +440,34 @@ export async function handleArchitectRoute(request, env, url, rawKey) {
 // bu yüzden canonicalSync.js#syncArchitect'teki AYNI split(',') burada da uygulanmalı — aksi halde
 // "GEOMIM, GEO_ID" gibi çok firmalı bir giriş, hiçbir canonical isimle eşleşmeyen TEK bir sahte
 // "unregistered" firma olarak (gerçek bulgu: her iki firma da zaten kayıtlıyken bile) render edilir.
+// "MİMARLAB'daki Diğer Kişiler" yedek kaynağı — bkz. buildArchitectPayload'daki YEDEK notu. D1 audit
+// (2026-08-25) P1-4'ün ORDER BY RANDOM() yasağına uyulur: rastgelelik, rowid üzerinde rastgele bir
+// BAŞLANGIÇ noktası seçilip (PK aralık taraması, ucuz) oradan 40 satır okunarak ve Worker'da
+// karıştırılarak sağlanır; başlangıç tabloların sonuna denk gelirse baştan tamamlanır.
+async function fetchOtherArchitectsFallback(env, selfId, need, excludeSlugs) {
+  if (need <= 0) return [];
+  const base = `SELECT slug, name, dob, photo_url FROM architects
+     WHERE deleted_at IS NULL AND hidden_at IS NULL AND directory_listed = 1 AND name != 'Bilinmiyor' AND id != ?
+       AND photo_url IS NOT NULL AND photo_url != ''`;
+  const start = await env.DB.prepare(`SELECT abs(random()) % (COALESCE(MAX(id), 0) + 1) AS s FROM architects`).first('s');
+  let rows = (await env.DB.prepare(`${base} AND id >= ? ORDER BY id LIMIT 40`).bind(selfId, start || 0).all()).results || [];
+  if (rows.length < need + excludeSlugs.size) {
+    rows = rows.concat((await env.DB.prepare(`${base} ORDER BY id LIMIT 40`).bind(selfId).all()).results || []);
+  }
+  const seen = new Set(excludeSlugs);
+  const pool = [];
+  for (const r of rows) {
+    if (!r.slug || seen.has(r.slug)) continue;
+    seen.add(r.slug);
+    pool.push(r);
+  }
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, need).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+}
+
 async function fetchRawOfficeNames(env, a) {
   const submissionId = (a.legacy_key || '').startsWith('submission:') ? a.legacy_key.slice('submission:'.length) : '';
   const row = await env.DB.prepare(
@@ -541,9 +569,14 @@ export async function buildArchitectPayload(env, key) {
            WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL) AND ar.id != ?`
         ).bind(office.id, a.id).all()
       : Promise.resolve({ results: [] }),
+    // ÖNİZLEME projeleri de dahil (kullanıcı isteği, 2026-09-11: "blurlu kişi profillerinde de blurlu
+    // firma profillerindeki gibi projeler ve harita kısmı ... gözükmeli") — src/routes/office.js#
+    // relatedRes ile AYNI kural. Kartları preview-cards.js soluk+blurlu çizer, harita da bu listeden
+    // pinlenir (js/components/architect-modal.js#renderProjectsMap). Önizlemeler listenin SONUNA
+    // dizilir (bkz. shapeProjectsNewestFirst). Tam arşiv yine hariç.
     env.DB.prepare(
-      `SELECT DISTINCT ${PROJECT_CARD_COLUMNS} FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND (pd.architect_id = ? OR pd.office_id = ?)`
+      `SELECT DISTINCT ${PROJECT_CARD_COLUMNS}, p.preview_at AS is_preview FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+       WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL) AND (pd.architect_id = ? OR pd.office_id = ?)`
     ).bind(a.id, office ? office.id : -1).all(),
     // D1 audit (2026-08-25) P1-4 — bkz. src/routes/office.js#relatedOffices'teki AYNI gerekçe:
     // ORDER BY RANDOM() D1'de canlıda doğrulanmış bir "SCAN + TEMP B-TREE" maliyeti üretiyordu
@@ -607,8 +640,8 @@ export async function buildArchitectPayload(env, key) {
     // mimar hem fotoğrafçı olabildiğinden iki bölüm AYNI popup'ta yan yana durur, biri boşsa o bölüm
     // hiç gösterilmez (bkz. js/components/architect-modal.js#am-photographed-section).
     env.DB.prepare(
-      `SELECT ${PROJECT_CARD_COLUMNS} FROM project_photographers pp JOIN projects p ON p.id = pp.project_id
-       WHERE pp.architect_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
+      `SELECT ${PROJECT_CARD_COLUMNS}, p.preview_at AS is_preview FROM project_photographers pp JOIN projects p ON p.id = pp.project_id
+       WHERE pp.architect_id = ? AND p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL)`
     ).bind(a.id).all(),
   ]);
 
@@ -625,15 +658,18 @@ export async function buildArchitectPayload(env, key) {
       const parsed = parseCanonicalRow('projects', p);
       // type — künyedeki "Grup" alanı; pop-up'taki grup filtresi (bkz. js/components/
       // project-group-filter.js) bunun üzerinden çalışır.
-      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date), _preview: p.is_preview ? 1 : 0 };
     })
     .sort((a, b) => {
+      // önizleme (blurlu) projeler yayındakilerin ARKASINDA — bkz. office.js#relatedRes'teki AYNI
+      // `ORDER BY (p.preview_at IS NOT NULL) ASC` kuralı.
+      if (a._preview !== b._preview) return a._preview - b._preview;
       if (a._year == null && b._year == null) return 0;
       if (a._year == null) return 1;
       if (b._year == null) return -1;
       return b._year - a._year;
     })
-    .map(({ _year, ...rest }) => rest);
+    .map(({ _year, _preview, ...rest }) => rest);
   const relatedProjects = shapeProjectsNewestFirst(relatedRes.results);
   const photographedProjects = shapeProjectsNewestFirst(photographedRes.results);
   // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla
@@ -645,7 +681,15 @@ export async function buildArchitectPayload(env, key) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffledArchitects[i], shuffledArchitects[j]] = [shuffledArchitects[j], shuffledArchitects[i]];
   }
-  const relatedArchitects = shuffledArchitects.slice(0, 9).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  let relatedArchitects = shuffledArchitects.slice(0, 9).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  // YEDEK (kullanıcı isteği, 2026-09-11: "Blurlu kişi profillerinde ... MİMARLAB'daki Diğer Kişiler
+  // kısmı gözükmeli"): bölüm yalnızca doğum yılı olan kişide ±5 yaş eşleşmesiyle doluyordu — önizleme
+  // profillerinin çoğunda dob yok, bölüm hep boş kalıp gizleniyordu. Eşleşme 9'dan azsa, yayındaki
+  // (öneri şeritleri önizleme göstermez, bkz. noPreview sözleşmesi) fotoğraflı kişilerle 9'a tamamlanır.
+  if (relatedArchitects.length < 9) {
+    const filler = await fetchOtherArchitectsFallback(env, a.id, 9 - relatedArchitects.length, new Set(relatedArchitects.map(r => r.slug)));
+    relatedArchitects = relatedArchitects.concat(filler);
+  }
   const architectNameLower = a.name.trim().toLowerCase();
   const relatedProducts = designerProductsRes.results
     .filter(p => (p.designer || '').split(',').some(seg => seg.trim().toLowerCase() === architectNameLower))

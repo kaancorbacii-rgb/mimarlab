@@ -459,6 +459,38 @@ async function fetchArchitectsByRawNames(env, names) {
   return map;
 }
 
+// "Diğer Firmalar/Markalar" yedek kaynağı — bkz. buildOfficePayload'daki YEDEK notu ve
+// src/routes/architect.js#fetchOtherArchitectsFallback'teki AYNI rastgele-başlangıç deseni (D1
+// audit P1-4: ORDER BY RANDOM() yok). Tür süzmesi relatedOffices ile AYNI (isBrandOffice/
+// isPureBrandOffice); ürün sayısı yalnızca indeksli brand_office_id ile sayılır — isim eşleşmeli
+// `A OR B` alt sorgusu index kullanamıyor (bkz. proje notu: ofis ürün sayacı), yedek için gereksiz.
+async function fetchOtherOfficesFallback(env, selfId, isBrand, need, excludeSlugs) {
+  if (need <= 0) return [];
+  const base = `SELECT o2.slug, o2.name, o2.loc, o2.cats, o2.logo_url, o2.website,
+       (SELECT COUNT(*) FROM products pr WHERE pr.brand_office_id = o2.id AND pr.deleted_at IS NULL) AS product_count
+     FROM offices o2 WHERE o2.deleted_at IS NULL AND o2.hidden_at IS NULL AND o2.id != ?`;
+  const start = await env.DB.prepare(`SELECT abs(random()) % (COALESCE(MAX(id), 0) + 1) AS s FROM offices`).first('s');
+  let rows = (await env.DB.prepare(`${base} AND o2.id >= ? ORDER BY o2.id LIMIT 60`).bind(selfId, start || 0).all()).results || [];
+  if (rows.length < 60) {
+    rows = rows.concat((await env.DB.prepare(`${base} ORDER BY o2.id LIMIT 60`).bind(selfId).all()).results || []);
+  }
+  const seen = new Set(excludeSlugs);
+  const pool = [];
+  for (const r of rows) {
+    if (!r.slug || seen.has(r.slug)) continue;
+    const cats = parseCanonicalRow('offices', r).cats;
+    const ok = isBrand ? isBrandOffice(cats, r.product_count || 0) : !isPureBrandOffice(cats, r.product_count || 0);
+    if (!ok) continue;
+    seen.add(r.slug);
+    pool.push(r);
+  }
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, need).map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
+}
+
 // Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
 async function fetchAdjacentOffice(env, id) {
   const { prev, next } = await fetchAdjacentEntity(env, 'offices', id, { titleCol: 'name', imageCol: 'logo_url' });
@@ -608,19 +640,23 @@ export async function buildOfficePayload(env, key) {
     // künyesiyle kurulan doğrudan marka→proje kenarı (bkz. migrations/0085_project_brands.sql).
     // src/routes/project.js#fetchProjectProducts'taki AYNI birleşimin marka tarafındaki eşi;
     // UNION tekilleştirdiği için iki yoldan da gelen bir proje TEK kez listelenir.
+    // ÖNİZLEME ürün/projeleri de dahil + lat/lng (kullanıcı isteği, 2026-09-11: "Blurlu Marka ...
+    // da aynı şekilde [projeler ve harita]") — markalar proje TASARLAMADIĞINDAN relatedRes'leri boş,
+    // popup'taki harita da yalnızca relatedRes'ten çiziliyordu; marka popup'ında harita artık bu
+    // listeden pinlenir (bkz. js/components/office-modal.js). Önizlemeler SONA (is_preview ASC).
     env.DB.prepare(
-      `SELECT p.slug, p.title, p.location, p.images, p.type, p.id AS pid
+      `SELECT p.slug, p.title, p.location, p.images, p.type, p.lat, p.lng, p.id AS pid, (p.preview_at IS NOT NULL) AS is_preview
        FROM products pr
        JOIN project_products pp ON pp.product_id = pr.id
-       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
-       WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL)
+       WHERE pr.deleted_at IS NULL AND (pr.hidden_at IS NULL OR pr.preview_at IS NOT NULL)
          AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
        UNION
-       SELECT p.slug, p.title, p.location, p.images, p.type, p.id AS pid
+       SELECT p.slug, p.title, p.location, p.images, p.type, p.lat, p.lng, p.id AS pid, (p.preview_at IS NOT NULL) AS is_preview
        FROM project_brands pb
-       JOIN projects p ON p.id = pb.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN projects p ON p.id = pb.project_id AND p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL)
        WHERE pb.office_id = ?1
-       ORDER BY pid DESC`
+       ORDER BY is_preview ASC, pid DESC`
     ).bind(o.id, o.name).all(),
     // "Tercih Eden Firmalar" / "Tercih Eden Mimarlar" (kullanıcı isteği, 2026-09-01 madde 7) —
     // hemen yukarıdaki brandProductProjects zincirinin BİR HALKA DEVAMI: marka → ürünleri →
@@ -780,7 +816,7 @@ export async function buildOfficePayload(env, key) {
   // officeCatList'e verilirse tırnaklar/köşeli parantezler kategori adının parçası sayılır ve HİÇBİR
   // kategori eşleşmez. Sonuç sessizce yanlış olurdu: saf markalar bir firmanın "Şehirdeki Diğer
   // Firmalar" listesine sızar, bir markanınkinde ise firmalar görünürdü (yerel doğrulamada yakalandı).
-  const relatedOffices = shuffledOffices
+  let relatedOffices = shuffledOffices
     .filter(r => {
       const cats = parseCanonicalRow('offices', r).cats;
       return isBrand
@@ -789,6 +825,18 @@ export async function buildOfficePayload(env, key) {
     })
     .slice(0, 9)
     .map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
+  // YEDEK (kullanıcı isteği, 2026-09-11: "Blurlu Marka ... da aynı şekilde" — kişi popup'ındaki
+  // "MİMARLAB'daki Diğer Kişiler" yedeğiyle AYNI mantık): aynı şehirde 9'dan az eş varsa (ya da
+  // şehir hiç girilmemişse) bölüm AYNI TÜRDEN (firma/marka) yayındaki kayıtlarla site genelinden
+  // tamamlanır; istemci başlığı buna göre "MİMARLAB'daki Diğer ..." yapar (relatedOfficesScope).
+  let relatedOfficesScope = 'city';
+  if (relatedOffices.length < 9) {
+    const filler = await fetchOtherOfficesFallback(env, o.id, isBrand, 9 - relatedOffices.length, new Set(relatedOffices.map(r => r.slug)));
+    if (filler.length) {
+      relatedOffices = relatedOffices.concat(filler);
+      relatedOfficesScope = 'site';
+    }
+  }
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
     return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, kind: parsed.kind };
@@ -802,7 +850,8 @@ export async function buildOfficePayload(env, key) {
     const parsed = parseCanonicalRow('projects', p);
     // type — künyedeki "Grup" alanı; marka pop-up'ındaki "Markanın Kullanıldığı Projeler" grup
     // filtresi (bkz. js/components/office-modal.js, project-group-filter.js) bunun üzerinden çalışır.
-    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), location: parsed.location, type: parsed.type };
+    // lat/lng — marka popup'ının haritası bu listeden pinlenir (bkz. brandProductProjectsRes notu).
+    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), location: parsed.location, type: parsed.type, lat: parsed.lat, lng: parsed.lng };
   });
   // Tercih Eden Firmalar/Mimarlar — kartlar firma/mimar kartlarıyla AYNI şekle sahiptir, böylece
   // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
@@ -846,7 +895,7 @@ export async function buildOfficePayload(env, key) {
   // dahil) getiriyor.
   const claimed = (teamClaimRows.results || []).length > 0;
 
-  return { item, claimed, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, preferringOffices, preferringArchitects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem,
+  return { item, claimed, founders, team, relatedProjects, relatedOffices, relatedOfficesScope, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, preferringOffices, preferringArchitects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem,
     // bkz. src/routes/architect.js'teki AYNI iki alan: önizleme satırında hidden_at DOLU kalır ama
     // gövde gerçek kaydı taşıdığından `hidden` false olmalı, `preview` ise istemciye görselleri
     // blurlamasını söyler.
