@@ -47,8 +47,9 @@ function seed(db) {
       (5, 'firma-c', 'Firma C', 'Bursa', '"Mimarlık"', 'legacy_static', 'Firma C', NULL, NULL);
     INSERT INTO architects (id, slug, name, source, legacy_key, office_id, hidden_at, preview_at, directory_listed) VALUES
       (10, 'onizleme-kisi', 'Önizleme Kişi', 'legacy_static', 'Önizleme Kişi', 1, datetime('now'), datetime('now'), 1),
-      (11, 'baska-onizleme', 'Başka Önizleme', 'legacy_static', 'Başka Önizleme', NULL, datetime('now'), datetime('now'), 1);
-    INSERT INTO office_founders (office_id, architect_id) VALUES (1, 10);
+      (11, 'baska-onizleme', 'Başka Önizleme', 'legacy_static', 'Başka Önizleme', NULL, datetime('now'), datetime('now'), 1),
+      (12, 'marka-kurucu', 'Marka Kurucu', 'legacy_static', 'Marka Kurucu', 2, datetime('now'), datetime('now'), 1);
+    INSERT INTO office_founders (office_id, architect_id) VALUES (1, 10), (2, 12);
     INSERT INTO projects (id, slug, title, source, legacy_key, lat, lng, project_date, hidden_at, preview_at) VALUES
       (100, 'yayindaki-proje', 'Yayındaki Proje', 'legacy_static', 'p100', 41.0, 29.0, '2020', NULL, NULL),
       (101, 'onizleme-proje', 'Önizleme Proje', 'legacy_static', 'p101', 41.1, 29.1, '2023', datetime('now'), datetime('now')),
@@ -81,6 +82,19 @@ await test("doğum yılı yokken de \"MİMARLAB'daki Diğer Kişiler\" dolar (ya
   const slugs = p.relatedArchitects.map(r => r.slug);
   assert.ok(slugs.every(s => s.startsWith('canli-kisi-')), `önizleme/kendi profili sızmamalı: ${slugs}`);
   assert.equal(new Set(slugs).size, slugs.length, 'tekrar yok');
+});
+
+await test('kendi projesi olmayan MARKA KURUCUSU: markanın ürünlerinin kullanıldığı projeler gelir (başlık bayrağıyla)', async () => {
+  const p = await buildArchitectPayload(envFor(), 'marka-kurucu');
+  assert.equal(p.preview, true);
+  assert.deepEqual(p.relatedProjects.map(x => x.slug), ['marka-projesi']);
+  assert.equal(p.relatedProjects[0].lat, 38.4, 'harita için konum');
+  assert.equal(p.relatedProjectsFromBrand, 'Örnek Marka');
+});
+
+await test('kendi projesi olan kişide marka yedeği DEVREYE GİRMEZ', async () => {
+  const p = await buildArchitectPayload(envFor(), 'onizleme-kisi');
+  assert.equal(p.relatedProjectsFromBrand, null);
 });
 
 console.log('\nönizleme MARKA popup\'ı');

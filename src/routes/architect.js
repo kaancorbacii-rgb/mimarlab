@@ -15,6 +15,10 @@ import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
 import { trLower, foldTr } from '../lib/textMatch.js';
+// Marka mı? (kişi popup'ında marka kurucusunun "Markanın Kullanıldığı Projeler" yedeği için) —
+// src/routes/office.js'teki AYNI içe aktarma/yardımcı.
+import officeKindJs from '../../office-kind.js';
+const { isBrandOffice } = officeKindJs;
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -670,7 +674,31 @@ export async function buildArchitectPayload(env, key) {
       return b._year - a._year;
     })
     .map(({ _year, _preview, ...rest }) => rest);
-  const relatedProjects = shapeProjectsNewestFirst(relatedRes.results);
+  let relatedProjects = shapeProjectsNewestFirst(relatedRes.results);
+  // MARKA KURUCUSU (kullanıcı isteği, 2026-09-11: "Blurlu Marka ve marka kurucularında da aynı
+  // şekilde [projeler ve harita]"): markalar proje TASARLAMAZ; kişinin kendi projesi yoksa ve bağlı
+  // olduğu firmalardan biri markaysa, o markanın ÜRÜNLERİNİN KULLANILDIĞI projeler gösterilir —
+  // src/routes/office.js#brandProductProjectsRes ile AYNI küme (project_products + project_brands,
+  // önizlemeler dahil, lat/lng'li; harita da bu listeden pinlenir). İstemci başlığı
+  // relatedProjectsFromBrand doluyken "Markanın Kullanıldığı Projeler" yapar — kişinin kendi işi
+  // sanılmasın diye.
+  let relatedProjectsFromBrand = null;
+  if (!relatedProjects.length) {
+    const brand = offices.find(o => isBrandOffice(o.cats, 0));
+    if (brand) {
+      const { results: brandProjectRows } = await env.DB.prepare(
+        `SELECT DISTINCT ${PROJECT_CARD_COLUMNS}, p.preview_at AS is_preview FROM projects p
+          WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL) AND p.id IN (
+            SELECT pp.project_id FROM products pr JOIN project_products pp ON pp.product_id = pr.id
+             WHERE pr.deleted_at IS NULL AND (pr.hidden_at IS NULL OR pr.preview_at IS NOT NULL)
+               AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
+            UNION
+            SELECT pb.project_id FROM project_brands pb WHERE pb.office_id = ?1)`
+      ).bind(brand.id, brand.name).all();
+      relatedProjects = shapeProjectsNewestFirst(brandProjectRows || []);
+      if (relatedProjects.length) relatedProjectsFromBrand = brand.name;
+    }
+  }
   const photographedProjects = shapeProjectsNewestFirst(photographedRes.results);
   // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla
   // 50 aday burada karıştırılıp ilk 9'u alınır (D1'de ORDER BY RANDOM() KALDIRILDI). 9 — kullanıcı
@@ -755,6 +783,7 @@ export async function buildArchitectPayload(env, key) {
     colleagues,
     relatedProjects,
     photographedProjects,
+    relatedProjectsFromBrand,
     relatedArchitects,
     relatedProducts,
     usedProducts,

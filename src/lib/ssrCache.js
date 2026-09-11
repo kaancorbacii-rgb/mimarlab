@@ -133,7 +133,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // v127 (2026-09-11): önizleme kişi/marka popup'larında projeler + harita + "Diğer ..." bölümleri —
 // office-modal.js (marka haritası, "MİMARLAB'daki Diğer" başlığı) değişti; önbellekteki detay
 // gövdeleri ml-asset-version üzerinden eski modülü yükletmesin.
-export const SSR_CACHE_VERSION = 'v127';
+// v128 (2026-09-11): marka kurucusu popup'ında "Markanın Kullanıldığı Projeler" başlığı —
+// architect-modal.js değişti (bkz. v127'deki AYNI ml-asset-version gerekçesi).
+export const SSR_CACHE_VERSION = 'v128';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

@@ -969,6 +969,13 @@ const ArchitectModal = (function () {
     }
 
     document.getElementById('am-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
+    // Marka kurucusunun yedek listesi (bkz. src/routes/architect.js#relatedProjectsFromBrand,
+    // kullanıcı isteği 2026-09-11) kişinin KENDİ projeleri değil — başlık bunu söylemeli. Başlığın
+    // ilk düğümü düz metin (ardından sayaç <span>'ı ve filtre çentiği gelir), yalnızca o değişir.
+    const projectsTitleEl = document.getElementById('am-related-projects-title');
+    if (projectsTitleEl && projectsTitleEl.firstChild && projectsTitleEl.firstChild.nodeType === 3) {
+      projectsTitleEl.firstChild.nodeValue = payload.relatedProjectsFromBrand ? 'Markanın Kullanıldığı Projeler' : 'Projeler';
+    }
     // Izgara + sayaç + harita TEK yerden çizilir; grup filtresi (bkz. aşağıdaki ProjectGroupFilter)
     // seçim değiştikçe bu fonksiyonu süzülmüş listeyle yeniden çağırır (kullanıcı isteği,
     // 2026-09-04: "başlıktaki sayı da seçilen filtre grubuna ait proje sayısıyla güncellensin …
