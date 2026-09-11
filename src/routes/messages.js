@@ -6,12 +6,11 @@ import { createNotification } from '../lib/notify.js';
 import { getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge, BADGE_RANK } from '../lib/badgeAccess.js';
 
 // Kullanıcı isteği: doğrulanmış mimar/firma profillerine kullanıcıların mesaj gönderebilmesi —
-// mimar için tek alıcı (o profili claim eden onaylı kullanıcı), firma için BİRDEN FAZLA alıcı
-// (kurucu/kurucu ortak/ortak/ekip lideri) olabilir. src/lib/projectClaimAccess.js#
-// OFFICE_EDIT_POSITIONS İLE BİREBİR AYNI küme — firma profilini düzenleyebilen pozisyonlarla
-// firmaya gelen mesajları görebilen pozisyonlar kasıtlı olarak eşleşir.
+// mimar için tek alıcı (o profili claim eden onaylı kullanıcı), firma için BİRDEN FAZLA alıcı.
+// 2026-09-11'den beri firma mesajları bir GRUPTUR: firmaya kayıtlı TÜM üyeler alır ve cevaplar
+// (bkz. resolveOfficeMembers). Eski görev kısıtı (Kurucu/Ortak/Ekip Lideri/Yönetici + rozet)
+// kaldırıldı.
 const PROFILE_TYPES = new Set(['architect', 'office']);
-const OFFICE_MESSAGE_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
 const MAX_BODY_LEN = 4000;
 
 export async function handleMessagesRoute(request, env, url) {
@@ -41,6 +40,42 @@ export async function handleMessagesRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
+// FİRMA/MARKA MESAJLARI = GRUP (kullanıcı isteği, 2026-09-11: "Bir firmaya ya da markaya mesaj
+// gönderdiğimiz zaman aynı mesaj bildirimi firmaya kayıtlı TÜM kullanıcılara gitsin. Aynı mesajı
+// kendi ismiyle firmaya kayıtlı tüm kullanıcılar cevaplayabilsin. Yani WhatsApp grubu gibi.").
+// Eskiden alıcılar yalnızca OFFICE_MESSAGE_POSITIONS görevindekiler + kişisel rozetli üyelerdi
+// (2026-08-30 kuralı); artık firmaya kayıtlı HERKES — onaylı profile_claims('office') satırlarının
+// tamamı (görev fark etmeksizin, 'Yönetici' kurumsal hesap dahil) ve firmayı kendi gönderisiyle
+// açmış sahip (offices.claimed_by_user_id). Üyelik DİNAMİKTİR: firmaya sonradan katılan üye eski
+// konuşmaları da görür ve cevaplayabilir (bkz. syncOfficeThreadMembers, assertParticipant,
+// listMyThreads). Her cevap diğer tüm katılımcılara cevaplayanın KENDİ adıyla bildirim olarak gider
+// (appendMessageToThread) ve konuşma görünümü her mesajı yazanın adıyla gösterir (getThread senderName).
+async function resolveOfficeMembers(env, officeName) {
+  const [{ results: claimRows }, ownerRow] = await Promise.all([
+    env.DB.prepare(
+      `SELECT DISTINCT user_id FROM profile_claims WHERE profile_type = 'office' AND profile_key = ? AND status = 'approved'`
+    ).bind(officeName).all(),
+    env.DB.prepare(
+      `SELECT claimed_by_user_id FROM offices WHERE name = ? AND deleted_at IS NULL AND claimed_by_user_id IS NOT NULL LIMIT 1`
+    ).bind(officeName).first(),
+  ]);
+  const ids = new Set((claimRows || []).map(r => r.user_id).filter(Boolean));
+  if (ownerRow && ownerRow.claimed_by_user_id) ids.add(ownerRow.claimed_by_user_id);
+  return [...ids];
+}
+
+// Firma konuşmasının alıcı listesini firmanın GÜNCEL üyeleriyle tamamlar (eksik olanı ekler; gönderen
+// hariç). Üyelikten çıkarılan kişinin satırı SİLİNMEZ — konuşma geçmişi onun da verisidir.
+async function syncOfficeThreadMembers(env, thread) {
+  if (!thread || thread.profile_type !== 'office' || !thread.profile_key) return;
+  const members = (await resolveOfficeMembers(env, thread.profile_key)).filter(id => id !== thread.sender_user_id);
+  for (const memberId of members) {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO message_thread_recipients (thread_id, user_id) VALUES (?, ?)`
+    ).bind(thread.id, memberId).run();
+  }
+}
+
 // Bir mimar/firma profiline mesaj gönderebilecek kullanıcılar — profile_claims'teki (bkz.
 // schema.sql) ONAYLI sahiplik kayıtları. Gönderenin kendisi (zaten claim sahibiyse) hariç tutulur —
 // kendine mesaj göndermenin anlamı yok.
@@ -51,21 +86,8 @@ async function resolveRecipients(env, profileType, profileKey, excludeUserId) {
     ).bind(profileKey).all();
     return results.map(r => r.user_id).filter(id => id !== excludeUserId);
   }
-  const { results } = await env.DB.prepare(
-    `SELECT DISTINCT user_id, office_position FROM profile_claims WHERE profile_type = 'office' AND profile_key = ? AND status = 'approved'`
-  ).bind(profileKey).all();
-  const recipients = [];
-  for (const r of results) {
-    if (r.user_id === excludeUserId) continue;
-    if (OFFICE_MESSAGE_POSITIONS.has(r.office_position)) { recipients.push(r.user_id); continue; }
-    // kullanıcı isteği (2026-08-30): doğrulanmış/altın üyeler firma pozisyon kısıtlaması olmadan da
-    // mesaj alabilsin — Kurucu/Ortak vb. olmayan (ör. Ekip Üyesi) bir claim sahibi, KENDİ kişisel
-    // rozeti (satın aldığı ya da Kurucusu olduğu başka bir firmadan devraldığı admin rozeti, bkz.
-    // badgeAccess.js#getPersonalAdminBadge) doğrulanmış/altın kademedeyse yine alıcı listesine girer.
-    const personalBadge = higherRankBadge(await getActiveSelfBadge(env, r.user_id), await getPersonalAdminBadge(env, r.user_id));
-    if ((BADGE_RANK[personalBadge] || 0) > 0) recipients.push(r.user_id);
-  }
-  return recipients;
+  // Firma/marka: kayıtlı TÜM üyeler (bkz. resolveOfficeMembers — grup kuralı).
+  return (await resolveOfficeMembers(env, profileKey)).filter(id => id !== excludeUserId);
 }
 
 // Aynı gönderenin, YENİ mesajın alıcılarından en az biriyle ORTAK bir açık (status='open') konuşması
@@ -161,6 +183,10 @@ async function appendMessageToThread(env, thread, user, text) {
   ).bind(messageId, thread.id, user.id, text, now).run();
   await env.DB.prepare('UPDATE message_threads SET updated_at = ? WHERE id = ?').bind(now, thread.id).run();
 
+  // Firma grubu: bildirimden ÖNCE güncel üyeler alıcılara eklenir — konuşma açıldıktan sonra firmaya
+  // katılan üye de bu mesajın bildirimini alır (bkz. syncOfficeThreadMembers).
+  await syncOfficeThreadMembers(env, thread);
+
   const { results: recipientRows } = await env.DB.prepare(
     'SELECT user_id FROM message_thread_recipients WHERE thread_id = ?'
   ).bind(thread.id).all();
@@ -225,7 +251,16 @@ async function assertParticipant(env, threadId, userId) {
   const recipient = await env.DB.prepare(
     'SELECT 1 FROM message_thread_recipients WHERE thread_id = ? AND user_id = ?'
   ).bind(threadId, userId).first();
-  return { thread, isParticipant: !!recipient };
+  if (recipient) return { thread, isParticipant: true };
+  // Firma grubu: alıcı listesinde (henüz) olmayan ama firmanın GÜNCEL üyesi olan kullanıcı da
+  // katılımcıdır — satırı burada eklenir (bkz. resolveOfficeMembers, kullanıcı isteği 2026-09-11).
+  if (thread.profile_type === 'office' && (await resolveOfficeMembers(env, thread.profile_key)).includes(userId)) {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO message_thread_recipients (thread_id, user_id) VALUES (?, ?)`
+    ).bind(threadId, userId).run();
+    return { thread, isParticipant: true };
+  }
+  return { thread, isParticipant: false };
 }
 
 async function getThread(env, user, threadId) {
@@ -295,6 +330,17 @@ async function replyThread(request, env, user, threadId) {
 // gelir, bkz. fillProfilePhotos); kullanıcı alıcıysa diğer taraf thread'i açan gerçek kullanıcıdır
 // (sender_user_id → users.photo_url).
 async function listMyThreads(env, user) {
+  // Firma grubu: kullanıcının üyesi olduğu (onaylı claim ya da sahibi olduğu) firmaların konuşmaları,
+  // o konuşma açıldıktan SONRA katılmış olsa da kutusunda görünür (bkz. resolveOfficeMembers).
+  // Tek toplu INSERT … SELECT — konuşma sayısından bağımsız tek sorgu; gönderen olduğu konuşmalar hariç.
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO message_thread_recipients (thread_id, user_id)
+     SELECT t.id, ?1 FROM message_threads t
+      WHERE t.profile_type = 'office' AND t.sender_user_id != ?1
+        AND (t.profile_key IN (SELECT profile_key FROM profile_claims WHERE user_id = ?1 AND profile_type = 'office' AND status = 'approved')
+          OR t.profile_key IN (SELECT name FROM offices WHERE claimed_by_user_id = ?1 AND deleted_at IS NULL))`
+  ).bind(user.id).run();
+
   const { results: threads } = await env.DB.prepare(
     `SELECT t.id, t.profile_type, t.profile_key, t.sender_user_id, t.sender_name, t.status, t.updated_at
      FROM message_threads t
