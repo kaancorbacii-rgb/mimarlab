@@ -9,7 +9,7 @@ import { serializePublicEntity, coverImage } from '../lib/serializePublicEntity.
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
-import { TR_UNIVERSITIES } from '../lib/universities.js';
+import { TR_UNIVERSITIES, canonicalSchoolName } from '../lib/universities.js';
 import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
 import { buildOfficePeople } from './office.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
@@ -19,7 +19,19 @@ import { trLower, foldTr } from '../lib/textMatch.js';
 // Marka mı? (kişi popup'ında marka kurucusunun "Markanın Kullanıldığı Projeler" yedeği için) —
 // src/routes/office.js'teki AYNI içe aktarma/yardımcı.
 import officeKindJs from '../../office-kind.js';
+// kisi.html filtre kapısı (kullanıcı isteği, 2026-09-11: "kişi ekle/düzenle sayfasındaki ödüllerden,
+// mesleklerden ve pozisyonlardan başka asla başka seçenek eklenmesin. Farklı seçenek olanları da
+// kaldır") — Pozisyon/Meslek/Ödül sayaçları yalnızca formun KENDİ seçenek listelerinden birine
+// düşen değerleri sayar. Kaynaklar formun okuduğu AYNI dosyalar: awards-shared.js#ODUL_OPTIONS,
+// profession-shared.js#MESLEK_OPTIONS, auth.js#POSITIONS (= kisi-ekle.html#POZISYON_OPTIONS).
+// Serbest metinle girilmiş eski ödüller ("RIBA Onursal Üyeliği (1946)" gibi) kişi popup'ında
+// görünmeye devam eder; yalnızca filtre seçeneği OLMAZLAR.
+import awardsSharedJs from '../../awards-shared.js';
+import professionSharedJs from '../../profession-shared.js';
+import { POSITIONS } from './auth.js';
 const { isBrandOffice } = officeKindJs;
+const FILTER_AWARDS = new Set(awardsSharedJs.ODUL_OPTIONS);
+const FILTER_PROFESSIONS = new Set(professionSharedJs.MESLEK_OPTIONS);
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -77,7 +89,7 @@ export async function fetchArchitectPool(env) {
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
       // preview: bkz. src/lib/projectPool.js#shapeProjectItem'daki AYNI alan/gerekçe.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: (a.school || '').trim() || null, awards, projectCount: row.project_count || 0, badges: [], ...(row.preview_at ? { preview: true } : {}) };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: canonicalSchoolName(a.school) || null, awards, projectCount: row.project_count || 0, badges: [], ...(row.preview_at ? { preview: true } : {}) };
     });
   });
 }
@@ -228,7 +240,7 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
     const items = [...TR_UNIVERSITIES];
     const seen = new Set(items.map(s => s.toLocaleLowerCase('tr')));
     for (const row of results) {
-      const name = String(row.school || '').trim();
+      const name = canonicalSchoolName(row.school);
       const key = name.toLocaleLowerCase('tr');
       if (!name || seen.has(key)) continue;
       seen.add(key);
@@ -368,8 +380,10 @@ export async function handleArchitectListRoute(request, env, url) {
       if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
       // (a.awards || []) — professions'takiyle AYNI eski-havuz koruması (bu alan officeAwards'ın
       // yerini aldı, artık kişinin KENDİ ödüllerini de içerir, bkz. fetchArchitectPool).
-      (a.awards || []).forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
-      if (a.position) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
+      // FILTER_AWARDS/POSITIONS/FILTER_PROFESSIONS — formdaki listelerin DIŞINDA kalan değer
+      // filtre seçeneği olmaz (bkz. dosya başındaki kullanıcı isteği, 2026-09-11).
+      (a.awards || []).forEach(award => { if (FILTER_AWARDS.has(award)) awardCounts[award] = (awardCounts[award] || 0) + 1; });
+      if (a.position && POSITIONS.has(a.position)) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
       // Okul adları serbest metin ama canlıda ölçüldü: 313 kişi / 66 farklı okul, büyük-küçük harf
       // varyantı YOK (COUNT(DISTINCT school) === COUNT(DISTINCT LOWER(school))) — bu yüzden ekstra
       // bir normalizasyon katmanı eklenmedi, değerler havuzda zaten trim'lenmiş hâlde duruyor.
@@ -380,7 +394,7 @@ export async function handleArchitectListRoute(request, env, url) {
       // a.professions.forEach, o pencerede TÜM /api/architects isteklerini 500'e düşürürdü —
       // yani kişi listesi manuel bir KV temizliği yapılana kadar tamamen çöker. Bu geri düşüş,
       // aynı pencerede yalnızca meslek sayaçlarının boş kalmasına (kendiliğinden düzelir) yol açar.
-      (a.professions || []).forEach(p => { professionCounts[p] = (professionCounts[p] || 0) + 1; });
+      (a.professions || []).forEach(p => { if (FILTER_PROFESSIONS.has(p)) professionCounts[p] = (professionCounts[p] || 0) + 1; });
     });
 
     const total = filtered.length;

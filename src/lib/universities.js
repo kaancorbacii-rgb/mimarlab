@@ -15,6 +15,20 @@
 // Uç, bu listeyi architects.school'daki GERÇEK değerlerle birleştirir — yurt dışı üniversiteleri ve
 // buraya henüz eklenmemiş yeni kurumlar önerilmeye devam eder. Yeni bir üniversite kurulduğunda
 // yalnızca buraya eklenmesi yeterlidir.
+//
+// SCHOOL_ALIASES — kurumun ESKİ/YANLIŞ adı -> doğru adı (kullanıcı isteği, 2026-09-11: "Önerilenlerde
+// çıkan Mimar Sinan Üniversitesini kaldır, bunun doğrusu Mimar Sinan Güzel Sanatlar Üniversitesi
+// olmalı"). architects.school serbest metin olduğundan yanlış yazım öneri listesine ve kisi.html
+// "Üniversite" filtresine ayrı bir seçenek olarak sızıyordu; canonicalSchoolName iki yolda da
+// (handleArchitectSchoolsRoute + fetchArchitectPool) uygulanır, yeni bir yanlış yazım buraya eklenir.
+export const SCHOOL_ALIASES = {
+  'Mimar Sinan Üniversitesi': 'Mimar Sinan Güzel Sanatlar Üniversitesi',
+};
+export function canonicalSchoolName(name) {
+  const s = String(name || '').trim();
+  return SCHOOL_ALIASES[s] || s;
+}
+
 export const TR_UNIVERSITIES = [
 
   // ---- Devlet üniversiteleri ----
@@ -111,6 +125,7 @@ export const TR_UNIVERSITIES = [
   'Marmara Üniversitesi',
   'Mersin Üniversitesi',
   'Milli Savunma Üniversitesi',
+  'Mimar Sinan Güzel Sanatlar Üniversitesi',
   'Muğla Sıtkı Koçman Üniversitesi',
   'Munzur Üniversitesi',
   'Muş Alparslan Üniversitesi',

@@ -294,6 +294,17 @@ else
 fi
 rm -f /tmp/preflight_msgav
 
+# Firma/marka İş / Staj İlanları (kullanıcı isteği, 2026-09-11) — node:sqlite üzerinde GERÇEK
+# schema.sql + GERÇEK rota (handleOfficeJobsRoute): yalnızca künyeyi düzenleyebilen (admin, Kurucu/
+# Ortak/Ekip Lideri/Yönetici claim'i) yayınlar/kaldırır; görsel yalnızca kendi /media/u/ yüklemesi.
+if node scripts/test-2026-09-11-office-jobs.mjs >/tmp/preflight_jobs 2>&1; then
+  ok "iş / staj ilanı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_jobs) test)"
+else
+  bad "iş / staj ilanı testleri BAŞARISIZ:"
+  tail -20 /tmp/preflight_jobs >&2
+fi
+rm -f /tmp/preflight_jobs
+
 # Firma/marka yetkilisinin, firma ortaklarının KİŞİ profillerini düzenlemesi (kullanıcı isteği,
 # 2026-09-08) — node:sqlite üzerinde GERÇEK schema.sql. Kural tek yerde (claimedProfiles.js#
 # canEditArchitectViaOfficeMembership) yaşıyor ve HEM kaydetme kapısı (submissions.js#

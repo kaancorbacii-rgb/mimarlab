@@ -48,6 +48,8 @@ const SOURCES = [
   // Gündem kullanıcı gönderileri (migrations/0113) — görseller /api/uploads'tan `u/` önekiyle gelir.
   // Otomatik içeriğin image_url'i dış bir CDN'dir; collectR2MediaKeys onu zaten yok sayar.
   { table: 'gundem_items', fields: { arrayFields: ['images'], stringFields: ['image_url'] } },
+  // Firma/marka İş / Staj İlanları (migrations/0115) — ilan görseli /api/uploads'tan `u/` önekiyle.
+  { table: 'office_jobs', fields: { stringFields: ['image_url'] } },
 ];
 
 function columnList(fields) {

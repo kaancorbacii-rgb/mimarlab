@@ -611,8 +611,8 @@ if(p.replace(/\/+$/,'')==='/firma'&&!location.search){var u='/api/offices?page=1
 <script>
 // Faz 3 sonrası: firma.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
 // sayfalama, filtreleme ve sıralama backend'de (/api/offices) canonical D1 tablosu üzerinden
-// yapılıyor (bkz. src/routes/office.js#handleOfficeListRoute, orada cityOf/FOREIGN_LOC_TO_COUNTRY/
-// expBucketOf'un BİREBİR sunucu karşılığı var). Rozet sistemi + initials/officeColor/logoUrl
+// yapılıyor (bkz. src/routes/office.js#handleOfficeListRoute — Konum seçenekleri orada cityOf ile
+// yalnızca 81 il + ülke adına indirgenir, Tecrübe kovaları expBucketOf'tan gelir). Rozet sistemi + initials/officeColor/logoUrl
 // yardımcı fonksiyonları küçük badge-shared.js'ten gelir.
 const PAGE_SIZE = 24;
 let currentPage = 1;

@@ -13,6 +13,8 @@ import { isBrandUrlOffice } from '../lib/officeUrl.js';
 import { fetchOfficeProductCounts } from '../lib/officeProductCounts.js';
 import { MANAGER_POSITION } from '../lib/projectClaimAccess.js';
 import officeKindJs from '../../office-kind.js';
+// il-ilce-data.js — bkz. src/lib/projectPool.js'teki AYNI CJS-interop importu (Konum filtresi).
+import ilIlceJs from '../../il-ilce-data.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
@@ -198,18 +200,49 @@ export async function handleOfficeNamesRoute(request, env, url) {
   });
 }
 
-// firma.html#FOREIGN_LOC_TO_COUNTRY/cityOf ile BİREBİR aynı — Türkiye dışındaki markalar için konum
-// filtresinde şehir değil ülke adı gösterilir.
-const FOREIGN_LOC_TO_COUNTRY = {
-  'Almanya': 'Almanya', 'Amsterdam, Hollanda': 'Hollanda', 'Chicago, ABD': 'ABD', 'Ljubljana': 'Slovenya',
-  'Londra, İngiltere': 'İngiltere', 'Los Angeles, ABD': 'ABD', 'Milano, İtalya': 'İtalya', 'Moskova': 'Rusya',
-  'New York, ABD': 'ABD', 'Paris': 'Fransa', 'Paris, Fransa': 'Fransa', 'Roma': 'İtalya', 'Rotterdam': 'Hollanda',
-  'Rotterdam, Hollanda': 'Hollanda', 'Stuttgart': 'Almanya', 'Stuttgart, Almanya': 'Almanya', 'Tokyo, Japonya': 'Japonya',
+// KONUM FİLTRE KAPISI (kullanıcı isteği, 2026-09-11: "Firma ve Marka sayfalarında konum seçeneğinde
+// sadece Türkiye'nin illeri ve yabancı ülkelerin isimleri olsun, kesinlikle başka bir isim olmasın.
+// ABD yazanları Amerika Birleşik Devletleri'ne aktar ve ABD'yi sil. Yabancı ülke isimlerinin yanında
+// da şehir isimleri yazmasın.") — proje "Yer" filtresiyle (il-ilce-data.js#projectPlaceOf) AYNI
+// izinli küme: 81 il + COUNTRY_LIST. Eski sürüm elle yazılmış bir FOREIGN_LOC_TO_COUNTRY tablosunda
+// OLMAYAN her değeri olduğu gibi seçenek yapıyordu ("Mornico al Serio, İtalya", "Toronto, Kanada",
+// "Amerika Birleşik Devletleri / New York" ayrı ayrı çıkıyordu) ve ABD'yi kısaltmayla sayıyordu.
+// Tanınamayan değer (ör. "Türkiye" — ili belli değil) filtreye HİÇ düşmez; kart/künye metni değişmez.
+const { parseLocationFull, IL_LIST, COUNTRY_LIST } = ilIlceJs;
+const OFFICE_PROVINCE_SET = new Set(IL_LIST.slice(0, 81));
+const OFFICE_COUNTRY_SET = new Set(COUNTRY_LIST);
+// Kısaltma/eşanlamlı ülke adı -> COUNTRY_LIST'teki TEK yazım (tek ülke, tek seçenek).
+const COUNTRY_ALIASES = {
+  'ABD': 'Amerika Birleşik Devletleri', 'A.B.D.': 'Amerika Birleşik Devletleri', 'USA': 'Amerika Birleşik Devletleri',
+  'Birleşik Krallık': 'İngiltere', 'UK': 'İngiltere', 'Çek Cumhuriyeti': 'Çekya',
 };
+// Ülkesi yazılmadan tek başına girilmiş şehir/semt adları (canlıdaki gerçek değerler).
+const BARE_PLACE_TO_PLACE = {
+  'Moskova': 'Rusya', 'Ljubljana': 'Slovenya', 'Paris': 'Fransa', 'Roma': 'İtalya', 'Milano': 'İtalya',
+  'Rotterdam': 'Hollanda', 'Amsterdam': 'Hollanda', 'Stuttgart': 'Almanya', 'Londra': 'İngiltere',
+  'Tokyo': 'Japonya', 'New York': 'Amerika Birleşik Devletleri', 'Yalıkavak': 'Muğla',
+};
+function canonicalPlaceName(name) {
+  const s = String(name || '').normalize('NFC').trim();
+  return COUNTRY_ALIASES[s] || s;
+}
+function isAllowedPlace(p) { return OFFICE_PROVINCE_SET.has(p) || OFFICE_COUNTRY_SET.has(p); }
+// offices.loc -> il ya da ülke adı; izinli değilse ''. Biçimler: "İl / İlçe", "Ülke / Şehir" (konum
+// seçicinin yazdığı), "Şehir, Ülke" (eski içe aktarmalar), çıplak il/ilçe/ülke/şehir.
 function cityOf(loc) {
-  if (!loc) return '';
-  if (FOREIGN_LOC_TO_COUNTRY[loc]) return FOREIGN_LOC_TO_COUNTRY[loc];
-  return loc.split(' / ')[0];
+  const raw = String(loc || '').normalize('NFC').trim();
+  if (!raw) return '';
+  const head = canonicalPlaceName(raw.split('/')[0]);
+  if (isAllowedPlace(head)) return head;
+  const commaParts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (commaParts.length > 1) {
+    const tail = canonicalPlaceName(commaParts[commaParts.length - 1]);
+    if (isAllowedPlace(tail)) return tail;
+  }
+  const bare = BARE_PLACE_TO_PLACE[head];
+  if (bare) return bare;
+  const { city } = parseLocationFull(head);
+  return city && OFFICE_PROVINCE_SET.has(city) ? city : '';
 }
 
 // Tecrübe kovalarının görüntüleme sırası — expBucketOf'un ürettiği değerlerle BİREBİR aynı küme.
@@ -243,7 +276,9 @@ export async function handleOfficeListRoute(request, env, url) {
     // bağlantıları, paylaşılmış URL'ler, index.html carousel'i) tek elemanlı bir dizi olarak AYNI
     // şekilde çalışır. Grup İÇİ mantık OR, gruplar ARASI AND — src/routes/architect.js#
     // handleArchitectListRoute ile birebir aynı desen.
-    const locParams = url.searchParams.getAll('loc').filter(Boolean);
+    // canonicalPlaceName — eski/paylaşılmış bir ?loc=ABD linki de yeni "Amerika Birleşik Devletleri"
+    // seçeneğiyle eşleşsin.
+    const locParams = url.searchParams.getAll('loc').filter(Boolean).map(canonicalPlaceName);
     const catParams = url.searchParams.getAll('cat').filter(Boolean);
     const expParams = url.searchParams.getAll('exp').filter(Boolean);
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
@@ -692,7 +727,10 @@ export async function buildOfficePayload(env, key) {
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye
   // çıkarılsın). cityOf() zaten firma.html'nin "Yer" filtresi için var olan AYNI "İl / İlçe" ayrıştırma
   // kuralı (bkz. dosya başı tanım) — yeni bir ayrıştırma mantığı EKLENMEDİ.
-  const officeCity = cityOf(o.loc);
+  // cityOf() yalnızca izinli il/ülke döner (filtre kapısı, 2026-09-11); "Türkiye" gibi ili belli
+  // olmayan bir değer için eski davranış (ham baş kısım) korunur — "Şehirdeki Diğer Firmalar"
+  // bölümü o firmalarda kaybolmasın.
+  const officeCity = cityOf(o.loc) || String(o.loc || '').split(' / ')[0].trim();
 
   const [people, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, preferringOfficesRes, preferringArchitectsRes] = await Promise.all([
     // Kurucular/Ekip — kişi popup'ı da AYNI fonksiyonu kullanır (bkz. buildOfficePeople).

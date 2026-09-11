@@ -1024,6 +1024,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pht_pending_unique
 -- Yazıcı: src/lib/gundemIngest.js (cron). Okuyucu: src/routes/gundem.js, src/lib/seo.js.
 -- ÖNEMLİ: bu tablo bir MAKALE ARŞİVİ DEĞİLDİR — kaynak makale gövdesi hiçbir zaman saklanmaz,
 -- yalnızca MİMARLAB'ın kendi ürettiği Türkçe başlık/özet + kaynağa götüren metadata tutulur.
+-- Firma/marka İş / Staj İlanları — bkz. migrations/0115_office_jobs.sql, src/routes/officeJobs.js.
+CREATE TABLE IF NOT EXISTS office_jobs (
+  id TEXT PRIMARY KEY,
+  office_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_office_jobs_office ON office_jobs(office_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS gundem_items (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,

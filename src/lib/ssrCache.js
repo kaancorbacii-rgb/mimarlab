@@ -142,7 +142,10 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // ml-asset-version gerekçesi).
 // v131 (2026-09-11): firma/marka popup haritası kaldırıldı, tablet/mobilde Önceki/Sonraki popup'ın EN
 // ALTINDA, marka popup'ında "Önceki/Sonraki Marka" — office/architect/product-modal.js değişti.
-export const SSR_CACHE_VERSION = 'v131';
+// v132 (2026-09-11): firma/marka popup'ına "İş / Staj İlanları" kutusu (office-modal.js), mesaj
+// formundan Şehir/Firma/Telefon kaldırıldı; ABD konumlu firmalar "Amerika Birleşik Devletleri / Şehir"e,
+// "Mimar Sinan Üniversitesi" "Mimar Sinan Güzel Sanatlar Üniversitesi"ne taşındı (D1 verisi).
+export const SSR_CACHE_VERSION = 'v132';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

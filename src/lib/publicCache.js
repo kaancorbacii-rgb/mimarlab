@@ -486,8 +486,12 @@ async function withSingleFlight(key, fn) {
 //     ofis/mağaza konumları) taşıyor — firma/marka popup haritası bunu okur.
 // v36 -> v37 (kullanıcı isteği, 2026-09-11): konum haritaları kaldırıldı — /api/office/:key item'ı
 //     artık `locations` taşımıyor.
+// v37 -> v38 (kullanıcı isteği, 2026-09-11): /api/offices `filters.loc` yalnızca 81 il + ülke adı,
+//     /api/architects `filters.position/profession/award` yalnızca kişi ekle formunun seçenekleri,
+//     okul adları canonicalSchoolName'den geçer — fingerprint değişmediği için eski gövdeler aksi
+//     halde önbellekten dönmeye devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v37';
+const API_PAYLOAD_VERSION = 'v38';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

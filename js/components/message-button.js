@@ -125,13 +125,8 @@ const MessageWidget = (function () {
           <div class="msg-field"><label for="msg-f-desc">Mesajınız</label><textarea id="msg-f-desc" maxlength="4000" required></textarea></div>
           <div class="msg-field"><label for="msg-f-name">Ad Soyad</label><input id="msg-f-name" required value="${escapeAttr((typeof currentUser !== 'undefined' && currentUser && currentUser.name) || '')}"></div>
           <div class="msg-field"><label for="msg-f-email">E-posta</label><input type="email" id="msg-f-email" required value="${escapeAttr((typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '')}"></div>
-          <div class="msg-field"><label for="msg-f-city">Şehir</label><input id="msg-f-city"></div>
-          <div class="msg-field-row">
-            <div class="msg-field"><label for="msg-f-company">Firma (opsiyonel)</label><input id="msg-f-company"></div>
-            <div class="msg-field"><label for="msg-f-phone">Telefon (opsiyonel)</label><input id="msg-f-phone"></div>
-          </div>
           <button type="submit" class="msg-compose-send">Gönder</button>
-          <p class="msg-compose-note">Mesajın, bu profilin onaylı sahiplerine iletilir ve sana e-postayla değil, Bildirimler ve Mesajlar üzerinden cevaplanır.</p>
+          <p class="msg-compose-note">Mesajlar 'Hesabım' sayfasındaki 'Mesajlar' bölümünden cevaplanır.</p>
           <div class="msg-compose-error" id="msg-compose-error" style="display:none;"></div>
         </form>
       </div>`;
@@ -166,9 +161,6 @@ const MessageWidget = (function () {
             description: document.getElementById('msg-f-desc').value.trim(),
             name: document.getElementById('msg-f-name').value.trim(),
             email: document.getElementById('msg-f-email').value.trim(),
-            city: document.getElementById('msg-f-city').value.trim(),
-            company: document.getElementById('msg-f-company').value.trim(),
-            phone: document.getElementById('msg-f-phone').value.trim(),
           }),
         });
         const resData = await res.json().catch(() => ({}));

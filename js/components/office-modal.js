@@ -33,6 +33,40 @@ const OfficeModal = (function () {
     style.id = 'office-modal-styles';
     style.textContent = `
       .detail-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0; line-height:1.25;}
+      /* İş / Staj İlanları kutusu (kullanıcı isteği, 2026-09-11) — kabuk .feedback-card (bkz.
+         claim-correction-box.js), içerik 4:3 önizleme ızgarası. Görsele tıklayınca galeri modunda
+         lightbox açılır (bkz. image-lightbox.js#openGallery). */
+      .om-jobs-count{font-weight:600; color:var(--ink-soft); margin-left:4px;}
+      .om-jobs-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; margin-top:6px;}
+      .om-job{position:relative; min-width:0;}
+      .om-job-thumb{display:block; width:100%; aspect-ratio:4/3; padding:0; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; background:var(--paper-alt); cursor:zoom-in;}
+      .om-job-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+      .om-job-title{margin:6px 0 0 !important; font-size:12.5px !important; font-weight:600; color:var(--ink) !important; line-height:1.35 !important; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;}
+      .om-job-del{position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
+      .om-job-del:hover{background:rgba(27,42,61,0.9);}
+      .om-jobs-empty{margin:0 !important;}
+      .om-jobs-publish{margin-top:14px; width:100%; border:1px solid var(--walnut); background:var(--paper-card); color:var(--walnut); border-radius:100px; padding:10px 14px; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer;}
+      .om-jobs-publish:hover{background:var(--walnut); color:#fff;}
+      .om-jobpub-overlay{position:fixed; inset:0; z-index:220; display:flex; align-items:flex-start; justify-content:center; background:rgba(27,42,61,0.55); padding:40px 16px; overflow-y:auto;}
+      .om-jobpub-panel{width:100%; max-width:460px; background:var(--paper-card); border-radius:16px; padding:28px 26px 24px; box-shadow:0 24px 60px rgba(27,42,61,0.3); position:relative; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;}
+      .om-jobpub-close{position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:50%; border:none; background:var(--paper-alt); color:var(--ink-soft); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1;}
+      .om-jobpub-close:hover{color:var(--ink);}
+      .om-jobpub-heading{font-size:20px; font-weight:700; margin:0 0 4px; color:var(--ink); padding-right:30px;}
+      .om-jobpub-sub{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
+      .om-jobpub-field{margin-bottom:14px;}
+      .om-jobpub-field > label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
+      .om-jobpub-field input[type="text"]{width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit; color:var(--ink); background:var(--paper-card);}
+      .om-jobpub-field input[type="text"]:focus{outline:none; border-color:var(--walnut);}
+      .om-jobpub-drop{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; aspect-ratio:4/3; box-sizing:border-box; border:1.5px dashed var(--line); border-radius:12px; background:var(--paper-alt); color:var(--ink-soft); font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; overflow:hidden; padding:0;}
+      .om-jobpub-drop:hover{border-color:var(--walnut); color:var(--ink);}
+      .om-jobpub-drop small{font-size:11.5px; font-weight:400;}
+      .om-jobpub-drop.has-image{border-style:solid; border-color:var(--line-soft);}
+      .om-jobpub-drop img{width:100%; height:100%; object-fit:cover; display:block;}
+      .om-jobpub-hint{font-size:11.5px; color:var(--ink-soft); margin:6px 0 0;}
+      .om-jobpub-send{width:100%; border:none; border-radius:100px; background:var(--walnut); color:#fff; font-size:14.5px; font-weight:700; padding:13px; cursor:pointer; font-family:inherit; margin-top:4px;}
+      .om-jobpub-send:hover{filter:brightness(0.94);}
+      .om-jobpub-send:disabled{opacity:0.6; cursor:default;}
+      .om-jobpub-error{font-size:12.5px; color:#B3261E; margin-top:10px; text-align:center;}
       .om-identity{display:flex; align-items:center; gap:16px; margin-bottom:18px;}
       .profile-logo{
         width:64px; height:64px; border-radius:50%; flex-shrink:0;
@@ -190,7 +224,7 @@ const OfficeModal = (function () {
         /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
            modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/geri
            bildirim kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
-        #claim-info-card, #correction-info-card{order:98;}
+        #om-jobs-card, #claim-info-card, #correction-info-card{order:98;}
         /* Önceki/Sonraki popup'ın EN ALTINDA, claim/geri bildirim kutularının da altında (kullanıcı
            isteği, 2026-09-11: "Tablet ve mobil görünümde tüm önceki sonraki butonları popupın en
            altında olsunlar") — kutular sol panelde, bu buton sağ panelde; order ikisini ayırır. */
@@ -249,6 +283,12 @@ const OfficeModal = (function () {
       <div class="detail-desc" id="om-about"></div>
       <hr class="detail-info-divider">
     </div>
+    <!-- İş / Staj İlanları (kullanıcı isteği, 2026-09-11) — "Bu firma sana mı ait?" ve "Geri
+         Bildirim"in ÜSTÜNDE; yayında ilan varsa açık, yoksa kapalı gelir (bkz. renderJobs). -->
+    <details class="feedback-card om-jobs-card" id="om-jobs-card" style="display:none;">
+      <summary><span>İş / Staj İlanları<span class="om-jobs-count" id="om-jobs-count"></span></span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <div id="om-jobs-body"></div>
+    </details>
     <details class="feedback-card" id="claim-info-card" style="display:none;">
       <summary><span id="om-claim-card-title">Bu firma sana mı ait?</span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div id="claim-card-body"></div>
@@ -683,7 +723,7 @@ const OfficeModal = (function () {
   const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
     'om-project-products-section', 'om-related-brands-section',
     'om-brand-product-projects-section', 'om-preferring-pair', 'om-preferring-offices-section',
-    'om-preferring-architects-section', 'om-detail-info', 'om-prevnext'];
+    'om-preferring-architects-section', 'om-detail-info', 'om-prevnext', 'om-jobs-card'];
 
   async function renderItem(payload) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
@@ -727,6 +767,7 @@ const OfficeModal = (function () {
       if (claimTitleEl) claimTitleEl.textContent = `Bu ${KIND_LABEL} sana mı ait?`;
     }
     currentItem = o;
+    renderJobs(o);
 
     updateHeadMeta(o);
     document.getElementById('om-name-text').textContent = o.name;
@@ -1215,6 +1256,235 @@ const OfficeModal = (function () {
       },
     });
     box.init();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // İŞ / STAJ İLANLARI (kullanıcı isteği, 2026-09-11: "Firma ve Marka popuplarında Geri Bildirim
+  // (varsa Bu firma sana mı ait?) butonlarının üstüne açılır kapanır 'İş / Staj İlanları' butonu
+  // ekle. Eğer bir ilan varsa buton default olarak açık olsun ... sadece firma veya markanın
+  // yetkilendirdiği kullanıcıların görebileceği 'İlan Yayınla' butonu ... kırpma aracı ... en fazla
+  // 4mb ... 4:3 önizleme ... tıklayınca lightbox ... görseller arasında geçiş").
+  //
+  // Veri /api/office-jobs'tan AYRI gelir (bkz. src/routes/officeJobs.js): canManage oturuma bağlı,
+  // public önbellekli firma payload'ına konamaz. İlan Yayınla butonu yalnızca sunucu canManage
+  // dediğinde basılır; asıl kapı yine sunucudaki POST/DELETE yetki kontrolü.
+  // ---------------------------------------------------------------------------------------------
+  // src/routes/upload.js#MAX_UPLOAD_BYTES (bağlamsız yükleme) ile AYNI tavan.
+  const JOB_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+  let jobsSeq = 0;
+
+  function jobsOfficeKey(o) { return o.slug || o.name; }
+
+  // Kırpma/yükleme betikleri yalnızca "İlan Yayınla" tıklanınca indirilir — popup'ı açan her
+  // ziyaretçiye ~40 KB yük bindirmemek için (bkz. auth-modal.js#loadImageUploadModule AYNI gerekçe).
+  // Sürüm, lazy-modals.js#versionedSrc ile AYNI <meta name="ml-asset-version">'dan.
+  const scriptLoads = {};
+  function loadScriptOnce(src, globalName) {
+    if (window[globalName]) return Promise.resolve(window[globalName]);
+    if (!scriptLoads[src]) {
+      const meta = document.querySelector('meta[name="ml-asset-version"]');
+      const v = meta && meta.getAttribute('content');
+      const full = (v && /^[A-Za-z0-9._-]{1,40}$/.test(v)) ? `${src}?v=${v}` : src;
+      scriptLoads[src] = new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = full;
+        s.onload = () => resolve(window[globalName] || null);
+        s.onerror = () => { s.remove(); delete scriptLoads[src]; resolve(null); };
+        document.head.appendChild(s);
+      });
+    }
+    return scriptLoads[src];
+  }
+
+  function jobThumbSrc(url) {
+    return (typeof cdnImg === 'function') ? cdnImg(url, 800) : url;
+  }
+
+  async function renderJobs(o) {
+    const card = document.getElementById('om-jobs-card');
+    const body = document.getElementById('om-jobs-body');
+    const countEl = document.getElementById('om-jobs-count');
+    if (!card || !body) return;
+    const seq = ++jobsSeq;
+    // Bir önceki firmanın ilanları yeni firmada bir an bile görünmesin — şablon tek sefer mount edilir.
+    card.style.display = '';
+    card.open = false;
+    body.innerHTML = '';
+    if (countEl) countEl.textContent = '';
+    let data = { items: [], canManage: false };
+    try {
+      const res = await fetch(`/api/office-jobs?office=${encodeURIComponent(jobsOfficeKey(o))}`, { cache: 'no-store', credentials: 'same-origin' });
+      if (res.ok) data = await res.json();
+    } catch { /* ağ hatası: kutu boş ve kapalı kalır */ }
+    if (seq !== jobsSeq || currentItem !== o) return;
+    paintJobs(o, Array.isArray(data.items) ? data.items : [], !!data.canManage);
+  }
+
+  function paintJobs(o, items, canManage) {
+    const card = document.getElementById('om-jobs-card');
+    const body = document.getElementById('om-jobs-body');
+    const countEl = document.getElementById('om-jobs-count');
+    if (!card || !body) return;
+    if (countEl) countEl.textContent = items.length ? ` (${items.length})` : '';
+    const listHtml = items.length
+      ? `<div class="om-jobs-grid">${items.map((j, i) => `
+          <div class="om-job">
+            <button type="button" class="om-job-thumb" data-job-index="${i}" aria-label="${escapeAttr(j.title)} — büyüt"><img src="${escapeAttr(jobThumbSrc(j.image))}" alt="${escapeAttr(j.title)}" loading="lazy"></button>
+            ${canManage ? `<button type="button" class="om-job-del" data-job-del="${escapeAttr(j.id)}" aria-label="İlanı kaldır" title="İlanı kaldır">&times;</button>` : ''}
+            <p class="om-job-title">${escapeHtml(j.title)}</p>
+          </div>`).join('')}</div>`
+      : '<p class="om-jobs-empty">Şu anda yayında bir iş ya da staj ilanı yok.</p>';
+    body.innerHTML = listHtml + (canManage ? '<button type="button" class="om-jobs-publish">+ İlan Yayınla</button>' : '');
+    card.open = items.length > 0;
+    body.onclick = async (e) => {
+      const thumb = e.target.closest('.om-job-thumb');
+      if (thumb) {
+        const gallery = items.map(j => ({ src: j.image, caption: j.title }));
+        const idx = Number(thumb.dataset.jobIndex) || 0;
+        if (window.ImageLightbox && window.ImageLightbox.openGallery) window.ImageLightbox.openGallery(gallery, idx);
+        else window.open(items[idx].image, '_blank', 'noopener');
+        return;
+      }
+      const del = e.target.closest('.om-job-del');
+      if (del) {
+        if (!confirm('Bu ilanı kaldırmak istediğine emin misin?')) return;
+        del.disabled = true;
+        const res = await fetch(`/api/office-jobs/${encodeURIComponent(del.dataset.jobDel)}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => null);
+        if (!res || !res.ok) {
+          const d = res ? await res.json().catch(() => ({})) : {};
+          alert(d.error || 'İlan kaldırılamadı, lütfen tekrar dene.');
+          del.disabled = false;
+          return;
+        }
+        if (currentItem === o) renderJobs(o);
+        return;
+      }
+      if (e.target.closest('.om-jobs-publish')) openJobPublish(o);
+    };
+  }
+
+  function closeJobPublish() {
+    const overlay = document.getElementById('om-jobpub-overlay');
+    if (overlay && overlay._close) overlay._close();
+  }
+  // Popup kapanırsa (OverlayManager yolu dahil) form asılı kalmasın — bkz. message-button.js'teki
+  // AYNI gerçek bulgu (sayfa kaydırılamaz kalıyordu).
+  document.addEventListener('mimarlab-modal-closed', closeJobPublish);
+
+  function openJobPublish(o) {
+    closeJobPublish();
+    const overlay = document.createElement('div');
+    overlay.className = 'om-jobpub-overlay';
+    overlay.id = 'om-jobpub-overlay';
+    overlay.innerHTML = `
+      <div class="om-jobpub-panel" role="dialog" aria-modal="true" aria-labelledby="om-jobpub-heading">
+        <button type="button" class="om-jobpub-close" aria-label="Kapat">&times;</button>
+        <h2 class="om-jobpub-heading" id="om-jobpub-heading">İlan Yayınla</h2>
+        <p class="om-jobpub-sub">${escapeHtml(o.name)}</p>
+        <form id="om-jobpub-form" novalidate>
+          <div class="om-jobpub-field">
+            <label for="om-jobpub-title">İlan Başlığı</label>
+            <input type="text" id="om-jobpub-title" maxlength="140" autocomplete="off" placeholder="Ör. Stajyer Mimar (Yaz Dönemi)">
+          </div>
+          <div class="om-jobpub-field">
+            <label for="om-jobpub-drop">İlan Görseli</label>
+            <button type="button" class="om-jobpub-drop" id="om-jobpub-drop"><span>Görsel seç</span><small>JPEG, PNG ya da WEBP · en fazla 4 MB</small></button>
+            <input type="file" id="om-jobpub-file" accept="image/jpeg,image/png,image/webp" hidden>
+            <p class="om-jobpub-hint">Seçtiğin görseli kırpabilirsin. İlan kutusunda 4:3 önizleme olarak görünür, tıklayınca tam boy açılır.</p>
+          </div>
+          <button type="submit" class="om-jobpub-send">Yayınla</button>
+          <div class="om-jobpub-error" id="om-jobpub-error" hidden></div>
+        </form>
+      </div>`;
+    const prevOverflow = document.body.style.overflow;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    let pickedFile = null;
+    let previewUrl = null;
+    const form = overlay.querySelector('#om-jobpub-form');
+    const titleInput = overlay.querySelector('#om-jobpub-title');
+    const drop = overlay.querySelector('#om-jobpub-drop');
+    const fileInput = overlay.querySelector('#om-jobpub-file');
+    const errorEl = overlay.querySelector('#om-jobpub-error');
+    const sendBtn = overlay.querySelector('.om-jobpub-send');
+    const showError = (msg) => { errorEl.textContent = msg || ''; errorEl.hidden = !msg; };
+
+    function onEsc(e) {
+      if (e.key !== 'Escape') return;
+      // Kırpma penceresi ya da lightbox açıksa Escape önce onları kapatsın.
+      if (document.querySelector('.ic-overlay') || document.querySelector('.img-lightbox.open')) return;
+      e.stopPropagation();
+      close();
+    }
+    function close() {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      document.removeEventListener('keydown', onEsc, true);
+      overlay.remove();
+      document.body.style.overflow = prevOverflow;
+    }
+    overlay._close = close;
+    // capture:true — arkadaki ModalShell'in Escape'i firma popup'ını kapatmasın, önce bu form kapansın.
+    document.addEventListener('keydown', onEsc, true);
+    overlay.querySelector('.om-jobpub-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setTimeout(() => titleInput.focus(), 0);
+
+    drop.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const f = fileInput.files && fileInput.files[0];
+      fileInput.value = '';
+      if (!f) return;
+      showError('');
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { showError('Sadece JPEG, PNG ya da WEBP görsel yükleyebilirsin.'); return; }
+      if (f.size > JOB_IMAGE_MAX_BYTES) { showError('Görsel en fazla 4 MB olabilir.'); return; }
+      const Crop = await loadScriptOnce('/js/components/image-crop.js', 'ImageCrop');
+      let out = f;
+      if (Crop) {
+        out = await Crop.open(f, { aspect: 'free', title: 'İlan görselini kırp' });
+        if (!out) return; // Vazgeç: önceki seçim (varsa) olduğu gibi kalır
+      }
+      pickedFile = out;
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(out);
+      drop.classList.add('has-image');
+      drop.innerHTML = `<img src="${escapeAttr(previewUrl)}" alt="Seçilen ilan görseli">`;
+      drop.setAttribute('aria-label', 'Görseli değiştir');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showError('');
+      const title = titleInput.value.trim();
+      if (!title) { showError('İlan başlığını yaz.'); titleInput.focus(); return; }
+      if (!pickedFile) { showError('Bir ilan görseli seç.'); return; }
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Yükleniyor...';
+      try {
+        const Upload = await loadScriptOnce('/image-upload.js', 'MimarlabUpload');
+        let fd;
+        if (Upload) fd = await Upload.buildUploadForm(pickedFile, { maxEdge: 2000, quality: 0.88 });
+        else { fd = new FormData(); fd.append('file', pickedFile); }
+        const up = await fetch('/api/uploads', { method: 'POST', body: fd, credentials: 'same-origin' });
+        const upData = await up.json().catch(() => ({}));
+        if (!up.ok || !upData.url) throw new Error(upData.error || 'Görsel yüklenemedi, lütfen tekrar dene.');
+        sendBtn.textContent = 'Yayınlanıyor...';
+        const res = await fetch('/api/office-jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ office: jobsOfficeKey(o), title, image: upData.url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'İlan yayınlanamadı, lütfen tekrar dene.');
+        close();
+        if (currentItem === o) renderJobs(o);
+      } catch (err) {
+        showError((err && err.message) || 'İlan yayınlanamadı, lütfen tekrar dene.');
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Yayınla';
+      }
+    });
   }
 
   function wireInternalNav() {

@@ -38,6 +38,7 @@ import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { handleHotspotTagsRoute } from './routes/hotspotTags.js';
 import { handleMessagesRoute } from './routes/messages.js';
+import { handleOfficeJobsRoute } from './routes/officeJobs.js';
 import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
 // Unicode NFC normalizasyonu — bkz. src/lib/textMatch.js başındaki kök neden açıklaması
@@ -2227,6 +2228,9 @@ async function routeApi(request, env, url, ctx) {
   // korumalı, herkese açık okuma ucu yok — /api/saved ile AYNI desen.
   if (path.startsWith('/api/hotspot-tags')) return handleHotspotTagsRoute(request, env, url);
   if (path.startsWith('/api/messages')) return handleMessagesRoute(request, env, url);
+  // Firma/marka İş / Staj İlanları (kullanıcı isteği, 2026-09-11) — bkz. src/routes/officeJobs.js.
+  // /api/offices öneki DEĞİL (o önek aşağıda gönderi CRUD'una düşer), bu yüzden ayrı bir yol.
+  if (path === '/api/office-jobs' || path.startsWith('/api/office-jobs/')) return handleOfficeJobsRoute(request, env, url);
   if (path.startsWith('/api/ai/')) return handleAiRoute(request, env, url);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
