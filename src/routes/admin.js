@@ -1036,14 +1036,25 @@ async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso) {
   const liveIds = (results || []).map(r => r.id);
   if (!liveIds.length) return;
 
+  // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-11 — "Per Se'nin son projesini elle 1. sıraya al"):
+  // relisted_at damgalamak TEK BAŞINA yetmeyebilir. ORDER BY `COALESCE(display_order, 0) ASC,
+  // COALESCE(relisted_at, publish_date, created_at) DESC` — display_order relisted_at'ten ÖNCE
+  // karşılaştırılıyor (bkz. migrations/0087_project_display_order.sql). Katalogtaki 439 canlı
+  // projeden 435'i 2026-09-04'teki toplu import backfill'inden kalma GERÇEK (NULL olmayan) bir
+  // display_order taşıyor; bu değer relisted_at'ten bağımsız SABİT kalıyor. Canlı vaka: Per Se
+  // Mimarlık'ın en son projesi display_order=898 taşıyordu — relisted_at=now damgalansa bile
+  // display_order'ı 898'den küçük 140 proje ONU HER ZAMAN geçiyordu. Çözüm: promosyona giren
+  // satırların display_order'ı da NULL'a çekilir — böylece 0/NULL kovasına düşüp diğer tüm
+  // "sırası atanmamış" satırlarla (yeni submission'lar dahil) AYNI kovada, yalnızca relisted_at'e
+  // göre yarışırlar (0087'nin kendi tasarım sözleşmesi zaten NULL = "atanmamış, en üstte" diyor).
   const [topId, ...rest] = liveIds;
-  await env.DB.prepare(`UPDATE projects SET relisted_at = ? WHERE id = ?`).bind(nowIso, topId).run();
+  await env.DB.prepare(`UPDATE projects SET relisted_at = ?, display_order = NULL WHERE id = ?`).bind(nowIso, topId).run();
 
   const nowMs = new Date(nowIso).getTime();
   const spread = rest.slice(0, PROMOTE_SPREAD_MAX);
   for (let i = 0; i < spread.length; i++) {
     const ts = new Date(nowMs - (i + 1) * PROMOTE_SPREAD_STEP_MS).toISOString();
-    await env.DB.prepare(`UPDATE projects SET relisted_at = ? WHERE id = ?`).bind(ts, spread[i]).run();
+    await env.DB.prepare(`UPDATE projects SET relisted_at = ?, display_order = NULL WHERE id = ?`).bind(ts, spread[i]).run();
   }
 }
 

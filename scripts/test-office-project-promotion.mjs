@@ -42,19 +42,26 @@ function freshDb() {
 
 // Per Se Mimarlık — ZATEN CANLI bir firma, eski tarihlerde yayınlanmış DÖRT projesi var (hepsi
 // preview_at NULL). İlgisiz Firma da canlı, kendi tek projesiyle — atama bunu ETKİLEMEMELİ.
-const OLD = new Date('2020-01-01T00:00:00.000Z').toISOString();
+//
+// perse-en-yeni'ye ve ilgisiz-proje'ye BİLEREK gerçek (NULL olmayan) bir display_order verilir —
+// GERÇEK CANLI BULGUYU birebir üretir (kullanıcı bildirimi, 2026-09-11: "Per Se'nin son projesini
+// elle 1. sıraya al" — relisted_at damgalanmasına RAĞMEN proje 1. sıraya gelmedi, çünkü ORDER BY
+// display_order'ı relisted_at'ten ÖNCE karşılaştırıyor ve 2026-09-04 toplu backfill'inden kalma
+// display_order=898 gibi bir değer görece küçük başka display_order'lı 140 satırın ARKASINDA
+// kalmasına neden oluyordu). ilgisiz-proje'nin display_order'ı (5) perse-en-yeni'ninkinden (898)
+// KASITLI olarak KÜÇÜK — fix olmasaydı ilgisiz-proje her zaman önde kalırdı.
 function seed(db) {
   db.exec(`
     INSERT INTO offices (slug, name, loc, cats, source) VALUES
       ('per-se-mimarlik', 'Per Se Mimarlık', 'İstanbul', '["Mimarlık"]', 'legacy_static'),
       ('ilgisiz-firma', 'İlgisiz Firma', 'Ankara', '["Mimarlık"]', 'legacy_static');
     INSERT INTO architects (slug, name, source) VALUES ('yeni-yonetici', 'Yeni Yönetici', 'legacy_static');
-    INSERT INTO projects (slug, title, source, publish_date, created_at) VALUES
-      ('perse-en-eski', 'Per Se En Eski', 'legacy_static', '2018-01-01T00:00:00.000Z', '2018-01-01T00:00:00.000Z'),
-      ('perse-orta-1', 'Per Se Orta 1', 'legacy_static', '2019-01-01T00:00:00.000Z', '2019-01-01T00:00:00.000Z'),
-      ('perse-orta-2', 'Per Se Orta 2', 'legacy_static', '2020-06-01T00:00:00.000Z', '2020-06-01T00:00:00.000Z'),
-      ('perse-en-yeni', 'Per Se En Yeni', 'legacy_static', '2021-01-01T00:00:00.000Z', '2021-01-01T00:00:00.000Z'),
-      ('ilgisiz-proje', 'İlgisiz Proje', 'legacy_static', '2021-01-01T00:00:00.000Z', '2021-01-01T00:00:00.000Z');
+    INSERT INTO projects (slug, title, source, publish_date, created_at, display_order) VALUES
+      ('perse-en-eski', 'Per Se En Eski', 'legacy_static', '2018-01-01T00:00:00.000Z', '2018-01-01T00:00:00.000Z', 1200),
+      ('perse-orta-1', 'Per Se Orta 1', 'legacy_static', '2019-01-01T00:00:00.000Z', '2019-01-01T00:00:00.000Z', 1100),
+      ('perse-orta-2', 'Per Se Orta 2', 'legacy_static', '2020-06-01T00:00:00.000Z', '2020-06-01T00:00:00.000Z', 1000),
+      ('perse-en-yeni', 'Per Se En Yeni', 'legacy_static', '2021-01-01T00:00:00.000Z', '2021-01-01T00:00:00.000Z', 898),
+      ('ilgisiz-proje', 'İlgisiz Proje', 'legacy_static', '2021-01-01T00:00:00.000Z', '2021-01-01T00:00:00.000Z', 5);
     INSERT INTO project_designers (project_id, office_id) VALUES (1, 1), (2, 1), (3, 1), (4, 1), (5, 2);
   `);
   db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-yeni', 'yeni@example.com', 'x', 'Yeni Yönetici', 'user', ?)`).run(Date.now());
@@ -119,6 +126,25 @@ await test('İLGİSİZ firmanın projesi ETKİLENMEZ', async () => {
   const env = { DB: d1(db) };
   await assignOffice(env);
   assert.equal(relistedAt(db, 'ilgisiz-proje'), null);
+});
+
+await test('1. sıraya alınan projenin ESKİ display_order\'ı temizlenir (GERÇEK BULGU regresyonu)', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env);
+  const row = db.prepare(`SELECT display_order FROM projects WHERE slug = 'perse-en-yeni'`).get();
+  assert.equal(row.display_order, null, 'display_order NULL olmalı, aksi halde relisted_at hiç işe yaramaz');
+});
+
+await test('display_order daha KÜÇÜK ama İLGİSİZ bir proje artık ÖNÜNE GEÇEMİYOR', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env);
+  const { fetchActiveProjectPool } = await import('../src/lib/projectPool.js');
+  const pool = await fetchActiveProjectPool(env, 'built');
+  const idxPerse = pool.findIndex(p => p.slug === 'perse-en-yeni');
+  const idxIlgisiz = pool.findIndex(p => p.slug === 'ilgisiz-proje');
+  assert.ok(idxPerse < idxIlgisiz, `perse-en-yeni (display_order=898) ilgisiz-proje'den (display_order=5) ÖNCE olmalı; sıra: perse=${idxPerse} ilgisiz=${idxIlgisiz}`);
 });
 
 await test('proje havuzu sıralamasında (fetchActiveProjectPool ile aynı ORDER BY) firma projesi GERÇEKTEN 1. sırada çıkıyor', async () => {
