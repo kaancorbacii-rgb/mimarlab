@@ -407,6 +407,15 @@ else
   tail -25 /tmp/preflight_signup_name >&2
 fi
 
+# Kullanıcı isteği, 2026-09-11: önizleme popup'ında yayındaki kayıtlara giden kartlar net görünür;
+# blur yalnızca kaydın kendi medyasında. Bkz. scripts/test-2026-09-11-preview-related-cards.mjs.
+if node scripts/test-2026-09-11-preview-related-cards.mjs >/tmp/preflight_preview_related 2>&1; then
+  ok "önizleme popup ilgili kart muafiyeti testleri geçti ($(grep -c '^  ok ' /tmp/preflight_preview_related) test)"
+else
+  bad "önizleme popup ilgili kart muafiyeti testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_preview_related >&2
+fi
+
 # Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde
 # kişiler sayfası takılı kaldı"). İlk liste çizimi artık DOMContentLoaded'ı beklemiyor; bu yüzden
 # çizimin dokunduğu image-cdn.js (tüm hub'lar) ve catalog-taxonomy.js (urun) defer OLMADAN yüklenmeli,

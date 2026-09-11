@@ -128,8 +128,8 @@ const ModalShell = (function () {
       }
       /* Leaflet'in KENDİ karoları ve işaretçi ikonları muaf: bunlar MİMARLAB medyası değil (OSM
          karoları / kütüphanenin PNG'leri) ve blurlandıklarında harita bozuk görünüyor. Harita
-         balonundaki PROJE görselleri (.pm-project-popup img) muaf DEĞİL — onlar yukarıdaki genel
-         kurala girer ve blurlu kalır.
+         balonundaki PROJE kartları başka kayıtlara gittiğinden aşağıdaki bağlantı muafiyetine girer
+         (yalnızca önizleme kaydıysa blurlu kalır).
          ÖZGÜLLÜK (canlıda ölçüldü): yukarıdaki blur seçicisi 4 sınıf + 1 eleman değerinde
          (.modal-shell-overlay + .preview-blur + .modal-shell-body + :not(...) + img). Bu muafiyet
          ilk yazıldığında 3 sınıf değerindeydi ve kaybediyordu — harita canlıda blurlu çıktı.
@@ -137,6 +137,54 @@ const ModalShell = (function () {
       .modal-shell-overlay.preview-blur .modal-shell-body .leaflet-tile-pane img.leaflet-tile,
       .modal-shell-overlay.preview-blur .modal-shell-body .leaflet-pane img.leaflet-marker-icon,
       .modal-shell-overlay.preview-blur .modal-shell-body .leaflet-control-container .leaflet-control img{filter:none; transform:none;}
+      /* BAŞKA KAYITLARA GİDEN KARTLAR MUAF (kullanıcı isteği, 2026-09-11): önizleme popup'ının
+         bluru yalnızca KAYDIN KENDİ görsellerine (galeri, kapak, logo, profil fotoğrafı, versiyonlar,
+         lightbox) uygulanır. Benzer Projeler, Şehirdeki Diğer Projeler, firmanın proje/ürünleri,
+         Kurucular/Ekip, harita balonları, önceki/sonraki proje gibi BAŞKA bir kayda giden kartlar
+         o kayıt yayındaysa NET görünür; eskiden genel kural hepsini blurluyordu (St. Anthuan
+         Kilisesi yayında olduğu halde önizleme popup'ında blurlu çıkıyordu).
+         Ayrım bağlantıdan yapılır: kart bir detay adresine giden a etiketidir (related-card,
+         pm-map-marker-card, prev/next). Öyle kart ÖNİZLEME kaydıysa preview-cards.js onu ya da
+         atasını ml-preview-card ile işaretler; sahipsiz fotoğrafçıysa ml-photo-blur. Aşağıdaki
+         ikinci blok bu ikisini yeniden blurlar.
+         Sunucu tarafı gate (src/lib/gatedMedia.js) önizleme kaydının baytlarını zaten bulanık
+         servis ettiğinden bu muafiyet net bir önizleme görseli sızdıramaz.
+         ÖZGÜLLÜK: genel blur kuralı 4 sınıf + 1 eleman; muafiyet 4 + 2 eleman (a + img) ile kazanır,
+         yeniden blur 5 + 2 ile muafiyeti yener. om-team-avatar sınıfı iki kez yazılarak 5 sınıfa
+         çıkarılır (ekip üyeleri hesap fotoğrafıdır, önizleme kaydı değildir). */
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/proje/"] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/kisi/"] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/firma/"] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/marka/"] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/urun/"] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/gundem/"] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/proje/"] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/kisi/"] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/firma/"] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/marka/"] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/urun/"] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/gundem/"] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/proje/"] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/kisi/"] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/firma/"] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/marka/"] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/urun/"] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a[href^="/gundem/"] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body img.om-team-avatar.om-team-avatar{filter:none; transform:none;}
+      .modal-shell-overlay.preview-blur .modal-shell-body .ml-preview-card a[href] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a.ml-preview-card[href] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body .ml-preview-card a[href] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a.ml-preview-card[href] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body .ml-preview-card a[href] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a.ml-preview-card[href] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body .ml-photo-blur a[href] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body a.ml-photo-blur[href] img,
+      .modal-shell-overlay.preview-blur .modal-shell-body .ml-photo-blur a[href] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body a.ml-photo-blur[href] .related-card-placeholder,
+      .modal-shell-overlay.preview-blur .modal-shell-body .ml-photo-blur a[href] [style*="background-image"],
+      .modal-shell-overlay.preview-blur .modal-shell-body a.ml-photo-blur[href] [style*="background-image"]{
+        filter:blur(9px) grayscale(.5); transform:scale(1.06);
+      }
       /* Kapatma (X) butonu + içerik aksiyonları (Kaydet/Paylaş/Takip Et) — proje/mimar/firma/ürün
          modallarının HEPSİ tarafından paylaşılan tek bir header satırı (bkz. kullanıcı isteği:
          aksiyon butonları X'in yanına taşınsın). Her modal kendi butonlarını
