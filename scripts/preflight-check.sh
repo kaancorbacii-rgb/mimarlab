@@ -505,6 +505,17 @@ else
 fi
 rm -f /tmp/preflight_offpub
 
+# Gündem KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11): gönder → admin onayı → public liste +
+# profil şeridi; sahibin düzenlemesi yeniden onaya düşer; yayın kapısı yalnızca admin moderate ucu.
+# Bkz. scripts/test-2026-09-11-gundem-user-submissions.mjs.
+if node scripts/test-2026-09-11-gundem-user-submissions.mjs >/tmp/preflight_gundem_user 2>&1; then
+  ok "Gündem kullanıcı gönderisi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_gundem_user) test)"
+else
+  bad "Gündem kullanıcı gönderisi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_gundem_user >&2
+fi
+rm -f /tmp/preflight_gundem_user
+
 # "Görüldü" okunma bildirimi (kullanıcı isteği, 2026-09-11) — bkz. src/routes/messages.js#getThread,
 # migrations/0112_message_reads.sql. Bkz. scripts/test-message-seen-receipt.mjs dosya başı.
 if node scripts/test-message-seen-receipt.mjs >/tmp/preflight_seen 2>&1; then

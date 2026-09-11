@@ -56,6 +56,7 @@ import { getSiteSettings } from './lib/siteSettings.js';
 import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
 // GÜNDEM (kullanıcı isteği, 2026-09-06) — otomatik toplanan mimarlık/tasarım gündemi.
 import { handleGundemRoute, gundemSsrListBody, listGundemSitemapUrls } from './routes/gundem.js';
+import { handleGundemSubmitRoute } from './routes/gundemSubmit.js';
 import { runGundemIngestion } from './lib/gundemIngest.js';
 import { gundemCronHealthFields } from './lib/gundemRuns.js';
 // Güvenli Görüşme Gateway'i (kullanıcı isteği, 2026-09-08) — /gorusme/:room_uuid sayfası + Meet
@@ -2088,6 +2089,9 @@ async function routeApi(request, env, url, ctx) {
   // startsWith kullanılır çünkü iki biçim de aynı handler'a düşer; başka hiçbir uç bu önekle
   // çakışmaz (gündem yalnızca OKUNUR bir uçtur, gönderi CRUD'u yoktur).
   if (path === '/api/gundem' || path.startsWith('/api/gundem/')) return handleGundemRoute(request, env, url);
+  // Gündem KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11) — ayrı önek: /api/gundem/:slug ile
+  // çakışmasın (bkz. src/routes/gundemSubmit.js dosya başı). Oturum zorunlu, public cache YOK.
+  if (path === '/api/gundem-submissions' || path.startsWith('/api/gundem-submissions/')) return handleGundemSubmitRoute(request, env, url);
   if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
   // proje.html/kisi.html/firma.html/urun.html'in yeni sayfalanmış (?page=&limit=) liste uçları —
   // BARE /api/projects/architects/offices/products, method GET iken buraya düşer; aynı path'lere

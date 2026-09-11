@@ -135,7 +135,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // gövdeleri ml-asset-version üzerinden eski modülü yükletmesin.
 // v128 (2026-09-11): marka kurucusu popup'ında "Markanın Kullanıldığı Projeler" başlığı —
 // architect-modal.js değişti (bkz. v127'deki AYNI ml-asset-version gerekçesi).
-export const SSR_CACHE_VERSION = 'v128';
+// v129 (2026-09-11): Gündem kullanıcı gönderileri — gundem.html (İçerik Ekle butonu, karusel CSS)
+// ve gundemSsr.js (gönderen profili bağlantısı) değişti.
+export const SSR_CACHE_VERSION = 'v129';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

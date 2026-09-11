@@ -474,7 +474,7 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a><a href="/gundem">Gündem</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/hakkinda">Hakkında</a><a href="/iletisim">İletişim</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
@@ -1617,6 +1617,8 @@
     { href: '/firma-ekle', label: 'Firma Ekle' },
     { href: '/urun-ekle', label: 'Ürün Ekle' },
     { href: '/marka-ekle', label: 'Marka Ekle' },
+    // Gündem kullanıcı gönderisi (kullanıcı isteği, 2026-09-11) — haber/etkinlik/yarışma.
+    { href: '/gundem-ekle', label: 'Gündem İçeriği Ekle' },
   ];
   const ADD_CONTENT_ARROW = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>';
 
@@ -1627,11 +1629,11 @@
     overlay.className = 'add-content-overlay';
     overlay.id = 'add-content-overlay';
     overlay.innerHTML = `
-      <div class="add-content-panel" role="dialog" aria-modal="true" aria-label="İçerik Ekle">
+      <div class="add-content-panel" role="dialog" aria-modal="true" aria-label="Sen de Ekle">
         <button type="button" class="add-content-close" aria-label="Kapat">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <h2>İçerik Ekle</h2>
+        <h2>Sen de Ekle</h2>
         <p>Platforma eklemek istediğin içerik türünü seç.</p>
         <div class="add-content-list">
           ${ADD_CONTENT_LINKS.map(l => `<a href="${escapeAttr(l.href)}">${escapeHtml(l.label)}${ADD_CONTENT_ARROW}</a>`).join('')}

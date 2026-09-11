@@ -38,6 +38,37 @@ export function gundemCategoryLabel(key) {
   return found ? found.label : '';
 }
 
+// KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11; bkz. migrations/0113 ve
+// src/routes/gundemSubmit.js). Kullanıcı yalnızca bu üç kategoriden birini seçebilir — whitelist'in
+// geri kalanı (gorus/kariyer) otomatik hatta özgü kalır.
+export const GUNDEM_USER_CATEGORIES = GUNDEM_CATEGORIES.filter(c => ['haber', 'etkinlik', 'yarisma'].includes(c.key))
+  .map(c => ({ key: c.key, label: c.label }));
+
+// Kartın görselleri. Otomatik içerikte `images` BOŞTUR ve tek görsel image_url'dir (kullanıcı
+// isteği: "otomatik içerik çekimi yine tek görsel üzerinden devam etsin"); kullanıcı gönderisinde
+// en fazla 3 görsellik JSON dizi. Bozuk JSON sessizce tek görsele düşer.
+export function parseGundemImages(row) {
+  const out = [];
+  if (row && row.images) {
+    try {
+      const parsed = JSON.parse(row.images);
+      if (Array.isArray(parsed)) parsed.forEach(u => { if (typeof u === 'string' && u && !out.includes(u)) out.push(u); });
+    } catch { /* tek görsele düş */ }
+  }
+  if (!out.length && row && row.image_url) out.push(row.image_url);
+  return out.slice(0, 3);
+}
+
+// Kullanıcı gönderisinin "kaynak" bağlantısı = gönderenin MİMARLAB profili. /firma/:slug saf
+// markalarda sunucuda /marka/:slug'a 301'lenir (bkz. js/pages/gundem.js#ENTITY_PATH notu).
+// Profilsiz (type 'user') gönderi bağlantı taşımaz.
+export function gundemSubmitterPath(row) {
+  if (!row || row.source_id !== 'user' || !row.submitter_key) return null;
+  if (row.submitter_type === 'architect') return `/kisi/${encodeURIComponent(row.submitter_key)}`;
+  if (row.submitter_type === 'office') return `/firma/${encodeURIComponent(row.submitter_key)}`;
+  return null;
+}
+
 // Tek bir kart. `linkTitle=false` (detay sayfası) başlığı bağlantıya sarmaz — sayfa zaten o içeriğin
 // kendisidir, kendine link vermek anlamsız olurdu. `showTitle=false` başlığı TAMAMEN atlar: detay
 // sayfasında başlık zaten sayfanın H1'idir (src/index.js#injectMeta onu kayda göre doldurur), kart
@@ -55,10 +86,20 @@ export function gundemSsrCard(row, { linkTitle = true, showTitle = true } = {}) 
   // Kaynak adı = kaynağa giden TEK bağlantı (kullanıcı isteği 2026-09-07 madde 3). Ayrı bir
   // "Kaynağa git" satırı YOK; atıf yine her kartta görünür ve tıklanabilir durumda.
   // rel="nofollow noopener external": otomatik toplanan dış bağlantı için doğru sinyal.
+  // Kullanıcı gönderisinde kaynak = gönderenin profili (iç bağlantı, nofollow DEĞİL) ya da
+  // profilsizse düz metin.
+  const isUser = row.source_id === 'user';
+  const userPath = isUser ? gundemSubmitterPath(row) : null;
+  const srcName = isUser ? (row.submitter_name || row.source_name) : row.source_name;
+  const srcHtml = isUser
+    ? (userPath
+      ? `<a class="gundem-src" href="${escapeAttr(userPath)}">${escapeHtml(srcName)}</a>`
+      : `<span class="gundem-src">${escapeHtml(srcName)}</span>`)
+    : `<a class="gundem-src" href="${escapeAttr(row.source_url)}" rel="nofollow noopener external" target="_blank">${escapeHtml(srcName)}</a>`;
   const meta =
     `<span class="gundem-date">${escapeHtml(date)}</span>` +
     `<span class="gundem-cat">${escapeHtml(gundemCategoryLabel(row.category))}</span>` +
-    `<a class="gundem-src" href="${escapeAttr(row.source_url)}" rel="nofollow noopener external" target="_blank">${escapeHtml(row.source_name)}</a>`;
+    srcHtml;
   // linkTitle artık YALNIZCA liste SSR'ında (JS kapalıyken içeriğe ulaşmanın tek yolu) kullanılır.
   // JS açıkken kart başlığı tıklanabilir DEĞİLDİR (madde 1) — istemci kartı kendi işaretlemesini
   // basar ve orada başlık düz metindir.

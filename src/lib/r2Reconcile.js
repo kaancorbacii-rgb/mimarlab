@@ -45,6 +45,9 @@ const SOURCES = [
   // fırlar ve R2 orphan taramasının TAMAMI çalışmaz hâle gelirdi — orphan görsel tespiti sessizce
   // ölürdü, ki bu tam da bu dosyanın var oluş sebebi.
   { table: 'users', fields: { stringFields: ['photo_url'] } },
+  // Gündem kullanıcı gönderileri (migrations/0113) — görseller /api/uploads'tan `u/` önekiyle gelir.
+  // Otomatik içeriğin image_url'i dış bir CDN'dir; collectR2MediaKeys onu zaten yok sayar.
+  { table: 'gundem_items', fields: { arrayFields: ['images'], stringFields: ['image_url'] } },
 ];
 
 function columnList(fields) {

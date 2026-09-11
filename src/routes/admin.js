@@ -336,7 +336,9 @@ async function handleAdminSummary(env) {
       env.DB.prepare(`SELECT COUNT(*) AS n FROM ${config.table} WHERE status = 'pending'`).first()
     )
   );
-  const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
+  // + Gündem kullanıcı gönderileri (migrations/0113) — aynı "Bekleyen Gönderiler" sekmesinde listelenir.
+  const gundemPending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM gundem_items WHERE status = 'pending'`).first().catch(() => null);
+  const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0) + (gundemPending?.n || 0);
 
   const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow, consultationActionsRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),

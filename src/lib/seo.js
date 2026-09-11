@@ -26,7 +26,7 @@ import ilIlceJs from '../../il-ilce-data.js';
 import officeKindJs from '../../office-kind.js';
 // Gündem detay sayfasının SSR gövdesi — /gundem liste sayfasıyla AYNI kart üreticisi (bkz. o
 // dosyanın başındaki "neden ayrı bir lib" notu).
-import { gundemSsrCard } from './gundemSsr.js';
+import { gundemSsrCard, gundemSubmitterPath } from './gundemSsr.js';
 
 const { parseLocationFull } = ilIlceJs;
 const { isBrandOffice, officeCatList } = officeKindJs;
@@ -1114,20 +1114,35 @@ async function buildGundemMeta(slug, env) {
   if (!env || !env.DB) return null;
   const row = await env.DB.prepare(
     `SELECT slug, title, summary, image_url, source_name, source_url, source_domain,
-            source_published_at, published_at, category
+            source_published_at, published_at, category, source_id,
+            submitter_type, submitter_key, submitter_name
        FROM gundem_items WHERE slug = ? AND status = 'published'`
   ).bind(slug).first();
   if (!row) return null;
 
   const canonicalUrl = `${SITE_ORIGIN}/gundem/${encodeURIComponent(row.slug)}`;
   const publishedMs = row.source_published_at || row.published_at;
+  // Kullanıcı gönderisi (migrations/0113): metin gönderenin KENDİ eseridir — başka bir yayına
+  // dayanmaz (isBasedOn/citation yok), yazar gönderendir; görsel kendi R2'mizde (göreli /media/...).
+  const isUser = row.source_id === 'user';
+  const ogImage = isUser && typeof row.image_url === 'string' && row.image_url.startsWith('/media/')
+    ? `${SITE_ORIGIN}${row.image_url}`
+    : row.image_url;
+  const userPath = isUser ? gundemSubmitterPath(row) : null;
+  const basedOn = isUser
+    ? { author: { '@type': row.submitter_type === 'architect' ? 'Person' : 'Organization', name: row.submitter_name || row.source_name, ...(userPath ? { url: `${SITE_ORIGIN}${userPath}` } : {}) } }
+    : {
+      author: { '@type': 'Organization', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` },
+      isBasedOn: { '@type': 'CreativeWork', url: row.source_url, publisher: { '@type': 'Organization', name: row.source_name } },
+      citation: row.source_url,
+    };
   return {
     title: pageTitle(row.title),
     description: truncate(row.summary, 200),
     canonicalUrl,
     // OG görseli kaynağın kendi CDN'indeki önizleme görselidir (bkz. migrations/0099: görsel
     // R2'ye kopyalanmaz). safeHttpUrl ile doğrulanır; geçersizse site varsayılanına düşülür.
-    image: safeHttpUrl(row.image_url) || DEFAULT_IMAGE,
+    image: safeHttpUrl(ogImage) || DEFAULT_IMAGE,
     ogType: 'article',
     publishedTime: publishedMs ? new Date(publishedMs).toISOString() : null,
     h1: row.title,
@@ -1139,9 +1154,7 @@ async function buildGundemMeta(slug, env) {
       description: row.summary,
       inLanguage: 'tr-TR',
       datePublished: publishedMs ? new Date(publishedMs).toISOString() : undefined,
-      author: { '@type': 'Organization', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` },
-      isBasedOn: { '@type': 'CreativeWork', url: row.source_url, publisher: { '@type': 'Organization', name: row.source_name } },
-      citation: row.source_url,
+      ...basedOn,
       isPartOf: { '@type': 'WebSite', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` },
     },
     breadcrumbJsonLd: breadcrumbJsonLd('gundem', row.title, canonicalUrl),

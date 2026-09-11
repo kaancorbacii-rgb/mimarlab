@@ -480,8 +480,10 @@ async function withSingleFlight(key, fn) {
 //     karuseli). v5-v29'un AYNI tuzağı: hiçbir satırın updated_at'i değişmez, bump edilmezse liste
 //     sayfasını daha önce açmış ziyaretçiler 304 ile tek görselli eski gövdede takılırdı. KV havuzu
 //     (POOL_CACHE_KINDS) da eski şekli taşıyabilir — deploy sonrası invalidatePublicCache şart.
+// v34 -> v35 (kullanıcı isteği, 2026-09-11): /api/gundem kartları `images` (karusel) +
+//     `userSubmitted` taşıyor; kullanıcı gönderilerinde sourceUrl gönderenin profil yoludur.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v34';
+const API_PAYLOAD_VERSION = 'v35';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

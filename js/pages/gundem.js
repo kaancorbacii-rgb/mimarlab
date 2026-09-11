@@ -104,6 +104,61 @@ function entitiesHtml(entities){
   return badges ? `<span class="gundem-entities">${badges}</span>` : '';
 }
 
+// GÖRSEL / KARUSEL (kullanıcı isteği, 2026-09-11: "içeriklerde yana kaydırarak diğer görselleri de
+// görebilelim. Ama otomatik içerik çekimi yine tek görsel üzerinden devam etsin").
+// Tek görselde işaretleme ESKİSİYLE BİREBİR aynıdır. Birden fazla görselde yatay scroll-snap şeridi:
+// dokunmatikte parmakla kaydırılır (yerel kaydırma, JS gerekmez), masaüstünde oklarla; noktalar
+// hangi görselde olunduğunu gösterir. Her görsel yine kendi başına lightbox'ta büyür.
+// Kendi R2'mizdeki görseller (/media/...) cdnImg ile 800 px türevden gelir; data-orig ORİJİNAL
+// yolu taşır (lightbox + admin düzenleyici türev adresini değil, kaydın kendisini görsün).
+const ICON_PREV = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+const ICON_NEXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+function photoHtml(item, index){
+  const imgs = ((item.images && item.images.length) ? item.images : [item.image]).filter(Boolean);
+  const one = (src, i) => {
+    const own = typeof src === 'string' && src.startsWith('/media/');
+    const shown = own && typeof cdnImg === 'function' ? cdnImg(src, 800) : src;
+    const label = `${item.title} — görseli büyüt` + (imgs.length > 1 ? ` (${i + 1}/${imgs.length})` : '');
+    return `<button class="gundem-photo-btn" type="button" data-lightbox="${escapeAttr(src)}" aria-label="${escapeAttr(label)}">
+        <img src="${escapeAttr(shown)}" data-orig="${escapeAttr(src)}" alt="${escapeAttr(item.title)}" width="640" height="400"
+             loading="${index < 2 && i === 0 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer">
+      </button>`;
+  };
+  if(imgs.length <= 1) return `<div class="gundem-photo">${one(imgs[0] || '', 0)}</div>`;
+  return `<div class="gundem-photo gundem-carousel">
+      <div class="gundem-track">${imgs.map((s, i) => `<div class="gundem-slide">${one(s, i)}</div>`).join('')}</div>
+      <button type="button" class="gundem-car-nav prev" data-dir="-1" aria-label="Önceki görsel" hidden>${ICON_PREV}</button>
+      <button type="button" class="gundem-car-nav next" data-dir="1" aria-label="Sonraki görsel">${ICON_NEXT}</button>
+      <div class="gundem-dots" aria-hidden="true">${imgs.map((_, i) => `<span class="gundem-dot${i === 0 ? ' on' : ''}"></span>`).join('')}</div>
+    </div>`;
+}
+
+function syncCarousel(track){
+  const car = track.closest('.gundem-carousel');
+  if(!car) return;
+  const w = track.clientWidth || 1;
+  const count = track.children.length;
+  const idx = Math.max(0, Math.min(count - 1, Math.round(track.scrollLeft / w)));
+  car.querySelectorAll('.gundem-dot').forEach((d, i) => d.classList.toggle('on', i === idx));
+  const prev = car.querySelector('.gundem-car-nav.prev');
+  const next = car.querySelector('.gundem-car-nav.next');
+  if(prev) prev.hidden = idx === 0;
+  if(next) next.hidden = idx >= count - 1;
+}
+// Delege dinleyiciler — kartlar sürekli yeniden basıldığından (bkz. aşağıdaki lightbox notu).
+// `scroll` kabarcıklanmaz; capture fazında belge düzeyinde yakalanır.
+document.addEventListener('click', (e) => {
+  const nav = e.target.closest('.gundem-car-nav');
+  if(!nav) return;
+  e.preventDefault();
+  const track = nav.closest('.gundem-carousel') && nav.closest('.gundem-carousel').querySelector('.gundem-track');
+  if(track) track.scrollBy({ left: Number(nav.dataset.dir || 1) * track.clientWidth, behavior: 'smooth' });
+});
+document.addEventListener('scroll', (e) => {
+  const t = e.target;
+  if(t && t.classList && t.classList.contains('gundem-track')) syncCarousel(t);
+}, true);
+
 // detail=true → /gundem/:slug tek içerik görünümü: özet kırpılmaz (bkz. gundem.html#
 // .gundem-card--detail), çünkü orada sayfanın KENDİSİ o içeriktir.
 function cardHtml(item, index, { detail = false } = {}){
@@ -118,9 +173,17 @@ function cardHtml(item, index, { detail = false } = {}){
   const allSources = [];
   if (item.sourceName) allSources.push({ name: item.sourceName, url: item.sourceUrl });
   (item.extraSources || []).forEach(sx => { if (sx && sx.name && sx.url) allSources.push(sx); });
-  const srcHtml = allSources.map(sx =>
-    `<a class="gundem-src" href="${escapeAttr(sx.url)}" rel="nofollow noopener external" target="_blank">${escapeHtml(sx.name)}</a>`
-  ).join('');
+  // KULLANICI GÖNDERİSİ (kullanıcı isteği, 2026-09-11): kaynak = gönderenin MİMARLAB profili (iç
+  // bağlantı, aynı sekme) ya da profilsiz gönderide düz metin. Dış kaynak dili (yeni sekme +
+  // nofollow) yalnızca otomatik içeriğe aittir.
+  const srcHtml = allSources.map(sx => {
+    if (item.userSubmitted) {
+      return sx.url
+        ? `<a class="gundem-src" href="${escapeAttr(sx.url)}">${escapeHtml(sx.name)}</a>`
+        : `<span class="gundem-src">${escapeHtml(sx.name)}</span>`;
+    }
+    return `<a class="gundem-src" href="${escapeAttr(sx.url)}" rel="nofollow noopener external" target="_blank">${escapeHtml(sx.name)}</a>`;
+  }).join('');
   const metaHtml =
     `<span class="gundem-date">${escapeHtml(formatDate(item.date))}</span>` +
     (item.category ? `<span class="gundem-cat">${escapeHtml(categoryLabel(item.category))}</span>` : '') +
@@ -151,14 +214,7 @@ function cardHtml(item, index, { detail = false } = {}){
          kendi konumlandırmasını taşıyor (bkz. gundem.html). Admin değilse boş kalır ve :empty
          kuralıyla hiç yer kaplamaz. -->
     <span class="gundem-admin-slot" data-id="${escapeAttr(item.id || '')}"></span>
-    <div class="gundem-photo">
-      <button class="gundem-photo-btn" type="button"
-              data-lightbox="${escapeAttr(item.image)}"
-              aria-label="${escapeAttr(item.title)} — görseli büyüt">
-        <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)}" width="640" height="400"
-             loading="${index < 2 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer">
-      </button>
-    </div>
+    ${photoHtml(item, index)}
     <div class="gundem-body">
       <p class="gundem-meta">${metaHtml}</p>
       <h2 class="gundem-card-title">${escapeHtml(item.title)}</h2>
@@ -363,7 +419,7 @@ function openAdminEditor(card, id){
   box.innerHTML =
     `<label>Başlık<input type="text" data-f="title" value="${escapeAttr(titleEl ? titleEl.textContent.trim() : '')}"></label>` +
     `<label>Özet<textarea data-f="summary" rows="5">${escapeHtml(summaryEl ? summaryEl.textContent.trim() : '')}</textarea></label>` +
-    `<label>Görsel adresi<input type="url" data-f="image_url" value="${escapeAttr(imgEl ? imgEl.src : '')}"></label>` +
+    `<label>Görsel adresi<input type="url" data-f="image_url" value="${escapeAttr(imgEl ? new URL(imgEl.dataset.orig || imgEl.src, location.href).href : '')}"></label>` +
     `<div class="gundem-editor-actions">` +
       `<button type="button" class="gundem-editor-save">Kaydet</button>` +
       `<button type="button" class="gundem-editor-cancel">Vazgeç</button>` +
@@ -387,6 +443,7 @@ function openAdminEditor(card, id){
       if(summaryEl) summaryEl.textContent = payload.summary;
       if(imgEl && payload.image_url){
         imgEl.src = payload.image_url;
+        imgEl.dataset.orig = payload.image_url;
         const pb = card.querySelector('.gundem-photo-btn');
         if(pb) pb.dataset.lightbox = payload.image_url;
       }

@@ -786,10 +786,13 @@ function itemDetails(type, item){
 
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-function renderSubtabs(container, activeType, onSelect){
-  const types = ['all', ...SUBTAB_TYPES];
+// extraTypes: yalnızca Bekleyen Gönderiler'de 'gundem' (Gündem kullanıcı gönderileri, 2026-09-11) —
+// Yayındaki İçerikler sekmesi *_submissions tablolarını listeler, Gündem orada yok.
+const EXTRA_TYPE_LABELS = { gundem: 'Gündem' };
+function renderSubtabs(container, activeType, onSelect, extraTypes){
+  const types = ['all', ...SUBTAB_TYPES, ...(extraTypes || [])];
   container.innerHTML = types.map(t =>
-    `<button class="admin-subtab ${t===activeType?'active':''}" data-type="${t}">${t === 'all' ? 'Tümü' : TYPE_LABELS[t]}</button>`
+    `<button class="admin-subtab ${t===activeType?'active':''}" data-type="${t}">${t === 'all' ? 'Tümü' : (TYPE_LABELS[t] || EXTRA_TYPE_LABELS[t])}</button>`
   ).join('');
   container.querySelectorAll('.admin-subtab').forEach(btn=>{
     btn.addEventListener('click', ()=> onSelect(btn.dataset.type));
@@ -807,19 +810,62 @@ async function fetchAllTypes(status){
   return results.flat().sort((a,b) => (b.created_at||0) - (a.created_at||0));
 }
 
+// GÜNDEM KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11: "gönderilen içerikler admin panelinde
+// onaya düşsünler"). Kaynak: GET /api/admin/gundem?status=pending; onay/red: POST
+// /api/admin/gundem/:id/moderate (bkz. src/routes/gundemAdmin.js#moderateGundemItem — onay aynı
+// zamanda gönderen kişi/firma/marka profilinin Gündem şeridine kenar yazar).
+const GUNDEM_CAT_LABELS = { haber:'Haber', etkinlik:'Etkinlik', yarisma:'Yarışma', gorus:'Görüş', kariyer:'Kariyer' };
+async function fetchGundemPending(){
+  const data = await api('/api/admin/gundem?status=pending');
+  return (data.items || []).map(item => ({...item, __type: 'gundem'}));
+}
+function gundemPendingCardHtml(item){
+  const imgs = item.images || [];
+  const who = item.submitter_type === 'architect' ? 'Kişi' : (item.submitter_type === 'office' ? 'Firma / Marka' : 'Profilsiz');
+  const profileHref = item.submitter_type === 'architect' ? '/kisi/' + encodeURIComponent(item.submitter_key || '')
+    : (item.submitter_type === 'office' ? '/firma/' + encodeURIComponent(item.submitter_key || '') : '');
+  const sender = [item.user_name, item.user_email].filter(Boolean).join(' · ');
+  const meta = [`Adına: ${item.submitter_name || '—'} (${who})`, sender ? `Gönderen: ${sender}` : ''].filter(Boolean).join(' · ');
+  const rows = [];
+  if(imgs.length) rows.push(['Görseller', imgs.map((u, i) => `<a href="${escapeAttr(u)}" target="_blank" rel="noopener">${i + 1}. görsel</a>`).join(' · ')]);
+  if(profileHref && item.submitter_key) rows.push(['Profil', `<a href="${escapeAttr(profileHref)}" target="_blank" rel="noopener">${escapeHtml(item.submitter_name || item.submitter_key)}</a>`]);
+  return `
+    <div class="admin-card" data-id="${escapeAttr(item.id)}" data-type="gundem">
+      <div class="admin-card-head">
+        <div class="admin-card-body">
+          ${imgs[0] ? `<img class="admin-card-thumb" src="${escapeAttr(imgs[0])}" alt="" loading="lazy" decoding="async">` : ''}
+          <div>
+            <div class="admin-card-title">${escapeHtml(item.title)} <span class="admin-badge badge-pending">Gündem · ${escapeHtml(GUNDEM_CAT_LABELS[item.category] || item.category || '')}</span></div>
+            <div class="admin-card-meta">${escapeHtml(meta)}</div>
+            ${rows.length ? `<div class="admin-card-details">${rows.map(([l,v])=>`<div><span>${l}:</span> ${v}</div>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        <div class="admin-actions">
+          <a class="admin-btn" href="/gundem-ekle?edit=${encodeURIComponent(item.id)}">Düzenle / İncele</a>
+          <button class="admin-btn primary" data-action="approve">Onayla</button>
+          <button class="admin-btn danger" data-action="reject">Reddet</button>
+        </div>
+      </div>
+      ${item.summary ? `<div class="admin-card-desc">${escapeHtml(item.summary)}</div>` : ''}
+    </div>`;
+}
+
 async function loadPending(){
-  renderSubtabs(document.getElementById('pending-subtabs'), pendingType, (t)=>{ pendingType = t; loadPending(); });
+  renderSubtabs(document.getElementById('pending-subtabs'), pendingType, (t)=>{ pendingType = t; loadPending(); }, ['gundem']);
   const list = document.getElementById('pending-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
   let items;
   if(pendingType === 'all'){
-    items = await fetchAllTypes('pending');
+    const [subs, gundem] = await Promise.all([fetchAllTypes('pending'), fetchGundemPending().catch(e => { if(e && e.message === 'yetkisiz') throw e; return []; })]);
+    items = [...subs, ...gundem].sort((a,b) => (b.created_at||0) - (a.created_at||0));
+  } else if(pendingType === 'gundem'){
+    items = await fetchGundemPending();
   } else {
     const data = await api(`/api/admin/submissions?type=${pendingType}&status=pending`);
     items = (data.items || []).map(item => ({...item, __type: pendingType}));
   }
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu tipte bekleyen gönderi yok.</div>'; return; }
-  list.innerHTML = items.map(item => `
+  list.innerHTML = items.map(item => item.__type === 'gundem' ? gundemPendingCardHtml(item) : `
     <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
         <div class="admin-card-body">
@@ -847,9 +893,16 @@ async function loadPending(){
       const type = card.dataset.type;
       const status = btn.dataset.action === 'approve' ? 'approved' : 'rejected';
       btn.disabled = true;
-      await api(`/api/admin/submissions/${type}/${id}`, {
-        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status}),
-      });
+      if(type === 'gundem'){
+        const res = await api(`/api/admin/gundem/${encodeURIComponent(id)}/moderate`, {
+          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: btn.dataset.action }),
+        });
+        if(!res || !res.ok){ alert((res && res.error) || 'İşlem başarısız.'); btn.disabled = false; return; }
+      } else {
+        await api(`/api/admin/submissions/${type}/${id}`, {
+          method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status}),
+        });
+      }
       loadPending();
       refreshAdminSummary();
     });

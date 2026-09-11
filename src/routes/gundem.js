@@ -17,7 +17,7 @@ import { json, errorJson, pageParam } from '../lib/http.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { GUNDEM_CATEGORIES, isValidGundemCategory } from '../lib/gundemCategories.js';
 import { GUNDEM_SOURCES } from '../lib/gundemSources.js';
-import { gundemSsrList } from '../lib/gundemSsr.js';
+import { gundemSsrList, parseGundemImages, gundemSubmitterPath } from '../lib/gundemSsr.js';
 import { foldTr } from '../lib/textMatch.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
@@ -29,8 +29,10 @@ const MAX_LIMIT = 24;
 
 // Liste kartında dönen alanlar. Kaynak makale metninden HİÇBİR ŞEY dönmez — yalnızca MİMARLAB'ın
 // kendi ürettiği başlık/özet ve kaynağa götüren metadata (bkz. migrations/0099 dosya başı notu).
+// images/submitter_*: kullanıcı gönderileri (migrations/0113) — otomatik içerikte NULL'dır.
 const LIST_COLUMNS = `id, slug, title, summary, image_url, source_name, source_domain, source_url,
-  source_published_at, published_at, category, source_id, extra_sources`;
+  source_published_at, published_at, category, source_id, extra_sources,
+  images, submitter_type, submitter_key, submitter_name`;
 
 // SIRALAMA EKSENİ — kullanıcı isteği (2026-09-07): "Gündem içeriklerini her zaman en yakın
 // tarihten en eskiye doğru sırala."
@@ -54,7 +56,15 @@ const LIST_COLUMNS = `id, slug, title, summary, image_url, source_name, source_d
 export const GUNDEM_SORT = 'COALESCE(source_published_at, published_at) DESC';
 
 function shapeItem(row, entitiesByItem) {
+  // KULLANICI GÖNDERİSİ (kullanıcı isteği, 2026-09-11): "kaynak" gönderenin kendisidir — kart
+  // meta satırında dış yayıncı yerine gönderenin adı ve MİMARLAB profili görünür. submitted_by
+  // (kullanıcı id'si) public gövdeye BİLEREK girmez.
+  const isUser = row.source_id === 'user';
   return {
+    userSubmitted: isUser,
+    // Karusel (kullanıcı isteği: "yana kaydırarak diğer görselleri de görebilelim"). Otomatik
+    // içerikte tek elemanlı dizi — istemci o durumda karusel çizmez.
+    images: parseGundemImages(row),
     // id — YALNIZCA admin kontrollerinin hedefi (bkz. js/pages/gundem.js#applyAdminControls).
     // Hassas değil (rastgele UUID) ve yetki bu alanla DEĞİL, sunucudaki requireAdmin ile verilir;
     // admin olmayan biri id'yi bilse de /api/admin/gundem/* uçlarından 401 alır.
@@ -63,9 +73,11 @@ function shapeItem(row, entitiesByItem) {
     title: row.title,
     summary: row.summary,
     image: row.image_url,
-    sourceName: row.source_name,
+    sourceName: isUser ? (row.submitter_name || row.source_name) : row.source_name,
     sourceDomain: row.source_domain,
-    sourceUrl: row.source_url,
+    // Kullanıcı gönderisinde göreli profil yolu (ya da profilsizse null) — istemci göreli yolu iç
+    // bağlantı olarak basar (yeni sekme/nofollow YOK).
+    sourceUrl: isUser ? gundemSubmitterPath(row) : row.source_url,
     // Kartın gösterdiği tarih: kaynağın kendi yayın tarihi (varsa) — bizim toplama anımız değil.
     date: row.source_published_at || row.published_at,
     publishedAt: row.published_at,
