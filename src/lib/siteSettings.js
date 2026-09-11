@@ -62,7 +62,9 @@ async function readSiteSettings(env) {
   }
   const { results } = await env.DB.prepare(`SELECT key, value FROM site_settings`).all();
   const out = {};
-  for (const row of results) out[row.key] = row.value;
+  // gated_media_version — site ayarı DEĞİL, görsel kapısının sürüm damgası (bkz. src/lib/gatedMedia.js
+  // #GATED_MEDIA_VERSION_KEY); aynı tabloda durur ama ayar nesnesine (public uç/admin) karışmaz.
+  for (const row of results) if (row.key !== 'gated_media_version') out[row.key] = row.value;
   if (env.FACET_CACHE && await reserveKvWrite(env)) {
     try {
       await env.FACET_CACHE.put(KV_KEY, JSON.stringify(out), { expirationTtl: KV_TTL_SECONDS });

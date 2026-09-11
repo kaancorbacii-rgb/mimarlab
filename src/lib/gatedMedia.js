@@ -103,29 +103,63 @@ export async function fetchGatedImageKeys(env, fetchUnclaimedPhotographers) {
   return keys;
 }
 
-let memo = { set: null, at: 0 };
+// SÜRÜM DAMGASI (kullanıcı bildirimi, 2026-09-11: "Bir firmayı yayına aldım ama proje blurlu kaldı —
+// kökten çöz, tekrar karşılaşmak istemiyorum"). CANLI BULGU: Kat73 17:21:52'de yayına alındı, Noa
+// Burger Teşvikiye'nin görselleri 6 dk sonra hâlâ bazı isteklerde blurlu, bazılarında netti. invalidate
+// yalnızca yayın isteğini işleyen İZOLATIN memosunu ve O PoP'un Cache API girdisini düşürüyordu; diğer
+// izolatlar 120 sn eski memoyla, diğer PoP'lar 300 sn eski girdiyle devam ediyordu. Daha kötüsü, yayından
+// hemen ÖNCE D1'den okuyan bir izolat eski kümeyi invalidate'ten SONRA Cache API'ye yeniden yazabiliyor,
+// o da başka bir izolatın memosunu tazeleyerek pencereyi ~7 dk'ya uzatıyordu.
+//
+// Artık küme D1'deki TEK bir damgaya bağlı: her içerik mutasyonu (invalidatePublicCache ->
+// invalidateGatedMediaCache) damgayı yeniler; her izolat damgayı en fazla VERSION_MEMO_MS'de bir okur
+// (PK araması — ucuz) ve damga değişince memoyu atar. Cache API anahtarı da damgayı taşır, yani eski
+// sürümün girdisi bir daha HİÇ okunmaz (başka PoP'ta kalmış olsa bile). Sonuç: blur yayından sonra her
+// yerde en geç ~5 sn'de kalkar; ters yön (önizlemeye alınan kayıt) de aynı sürede bulanıklaşır.
+// Damga, okunamazsa (yerel dev / tablo yok) null döner ve eski TTL davranışına düşülür.
+export const GATED_MEDIA_VERSION_KEY = 'gated_media_version';
+const VERSION_MEMO_MS = 5000;
+let versionMemo = { value: null, at: 0 };
+
+async function readGatedVersion(env) {
+  const now = Date.now();
+  if (versionMemo.at && now - versionMemo.at < VERSION_MEMO_MS) return versionMemo.value;
+  let value = null;
+  try {
+    const row = await env.DB.prepare(`SELECT value FROM site_settings WHERE key = ?`).bind(GATED_MEDIA_VERSION_KEY).first();
+    value = row ? String(row.value) : '0';
+  } catch { value = null; }
+  versionMemo = { value, at: now };
+  return value;
+}
+
+let memo = { set: null, at: 0, version: null };
 let inFlight = null;
 
 async function loadGatedImageSet(env, deps) {
+  // Damga KÜMEDEN ÖNCE okunur: küme D1'den mutasyon öncesi okunsa bile eski damgayla etiketlenir ve
+  // bir sonraki damga okumasında atılır (yeni damgayla etiketlenmiş eski küme mümkün değil).
+  const version = await readGatedVersion(env);
   const now = Date.now();
-  if (memo.set && now - memo.at < MEMO_TTL_MS) return memo.set;
+  const versionChanged = version !== null && memo.version !== version;
+  if (memo.set && !versionChanged && now - memo.at < MEMO_TTL_MS) return memo.set;
   if (inFlight) return inFlight;
   inFlight = (async () => {
     try {
       let cache = null;
       try { cache = caches.default; } catch { /* yerel dev */ }
-      const cacheKey = new Request(CACHE_KEY_URL, { method: 'GET' });
+      const cacheKey = new Request(`${CACHE_KEY_URL}?v=${encodeURIComponent(version ?? 'none')}`, { method: 'GET' });
       if (cache) {
         try {
           const hit = await cache.match(cacheKey);
           if (hit) {
             const arr = await hit.json();
-            if (Array.isArray(arr)) { memo = { set: new Set(arr), at: Date.now() }; return memo.set; }
+            if (Array.isArray(arr)) { memo = { set: new Set(arr), at: Date.now(), version }; return memo.set; }
           }
         } catch { /* okunamadıysa D1'den kur */ }
       }
       const set = await fetchGatedImageKeys(env, deps && deps.fetchUnclaimedPhotographers);
-      memo = { set, at: Date.now() };
+      memo = { set, at: Date.now(), version };
       if (cache) {
         try {
           await cache.put(cacheKey, new Response(JSON.stringify([...set]), {
@@ -141,10 +175,18 @@ async function loadGatedImageSet(env, deps) {
   return inFlight;
 }
 
-// invalidatePublicCache() çağırır — memo ve bu PoP'un Cache API girdisi düşer.
-export async function invalidateGatedMediaCache() {
-  memo = { set: null, at: 0 };
-  try { await caches.default.delete(new Request(CACHE_KEY_URL, { method: 'GET' })); } catch { /* yerel dev */ }
+// invalidatePublicCache(env) çağırır — damgayı yeniler (TÜM izolatlar/PoP'lar en geç VERSION_MEMO_MS'de
+// görür, bkz. yukarıdaki SÜRÜM DAMGASI notu) ve bu izolatın memolarını hemen düşürür.
+export async function invalidateGatedMediaCache(env) {
+  memo = { set: null, at: 0, version: null };
+  versionMemo = { value: null, at: 0 };
+  if (!env || !env.DB) return;
+  try {
+    await env.DB.prepare(
+      `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    ).bind(GATED_MEDIA_VERSION_KEY, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, Date.now()).run();
+  } catch { /* damga yazılamazsa eski TTL davranışı (en geç ~7 dk) — içerik mutasyonunu düşürmez */ }
 }
 
 // Nötr placeholder — türev henüz üretilmemiş gated görsel için. Net dosya HİÇBİR koşulda verilmez.
@@ -182,4 +224,7 @@ export async function serveGatedMedia(request, env, url, deps) {
 }
 
 // Testler için: memo'yu sıfırla.
-export function _resetGatedMediaMemo() { memo = { set: null, at: 0 }; inFlight = null; }
+export function _resetGatedMediaMemo() { memo = { set: null, at: 0, version: null }; versionMemo = { value: null, at: 0 }; inFlight = null; }
+// Testler için: yalnızca damga memosunu düşür — "başka bir izolat damgayı yeniledi, bu izolatın küme
+// memosu hâlâ taze" durumunu (canlı bulgu) simüle eder.
+export function _expireGatedVersionMemo() { versionMemo = { value: null, at: 0 }; }

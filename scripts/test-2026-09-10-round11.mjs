@@ -519,7 +519,8 @@ await test('kablolama: index.js gated kontrolü /media ve statik dallardan ÖNCE
   assert.ok(idx.includes('await serveGatedMedia(request, env, url, { fetchUnclaimedPhotographers })'));
   assert.ok(idx.indexOf('serveGatedMedia(request') < idx.indexOf("response = await handleMediaRoute(request, env, url, ctx);"));
   const pc = readFileSync(new URL('../src/lib/publicCache.js', import.meta.url), 'utf8');
-  assert.ok(pc.includes('await invalidateGatedMediaCache();'));
+  // (env) — sürüm damgasını D1'e yazar (bkz. gatedMedia.js#SÜRÜM DAMGASI, 2026-09-11).
+  assert.ok(pc.includes('await invalidateGatedMediaCache(env);'));
   const di = readFileSync(new URL('../src/lib/derivativeIngest.js', import.meta.url), 'utf8');
   assert.ok(di.includes("form.get('dblur')") && di.includes('_derived/blur/r2/${originalKey}.webp'));
   const iu = readFileSync(new URL('../image-upload.js', import.meta.url), 'utf8');

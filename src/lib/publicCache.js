@@ -703,8 +703,9 @@ async function readFingerprint(env, kind, computeFingerprint) {
 export async function invalidatePublicCache(env) {
   fingerprintMemo.clear(); // bkz. getCachedFingerprint — yazma anında bu isolate'in memosu da düşer
   // Gated görsel kümesi (sunucu tarafı blur, bkz. src/lib/gatedMedia.js): sahiplenme onayı/yayına
-  // alma bu fonksiyondan geçer — blur aynı PoP'ta anında, diğerlerinde en geç 5 dk'da kalkar.
-  await invalidateGatedMediaCache();
+  // alma bu fonksiyondan geçer — D1'deki sürüm damgası yenilenir, blur TÜM izolat/PoP'larda en geç
+  // ~5 sn'de kalkar (eskiden yalnızca bu PoP'ta anında, diğerlerinde ~7 dk'ya kadar sürüyordu).
+  await invalidateGatedMediaCache(env);
   // production audit (2026-09-01, madde E): aşağıdaki caches.default.delete() çağrıları YALNIZCA bu
   // isteği işleyen PoP'u temizler. purgeGlobalUrls, AYNI yol listesini Cloudflare'ın purge-by-URL
   // REST API'siyle TÜM PoP'larda temizler — ama yalnızca CF_ZONE_ID + CF_PURGE_TOKEN secret'ları

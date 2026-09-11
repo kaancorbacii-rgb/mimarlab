@@ -219,5 +219,51 @@ await test('kişi payload\'ı: ortaklar Kurucu/Kurucu Ortak/Ortak, ekip arkadaş
     'kişi popup\'ının Ortaklar\'ı = firma popup\'ının Kurucular\'ı (kişinin kendisi hariç)');
 });
 
+section('dördüncü tur — "firmayı yayına aldım ama proje blurlu kaldı" (sunucu tarafı blur yayılması)');
+
+// CANLI BULGU: Kat73 17:21:52'de yayına alındı; Noa Burger Teşvikiye'nin görselleri 6 dk sonra bazı
+// isteklerde hâlâ blurluydu. Yayını işleyen izolat dışındaki izolatlar küme memosunu (120 sn) ve
+// PoP Cache API girdisini (300 sn) koruyordu. Artık küme D1'deki sürüm damgasına bağlı.
+const gm = await import('../src/lib/gatedMedia.js');
+const { getSiteSettings } = await import('../src/lib/siteSettings.js');
+function gatedEnv(db) {
+  return { DB: d1(db), UPLOADS: { async get(key) { return key.startsWith('_derived/blur/') ? { body: 'BLUR', size: 4 } : null; } } };
+}
+const noaUrl = new URL('https://mimarlab.com/media/projects/noa-1.webp');
+const serveNoa = (env) => gm.serveGatedMedia(new Request(noaUrl), env, noaUrl, { fetchUnclaimedPhotographers: async () => [] });
+
+await test('BAŞKA izolat yayına alınca: bu izolatın küme memosu taze olsa bile damga değişince blur kalkar', async () => {
+  const db = freshDb(); await seed(db);
+  db.exec(`UPDATE projects SET images = '["/media/projects/noa-1.webp"]' WHERE id = 101`);
+  const env = gatedEnv(db);
+  gm._resetGatedMediaMemo();
+  assert.ok(await serveNoa(env), 'önizlemede: blur');
+  // Yayını BAŞKA bir izolat yaptı: D1 değişti + damga yenilendi, bu izolatın memoları DÜŞMEDİ.
+  db.exec(`UPDATE projects SET hidden_at = NULL, preview_at = NULL WHERE id = 101`);
+  db.prepare(`INSERT INTO site_settings (key, value, updated_at) VALUES ('gated_media_version', 'baska-izolat', 0)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run();
+  gm._expireGatedVersionMemo(); // ≤5 sn sonra — küme memosu (120 sn) HÂLÂ taze
+  assert.equal(await serveNoa(env), null, 'damga değişti → küme yeniden kurulur → net görsel');
+  gm._resetGatedMediaMemo();
+});
+
+await test('invalidatePublicCache yolu damgayı D1\'e yazar; damga site ayarlarına karışmaz', async () => {
+  const db = freshDb();
+  const env = { DB: d1(db) };
+  await gm.invalidateGatedMediaCache(env);
+  const row = db.prepare(`SELECT value FROM site_settings WHERE key = 'gated_media_version'`).get();
+  assert.ok(row && row.value, 'damga yazılmalı');
+  const settings = await getSiteSettings(env);
+  assert.ok(!('gated_media_version' in settings), 'damga public/admin ayar nesnesine sızmamalı');
+  gm._resetGatedMediaMemo();
+});
+
+await test('damga okunamazsa (tablo yok) eski TTL davranışı — istek düşmez', async () => {
+  const env = { DB: { prepare: () => ({ bind: () => ({ first: async () => { throw new Error('no table'); } }), all: async () => ({ results: [] }) }) }, UPLOADS: { async get() { return null; } } };
+  gm._resetGatedMediaMemo();
+  assert.equal(await serveNoa(env), null, 'küme boş → normal yol, hata fırlatmaz');
+  gm._resetGatedMediaMemo();
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) process.exit(1);
