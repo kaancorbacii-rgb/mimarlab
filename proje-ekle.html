@@ -2363,6 +2363,59 @@ function mountProjectAdminActions(){
 
 if(claimSlug) prefillForClaim(); else prefillForEdit();
 
+// Firmaya/markaya bağlı kullanıcı YENİ bir proje eklerken Firma kutusu o firma(lar)la, Mimar kutusu o
+// firmanın kurucularıyla ("firma sahipleri") önceden dolar (kullanıcı isteği, 2026-09-11). Bu yalnızca
+// bir VARSAYILAN: iki kutu da sıradan serbest metin girişi olarak kalır, kullanıcı isimleri silebilir,
+// başka firma/kişi ekleyebilir. Bağlılığın kaynağı kisi-ekle.html#fetchMyMembershipSources ile AYNI:
+// GET /api/claims/mine → onaylı profile_type='office' talepleri (firma VE marka) + officeLinks (kişi
+// profilinin office_founders üzerinden bağlı olduğu firmalar). Kurucular GET /api/office/:ad'dan
+// (fillDesignerFromOffice'in kullandığı AYNI uç) — ama yalnızca `founders`; o yardımcı ekibi (team)
+// de eklediği için burada yeniden kullanılmadı. Düzenleme/sahiplenme/AI akışlarında hiç çalışmaz ve
+// kullanıcının zaten yazdığı bir değerin üzerine ASLA yazmaz (her yazmadan hemen önce yeniden bakılır).
+async function prefillOwnOfficeForNewProject(){
+  if(editId || claimSlug || aiMode) return;
+  try{ await meReady; }catch{ return; }
+  const officeInput = document.getElementById('p-office');
+  const designerInput = document.getElementById('p-designer');
+  if(!officeInput || !designerInput || officeInput.value.trim() || designerInput.value.trim()) return;
+  let data = null;
+  try{
+    const res = await fetch('/api/claims/mine', { headers: { Accept: 'application/json' } });
+    if(res.ok) data = await res.json();
+  }catch{}
+  if(!data) return;
+  const foldKey = (s) => String(s || '').trim().toLocaleLowerCase('tr');
+  const uniqueNames = (list) => {
+    const seen = new Set();
+    const out = [];
+    for(const n of list){
+      const k = foldKey(n);
+      if(!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(String(n).trim());
+    }
+    return out;
+  };
+  const officeNames = uniqueNames([
+    ...(data.items || []).filter(c => c.profile_type === 'office' && c.status === 'approved').map(c => c.profile_key),
+    ...(data.officeLinks || []).map(l => l.name),
+  ]);
+  if(!officeNames.length || officeInput.value.trim()) return;
+  officeInput.value = officeNames.join(', ');
+  const founderLists = await Promise.all(officeNames.map(async (name) => {
+    try{
+      const res = await fetch(`/api/office/${encodeURIComponent(name)}`);
+      if(!res.ok) return [];
+      const { founders } = await res.json();
+      return (founders || []).map(f => f && f.name).filter(Boolean);
+    }catch{ return []; }
+  }));
+  const founderNames = uniqueNames(founderLists.flat());
+  if(!founderNames.length || designerInput.value.trim()) return;
+  designerInput.value = founderNames.join(', ');
+}
+prefillOwnOfficeForNewProject();
+
 // ---------- AI ile Otomatik Doldur (?ai=1) ----------
 // AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit/prefillForClaim) ile AYNI alanları AYNI
 // fonksiyonlarla (parseLocationFull, updateKategoriLabel, setExistingImages/renderPreviews) doldurur

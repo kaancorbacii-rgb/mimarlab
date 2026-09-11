@@ -42,14 +42,21 @@ const { isBrandOffice } = officeKindJs;
 // için — shapeProjectItem'daki düz `designer` isim dizisi liste/filtre uçlarıyla PAYLAŞILDIĞINDAN
 // (bkz. fetchActiveProjectPool/handleProjectFiltersRoute, aynı isim eşleştirmesine dayanıyorlar)
 // orada değiştirilmez; bu yalnızca tekil proje detayında ek bir sorguyla doldurulan ayrı bir alan.
+// ÖNİZLEME kişi/firma/fotoğrafçıları da gelir (kullanıcı isteği, 2026-09-11: "Blurlu projelerdeki
+// mimar, mimarlık firması ve fotoğrafçı butonları da aktif olsunlar ama görselleri blurlu olsunlar").
+// Eskiden `hidden_at IS NULL` önizleme satırlarını da düşürüyordu; çip profile bağlanamayıp
+// tıklanamaz bir <span> olarak (unregistered) çiziliyordu. Artık /kisi|firma/:slug <a>'sı basılır —
+// preview-cards.js o bağlantıyı önizleme slug'ı olarak tanıyıp çipi tıklanabilir bırakır, görselini
+// blurlar (bkz. modal-shell.js'teki .ml-preview-card yeniden-blur kuralı). Tam arşiv yine hariç.
+// Aynı kural bu dosyadaki fotoğrafçı ve "firmadan kurucu" sorgularında da uygulanır.
 async function fetchDesignerDetails(env, projectId) {
   const { results } = await env.DB.prepare(
     `SELECT pd.architect_id, pd.office_id,
             ar.name AS ar_name, ar.slug AS ar_slug, ar.photo_url AS ar_photo,
             ofc.name AS ofc_name, ofc.slug AS ofc_slug, ofc.logo_url AS ofc_logo
      FROM project_designers pd
-     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
-     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND ofc.hidden_at IS NULL
+     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)
+     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND (ofc.hidden_at IS NULL OR ofc.preview_at IS NOT NULL)
      WHERE pd.project_id = ?`
   ).bind(projectId).all();
   return results
@@ -67,7 +74,7 @@ async function fetchDesignerDetails(env, projectId) {
 async function fetchPhotographerDetails(env, projectId) {
   const { results } = await env.DB.prepare(
     `SELECT ar.name, ar.slug, ar.photo_url FROM project_photographers pp
-     JOIN architects ar ON ar.id = pp.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+     JOIN architects ar ON ar.id = pp.architect_id AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)
      WHERE pp.project_id = ?`
   ).bind(projectId).all();
   return results.map(r => ({ name: r.name, slug: r.slug, photo: r.photo_url || null, type: 'architect' }));
@@ -95,7 +102,7 @@ async function fetchPhotographerOfficeDetails(env, creditText) {
     `SELECT name, slug, logo_url, cats, name_fold,
             (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.brand_office_id = offices.id) AS product_count
        FROM offices
-      WHERE deleted_at IS NULL AND hidden_at IS NULL AND name_fold IN (${folded.map(() => '?').join(', ')})`
+      WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND name_fold IN (${folded.map(() => '?').join(', ')})`
   ).bind(...folded).all();
   return (results || []).map(r => ({
     name: r.name, slug: r.slug, photo: r.logo_url || null, type: 'office',
@@ -233,8 +240,8 @@ async function fetchFoundersForOffices(env, officeNames) {
   const placeholders = officeNames.map(() => '?').join(', ');
   const { results } = await env.DB.prepare(
     `SELECT ar.name, ar.slug, ar.photo_url FROM office_founders f
-     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
-     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL)
+     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)
      WHERE o.name IN (${placeholders})`
   ).bind(...officeNames).all();
   return results.map(r => ({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url }));
