@@ -42,3 +42,4 @@ docs/gonderim-listesi*.csv
 # commit'lenmezdi ama `wrangler deploy` onu YİNE DE public statik varlık olarak yayınlardı
 # (https://mimarlab.com/sisecam-urunler/... ile herkese açık olurdu).
 sisecam-urunler/
+.blur-derivatives-manifest.txt

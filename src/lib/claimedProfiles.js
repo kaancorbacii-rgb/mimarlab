@@ -424,8 +424,13 @@ function parseNameList(value) {
 // profilinin KENDİ fotoğrafı ise architect payload'ındaki `photoBlur` bayrağıyla (aynı kural,
 // isArchitectProfileClaimed) blurlanır. Tek sorgu, tek liste: fotoğrafçı sayısı küçüktür.
 export async function fetchUnclaimedPhotographerSlugs(env) {
+  return (await fetchUnclaimedPhotographers(env)).map(r => r.slug).filter(Boolean);
+}
+// Aynı küme, slug + photo_url ile — src/lib/gatedMedia.js (sunucu tarafı blur) fotoğraf URL'sini
+// gated görsel kümesine ekler; scripts/backfill-blur-derivatives.py AYNI SQL'i çalıştırır.
+export async function fetchUnclaimedPhotographers(env) {
   const { results } = await env.DB.prepare(
-    `SELECT a.slug FROM architects a
+    `SELECT a.slug, a.photo_url FROM architects a
       WHERE a.deleted_at IS NULL AND a.slug IS NOT NULL AND a.slug != ''
         AND a.profession LIKE '%Fotoğrafçı%'
         AND NOT EXISTS (SELECT 1 FROM profile_claims c WHERE c.status = 'approved'
@@ -439,5 +444,5 @@ export async function fetchUnclaimedPhotographerSlugs(env) {
                          WHERE ('submission:' || s.id) = a.legacy_key AND s.status = 'approved'
                            AND u.name IS NOT NULL AND a.name = u.name COLLATE NOCASE)`
   ).all();
-  return (results || []).map(r => r.slug).filter(Boolean);
+  return (results || []).map(r => ({ slug: r.slug, photo_url: r.photo_url || null }));
 }

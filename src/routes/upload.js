@@ -1,4 +1,5 @@
 import { json, errorJson } from '../lib/http.js';
+import { constantTimeEqual } from '../lib/crypto.js';
 import { getSessionUser } from '../lib/auth.js';
 import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
@@ -401,4 +402,59 @@ export async function handleMediaRoute(request, env, url, ctx) {
     if (ctx) ctx.waitUntil(put);
   }
   return response;
+}
+
+// POST /api/admin/blur-derivatives — BLUR TÜREVİ TOPLU BACKFILL UCU (kullanıcı isteği, 2026-09-11;
+// bkz. src/lib/gatedMedia.js ve scripts/backfill-blur-derivatives.py). Neden ayrı bir uç: 33.000
+// gated görsel için `wrangler r2 object put` nesne başına ~2,6 sn + Cloudflare hesap düzeyi API
+// hız sınırı (1200 istek/5 dk) demek → saatler. R2 binding'i bu sınırlardan bağımsız; 150'lik
+// multipart partiler dakikalar içinde biter.
+//
+// GÜVENLİK: yalnızca BLUR_BACKFILL_TOKEN secret'ı ile (Authorization: Bearer, sabit zamanlı
+// karşılaştırma); yalnızca `_derived/blur/` öneki altına yazar (başka hiçbir R2 nesnesi
+// hedeflenemez); her parça WebP (magic byte) ve <= 96 px genişlik, <= 24 KB olmalı. Secret
+// tanımlı değilse uç 404 döner.
+const BLUR_KEY_RE = /^_derived\/blur\/(r2|s)\/[^\s]{1,600}\.webp$/;
+const BLUR_MAX_BYTES = 24 * 1024;
+const BLUR_MAX_WIDTH = 96;
+const BLUR_BATCH_MAX = 200;
+function webpWidthOf(bytes) {
+  if (bytes.length < 30) return 0;
+  if (!(bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50)) return 0;
+  const chunk = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+  if (chunk === 'VP8 ') return bytes[26] | ((bytes[27] & 0x3f) << 8);
+  if (chunk === 'VP8L') return ((bytes[21] | (bytes[22] << 8)) & 0x3fff) + 1;
+  if (chunk === 'VP8X') return (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16)) + 1;
+  return 0;
+}
+export function isBlurBackfillAuthorized(request, env) {
+  const token = env && typeof env.BLUR_BACKFILL_TOKEN === 'string' ? env.BLUR_BACKFILL_TOKEN : '';
+  if (!token) return false;
+  const auth = request.headers.get('Authorization') || '';
+  const given = auth.startsWith('Bearer ') ? auth.slice(7).trim() : (request.headers.get('X-ML-Blur-Backfill') || '').trim();
+  return !!given && given.length === token.length && constantTimeEqual(given, token);
+}
+export async function handleBlurBackfillRoute(request, env) {
+  if (!env || !env.BLUR_BACKFILL_TOKEN) return errorJson('Bulunamadı', 404);
+  if (request.method !== 'POST') return errorJson('Bulunamadı', 404);
+  if (!isBlurBackfillAuthorized(request, env)) return errorJson('Yetkisiz.', 401);
+  let form;
+  try { form = await request.formData(); } catch { return errorJson('Geçersiz gövde.'); }
+  const parts = form.getAll('file').filter(p => p && typeof p !== 'string');
+  if (!parts.length) return errorJson('Dosya yok.');
+  if (parts.length > BLUR_BATCH_MAX) return errorJson(`Parti başına en fazla ${BLUR_BATCH_MAX} dosya.`);
+  let written = 0;
+  const rejected = [];
+  for (const part of parts) {
+    const key = String(part.name || '');
+    if (!BLUR_KEY_RE.test(key) || key.includes('..') || part.size > BLUR_MAX_BYTES) { rejected.push(key); continue; }
+    const bytes = new Uint8Array(await part.arrayBuffer());
+    const w = webpWidthOf(bytes);
+    if (!w || w > BLUR_MAX_WIDTH) { rejected.push(key); continue; }
+    try {
+      await env.UPLOADS.put(key, bytes, { httpMetadata: { contentType: 'image/webp' } });
+      written++;
+    } catch { rejected.push(key); }
+  }
+  return json({ ok: true, written, rejected });
 }

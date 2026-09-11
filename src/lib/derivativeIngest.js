@@ -50,6 +50,18 @@ export function derivedKeyFor(originalKey, width) {
   return `_derived/w${width}/r2/${originalKey}`;
 }
 
+// BLUR TÜREVİ (kullanıcı isteği, 2026-09-11 — sunucu tarafı blur, bkz. src/lib/gatedMedia.js):
+// kayıt önizlemeye düşerse ya da sahiplenilmemiş bir fotoğrafçının fotoğrafıysa NET dosya yerine
+// bu küçük+bulanık türev servis edilir. Anahtar gatedMedia.js#blurDerivativeKey ile AYNI biçim
+// (`_derived/blur/r2/<anahtar>.webp`). İstemci (image-upload.js#prepareImage) 48 px genişlikte,
+// bulanık bir WebP üretir; burada yalnızca WebP olduğu ve genişliğinin tavanı aşmadığı doğrulanır.
+// Kazanç kuralı UYGULANMAZ (amaç depolama değil, telif); boyut tavanı yine de var.
+export const BLUR_DERIVATIVE_MAX_WIDTH = 96;
+const BLUR_DERIVATIVE_MAX_BYTES = 24 * 1024;
+export function blurKeyFor(originalKey) {
+  return `_derived/blur/r2/${originalKey}.webp`;
+}
+
 // RIFF konteynerindeki WebP'nin GERÇEK piksel genişliği. Üç kodlama de desteklenir çünkü tarayıcılar
 // hangisini üreteceğini kendileri seçer: canvas.toBlob kalite < 1 iken "VP8 " (kayıplı), alfa kanalı
 // varsa "VP8X" (genişletilmiş konteyner), kalite = 1 iken bazı tarayıcılarda "VP8L" (kayıpsız).
@@ -118,6 +130,28 @@ export async function ingestClientDerivatives(env, form, originalKey, originalBy
     const part = form.get(`d${w}`);
     return part && typeof part !== 'string' && part.size > 0;
   });
+
+  // Blur türevi — basamaklardan bağımsız; başarısızlığı kuyruğa YAZILMAZ (kuyruk basamak
+  // genişlikleriyle çalışır; blur eksikse gated istek placeholder alır, bkz. gatedMedia.js).
+  try {
+    const blurPart = form.get('dblur');
+    if (blurPart && typeof blurPart !== 'string' && blurPart.size > 0 && blurPart.size <= BLUR_DERIVATIVE_MAX_BYTES) {
+      const bytes = new Uint8Array(await blurPart.arrayBuffer());
+      const w = webpWidth(bytes);
+      if (w > 0 && w <= BLUR_DERIVATIVE_MAX_WIDTH) {
+        const quota = await reserveR2Usage(env, bytes.byteLength);
+        if (quota.ok) {
+          try {
+            await env.UPLOADS.put(blurKeyFor(originalKey), bytes, { httpMetadata: { contentType: 'image/webp' } });
+            await finalizeR2Reservation(env, bytes.byteLength, bytes.byteLength);
+          } catch (err) {
+            try { await releaseR2Reservation(env, bytes.byteLength); } catch { /* yut */ }
+            console.error(JSON.stringify({ event: 'blur_derivative_ingest_failed', originalKey, reason: (err && err.message) || String(err) }));
+          }
+        }
+      }
+    }
+  } catch { /* blur opsiyonel */ }
 
   for (const width of DERIVATIVE_WIDTHS) {
     let reserved = 0;

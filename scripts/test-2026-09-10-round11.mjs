@@ -425,5 +425,106 @@ await test('gallery.js kredi etiketi + project-gallery kredi kaynağı', () => {
   assert.ok(pg.includes('credit: photographerCredit(item)') && pg.includes('item.photoCredit && item.photoCredit.text'));
 });
 
+// =============================================================================================
+// 2026-09-11 — SUNUCU TARAFI BLUR (gated görseller)
+// =============================================================================================
+import { normalizeImageKey, keyForRequestPath, blurDerivativeKey, fetchGatedImageKeys, serveGatedMedia, _resetGatedMediaMemo } from '../src/lib/gatedMedia.js';
+import { fetchUnclaimedPhotographers } from '../src/lib/claimedProfiles.js';
+
+section('gated görseller — anahtar normalizasyonu (betikle birebir)');
+await test('normalizeImageKey: göreli/mutlak/media/statik biçimler tek anahtara iner', () => {
+  assert.equal(normalizeImageKey('/media/u/a/b.webp'), 'r2:u/a/b.webp');
+  assert.equal(normalizeImageKey('https://mimarlab.com/media/projects/x.webp'), 'r2:projects/x.webp');
+  assert.equal(normalizeImageKey('miras/beyti-restaurant-1.webp'), 's:miras/beyti-restaurant-1.webp');
+  assert.equal(normalizeImageKey('/projects/y.jpg'), 's:projects/y.jpg');
+  assert.equal(normalizeImageKey('https://dis.site/x.jpg'), null);
+  assert.equal(normalizeImageKey('data:image/png;base64,AAA'), null);
+  assert.equal(normalizeImageKey(''), null);
+});
+await test('keyForRequestPath: /media, türev basamağı ve statik yol aynı anahtara çözülür; blur türevi ve sayfalar gated değil', () => {
+  assert.equal(keyForRequestPath('/media/u/a/b.webp'), 'r2:u/a/b.webp');
+  assert.equal(keyForRequestPath('/media/_derived/w800/r2/u/a/b.webp'), 'r2:u/a/b.webp');
+  assert.equal(keyForRequestPath('/media/_derived/w400/s/miras/beyti-restaurant-1.webp'), 's:miras/beyti-restaurant-1.webp');
+  assert.equal(keyForRequestPath('/miras/beyti-restaurant-1.webp'), 's:miras/beyti-restaurant-1.webp');
+  assert.equal(keyForRequestPath('/media/_derived/blur/s/miras/x.webp.webp'), null);
+  assert.equal(keyForRequestPath('/proje/galataport'), null);
+  assert.equal(keyForRequestPath('/js/components/gallery.js'), null);
+  assert.equal(blurDerivativeKey('s:miras/x.webp'), '_derived/blur/s/miras/x.webp.webp');
+  assert.equal(blurDerivativeKey('r2:u/a.webp'), '_derived/blur/r2/u/a.webp.webp');
+});
+
+section('gated görseller — küme + servis kararı');
+function gatedDb() {
+  const db = freshDb();
+  const now = Date.now();
+  db.exec(`
+    INSERT INTO projects (slug, title, images, build_status, source, hidden_at, preview_at) VALUES
+      ('onizleme', 'Önizleme', '["/media/u/p1.webp","miras/p2.webp"]', 'built', 'legacy_static', '${NOW}', '${NOW}'),
+      ('canli', 'Canlı', '["/media/u/c1.webp"]', 'built', 'legacy_static', NULL, NULL),
+      ('arsiv', 'Arşiv', '["/media/u/a1.webp"]', 'built', 'legacy_static', '${NOW}', NULL);
+    INSERT INTO products (slug, title, kind, images, variants, hidden_at, preview_at) VALUES
+      ('u1', 'Ürün', 'product', '["/media/u/pr1.webp"]', '[{"label":"v","images":["/media/u/pv1.webp"]}]', '${NOW}', '${NOW}');
+    INSERT INTO offices (slug, name, logo_url, cover_url, hidden_at, preview_at) VALUES ('f1', 'Firma', 'logos/f1.png', '/media/u/cover.webp', '${NOW}', '${NOW}');
+    INSERT INTO architects (slug, name, photo_url, profession, hidden_at, preview_at) VALUES
+      ('k1', 'Kişi', '/media/u/k1.webp', 'Mimar', '${NOW}', '${NOW}'),
+      ('foto', 'Foto Kişi', 'mimarlar/foto.jpg', 'Fotoğrafçı', NULL, NULL),
+      ('mimar', 'Mimar Kişi', 'mimarlar/mimar.jpg', 'Mimar', NULL, NULL);
+  `);
+  return db;
+}
+await test('fetchGatedImageKeys: önizleme proje/ürün(+versiyon)/firma/kişi + sahipsiz fotoğrafçı; canlı ve arşiv DEĞİL', async () => {
+  const set = await fetchGatedImageKeys({ DB: d1(gatedDb()) }, fetchUnclaimedPhotographers);
+  for (const k of ['r2:u/p1.webp', 's:miras/p2.webp', 'r2:u/pr1.webp', 'r2:u/pv1.webp', 's:logos/f1.png', 'r2:u/cover.webp', 'r2:u/k1.webp', 's:mimarlar/foto.jpg']) assert.ok(set.has(k), k);
+  assert.ok(!set.has('r2:u/c1.webp'), 'canlı proje gated olmamalı');
+  assert.ok(!set.has('r2:u/a1.webp'), 'tam arşiv zaten 410 — gated kümede gereksiz');
+  assert.ok(!set.has('s:mimarlar/mimar.jpg'), 'sahipsiz mimar fotoğrafı gated değil');
+});
+function envFor(db, blurKeys) {
+  return {
+    DB: d1(db),
+    UPLOADS: { async get(key) { return blurKeys.has(key) ? { body: 'BLUR', size: 4 } : null; } },
+  };
+}
+await test('serveGatedMedia: gated istekte blur türevi (no-store), türev yoksa placeholder, gated değilse null', async () => {
+  _resetGatedMediaMemo();
+  const env = envFor(gatedDb(), new Set(['_derived/blur/r2/u/p1.webp.webp']));
+  const deps = { fetchUnclaimedPhotographers };
+  const req = (p, m = 'GET') => new Request('https://mimarlab.com' + p, { method: m });
+  const r1 = await serveGatedMedia(req('/media/_derived/w800/r2/u/p1.webp'), env, new URL('https://mimarlab.com/media/_derived/w800/r2/u/p1.webp'), deps);
+  assert.ok(r1 && r1.status === 200 && r1.headers.get('Content-Type') === 'image/webp' && r1.headers.get('Cache-Control') === 'private, no-store' && r1.headers.get('X-ML-Gated') === '1');
+  const r2 = await serveGatedMedia(req('/miras/p2.webp'), env, new URL('https://mimarlab.com/miras/p2.webp'), deps);
+  assert.ok(r2 && r2.headers.get('Content-Type') === 'image/svg+xml', 'türev yok → placeholder, ASLA net dosya');
+  const r3 = await serveGatedMedia(req('/media/u/c1.webp'), env, new URL('https://mimarlab.com/media/u/c1.webp'), deps);
+  assert.equal(r3, null, 'canlı proje görseli normal yola düşer');
+  const r4 = await serveGatedMedia(req('/mimarlar/foto.jpg', 'HEAD'), env, new URL('https://mimarlab.com/mimarlar/foto.jpg'), deps);
+  assert.ok(r4 && r4.status === 200 && r4.body === null, 'HEAD gövdesiz');
+  const r5 = await serveGatedMedia(req('/media/u/p1.webp', 'POST'), env, new URL('https://mimarlab.com/media/u/p1.webp'), deps);
+  assert.equal(r5, null);
+  _resetGatedMediaMemo();
+});
+await test('sahiplenince küme değişir (memo sıfırlanınca net dosya döner)', async () => {
+  _resetGatedMediaMemo();
+  const db = gatedDb();
+  const env = envFor(db, new Set());
+  const deps = { fetchUnclaimedPhotographers };
+  const url = new URL('https://mimarlab.com/media/u/k1.webp');
+  assert.ok(await serveGatedMedia(new Request(url), env, url, deps), 'önce gated');
+  db.exec(`UPDATE architects SET hidden_at = NULL, preview_at = NULL WHERE slug = 'k1'`); // yayına alındı
+  _resetGatedMediaMemo(); // invalidatePublicCache'in yaptığı
+  assert.equal(await serveGatedMedia(new Request(url), env, url, deps), null, 'yayına alınınca net dosya');
+  _resetGatedMediaMemo();
+});
+await test('kablolama: index.js gated kontrolü /media ve statik dallardan ÖNCE; ingest dblur; istemci dblur', () => {
+  const idx = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(idx.includes('await serveGatedMedia(request, env, url, { fetchUnclaimedPhotographers })'));
+  assert.ok(idx.indexOf('serveGatedMedia(request') < idx.indexOf("response = await handleMediaRoute(request, env, url, ctx);"));
+  const pc = readFileSync(new URL('../src/lib/publicCache.js', import.meta.url), 'utf8');
+  assert.ok(pc.includes('await invalidateGatedMediaCache();'));
+  const di = readFileSync(new URL('../src/lib/derivativeIngest.js', import.meta.url), 'utf8');
+  assert.ok(di.includes("form.get('dblur')") && di.includes('_derived/blur/r2/${originalKey}.webp'));
+  const iu = readFileSync(new URL('../image-upload.js', import.meta.url), 'utf8');
+  assert.ok(iu.includes("form.append('dblur'"));
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`  - ${f.name}: ${f.message}`); process.exit(1); }

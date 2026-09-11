@@ -95,6 +95,27 @@
     });
   }
 
+  // BLUR TÜREVİ (kullanıcı isteği, 2026-09-11 — sunucu tarafı blur, bkz. src/lib/gatedMedia.js):
+  // 48 px genişlik + canvas blur filtresi. Filtre desteklenmeyen tarayıcıda yalnızca 48 px'lik
+  // küçültme kalır — ekranda büyütülünce zaten bulanıktır, ayrıntı geri kazanılamaz.
+  var BLUR_WIDTH = 48;
+  function encodeBlur(bitmap, width, height) {
+    return new Promise(function (resolve) {
+      try {
+        var canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(null); return; }
+        if ('filter' in ctx) ctx.filter = 'blur(2px)';
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        canvas.toBlob(function (blob) { resolve(blob && blob.type === 'image/webp' ? blob : null); }, 'image/webp', 0.55);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
   // Kutuya sığdırma (ASLA BÜYÜTMEZ): kaynak zaten kutudan küçükse boyut değişmez.
   function fitBox(w, h, maxEdge) {
     if (!maxEdge || (w <= maxEdge && h <= maxEdge)) return { width: w, height: h };
@@ -135,6 +156,15 @@
         ? new File([masterBlob], 'upload.webp', { type: 'image/webp' })
         : file;
       out.file = master;
+
+      // 1b) BLUR türevi — boyut/kazanç kurallarından BAĞIMSIZ (küçük logolar dahil her görsel için;
+      //     gated durumda net dosya yerine bu servis edilir). Başarısızlık sessizce atlanır.
+      try {
+        var bw = Math.min(BLUR_WIDTH, box.width);
+        var bh = Math.max(1, Math.round(box.height * bw / box.width));
+        var blurBlob = await encodeBlur(bitmap, bw, bh);
+        if (blurBlob) out.blur = blurBlob;
+      } catch (e) { /* opsiyonel */ }
 
       // 2) TÜREVLER — master'ın kendisinden değil, ORİJİNAL bitmap'ten çizilir: iki kez kayıplı
       //    kodlamadan (orijinal -> master -> türev) geçirmek gereksiz kalite kaybı olurdu.
@@ -178,6 +208,8 @@
       var w = DERIVATIVE_WIDTHS[i];
       if (prepared.derivatives[w]) form.append('d' + w, prepared.derivatives[w], 'd' + w + '.webp');
     }
+    // Alan adı src/lib/derivativeIngest.js#'dblur' ile aynı.
+    if (prepared.blur) form.append('dblur', prepared.blur, 'dblur.webp');
     return form;
   }
 

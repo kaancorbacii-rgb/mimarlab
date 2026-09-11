@@ -14,8 +14,10 @@ import { rebuildIndex } from './lib/visualIndexStore.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
-import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
+import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute, handleBlurBackfillRoute, isBlurBackfillAuthorized } from './routes/upload.js';
 import { derivedImageUrl, derivedSrcset } from './lib/imageDerivative.js';
+import { serveGatedMedia } from './lib/gatedMedia.js';
+import { fetchUnclaimedPhotographers } from './lib/claimedProfiles.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
 import { handleReadsRoute } from './routes/reads.js';
@@ -695,7 +697,16 @@ export default {
     // sarmalıyor: öncesinde /api/ dışındaki bir dalda fırlayan beklenmeyen bir hata Worker'ı
     // çökertip Cloudflare'in kendi genel hata sayfasını döndürürdü, hem de hiç loglanmadan.
     try {
-      if (url.pathname.startsWith('/api/')) {
+      // GATED GÖRSELLER (kullanıcı isteği, 2026-09-11) — önizleme/sahiplenilmemiş kayıtların görselleri
+      // NET olarak asla servis edilmez; /media ve statik görsel dallarından ÖNCE (onların
+      // önbellek aramalarından da önce) karar verilir. Bkz. src/lib/gatedMedia.js dosya başı.
+      // Backfill betiği kaynak görselleri indirirken gate'i token'la atlatır (bkz. upload.js#
+      // isBlurBackfillAuthorized) — aksi halde w400 yerine bulanık türev iner, "blur'un bluru" olur.
+      const gated = (url.pathname.startsWith('/api/') || isBlurBackfillAuthorized(request, env)) ? null
+        : await serveGatedMedia(request, env, url, { fetchUnclaimedPhotographers });
+      if (gated) {
+        response = gated;
+      } else if (url.pathname.startsWith('/api/')) {
         response = await routeApi(request, env, url, ctx);
       } else if (url.pathname.startsWith('/media/')) {
         response = await handleMediaRoute(request, env, url, ctx);
@@ -2050,6 +2061,7 @@ async function routeApi(request, env, url, ctx) {
   // src/routes/upload.js#handleUploadRoute) — yükleme yanıtı bekletilmez.
   if (path === '/api/uploads') return handleUploadRoute(request, env, ctx);
   if (path === '/api/uploads/file') return handleFileUploadRoute(request, env);
+  if (path === '/api/admin/blur-derivatives') return handleBlurBackfillRoute(request, env); // bkz. upload.js#handleBlurBackfillRoute
   if (path === '/api/contact') return handleContactRoute(request, env, url);
   if (path.startsWith('/api/newsletter/')) return handleNewsletterRoute(request, env, url);
   if (path === '/api/csp-report') return handleCspReportRoute(request, env);

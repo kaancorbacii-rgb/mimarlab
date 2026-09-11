@@ -2,6 +2,7 @@ import { json } from './http.js';
 import { getSessionUser } from './auth.js';
 import { reserveKvWrite } from './kvQuota.js';
 import { purgeGlobalUrls } from './globalPurge.js';
+import { invalidateGatedMediaCache } from './gatedMedia.js';
 
 // Admin oturumu taşıyan istekler (mimarlab_session çerezi + role==='admin') hiçbir zaman
 // önbelleklenmez — admin panelinden yapılan bir değişikliğin aynı oturumda anında görünmesi için
@@ -701,6 +702,9 @@ async function readFingerprint(env, kind, computeFingerprint) {
 // noktalar (13 tanesi) buna göre güncellendi.
 export async function invalidatePublicCache(env) {
   fingerprintMemo.clear(); // bkz. getCachedFingerprint — yazma anında bu isolate'in memosu da düşer
+  // Gated görsel kümesi (sunucu tarafı blur, bkz. src/lib/gatedMedia.js): sahiplenme onayı/yayına
+  // alma bu fonksiyondan geçer — blur aynı PoP'ta anında, diğerlerinde en geç 5 dk'da kalkar.
+  await invalidateGatedMediaCache();
   // production audit (2026-09-01, madde E): aşağıdaki caches.default.delete() çağrıları YALNIZCA bu
   // isteği işleyen PoP'u temizler. purgeGlobalUrls, AYNI yol listesini Cloudflare'ın purge-by-URL
   // REST API'siyle TÜM PoP'larda temizler — ama yalnızca CF_ZONE_ID + CF_PURGE_TOKEN secret'ları
