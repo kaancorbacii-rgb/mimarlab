@@ -449,12 +449,13 @@ async function fetchArchitectsByRawNames(env, names) {
   // listeler zaten onlarca isimle sınırlı, yine de güvenli tarafta kalmak için tek IN kullanılır.
   const placeholders = wanted.map(() => '?').join(', ');
   const { results } = await env.DB.prepare(
-    `SELECT name, name_fold, slug, photo_url FROM architects
+    `SELECT name, name_fold, slug, photo_url, position FROM architects
      WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) AND name_fold IN (${placeholders})`
   ).bind(...wanted).all();
   const map = new Map();
   for (const r of results || []) {
-    if (!map.has(r.name_fold)) map.set(r.name_fold, { photo: r.photo_url || null, slug: r.slug || null });
+    // position — Kurucular/Ekip bölümünü belirler (bkz. buildOfficePayload#sectionFor).
+    if (!map.has(r.name_fold)) map.set(r.name_fold, { photo: r.photo_url || null, slug: r.slug || null, position: r.position || null });
   }
   return map;
 }
@@ -747,23 +748,38 @@ export async function buildOfficePayload(env, key) {
   // Architects'te Ekip Lideri Müge Eker Eryakar Kurucular'daydı). Hesap üzerinden gelen üyelerdeki
   // FOUNDER_POSITIONS ayrımının (aşağıda) yapısal bağlardaki karşılığı. Ekip'e düşenler de gerçek bir
   // kişi profiline sahip olduğundan `slug` taşır — popup onları tıklanabilir kart olarak çizer.
-  const TEAM_POSITIONS = new Set(['Ekip Lideri', 'Ekip Üyesi']);
+  //
+  // TEK KURAL (kullanıcı isteği, 2026-09-11 ikinci tur: "Kurucu, kurucu ortak, ortak kişileri
+  // Kurucular / Ortaklar kısmında diğerleri ekip kısmında görünmeli"): görev FOUNDER_POSITIONS'taysa
+  // Kurucular/Ortaklar, DEĞİLSE (Ekip Lideri, Ekip Üyesi, Akademisyen, görevsiz...) Ekip. Üç kaynağın
+  // (yapısal bağ, hesap üyeliği, kutu metnindeki ad eşleşmesi) HEPSİ aynı kümeyle ayrılır; aynı küme
+  // src/lib/officeFounderCascade.js'te claim iptalinde de kullanılır — ikisi ayrışırsa bir kişi bir
+  // bölümde görünürken kaydetme onu öteki listeden "silinmiş" sayıp claim'ini iptal eder.
+  // Görevi BİLİNMEYEN tek durum kişi profili olmayan serbest metin adıdır — o yazıldığı kutuda kalır.
+  const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak']);
   const structuredTeam = foundersRes.results
-    .filter(x => TEAM_POSITIONS.has(x.position))
-    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, slug: x.slug }));
+    .filter(x => !FOUNDER_POSITIONS.has(x.position))
+    .map(x => ({ name: x.name, role: x.position || null, photo: x.photo_url, slug: x.slug }));
   const founders = foundersRes.results
-    .filter(x => !TEAM_POSITIONS.has(x.position))
+    .filter(x => FOUNDER_POSITIONS.has(x.position))
     .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
   const knownFounderNames = new Set(founders.map(f => foldTr(f.name)));
   // Yapısal Ekip üyesi, Kurucular metnine de yazılmış olsa Kurucular'a geri eklenmesin.
   for (const t of structuredTeam) knownFounderNames.add(foldTr(t.name));
+  const team = [...structuredTeam];
+  // Kutu metnindeki ad bir kişi profiliyle eşleşiyor ve profilin görevi BELLİYSE bölümü görev belirler.
+  const sectionFor = (name, box) => {
+    const position = (matchFor(name) || {}).position;
+    if (!position) return box;
+    return FOUNDER_POSITIONS.has(position) ? 'founders' : 'team';
+  };
   for (const name of rawFounderNames) {
     if (!name || knownFounderNames.has(foldTr(name))) continue;
     knownFounderNames.add(foldTr(name));
-    founders.push({ name, role: null, photo: (matchFor(name) || {}).photo || null, badges: [], unregistered: true });
+    const m = matchFor(name) || {};
+    if (sectionFor(name, 'founders') === 'team') team.push({ name, role: m.position, photo: m.photo || null });
+    else founders.push({ name, role: m.position || null, photo: m.photo || null, badges: [], unregistered: true });
   }
-  const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
-  const team = [...structuredTeam];
   for (const row of teamClaimRows.results || []) {
     if (!row.name || knownFounderNames.has(foldTr(row.name))) continue;
     // KURUMSAL YÖNETİCİ HESABI (kullanıcı isteği, 2026-09-08 madde 2): "Yönetici" görevi, firmanın
@@ -787,8 +803,14 @@ export async function buildOfficePayload(env, key) {
   const knownTeamNames = new Set(team.map(t => foldTr(t.name)));
   for (const name of rawTeamNames) {
     if (!name || knownFounderNames.has(foldTr(name)) || knownTeamNames.has(foldTr(name))) continue;
+    const m = matchFor(name) || {};
+    if (sectionFor(name, 'team') === 'founders') {
+      knownFounderNames.add(foldTr(name));
+      founders.push({ name, role: m.position, photo: m.photo || null, badges: [], unregistered: true });
+      continue;
+    }
     knownTeamNames.add(foldTr(name));
-    team.push({ name, role: null, photo: (matchFor(name) || {}).photo || null });
+    team.push({ name, role: m.position || null, photo: m.photo || null });
   }
   // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
   // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son

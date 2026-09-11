@@ -154,5 +154,51 @@ await test('office_founders ile bağlı Ekip Lideri Kurucular\'da DEĞİL, Ekip\
   assert.equal(muge.slug, 'muge-eker-eryakar', 'gerçek kişi profili — kart /kisi/:slug\'a bağlanmalı');
 });
 
+section('ikinci tur — "Kurucu, kurucu ortak, ortak Kurucular / Ortaklar\'da, diğerleri Ekip\'te"');
+
+// Tek kural üç kaynakta: yapısal bağ (office_founders), hesap üyeliği (profile_claims) ve kutu
+// metnindeki adın eşleştiği kişi profili. Görevi bilinmeyen serbest ad yazıldığı kutuda kalır.
+async function seedRule(db) {
+  await seed(db);
+  const now = Date.now();
+  db.exec(`
+    INSERT INTO architects (id, slug, name, position, office_id, source, legacy_key) VALUES
+      (20, 'ortak-kisi', 'Ortak Kişi', 'Ortak', NULL, 'legacy_static', 'Ortak Kişi'),
+      (21, 'akademisyen-kisi', 'Akademisyen Kişi', 'Akademisyen', NULL, 'legacy_static', 'Akademisyen Kişi'),
+      (22, 'metinde-ekip-lideri', 'Metinde Ekip Lideri', 'Ekip Lideri', NULL, 'legacy_static', 'Metinde Ekip Lideri'),
+      (23, 'metinde-kurucu', 'Metinde Kurucu', 'Kurucu', NULL, 'legacy_static', 'Metinde Kurucu');
+    INSERT INTO office_founders (office_id, architect_id) VALUES (1, 20), (1, 21);
+  `);
+  db.prepare(`INSERT INTO office_submissions (id, owner_user_id, status, created_at, updated_at, name, claimed_profile_key, founders, team) VALUES ('os-rule', 'u-admin', 'archived', ?, ?, 'Tago Architects', 'Tago Architects', ?, ?)`)
+    .run(now, now, JSON.stringify(['Metinde Ekip Lideri', 'Profilsiz Kurucu']), JSON.stringify(['Metinde Kurucu', 'Profilsiz Ekip']));
+  for (const [uid, name, pos] of [['u-ortak', 'Hesaplı Ortak', 'Ortak'], ['u-uye', 'Hesaplı Üye', 'Ekip Üyesi']]) {
+    db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES (?, ?, 'x', ?, 'user', ?)`).run(uid, `${uid}@example.com`, name, now);
+    db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at, office_position) VALUES (?, ?, 'office', 'Tago Architects', 'approved', ?, ?, ?)`)
+      .run(`c-${uid}`, uid, now, now, pos);
+  }
+}
+
+await test('her kaynakta Kurucu/Kurucu Ortak/Ortak → Kurucular, diğerleri → Ekip', async () => {
+  const db = freshDb(); await seedRule(db);
+  const payload = await buildOfficePayload({ DB: d1(db) }, 'tago-architects');
+  const f = new Set(payload.founders.map(x => x.name));
+  const t = new Set(payload.team.map(x => x.name));
+  for (const name of ['Gökhan Aktan Altuğ', 'Ortak Kişi', 'Hesaplı Ortak', 'Metinde Kurucu', 'Profilsiz Kurucu']) {
+    assert.ok(f.has(name) && !t.has(name), `${name} Kurucular'da olmalı`);
+  }
+  for (const name of ['Müge Eker Eryakar', 'Akademisyen Kişi', 'Hesaplı Üye', 'Metinde Ekip Lideri', 'Profilsiz Ekip']) {
+    assert.ok(t.has(name) && !f.has(name), `${name} Ekip'te olmalı`);
+  }
+});
+
+await test('claim iptali popup ile AYNI kural: Kurucular\'da görünen Ortak, Ekip listesine göre iptal EDİLMEZ', async () => {
+  const db = freshDb(); await seedRule(db); envRef.env = { DB: d1(db) };
+  const { cascadeRemovedProfileClaims } = await import('../src/lib/officeFounderCascade.js');
+  await cascadeRemovedProfileClaims(envRef.env, 'Tago Architects', ['Hesaplı Üye'], { founders: false });
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE id = 'c-u-ortak'`).get().status, 'approved');
+  await cascadeRemovedProfileClaims(envRef.env, 'Tago Architects', [], { founders: true });
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE id = 'c-u-ortak'`).get().status, 'rejected', 'Kurucular listesinden silinince iptal edilmeli');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) process.exit(1);

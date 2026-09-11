@@ -424,7 +424,8 @@ const ArchitectModal = (function () {
       <!-- Sayaç (kullanıcı isteği, 2026-09-02): bölüm zaten en fazla 9 kişi gösteriyordu (bkz.
            src/routes/architect.js#relatedArchitects, .slice(0, 9) — tüm öneri şeritlerinin ORTAK
            üst sınırı) ama kardeş bölümlerin aksine sayıyı BAŞLIKTA göstermiyordu. -->
-      <h2 class="related-title">MİMARLAB'daki Diğer Kişiler<span id="am-related-architects-count"></span></h2>
+      <!-- Sayaç bilerek YOK (kullanıcı isteği, 2026-09-11: "başlığın yanında sayı gözükmesin"). -->
+      <h2 class="related-title">MİMARLAB'daki Diğer Kişiler</h2>
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
@@ -1046,7 +1047,6 @@ const ArchitectModal = (function () {
     // gösterilsin (bkz. src/routes/architect.js#buildArchitectPayload relatedArchitects, ±5 yıl
     // aralığında ORDER BY RANDOM() ile seçilir, her açılışta farklı isimler gelir).
     document.getElementById('am-related-architects-section').style.display = relatedArchitectsData.length ? '' : 'none';
-    document.getElementById('am-related-architects-count').textContent = relatedArchitectsData.length ? ` (${relatedArchitectsData.length})` : '';
     function renderRelatedArchitectsGrid() {
       RelatedStrip.render(document.getElementById('am-related-architects-grid'), relatedArchitectsData, r =>
         cardHtml(`/kisi/${encodeURIComponent(slugify(r.name))}`, r.name, r.photo, r.dob ? String(r.dob).slice(0, 4) : null, verifiedBadgeHtml('architect', r.name, r.badges, 14))

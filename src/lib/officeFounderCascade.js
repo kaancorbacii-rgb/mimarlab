@@ -141,8 +141,10 @@ export async function cascadeRemovedFounders(env, user, officeName, oldFounders,
 }
 
 // office.js#buildOfficePayload'daki AYNI kurucu/ekip ayrımı — bir profile_claims('office') satırı
-// bu pozisyonlardaysa Kurucular'a, değilse Ekip'e sayılır.
-const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
+// bu pozisyonlardaysa Kurucular'a, değilse Ekip'e sayılır. 'Ortak' 2026-09-11'de eklendi (kullanıcı
+// isteği: "Kurucu, kurucu ortak, ortak kişileri Kurucular / Ortaklar kısmında") — office.js ile AYNI
+// küme olmak ZORUNDA, yoksa Kurucular'da görünen bir Ortak'ın claim'i Ekip listesine göre iptal edilir.
+const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak']);
 
 // gerçek bulgu (kullanıcı isteği): Kurucular/Ekip kutusundan bir isim çıkarılıp kaydedildiğinde
 // (ör. admin panelinden firma düzenle > Ekip), o kişinin buildOfficePayload'da (bkz. src/routes/
