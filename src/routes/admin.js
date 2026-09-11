@@ -1116,21 +1116,77 @@ async function approveArchivedDraftsAndRecordRights(env, userId, table, ids) {
 async function activateClaimedProfile(env, profileType, profileKey, userId) {
   const seedTable = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
   if (!seedTable || !profileKey) return;
-  const nowIso = new Date().toISOString();
   const keyBinds = [profileKey, profileKey, profileKey];
   const byKey = `(name = ? OR slug = ? OR legacy_key = ?)`;
 
   const seedIds = await idsFrom(env, `SELECT id FROM ${seedTable} WHERE deleted_at IS NULL AND ${byKey}`, keyBinds);
   if (!seedIds.length) return;
+  await activateProfileGraph(env, profileType, seedIds, userId);
+}
 
+// ADMIN FİRMAYI YAYINLAYINCA (kullanıcı isteği, 2026-09-11: "Admin canlı sitede bir firmayı yayınla
+// diyerek blurdan kurtardığı zaman otomatikman firmaya ait tüm projeler ve firmadaki kişiler de
+// blurdan çıkıp yayınlansın. Son paylaşılan projeleri proje sayfasında 1. sıraya otursun.") — atamayla
+// AYNI graf (activateProfileGraph), tetikleyicisi farklı: firma-ekle/marka-ekle'de telif beyanı
+// onaylı kaydetme (src/routes/submissions.js) ve admin panelinin Arşiv > "Yayınla"sı
+// (src/routes/legacyContent.js#runContentAction). Çağıran, ÖNİZLEMEDEN çıkan firmanın id'lerini
+// senkrondan ÖNCE yakalar (senkron preview_at'i temizlediği için sonradan ayırt edilemez).
+export async function activateOfficesOnPublish(env, officeIds, userId) {
+  const ids = [...new Set((officeIds || []).filter(id => id !== null && id !== undefined))];
+  if (!ids.length) return;
+  await activateProfileGraph(env, 'office', ids, userId);
+}
+
+// Senkrondan ÖNCE çağrılır — anahtar (ad/slug/legacy_key) ile eşleşen, şu an ÖNİZLEMEDEKİ firmalar.
+export async function previewOfficeIdsByKeys(env, keys) {
+  const wanted = [...new Set((keys || []).filter(Boolean))];
+  if (!wanted.length) return [];
+  const ph = wanted.map(() => '?').join(', ');
+  return idsFrom(env,
+    `SELECT id FROM offices WHERE deleted_at IS NULL AND preview_at IS NOT NULL
+       AND (name IN (${ph}) OR slug IN (${ph}) OR legacy_key IN (${ph}))`, [...wanted, ...wanted, ...wanted]);
+}
+
+// Firma popup'ının Kurucular/Ekip METİN kutularına yazılıp (office_submissions.founders/team)
+// office_founders'a hiç bağlanmamış ama bir kişi profiliyle AD eşleşmesi olan kişiler — popup onları
+// o profilin fotoğrafıyla gösterir (bkz. src/routes/office.js#fetchArchitectsByRawNames), yani
+// "firmadaki kişiler"in parçasıdır. AYNI eşleşme kuralı: name_fold (Türkçe casefold).
+async function architectIdsFromOfficeDraftNames(env, officeIds) {
+  if (!officeIds.length) return [];
+  const ph = officeIds.map(() => '?').join(', ');
+  const { results: offices } = await env.DB.prepare(`SELECT id, name, legacy_key FROM offices WHERE id IN (${ph})`).bind(...officeIds).all();
+  const names = [];
+  for (const o of offices || []) {
+    const submissionId = (o.legacy_key || '').startsWith('submission:') ? o.legacy_key.slice('submission:'.length) : '';
+    const row = await env.DB.prepare(
+      `SELECT founders, team FROM office_submissions WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+    ).bind(o.name, o.legacy_key || '', submissionId).first();
+    for (const col of ['founders', 'team']) {
+      try { names.push(...(JSON.parse((row && row[col]) || '[]') || [])); } catch {}
+    }
+  }
+  const folds = [...new Set(names.filter(n => typeof n === 'string' && n.trim()).map(n => foldTr(n)))].slice(0, ACTIVATE_ID_LIMIT);
+  if (!folds.length) return [];
+  return idsFrom(env,
+    `SELECT id FROM architects WHERE deleted_at IS NULL AND name_fold IN (${folds.map(() => '?').join(', ')})`, folds);
+}
+
+async function activateProfileGraph(env, profileType, seedIds, userId) {
+  const nowIso = new Date().toISOString();
   let officeIds = [], architectIds = [];
   if (profileType === 'office') {
     officeIds = seedIds;
-    // Firmanın Kurucular/Ekip listesindeki kişiler (kullanıcı isteği, 2026-09-10: "Metin Kılıç'ın
-    // profili de blurlu değil yayında olsun"). office_founders — firma künyesinin TEK yapılandırılmış
-    // kişi bağı (bkz. src/routes/office.js#buildOfficePayload).
-    architectIds = await idsFrom(env,
-      `SELECT DISTINCT f.architect_id AS id FROM office_founders f WHERE f.office_id IN (${officeIds.map(() => '?').join(', ')})`, officeIds);
+    const oph = officeIds.map(() => '?').join(', ');
+    // Firmadaki kişiler — popup'ta Kurucular/Ekip'i dolduran ÜÇ kaynağın hepsi (kullanıcı isteği,
+    // 2026-09-10: "Metin Kılıç'ın profili de blurlu değil yayında olsun"; 2026-09-11: "firmadaki
+    // kişiler de"): office_founders (yapısal bağ), architects.office_id (kişinin birincil firması —
+    // biri kurulup diğeri kurulmamış olabilir, bkz. aşağıdaki kişi dalındaki "Melis Varkal" bulgusu)
+    // ve taslağın Kurucular/Ekip metnindeki ad eşleşmeleri.
+    architectIds = [...new Set([
+      ...await idsFrom(env, `SELECT DISTINCT f.architect_id AS id FROM office_founders f WHERE f.office_id IN (${oph})`, officeIds),
+      ...await idsFrom(env, `SELECT id FROM architects WHERE deleted_at IS NULL AND office_id IN (${oph})`, officeIds),
+      ...await architectIdsFromOfficeDraftNames(env, officeIds),
+    ])];
   } else {
     architectIds = seedIds;
     // Kişinin firmaları — İKİ bağ da okunur: yapısal office_founders VE architects.office_id

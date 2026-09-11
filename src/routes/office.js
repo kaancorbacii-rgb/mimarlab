@@ -740,15 +740,30 @@ export async function buildOfficePayload(env, key) {
   // [Inter.National.Design]): Kurucular'da kişi profilinden gelen "Arman Akdoğan", Ekip'te ise aynı
   // kişinin hesabından gelen "Arman Akdogan" vardı; trLower'a göre "akdoğan" !== "akdogan" olduğundan
   // aynı insan iki bölümde birden görünüyordu. foldTr ğ/ş/ı/ç/ü/ö'yü de katlar, ikisi tek isim olur.
-  const founders = foundersRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
+  // EKİP GÖREVLİLERİ EKİP'E (kullanıcı isteği, 2026-09-11: "Firmalarda Ekip Lideri ekip bölümünde yer
+  // alsın"). office_founders firmanın TEK yapısal kişi bağıdır — Kurucular kutusundan da, kişinin kendi
+  // profilindeki Firma alanından da (syncOfficeFounderLink) kurulur — yani bağlı olmak "kurucu" olmak
+  // demek DEĞİL. Eskiden bağlı herkes görevine bakılmadan Kurucular'a düşüyordu (canlı bulgu: Tago
+  // Architects'te Ekip Lideri Müge Eker Eryakar Kurucular'daydı). Hesap üzerinden gelen üyelerdeki
+  // FOUNDER_POSITIONS ayrımının (aşağıda) yapısal bağlardaki karşılığı. Ekip'e düşenler de gerçek bir
+  // kişi profiline sahip olduğundan `slug` taşır — popup onları tıklanabilir kart olarak çizer.
+  const TEAM_POSITIONS = new Set(['Ekip Lideri', 'Ekip Üyesi']);
+  const structuredTeam = foundersRes.results
+    .filter(x => TEAM_POSITIONS.has(x.position))
+    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, slug: x.slug }));
+  const founders = foundersRes.results
+    .filter(x => !TEAM_POSITIONS.has(x.position))
+    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
   const knownFounderNames = new Set(founders.map(f => foldTr(f.name)));
+  // Yapısal Ekip üyesi, Kurucular metnine de yazılmış olsa Kurucular'a geri eklenmesin.
+  for (const t of structuredTeam) knownFounderNames.add(foldTr(t.name));
   for (const name of rawFounderNames) {
     if (!name || knownFounderNames.has(foldTr(name))) continue;
     knownFounderNames.add(foldTr(name));
     founders.push({ name, role: null, photo: (matchFor(name) || {}).photo || null, badges: [], unregistered: true });
   }
   const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
-  const team = [];
+  const team = [...structuredTeam];
   for (const row of teamClaimRows.results || []) {
     if (!row.name || knownFounderNames.has(foldTr(row.name))) continue;
     // KURUMSAL YÖNETİCİ HESABI (kullanıcı isteği, 2026-09-08 madde 2): "Yönetici" görevi, firmanın

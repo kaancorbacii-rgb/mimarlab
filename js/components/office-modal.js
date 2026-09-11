@@ -576,6 +576,9 @@ const OfficeModal = (function () {
   // yüzden unregisteredBadgeHtml ile AYNI pasif rozet biçimi, yalnızca hesap fotoğrafı + pozisyonu
   // (varsa) eklenmiş haliyle.
   function teamBadgeHtml(person) {
+    // Yapısal bağla (office_founders) gelen Ekip Lideri/Ekip Üyesi gerçek bir kişi profiline sahiptir
+    // (`slug`, bkz. src/routes/office.js#structuredTeam) — Kurucular kartlarıyla AYNI tıklanabilir kart.
+    if (person.slug) return cardHtml(`/kisi/${encodeURIComponent(person.slug)}`, person.name, person.photo, person.role);
     const avatar = person.photo
       ? `<img class="om-team-avatar" src="${escapeAttr(cdnImg(person.photo, 64))}" alt="" loading="lazy" decoding="async">`
       : `<span class="unregistered-badge-avatar" style="background:${officeColor(person.name)}">${escapeHtml(initials(person.name))}</span>`;
