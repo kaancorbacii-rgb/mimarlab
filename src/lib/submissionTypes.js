@@ -4,7 +4,11 @@ import projectTaxonomyJs from '../../project-taxonomy.js';
 // ait olduğunun TEK kaynağı (firma-ekle.html/marka-ekle.html AYNI dosyayı <script> ile okur).
 import officeKindJs from '../../office-kind.js';
 
-const { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS } = projectTaxonomyJs;
+// il-ilce-data.js — bkz. src/lib/projectPool.js'teki AYNI CJS-interop importu (Yer doğrulaması).
+import ilIlceJs from '../../il-ilce-data.js';
+
+const { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS, PROJECT_DISCIPLINE_OPTIONS } = projectTaxonomyJs;
+const { projectPlaceOf } = ilIlceJs;
 const { OFFICE_SERVICE_CATS, BRAND_CATS, LEGACY_BRAND_CAT, officeCatList } = officeKindJs;
 // firma-ekle.html + marka-ekle.html AYNI office_submissions tablosuna yazdığından whitelist iki
 // listenin BİRLEŞİMİ olmalı; 'Ürün' geriye dönük olarak (mevcut 20 marka kaydı) kabul edilir.
@@ -24,17 +28,19 @@ export const SUBMISSION_TYPES = {
     // cover_url: marka kapak görseli (bkz. migrations/0075_office_cover_url.sql, kullanıcı isteği
     // 2026-08-31 madde 6) — yalnızca marka-ekle.html gönderir, firma-ekle.html'de böyle bir alan yok;
     // gönderilmediğinde alan hiç yazılmaz (bkz. aşağıdaki genel alan döngüsü).
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'cover_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links'],
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'cover_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links', 'locations'],
     // social_links: [{platform,url}] — awards/founders ile AYNI JSON dizi deseni (bkz. kullanıcı
     // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql —
     // paralel bir oturumun tekli social_platform/social_url kolonları yerine bu tercih edildi,
     // bkz. kullanıcı isteği: "1'den fazla sosyal medya eklenebilsin"). team: Kurucular ile AYNI
     // desende serbest isim listesi (bkz. migrations/0048_office_team.sql) — kurucu olmayıp firmada
     // çalışabilecek kişiler, opsiyonel.
-    arrayFields: ['awards', 'founders', 'team', 'social_links'],
+    // locations: ofis/mağaza konumları [{lat,lng,label?}] (bkz. migrations/0114_office_locations.sql) —
+    // nesne dizisi, normalizeSubmission'da sanitizeOfficeLocations'tan geçer.
+    arrayFields: ['awards', 'founders', 'team', 'social_links', 'locations'],
     // nullableArrayFields — bkz. aşağıdaki normalizeSubmission/parseSubmissionRow yorumu: bu
     // alanlar için "gövdede HİÇ yok" (NULL) ile "gönderildi ama boş" ([]) AYIRT EDİLİR.
-    nullableArrayFields: ['social_links'],
+    nullableArrayFields: ['social_links', 'locations'],
     // nullableStringFields — nullableArrayFields'ın tek değerli karşılığı (bkz. normalizeSubmission
     // içindeki uzun gerekçe): logo/kapak için "gövdede HİÇ yok" (null) ile "gönderildi ama BOŞ" ('')
     // AYIRT EDİLİR, yoksa ✕ ile silme canonical'a hiç yansımaz.
@@ -167,19 +173,34 @@ export function findInvalidSocialPlatform(type, body) {
 // checkbox render ETMEZ, ama bu tek başına yeterli değil (bkz. kullanıcı isteği: "backend/API
 // tarafında da doğrulama yap, sadece UI'a güvenme") — doğrudan API'ye (curl/eski önbelleklenmiş
 // istemci) gönderilen bir istek hâlâ whitelist dışı bir değer taşıyabilir.
-const PROJECT_CATEGORY_SET = new Set(PROJECT_CATEGORY_OPTIONS);
-const PROJECT_GROUP_SET = new Set(PROJECT_GROUP_OPTIONS);
+//
+// Kullanıcı isteği (2026-09-11): Tür (discipline) ve Yer (location) de AYNI kapıdan geçer — "yer
+// filtresinde 81 il ve yurtdışındaki ülkeler haricinde farklı bir şey olmasına izin verme ... tür, tip
+// ve grup filtrelerine de proje ekle sayfasındakiler haricinde yeni bir filtre eklenmesine asla izin
+// verme". Yer: parseLocationFull ile çözülen il/ülke 81 il ya da bir ülke olmalı ("İstanbul, Türkiye"
+// REDDEDİLİR, "İstanbul" / "İstanbul (Kadıköy)" geçer). Boş location geçer (alan opsiyonel).
+// İkinci savunma hattı: src/lib/projectPool.js#buildFilterGroups izinli olmayan değeri filtreye hiç
+// koymaz (içe aktarım betikleri gibi bu kapıyı atlayan yazıcılara karşı).
+export const PROJECT_CATEGORY_SET = new Set(PROJECT_CATEGORY_OPTIONS);
+export const PROJECT_GROUP_SET = new Set(PROJECT_GROUP_OPTIONS);
+export const PROJECT_DISCIPLINE_SET = new Set(PROJECT_DISCIPLINE_OPTIONS);
 export function findInvalidProjectTaxonomyField(type, body) {
   if (type !== 'projects') return null;
-  if ('category' in body) {
-    const values = Array.isArray(body.category) ? body.category : (body.category ? [body.category] : []);
-    if (values.some(v => !PROJECT_CATEGORY_SET.has(v))) return 'category';
-  }
-  if ('type' in body) {
-    const values = Array.isArray(body.type) ? body.type : (body.type ? [body.type] : []);
-    if (values.some(v => !PROJECT_GROUP_SET.has(v))) return 'type';
+  const listOf = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+  if ('discipline' in body && listOf(body.discipline).some(v => !PROJECT_DISCIPLINE_SET.has(v))) return 'discipline';
+  if ('category' in body && listOf(body.category).some(v => !PROJECT_CATEGORY_SET.has(v))) return 'category';
+  if ('type' in body && listOf(body.type).some(v => !PROJECT_GROUP_SET.has(v))) return 'type';
+  if ('location' in body) {
+    const loc = typeof body.location === 'string' ? body.location.trim() : body.location;
+    if (loc && (typeof loc !== 'string' || !projectPlaceOf(loc))) return 'location';
   }
   return null;
+}
+// findInvalidProjectTaxonomyField'ın döndürdüğü alan için kullanıcıya gösterilecek mesaj.
+const TAXONOMY_FIELD_LABELS = { discipline: 'Tür', category: 'Tip', type: 'Grup' };
+export function taxonomyFieldError(field) {
+  if (field === 'location') return 'Yer yalnızca 81 ilden biri ya da bir ülke olabilir.';
+  return `${TAXONOMY_FIELD_LABELS[field] || field} alanı yalnızca proje ekle sayfasındaki seçeneklerden oluşabilir.`;
 }
 
 // denetim bulgusu: hiçbir gönderi alanında (ne istemci tarafı maxlength, ne sunucu tarafı bir
@@ -541,6 +562,31 @@ export function sanitizeImageHotspots(raw) {
   return out;
 }
 
+// Firma/marka ofis–mağaza konumları (kullanıcı isteği, 2026-09-11 — bkz. migrations/
+// 0114_office_locations.sql). İstemciden gelen her şey süzülür: yalnızca sonlu ve geçerli aralıktaki
+// koordinatlar, aynı nokta bir kez, en fazla MAX_OFFICE_LOCATIONS nokta; label serbest metin (ters
+// jeokodlanmış adres), yalnızca kısaltılarak saklanır — render eden taraf yine escape eder.
+const MAX_OFFICE_LOCATIONS = 20;
+export function sanitizeOfficeLocations(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const p of list) {
+    if (out.length >= MAX_OFFICE_LOCATIONS) break;
+    if (!p || typeof p !== 'object') continue;
+    const lat = Number(p.lat), lng = Number(p.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
+    const point = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+    const key = `${point.lat},${point.lng}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const label = typeof p.label === 'string' ? p.label.trim().slice(0, 200) : '';
+    if (label) point.label = label;
+    out.push(point);
+  }
+  return out;
+}
+
 export function normalizeSubmission(type, body) {
   const config = SUBMISSION_TYPES[type];
   const row = {};
@@ -580,7 +626,7 @@ export function normalizeSubmission(type, body) {
         value = null;
       } else {
         if (!Array.isArray(value)) value = value ? [value] : [];
-        value = JSON.stringify(value.filter(Boolean));
+        value = JSON.stringify(field === 'locations' ? sanitizeOfficeLocations(value) : value.filter(Boolean));
       }
     } else if ((config.nullableStringFields || []).includes(field)) {
       // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-04: "marka pop-up'ında düzenleye tıklayıp

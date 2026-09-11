@@ -231,6 +231,8 @@
   .dd-option.selected{background:var(--paper-alt); font-weight:600;}
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+  /* Ürün panelinde marka başlığı (bkz. renderProductPanel). */
+  .dd-group-label{padding:10px 10px 4px; font-size:11.5px; font-weight:700; color:var(--ink-soft);}
   /* ---------- HARİTA (Konum) — opsiyonel il/ilçe altı konum işaretleme, bkz. kullanıcı isteği ---------- */
   /* GERÇEK BULGU: margin-top eskiden legend'in ALTINDA duran İl/İlçe dropdown satırından bu arama
      kutusuna nefes payı vermek içindi (bkz. kullanıcı isteği: o satır kaldırıldı) — artık bu,
@@ -562,6 +564,7 @@
 <script src="js/components/image-lightbox.js" defer></script>
 <script src="image-upload.js" defer></script>
 <script src="il-ilce-data.js"></script>
+<script src="office-picker.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="project-taxonomy.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
@@ -691,11 +694,15 @@
           </div>
         </div>
         <div class="form-row">
-          <div class="form-field ac-field" id="ac-ofis-field">
-            <label for="p-office" id="p-office-label">Firma <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="p-office" name="office" autocomplete="off">
-            <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          <!-- Firma: serbest metin + öneri yerine beyaz arka planlı ÇOKTAN SEÇMELİ kutu (kullanıcı
+               isteği, 2026-09-11) — kisi-ekle.html'in "Firma veya Marka" kutusuyla AYNI bileşen
+               (office-picker.js). #p-office gizli input olarak kalır: gönderim/prefill kodu onun
+               virgüllü değerini okumaya/yazmaya devam eder, yazan her nokta syncOfficePicker() çağırır. -->
+          <div class="form-field" id="ac-ofis-field">
+            <label for="p-office-picker" id="p-office-label">Firma <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="p-office" name="office">
+            <div id="p-office-picker"></div>
+            <div class="form-hint">Listeden birden fazla firma ya da marka seçebilirsin.</div>
           </div>
           <div class="form-field ac-field" id="ac-mimar-field">
             <label for="p-designer" id="p-designer-label">Mimar <span class="opt">(opsiyonel)</span></label>
@@ -763,6 +770,20 @@
             <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
           </div>
           <div class="form-hint" id="brand-add-hint">Sadece marka seçimleri de yapabilirsin, ürün seçmek zorunlu değil.</div>
+          <!-- Seçilen markaların ürünleri (kullanıcı isteği, 2026-09-11): Firma kutusunda, Marka
+               menüsünde ya da aşağıdaki listede bulunan TÜM markaların ürünleri tek bir çoktan
+               seçmeli panelde, marka başlıkları altında — işaretlenen ürün listeye {marka, ürün}
+               olarak eklenir, işareti kaldırılan düşer (bkz. renderProductPanel). -->
+          <div class="dd-field" id="dd-urun" style="margin-top:12px;">
+            <button type="button" class="dd-btn" id="dd-urun-btn">
+              <span id="dd-urun-btn-label">Seçilen markaların ürünlerini seç</span>
+              <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dd-panel">
+              <input type="text" class="dd-search" id="dd-urun-search" placeholder="Ürün ara...">
+              <div class="dd-options" id="dd-urun-options"></div>
+            </div>
+          </div>
           <div class="brand-chip-list" id="brand-chip-list"></div>
         </div>
       </div>
@@ -1342,7 +1363,26 @@ async function fillDesignerFromOffice(officeName){
     designerInput.value = merged.join(', ');
   }catch{}
 }
-wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search', { onPick: (item) => fillDesignerFromOffice(item.label) });
+// Firma çoktan seçmeli kutusu (bkz. #p-office-picker HTML notu). officePicker aşağıda, brandChips
+// tanımlandıktan SONRA kurulur (onChange ürün panelini tazeler) — burada yalnızca durum tutulur.
+let officePicker = null;
+let lastOfficeSelection = [];
+let officeAutoFillMuted = false;
+// Kullanıcının YENİ işaretlediği firma, eskiden öneri seçilince olduğu gibi Mimar kutusunu o firmanın
+// ortakları/ekibiyle doldurur. Programatik yüklemelerde (prefill, AI) bu SUSTURULUR — o yollar
+// Mimar kutusunu kendileri doldurur.
+function onOfficePickerChange(names){
+  const before = new Set(lastOfficeSelection.map(n => trLower(n)));
+  lastOfficeSelection = names.slice();
+  if(!officeAutoFillMuted) names.filter(n => !before.has(trLower(n))).forEach(fillDesignerFromOffice);
+  updateUrunLabel();
+}
+// #p-office.value'ya doğrudan yazan her noktadan sonra çağrılır.
+function syncOfficePicker(){
+  if(!officePicker) return;
+  officeAutoFillMuted = true;
+  try{ officePicker.syncFromInput(); } finally { officeAutoFillMuted = false; }
+}
 // "Projede Kullanılan Markalar / Ürünler" kutusu — Marka ve Ürün AÇILIR MENÜ (kullanıcı isteği,
 // 2026-09-01 madde 7). Serbest metin + autocomplete yerine <select> kullanılmasının nedeni: kutuya
 // yalnızca SİTEDE KAYITLI bir marka/ürün girilebilmesi isteniyordu ve autocomplete bunu ancak
@@ -1433,6 +1473,7 @@ function renderBrandChips(){
       renderBrandChips();
     });
   });
+  updateUrunLabel();
 }
 // Görselde bir ürün işaretlendiğinde o ürünü "Kullanılan Ürünler / Firmalar" kutusuna da ekler
 // (kullanıcı isteği, 2026-09-01) — iki liste ayrı alanlara kaydedildiğinden (brands ve
@@ -1493,6 +1534,91 @@ function addBrandChip(){
   brandSelect.focus();
 }
 document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
+
+// ---------- SEÇİLEN MARKALARIN ÜRÜNLERİ: çoktan seçmeli panel (kullanıcı isteği, 2026-09-11) ----------
+// Aday markalar: Firma kutusundaki seçimler + Marka menüsündeki değer + listedeki etiketlerin
+// markaları. Firma kutusundaki marka OLMAYAN firmalar için /api/products/search boş döner ve grup
+// hiç çizilmez (loadProductsForBrand istek başına önbelleklenir). Panel açılırken çizilir; işaret
+// değişince yalnızca etiket listesi ve düğme metni güncellenir (kaydırma konumu korunsun).
+function candidateProductBrands(){
+  const out = [];
+  const seen = new Set();
+  const push = (n) => {
+    const name = String(n || '').trim();
+    const key = trLower(name);
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(name);
+  };
+  (officePicker ? officePicker.get() : []).forEach(push);
+  push(brandSelect.value);
+  brandChips.forEach(c => push(c.brand));
+  return out;
+}
+function hasProductChip(brand, product){
+  return brandChips.some(c => trLower(c.brand || '') === trLower(brand) && trLower(c.product || '') === trLower(product));
+}
+function updateUrunLabel(){
+  const label = document.getElementById('dd-urun-btn-label');
+  if(!label) return;
+  const n = brandChips.filter(c => c.product).length;
+  label.textContent = n ? `${n} ürün seçili` : 'Seçilen markaların ürünlerini seç';
+}
+let productPanelToken = 0;
+async function renderProductPanel(){
+  const container = document.getElementById('dd-urun-options');
+  const brands = candidateProductBrands();
+  const token = ++productPanelToken;
+  if(!brands.length){
+    container.innerHTML = '<div class="dd-empty">Önce Firma kutusundan ya da Marka menüsünden bir marka seç.</div>';
+    return;
+  }
+  container.innerHTML = '<div class="dd-empty">Yükleniyor…</div>';
+  const groups = await Promise.all(brands.map(b => loadProductsForBrand(b).then(titles => ({ brand: b, titles }))));
+  if(token !== productPanelToken) return; // bu arada yeniden çizim istendi
+  const q = trLower(document.getElementById('dd-urun-search').value.trim());
+  const withProducts = groups.filter(g => g.titles.length);
+  const shown = withProducts
+    .map(g => ({ brand: g.brand, titles: g.titles.filter(t => !q || trLower(t).includes(q) || trLower(g.brand).includes(q)) }))
+    .filter(g => g.titles.length);
+  if(!shown.length){
+    container.innerHTML = `<div class="dd-empty">${withProducts.length ? 'Sonuç yok' : 'Seçilen markaların kayıtlı ürünü yok.'}</div>`;
+    return;
+  }
+  container.innerHTML = shown.map(g => `<div class="dd-group-label">${escapeAttr(g.brand)}</div>`
+    + g.titles.map(t => `<label class="dd-option"><input type="checkbox" data-brand="${escapeAttr(g.brand)}" value="${escapeAttr(t)}"${hasProductChip(g.brand, t) ? ' checked' : ''}><span>${escapeAttr(t)}</span></label>`).join('')
+  ).join('');
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const brand = cb.dataset.brand;
+      const product = cb.value;
+      if(cb.checked){ if(!hasProductChip(brand, product)) brandChips.push({ brand, product }); }
+      else brandChips = brandChips.filter(c => !(trLower(c.brand || '') === trLower(brand) && trLower(c.product || '') === trLower(product)));
+      renderBrandChips();
+    });
+  });
+}
+document.getElementById('dd-urun-btn').addEventListener('click', ()=>{
+  const field = document.getElementById('dd-urun');
+  const willOpen = !field.classList.contains('open');
+  closeAllDropdowns();
+  if(willOpen){
+    field.classList.add('open');
+    document.getElementById('dd-urun-search').value = '';
+    renderProductPanel();
+    document.getElementById('dd-urun-search').focus();
+  }
+});
+document.getElementById('dd-urun-search').addEventListener('input', renderProductPanel);
+document.getElementById('dd-urun-search').addEventListener('click', (e)=> e.stopPropagation());
+document.getElementById('dd-urun-search').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') e.preventDefault(); });
+
+officePicker = createOfficePicker(document.getElementById('p-office-picker'), {
+  input: document.getElementById('p-office'),
+  placeholder: 'Firma veya marka seç',
+  searchLabel: 'Firma veya marka ara...',
+  onChange: onOfficePickerChange,
+});
 
 function mediaItemSrc(item){
   return item.kind === 'existing' ? item.url : item.objectUrl;
@@ -2134,6 +2260,7 @@ async function splitDesignerNamesIntoBoxes(names, slug){
   const isOffice = officeNames ? (n => officeNames.has(n)) : isOfficeNameHeuristic;
   document.getElementById('p-designer').value = names.filter(n => !isOffice(n)).join(', ');
   document.getElementById('p-office').value = names.filter(n => isOffice(n)).join(', ');
+  syncOfficePicker();
 }
 
 async function prefillForEdit(){
@@ -2188,6 +2315,7 @@ async function prefillForEdit(){
     if (item.office != null) {
       document.getElementById('p-designer').value = (item.designer || []).join(', ');
       document.getElementById('p-office').value = item.office.join(', ');
+      syncOfficePicker();
     } else {
       await splitDesignerNamesIntoBoxes(item.designer || [], item.slug);
     }
@@ -2290,6 +2418,7 @@ async function prefillForClaim(){
     const designers = merged.designerDetails || [];
     document.getElementById('p-designer').value = designers.filter(d => d.type === 'architect').map(d => d.name).join(', ');
     document.getElementById('p-office').value = designers.filter(d => d.type === 'office').map(d => d.name).join(', ');
+    syncOfficePicker();
   }
   document.getElementById('p-desc').value = merged.description || '';
   document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
@@ -2402,6 +2531,7 @@ async function prefillOwnOfficeForNewProject(){
   ]);
   if(!officeNames.length || officeInput.value.trim()) return;
   officeInput.value = officeNames.join(', ');
+  syncOfficePicker();
   const founderLists = await Promise.all(officeNames.map(async (name) => {
     try{
       // cache:'no-store' — bkz. js/components/modal-shell.js#ENTITY_STALL_TIMEOUT_MS (tarayıcı önbellek kilidi).
@@ -2453,6 +2583,7 @@ async function applyAiResult(data){
   if(data.date_text) loadDateRowsFromString(data.date_text);
   document.getElementById('p-designer').value = (data.designer_names || []).join(', ');
   document.getElementById('p-office').value = (data.office_names || []).join(', ');
+  syncOfficePicker();
   document.getElementById('p-desc').value = data.description || '';
   document.getElementById('p-credit-text').value = data.photo_credit_text || '';
   document.getElementById('p-credit-url').value = data.photo_credit_url || '';
@@ -2907,6 +3038,9 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     renderPreviews();
     selectedIl = null; selectedIlce = null;
     clearMapMarker();
+    // Gizli input form.reset() ile SIFIRLANMAZ (value ataması varsayılan değeri de değiştirir).
+    document.getElementById('p-office').value = '';
+    syncOfficePicker();
     brandChips = [];
     renderBrandChips();
     updateKategoriLabel();

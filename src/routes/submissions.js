@@ -2,7 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { requireRightsAcceptance, recordRightsAcceptance, hasRightsAcceptance } from '../lib/rightsConsent.js';
 import { newId } from '../lib/crypto.js';
-import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField, findInvalidFilesField, findInvalidVariantsField, findInvalidProjectsField, findInvalidPortfolioField, findInvalidOfficeCats } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, taxonomyFieldError, findOversizedField, findInvalidFilesField, findInvalidVariantsField, findInvalidProjectsField, findInvalidPortfolioField, findInvalidOfficeCats } from '../lib/submissionTypes.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, cascadeRemovedOfficesFromArchitect, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -353,7 +353,7 @@ async function createSubmission(request, env, user, typeKey) {
   if (invalidCatsField) return errorJson(`"${invalidCatsField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
   if (findInvalidSocialPlatform(typeKey, body)) return errorJson('Geçersiz sosyal medya platformu.');
   const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
-  if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
+  if (invalidTaxonomyField) return errorJson(taxonomyFieldError(invalidTaxonomyField));
   if (typeKey === 'architects' && isInvalidSchoolValue(body.school)) return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
   // publishDate (Yayın Tarihi) yalnızca admin'in proje ekle/düzenle sayfasında görünen/düzenlenebilen
   // bir alan (bkz. kullanıcı isteği) — sıradan bir kullanıcı bu ucu (kendi gönderisini oluşturma/
@@ -757,7 +757,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (invalidCatsField) return errorJson(`"${invalidCatsField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
   if (findInvalidSocialPlatform(typeKey, body)) return errorJson('Geçersiz sosyal medya platformu.');
   const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
-  if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
+  if (invalidTaxonomyField) return errorJson(taxonomyFieldError(invalidTaxonomyField));
   if (typeKey === 'architects' && isInvalidSchoolValue(body.school)) return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
   // bkz. createSubmission'daki AYNI kontrol/gerekçe — publishDate yalnızca admin yazabilir, bu uç
   // admin başka birinin gönderisini düzenlerken de (line 373) kullanıldığından burada da tekrarlanır.

@@ -10,8 +10,9 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
 // burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor.
 import ilIlceJs from '../../il-ilce-data.js';
+import { PROJECT_DISCIPLINE_SET, PROJECT_CATEGORY_SET, PROJECT_GROUP_SET } from './submissionTypes.js';
 
-const { parseLocationFull } = ilIlceJs;
+const { parseLocationFull, projectPlaceOf } = ilIlceJs;
 
 export const DESIGNER_SEP = '';
 
@@ -195,16 +196,22 @@ export async function fetchActiveProjectPool(env, buildStatus) {
 
 // proje.html sunucudan gelen filters.designer/designerOffice listelerini olduğu gibi render eder,
 // kendi tarafında ayrım hesaplamaz — bu yüzden Mimar/Firma ayrımının TEK kaynağı burasıdır.
+//
+// Tür/Tip/Grup/Yer YALNIZCA izinli değerleri üretir (kullanıcı isteği, 2026-09-11: "81 il ve
+// yurtdışındaki ülkeler haricinde ... proje ekle sayfasındakiler haricinde yeni bir filtre
+// eklenmesine asla izin verme"). Gönderiler zaten submissionTypes.js#findInvalidProjectTaxonomyField
+// kapısından geçiyor; bu süzgeç o kapıyı atlayan yazıcılara (içe aktarım betikleri, eski taslakların
+// yeniden senkronu) karşı ikinci hat — bozuk bir değer filtre seçeneği olarak ASLA görünmez.
 export function buildFilterGroups(ratingByProject) {
   return [
-    { key: 'discipline', label: 'Tür', nested: false, field: p => p.discipline || [] },
-    { key: 'category', label: 'Tip', nested: false, field: p => p.category || [] },
+    { key: 'discipline', label: 'Tür', nested: false, field: p => (p.discipline || []).filter(v => PROJECT_DISCIPLINE_SET.has(v)) },
+    { key: 'category', label: 'Tip', nested: false, field: p => (p.category || []).filter(v => PROJECT_CATEGORY_SET.has(v)) },
     // Yalnızca build_status='concept' projelerde dolu (bkz. migrations/0038_project_concept_category.sql)
     // — 'built' projelerde her zaman [] döner, bu yüzden proje.html tarafında (o sayfa bu grubu
     // kendi FILTER_GROUPS listesine hiç eklemiyor) hiçbir etkisi olmaz.
     { key: 'conceptCategory', label: 'Kategori', nested: false, field: p => p.conceptCategory ? [p.conceptCategory] : [] },
-    { key: 'type', label: 'Grup', nested: false, field: p => p.type || [] },
-    { key: 'location', label: 'Yer', nested: false, field: p => [parseLocationFull(p.location).city] },
+    { key: 'type', label: 'Grup', nested: false, field: p => (p.type || []).filter(v => PROJECT_GROUP_SET.has(v)) },
+    { key: 'location', label: 'Yer', nested: false, field: p => { const place = projectPlaceOf(p.location); return place ? [place] : []; } },
     { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul', field: p => {
         const info = parseLocationFull(p.location);
         return (info.district && info.city === 'İstanbul') ? [info.district] : [];

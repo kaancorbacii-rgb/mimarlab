@@ -10,7 +10,8 @@ const JSON_FIELDS = {
   // projects.images ile AYNI sözleşme: bozuk/boş değer [] olur, bu yüzden okuyan taraf
   // (architect-modal.js) hiçbir zaman null kontrolü yapmak zorunda kalmaz.
   architects: ['awards', 'social_links', 'portfolio'],
-  offices: ['cats', 'awards', 'social_links'],
+  // locations — ofis/mağaza konumları [{lat,lng,label?}] (bkz. migrations/0114_office_locations.sql).
+  offices: ['cats', 'awards', 'social_links', 'locations'],
   projects: ['category', 'type', 'discipline', 'period', 'images', 'awards'],
   // variants: ürün popup'ındaki "Versiyonlar" seçici (bkz. migrations/0086_product_variants.sql).
   // Diğer üçüyle AYNI sözleşme — JSON dizi, bozuk/boş değer [] olur, bu yüzden okuyan taraf

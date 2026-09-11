@@ -137,7 +137,10 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // architect-modal.js değişti (bkz. v127'deki AYNI ml-asset-version gerekçesi).
 // v129 (2026-09-11): Gündem kullanıcı gönderileri — gundem.html (İçerik Ekle butonu, karusel CSS)
 // ve gundemSsr.js (gönderen profili bağlantısı) değişti.
-export const SSR_CACHE_VERSION = 'v129';
+// v130 (2026-09-11): firma/marka popup'ına açılır-kapanır "Harita" (ofis/mağaza konumları) ve kayıtsız
+// kurucu/ekip kişileri için kare kart — office-modal.js/architect-modal.js değişti (bkz. v127'deki AYNI
+// ml-asset-version gerekçesi).
+export const SSR_CACHE_VERSION = 'v130';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

@@ -20,4 +20,9 @@ const PROJECT_GROUP_OPTIONS = [
 // Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
 // (nodejs_compat) çalışır — src/lib/submissionTypes.js buradan CJS interop ile import eder (bkz.
 // catalog-taxonomy.js'deki AYNI desen).
-if (typeof module !== 'undefined') { module.exports = { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS }; }
+// Tür (discipline) — proje-ekle.html'deki dört checkbox'ın TEK kaynağı (kullanıcı isteği, 2026-09-11:
+// "tür, tip ve grup filtrelerine de proje ekle sayfasındakiler haricinde yeni bir filtre eklenmesine
+// asla izin verme"). Tip/Grup ile AYNI whitelist doğrulamasından geçer.
+const PROJECT_DISCIPLINE_OPTIONS = ['Mimari', 'İç Mekan', 'Peyzaj ve Kentsel Tasarım', 'Restorasyon'];
+
+if (typeof module !== 'undefined') { module.exports = { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS, PROJECT_DISCIPLINE_OPTIONS }; }

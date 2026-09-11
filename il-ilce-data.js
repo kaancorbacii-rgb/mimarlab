@@ -120,10 +120,47 @@ function parseLocationFull(loc){
   return { city: head, district: paren || null };
 }
 
+// Proje "Yer" filtresinin izinli değerleri (kullanıcı isteği, 2026-09-11: "yer filtresinde 81 il ve
+// yurtdışındaki ülkeler haricinde farklı bir şey olmasına izin verme") — 81 il (IL_LIST'in ilk 81
+// anahtarı) + dünya ülkeleri. "Türkiye" BİLEREK yok: Türkiye'deki bir proje ilini taşımalı.
+// Ülke adları IL_ILCE'deki 15 ülkeyle AYNI yazımı kullanır (ör. "İngiltere", "Amerika Birleşik
+// Devletleri"); tek bir ülke için ikinci bir ad eklenmez, yoksa filtrede iki seçenek olurdu.
+const COUNTRY_LIST = [
+  "Afganistan","Almanya","Amerika Birleşik Devletleri","Andorra","Angola","Antigua ve Barbuda","Arjantin","Arnavutluk",
+  "Avustralya","Avusturya","Azerbaycan","Bahamalar","Bahreyn","Bangladeş","Barbados","Belarus","Belçika","Belize",
+  "Benin","Bhutan","Birleşik Arap Emirlikleri","Bolivya","Bosna-Hersek","Botsvana","Brezilya","Brunei","Bulgaristan",
+  "Burkina Faso","Burundi","Cezayir","Cibuti","Çad","Çekya","Çin","Danimarka","Doğu Timor","Dominik Cumhuriyeti",
+  "Dominika","Ekvador","Ekvator Ginesi","El Salvador","Endonezya","Eritre","Ermenistan","Estonya","Esvatini","Etiyopya",
+  "Fas","Fiji","Fildişi Sahili","Filipinler","Filistin","Finlandiya","Fransa","Gabon","Gambiya","Gana","Gine",
+  "Gine-Bissau","Grenada","Guatemala","Guyana","Güney Afrika","Güney Kore","Güney Sudan","Gürcistan","Haiti",
+  "Hırvatistan","Hindistan","Hollanda","Honduras","Irak","İngiltere","İran","İrlanda","İspanya","İsrail","İsveç",
+  "İsviçre","İtalya","İzlanda","Jamaika","Japonya","Kamboçya","Kamerun","Kanada","Karadağ","Katar","Kazakistan",
+  "Kenya","Kırgızistan","Kıbrıs","Kiribati","Kolombiya","Komorlar","Kongo","Kongo Demokratik Cumhuriyeti","Kosova",
+  "Kosta Rika","Kuveyt","Kuzey Kıbrıs Türk Cumhuriyeti","Kuzey Kore","Kuzey Makedonya","Küba","Laos","Lesotho",
+  "Letonya","Liberya","Libya","Lihtenştayn","Litvanya","Lübnan","Lüksemburg","Macaristan","Madagaskar","Malavi",
+  "Maldivler","Malezya","Mali","Malta","Marshall Adaları","Mauritius","Meksika","Mısır","Mikronezya","Moğolistan",
+  "Moldova","Monako","Moritanya","Mozambik","Myanmar","Namibya","Nauru","Nepal","Nijer","Nijerya","Nikaragua",
+  "Norveç","Orta Afrika Cumhuriyeti","Özbekistan","Pakistan","Palau","Panama","Papua Yeni Gine","Paraguay","Peru",
+  "Polonya","Portekiz","Romanya","Ruanda","Rusya","Saint Kitts ve Nevis","Saint Lucia","Saint Vincent ve Grenadinler",
+  "Samoa","San Marino","São Tomé ve Príncipe","Senegal","Seyşeller","Sırbistan","Sierra Leone","Singapur","Slovakya",
+  "Slovenya","Solomon Adaları","Somali","Sri Lanka","Sudan","Surinam","Suriye","Suudi Arabistan","Şili","Tacikistan",
+  "Tanzanya","Tayland","Tayvan","Togo","Tonga","Trinidad ve Tobago","Tunus","Tuvalu","Türkmenistan","Uganda",
+  "Ukrayna","Umman","Uruguay","Ürdün","Vanuatu","Vatikan","Venezuela","Vietnam","Yemen","Yeni Zelanda",
+  "Yeşil Burun Adaları","Yunanistan","Zambiya","Zimbabve"
+];
+const PROVINCE_LIST = IL_LIST.slice(0, 81);
+const PROJECT_PLACE_SET = new Set([...PROVINCE_LIST, ...COUNTRY_LIST]);
+// Bir proje location değerinin Yer filtresine düşecek il/ülkesi — izinli değilse null.
+function projectPlaceOf(loc){
+  const city = parseLocationFull(loc).city;
+  return city && PROJECT_PLACE_SET.has(city) ? city : null;
+}
+
 // Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
 // (nodejs_compat) çalışır — src/routes/project.js (GET /api/projects/filters) buradan CJS interop
 // ile import eder (bkz. data.js dosya sonundaki AYNI desen).
 // IL_LIST — export: src/routes/ai.js (MİMARLAB AI, Faz 1) geçerli il/ülke adlarını doğrulamak için
 // (bkz. o dosyadaki IL_NAMES kullanımı) — parseLocationFull'un zaten kullandığı AYNI listeyi
-// tekrar tanımlamak yerine buradan okur.
-if (typeof module !== 'undefined') { module.exports = { parseLocationFull, IL_LIST }; }
+// tekrar tanımlamak yerine buradan okur. COUNTRY_LIST/projectPlaceOf — Yer filtresi ve gönderi
+// doğrulaması (bkz. src/lib/submissionTypes.js#findInvalidProjectTaxonomyField, projectPool.js).
+if (typeof module !== 'undefined') { module.exports = { parseLocationFull, IL_LIST, COUNTRY_LIST, projectPlaceOf }; }

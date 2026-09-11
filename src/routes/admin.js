@@ -5,7 +5,7 @@ import { updateUserProfileFields } from './auth.js';
 import { listSaved } from './saved.js';
 import { myRatings } from './ratings.js';
 import { myComments } from './comments.js';
-import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, sanitizeImageHotspots } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, taxonomyFieldError, sanitizeImageHotspots } from '../lib/submissionTypes.js';
 import { createNotification, notifySubmissionApproved, notifySubmissionRejected } from '../lib/notify.js';
 // Google Meet gateway'i (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import { createMeetForConsultation } from '../lib/consultationMeet.js';
@@ -602,7 +602,7 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       const invalidUrlField = findInvalidUrlField(typeKey, body);
       if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
       const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
-      if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
+      if (invalidTaxonomyField) return errorJson(taxonomyFieldError(invalidTaxonomyField));
 
       const updates = [];
       const values = [];

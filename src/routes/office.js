@@ -928,6 +928,8 @@ export async function buildOfficePayload(env, key) {
     // coverImage() ile ilk görselini içeriyor, yani [0].images[0] tam olarak "son projenin ilk
     // görseli"dir. Havuz sorgusundaki SQL sıralaması ile bu JS sıralaması aynı veriyi kullanır.
     logo: o.logo_url, cover: o.cover_url || (relatedProjects[0] && relatedProjects[0].images && relatedProjects[0].images[0]) || null, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
+    // Ofis/mağaza konumları — popup'taki "Harita" bölümü (bkz. migrations/0114_office_locations.sql).
+    locations: Array.isArray(o.locations) ? o.locations : [],
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html
