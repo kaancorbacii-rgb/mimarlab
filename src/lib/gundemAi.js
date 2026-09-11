@@ -17,7 +17,9 @@
 import { callOnce, AiProviderError, isAiProviderConfigured } from './aiProvider.js';
 import { AI_MODEL } from './aiConfig.js';
 import { stripInjectionAttempts } from './injectionFilter.js';
-import { GUNDEM_CATEGORY_KEYS } from './gundemCategories.js';
+// GUNDEM_AI_CATEGORY_KEYS — whitelist'in AI'nin seçebileceği alt kümesi ('ilan' kullanıcıya özgü,
+// bkz. gundemCategories.js#ai:false).
+import { GUNDEM_AI_CATEGORY_KEYS as GUNDEM_CATEGORY_KEYS } from './gundemCategories.js';
 import { EXCERPT_MAX_CHARS, SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS } from './gundemQuality.js';
 
 // 2000 değil 700: bu görev tek bir kısa paragraf + birkaç kısa alan üretiyor. Düşük tavan hem

@@ -20,7 +20,7 @@ import {
   wordCount, isSingleParagraph, looksTurkish, looksEnglish, englishWordHits, titleLanguageOk, titleOverlapsSource,
   looksLikeProjectPublication, findCrossSourceDuplicate, jaccard, titleTokenSet,
 } from '../src/lib/gundemQuality.js';
-import { GUNDEM_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCategories.js';
+import { GUNDEM_CATEGORY_KEYS, GUNDEM_AI_CATEGORY_KEYS, isValidGundemCategory } from '../src/lib/gundemCategories.js';
 import { GUNDEM_SOURCES, activeGundemSources, GUNDEM_IMAGE_HOSTS } from '../src/lib/gundemSources.js';
 import { buildGundemEntityIndex, resolveGundemEntities } from '../src/lib/gundemEntities.js';
 import { _isSourceDueForTests, classifyGundemRun } from '../src/lib/gundemIngest.js';
@@ -397,8 +397,12 @@ await test('TEST 7: whitelist DIŞI kategori sessizce fallback\'e düşer, içer
   assert.ok(GUNDEM_CATEGORY_KEYS.includes(r.category));
 });
 
-await test('TEST 7b: kategori whitelist\'i tam olarak beş değer', () => {
-  assert.deepEqual(GUNDEM_CATEGORY_KEYS, ['haber', 'etkinlik', 'gorus', 'yarisma', 'kariyer']);
+// 2026-09-12: 'ilan' (İş ve Staj İlanları) eklendi — kullanıcı gönderisi ve firma popup'ı içindir,
+// otomatik hattın AI'si onu SEÇEMEZ (GUNDEM_AI_CATEGORY_KEYS eski beşli olarak kalır).
+await test('TEST 7b: kategori whitelist\'i tam olarak altı değer, AI yalnızca ilk beşini seçebilir', () => {
+  assert.deepEqual(GUNDEM_CATEGORY_KEYS, ['haber', 'etkinlik', 'gorus', 'yarisma', 'kariyer', 'ilan']);
+  assert.deepEqual(GUNDEM_AI_CATEGORY_KEYS, ['haber', 'etkinlik', 'gorus', 'yarisma', 'kariyer']);
+  assert.equal(isValidGundemCategory('ilan'), true);
   assert.equal(isValidGundemCategory('yarisma'), true);
   assert.equal(isValidGundemCategory('spor'), false);
   assert.equal(isValidGundemCategory(null), false);

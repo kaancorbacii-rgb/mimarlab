@@ -291,7 +291,13 @@
       .nav-mobile-menu-main{transform:translateX(0);}
       .nav-mobile-menu-subpage{transform:translateX(100%);}
       .nav-mobile-menu.subpage-active .nav-mobile-menu-main{transform:translateX(-100%);}
-      .nav-mobile-menu.subpage-active .nav-mobile-menu-subpage{transform:translateX(0);}
+      /* transform:none — translateX(0) DEĞİL (kullanıcı bildirimi, 2026-09-12: Hesabım > Profili
+         Düzenle'de aşağı kaydırınca pop-up yukarıda kalıp kesiliyordu). transform taşıyan bir ata,
+         position:fixed torunları için containing block olur; alt sayfa AYNI ZAMANDA kaydırma kutusu
+         olduğundan Profili Düzenle/dizin sorusu gibi "fixed" overlay'ler alt sayfanın içeriğiyle
+         birlikte kayıyordu. none ile containing block kaymayan çekmecenin kendisi olur; geçiş
+         (translateX(100%) -> none) aynı şekilde animasyonlu kalır. */
+      .nav-mobile-menu.subpage-active .nav-mobile-menu-subpage{transform:none;}
       .nav-mobile-subpage-body{flex:1; min-height:0; padding:18px 16px 28px; box-sizing:border-box;}
       /* kullanıcı isteği (2026-09-01 madde 1): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim artık
          MASAÜSTÜNDE de bu çekmecede açılıyor (bkz. auth-modal.js#isMobileDrawer'daki DESKTOP_DRAWER_VIEWS).

@@ -179,6 +179,26 @@ const AuthModal = (function () {
       margin:0; opacity:0; transform:scale(0.96); transition:opacity .3s ease, transform .3s ease;
     }
     #am-panel .profile-edit-overlay.open .dash-form{opacity:1; transform:scale(1);}
+    /* Profili Düzenle > Portfolyo (kullanıcı isteği, 2026-09-12: "profilini düzenle ekranına kişi
+       ekle/düzenle sayfasındaki Portfolyo kısmını koy") — kisi-ekle.html#portfolio-* ile AYNI
+       etkileşim (sürükle-bırak/tıkla yükle, PDF sayfa sayfa görsele, basılı tut-sürükle + ‹ › sırala,
+       ✕ kaldır); sınıflar #am-panel altında ayrı adla, o sayfanın kuralları burada yüklü değil. */
+    #am-panel .am-pf-hint{font-size:12px; color:var(--ink-soft); margin:0 0 8px; line-height:1.5;}
+    #am-panel .am-pf-drop{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:18px 12px; border:1.5px dashed var(--line); border-radius:10px; background:var(--paper); color:var(--ink-soft); font-size:12.5px; text-align:center; cursor:pointer;}
+    #am-panel .am-pf-drop strong{color:var(--ink); font-size:13px;}
+    #am-panel .am-pf-drop:hover, #am-panel .am-pf-drop.dragover{border-color:var(--walnut); color:var(--ink);}
+    #am-panel .am-pf-progress{font-size:12px; color:var(--ink-soft); margin:8px 2px 0;}
+    #am-panel .am-pf-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:8px; margin-top:10px;}
+    #am-panel .am-pf-grid:empty{display:none;}
+    #am-panel .am-pf-item{position:relative; aspect-ratio:1/1; border-radius:9px; overflow:hidden; border:1px solid var(--line); background:var(--paper); touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab;}
+    #am-panel .am-pf-item img{width:100%; height:100%; object-fit:cover; pointer-events:none; display:block;}
+    #am-panel .am-pf-item.dragging{opacity:0.55; cursor:grabbing; z-index:2; box-shadow:0 10px 24px rgba(27,42,61,0.28);}
+    #am-panel .am-pf-item button{position:absolute; top:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:12px; line-height:1; padding:0; cursor:pointer;}
+    #am-panel .am-pf-item button:disabled{opacity:0.25; cursor:default;}
+    #am-panel .am-pf-item .am-pf-left{left:4px;}
+    #am-panel .am-pf-item .am-pf-right{left:28px;}
+    #am-panel .am-pf-item .am-pf-remove{right:4px;}
+    #am-panel .am-pf-order{position:absolute; left:4px; bottom:4px; background:var(--ink); color:var(--paper-card); font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px;}
     #am-panel .profile-edit-close{
       position:absolute; top:16px; right:16px; width:36px; height:36px; border-radius:50%; border:none;
       background:var(--paper); color:var(--ink); box-shadow:0 4px 12px rgba(27,42,61,0.18);
@@ -1170,6 +1190,21 @@ const AuthModal = (function () {
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Açıklama</label>
             <textarea id="am-edit-about" rows="4" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); resize:vertical;"></textarea>
           </div>
+          <!-- Portfolyo (kullanıcı isteği, 2026-09-12) — kisi-ekle.html'deki kutunun AYNISI; değer kişi
+               kaydının portfolio alanına yazılır (bkz. submitArchitectSyncIfNeeded). -->
+          <div style="grid-column:1 / -1;" id="am-portfolio-field">
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Portfolyo <span style="font-weight:400; color:var(--ink-soft);">(opsiyonel)</span></label>
+            <p class="am-pf-hint">Kişisel çalışmalarına dair farklı içerikleri yükleyebilirsin. Portfolyo kişi profilinde görünür.</p>
+            <label class="am-pf-drop" id="am-portfolio-drop">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+              <strong>Görselleri veya PDF'i sürükleyip bırak</strong>
+              <span>ya da bilgisayarından seçmek için tıkla</span>
+              <input type="file" id="am-portfolio-input" accept="image/*,application/pdf" multiple style="display:none;">
+            </label>
+            <p class="am-pf-hint" style="margin-top:8px;">Görsel ya da PDF yükleyebilirsin; PDF'in her sayfası ayrı bir içerik olarak eklenir. İçerikleri basılı tutup sürükleyerek ya da ‹ › butonlarıyla sıralayabilirsin. En fazla 30 içerik.</p>
+            <p class="am-pf-progress" id="am-portfolio-progress" hidden></p>
+            <div class="am-pf-grid" id="am-portfolio-grid"></div>
+          </div>
         </div>
 
         <!-- Kullanıcı isteği (2026-09-02 madde 4): Kaydet butonunun ÜSTÜNDE, kisi-ekle.html'deki
@@ -1821,7 +1856,7 @@ const AuthModal = (function () {
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
   // gelirse satır kanal etiketi olmadan basılır.
-  const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı' };
+  const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı', facebook: 'Facebook', email: 'E-posta', telegram: 'Telegram' };
   const PAGE_SIZE_DASH = 10;
   // Panolarım'a bilgisayardan yüklenen görselin ÜST SINIRI (kullanıcı isteği, 2026-09-03).
   // src/routes/upload.js#CONTEXT_MAX_BYTES['collection'] ile AYNI değer olmak zorunda.
@@ -2539,13 +2574,196 @@ const AuthModal = (function () {
       })).filter(s => s.url);
     }
     on('am-add-social-row', 'click', () => addAmSocialRow());
+    wireAmPortfolio();
 
     // kisi-ekle.html#prefillForClaim ile AYNI iki aşamalı kaynak: önce canonical (/api/architect/:key,
     // `item.role`/`item.photo` alan adlarıyla), sonra varsa kullanıcının kendi architect_submissions
     // satırı (/api/architects/mine, claimed_profile_key eşleşmesiyle) ÜZERİNE yazılır — böylece
     // kullanıcı daha önce kisi-ekle.html'den bir taslak kaydettiyse o taslak esas alınır.
+    // ---------- PORTFOLYO (kullanıcı isteği, 2026-09-12) ----------
+    // kisi-ekle.html#portfolioItems ile AYNI model: mevcut (kayıtlı URL) ve yeni seçilen (dosya) öğeler
+    // TEK sıralı listede. amPortfolioLoaded — kişi kaydının portfolyosu okunmadan (refreshArchitect
+    // SyncState hiç çalışmadan) Kaydet'e basılırsa alan HİÇ gönderilmez; aksi halde boş liste mevcut
+    // portfolyoyu silerdi (portfolio nullable: NULL = dokunma, [] = hepsini sil — submissionTypes.js).
+    const AM_PORTFOLIO_MAX = 30; // src/lib/submissionTypes.js#MAX_PORTFOLIO_ITEMS ile AYNI
+    let amPortfolioItems = [];
+    let amPortfolioLoaded = false;
+    let amPortfolioKeySeq = 0;
+    let amPdfPagesLoader = null;
+    // pdf-pages.js yalnızca bir PDF seçildiğinde indirilir (pdf.js'in kendisi de onun içinde dinamik).
+    function loadAmPdfPages() {
+      if (window.PdfPages) return Promise.resolve(window.PdfPages);
+      if (!amPdfPagesLoader) {
+        amPdfPagesLoader = new Promise((resolve) => {
+          const s = document.createElement('script');
+          s.src = '/js/components/pdf-pages.js';
+          s.onload = () => resolve(window.PdfPages || null);
+          s.onerror = () => { s.remove(); amPdfPagesLoader = null; resolve(null); };
+          document.head.appendChild(s);
+        });
+      }
+      return amPdfPagesLoader;
+    }
+    function setAmPortfolio(urls) {
+      amPortfolioItems.forEach(it => { if (it.objectUrl) URL.revokeObjectURL(it.objectUrl); });
+      amPortfolioItems = (Array.isArray(urls) ? urls : []).filter(u => typeof u === 'string' && u)
+        .map(url => ({ key: 'amp' + (amPortfolioKeySeq++), kind: 'existing', url }));
+      amPortfolioLoaded = true;
+      renderAmPortfolio();
+    }
+    function amPortfolioNotice(text) {
+      const m = document.getElementById('am-dash-save-msg');
+      if (m) m.textContent = text;
+    }
+    function amPortfolioProgress(text) {
+      const el = document.getElementById('am-portfolio-progress');
+      if (!el) return;
+      el.textContent = text || '';
+      el.hidden = !text;
+    }
+    function renderAmPortfolio() {
+      const grid = document.getElementById('am-portfolio-grid');
+      if (!grid) return;
+      grid.innerHTML = amPortfolioItems.map((it, i) => `<div class="am-pf-item" data-key="${escapeAttr(it.key)}">
+        <img src="${escapeAttr(it.kind === 'existing' ? it.url : it.objectUrl)}" alt="">
+        <button type="button" class="am-pf-left" data-move="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
+        <button type="button" class="am-pf-right" data-move="${i}" data-dir="1" aria-label="Sağa taşı"${i === amPortfolioItems.length - 1 ? ' disabled' : ''}>›</button>
+        <span class="am-pf-order">${i + 1}</span>
+        <button type="button" class="am-pf-remove" data-remove="${i}" aria-label="Kaldır">✕</button>
+      </div>`).join('');
+    }
+    function isAmPdf(file) {
+      return !!file && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''));
+    }
+    async function addAmPortfolioFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      const accepted = files.filter(f => (f.type || '').startsWith('image/') || isAmPdf(f));
+      if (!accepted.length) { amPortfolioNotice('Portfolyoya yalnızca görsel ya da PDF ekleyebilirsin.'); return; }
+      for (const file of accepted) {
+        const remaining = AM_PORTFOLIO_MAX - amPortfolioItems.length;
+        if (remaining <= 0) { amPortfolioNotice(`Portfolyoya en fazla ${AM_PORTFOLIO_MAX} içerik ekleyebilirsin.`); break; }
+        if (isAmPdf(file)) {
+          const Pdf = await loadAmPdfPages();
+          if (!Pdf) { amPortfolioNotice('PDF okuyucu yüklenemedi, lütfen tekrar dene.'); continue; }
+          let pages = [];
+          let failed = false;
+          try {
+            amPortfolioProgress(`"${file.name}" sayfalara ayrılıyor…`);
+            pages = await Pdf.toImages(file, {
+              maxPages: remaining,
+              onProgress: (page, total) => amPortfolioProgress(`"${file.name}" sayfalara ayrılıyor… (${page}/${total})`),
+            });
+          } catch {
+            failed = true;
+            amPortfolioNotice('PDF okunamadı. Dosyanın bozuk ya da parola korumalı olmadığından emin ol.');
+          } finally {
+            amPortfolioProgress('');
+          }
+          if (!pages.length) {
+            if (!failed) amPortfolioNotice('PDF sayfaları görsele çevrilemedi. Dosyayı görsel olarak dışa aktarıp tekrar dene.');
+            continue;
+          }
+          pages.forEach(pageFile => amPortfolioItems.push({ key: 'amp' + (amPortfolioKeySeq++), kind: 'file', file: pageFile, objectUrl: URL.createObjectURL(pageFile) }));
+        } else {
+          amPortfolioItems.push({ key: 'amp' + (amPortfolioKeySeq++), kind: 'file', file, objectUrl: URL.createObjectURL(file) });
+        }
+        renderAmPortfolio();
+      }
+    }
+    // Yeni öğeleri yükler ve NİHAİ sırayı döndürür — kisi-ekle.html#collectPortfolioUrls ile AYNI uç/
+    // bağlam/ölçü. Yüklenen öğe 'existing'e çevrilir: hata sonrası tekrar Kaydet aynı dosyayı iki kez yüklemesin.
+    async function collectAmPortfolioUrls() {
+      const urls = [];
+      for (const it of amPortfolioItems) {
+        if (it.kind !== 'existing') {
+          const fd = await buildImageUploadForm(it.file, { context: 'architect', maxEdge: 1600, quality: 0.85 });
+          const res = await fetch('/api/uploads', { method: 'POST', body: fd });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.url) throw new Error(data.error || 'Portfolyo içeriği yüklenemedi.');
+          if (it.objectUrl) URL.revokeObjectURL(it.objectUrl);
+          it.kind = 'existing'; it.url = data.url; it.file = null; it.objectUrl = null;
+        }
+        urls.push(it.url);
+      }
+      return urls;
+    }
+    // Basılı tutup sürükleyerek sıralama — kisi-ekle.html#portfolioGrid pointer deseninin BİREBİR aynısı.
+    function wireAmPortfolio() {
+      const drop = document.getElementById('am-portfolio-drop');
+      const input = document.getElementById('am-portfolio-input');
+      const grid = document.getElementById('am-portfolio-grid');
+      if (!drop || !input || !grid || grid.dataset.wired) return;
+      grid.dataset.wired = '1';
+      input.addEventListener('change', async (e) => { await addAmPortfolioFiles(e.target.files); input.value = ''; });
+      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+      drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('dragover'); addAmPortfolioFiles(e.dataTransfer.files); });
+      grid.addEventListener('click', (e) => {
+        const rm = e.target.closest('[data-remove]');
+        if (rm) {
+          const [removed] = amPortfolioItems.splice(parseInt(rm.dataset.remove, 10), 1);
+          if (removed && removed.objectUrl) URL.revokeObjectURL(removed.objectUrl);
+          renderAmPortfolio();
+          return;
+        }
+        const mv = e.target.closest('[data-move]');
+        if (mv) {
+          const i = parseInt(mv.dataset.move, 10);
+          const j = i + parseInt(mv.dataset.dir, 10);
+          if (j < 0 || j >= amPortfolioItems.length) return;
+          [amPortfolioItems[i], amPortfolioItems[j]] = [amPortfolioItems[j], amPortfolioItems[i]];
+          renderAmPortfolio();
+        }
+      });
+      const LONG_PRESS_MS = 260, MOVE_CANCEL_PX = 8;
+      let pending = null, dragging = null;
+      const clearPending = () => { if (pending && pending.timer) clearTimeout(pending.timer); pending = null; };
+      grid.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button')) return;
+        const tile = e.target.closest('.am-pf-item');
+        if (!tile) return;
+        clearPending();
+        const pointerId = e.pointerId;
+        pending = { tile, pointerId, startX: e.clientX, startY: e.clientY, timer: null };
+        pending.timer = setTimeout(() => {
+          if (!pending || pending.pointerId !== pointerId) return;
+          dragging = { tile: pending.tile, pointerId };
+          pending = null;
+          tile.classList.add('dragging');
+          try { tile.setPointerCapture(pointerId); } catch {}
+        }, LONG_PRESS_MS);
+      });
+      grid.addEventListener('pointermove', (e) => {
+        if (dragging && e.pointerId === dragging.pointerId) {
+          e.preventDefault();
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const over = el ? el.closest('.am-pf-item') : null;
+          if (!over || over === dragging.tile || !grid.contains(over)) return;
+          const tiles = [...grid.children];
+          if (tiles.indexOf(dragging.tile) < tiles.indexOf(over)) grid.insertBefore(dragging.tile, over.nextSibling);
+          else grid.insertBefore(dragging.tile, over);
+          return;
+        }
+        if (pending && e.pointerId === pending.pointerId
+          && (Math.abs(e.clientX - pending.startX) > MOVE_CANCEL_PX || Math.abs(e.clientY - pending.startY) > MOVE_CANCEL_PX)) clearPending();
+      });
+      const finish = (e) => {
+        if (pending && (!e || e.pointerId === pending.pointerId)) clearPending();
+        if (!dragging || (e && e.pointerId !== dragging.pointerId)) return;
+        dragging.tile.classList.remove('dragging');
+        try { dragging.tile.releasePointerCapture(dragging.pointerId); } catch {}
+        dragging = null;
+        const byKey = new Map(amPortfolioItems.map(it => [it.key, it]));
+        amPortfolioItems = [...grid.children].map(el => byKey.get(el.dataset.key)).filter(Boolean);
+        renderAmPortfolio();
+      };
+      grid.addEventListener('pointerup', finish);
+      grid.addEventListener('pointercancel', finish);
+    }
+
     async function fetchArchitectRecordForSync(profileKey) {
-      let merged = { name: '', dob: '', school: '', profession: '', position: '', office: '', awards: [], about: '', social_links: [], photo_url: '' };
+      let merged = { name: '', dob: '', school: '', profession: '', position: '', office: '', awards: [], about: '', social_links: [], photo_url: '', portfolio: [] };
       try {
         const res = await fetch(`/api/architect/${encodeURIComponent(profileKey)}`);
         if (res.ok) {
@@ -2556,7 +2774,7 @@ const AuthModal = (function () {
               name: item.name || '', dob: item.dob || '', school: item.school || '',
               profession: item.profession || '', position: item.role || '', office: item.office || '',
               awards: item.awards || [], about: item.about || '', social_links: item.social_links || [],
-              photo_url: item.photo || '',
+              photo_url: item.photo || '', portfolio: item.portfolio || [],
             };
           }
         }
@@ -2581,6 +2799,8 @@ const AuthModal = (function () {
               profession: mine.profession || '', position: mine.position || '', office: mine.office || '',
               awards: mine.awards || [], about: mine.about || '', social_links: mine.social_links || [],
               photo_url: mine.photo_url || '',
+              // Taslak portfolyoyu hiç taşımıyorsa (NULL — form alanı hiç göndermemiş) canlı kaydınki korunur.
+              portfolio: Array.isArray(mine.portfolio) ? mine.portfolio : merged.portfolio,
             };
           }
         }
@@ -2633,14 +2853,16 @@ const AuthModal = (function () {
         // "Hayır"a düşüyordu — kullanıcının gördüğü "Evet dedim, Hayır'a dönmüş" davranışı buydu.
         // Artık kullanıcının kendi kişi gönderisi (varsa) durum olarak kurulur ve tercih ondan okunur.
         const own = await fetchOwnSelfSubmission();
-        if (!own) { architectSyncState = null; return; }
+        if (!own) { architectSyncState = null; setAmPortfolio([]); return; }
         architectSyncState = { profileKey: null, editId: own.id, office: own.office || '', photoUrl: own.photo_url || '' };
+        setAmPortfolio(own.portfolio || []);
         const el = document.querySelector(`input[name="am-directory-listed"][value="${own.directory_listed === 0 ? 'no' : 'yes'}"]`);
         if (el) el.checked = true;
         return;
       }
       const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
+      setAmPortfolio(merged.portfolio || []);
       // Dizin tercihini mevcut kayda göre ayarla — kullanıcı daha önce "Hayır" dediyse form onu
       // "Evet" olarak göstermemeli (varsayılan Evet, YALNIZCA hiç kaydı olmayanlar için).
       const dirEl = document.querySelector(`input[name="am-directory-listed"][value="${merged.directory_listed === 0 ? 'no' : 'yes'}"]`);
@@ -2919,7 +3141,8 @@ const AuthModal = (function () {
     // hata yanıtları (409 isim çakışması dahil) sessizce yutuluyordu (bkz. GERÇEK BULGU aşağıda) —
     // artık çağıran (am-dash-save-btn) sonuca göre ya normal başarı mesajı ya da isim çakışması
     // uyarısını (am-directory-duplicate-warning) gösterebiliyor.
-    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks) {
+    // portfolioUrls: dizi ise kişi kaydının portfolyosu olarak yazılır; null ise alan hiç gönderilmez.
+    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks, portfolioUrls = null) {
       createdSelfRecord = false;
       // Onaylı profili de kendi kaydı da olmayan kullanıcı dizine girmek istiyorsa, kaydı BURADA
       // oluşturulur — kisi-ekle.html'in kullandığı AYNI uç (POST /api/architects). "Hayır" diyen
@@ -2946,6 +3169,8 @@ const AuthModal = (function () {
         photo_url: architectSyncState.photoUrl || null,
         about: about || null,
         social_links: socialLinks,
+        // Portfolyo (kullanıcı isteği, 2026-09-12) — kisi-ekle.html ile AYNI alan.
+        ...(Array.isArray(portfolioUrls) ? { portfolio: portfolioUrls } : {}),
         // Kişi dizininde görünme tercihi (kullanıcı isteği, 2026-09-02) — kisi-ekle.html'in
         // gönderdiği AYNI alan (bkz. migrations/0081_architect_directory_listed.sql). Radyo grubu
         // bulunamazsa alan HİÇ gönderilmez ki mevcut değer ezilmesin (nullable semantiği).
@@ -3069,6 +3294,18 @@ const AuthModal = (function () {
             return;
           }
         }
+        // Portfolyo — yeni öğeler profil yazımından ÖNCE yüklenir (fotoğrafla AYNI gerekçe: yükleme
+        // başarısızsa hiçbir alan yarım kaydedilmesin). Yalnızca bir kişi kaydı güncellenecek/açılacaksa.
+        let portfolioUrls = null;
+        if (amPortfolioLoaded && willPublishArchitect) {
+          if (amPortfolioItems.some(it => it.kind !== 'existing')) msg.textContent = 'Portfolyo yükleniyor…';
+          try {
+            portfolioUrls = await collectAmPortfolioUrls();
+          } catch (err) {
+            msg.textContent = err.message || 'Portfolyo yüklenemedi, tekrar dene.';
+            return;
+          }
+        }
         const res = await fetch('/api/profile', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),
@@ -3094,7 +3331,7 @@ const AuthModal = (function () {
         pendingAvatarFile = null;
         const claimSubmitted = await submitFirmaClaimIfChanged();
         const dirWarning = document.getElementById('am-directory-duplicate-warning');
-        const architectResult = await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
+        const architectResult = await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks, portfolioUrls);
 
         // Aynı isimde bir kişi zaten varsa (kullanıcı isteği, 2026-09-06) — pop-up KAPANMAZ, isim
         // altı çizili/profile bağlantılı bir uyarı + "Bu profil bana ait" talep butonu gösterilir

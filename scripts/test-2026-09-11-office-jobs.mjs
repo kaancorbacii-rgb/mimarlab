@@ -41,6 +41,8 @@ async function freshEnv() {
   // 0079: name_fold generated kolonu — claimedProfiles.js#fetchOwnArchitectRows (Kurucular üzerinden
   // yetki yolu) buna bağlı; schema.sql canlı D1'in gerisinde (bkz. test-2026-09-08-round.mjs AYNI satır).
   db.exec(readFileSync(new URL('../migrations/0079_search_fold_columns.sql', import.meta.url), 'utf8'));
+  // 0113: gundem_items.images/submitted_by/submitter_* — popup ilanının Gündem kopyası bunları yazar.
+  db.exec(readFileSync(new URL('../migrations/0113_gundem_user_submissions.sql', import.meta.url), 'utf8'));
   const now = Date.now();
   for (const [id, name, role] of USERS) {
     db.prepare(`INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, 'x', ?, ?)`).run(id, `${id}@example.com`, name, role, now);
@@ -107,13 +109,58 @@ await test('görsel yalnızca kullanıcının KENDİ /media/u/<id>/ yüklemesi o
   assert.equal((await call(env, 'u-kurucu', 'POST', '/api/office-jobs', { office: 'yok-boyle-ofis', title: 'A', image: img('u-kurucu') })).status, 404);
 });
 
-await test('kaldırma: yetkisiz 403, yetkili siler', async () => {
-  const { env } = await freshEnv();
+await test('kaldırma: yetkisiz 403, yetkili siler — Gündem kopyası da gider', async () => {
+  const { db, env } = await freshEnv();
   const { item } = await (await call(env, 'u-kurucu', 'POST', '/api/office-jobs', { office: 'ilan-ofis', title: 'Silinecek', image: img('u-kurucu') })).json();
   assert.equal((await call(env, 'u-ekip', 'DELETE', `/api/office-jobs/${item.id}`)).status, 403);
   assert.equal((await call(env, 'u-admin', 'DELETE', `/api/office-jobs/${item.id}`)).status, 200);
   const list = await (await call(env, null, 'GET', '/api/office-jobs?office=ilan-ofis')).json();
   assert.deepEqual(list.items, []);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM gundem_items WHERE category = 'ilan'`).get().n, 0);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM gundem_entities`).get().n, 0);
+});
+
+// KULLANICI İSTEĞİ, 2026-09-12: "Firma ve marka popuplarında yayınlanan ilanlar [Gündem'de] de yayınlansın".
+await test('popup ilanı Gündem\'e category=ilan, status=published olarak yazılır ve firmaya bağlanır', async () => {
+  const { db, env } = await freshEnv();
+  const res = await call(env, 'u-kurucu', 'POST', '/api/office-jobs', { office: 'ilan-ofis', title: 'Stajyer İç Mimar', image: img('u-kurucu') });
+  assert.equal(res.status, 201, await res.clone().text());
+  const g = db.prepare(`SELECT * FROM gundem_items`).get();
+  assert.equal(g.category, 'ilan');
+  assert.equal(g.status, 'published');
+  assert.equal(g.title, 'Stajyer İç Mimar');
+  assert.equal(g.image_url, img('u-kurucu'));
+  assert.equal(g.submitter_type, 'office');
+  assert.equal(g.submitter_key, 'ilan-ofis');
+  const e = db.prepare(`SELECT * FROM gundem_entities WHERE item_id = ?`).get(g.id);
+  assert.equal(e.entity_type, 'office');
+  assert.equal(e.entity_key, 'ilan-ofis');
+  // Popup listesinde TEK kez görünür (Gündem kopyası ikinci bir öğe üretmez).
+  const list = await (await call(env, null, 'GET', '/api/office-jobs?office=ilan-ofis')).json();
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0].removable, true);
+});
+
+await test('İçerik Ekle\'den gelen (onaylı) ilan popup listesinde görünür, popup\'tan silinemez', async () => {
+  const { db, env } = await freshEnv();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO gundem_items (id, slug, title, summary, image_url, image_host, source_id, source_name, source_domain, source_url,
+       published_at, category, language, content_hash, title_key, status, created_at, updated_at, images)
+     VALUES ('g1', 'yaz-staji', 'Yaz Stajı', 'Yaz stajı için başvurular açıldı, ayrıntılar görselde.', ?, 'mimarlab.com', 'user', ?, 'mimarlab.com',
+       'https://mimarlab.com/gundem/yaz-staji', ?, 'ilan', 'tr', 'user:g1', 'user:g1', 'published', ?, ?, ?)`
+  ).run(img('u-kurucu'), OFFICE, now, now, now, JSON.stringify([img('u-kurucu')]));
+  db.prepare(`INSERT INTO gundem_entities (item_id, entity_type, entity_key, entity_name, created_at) VALUES ('g1', 'office', 'ilan-ofis', ?, ?)`).run(OFFICE, now);
+  // Onay bekleyen bir ilan GÖRÜNMEZ.
+  db.prepare(
+    `INSERT INTO gundem_items (id, slug, title, summary, image_url, image_host, source_id, source_name, source_domain, source_url,
+       published_at, category, language, content_hash, title_key, status, created_at, updated_at)
+     VALUES ('g2', 'bekleyen', 'Bekleyen', 'Onay bekleyen bir ilan metni burada.', ?, 'mimarlab.com', 'user', ?, 'mimarlab.com',
+       'https://mimarlab.com/gundem/bekleyen', ?, 'ilan', 'tr', 'user:g2', 'user:g2', 'pending', ?, ?)`
+  ).run(img('u-kurucu'), OFFICE, now, now, now);
+  db.prepare(`INSERT INTO gundem_entities (item_id, entity_type, entity_key, entity_name, created_at) VALUES ('g2', 'office', 'ilan-ofis', ?, ?)`).run(OFFICE, now);
+  const list = await (await call(env, 'u-kurucu', 'GET', '/api/office-jobs?office=ilan-ofis')).json();
+  assert.deepEqual(list.items.map(i => [i.title, i.removable]), [['Yaz Stajı', false]]);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

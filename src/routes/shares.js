@@ -21,7 +21,8 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 export const SHARE_ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office', 'gundem']);
 // share-button.js'in gönderdiği kanallar; whitelist dışı bir değer sessizce null'a düşürülür (ham
 // kullanıcı/istemci girdisi Aktivitelerim satırının alt metnine basıldığından serbest metin olamaz).
-const SHARE_CHANNELS = new Set(['copy', 'whatsapp', 'x', 'linkedin', 'native']);
+// facebook/email/telegram — Paylaş popover'ı (kullanıcı isteği, 2026-09-12, bkz. share-button.js#TARGETS).
+const SHARE_CHANNELS = new Set(['copy', 'whatsapp', 'x', 'linkedin', 'native', 'facebook', 'email', 'telegram']);
 
 const CANONICAL_TYPE_BY_ITEM = { project: 'projects', architect: 'architects', office: 'offices' };
 

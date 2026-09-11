@@ -145,7 +145,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // v132 (2026-09-11): firma/marka popup'ına "İş / Staj İlanları" kutusu (office-modal.js), mesaj
 // formundan Şehir/Firma/Telefon kaldırıldı; ABD konumlu firmalar "Amerika Birleşik Devletleri / Şehir"e,
 // "Mimar Sinan Üniversitesi" "Mimar Sinan Güzel Sanatlar Üniversitesi"ne taşındı (D1 verisi).
-export const SSR_CACHE_VERSION = 'v132';
+// v133 (2026-09-12): Gündem'e "İş ve Staj İlanları" kategorisi/çipi, Hesabım > Profili Düzenle'ye
+// Portfolyo, çekmece alt sayfası transform:none (site-chrome.js/auth-modal.js değişti).
+export const SSR_CACHE_VERSION = 'v133';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

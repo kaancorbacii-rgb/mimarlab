@@ -1031,7 +1031,9 @@ CREATE TABLE IF NOT EXISTS office_jobs (
   title TEXT NOT NULL,
   image_url TEXT NOT NULL,
   created_by TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  -- migrations/0116: ilanın Gündem'deki (category='ilan') kopyası.
+  gundem_item_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_office_jobs_office ON office_jobs(office_id, created_at DESC);
 

@@ -83,7 +83,8 @@ async function allowedProfiles(env, user) {
   return out;
 }
 
-async function allocateSlug(env, title) {
+// export: src/routes/officeJobs.js (popup'tan yayınlanan ilanın Gündem satırı) AYNI slug kuralını kullanır.
+export async function allocateSlug(env, title) {
   const base = slugify(title).slice(0, 70).replace(/-+$/, '') || 'gundem';
   for (let attempt = 0; attempt < 4; attempt++) {
     const slug = attempt === 0 ? base : `${base}-${newId().slice(0, 6)}`;
@@ -102,7 +103,7 @@ async function purgeItem(env, slug) {
 // sahibin düzenlemesinde kaybolmasın), yeni eklenen her görsel kullanıcının KENDİ yüklemesi olmalı.
 function validateBody(body, user, existingImages = []) {
   const category = typeof body.category === 'string' ? body.category : '';
-  if (!GUNDEM_USER_CATEGORIES.some(c => c.key === category)) return { error: 'Kategori seç: Haber, Etkinlik ya da Yarışma.' };
+  if (!GUNDEM_USER_CATEGORIES.some(c => c.key === category)) return { error: 'Kategori seç: Haber, Etkinlik, Yarışma ya da İş veya Staj İlanı.' };
 
   const title = cleanText(body.title).replace(/\s+/g, ' ');
   if (charCount(title) < 3) return { error: 'Başlık en az 3 karakter olmalı.' };

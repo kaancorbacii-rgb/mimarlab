@@ -1330,7 +1330,7 @@ const OfficeModal = (function () {
       ? `<div class="om-jobs-grid">${items.map((j, i) => `
           <div class="om-job">
             <button type="button" class="om-job-thumb" data-job-index="${i}" aria-label="${escapeAttr(j.title)} — büyüt"><img src="${escapeAttr(jobThumbSrc(j.image))}" alt="${escapeAttr(j.title)}" loading="lazy"></button>
-            ${canManage ? `<button type="button" class="om-job-del" data-job-del="${escapeAttr(j.id)}" aria-label="İlanı kaldır" title="İlanı kaldır">&times;</button>` : ''}
+            ${canManage && j.removable !== false ? `<button type="button" class="om-job-del" data-job-del="${escapeAttr(j.id)}" aria-label="İlanı kaldır" title="İlanı kaldır">&times;</button>` : ''}
             <p class="om-job-title">${escapeHtml(j.title)}</p>
           </div>`).join('')}</div>`
       : '<p class="om-jobs-empty">Şu anda yayında bir iş ya da staj ilanı yok.</p>';

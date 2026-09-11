@@ -282,6 +282,7 @@
     }
     categories = (mine && mine.categories) || [
       { key: 'haber', label: 'Haber' }, { key: 'etkinlik', label: 'Etkinlik' }, { key: 'yarisma', label: 'Yarışma' },
+      { key: 'ilan', label: 'İş veya Staj İlanı' },
     ];
 
     if(editId){

@@ -1,10 +1,20 @@
 // ShareWidget — pop-up modallarda Kaydet butonunun yanına eklenen "Paylaş" butonu (bkz. kullanıcı
-// isteği: font/boyut/yükseklik Kaydet ile birebir aynı pil olsun). Mobilde/destekleyen tarayıcılarda
-// navigator.share() (Web Share API) açar; masaüstünde bağlantıyı panoya kopyalama + sosyal medya
-// (WhatsApp/X/LinkedIn) seçeneklerini içeren küçük bir popover açar. save-widget.js/rating-widget.js
+// isteği: font/boyut/yükseklik Kaydet ile birebir aynı pil olsun). save-widget.js/rating-widget.js
 // ile AYNI desen — modal-shell.js gibi içerikten bağımsız, her sayfada
 // <script src="js/components/share-button.js"> ile dahil edilir, global `ShareWidget` nesnesini
 // dışa verir.
+//
+// PAYLAŞ POPOVER'I (kullanıcı isteği, 2026-09-12: "Tüm popuplardaki Paylaş iconuna tıklayınca ...
+// küçük bir popup açılsın ve kullanıcı ister linki kopyalasın isterse sosyal medyalardan gönderiyi
+// bir başkasına iletebilsin. Bizim temaya uygun bir tasarım yap.") — Architonic referansı: üstte
+// yuvarlak sosyal ikon satırı + kapat ×, altta salt-okunur bağlantı kutusu + "Kopyala" butonu.
+//   * Eskiden navigator.share destekleyen tarayıcıda (macOS Safari dahil) popover HİÇ açılmıyordu —
+//     artık Paylaş HER ZAMAN bu popover'ı açar; sistem paylaşım sayfası varsa ikon satırının sonunda
+//     "Diğer" olarak durur.
+//   * Popover <body>'ye taşınıp position:fixed ile butonun yanına yerleştirilir: modal-shell paneli
+//     `transform` taşıdığından (açılış animasyonu) içindeki "fixed" bir öğe paneli containing block
+//     alır ve panelin overflow:hidden'ı onu keserdi (bkz. modal-shell.js'teki AYNI gerçek bulgu ve
+//     site-chrome.js'teki 2026-09-12 alt sayfa notu). Konum görünür alana sıkıştırılır.
 const ShareWidget = (function () {
   function injectStyles() {
     if (document.getElementById('share-widget-styles')) return;
@@ -23,92 +33,165 @@ const ShareWidget = (function () {
         padding:0 !important; color:var(--ink-soft);
         font-family:inherit; line-height:1;
       }
-      .share-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .share-btn:hover, .share-btn[aria-expanded="true"]{border-color:var(--walnut); color:var(--ink);}
       .share-btn svg{flex-shrink:0;}
       .share-popover{
-        display:none; position:absolute; top:calc(100% + 8px); left:0; z-index:20; min-width:216px;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:14px;
-        box-shadow:0 12px 28px rgba(27,42,61,0.18); padding:6px; flex-direction:column; gap:2px;
+        display:none; position:fixed; z-index:400; box-sizing:border-box;
+        width:min(348px, calc(100vw - 24px));
+        background:var(--paper-card); border:1px solid var(--line); border-radius:16px;
+        box-shadow:0 16px 40px rgba(27,42,61,0.22); padding:14px 14px 14px;
+        font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink);
       }
-      .share-popover.open{display:flex;}
-      .share-popover-item{
-        display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:9px;
-        font-size:13px; font-weight:600; color:var(--ink); background:none; border:none;
-        font-family:inherit; text-align:left; width:100%; box-sizing:border-box; cursor:pointer;
+      .share-popover.open{display:block;}
+      .share-popover-head{display:flex; align-items:center; justify-content:space-between; margin:0 0 10px;}
+      .share-popover-title{font-size:13px; font-weight:700; color:var(--ink); margin:0;}
+      .share-popover-close{
+        width:28px; height:28px; border-radius:50%; border:none; background:var(--paper-alt); color:var(--ink-soft);
+        display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; line-height:0;
       }
-      .share-popover-item:hover{background:var(--paper-alt);}
-      .share-popover-item svg{flex-shrink:0; color:var(--ink-soft);}
-      .share-toast{
-        position:absolute; top:calc(100% + 8px); left:0; z-index:21; white-space:nowrap;
-        background:var(--ink); color:var(--paper-card); font-size:12.5px; font-weight:600;
-        padding:8px 14px; border-radius:100px; box-shadow:0 8px 20px rgba(27,42,61,0.2);
+      .share-popover-close:hover{color:var(--ink);}
+      .share-popover-icons{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px;}
+      .share-icon{
+        width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--paper-card);
+        color:var(--ink); display:inline-flex; align-items:center; justify-content:center; padding:0;
+        cursor:pointer; text-decoration:none; transition:background .15s, color .15s, border-color .15s;
       }
+      .share-icon:hover{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+      .share-icon svg{display:block;}
+      .share-popover-link{display:flex; gap:8px; align-items:stretch;}
+      .share-popover-url{
+        flex:1; min-width:0; box-sizing:border-box; height:40px; padding:0 12px; border:1px solid var(--line);
+        border-radius:10px; background:var(--paper); color:var(--ink-soft); font-family:inherit; font-size:12.5px;
+        text-overflow:ellipsis; overflow:hidden; white-space:nowrap;
+      }
+      .share-popover-url:focus{outline:none; border-color:var(--walnut);}
+      .share-popover-copy{
+        flex-shrink:0; display:inline-flex; align-items:center; gap:6px; height:40px; padding:0 14px;
+        border:none; border-radius:10px; background:var(--walnut); color:#fff; font-family:inherit;
+        font-size:13px; font-weight:700; cursor:pointer;
+      }
+      .share-popover-copy:hover{filter:brightness(0.94);}
+      .share-popover-copy.copied{background:var(--ink);}
       /* Puanla/Kaydet/Paylaş(/Websitesi) — Apple/Google dokunma hedefi standartları (bkz. kullanıcı
          isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. */
       @media (max-width:860px){
-        .share-popover{left:auto; right:0;}
         .share-btn{height:48px !important; width:48px !important; min-width:48px !important;}
         .share-widget{flex-shrink:0 !important; min-width:44px !important;}
+        .share-icon{width:40px; height:40px;}
       }
     `;
     document.head.appendChild(style);
   }
 
   const ICON_SHARE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>`;
-  const ICON_COPY = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-  const ICON_WHATSAPP = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5C10 9 9.5 7.8 9.3 7.3c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.5.1-.7.3-.2.3-1 1-1 2.3s1 2.7 1.1 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/></svg>`;
+  const ICON_COPY = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+  const ICON_CLOSE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  const ICON_FACEBOOK = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 22v-8.2h2.8l.4-3.2h-3.2V8.5c0-.9.3-1.6 1.6-1.6h1.7V4.1c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.4H7.3v3.2h2.8V22h3.4z"/></svg>`;
   const ICON_X = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg>`;
-  const ICON_LINKEDIN = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg>`;
+  const ICON_LINKEDIN = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg>`;
+  const ICON_MAIL = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/></svg>`;
+  const ICON_WHATSAPP = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5C10 9 9.5 7.8 9.3 7.3c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.5.1-.7.3-.2.3-1 1-1 2.3s1 2.7 1.1 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`;
+  const ICON_TELEGRAM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2l-11 6.9-4.7-1.5c-1-.3-1-1 .2-1.5l18.4-7.1c.9-.3 1.6.2 1.5 1.2z"/></svg>`;
+  const ICON_MORE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+
+  // Paylaşım hedefleri — kanal adları src/routes/shares.js#SHARE_CHANNELS ile AYNI (Paylaştıklarım kaydı).
+  const TARGETS = [
+    { action: 'facebook', label: "Facebook'ta paylaş", icon: ICON_FACEBOOK, href: (t, u) => `https://www.facebook.com/sharer/sharer.php?u=${u}` },
+    { action: 'x', label: "X'te paylaş", icon: ICON_X, href: (t, u) => `https://twitter.com/intent/tweet?text=${t}&url=${u}` },
+    { action: 'linkedin', label: "LinkedIn'de paylaş", icon: ICON_LINKEDIN, href: (t, u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
+    { action: 'email', label: 'E-postayla gönder', icon: ICON_MAIL, href: (t, u) => `mailto:?subject=${t}&body=${t}%0A%0A${u}` },
+    { action: 'whatsapp', label: "WhatsApp'ta paylaş", icon: ICON_WHATSAPP, href: (t, u) => `https://wa.me/?text=${t}%20${u}` },
+    { action: 'telegram', label: "Telegram'da paylaş", icon: ICON_TELEGRAM, href: (t, u) => `https://t.me/share/url?url=${u}&text=${t}` },
+  ];
 
   function html(id) {
+    const icons = TARGETS.map(tg =>
+      `<a class="share-icon" data-action="${tg.action}" target="_blank" rel="noopener" href="#" aria-label="${tg.label}" title="${tg.label}">${tg.icon}</a>`
+    ).join('');
     return `
       <span class="share-widget">
-        <button class="share-btn" type="button" id="${id}" aria-haspopup="true" aria-expanded="false" aria-label="Paylaş">
+        <button class="share-btn" type="button" id="${id}" aria-haspopup="dialog" aria-expanded="false" aria-label="Paylaş">
           ${ICON_SHARE}
         </button>
-        <div class="share-popover" id="${id}-popover">
-          <button type="button" class="share-popover-item" data-action="copy">${ICON_COPY}Bağlantıyı Kopyala</button>
-          <a class="share-popover-item" target="_blank" rel="noopener" data-action="whatsapp">${ICON_WHATSAPP}WhatsApp'ta Paylaş</a>
-          <a class="share-popover-item" target="_blank" rel="noopener" data-action="x">${ICON_X}X'te Paylaş</a>
-          <a class="share-popover-item" target="_blank" rel="noopener" data-action="linkedin">${ICON_LINKEDIN}LinkedIn'de Paylaş</a>
+        <div class="share-popover" id="${id}-popover" role="dialog" aria-label="Paylaş">
+          <div class="share-popover-head">
+            <p class="share-popover-title">Paylaş</p>
+            <button type="button" class="share-popover-close" data-close aria-label="Kapat">${ICON_CLOSE}</button>
+          </div>
+          <div class="share-popover-icons">
+            ${icons}
+            <button type="button" class="share-icon" data-action="native" aria-label="Diğer uygulamalar" title="Diğer uygulamalar" hidden>${ICON_MORE}</button>
+          </div>
+          <div class="share-popover-link">
+            <input class="share-popover-url" type="text" readonly aria-label="Bağlantı">
+            <button type="button" class="share-popover-copy" data-action="copy">${ICON_COPY}<span>Kopyala</span></button>
+          </div>
         </div>
       </span>`;
   }
 
+  // Açık popover'ı kapatır. Popover body'ye taşınmış olabilir — kapanınca butonun yanına geri döner,
+  // böylece modal içeriği innerHTML ile sıfırlandığında onunla birlikte temizlenir (body'de yetim kalmaz).
+  function closePopover(popover) {
+    if (!popover || !popover.classList.contains('open')) return;
+    popover.classList.remove('open');
+    const btn = document.getElementById(popover.id.replace(/-popover$/, ''));
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+      const host = btn.closest('.share-widget');
+      if (host && popover.parentElement !== host) host.appendChild(popover);
+    }
+  }
   function closeAllPopovers() {
-    document.querySelectorAll('.share-popover.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.share-popover.open').forEach(closePopover);
+  }
+
+  // Butonun altına (sığmazsa üstüne) yerleştirir; yatayda görünür alana sıkıştırır. Butonun sağ
+  // kenarı ekranın sağ yarısındaysa popover sağa hizalanır (referanstaki gibi), aksi halde sola.
+  function positionPopover(btn, popover) {
+    const r = btn.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const w = popover.offsetWidth;
+    const h = popover.offsetHeight;
+    const gap = 8, margin = 12;
+    let left = r.right > vw / 2 ? r.right - w : r.left;
+    left = Math.max(margin, Math.min(left, vw - w - margin));
+    let top = r.bottom + gap;
+    if (top + h > vh - margin && r.top - gap - h >= margin) top = r.top - gap - h;
+    popover.style.left = `${Math.round(left)}px`;
+    popover.style.top = `${Math.round(Math.max(margin, top))}px`;
   }
 
   // gerçek bulgu: wire() önceden her çağrıda (yani her modal açılışında) YENİ bir
   // document.addEventListener('click', ...) ekliyordu — modaller innerHTML ile sıfırlandığından
   // btn/popover her seferinde yeni DOM düğümleri oluyor, dataset.shareWired koruması yeni düğümde
   // hiç set olmadığından işe yaramıyor. Sonuç: her modal açılışında document'a bir tane daha kalıcı
-  // listener birikiyordu (temizlenmiyordu) — uzun bir oturumda bellek sızıntısı + gitgide artan
-  // tıklama işleme maliyeti. Çözüm: TEK bir modül-seviyesi delegated listener, tüm .share-popover.open
-  // öğelerini kendi tetikleyici butonuyla eşleştirip dışına tıklamayı kontrol eder.
-  let outsideClickWired = false;
-  function wireOutsideClick() {
-    if (outsideClickWired) return;
-    outsideClickWired = true;
+  // listener birikiyordu (temizlenmiyordu). Çözüm: TEK bir modül-seviyesi delegated listener seti.
+  let globalWired = false;
+  function wireGlobal() {
+    if (globalWired) return;
+    globalWired = true;
     document.addEventListener('click', (e) => {
       document.querySelectorAll('.share-popover.open').forEach(popover => {
         const btn = document.getElementById(popover.id.replace(/-popover$/, ''));
         if (btn && (btn.contains(e.target) || popover.contains(e.target))) return;
-        popover.classList.remove('open');
-        if (btn) btn.setAttribute('aria-expanded', 'false');
+        closePopover(popover);
       });
     });
-  }
-
-  function showToast(btn, text) {
-    const host = btn.parentElement;
-    const existing = host.querySelector('.share-toast');
-    if (existing) existing.remove();
-    const toast = document.createElement('div');
-    toast.className = 'share-toast';
-    toast.textContent = text;
-    host.appendChild(toast);
-    setTimeout(() => toast.remove(), 1800);
+    // Escape önce popover'ı kapatsın, arkadaki pop-up'ı değil (capture — ModalShell'den önce).
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !document.querySelector('.share-popover.open')) return;
+      e.stopPropagation();
+      closeAllPopovers();
+    }, true);
+    // Sabit konumlu popover içerik kayınca butondan kopmasın — kaydırma/yeniden boyutlandırmada kapanır.
+    window.addEventListener('resize', closeAllPopovers);
+    document.addEventListener('scroll', (e) => {
+      if (e.target && e.target.closest && e.target.closest('.share-popover')) return;
+      closeAllPopovers();
+    }, true);
+    document.addEventListener('mimarlab-modal-closed', closeAllPopovers);
   }
 
   // logShare — Aktivitelerim > Paylaştıklarım kutusunu besleyen kayıt (bkz. kullanıcı isteği,
@@ -134,6 +217,12 @@ const ShareWidget = (function () {
     } catch { /* fetch yoksa/engellendiyse sessiz */ }
   }
 
+  async function copyText(text, input) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* aşağıdaki yedek */ }
+    // Pano API'si izin vermezse (eski tarayıcı/izin reddi) seçili kutu + execCommand yedeği.
+    try { input.focus(); input.select(); return document.execCommand('copy'); } catch { return false; }
+  }
+
   // wire(id, getData): id, html(id) ile üretilen butonun DOM id'si; getData tıklama anında
   // {title, url} döndüren bir fonksiyon — modallar prev/next ile AYNI DOM'u yeniden kullandığından
   // (bkz. proje/mimar/firma/ürün modallarının ortak state machine deseni) URL/başlık render anında
@@ -146,6 +235,13 @@ const ShareWidget = (function () {
     const popover = document.getElementById(`${id}-popover`);
     if (!btn || !popover || btn.dataset.shareWired) return;
     btn.dataset.shareWired = '1';
+    const urlInput = popover.querySelector('.share-popover-url');
+    const copyBtn = popover.querySelector('.share-popover-copy');
+    const nativeBtn = popover.querySelector('[data-action="native"]');
+    if (nativeBtn && navigator.share) nativeBtn.hidden = false;
+
+    popover.querySelector('[data-close]').addEventListener('click', () => closePopover(popover));
+    urlInput.addEventListener('focus', () => urlInput.select());
 
     popover.querySelectorAll('[data-action]').forEach(el => {
       el.addEventListener('click', async (e) => {
@@ -154,44 +250,44 @@ const ShareWidget = (function () {
         const action = el.dataset.action;
         if (action === 'copy') {
           e.preventDefault();
-          try {
-            await navigator.clipboard.writeText(url);
-            showToast(btn, 'Bağlantı kopyalandı!');
-            // Kayıt yalnızca kopyalama GERÇEKTEN başarılıysa (pano izni verildiyse) yazılır —
-            // catch dalına düşen bir tıklama kullanıcı açısından hiçbir şey paylaşmamış demektir.
+          if (await copyText(url, urlInput)) {
+            copyBtn.classList.add('copied');
+            copyBtn.querySelector('span').textContent = 'Kopyalandı';
+            setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.querySelector('span').textContent = 'Kopyala'; }, 1600);
+            // Kayıt yalnızca kopyalama GERÇEKTEN başarılıysa yazılır.
             logShare(data, 'copy');
-          } catch { /* pano izni yoksa sessizce yoksay */ }
-          popover.classList.remove('open');
-          btn.setAttribute('aria-expanded', 'false');
+          }
           return;
         }
-        const shareText = encodeURIComponent(title || '');
-        const shareUrl = encodeURIComponent(url || '');
-        if (action === 'whatsapp') el.href = `https://wa.me/?text=${shareText}%20${shareUrl}`;
-        else if (action === 'x') el.href = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
-        else if (action === 'linkedin') el.href = `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`;
-        if (action === 'whatsapp' || action === 'x' || action === 'linkedin') logShare(data, action);
-        popover.classList.remove('open');
-        btn.setAttribute('aria-expanded', 'false');
+        if (action === 'native') {
+          e.preventDefault();
+          closePopover(popover);
+          // navigator.share() iptal edilirse reject eder — kayıt yalnızca resolve dalında yazılır.
+          try { await navigator.share({ title, url }); logShare(data, 'native'); } catch { /* iptal — sessiz */ }
+          return;
+        }
+        const target = TARGETS.find(tg => tg.action === action);
+        if (!target) return;
+        // href tıklama anında yazılır (getData güncel URL'yi verir); <a target=_blank> varsayılan
+        // davranışıyla yeni sekmede açılır — preventDefault YOK.
+        el.href = target.href(encodeURIComponent(title || ''), encodeURIComponent(url || ''));
+        logShare(data, action);
+        closePopover(popover);
       });
     });
 
-    btn.addEventListener('click', async () => {
-      const data = getData();
-      const { title, url } = data;
-      if (navigator.share) {
-        // navigator.share() kullanıcı paylaşım sayfasını İPTAL ederse reject eder — kayıt yalnızca
-        // resolve dalında yazılır, iptal edilen bir paylaşım Paylaştıklarım'a düşmez.
-        try { await navigator.share({ title, url }); logShare(data, 'native'); } catch { /* kullanıcı iptal etti — sessiz */ }
-        return;
-      }
+    btn.addEventListener('click', () => {
       const willOpen = !popover.classList.contains('open');
       closeAllPopovers();
-      popover.classList.toggle('open', willOpen);
-      btn.setAttribute('aria-expanded', String(willOpen));
+      if (!willOpen) return;
+      urlInput.value = getData().url || '';
+      document.body.appendChild(popover);
+      popover.classList.add('open');
+      positionPopover(btn, popover);
+      btn.setAttribute('aria-expanded', 'true');
     });
 
-    wireOutsideClick();
+    wireGlobal();
   }
 
   return { html, wire, injectStyles };

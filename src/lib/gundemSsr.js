@@ -39,10 +39,11 @@ export function gundemCategoryLabel(key) {
 }
 
 // KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11; bkz. migrations/0113 ve
-// src/routes/gundemSubmit.js). Kullanıcı yalnızca bu üç kategoriden birini seçebilir — whitelist'in
-// geri kalanı (gorus/kariyer) otomatik hatta özgü kalır.
-export const GUNDEM_USER_CATEGORIES = GUNDEM_CATEGORIES.filter(c => ['haber', 'etkinlik', 'yarisma'].includes(c.key))
-  .map(c => ({ key: c.key, label: c.label }));
+// src/routes/gundemSubmit.js). Kullanıcı yalnızca bu dört kategoriden birini seçebilir — whitelist'in
+// geri kalanı (gorus/kariyer) otomatik hatta özgü kalır. 'ilan' 2026-09-12'de eklendi ("İçerik Ekle
+// sayfasında da İş veya Staj İlanı seçeneği de olsun"); formda tekil formLabel'ı görünür.
+export const GUNDEM_USER_CATEGORIES = GUNDEM_CATEGORIES.filter(c => ['haber', 'etkinlik', 'yarisma', 'ilan'].includes(c.key))
+  .map(c => ({ key: c.key, label: c.formLabel || c.label }));
 
 // Kartın görselleri. Otomatik içerikte `images` BOŞTUR ve tek görsel image_url'dir (kullanıcı
 // isteği: "otomatik içerik çekimi yine tek görsel üzerinden devam etsin"); kullanıcı gönderisinde

@@ -82,7 +82,9 @@ await test('/mine: kendi adıyla eşleşen kişi + onaylı firma claim profiller
   assert.ok(keys.includes('architect:ayse-kaya'), keys.join());
   assert.ok(keys.includes('office:atolye-x'), keys.join());
   assert.ok(!keys.includes('office:baska-firma'));
-  assert.deepEqual(data.categories.map(c => c.key), ['haber', 'etkinlik', 'yarisma']);
+  // 'ilan' 2026-09-12'de eklendi ("İçerik Ekle sayfasında da İş veya Staj İlanı seçeneği de olsun").
+  assert.deepEqual(data.categories.map(c => c.key), ['haber', 'etkinlik', 'yarisma', 'ilan']);
+  assert.equal(data.categories.find(c => c.key === 'ilan').label, 'İş veya Staj İlanı');
 });
 for (const [name, over, code] of [
   ['4 görsel → 400', { images: [1, 2, 3, 4].map(n => img('u-uye', n)) }, 400],

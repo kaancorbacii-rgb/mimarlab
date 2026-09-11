@@ -35,6 +35,8 @@ export const GUNDEM_CACHE_PATHS = [
   '/api/gundem?category=haber&page=1&limit=12',
   '/api/gundem?category=etkinlik&page=1&limit=12',
   '/api/gundem?category=yarisma&page=1&limit=12',
+  // İş ve Staj İlanları çipi (2026-09-12, bkz. gundemCategories.js#ilan).
+  '/api/gundem?category=ilan&page=1&limit=12',
   // 'gorus' ve 'kariyer' 2026-09-07'de ÇİP OLMAKTAN ÇIKTI (bkz. gundemCategories.js#chip:false).
   // Sayfa artık bu iki URL'yi hiç istemediğinden purge listesinde tutmak boşa istek olurdu;
   // kategoriler whitelist'te DURUYOR, yalnızca filtre çipleri kaldırıldı.

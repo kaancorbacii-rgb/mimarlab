@@ -490,8 +490,10 @@ async function withSingleFlight(key, fn) {
 //     /api/architects `filters.position/profession/award` yalnızca kişi ekle formunun seçenekleri,
 //     okul adları canonicalSchoolName'den geçer — fingerprint değişmediği için eski gövdeler aksi
 //     halde önbellekten dönmeye devam ederdi.
+// v38 -> v39 (kullanıcı isteği, 2026-09-12): /api/gundem `categories` 'ilan' (İş ve Staj İlanları)
+//     taşıyor — önbellekteki eski gövde çipi göstermezdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v38';
+const API_PAYLOAD_VERSION = 'v39';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
