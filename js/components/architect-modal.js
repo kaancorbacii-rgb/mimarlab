@@ -610,12 +610,14 @@ const ArchitectModal = (function () {
 
   function cardHtml(href, title, image, subtitle, badgeHtml) {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
-    return `<a class="related-card" href="${href}">
+    // href yoksa (kişi profili olmayan ortak/ekip adı) AYNI kare kart, tıklanamaz <div> olarak çizilir.
+    const open = href ? `<a class="related-card" href="${href}">` : '<div class="related-card" aria-disabled="true">';
+    return `${open}
       <div class="related-card-photo">
         ${image ? `<img src="${escapeAttr(cdnImg(image, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       </div>
       <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(title)}${badgeHtml || ''}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
-    </a>`;
+    ${href ? '</a>' : '</div>'}`;
   }
 
   const GUNDEM_STRIP_IDS = { section: 'am-gundem-section', grid: 'am-gundem-grid', count: 'am-gundem-count' };
@@ -652,8 +654,8 @@ const ArchitectModal = (function () {
   }
 
   // Mimar profiline yazılmış ama offices tablosunda karşılığı olmayan (bkz. src/routes/
-  // architect.js#fetchRawOfficeNames, `unregistered: true`) firma adı — js/components/
-  // office-modal.js#unregisteredBadgeHtml ile BİREBİR aynı, yuvarlak baş harfli pasif rozet.
+  // architect.js#fetchRawOfficeNames, `unregistered: true`) firma adı — yuvarlak baş harfli pasif
+  // rozet. (Kayıtsız KİŞİLER artık rozet değil, tıklanamaz kare kart: bkz. cardHtml(null, …).)
   function unregisteredBadgeHtml(name) {
     return `<span class="unregistered-badge" aria-disabled="true">
       <span class="unregistered-badge-avatar" style="background:${officeColor(name)}">${escapeHtml(initials(name))}</span>
@@ -962,20 +964,21 @@ const ArchitectModal = (function () {
     document.getElementById('am-colleagues-section').style.display = colleagues.length ? '' : 'none';
     function renderColleaguesGrid() {
       // unregistered — kişi profili olmayan ad (firmanın Kurucular kutusu ya da hesap üyeliği):
-      // tıklanabilir kart değil, pasif rozet (firma popup'ındaki AYNI ayrım).
+      // kayıtlı kişilerle AYNI kare kart (baş harfler), yalnızca tıklanamaz (firma popup'ındaki AYNI
+      // ayrım, kullanıcı isteği 2026-09-11).
       RelatedStrip.render(document.getElementById('am-colleagues-grid'), colleagues, c => c.unregistered
-        ? unregisteredBadgeHtml(c.name)
+        ? cardHtml(null, c.name, null, null)
         : cardHtml(`/kisi/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
       );
     }
     renderColleaguesGrid();
 
-    // Ekip Arkadaşları — slug'lı olan gerçek kişi profilidir (tıklanabilir kart), olmayan pasif rozet.
+    // Ekip Arkadaşları — slug'lı olan gerçek kişi profilidir (tıklanabilir kart), olmayan aynı kare
+    // kart ama tıklanamaz.
     const teammates = payload.teammates || [];
     document.getElementById('am-team-section').style.display = teammates.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('am-team-grid'), teammates, t => t.slug
-      ? cardHtml(`/kisi/${encodeURIComponent(t.slug)}`, t.name, t.photo, t.role)
-      : unregisteredBadgeHtml(t.name)
+    RelatedStrip.render(document.getElementById('am-team-grid'), teammates, t =>
+      cardHtml(t.slug ? `/kisi/${encodeURIComponent(t.slug)}` : null, t.name, t.photo, t.role)
     );
 
     // Sarmalayıcı yalnızca en az bir sütun doluysa görünür (aksi halde boş bir bant + üst çizgi

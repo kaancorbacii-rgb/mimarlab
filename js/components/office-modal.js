@@ -169,23 +169,6 @@ const OfficeModal = (function () {
         .om-two-col-row.om-two-col-row-stack-mobile{grid-template-columns:1fr; gap:28px;}
         .om-two-col-row.om-two-col-row-stack-mobile.om-two-col-row-both::after{display:none;}
       }
-      .unregistered-badge{
-        display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
-        background:var(--paper-card); border:1px solid var(--line-soft);
-        border-radius:100px; padding:6px 16px 6px 6px; cursor:default;
-      }
-      .unregistered-badge-avatar{
-        width:32px; height:32px; border-radius:50%; flex-shrink:0;
-        display:flex; align-items:center; justify-content:center;
-        color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:11.5px;
-      }
-      .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
-      /* Ekip kartları (bkz. kullanıcı isteği: "kurucular/ortaklar kısmının altında bir de Ekip
-         kısmı olsun") — .unregistered-badge ile AYNI pasif/tıklanamaz rozet biçimi (bu kişilerin
-         kendi profil sayfası yok), yalnızca kullanıcı hesabından geldikleri için (bkz.
-         src/routes/office.js#buildOfficePayload) fotoğraf ve pozisyon gösterebilirler. */
-      .om-team-avatar{width:32px; height:32px; border-radius:50%; flex-shrink:0; object-fit:cover; background:var(--paper-alt);}
-      .om-team-role{display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:1px;}
       .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
       .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
       .prevnext a:hover{border-color:var(--walnut);}
@@ -552,40 +535,31 @@ const OfficeModal = (function () {
 
   function cardHtml(href, title, image, subtitle, badgeHtml) {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
-    return `<a class="related-card" href="${href}">
+    // href yoksa (kişi profili olmayan kurucu/ekip adı) AYNI kare kart, tıklanamaz <div> olarak çizilir.
+    const open = href ? `<a class="related-card" href="${href}">` : '<div class="related-card" aria-disabled="true">';
+    return `${open}
       <div class="related-card-photo">
         ${image ? `<img src="${escapeAttr(cdnImg(image, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       </div>
       <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(title)}${badgeHtml || ''}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
-    </a>`;
+    ${href ? '</a>' : '</div>'}`;
   }
 
   // Kurucular kutusuna yazılmış ama architects tablosunda karşılığı olmayan (bkz.
-  // src/routes/office.js#fetchRawFounderNames, `unregistered: true`) isimler — tıklanabilir bir
-  // profil kartı DEĞİL, yuvarlak baş harfli pasif bir rozet (bkz. kullanıcı isteği).
-  function unregisteredBadgeHtml(name) {
-    return `<span class="unregistered-badge" aria-disabled="true">
-      <span class="unregistered-badge-avatar" style="background:${officeColor(name)}">${escapeHtml(initials(name))}</span>
-      <span class="unregistered-badge-name">${escapeHtml(name)}</span>
-    </span>`;
+  // src/routes/office.js#fetchRawFounderNames, `unregistered: true`) isimler — kullanıcı isteği
+  // (2026-09-11): yatay hap değil, kayıtlı kişilerle AYNI kare kart; görselde ad-soyad baş harfleri.
+  // Profil sayfası olmadığı için tıklanamaz.
+  function unregisteredCardHtml(name) {
+    return cardHtml(null, name, null, null);
   }
 
   // Ekip kartları — bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı".
-  // Onaylı bir profile_claims('office') sahibi olup pozisyonu Kurucu/Kurucu Ortak OLMAYAN kullanıcılar
-  // (bkz. src/routes/office.js#buildOfficePayload `team`) — bunların kendi profil sayfası yok, bu
-  // yüzden unregisteredBadgeHtml ile AYNI pasif rozet biçimi, yalnızca hesap fotoğrafı + pozisyonu
-  // (varsa) eklenmiş haliyle.
-  function teamBadgeHtml(person) {
-    // Yapısal bağla (office_founders) gelen Ekip Lideri/Ekip Üyesi gerçek bir kişi profiline sahiptir
-    // (`slug`, bkz. src/routes/office.js#structuredTeam) — Kurucular kartlarıyla AYNI tıklanabilir kart.
-    if (person.slug) return cardHtml(`/kisi/${encodeURIComponent(person.slug)}`, person.name, person.photo, person.role);
-    const avatar = person.photo
-      ? `<img class="om-team-avatar" src="${escapeAttr(cdnImg(person.photo, 64))}" alt="" loading="lazy" decoding="async">`
-      : `<span class="unregistered-badge-avatar" style="background:${officeColor(person.name)}">${escapeHtml(initials(person.name))}</span>`;
-    return `<span class="unregistered-badge" aria-disabled="true">
-      ${avatar}
-      <span class="unregistered-badge-name">${escapeHtml(person.name)}${person.role ? `<span class="om-team-role">${escapeHtml(person.role)}</span>` : ''}</span>
-    </span>`;
+  // Yapısal bağla (office_founders) gelen Ekip Lideri/Ekip Üyesi gerçek bir kişi profiline sahiptir
+  // (`slug`, bkz. src/routes/office.js#structuredTeam) — tıklanabilir kart. Yalnızca hesaptan gelen
+  // üyelerin (bkz. src/routes/office.js#buildOfficePayload `team`) profil sayfası yok: aynı kare kart,
+  // tıklanamaz; hesap fotoğrafı yoksa baş harfler.
+  function teamCardHtml(person) {
+    return cardHtml(person.slug ? `/kisi/${encodeURIComponent(person.slug)}` : null, person.name, person.photo, person.role);
   }
 
   // Mevcut veri "İl / İlçe" sırasıyla girilmiş (ör. "İstanbul / Beyoğlu") — künyede "İlçe, İl"
@@ -904,14 +878,14 @@ const OfficeModal = (function () {
     // /api/public/badges gecikmesi burada da var, rozetler geldiğinde tekrar çizilir.
     function renderFoundersGrid() {
       RelatedStrip.render(document.getElementById('om-founders-grid'), founders, a => a.unregistered
-        ? unregisteredBadgeHtml(a.name)
+        ? unregisteredCardHtml(a.name)
         : cardHtml(`/kisi/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
       );
     }
     renderFoundersGrid();
 
     document.getElementById('om-team-section').style.display = team.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('om-team-grid'), team, teamBadgeHtml);
+    RelatedStrip.render(document.getElementById('om-team-grid'), team, teamCardHtml);
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     // Izgara + sayaç + harita TEK yerden çizilir — bkz. js/components/architect-modal.js#
