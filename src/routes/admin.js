@@ -1000,6 +1000,53 @@ async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [] } =
   return changed;
 }
 
+// KULLANICI İSTEĞİ (2026-09-11): "Bir firmanın profiline bir kullanıcı atandığı zaman en son
+// yayınlanan projelerini proje sayfasında 1. sıraya koy sanki yeni yayınlanmış gibi... Diğerlerini
+// diğer sayfalara dağıt ama çok arka sayfalarda olmasınlar." — örnek: Per Se Mimarlık'a bir
+// yönetici/kurucu atandığında, Per Se'nin ZATEN CANLI (önizlemede değil) en son yayınlanan projesi
+// proje sayfasında ilk sıraya otursun.
+//
+// unpreviewByIds'teki RELIST_TOP_PER_TYPE kuralından KASITLI OLARAK AYRI bir fonksiyon: o kural
+// yalnızca preview_at DOLU satırları (yeni yayına alınanları) kapsıyor, burası ZATEN CANLI olan
+// satırları kapsıyor — bir proje iki fonksiyona birden girmez (preview_at ya DOLU ya NULL'dur).
+//
+// SIRALAMA SÖZLEŞMESİ relisted_at'in kendisiyle AYNI (bkz. migrations/0111_relisted_at_sort_fix.sql
+// ve src/lib/projectPool.js'teki GERÇEK BULGU notu): `COALESCE(relisted_at, publish_date,
+// created_at) DESC` — yani relisted_at damgalamak satırı SÜRESİZ değil, yalnızca daha YENİ bir
+// relisted_at/created_at'e sahip başka bir satır çıkana kadar öne taşır.
+//
+// "1. SIRA" — en son yayınlanan (COALESCE(publish_date, created_at) DESC) TEK proje relisted_at=now
+// alır (doğrudan ilk sıra, RELIST_TOP_PER_TYPE=1 ile AYNI mantık). "DİĞERLERİ ÇOK ARKADA KALMASIN" —
+// firmanın diğer canlı projelerinden en fazla PROMOTE_SPREAD_MAX tanesi, her biri bir öncekinden
+// PROMOTE_SPREAD_STEP_MS kadar geride kalacak şekilde relisted_at alır (hepsi AYNI anda damgalanırsa
+// unpreviewByIds'in önlediği kümelenmeye geri dönülür — hepsi proje sayfasının 1. sayfasına yığılır);
+// böylece sayfalara YAYILIRLAR ama en eski/doğal sıralarında kalıp çok arkada kaybolmazlar.
+const PROMOTE_SPREAD_MAX = 10;
+const PROMOTE_SPREAD_STEP_MS = 24 * 60 * 60 * 1000; // bir gün
+
+async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso) {
+  if (!projectIds.length) return;
+  const capped = projectIds.slice(0, ACTIVATE_ID_LIMIT);
+  const ph = capped.map(() => '?').join(', ');
+  // Yalnızca ZATEN CANLI satırlar (preview_at NULL) — önizlemedekiler unpreviewByIds'in işi.
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM projects WHERE id IN (${ph}) AND deleted_at IS NULL AND hidden_at IS NULL AND preview_at IS NULL
+      ORDER BY COALESCE(publish_date, created_at) DESC, id DESC`
+  ).bind(...capped).all();
+  const liveIds = (results || []).map(r => r.id);
+  if (!liveIds.length) return;
+
+  const [topId, ...rest] = liveIds;
+  await env.DB.prepare(`UPDATE projects SET relisted_at = ? WHERE id = ?`).bind(nowIso, topId).run();
+
+  const nowMs = new Date(nowIso).getTime();
+  const spread = rest.slice(0, PROMOTE_SPREAD_MAX);
+  for (let i = 0; i < spread.length; i++) {
+    const ts = new Date(nowMs - (i + 1) * PROMOTE_SPREAD_STEP_MS).toISOString();
+    await env.DB.prepare(`UPDATE projects SET relisted_at = ? WHERE id = ?`).bind(ts, spread[i]).run();
+  }
+}
+
 // Yayına dönen canonical satırların ARŞİV TASLAKLARINI da 'approved' yapar (bkz. yukarıdaki
 // "TELİF KUTUCUĞU" notu) ve her biri için bir telif beyanı kaydı düşer.
 // primaryKey — telif kaydına yazılacak "insan tarafından okunur" anahtar. matchCols — taslağın
@@ -1117,6 +1164,17 @@ async function activateClaimedProfile(env, profileType, profileKey, userId) {
     projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso),
     products: await unpreviewByIds(env, 'products', [...new Set(productIds)], nowIso),
   };
+
+  // bkz. yukarıdaki promoteOfficeProjectsOnAssignment gerekçesi — ZATEN CANLI projeler için "en son
+  // yayınlanan 1. sıraya" kuralı. `activated.projects` (yukarıdaki unpreviewByIds'in DÖNDÜRDÜĞÜ,
+  // preview_at'i BU çağrıda NULL'lanan satırlar) BİLEREK dışlanır: o küme kendi RELIST_TOP_PER_TYPE
+  // kuralıyla (partide tip başına tek damga) zaten sıralandı — buraya da eklenirse unpreviewByIds'in
+  // "diğerleri doğal sırasına düşsün" için bilerek NULL'ladığı relisted_at'ler burada tekrar
+  // damgalanır ve iki kural birbirinin üstüne yazar (gerçek regresyon: bkz. scripts/
+  // test-claim-activation-cascade.mjs — "partide tek proje damgalanmalı").
+  const freshlyUnpreviewedIds = new Set(activated.projects);
+  const alreadyLiveProjectIds = [...new Set(projectIds)].filter(id => !freshlyUnpreviewedIds.has(id));
+  await promoteOfficeProjectsOnAssignment(env, alreadyLiveProjectIds, nowIso);
 
   if (userId) {
     for (const table of Object.keys(activated)) {

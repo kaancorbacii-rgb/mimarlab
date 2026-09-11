@@ -80,6 +80,16 @@ function mergeInitials(toks) {
   return out;
 }
 
+// BOŞLUKSUZ YAZIM (kullanıcı isteği, 2026-09-11: "perse yazınca da Per Se Mimarlık çıksın —
+// arama çubuğunda küçük farklılıklar yüzünden aranan şeyler kaçmasın"). fieldScore'un `toks`
+// listesine, alanın TÜM kelimelerinin boşluksuz birleşimi de eklenir ("per","se","mimarlik" ->
+// ayrıca "persemimarlik"). wordGrade zaten önek/alt-dize kademelerini destekliyor, bu yüzden
+// "perse" bu birleşik token'ın öneki olarak yakalanır — mergeInitials'ın (tek harfli parçalar
+// için) genellemesi, burada HERHANGİ uzunlukta kelimeler için.
+function collapsedToken(toks) {
+  return toks.length > 1 ? toks.join('') : null;
+}
+
 // Tek bir sorgu kelimesinin bir alanın kelimeleriyle en iyi eşleşme kademesi (0 = eşleşmiyor).
 function wordGrade(word, toks) {
   let best = 0;
@@ -109,7 +119,9 @@ export function fieldScore(text, words) {
   // Eşleştirme token'ları HER İKİ biçimi de taşır: ham ("r","a","f") ve birleştirilmiş ("raf").
   // Böylece "r.a.f. studio" da "raf studio" da aynı kaydı bulur — sorgu hangi biçimde yazılırsa
   // yazılsın (queryWords birleştirilmiş biçimi üretir, ham biçim eski davranışı korur).
-  const toks = merged.length === rawToks.length ? rawToks : [...rawToks, ...merged];
+  const toks = merged.length === rawToks.length ? [...rawToks] : [...rawToks, ...merged];
+  const collapsed = collapsedToken(rawToks);
+  if (collapsed) toks.push(collapsed);
   let sum = 0;
   for (const w of words) {
     const g = wordGrade(w, toks);
@@ -177,10 +189,21 @@ function likeCondition(columns, words) {
     const st = hardenFinal(stemTr(w));
     return (st !== w && st.length >= 3) ? [w, st] : [w];
   });
+  // TEK KELİMELİK sorgu ("perse") — bkz. fieldScore'daki collapsedToken gerekçesi. JS skorlaması
+  // "per se mimarlık"ı boşluksuz birleşik token üzerinden bulabilir, ama satır D1'den hiç
+  // gelmezse skorlamaya asla ulaşmaz: `LIKE '%perse%'` boşluklu kolonla eşleşmiyor. Yalnızca
+  // words.length===1 iken kolonun boşluksuz biçimiyle de denenir — çok kelimeli sorgularda terim
+  // sayısı zaten kelime×alan kadar büyüdüğünden (bkz. yukarıdaki ifade-ağacı derinliği notu) bu
+  // dal ORAYA eklenmez, yalnızca tek kelimelik sorguda kolon başına BİR ek terim olarak kalır.
+  const collapsedOnly = variants.length === 1;
   const params = [];
   const cond = columns.map(rawCol => {
     const col = foldAccentsSqlExpr(stripPunctSqlExpr(rawCol));
-    return `(${variants.map(vs => `(${vs.map(v => { params.push(likePattern(v)); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ')})`;
+    const wordCond = variants.map(vs => `(${vs.map(v => { params.push(likePattern(v)); return `${col} LIKE ? ESCAPE '\\'`; }).join(' OR ')})`).join(' AND ');
+    if (!collapsedOnly) return `(${wordCond})`;
+    const collapsedCol = `replace(${col}, ' ', '')`;
+    const collapsedCond = variants[0].map(v => { params.push(likePattern(v)); return `${collapsedCol} LIKE ? ESCAPE '\\'`; }).join(' OR ');
+    return `((${wordCond}) OR (${collapsedCond}))`;
   }).join(' OR ');
   return { cond: `(${cond})`, params };
 }

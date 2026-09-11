@@ -480,6 +480,39 @@ else
 fi
 rm -f /tmp/preflight_actv
 
+# Firmaya kullanıcı atanınca ZATEN CANLI en son yayınlanan projesinin proje sayfasında 1. sıraya
+# geçmesi (kullanıcı isteği, 2026-09-11 — örnek: Per Se Mimarlık'a yönetici/kurucu atanınca).
+# Kural tek yerde (admin.js#promoteOfficeProjectsOnAssignment), yukarıdaki önizleme cascade'inden
+# (RELIST_TOP_PER_TYPE) BİLEREK ayrı — activated.projects kümesi buraya dışlanarak geçilmezse iki
+# kural birbirinin relisted_at'ini üzerine yazar. Bkz. scripts/test-office-project-promotion.mjs.
+if node scripts/test-office-project-promotion.mjs >/tmp/preflight_projpromo 2>&1; then
+  ok "firma projesi 1. sıraya promosyon testleri geçti ($(grep -c '^  ok ' /tmp/preflight_projpromo) test)"
+else
+  bad "firma projesi 1. sıraya promosyon testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_projpromo >&2
+fi
+rm -f /tmp/preflight_projpromo
+
+# "Görüldü" okunma bildirimi (kullanıcı isteği, 2026-09-11) — bkz. src/routes/messages.js#getThread,
+# migrations/0112_message_reads.sql. Bkz. scripts/test-message-seen-receipt.mjs dosya başı.
+if node scripts/test-message-seen-receipt.mjs >/tmp/preflight_seen 2>&1; then
+  ok "mesaj görüldü bildirimi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_seen) test)"
+else
+  bad "mesaj görüldü bildirimi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_seen >&2
+fi
+rm -f /tmp/preflight_seen
+
+# Boşluksuz yazım araması ("perse" -> "Per Se Mimarlık", kullanıcı isteği 2026-09-11) — bkz.
+# src/lib/classicSearch.js#collapsedToken/likeCondition. Bkz. scripts/test-search-word-merge.mjs.
+if node scripts/test-search-word-merge.mjs >/tmp/preflight_wmerge 2>&1; then
+  ok "boşluksuz yazım araması testleri geçti ($(grep -c '^  ok ' /tmp/preflight_wmerge) test)"
+else
+  bad "boşluksuz yazım araması testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_wmerge >&2
+fi
+rm -f /tmp/preflight_wmerge
+
 # Firma/marka üyelik listesi — kisi-ekle.html ile Profili Düzenle'nin (auth-modal.js) ORTAK
 # birleştiricisi (kullanıcı isteği, 2026-09-08: "admin tarafından dahi olsa görevlendiriliyorsa kişi
 # ekle/düzenle sayfasında da gözüksün"). Regresyon: kisi-ekle yalnızca kaydın `office` metnini okuyordu,

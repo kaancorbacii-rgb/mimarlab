@@ -395,6 +395,16 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
 
+-- bkz. migrations/0112_message_reads.sql — kullanıcı isteği: bir konuşma açıldığında karşı taraf(lar)
+-- gönderdikleri mesajlarda "Görüldü" görsün (bkz. src/routes/messages.js#getThread).
+CREATE TABLE IF NOT EXISTS message_reads (
+  thread_id TEXT NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  last_read_at INTEGER NOT NULL,
+  PRIMARY KEY (thread_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_message_reads_thread ON message_reads(thread_id);
+
 CREATE TABLE IF NOT EXISTS password_resets (
   token_hash TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),

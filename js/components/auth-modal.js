@@ -374,6 +374,7 @@ const AuthModal = (function () {
     .am-thread-msg.me{background:rgba(224,138,62,0.1);}
     .am-thread-msg-meta{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
     .am-thread-msg-body{font-size:13.5px; color:var(--ink); line-height:1.55; white-space:pre-wrap;}
+    .am-thread-msg-seen{font-size:11px; color:var(--ink-soft); margin-top:4px; text-align:right;}
     .am-thread-reply-form textarea{
       width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:10px;
       padding:10px 12px; font-size:13.5px; font-family:inherit; color:var(--ink); background:var(--paper-card);
@@ -4124,11 +4125,19 @@ const AuthModal = (function () {
           <div class="am-thread-sender-row"><strong>${escapeHtml(s.name)}</strong><span>${escapeHtml(s.email)}</span></div>
           ${(s.city || s.company || s.phone) ? `<div class="am-thread-sender-row am-thread-sender-extra">${[s.city, s.company, s.phone].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
         </div>
-        <div class="am-thread-messages">${data.messages.map(m => `
+        <div class="am-thread-messages">${(() => {
+          // "Görüldü" (kullanıcı isteği, 2026-09-11): yalnızca gönderdiğim EN SON mesajın altında
+          // gösterilir (WhatsApp/Messenger'daki gibi tüm geçmişte değil) — bkz. src/routes/
+          // messages.js#getThread'deki seen alanı.
+          let lastMineIdx = -1;
+          data.messages.forEach((m, i) => { if (m.isMe) lastMineIdx = i; });
+          return data.messages.map((m, i) => `
           <div class="am-thread-msg${m.isMe ? ' me' : ''}">
             <div class="am-thread-msg-meta">${escapeHtml(m.senderName)} · ${new Date(m.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
             <div class="am-thread-msg-body">${escapeHtml(m.body)}</div>
-          </div>`).join('')}
+            ${(m.isMe && m.seen && i === lastMineIdx) ? '<div class="am-thread-msg-seen">Görüldü</div>' : ''}
+          </div>`).join('');
+        })()}
         </div>
         ${data.status === 'closed'
           ? '<p class="am-thread-closed-note">Bu görüşme sonlandırıldı.</p><button type="button" class="am-thread-reopen-btn" id="am-thread-reopen-btn">Görüşmeyi Yeniden Başlat</button>'

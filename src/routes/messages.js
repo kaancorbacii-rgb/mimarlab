@@ -275,6 +275,33 @@ async function getThread(env, user, threadId) {
     `UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = 'message' AND link = ? AND is_read = 0`
   ).bind(user.id, `msg:${threadId}`).run();
 
+  const now = Date.now();
+  // KULLANICI İSTEĞİ (2026-09-11): "gönderilen mesaj üzerine tıklanıp görüldüğü zaman karşı
+  // taraflarda görüldü yazsın." Konuşmayı AÇMAK = okumak — bkz. migrations/0112_message_reads.sql.
+  // D1/SQLite UPSERT: satır yoksa eklenir, varsa last_read_at güncellenir.
+  await env.DB.prepare(
+    `INSERT INTO message_reads (thread_id, user_id, last_read_at) VALUES (?, ?, ?)
+     ON CONFLICT(thread_id, user_id) DO UPDATE SET last_read_at = excluded.last_read_at`
+  ).bind(threadId, user.id, now).run();
+
+  // "Görüldü" firma grubu konuşmalarında (birden fazla alıcı) KARŞI TARAFLARDAN HERHANGİ BİRİ
+  // okuduysa gösterilir — appendMessageToThread'in otherPartyIds'i İLE AYNI küme (gönderen +
+  // alıcılar, görüntüleyen kullanıcı hariç).
+  const { results: recipientRows } = await env.DB.prepare(
+    'SELECT user_id FROM message_thread_recipients WHERE thread_id = ?'
+  ).bind(threadId).all();
+  const otherPartyIds = new Set([thread.sender_user_id, ...recipientRows.map(r => r.user_id)]);
+  otherPartyIds.delete(user.id);
+
+  let othersLastReadAt = null;
+  if (otherPartyIds.size) {
+    const ph = [...otherPartyIds].map(() => '?').join(',');
+    const row = await env.DB.prepare(
+      `SELECT MAX(last_read_at) AS max_read FROM message_reads WHERE thread_id = ? AND user_id IN (${ph})`
+    ).bind(threadId, ...otherPartyIds).first();
+    othersLastReadAt = row && row.max_read != null ? row.max_read : null;
+  }
+
   const { results: messageRows } = await env.DB.prepare(
     `SELECT m.id, m.sender_user_id, m.body, m.created_at, u.name AS sender_display_name
      FROM messages m JOIN users u ON u.id = m.sender_user_id
@@ -294,13 +321,19 @@ async function getThread(env, user, threadId) {
       company: thread.sender_company,
       phone: thread.sender_phone,
     },
-    messages: messageRows.map(m => ({
-      id: m.id,
-      body: m.body,
-      createdAt: m.created_at,
-      senderName: m.sender_display_name,
-      isMe: m.sender_user_id === user.id,
-    })),
+    messages: messageRows.map(m => {
+      const isMe = m.sender_user_id === user.id;
+      return {
+        id: m.id,
+        body: m.body,
+        createdAt: m.created_at,
+        senderName: m.sender_display_name,
+        isMe,
+        // Yalnızca KENDİ gönderdiğim mesajlar için anlamlı — karşı taraf(lar) bu thread'i bu
+        // mesajdan SONRA açtıysa true (bkz. yukarıdaki othersLastReadAt).
+        seen: isMe && othersLastReadAt != null && othersLastReadAt >= m.created_at,
+      };
+    }),
   });
 }
 
