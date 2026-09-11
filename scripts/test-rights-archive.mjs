@@ -13,7 +13,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { handleSubmissionRoute } from '../src/routes/submissions.js';
 import { handleArchiveRoute } from '../src/routes/archive.js';
-import { runContentAction } from '../src/routes/legacyContent.js';
+import { runContentAction, runProjectAction } from '../src/routes/legacyContent.js';
 import { findUnassignedForScript } from '../src/routes/unassignedArchive.js';
 import { setLegacyHidden } from '../src/routes/legacyContent.js';
 import { sha256Hex } from '../src/lib/crypto.js';
@@ -321,6 +321,129 @@ await test('arşivleme preview_at\'e DOKUNMAZ (tekil Arşivle tam arşivdir)', a
   const row = db.prepare(`SELECT hidden_at, preview_at FROM offices WHERE name = 'Atanmamış Mimarlık'`).get();
   assert.ok(row.hidden_at);
   assert.equal(row.preview_at, null);
+});
+
+section('firma/marka üyeleri arşivlenen proje/ürünü görür — kullanıcı isteği, 2026-09-11');
+
+// Bir firmaya/markaya ait TÜM kullanıcılar (görev fark etmeksizin + claimed_by_user_id) arşivlenen
+// proje ve ürünü Arşivim'de görür; "Düzenle ve Yayına Al" yalnızca düzenleme yetkilisine verilir.
+async function seedMembers(db) {
+  const now = Date.now();
+  for (const [uid, name] of [['u-kurucu2', 'İkinci Kurucu'], ['u-ekip', 'Ekip Üyesi'], ['u-sahip', 'Firma Sahibi'], ['u-yabanci', 'Yabancı']]) {
+    db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES (?, ?, 'x', ?, 'user', ?)`).run(uid, `${uid}@example.com`, name, now);
+    db.prepare(`INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`).run(await sha256Hex(`tok-${uid}`), uid, now, now + 3600_000);
+  }
+  const claim = db.prepare(
+    `INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at, office_position)
+     VALUES (?, ?, 'office', ?, 'approved', ?, ?, ?)`
+  );
+  for (const [uid, pos] of [['u-uye', 'Kurucu'], ['u-kurucu2', 'Ortak'], ['u-ekip', 'Ekip Üyesi']]) {
+    claim.run(`c-${uid}`, uid, 'Atanmamış Mimarlık', now, now, pos);
+  }
+  db.exec(`UPDATE offices SET claimed_by_user_id = 'u-sahip' WHERE name = 'Atanmamış Mimarlık'`);
+}
+const mine = async (uid) => (await (await call(handleArchiveRoute, uid, '/api/archive/mine', { method: 'GET' })).json()).items;
+
+async function archiveFirmProject(db) {
+  db.exec(`INSERT INTO projects (slug, title, source) VALUES ('firma-projesi', 'Firma Projesi', 'legacy_static')`);
+  const pid = db.prepare(`SELECT id FROM projects WHERE slug = 'firma-projesi'`).get().id;
+  const oid = db.prepare(`SELECT id FROM offices WHERE name = 'Atanmamış Mimarlık'`).get().id;
+  db.prepare(`INSERT INTO project_designers (project_id, office_id) VALUES (?, ?)`).run(pid, oid);
+  // Arşivleyen, firmanın Kurucusu (u-uye) — kanonik anahtarla, kendi taslağı yokken.
+  const res = await runProjectAction(envRef.env, { id: 'u-uye', role: 'user' }, { action: 'archive', slug: 'firma-projesi' });
+  assert.equal(res.status, 200, await res.clone().text());
+}
+
+await test('proje: bir üyenin arşivlediği proje firmanın TÜM üyelerinde görünür', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await seedMembers(db);
+  await archiveFirmProject(db);
+  for (const uid of ['u-uye', 'u-kurucu2', 'u-ekip', 'u-sahip']) {
+    const items = (await mine(uid)).filter(it => it.kind === 'project');
+    assert.equal(items.length, 1, `${uid} projeyi görmeli: ${JSON.stringify(items)}`);
+    assert.equal(items[0].title, 'Firma Projesi');
+  }
+  assert.equal((await mine('u-yabanci')).length, 0, 'firmaya ait olmayan kullanıcı görmemeli');
+});
+
+await test('proje: Düzenle ve Yayına Al yalnızca düzenleme yetkilisine verilir', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await seedMembers(db);
+  await archiveFirmProject(db);
+  const byUser = {};
+  for (const uid of ['u-uye', 'u-kurucu2', 'u-ekip']) byUser[uid] = (await mine(uid)).find(it => it.kind === 'project');
+  assert.equal(byUser['u-uye'].owned, true);
+  assert.match(byUser['u-uye'].editUrl, /^\/proje-ekle\?edit=/);
+  assert.equal(byUser['u-kurucu2'].canEdit, true);
+  assert.match(byUser['u-kurucu2'].editUrl, /^\/proje-ekle\?edit=/);
+  assert.equal(byUser['u-ekip'].canEdit, false);
+  assert.equal(byUser['u-ekip'].editUrl, null, 'Ekip Üyesi için düzenleme sayfası 404 döner — ölü buton verilmemeli');
+  // Kutu ile düzenleme sayfası AYNI kararı vermeli.
+  const res = await call(handleSubmissionRoute, 'u-ekip', `/api/projects/${byUser['u-ekip'].id}`, { method: 'GET' });
+  assert.equal(res.status, 404);
+  const ok = await call(handleSubmissionRoute, 'u-kurucu2', `/api/projects/${byUser['u-kurucu2'].id}`, { method: 'GET' });
+  assert.equal(ok.status, 200, await ok.clone().text());
+});
+
+await test('firma PROFİLİNİN kendi arşivi hâlâ yalnızca düzenleme yetkilisinde görünür', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await seedMembers(db);
+  await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'offices', action: 'archive', key: 'Atanmamış Mimarlık' });
+  assert.equal((await mine('u-ekip')).filter(it => it.kind === 'office').length, 0);
+  assert.equal((await mine('u-kurucu2')).filter(it => it.kind === 'office').length, 1);
+});
+
+function seedBrand(db) {
+  db.exec(`INSERT INTO offices (slug, name, cats, source) VALUES ('ornek-marka', 'Örnek Marka', '"Mobilya"', 'legacy_static')`);
+  const now = Date.now();
+  const claim = db.prepare(
+    `INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at, office_position)
+     VALUES (?, ?, 'office', 'Örnek Marka', 'approved', ?, ?, ?)`
+  );
+  claim.run('c-m-uye', 'u-uye', now, now, 'Kurucu');
+  claim.run('c-m-ekip', 'u-ekip', now, now, 'Ekip Üyesi');
+}
+
+await test('ürün: markanın arşivlenen ürünü markanın tüm üyelerinde görünür', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await seedMembers(db);
+  seedBrand(db);
+  db.exec(`INSERT INTO products (slug, legacy_key, kind, title, brand_name_raw, category, images, source)
+           VALUES ('koltuk-ornek', 'Örnek Marka|||Koltuk', 'product', 'Koltuk', 'Örnek Marka', 'Oturma', '["/media/a.webp"]', 'legacy_static')`);
+  await runContentAction(envRef.env, { id: 'u-uye', role: 'user' }, { type: 'products', action: 'archive', key: 'Örnek Marka|||Koltuk' });
+  const ekip = (await mine('u-ekip')).filter(it => it.kind === 'product');
+  assert.equal(ekip.length, 1, JSON.stringify(ekip));
+  assert.equal(ekip[0].editUrl, null);
+  const uye = (await mine('u-uye')).filter(it => it.kind === 'product');
+  assert.equal(uye.length, 1);
+  assert.match(uye[0].editUrl, /^\/urun-ekle\?edit=/);
+  assert.equal((await mine('u-yabanci')).length, 0);
+});
+
+await test('ürün: arşivde 500\'den fazla ürün olsa da markanın ESKİ ürünü kaybolmaz', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await seedMembers(db);
+  seedBrand(db);
+  // GERÇEK BULGU (canlıda 692 arşiv ürünü): eski hâl TÜM arşivi LIMIT 500 ile çekip marka filtresini
+  // sonradan uyguluyordu — markanın en eski ürünü hiç gelmiyordu.
+  db.prepare(`INSERT INTO product_submissions (id, owner_user_id, status, created_at, updated_at, title, brand) VALUES ('p-eski', 'u-admin', 'archived', 1, 1, 'Eski Koltuk', 'ÖRNEK MARKA')`).run();
+  const ins = db.prepare(`INSERT INTO product_submissions (id, owner_user_id, status, created_at, updated_at, title, brand) VALUES (?, 'u-admin', 'archived', ?, ?, ?, 'Başka Marka')`);
+  for (let i = 0; i < 600; i++) ins.run(`p-${i}`, 1000 + i, 1000 + i, `Ürün ${i}`);
+  const items = (await mine('u-ekip')).filter(it => it.kind === 'product');
+  assert.deepEqual(items.map(it => it.id), ['p-eski'], 'casefold eşleşmesiyle markanın eski ürünü gelmeli');
+});
+
+await test('ürün: marka metni farklı olsa da brand_office_id bağı yeter', async () => {
+  const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
+  await seedMembers(db);
+  seedBrand(db);
+  const oid = db.prepare(`SELECT id FROM offices WHERE name = 'Örnek Marka'`).get().id;
+  db.prepare(`INSERT INTO products (slug, legacy_key, kind, title, brand_office_id, brand_name_raw, source) VALUES ('masa-ornek', 'x|||Masa', 'product', 'Masa', ?, 'Eski Ad', 'legacy_static')`).run(oid);
+  db.prepare(`INSERT INTO product_submissions (id, owner_user_id, status, created_at, updated_at, title, brand, claimed_slug) VALUES ('p-bag', 'u-admin', 'archived', 1, 1, 'Masa', 'Eski Ad', 'masa-ornek')`).run();
+  const items = (await mine('u-ekip')).filter(it => it.kind === 'product');
+  assert.equal(items.length, 1, JSON.stringify(items));
+  const kurucu = (await mine('u-uye')).find(it => it.kind === 'product');
+  assert.equal(kurucu.canEdit, true);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

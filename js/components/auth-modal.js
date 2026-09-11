@@ -3709,7 +3709,12 @@ const AuthModal = (function () {
             </div>
           </div>
           <span style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <a class="dash-edit-btn dash-edit-btn-sm" style="margin-left:0;" href="${escapeAttr(it.editUrl)}">Düzenle ve Yayına Al</a>
+            ${it.editUrl
+              ? `<a class="dash-edit-btn dash-edit-btn-sm" style="margin-left:0;" href="${escapeAttr(it.editUrl)}">Düzenle ve Yayına Al</a>`
+              // Firma/marka üyeliğiyle görülen ama düzenlenemeyen kayıt (bkz. src/routes/archive.js#
+              // shapeRow — kullanıcı isteği 2026-09-11): düzenleme sayfası bu kullanıcıya 404 döneceği
+              // için buton yerine kimin yayına alabileceği yazılır.
+              : '<span class="saved-row-meta" style="white-space:nowrap;">Firma yetkilisi yayına alabilir</span>'}
           </span>
         </div>`).join('');
       renderDashPagination('am-archive-pagination', archivePage, totalPages, (p) => { archivePage = p; renderArchive(); });

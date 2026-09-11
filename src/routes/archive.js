@@ -27,6 +27,11 @@
 //      admin bir firmayı bir kullanıcıya atadığı ANDA o firmanın arşivdeki kaydı kullanıcının
 //      kutusunda belirir. Yetki her istekte CANLI okunur (atama geri alınırsa erişim de gider,
 //      bkz. src/routes/legacyContent.js#canDeleteOrModerateProject'teki AYNI gerekçe).
+//   3) PROJE ve ÜRÜN/MALZEME satırlarında firma/marka ÜYELİĞİ yeter (kullanıcı isteği, 2026-09-11:
+//      "Kullanıcılar bir projeyi veya ürünü arşivlerlerse o firma ya da markaya ait tüm kullanıcıların
+//      hesabım sayfalarındaki arşivim bölümünde bu proje ya da ürün arşiv olarak gözüksünler.") —
+//      görev fark etmeksizin. Görmek yayına alma yetkisi VERMEZ: "Düzenle ve Yayına Al" yalnızca
+//      düzenleme yetkisi olana gösterilir (bkz. fetchApprovedClaimKeys ve shapeRow).
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
@@ -50,93 +55,147 @@ const TYPE_TO_TABLE = {
 const CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key' };
 
 // Kullanıcının ONAYLI profil atamaları — hem listeleme (hangi arşiv satırları görünmeli) hem
-// yayına alma (yetki var mı) tek bir okumadan beslenir.
-// FİRMA ATAMALARINDA GÖREV KISITI (bkz. src/lib/projectClaimAccess.js#OFFICE_EDIT_POSITIONS ve
-// migrations/0068): bir firma ataması TEK BAŞINA düzenleme yetkisi vermez — atama ANINDA dondurulmuş
-// office_position'ın yetkili görevlerden biri olması gerekir (Ekip Üyesi bir firmanın profilini
-// düzenleyemez, dolayısıyla arşivden yayına da alamaz). Kişi (architect) atamalarında görev kısıtı
-// yoktur — sitedeki diğer üç yetki yolu da AYNI ayrımı yapar.
+// "Düzenle ve Yayına Al" (yetki var mı) tek bir okumadan beslenir. İKİ ayrı firma listesi döner:
+//
+//   offices       — DÜZENLEME yetkili firma atamaları. FİRMA ATAMALARINDA GÖREV KISITI (bkz.
+//                   src/lib/projectClaimAccess.js#OFFICE_EDIT_POSITIONS ve migrations/0068): bir firma
+//                   ataması TEK BAŞINA düzenleme yetkisi vermez — atama ANINDA dondurulmuş
+//                   office_position'ın yetkili görevlerden biri olması gerekir. Firmanın/markanın KENDİ
+//                   profil arşivi yalnızca bu listeyle görünür.
+//   memberOffices — firmaya/markaya kayıtlı TÜM üyelikler (görev fark etmeksizin) + firmanın
+//                   claimed_by_user_id sahibi. KULLANICI İSTEĞİ (2026-09-11): "Kullanıcılar bir projeyi
+//                   veya ürünü arşivlerlerse o firma ya da markaya ait tüm kullanıcıların hesabım
+//                   sayfalarındaki arşivim bölümünde bu proje ya da ürün arşiv olarak gözüksünler."
+//                   Üyelik tanımı firma mesajlarıyla BİREBİR aynıdır (bkz. src/routes/messages.js#
+//                   resolveOfficeMembers) — "firmaya ait kullanıcı" sitede tek bir anlama gelsin.
+//
+// Kişi (architect) atamalarında görev kısıtı yoktur — sitedeki diğer üç yetki yolu da AYNI ayrımı yapar.
 async function fetchApprovedClaimKeys(env, user) {
-  const { results } = await env.DB.prepare(
-    `SELECT profile_type, profile_key, office_position FROM profile_claims WHERE user_id = ? AND status = 'approved'`
-  ).bind(user.id).all();
+  const [{ results }, { results: ownedOffices }] = await Promise.all([
+    env.DB.prepare(
+      `SELECT profile_type, profile_key, office_position FROM profile_claims WHERE user_id = ? AND status = 'approved'`
+    ).bind(user.id).all(),
+    env.DB.prepare(
+      `SELECT name FROM offices WHERE claimed_by_user_id = ? AND deleted_at IS NULL`
+    ).bind(user.id).all(),
+  ]);
   const architects = [];
   const offices = [];
+  const members = new Set();
   for (const r of results || []) {
     if (r.profile_type === 'architect') architects.push(r.profile_key);
-    else if (r.profile_type === 'office' && OFFICE_EDIT_POSITIONS.has(r.office_position)) offices.push(r.profile_key);
+    else if (r.profile_type === 'office') {
+      members.add(r.profile_key);
+      if (OFFICE_EDIT_POSITIONS.has(r.office_position)) offices.push(r.profile_key);
+    }
   }
-  return { architects, offices };
-}
-
-// Kullanıcının onaylı atamalarına (mimar ya da firma) project_designers üzerinden bağlı projelerin
-// slug'ları. GERÇEK BULGU (ilk uygulama): arşivdeki TÜM projeler çekilip her biri için ayrı ayrı
-// canUserEditProjectBySlug çağrılıyordu — proje başına 3+ D1 sorgusu, yüzlerce satırda kabul
-// edilemez. Bağ TEK sorguda, ters yönden (atamadan projeye) çözülür; yetki kuralı aynıdır çünkü
-// canUserEditProjectBySlug de tam olarak bu iki bağa bakar (ve firma tarafındaki görev kısıtı
-// yukarıda, fetchApprovedClaimKeys'te zaten uygulandı).
-const CLAIMED_PROJECT_SLUG_LIMIT = 400;
-
-async function fetchClaimedProjectSlugs(env, claimKeys) {
-  const names = [...claimKeys.architects, ...claimKeys.offices];
-  if (!names.length) return [];
-  const ph = names.map(() => '?').join(', ');
-  const { results } = await env.DB.prepare(
-    `SELECT DISTINCT p.slug AS slug FROM projects p
-     JOIN project_designers pd ON pd.project_id = p.id
-     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
-     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
-     WHERE p.deleted_at IS NULL AND (ar.name IN (${ph}) OR ofc.name IN (${ph}))
-     LIMIT ${CLAIMED_PROJECT_SLUG_LIMIT}`
-  ).bind(...names, ...names).all();
-  return (results || []).map(r => r.slug).filter(Boolean);
+  for (const r of ownedOffices || []) if (r.name) members.add(r.name);
+  return { architects, offices, memberOffices: [...members] };
 }
 
 // SQLite ifade-ağacı derinlik sınırı (bkz. [[project_sqlite_expression_tree_depth_100]]): `A OR B OR
-// ...` zinciri yerine DÜZ bir IN (...) listesi kullanılır. Onaylı atama sayısı her zaman küçüktür
-// (canlıda 34) ama kural yine de korunur.
+// ...` zinciri yerine DÜZ bir IN (...) listesi kullanılır. Boş liste `IN ()` SÖZDİZİMİ HATASIDIR —
+// o durumda koşul hiç eşleşmeyen `(NULL)` listesine düşer.
 function inClause(values) {
-  return values.map(() => '?').join(', ');
+  return values.length ? values.map(() => '?').join(', ') : 'NULL';
 }
 
+// Arşiv satırının bağlı olduğu canonical projeyi kullanıcının atamalarına project_designers üzerinden,
+// TEK sorguda ve TERS yönden (atamadan projeye) bağlar. GERÇEK BULGU (ilk uygulama): arşivdeki TÜM
+// projeler çekilip her biri için ayrı ayrı canUserEditProjectBySlug çağrılıyordu — proje başına 3+ D1
+// sorgusu, yüzlerce satırda kabul edilemez. Yetki kuralı aynıdır çünkü canUserEditProjectBySlug de
+// tam olarak bu iki bağa (künyedeki mimar / firma) bakar.
+//
+// ESKİ HÂLİN İKİ SORUNU (2026-09-11): slug'lar önce ayrı bir sorguda `LIMIT 400` ile çekilip sonra
+// IN (...) listesi olarak İKİ KEZ bind ediliyordu — (1) çok projeli bir firmada 400'ün ötesindeki
+// arşiv satırları sessizce kayboluyordu, (2) D1'in ifade başına 100 bind parametresi sınırı 50 slug'da
+// aşılıyordu. Artık bağ bir alt sorgudur, bind edilen yalnızca (her zaman az sayıda) profil adlarıdır.
+function linkedProjectSlugsSql(names) {
+  const ph = inClause(names);
+  return {
+    sql: `SELECT p.slug FROM projects p
+          JOIN project_designers pd ON pd.project_id = p.id
+          LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+          LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+          WHERE p.deleted_at IS NULL AND (ar.name IN (${ph}) OR ofc.name IN (${ph}))`,
+    binds: [...names, ...names],
+  };
+}
+
+// Ürün/malzemenin markasına bağ — canUserEditProductBySlug'daki AYNI iki yol: canonical satırın
+// brand_office_id'si (asıl bağ) ya da taslağın serbest metin `brand` alanı (brand_office_id'si boş
+// eski kayıtlar; canlıda 2026-09-11 itibarıyla 25 arşiv satırı). Metin eşleşmesi Türkçe casefold'la
+// yapılır (bkz. src/lib/textMatch.js#foldTr) ama foldTr SQL'de YOK — bu yüzden arşivdeki farklı
+// marka metinleri (canlıda ~40) önce çekilir, casefold burada yapılır ve SQL'e TAM metinler gider.
+function brandMatchSql(names, brandTexts) {
+  const namePh = inClause(names);
+  return {
+    sql: `(brand IN (${inClause(brandTexts)}) OR claimed_slug IN (
+            SELECT p.slug FROM products p JOIN offices o ON o.id = p.brand_office_id
+            WHERE p.deleted_at IS NULL AND o.deleted_at IS NULL AND o.name IN (${namePh})))`,
+    binds: [...brandTexts, ...names],
+  };
+}
+
+async function brandTextsMatching(env, table, names) {
+  if (!names.length) return [];
+  const wanted = new Set(names.map(foldTr));
+  const { results } = await env.DB.prepare(
+    `SELECT DISTINCT brand FROM ${table} WHERE status = 'archived' AND brand IS NOT NULL AND brand <> ''`
+  ).bind().all();
+  return (results || []).map(r => r.brand).filter(b => wanted.has(foldTr(b)));
+}
+
+// Her satır `_can_edit` (0/1) taşır: kutuda "Düzenle ve Yayına Al" butonu yalnızca buna göre
+// verilir. GÖRÜNÜRLÜK ile YETKİ bu istekle birlikte AYRILDI — firmanın Ekip Üyesi arşivdeki projeyi
+// GÖRÜR ama *-ekle.html?edit= onun için 404 döner (bkz. src/routes/submissions.js#
+// canAccessSubmissionRow), bu yüzden ona ölü bir buton gösterilmez.
 async function fetchArchivedRows(env, user, typeKey, claimKeys) {
   const table = TYPE_TO_TABLE[typeKey];
   const claimedCol = CLAIMED_COLUMN[typeKey];
-  const keys = typeKey === 'architects' ? claimKeys.architects : typeKey === 'offices' ? claimKeys.offices : [];
-  // projects: claimed_slug bir SLUG'tır, profile_key ise bir İSİM — ikisi doğrudan karşılaştırılamaz,
-  // bu yüzden proje satırlarında sahiplik owner_user_id ile alınır ve künye üzerinden gelen yetki
-  // aşağıda canUserEditProjectBySlug ile satır satır doğrulanır (o fonksiyon zaten künyedeki
-  // mimar/firma atamalarını okuyor, bkz. src/lib/projectClaimAccess.js).
+  const editNames = [...claimKeys.architects, ...claimKeys.offices];
+  const seeNames = [...new Set([...claimKeys.architects, ...claimKeys.memberOffices])];
   if (typeKey === 'projects') {
-    const slugs = await fetchClaimedProjectSlugs(env, claimKeys);
-    const where = slugs.length
-      ? `status = 'archived' AND (owner_user_id = ? OR claimed_slug IN (${inClause(slugs)}) OR slug IN (${inClause(slugs)}))`
-      : `status = 'archived' AND owner_user_id = ?`;
-    const binds = slugs.length ? [user.id, ...slugs, ...slugs] : [user.id];
+    // claimed_slug (anahtarla arşivlenen taslak) ya da slug (üyenin kendi gönderisi) — ikisi de
+    // canonical projeye giden yollardır (bkz. src/routes/legacyContent.js#runProjectAction).
+    const see = linkedProjectSlugsSql(seeNames);
+    const edit = linkedProjectSlugsSql(editNames);
     const { results } = await env.DB.prepare(
-      `SELECT * FROM project_submissions WHERE ${where} ORDER BY updated_at DESC LIMIT 500`
-    ).bind(...binds).all();
+      `WITH see_slugs AS (${see.sql}), edit_slugs AS (${edit.sql})
+       SELECT *, (owner_user_id = ? OR claimed_slug IN (SELECT slug FROM edit_slugs) OR slug IN (SELECT slug FROM edit_slugs)) AS _can_edit
+       FROM project_submissions
+       WHERE status = 'archived' AND (owner_user_id = ? OR claimed_slug IN (SELECT slug FROM see_slugs) OR slug IN (SELECT slug FROM see_slugs))
+       ORDER BY updated_at DESC LIMIT 500`
+    ).bind(...see.binds, ...edit.binds, user.id, user.id).all();
     return results || [];
   }
   if (typeKey === 'products' || typeKey === 'materials') {
     // Ürün/malzeme gönderilerinde claim kolonu YOKTUR (bkz. src/routes/legacyContent.js#
     // CONTENT_ACTION_TYPES) — bir ürünün "sahibi", markasının (offices kaydının) sahibidir; bu,
     // ürün düzenleme yetkisinin zaten var olan kuralıdır (bkz. src/lib/projectClaimAccess.js#
-    // canUserEditProductBySlug). Marka adı serbest metin olduğundan karşılaştırma Türkçe casefold
-    // ile yapılır (bkz. src/lib/textMatch.js#foldTr).
+    // canUserEditProductBySlug).
+    //
+    // GERÇEK BULGU (2026-09-11): eski hâl arşivdeki TÜM ürünleri `LIMIT 500` ile çekip marka
+    // filtresini SONRADAN JS'te uyguluyordu — canlıda 692 arşiv ürünü var, yani bir markanın en eski
+    // ürünleri kutuya HİÇ gelmiyordu. Filtre artık SQL'de.
+    const seeBrands = await brandTextsMatching(env, table, claimKeys.memberOffices);
+    const editBrands = seeBrands.filter(b => claimKeys.offices.some(n => foldTr(n) === foldTr(b)));
+    const see = brandMatchSql(claimKeys.memberOffices, seeBrands);
+    const edit = brandMatchSql(claimKeys.offices, editBrands);
     const { results } = await env.DB.prepare(
-      `SELECT * FROM ${table} WHERE status = 'archived' ORDER BY updated_at DESC LIMIT 500`
-    ).bind().all();
-    const brandSet = new Set(claimKeys.offices.map(foldTr));
-    return (results || []).filter(row => row.owner_user_id === user.id || (row.brand && brandSet.has(foldTr(row.brand))));
+      `SELECT *, (owner_user_id = ? OR ${edit.sql}) AS _can_edit FROM ${table}
+       WHERE status = 'archived' AND (owner_user_id = ? OR ${see.sql})
+       ORDER BY updated_at DESC LIMIT 500`
+    ).bind(user.id, ...edit.binds, user.id, ...see.binds).all();
+    return results || [];
   }
-  const where = keys.length
-    ? `status = 'archived' AND (owner_user_id = ? OR ${claimedCol} IN (${inClause(keys)}) OR name IN (${inClause(keys)}))`
-    : `status = 'archived' AND owner_user_id = ?`;
-  const binds = keys.length ? [user.id, ...keys, ...keys] : [user.id];
+  // Kişi/firma/marka PROFİLİNİN kendi arşivi: görünürlük = düzenleme yetkisi (değişmedi).
+  const keys = typeKey === 'architects' ? claimKeys.architects : claimKeys.offices;
   const { results } = await env.DB.prepare(
-    `SELECT * FROM ${table} WHERE ${where} ORDER BY updated_at DESC LIMIT 500`
-  ).bind(...binds).all();
+    `SELECT *, 1 AS _can_edit FROM ${table}
+     WHERE status = 'archived' AND (owner_user_id = ? OR ${claimedCol} IN (${inClause(keys)}) OR name IN (${inClause(keys)}))
+     ORDER BY updated_at DESC LIMIT 500`
+  ).bind(user.id, ...keys, ...keys).all();
   return results || [];
 }
 
@@ -148,15 +207,19 @@ async function fetchArchivedRows(env, user, typeKey, claimKeys) {
 // taslağı 'approved'a çevirir ve canonical satırı yeniden yayına alır (bkz. src/routes/
 // submissions.js#updateOwnSubmission -> unhideIfClaimedApproved).
 //
-// editUrl HER kayıt için verilir (sahibi olsun olmasın): *-ekle.html?edit= yolu artık atanmış
-// profil üzerinden de açılabiliyor (bkz. src/routes/submissions.js#canAccessSubmissionRow).
+// editUrl, kullanıcının kaydı DÜZENLEYEBİLDİĞİ her satırda verilir (sahibi olsun olmasın):
+// *-ekle.html?edit= yolu atanmış profil üzerinden de açılabiliyor (bkz. src/routes/submissions.js#
+// canAccessSubmissionRow). Kaydı yalnızca firma ÜYELİĞİYLE gören kullanıcıda (ör. Ekip Üyesi)
+// editUrl null'dır — o sayfa ona 404 döner; kutu butonun yerine kısa bir not gösterir.
 //
 // Detay bağlantısı BİLEREK verilmez: kayıt arşivde olduğu için canlı sayfası 410 döner (bkz.
 // src/lib/seo.js hidden_at filtresi) — kullanıcıyı ölü bir bağlantıya göndermenin anlamı yok.
-function shapeRow(typeKey, row, owned) {
+function shapeRow(typeKey, rawRow, owned) {
+  const { _can_edit: canEditFlag, ...row } = rawRow;
+  const canEdit = !!owned || !!canEditFlag;
   const item = parseSubmissionRow(typeKey, row);
-  const base = { type: typeKey, id: row.id, archivedAt: row.updated_at || row.created_at, owned: !!owned };
-  const editUrlFor = (page, stype) => `${page}?edit=${encodeURIComponent(row.id)}&stype=${stype}`;
+  const base = { type: typeKey, id: row.id, archivedAt: row.updated_at || row.created_at, owned: !!owned, canEdit };
+  const editUrlFor = (page, stype) => (canEdit ? `${page}?edit=${encodeURIComponent(row.id)}&stype=${stype}` : null);
   if (typeKey === 'projects') {
     return { ...base, kind: 'project', title: item.title || '—',
       subtitle: [item.location, item.date].filter(Boolean).join(' · '),
