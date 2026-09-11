@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS office_submissions (
   social_platform TEXT, -- bkz. migrations/0035_social_media.sql
   social_url TEXT, -- bkz. migrations/0035_social_media.sql
   social_links TEXT, -- bkz. migrations/0036_social_links.sql
-  team TEXT -- Kurucular dışındaki ekip üyeleri (bkz. migrations/0048_office_team.sql)
+  team TEXT, -- Kurucular dışındaki ekip üyeleri (bkz. migrations/0048_office_team.sql)
+  locations TEXT -- ofis/mağaza konumları JSON [{lat,lng,label?}] (bkz. migrations/0114_office_locations.sql)
 );
 CREATE INDEX IF NOT EXISTS idx_office_owner ON office_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_office_status_created ON office_submissions(status, created_at DESC);
@@ -655,7 +656,7 @@ CREATE TABLE IF NOT EXISTS offices (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, social_platform TEXT, social_url TEXT, social_links TEXT, cover_url TEXT);
+, hidden_at TEXT, social_platform TEXT, social_url TEXT, social_links TEXT, cover_url TEXT, locations TEXT);
 CREATE INDEX IF NOT EXISTS idx_offices_claimed_by ON offices(claimed_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_offices_hidden_or_deleted ON offices(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 -- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
