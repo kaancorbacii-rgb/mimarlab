@@ -517,7 +517,7 @@ async function updateUserAdmin(request, env, targetId) {
   if (!exists) return errorJson('Kullanıcı bulunamadı.', 404);
   const body = await readJson(request);
   const result = await updateUserProfileFields(env, targetId, body);
-  if (result.error) return errorJson(result.error);
+  if (result.error) return errorJson(result.error, result.status || 400);
   return json({ user: result.user });
 }
 

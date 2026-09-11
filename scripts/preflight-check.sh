@@ -397,6 +397,16 @@ else
   tail -25 /tmp/preflight_round11 >&2
 fi
 
+# Kullanıcı isteği, 2026-09-11: Kişi sayfasındaki bir adla üye olunabilir, daha önce üye olan bir
+# kullanıcının adıyla olunamaz; aynı adla yeni kişi paylaşımı reddedilmeye devam eder.
+# Bkz. scripts/test-2026-09-11-signup-name.mjs.
+if node scripts/test-2026-09-11-signup-name.mjs >/tmp/preflight_signup_name 2>&1; then
+  ok "üye ol ad soyad kuralı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_signup_name) test)"
+else
+  bad "üye ol ad soyad kuralı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_signup_name >&2
+fi
+
 # Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde
 # kişiler sayfası takılı kaldı"). İlk liste çizimi artık DOMContentLoaded'ı beklemiyor; bu yüzden
 # çizimin dokunduğu image-cdn.js (tüm hub'lar) ve catalog-taxonomy.js (urun) defer OLMADAN yüklenmeli,

@@ -175,14 +175,26 @@ function foldTrName(v) {
   return foldTr(v).replace(/\s+/g, ' ').trim();
 }
 
-export async function findArchitectByFoldedName(env, name) {
+// Kullanıcı isteği (2026-09-11): "Kullanıcılar sitede kayıtlı kişi isimleriyle aynı isimde kullanıcı
+// hesabı oluşturabilsinler. Lakin aynı isimde yeniden bir kişi paylaşımı yapamasınlar. ... daha önce
+// üye olan kullanıcı adıyla aynı isim yazılamaz."
+// AYRIM: HESAP adı (users.name) ile KİŞİ profili (architects) iki ayrı ad alanıdır.
+//   * Hesap adı yalnızca DİĞER HESAPLARLA çakışamaz (bu fonksiyon) — Kişi sayfasındaki bir adla
+//     üye olmak SERBEST: kişi çoğu zaman sahiplenilmemiş profilin gerçek sahibidir, kayıttan sonra
+//     "Bu profil bana ait" ile profili alır (eskiden kayıt burada engelleniyordu).
+//   * Aynı adla YENİ bir kişi paylaşımı (kisi-ekle / Hesabım'dan dizine katılma) hâlâ reddedilir —
+//     o kapı submissions.js#createSubmission içindeki isDuplicateCanonicalName'dir, burası değil.
+// excludeUserId: Hesabım'dan ad güncellerken kullanıcının KENDİ satırı çakışma sayılmasın.
+// users birkaç yüz satır; foldTrName (Türkçe casefold + NFC + boşluk sadeleştirme) SQL'de
+// yapılamadığından JS'te karşılaştırılır — findArchitectByFoldedName'in eski deseniyle aynı.
+export async function findUserByFoldedName(env, name, excludeUserId = null) {
   const target = foldTrName(name);
   if (!target) return null;
-  const { results } = await env.DB.prepare(
-    `SELECT id, name, slug, claimed_by_user_id FROM architects WHERE deleted_at IS NULL`
-  ).all();
-  return results.find(r => foldTrName(r.name) === target) || null;
+  const { results } = await env.DB.prepare(`SELECT id, name FROM users`).all();
+  return (results || []).find(r => r.id !== excludeUserId && foldTrName(r.name) === target) || null;
 }
+
+const DUPLICATE_USER_NAME_ERROR = 'Bu ad soyad ile daha önce üye olunmuş. Farklı bir ad soyad gir (örneğin ikinci adını ya da bir baş harf ekleyerek).';
 
 async function signup(request, env) {
   const ip = clientIp(request);
@@ -215,15 +227,11 @@ async function signup(request, env) {
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) return errorJson('Bu e-posta ile zaten bir hesap var.', 409);
 
-  // Kullanıcı isteği (2026-09-02): "Kişi sayfasında yer alan halihazırdaki bir ad soyadla siteye
-  // tekrar üye olunamasın." Kişi dizinindeki (architects) bir adla AYNI ada sahip yeni hesap
-  // açılamaz — aksi halde iki farklı kişi sitede aynı isimle görünür ve künye eşleştirmesi
-  // (isim bazlı, bkz. proje belleği "duplicate name key limitation") belirsizleşir.
-  // Karşılaştırma foldTrName ile Türkçe-duyarlı yapılır ("İnci" ile "inci" aynı sayılır);
-  // aynı normalize karşılaştırma /api/public/check-name'de de kullanılıyor, iki taraf tutarlı.
-  const nameClash = await findArchitectByFoldedName(env, name);
-  if (nameClash) {
-    return errorJson('Bu ad soyad Kişi sayfasında zaten kayıtlı. Bu profil sanaysa kayıt olduktan sonra "Bu profil bana ait" ile sahiplenebilirsin.', 409);
+  // Hesap adı yalnızca DİĞER HESAPLARLA çakışamaz — Kişi sayfasındaki bir adla üye olmak serbesttir
+  // (kullanıcı isteği 2026-09-11, bkz. findUserByFoldedName'in üstündeki ayrım). 2026-09-02'deki
+  // "Kişi sayfasındaki adla üye olunamasın" kuralının yerini aldı.
+  if (await findUserByFoldedName(env, name)) {
+    return errorJson(DUPLICATE_USER_NAME_ERROR, 409);
   }
 
   const id = newId();
@@ -449,18 +457,14 @@ export async function updateUserProfileFields(env, userId, body) {
   if ('school' in body && isInvalidSchoolValue(body.school)) {
     return { error: 'Geçerli bir üniversite adı gir (kısaltma kullanma).' };
   }
-  // Kullanıcı isteği (2026-09-02): "...ya da profilini düzenle deyip aynı ad soyad seçilemesin."
-  // signup'taki AYNI kontrol (bkz. findArchitectByFoldedName). KENDİ sahiplendiği profil hariç
-  // tutulur — kullanıcı zaten bir mimar profiline sahipse adını o profille aynı bırakabilmeli,
-  // aksi halde kendi profilini "çakışma" sayıp her kaydetmeyi engellerdik.
+  // Hesabım'dan ad değişikliği signup ile AYNI kural: başka bir HESABIN adı seçilemez, Kişi
+  // sayfasındaki bir ad seçilebilir (kullanıcı isteği 2026-09-11). Kişi dizinine aynı adla yeni bir
+  // kayıt açma girişimi ise submitArchitectSyncIfNeeded → POST /api/submissions/architects'te
+  // isDuplicateCanonicalName ile yakalanır ve istemci "Bu profil bana ait" uyarısını orada gösterir
+  // (duplicateName/existingSlug yanıtı, bkz. submissions.js#isSelfDirectoryListing).
   if ('name' in body && body.name) {
-    const clash = await findArchitectByFoldedName(env, body.name);
-    if (clash && clash.claimed_by_user_id !== userId) {
-      // duplicateName/existingSlug/existingName (kullanıcı isteği, 2026-09-06): istemcinin (bkz.
-      // auth-modal.js#am-dash-save-btn) düz bir hata metni yerine "X kişisi zaten var, profile
-      // giderek 'Bu profil bana ait' talebi oluştur" uyarısını gösterebilmesi için — submissions.js#
-      // createSubmission'daki AYNI zenginleştirilmiş 409 yanıtı (bkz. isSelfDirectoryListing).
-      return { error: 'Bu ad soyad Kişi sayfasında zaten kayıtlı. Farklı bir ad soyad gir.', duplicateName: true, existingSlug: clash.slug, existingName: clash.name };
+    if (await findUserByFoldedName(env, body.name, userId)) {
+      return { error: DUPLICATE_USER_NAME_ERROR, status: 409 };
     }
   }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
@@ -506,7 +510,7 @@ export async function handleProfileRoute(request, env, url) {
     if (result.duplicateName) {
       return json({ error: result.error, duplicateName: true, existingSlug: result.existingSlug, existingName: result.existingName }, 409);
     }
-    return errorJson(result.error);
+    return errorJson(result.error, result.status || 400);
   }
   return json({ user: result.user });
 }
