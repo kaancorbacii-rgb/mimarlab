@@ -349,7 +349,10 @@ const ProductModal = (function () {
         #pr-users-pair{order:8;}
         #pr-company-section{order:9;}
         #pr-related-section{order:10;}
-        #pr-prevnext{order:11;}
+        /* Önceki/Sonraki Ürün popup'ın EN ALTINDA (kullanıcı isteği, 2026-09-11: "Tablet ve mobil
+           görünümde tüm önceki sonraki butonları popupın en altında olsunlar") — dosyalar ve geri
+           bildirim kutusunun da altında; proje popup'ındaki #pm-prevnext ile AYNI kural. */
+        #pr-prevnext{order:15;}
         #pr-info-divider{order:12;}
         #pr-files-card{order:13;}
         #pr-feedback-card{order:14;}

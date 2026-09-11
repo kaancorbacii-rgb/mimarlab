@@ -387,11 +387,6 @@
             </div>
           </div>
         </fieldset>
-        <fieldset class="form-field">
-          <legend>Ofis / Mağaza Konumları</legend>
-          <div id="o-locations-picker"></div>
-          <div class="form-hint">Haritaya tıklayarak ya da arama sonucundan seçerek ofislerinin/mağazalarının konumlarını işaretle — birden fazla konum ekleyebilirsin. Pini sürükleyerek konumu düzeltebilirsin.</div>
-        </fieldset>
         <!-- Websitesi + Ödül satırı, Kurucular satırının ÜSTÜNDE (kullanıcı isteği, 2026-09-01
              madde 6: "websitesi ve ödül satırıyla kurucu satırının yerlerini değiştir").
              Satırın KENDİ İÇİNDE Websitesi solda / Ödül sağda kalır (2026-08-31 madde 7). -->
@@ -533,7 +528,6 @@
   <footer id="site-footer-mount"></footer>
 
 <script src="il-ilce-data.js"></script>
-<script src="js/components/location-picker.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
 <script src="js/components/rights-consent.js" defer></script>
 <script>
@@ -688,23 +682,6 @@ function applyLocToDropdowns(locStr){
     }
   }
 }
-
-// ---------- OFİS / MAĞAZA KONUMLARI (kullanıcı isteği, 2026-09-11) — çoklu harita seçici, bkz.
-// js/components/location-picker.js. İl henüz seçilmemişse işaretlenen noktanın ters jeokodu İl/İlçe'yi
-// doldurur (proje-ekle.html#reverseGeocodeAndFillLocation ile AYNI il/ilçe eşlemesi).
-function fillIlIlceFromAddress(addr){
-  if(selectedIl || !addr) return;
-  const il = IL_LIST.find(x => trLower(x) === trLower(addr.state || addr.province || ''));
-  if(!il) return;
-  const ilceList = IL_ILCE[il] || [];
-  const ilce = [addr.town, addr.county, addr.city_district, addr.suburb, addr.district].filter(Boolean)
-    .map(c => ilceList.find(x => trLower(x) === trLower(c))).find(Boolean);
-  applyLocToDropdowns(ilce ? `${il} / ${ilce}` : il);
-  if(!selectedIlce) document.getElementById('dd-ilce-btn-label').textContent = 'İlçe seç';
-}
-const officeLocationPicker = window.MultiLocationPicker
-  ? MultiLocationPicker.mount(document.getElementById('o-locations-picker'), { onGeocode: fillIlIlceFromAddress })
-  : null;
 
 // ---------- KURULUŞ YILI: tek seçimlik açılır pencere (1923'e kadar) ----------
 const CURRENT_YEAR = new Date().getFullYear();
@@ -1095,7 +1072,6 @@ async function prefillForEdit(){
     document.getElementById('o-name').value = item.name || '';
     originalName = item.name || '';
     applyLocToDropdowns(item.loc || '');
-    if(officeLocationPicker) officeLocationPicker.set(item.locations || []);
     if(item.yil){ selectedYil = item.yil; document.getElementById('dd-yil-btn-label').textContent = String(item.yil); }
     document.getElementById('o-website').value = item.website || '';
     document.getElementById('o-desc').value = item.about || '';
@@ -1211,7 +1187,7 @@ async function prefillForClaim(){
       const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
-        merged = overlayNonEmpty(merged, { name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, team: mine.team, logo: mine.logo_url, social_links: mine.social_links, locations: mine.locations });
+        merged = overlayNonEmpty(merged, { name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, team: mine.team, logo: mine.logo_url, social_links: mine.social_links });
       }
     }
   }catch{}
@@ -1231,7 +1207,6 @@ async function prefillForClaim(){
     nameInput.style.background = 'var(--paper-alt)';
   }
   applyLocToDropdowns(merged.loc || '');
-  if(officeLocationPicker) officeLocationPicker.set(merged.locations || []);
   if(merged.yil){ selectedYil = merged.yil; document.getElementById('dd-yil-btn-label').textContent = String(merged.yil); }
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
@@ -1400,9 +1375,6 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     logo_url: logoUrl,
     cover_url: coverUrl,
     social_links: collectSocialLinks(),
-    // Seçici yüklenemediyse alan HİÇ gönderilmez (undefined JSON'a yazılmaz) — sunucu mevcut
-    // konumlara dokunmaz (bkz. submissionTypes.js#nullableArrayFields).
-    locations: officeLocationPicker ? officeLocationPicker.get() : undefined,
   };
   // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu bu iki alanı
   // ZORUNLU kılar (src/lib/rightsConsent.js#requireRightsAcceptance); kutu işaretlenmeden gönderim
@@ -1461,7 +1433,6 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     showPostSubmitClaimBox(payload.name);
     form.reset();
     selectedIl = null; selectedIlce = null; selectedYil = null;
-    if(officeLocationPicker) officeLocationPicker.set([]);
     document.getElementById('dd-il-btn-label').textContent = 'İl seç';
     document.getElementById('dd-ilce-btn-label').textContent = 'Önce il seç';
     document.getElementById('dd-ilce-btn').disabled = true;

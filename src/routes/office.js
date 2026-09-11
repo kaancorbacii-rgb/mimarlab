@@ -6,7 +6,6 @@ import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity, coverImage } from '../lib/serializePublicEntity.js';
 import { resolveSlugRedirect } from '../lib/slugRedirects.js';
-import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 // bkz. src/routes/product.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
 // sınıflandırma referansı (hangi hizmet alanı firmaya, hangisi markaya ait).
@@ -492,10 +491,41 @@ async function fetchOtherOfficesFallback(env, selfId, isBrand, need, excludeSlug
   return pool.slice(0, need).map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
 }
 
-// Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
-async function fetchAdjacentOffice(env, id) {
-  const { prev, next } = await fetchAdjacentEntity(env, 'offices', id, { titleCol: 'name', imageCol: 'logo_url' });
-  return { prevItem: prev, nextItem: next };
+// Önceki/Sonraki Firma ya da Marka — AYNI TÜRDEN komşu (kullanıcı isteği, 2026-09-11: "Marka
+// popupında bu butonlar önceki marka ve sonraki marka şeklinde olsunlar"). Tür SQL'de değil
+// isPureBrandOffice(cats, ürün sayısı) ile belirlendiğinden fetchAdjacentEntity'nin extraWhere'i
+// yetmez: id sırasında 50'lik partilerle ilerlenir, aynı türden ilk kayıt alınır; uçta başa sarılır
+// (fetchAdjacentEntity'deki AYNI dairesel davranış).
+const ADJ_OFFICE_BATCH = 50;
+async function nearestOfficeOfKind(env, id, dir, isBrand) {
+  const op = dir === 'prev' ? '<' : '>';
+  const order = dir === 'prev' ? 'DESC' : 'ASC';
+  const sql = `SELECT o.id, o.slug, o.name, o.logo_url, o.cats,
+       (SELECT COUNT(*) FROM products pr WHERE pr.brand_office_id = o.id AND pr.deleted_at IS NULL) AS product_count
+     FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL AND o.id ${op} ?
+     ORDER BY o.id ${order} LIMIT ${ADJ_OFFICE_BATCH}`;
+  let cursor = id;
+  let wrapped = false;
+  for (let guard = 0; guard < 40; guard++) {
+    const rows = (await env.DB.prepare(sql).bind(cursor).all()).results || [];
+    const hit = rows.find(r => r.id !== id && isPureBrandOffice(parseCanonicalRow('offices', r).cats, r.product_count || 0) === !!isBrand);
+    if (hit) return { slug: hit.slug, title: hit.name, image: hit.logo_url || null };
+    if (rows.length < ADJ_OFFICE_BATCH) {
+      if (wrapped) return null;
+      wrapped = true;
+      cursor = dir === 'prev' ? Number.MAX_SAFE_INTEGER : -Number.MAX_SAFE_INTEGER;
+      continue;
+    }
+    cursor = rows[rows.length - 1].id;
+  }
+  return null;
+}
+async function fetchAdjacentOffice(env, id, isBrand) {
+  const [prevItem, nextItem] = await Promise.all([
+    nearestOfficeOfKind(env, id, 'prev', isBrand),
+    nearestOfficeOfKind(env, id, 'next', isBrand),
+  ]);
+  return { prevItem, nextItem };
 }
 
 // FİRMANIN KİŞİLERİ — Kurucular/Ortaklar + Ekip (bkz. buildOfficePayload'daki TEK KURAL notu).
@@ -928,8 +958,6 @@ export async function buildOfficePayload(env, key) {
     // coverImage() ile ilk görselini içeriyor, yani [0].images[0] tam olarak "son projenin ilk
     // görseli"dir. Havuz sorgusundaki SQL sıralaması ile bu JS sıralaması aynı veriyi kullanır.
     logo: o.logo_url, cover: o.cover_url || (relatedProjects[0] && relatedProjects[0].images && relatedProjects[0].images[0]) || null, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
-    // Ofis/mağaza konumları — popup'taki "Harita" bölümü (bkz. migrations/0114_office_locations.sql).
-    locations: Array.isArray(o.locations) ? o.locations : [],
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html
@@ -943,7 +971,7 @@ export async function buildOfficePayload(env, key) {
   const isSubmissionMarker = typeof o.legacy_key === 'string' && o.legacy_key.startsWith('submission:');
   if (o.legacy_key && !isSubmissionMarker && o.legacy_key !== o.name) item._claimKey = o.legacy_key;
 
-  const adjacent = await fetchAdjacentOffice(env, o.id);
+  const adjacent = await fetchAdjacentOffice(env, o.id, isBrand);
 
   // claimed (kullanıcı isteği, 2026-09-08 madde 5): bu firma/marka bir üyeye atanmışsa pop-up'taki
   // kaynak ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısı kalır (bkz.

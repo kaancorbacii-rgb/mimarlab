@@ -190,7 +190,11 @@ const OfficeModal = (function () {
         /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
            modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/geri
            bildirim kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
-        #claim-info-card, #correction-info-card{order:99;}
+        #claim-info-card, #correction-info-card{order:98;}
+        /* Önceki/Sonraki popup'ın EN ALTINDA, claim/geri bildirim kutularının da altında (kullanıcı
+           isteği, 2026-09-11: "Tablet ve mobil görünümde tüm önceki sonraki butonları popupın en
+           altında olsunlar") — kutular sol panelde, bu buton sağ panelde; order ikisini ayırır. */
+        #om-prevnext{order:99;}
         /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
            gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Kurucular / Ortaklar" artık görsel
            olarak ilk değil, hemen üstünde kimlik/künye bölümünün hr.detail-info-divider'ı var (bkz.
@@ -202,12 +206,7 @@ const OfficeModal = (function () {
            kalsaydı üst üste 2 çizgi (bkz. kullanıcı isteği: çift çizgi hatası) belirirdi, bu yüzden
            mobil/tablette gizlenir. */
         .detail-info-divider{display:none;}
-        /* Önceki/Sonraki butonlarından hemen sonra, claim/geri bildirim kutularından ÖNCE bir ayırıcı
-           (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
-           çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
-        .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
       }
-      .prevnext-mobile-divider{display:none;}
       /* Projeler haritası — bkz. js/components/architect-modal.js#injectStyles İLE BİREBİR AYNI
          (kullanıcı isteği: "Projeler"in altına, firmanın koordinatlı TÜM projelerini pinleyen açık
          bir harita) — js/pages/proje.js#loadLeaflet İLE AYNI Leaflet + Esri World Imagery yığını/
@@ -223,13 +222,6 @@ const OfficeModal = (function () {
       .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
       @media (max-width:860px){
         .om-projects-map-wrap{height:220px;}
-      }
-      .om-location-map-wrap{margin-top:12px; height:240px; border-radius:10px; overflow:hidden; background:var(--paper-alt);}
-      .om-location-map-wrap .leaflet-container{width:100%; height:100%; background:var(--paper-alt); font-family:inherit;}
-      .om-location-popup{font-size:13px; line-height:1.4; color:var(--ink); max-width:220px;}
-      @media (max-width:860px){
-        #om-location-section{order:98;}
-        .om-location-map-wrap{height:220px;}
       }
     `;
     document.head.appendChild(style);
@@ -257,12 +249,6 @@ const OfficeModal = (function () {
       <div class="detail-desc" id="om-about"></div>
       <hr class="detail-info-divider">
     </div>
-    <!-- Harita (kullanıcı isteği, 2026-09-11): proje popup'ındaki gibi açılır-kapanır, varsayılan
-         AÇIK — firmanın/markanın ofis–mağaza konumları (bkz. renderLocationSection). -->
-    <details class="feedback-card" id="om-location-section" open style="display:none;">
-      <summary>Harita<span class="feedback-card-plus" aria-hidden="true"></span></summary>
-      <div class="om-location-map-wrap" id="om-location-map-wrap"></div>
-    </details>
     <details class="feedback-card" id="claim-info-card" style="display:none;">
       <summary><span id="om-claim-card-title">Bu firma sana mı ait?</span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div id="claim-card-body"></div>
@@ -359,8 +345,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-city-grid"></div>
     </div>
     <div class="prevnext" id="om-prevnext"></div>
-    <p class="source-disclaimer" id="om-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaş!</p>
-    <hr class="prevnext-mobile-divider">`;
+    <p class="source-disclaimer" id="om-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaş!</p>`;
 
   let mountedOnce = false;
   let currentSlug = null;
@@ -484,94 +469,6 @@ const OfficeModal = (function () {
       else map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [24, 24], maxZoom: 14 });
       setTimeout(() => map.invalidateSize(), 0);
     });
-  }
-
-  // ---------- Harita (ofis/mağaza konumları) — kullanıcı isteği, 2026-09-11: "Firma ve marka
-  // popuplarında geri bildirim butonunun üstünde aynı proje popuplarında olduğu gibi açılır kapanır ama
-  // defaultta açık bir harita olsun." Veri: item.locations ([{lat,lng,label?}], firma-ekle/marka-ekle
-  // seçicisinden, bkz. js/components/location-picker.js). Konum işaretlenmemiş kayıtlarda proje
-  // popup'ıyla AYNI yedek: künyedeki ilin merkezi (pinsiz) — il de yoksa bölüm hiç gösterilmez.
-  // omProjectsMap'ten AYRI bir Leaflet örneği: iki harita aynı anda ekranda.
-  // bkz. js/components/project-modal.js#TR_PROVINCE_CENTER — AYNI statik tablo (her popup açılışında
-  // canlı Nominatim isteği atmamak için).
-  const TR_PROVINCE_CENTER = {
-    "Adana":[37.0000,35.3213],"Adıyaman":[37.7648,38.2786],"Afyonkarahisar":[38.7507,30.5567],"Ağrı":[39.7191,43.0503],
-    "Aksaray":[38.3687,34.0360],"Amasya":[40.6499,35.8353],"Ankara":[39.9334,32.8597],"Antalya":[36.8969,30.7133],
-    "Ardahan":[41.1105,42.7022],"Artvin":[41.1828,41.8183],"Aydın":[37.8560,27.8416],"Balıkesir":[39.6484,27.8826],
-    "Bartın":[41.6344,32.3375],"Batman":[37.8812,41.1351],"Bayburt":[40.2552,40.2249],"Bilecik":[40.1451,29.9792],
-    "Bingöl":[38.8855,40.4966],"Bitlis":[38.4006,42.1095],"Bolu":[40.5760,31.5788],"Burdur":[37.7203,30.2908],
-    "Bursa":[40.1826,29.0665],"Çanakkale":[40.1553,26.4142],"Çankırı":[40.6013,33.6134],"Çorum":[40.5506,34.9556],
-    "Denizli":[37.7765,29.0864],"Diyarbakır":[37.9144,40.2306],"Düzce":[40.8438,31.1565],"Edirne":[41.6771,26.5557],
-    "Elazığ":[38.6810,39.2264],"Erzincan":[39.7500,39.5000],"Erzurum":[39.9000,41.2700],"Eskişehir":[39.7767,30.5206],
-    "Gaziantep":[37.0662,37.3833],"Giresun":[40.9128,38.3895],"Gümüşhane":[40.4386,39.5086],"Hakkari":[37.5744,43.7408],
-    "Hatay":[36.2023,36.1600],"Iğdır":[39.9167,44.0333],"Isparta":[37.7648,30.5566],"İstanbul":[41.0082,28.9784],
-    "İzmir":[38.4237,27.1428],"Kahramanmaraş":[37.5858,36.9371],"Karabük":[41.2061,32.6204],"Karaman":[37.1759,33.2287],
-    "Kars":[40.6013,43.0975],"Kastamonu":[41.3887,33.7827],"Kayseri":[38.7312,35.4787],"Kırıkkale":[39.8468,33.5153],
-    "Kırklareli":[41.7333,27.2167],"Kırşehir":[39.1425,34.1709],"Kilis":[36.7184,37.1212],"Kocaeli":[40.8533,29.8815],
-    "Konya":[37.8746,32.4932],"Kütahya":[39.4242,29.9833],"Malatya":[38.3552,38.3095],"Manisa":[38.6191,27.4289],
-    "Mardin":[37.3212,40.7245],"Mersin":[36.8121,34.6415],"Muğla":[37.2153,28.3636],"Muş":[38.9462,41.7539],
-    "Nevşehir":[38.6939,34.6857],"Niğde":[37.9667,34.6833],"Ordu":[40.9862,37.8797],"Osmaniye":[37.0742,36.2478],
-    "Rize":[41.0201,40.5234],"Sakarya":[40.6940,30.4358],"Samsun":[41.2867,36.3300],"Siirt":[37.9333,41.9500],
-    "Sinop":[42.0231,35.1531],"Sivas":[39.7477,37.0179],"Şanlıurfa":[37.1591,38.7969],"Şırnak":[37.4187,42.4918],
-    "Tekirdağ":[40.9833,27.5167],"Tokat":[40.3167,36.5500],"Trabzon":[41.0027,39.7168],"Tunceli":[39.1079,39.5401],
-    "Uşak":[38.6823,29.4082],"Van":[38.4891,43.4089],"Yalova":[40.6500,29.2667],"Yozgat":[39.8181,34.8147],
-    "Zonguldak":[41.4564,31.7987],
-  };
-  let omLocationMap = null;
-  let omLocationSeq = 0;
-  let omLocationData = null;
-  function renderLocationSection(o) {
-    const section = document.getElementById('om-location-section');
-    const wrap = document.getElementById('om-location-map-wrap');
-    if (!section || !wrap) return;
-    const points = (Array.isArray(o.locations) ? o.locations : [])
-      .map(p => ({ lat: Number(p && p.lat), lng: Number(p && p.lng), label: (p && typeof p.label === 'string') ? p.label : '' }))
-      .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-    // offices.loc "İl / İlçe" biçiminde (bkz. firma-ekle.html#applyLocToDropdowns).
-    const [city, district] = String(o.loc || '').split('/').map(s => s.trim());
-    const provinceCenter = city && TR_PROVINCE_CENTER[city];
-    omLocationSeq++; // uçuştaki eski çizimi bayatlat (başka bir profile geçildi)
-    if (omLocationMap) { try { omLocationMap.remove(); } catch { /* zaten kopmuş olabilir */ } omLocationMap = null; }
-    wrap.innerHTML = '';
-    if (!points.length && !provinceCenter) { omLocationData = null; section.style.display = 'none'; return; }
-    omLocationData = { points, fallback: provinceCenter ? { center: provinceCenter, zoom: district ? 11 : 9 } : null };
-    section.style.display = '';
-    // Kullanıcı kutuyu kapatıp açınca (ya da kapalıyken yeni profil açılıp sonra açınca) çizilir;
-    // atama (addEventListener değil) her render'da tek dinleyici kalmasını sağlar.
-    section.ontoggle = () => { if (section.open) drawLocationMap(); };
-    // Popup önce boyansın, Leaflet sonra — bkz. project-modal.js'teki AYNI setTimeout(…, 0) gerekçesi.
-    if (section.open) setTimeout(drawLocationMap, 0);
-  }
-  function drawLocationMap() {
-    const wrap = document.getElementById('om-location-map-wrap');
-    const data = omLocationData;
-    if (!wrap || !data) return;
-    if (omLocationMap) { setTimeout(() => omLocationMap && omLocationMap.invalidateSize(), 0); return; }
-    const mySeq = omLocationSeq;
-    loadOmMapLeaflet().then((L) => {
-      if (mySeq !== omLocationSeq || omLocationMap) return;
-      wrap.innerHTML = '';
-      const inner = document.createElement('div');
-      inner.style.width = '100%';
-      inner.style.height = '100%';
-      wrap.appendChild(inner);
-      const map = L.map(inner, { attributionControl: false });
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(map);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(map);
-      if (data.points.length) {
-        const markers = data.points.map(p => {
-          const marker = L.marker([p.lat, p.lng], { title: p.label }).addTo(map);
-          if (p.label) marker.bindPopup(`<div class="om-location-popup">${escapeHtml(p.label)}</div>`);
-          return marker;
-        });
-        if (markers.length === 1) map.setView(markers[0].getLatLng(), 15);
-        else map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [24, 24], maxZoom: 15 });
-      } else {
-        map.setView(data.fallback.center, data.fallback.zoom);
-      }
-      omLocationMap = map;
-      setTimeout(() => map.invalidateSize(), 0);
-    }).catch(() => { /* harita yüklenemezse kutu boş kalır — popup'ın geri kalanı etkilenmez */ });
   }
 
   // bkz. js/components/modal-shell.js#claimContent — paneller EN SON bu modal (office) tarafından
@@ -719,8 +616,14 @@ const OfficeModal = (function () {
   function renderPrevNext(payload) {
     const el = document.getElementById('om-prevnext');
     let html = '';
-    if (payload.nextItem) html += `<a class="prev" href="/firma/${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Firma</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
-    if (payload.prevItem) html += `<a class="next" href="/firma/${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Firma →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
+    // Marka popup'ında "Önceki/Sonraki Marka" ve /marka/ adresi (kullanıcı isteği, 2026-09-11) — sunucu
+    // komşuyu da AYNI türden seçer (bkz. src/routes/office.js#fetchAdjacentOffice). Önizlemede item
+    // null olabilir; o zaman açık olan yol belirler.
+    const pnBrand = payload.item ? !!payload.item.isBrand : currentBasePath === '/marka/';
+    const pnBase = pnBrand ? '/marka/' : '/firma/';
+    const pnKind = pnBrand ? 'Marka' : 'Firma';
+    if (payload.nextItem) html += `<a class="prev" href="${pnBase}${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki ${pnKind}</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
+    if (payload.prevItem) html += `<a class="next" href="${pnBase}${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki ${pnKind} →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -780,7 +683,7 @@ const OfficeModal = (function () {
   const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
     'om-project-products-section', 'om-related-brands-section',
     'om-brand-product-projects-section', 'om-preferring-pair', 'om-preferring-offices-section',
-    'om-preferring-architects-section', 'om-detail-info', 'om-prevnext', 'om-location-section'];
+    'om-preferring-architects-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
@@ -973,7 +876,6 @@ const OfficeModal = (function () {
 
     renderStructuredData(o);
     renderPrevNext(payload);
-    renderLocationSection(o);
 
     document.getElementById('om-founders-section').style.display = founders.length ? '' : 'none';
     // renderFoundersGrid ayrı bir fonksiyon olarak tutulur — aşağıdaki renderVerifiedBadges ile AYNI

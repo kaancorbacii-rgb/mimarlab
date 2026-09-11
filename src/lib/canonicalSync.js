@@ -716,10 +716,6 @@ async function syncOffice(env, row, opts = {}) {
   const cats = row.cats ? JSON.stringify(row.cats) : null;
   const awards = row.awards ? JSON.stringify(row.awards) : null;
   const socialLinks = row.social_links ? JSON.stringify(row.social_links) : null;
-  // locations (bkz. migrations/0114_office_locations.sql) — taslakta nullableArrayField: null =
-  // "form bu alanı hiç göndermedi" (admin kısa düzenleme formu vb.), canonical'a DOKUNULMAZ; []
-  // = "tüm konumlar silindi", yazılır. Bu yüzden üç dalda da `!= null` kontrolüyle yazılır.
-  const locations = row.locations != null ? JSON.stringify(row.locations) : null;
 
   let result;
   if (target) {
@@ -750,7 +746,6 @@ async function syncOffice(env, row, opts = {}) {
       // aynı zamanda kullanıcının TÜM satırları silip kaydetmesini de sessizce yok sayıyordu —
       // bağlantılar profilde kalmaya devam ediyor, silmenin hiçbir yolu olmuyordu.
       if (row.social_links) { sets.push('social_links = ?'); vals.push(socialLinks); }
-      if (locations != null) { sets.push('locations = ?'); vals.push(locations); }
       // GERÇEK BULGU: 'awards' bu dalda hiç yoktu — firma-ekle.html'de bir Ödül alanı olmadığından
       // (bkz. kullanıcı isteği: proje-ekle.html'e Ödül eklenirken firma-ekle.html'e de eklendi) bugüne
       // kadar tetiklenmemiş, ama offices.awards kolonu/config zaten vardı (bkz. schema.sql, migrations/
@@ -772,7 +767,6 @@ async function syncOffice(env, row, opts = {}) {
       // bağımsız kayıt — kendi taslağının her düzenlemesi tam birebir yansır.
       sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'cover_url = ?', 'social_links = ?', 'awards = ?');
       vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, row.cover_url || null, socialLinks, awards);
-      if (locations != null) { sets.push('locations = ?'); vals.push(locations); }
     }
     // hidden_at HER onaylı senkronda temizlenir — bir bağımsız (claimed_profile_key'siz) kaydın
     // sahibi onaylı içeriğini tekrar düzenlediğinde durum geçici olarak 'pending'e döner ve
@@ -806,9 +800,9 @@ async function syncOffice(env, row, opts = {}) {
     if (clash) slug = `${slug}-${row.id}`;
     const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, cover_url, awards, social_links, locations, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, row.cover_url || null, awards, socialLinks, locations, marker, claimedByUserId));
+      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, cover_url, awards, social_links, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, row.cover_url || null, awards, socialLinks, marker, claimedByUserId));
     if (opts.publish === false) await markInsertedAsPreview(env, 'offices', insert.meta.last_row_id);
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate

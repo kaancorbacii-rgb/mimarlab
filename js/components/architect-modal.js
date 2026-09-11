@@ -189,7 +189,11 @@ const ArchitectModal = (function () {
         /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
            modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/geri
            bildirim kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
-        #claim-info-card, #correction-info-card{order:99;}
+        #claim-info-card, #correction-info-card{order:98;}
+        /* Önceki/Sonraki popup'ın EN ALTINDA, claim/geri bildirim kutularının da altında (kullanıcı
+           isteği, 2026-09-11: "Tablet ve mobil görünümde tüm önceki sonraki butonları popupın en
+           altında olsunlar") — kutular sol panelde, bu buton sağ panelde; order ikisini ayırır. */
+        #am-prevnext{order:99;}
         /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
            gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Firmalar" artık görsel olarak ilk
            değil, hemen üstünde kimlik/künye bölümünün hr.detail-info-divider'ı var (bkz. kullanıcı
@@ -201,12 +205,7 @@ const ArchitectModal = (function () {
            kalsaydı üst üste 2 çizgi (bkz. kullanıcı isteği: çift çizgi hatası) belirirdi, bu yüzden
            mobil/tablette gizlenir. */
         .detail-info-divider{display:none;}
-        /* Önceki/Sonraki butonlarından hemen sonra, claim/geri bildirim kutularından ÖNCE bir ayırıcı
-           (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
-           çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
-        .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
       }
-      .prevnext-mobile-divider{display:none;}
       /* Projeler haritası — bkz. kullanıcı isteği: "Projeler"in altına, mimarın/firmanın koordinatlı
          TÜM projelerini pinleyen açık bir harita; js/pages/proje.js#loadLeaflet İLE AYNI Leaflet +
          Esri World Imagery yığını/marker popup kartı (bu modül kisi.html'de Leaflet YÜKLEMEYEN diğer
@@ -435,8 +434,7 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
-    <p class="source-disclaimer" id="am-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaş!</p>
-    <hr class="prevnext-mobile-divider">`;
+    <p class="source-disclaimer" id="am-source-disclaimer">Kamuya açık kaynaklardan derlenmiştir, doğrulanmamıştır. Yanlışlık olduğunu düşünüyorsan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaş!</p>`;
 
   let mountedOnce = false;
   let currentSlug = null;

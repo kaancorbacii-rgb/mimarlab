@@ -140,7 +140,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // v130 (2026-09-11): firma/marka popup'ına açılır-kapanır "Harita" (ofis/mağaza konumları) ve kayıtsız
 // kurucu/ekip kişileri için kare kart — office-modal.js/architect-modal.js değişti (bkz. v127'deki AYNI
 // ml-asset-version gerekçesi).
-export const SSR_CACHE_VERSION = 'v130';
+// v131 (2026-09-11): firma/marka popup haritası kaldırıldı, tablet/mobilde Önceki/Sonraki popup'ın EN
+// ALTINDA, marka popup'ında "Önceki/Sonraki Marka" — office/architect/product-modal.js değişti.
+export const SSR_CACHE_VERSION = 'v131';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

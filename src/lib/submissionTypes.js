@@ -28,19 +28,17 @@ export const SUBMISSION_TYPES = {
     // cover_url: marka kapak görseli (bkz. migrations/0075_office_cover_url.sql, kullanıcı isteği
     // 2026-08-31 madde 6) — yalnızca marka-ekle.html gönderir, firma-ekle.html'de böyle bir alan yok;
     // gönderilmediğinde alan hiç yazılmaz (bkz. aşağıdaki genel alan döngüsü).
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'cover_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links', 'locations'],
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'cover_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links'],
     // social_links: [{platform,url}] — awards/founders ile AYNI JSON dizi deseni (bkz. kullanıcı
     // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql —
     // paralel bir oturumun tekli social_platform/social_url kolonları yerine bu tercih edildi,
     // bkz. kullanıcı isteği: "1'den fazla sosyal medya eklenebilsin"). team: Kurucular ile AYNI
     // desende serbest isim listesi (bkz. migrations/0048_office_team.sql) — kurucu olmayıp firmada
     // çalışabilecek kişiler, opsiyonel.
-    // locations: ofis/mağaza konumları [{lat,lng,label?}] (bkz. migrations/0114_office_locations.sql) —
-    // nesne dizisi, normalizeSubmission'da sanitizeOfficeLocations'tan geçer.
-    arrayFields: ['awards', 'founders', 'team', 'social_links', 'locations'],
+    arrayFields: ['awards', 'founders', 'team', 'social_links'],
     // nullableArrayFields — bkz. aşağıdaki normalizeSubmission/parseSubmissionRow yorumu: bu
     // alanlar için "gövdede HİÇ yok" (NULL) ile "gönderildi ama boş" ([]) AYIRT EDİLİR.
-    nullableArrayFields: ['social_links', 'locations'],
+    nullableArrayFields: ['social_links'],
     // nullableStringFields — nullableArrayFields'ın tek değerli karşılığı (bkz. normalizeSubmission
     // içindeki uzun gerekçe): logo/kapak için "gövdede HİÇ yok" (null) ile "gönderildi ama BOŞ" ('')
     // AYIRT EDİLİR, yoksa ✕ ile silme canonical'a hiç yansımaz.
@@ -562,31 +560,6 @@ export function sanitizeImageHotspots(raw) {
   return out;
 }
 
-// Firma/marka ofis–mağaza konumları (kullanıcı isteği, 2026-09-11 — bkz. migrations/
-// 0114_office_locations.sql). İstemciden gelen her şey süzülür: yalnızca sonlu ve geçerli aralıktaki
-// koordinatlar, aynı nokta bir kez, en fazla MAX_OFFICE_LOCATIONS nokta; label serbest metin (ters
-// jeokodlanmış adres), yalnızca kısaltılarak saklanır — render eden taraf yine escape eder.
-const MAX_OFFICE_LOCATIONS = 20;
-export function sanitizeOfficeLocations(list) {
-  if (!Array.isArray(list)) return [];
-  const out = [];
-  const seen = new Set();
-  for (const p of list) {
-    if (out.length >= MAX_OFFICE_LOCATIONS) break;
-    if (!p || typeof p !== 'object') continue;
-    const lat = Number(p.lat), lng = Number(p.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
-    const point = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
-    const key = `${point.lat},${point.lng}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const label = typeof p.label === 'string' ? p.label.trim().slice(0, 200) : '';
-    if (label) point.label = label;
-    out.push(point);
-  }
-  return out;
-}
-
 export function normalizeSubmission(type, body) {
   const config = SUBMISSION_TYPES[type];
   const row = {};
@@ -626,7 +599,7 @@ export function normalizeSubmission(type, body) {
         value = null;
       } else {
         if (!Array.isArray(value)) value = value ? [value] : [];
-        value = JSON.stringify(field === 'locations' ? sanitizeOfficeLocations(value) : value.filter(Boolean));
+        value = JSON.stringify(value.filter(Boolean));
       }
     } else if ((config.nullableStringFields || []).includes(field)) {
       // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-04: "marka pop-up'ında düzenleye tıklayıp

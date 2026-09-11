@@ -484,8 +484,10 @@ async function withSingleFlight(key, fn) {
 //     `userSubmitted` taşıyor; kullanıcı gönderilerinde sourceUrl gönderenin profil yoludur.
 // v35 -> v36 (kullanıcı isteği, 2026-09-11): /api/office/:key item'ı `locations` ([{lat,lng,label?}],
 //     ofis/mağaza konumları) taşıyor — firma/marka popup haritası bunu okur.
+// v36 -> v37 (kullanıcı isteği, 2026-09-11): konum haritaları kaldırıldı — /api/office/:key item'ı
+//     artık `locations` taşımıyor.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v36';
+const API_PAYLOAD_VERSION = 'v37';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
