@@ -34,6 +34,14 @@
 
   var WARN_TEXT = 'İçeriği yayınlayabilmek için Telif ve Sorumluluk Beyanı’nı onaylaman gerekiyor.';
 
+  // ADMIN TELİFSİZ KAYDI (kullanıcı isteği, 2026-09-11: "Admin tarafından kişi, firma, marka, proje ve
+  // ürün popup'larında telif butonuna tıklanmadan değişiklik yapılabilsin. Değişiklik yapılınca
+  // kaydedilebilsin ama içerik blursuz şekilde yayınlanmasın."). Admin'de kapı gönderimi ENGELLEMEZ;
+  // payload() kutunun GERÇEK durumunu gönderir ve sunucu (src/routes/submissions.js#keepPreview)
+  // beyansız admin kaydını yayına almadan kaydeder. Admin olmayan herkes için kapı aynen zorunlu.
+  var ADMIN_NOTE_TEXT = 'Admin: kutuyu işaretlemeden kaydedersen değişiklikler kaydedilir ama içerik yayına alınmaz — önizlemedeki içerik blurlu kalır, yeni içerik blurlu (önizleme) olarak eklenir. Blursuz yayınlamak için kutuyu işaretleyip kaydet.';
+  var adminMode = false;
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -68,6 +76,7 @@
       '.rc-confirm:hover{border-color:var(--walnut, #7a5c3e);}',
       '.rc-confirm-mark{font-weight:700; margin-right:6px;}',
       '.rc-warning{margin:10px 0 0; font-size:12.5px; font-weight:600; color:#B3261E;}',
+      '.rc-admin-note{margin:10px 0 0; font-size:12px; line-height:1.5; color:var(--ink-soft, #6b655c);}',
       '@media (max-width: 620px){',
       '  .rc-box{padding:12px 13px;}',
       '  .rc-check-text{font-size:12.5px;}',
@@ -111,7 +120,31 @@
       container.innerHTML = boxHtml('rc-consent-' + (++seq));
       wireBox(container);
     }
+    if (adminMode) addAdminNote(container);
     return container;
+  }
+
+  function addAdminNote(box) {
+    if (!box || box.querySelector('.rc-admin-note')) return;
+    var p = document.createElement('p');
+    p.className = 'rc-admin-note';
+    p.textContent = ADMIN_NOTE_TEXT;
+    box.appendChild(p);
+  }
+
+  // Oturumdaki kullanıcı admin mi? Sayfaların hepsi zaten /api/auth/me çağırıyor ama bu bileşen altı
+  // ayrı yüzeyde (beş form + Hesabım) kendi başına çalışmak zorunda — tek, küçük bir istek.
+  function detectAdmin() {
+    try {
+      fetch('/api/auth/me', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!(d && d.user && d.user.role === 'admin')) return;
+          adminMode = true;
+          boxesIn(document).forEach(function (b) { clearWarning(b); addAdminNote(b); });
+        })
+        .catch(function () {});
+    } catch (e) { /* fetch yok — admin istisnası uygulanmaz, kapı zorunlu kalır */ }
   }
 
   function wireBox(box) {
@@ -170,6 +203,7 @@
 
   // Onaylanmamışsa uyarıyı gösterip false döner — çağıran gönderimi durdurur.
   function requireAccepted(root) {
+    if (adminMode) return true; // admin beyansız da kaydedebilir — bkz. ADMIN_NOTE_TEXT
     var boxes = boxesIn(root);
     var missing = boxes.filter(function (b) {
       var input = b.querySelector('[data-rights-consent-input]');
@@ -222,8 +256,11 @@
 
   // Gönderilen her payload'a eklenen alanlar — sunucu tarafı bunu ZORUNLU kılar
   // (bkz. src/lib/rightsConsent.js#assertRightsAccepted).
-  function payload() {
-    return { rightsAccepted: true, rightsTextVersion: TEXT_VERSION };
+  // Eskiden rightsAccepted KOŞULSUZ true'ydu (kapı işaretsiz gönderimi zaten durdurduğu için). Admin
+  // artık işaretsiz de gönderebildiğinden (bkz. ADMIN_NOTE_TEXT) kutunun GERÇEK durumu gönderilir —
+  // sunucu beyansız admin kaydını yayına almaz. Admin olmayanda kapı işaretsiz gönderimi hâlâ durdurur.
+  function payload(root) {
+    return { rightsAccepted: isAccepted(root), rightsTextVersion: TEXT_VERSION };
   }
 
   // data-rights-consent taşıyan tüm kapları kurar. Sayfa yüklendiğinde otomatik çalışır; sonradan
@@ -240,6 +277,7 @@
   // bayrağından bağımsız olarak KAYIT SIRASINA göre çalışır, form kendi dinleyicisini önce
   // bağlamışsa bizimki geç kalırdı.)
   function guard(e) {
+    if (adminMode) return; // admin beyansız da kaydedebilir — bkz. ADMIN_NOTE_TEXT
     var form = e.target;
     if (!form || form.tagName !== 'FORM') return;
     if (!form.querySelector('.rc-box')) return;
@@ -253,6 +291,7 @@
     injectStyles();
     autoMount(document);
     document.addEventListener('submit', guard, true);
+    detectAdmin();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -58,16 +58,85 @@ export async function clearArchitectOfficeIfMatches(env, user, architectName, of
   await purgeSsrDetailCache('architect', architectName, env);
 }
 
-// offices submission update sırasında çağrılır (bkz. src/routes/submissions.js#updateOwnSubmission,
-// src/routes/admin.js#handleSubmissionsAdmin) — eski ve yeni Kurucular listesini karşılaştırıp
-// ÇIKARILAN her ismi cascade'ler. Eklenen/değişmeyen isimler için hiçbir şey yapılmaz — bir mimarın
-// kendi office alanını Kurucular listesine EKLEMEK bu fonksiyonun işi değil (yalnızca çıkarma yönü).
-export async function cascadeRemovedFounders(env, user, officeName, oldFounders, newFounders) {
-  const oldSet = new Set((oldFounders || []).filter(Boolean));
-  const newSet = new Set((newFounders || []).filter(Boolean));
-  const removed = [...oldSet].filter(name => !newSet.has(name));
-  for (const name of removed) {
-    await clearArchitectOfficeIfMatches(env, user, name, officeName);
+// Bir kişiyi YALNIZCA verilen firmadan koparır (kullanıcı isteği, 2026-09-11: "blurlu bir firmadan
+// bazı kurucuların ismini sildim ama hâlâ firma popup'ında gözüküyorlar ... kişi popup'larında da
+// dinamik ve eş zamanlı olarak bu firma bilgisi kalkmalı"). Kişi↔firma bağı ÜÇ yerde durur ve kişi
+// popup'ı (src/routes/architect.js#buildArchitectPayload) üçünü de okur:
+//   1) office_founders satırı (firma popup'ının Kurucular/Ortaklar'ı + kişinin Firma/Marka listesi),
+//   2) architects.office_id (kişinin birincil firması),
+//   3) kişinin en son taslağındaki `office` metni (architect.js#fetchRawOfficeNames — AYNI sorgu).
+// clearArchitectOfficeIfMatches'ın aksine kişinin BAŞKA firmalarla olan bağlarına dokunmaz (o, kişinin
+// TÜM office_founders satırlarını siliyordu) ve birincil firması başka bir firmaysa da çalışır.
+// keepMembership: kişi Kurucular'dan çıkarılıp Ekip'e taşındıysa yalnızca (1) silinir — hâlâ firmada.
+export async function detachArchitectFromOffice(env, architect, office, { keepMembership = false } = {}) {
+  await env.DB.prepare(`DELETE FROM office_founders WHERE office_id = ? AND architect_id = ?`).bind(office.id, architect.id).run();
+  if (!keepMembership) {
+    await env.DB.prepare(
+      `UPDATE architects SET office_id = NULL, updated_at = datetime('now') WHERE id = ? AND office_id = ?`
+    ).bind(architect.id, office.id).run();
+    const legacyKey = architect.legacy_key || '';
+    const submissionId = legacyKey.startsWith('submission:') ? legacyKey.slice('submission:'.length) : '';
+    const sub = await env.DB.prepare(
+      `SELECT id, office FROM architect_submissions WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+    ).bind(architect.name, legacyKey, submissionId).first();
+    if (sub && sub.office) {
+      const target = foldTr(office.name);
+      const kept = String(sub.office).split(',').map(s => s.trim()).filter(s => s && foldTr(s) !== target);
+      const next = kept.length ? kept.join(', ') : null;
+      if (next !== sub.office) {
+        // updated_at'e DOKUNULMAZ: fetchRawOfficeNames "en son satır"ı updated_at'e göre seçer; bu
+        // satır zaten seçilen satır, sırasını değiştirmek başka bir taslağı öne geçirebilirdi.
+        await env.DB.prepare(`UPDATE architect_submissions SET office = ? WHERE id = ?`).bind(next, sub.id).run();
+      }
+    }
+  }
+  await purgeSsrDetailCache('architect', architect.name, env);
+}
+
+// offices submission kaydında çağrılır (bkz. src/routes/submissions.js#createSubmission/
+// updateOwnSubmission, src/routes/admin.js#handleSubmissionsAdmin) — Kurucular kutusundan ÇIKARILAN
+// her kişiyi firmadan koparır.
+//
+// GERÇEK BULGU (kullanıcı isteği, 2026-09-11 — Aboutblank): eskiden "eski liste" taslağın serbest
+// metin `founders` sütunuydu. Oysa firma popup'ındaki kurucular çoğu zaman o metinden DEĞİL,
+// yapısal office_founders bağlarından geliyor (Aboutblank'ın 5 kurucusu böyleydi, taslak metninde
+// hiç yazılı değildi) — kutudan silinen isim "çıkarılmış" hiç sayılmıyor, bağ kalıyor, kişi hem
+// firma hem kendi popup'ında görünmeye devam ediyordu. Artık adaylar firmanın KANONİK kurucu
+// bağlarıdır (+ birincil firması bu firma olanlar) — ama YALNIZCA `oldFounders`'ta (formun
+// kutuda KULLANICIYA GÖSTERDİĞİ liste; istemci bunu `foundersShown` olarak gönderir, bkz.
+// firma-ekle.html/marka-ekle.html) adı geçenler. Güvenlik gerekçesi: firma-ekle'nin ?edit= yolu
+// kutuyu taslak metninden doldurur; kutuda HİÇ görünmemiş bir kurucuyu "silinmiş" saymak, kimsenin
+// silmediği bir bağı koparırdı. Kullanıcının görüp silmediği hiçbir bağa dokunulmaz.
+// newTeam: kaydedilen Ekip listesi (bilinmiyorsa null) — Ekip'e taşınan kişi firmada kalır.
+export async function cascadeRemovedFounders(env, user, officeName, oldFounders, newFounders, { newTeam = null } = {}) {
+  const fold = (n) => foldTr(String(n || '').trim());
+  const newSet = new Set((newFounders || []).filter(Boolean).map(fold));
+  const teamSet = Array.isArray(newTeam) ? new Set(newTeam.filter(Boolean).map(fold)) : null;
+  const office = await env.DB.prepare(`SELECT id, name FROM offices WHERE deleted_at IS NULL AND name = ? LIMIT 1`).bind(officeName).first();
+  if (!office) {
+    // Canonical karşılığı olmayan (henüz senkronlanmamış) firma — eski davranış.
+    const oldSet = new Set((oldFounders || []).filter(Boolean));
+    for (const name of [...oldSet].filter(name => !newSet.has(fold(name)))) {
+      await clearArchitectOfficeIfMatches(env, user, name, officeName);
+    }
+    return;
+  }
+  const oldFolded = new Set((oldFounders || []).filter(Boolean).map(fold));
+  if (!oldFolded.size) return;
+  const { results: linkedAll } = await env.DB.prepare(
+    `SELECT a.id, a.name, a.legacy_key, a.office_id FROM office_founders f JOIN architects a ON a.id = f.architect_id
+      WHERE f.office_id = ? AND a.deleted_at IS NULL`
+  ).bind(office.id).all();
+  const linked = (linkedAll || []).filter(r => oldFolded.has(fold(r.name)));
+  const linkedIds = new Set((linkedAll || []).map(r => r.id));
+  const { results: primaryAll } = await env.DB.prepare(
+    `SELECT id, name, legacy_key, office_id FROM architects WHERE deleted_at IS NULL AND office_id = ?`
+  ).bind(office.id).all();
+  const primaryOnly = (primaryAll || []).filter(r => !linkedIds.has(r.id) && oldFolded.has(fold(r.name)));
+  for (const a of [...linked, ...primaryOnly]) {
+    const key = fold(a.name);
+    if (newSet.has(key)) continue;
+    await detachArchitectFromOffice(env, a, office, { keepMembership: !!(teamSet && teamSet.has(key)) });
   }
 }
 

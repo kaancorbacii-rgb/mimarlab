@@ -649,9 +649,14 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       // (bkz. src/lib/officeFounderCascade.js — src/routes/submissions.js#updateOwnSubmission'daki
       // aynı çağrı, admin'in doğrudan düzenlediği durum için).
       if (typeKey === 'offices' && 'founders' in body) {
-        const oldFounders = parseSubmissionRow('offices', existing).founders;
+        const oldFounders = [
+          ...(parseSubmissionRow('offices', existing).founders || []),
+          ...(Array.isArray(body.foundersShown) ? body.foundersShown : []),
+        ];
         const newFounders = Array.isArray(body.founders) ? body.founders : [];
-        await cascadeRemovedFounders(env, user, existing.name, oldFounders, newFounders);
+        // bkz. src/routes/submissions.js#updateOwnSubmission'daki AYNI newTeam gerekçesi.
+        const newTeam = 'team' in body ? (Array.isArray(body.team) ? body.team : []) : (parseSubmissionRow('offices', existing).team || []);
+        await cascadeRemovedFounders(env, user, existing.name, oldFounders, newFounders, { newTeam });
         await cascadeRemovedProfileClaims(env, existing.name, newFounders, { founders: true });
       }
       // Ekip kutusundan çıkarılan bir isim, o firmaya onaylı bir profile_claims sahibiyse (bkz.

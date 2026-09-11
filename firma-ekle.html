@@ -577,6 +577,13 @@ let claimName = params.get('claim');
 // kaydederken "zaten yayınlandı" yanlış pozitifine düşmemek için (bkz. js/components/
 // duplicate-name-check.js#attach getExclude).
 let originalName = '';
+function splitFounderNames(v){ return String(v || '').split(',').map(s => s.trim()).filter(Boolean); }
+// Kurucular kutusunda KULLANICIYA GÖSTERİLEN liste (kullanıcı isteği, 2026-09-11 — Aboutblank:
+// kutudan silinen kurucular firma/kişi popup'larında kalıyordu). Kutu her önceden doldurulduğunda
+// yeniden kaydedilir (kanonik kurucularla birleştirilmiş SON hâl esas alınır) ve gönderimde
+// `foundersShown` olarak sunucuya gider; sunucu yalnızca bu listede görünüp silinen kişiyi firmadan
+// koparır (bkz. src/lib/officeFounderCascade.js#cascadeRemovedFounders).
+function noteFoundersShown(){ window.__mlFoundersShown = splitFounderNames(document.getElementById('o-founders').value); }
 const dupNameCheck = DuplicateNameCheck.attach({
   input: document.getElementById('o-name'),
   type: 'offices',
@@ -1069,6 +1076,7 @@ async function prefillForEdit(){
     document.getElementById('o-website').value = item.website || '';
     document.getElementById('o-desc').value = item.about || '';
     document.getElementById('o-founders').value = (item.founders || []).join(', ');
+    noteFoundersShown();
     document.getElementById('o-team').value = (item.team || []).join(', ');
     try{
       const publicRes = await fetch(`/api/office/${encodeURIComponent(item.claimed_profile_key || item.name)}`);
@@ -1081,6 +1089,7 @@ async function prefillForEdit(){
         const claimedFounderNames = (founders || []).map(f => f.name).filter(Boolean);
         const claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
         document.getElementById('o-founders').value = mergeTeamNames(item.founders || [], claimedFounderNames).join(', ');
+        noteFoundersShown();
         document.getElementById('o-team').value = mergeTeamNames(item.team || [], claimedTeamNames).join(', ');
       }
     }catch{}
@@ -1202,6 +1211,7 @@ async function prefillForClaim(){
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
   document.getElementById('o-founders').value = mergeTeamNames(merged.founders || [], claimedFounderNames).join(', ');
+  noteFoundersShown();
   document.getElementById('o-team').value = mergeTeamNames(merged.team || [], claimedTeamNames).join(', ');
   // merged.cats statik/overlay/mine kaynaklarında " · " ile ayrılmış düz metin, canonical
   // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.
@@ -1330,7 +1340,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     return;
   }
   const loc = selectedIlce ? `${selectedIl} / ${selectedIlce}` : selectedIl;
-  const founders = document.getElementById('o-founders').value.split(',').map(s => s.trim()).filter(Boolean);
+  const founders = splitFounderNames(document.getElementById('o-founders').value);
   const team = document.getElementById('o-team').value.split(',').map(s => s.trim()).filter(Boolean);
   const awards = Array.from(form.querySelectorAll('input[name="award"]:checked')).map(el => el.value);
 
@@ -1370,6 +1380,10 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   // ZORUNLU kılar (src/lib/rightsConsent.js#requireRightsAcceptance); kutu işaretlenmeden gönderim
   // zaten document-capture fazında engellenir, bu satır yalnızca onayı sunucuya taşır.
   Object.assign(payload, window.RightsConsent ? RightsConsent.payload() : {});
+  // foundersShown — kutuda KULLANICIYA GÖSTERİLEN ilk Kurucular listesi (bkz. noteFoundersShown).
+  // Sunucu yalnızca bu listede görünüp kutudan silinen kişiyi firmadan koparır (bkz.
+  // src/lib/officeFounderCascade.js#cascadeRemovedFounders) — kutuda hiç görünmemiş bir bağa dokunmaz.
+  if(Array.isArray(window.__mlFoundersShown)) payload.foundersShown = window.__mlFoundersShown;
 
   if(claimName) payload.claimed_profile_key = claimName;
 

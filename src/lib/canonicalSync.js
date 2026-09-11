@@ -683,7 +683,7 @@ async function syncOfficeFoundersFromNames(env, officeId, names) {
   }
 }
 
-async function syncOffice(env, row) {
+async function syncOffice(env, row, opts = {}) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
   let target = claimedKey
@@ -775,16 +775,19 @@ async function syncOffice(env, row) {
     // önce hiçbir çağıran satırın gizliliğini geri açmıyordu — kayıt kalıcı olarak "onaylı ama
     // sitede görünmez" kalıyordu (gerçek bulgu). claimed'lı satırlarda bu no-op'tur (zaten
     // unhideIfClaimedApproved ayrıca temizler), bu yüzden koşulsuz eklemek zararsız.
-    sets.push('hidden_at = NULL');
+    // opts.publish === false (admin beyan onaylamadan kaydetti) iken aşağıdaki üç "yayına al"
+    // ataması yapılmaz — bkz. syncApprovedSubmissionToCanonical yorumu.
+    const publish = opts.publish !== false;
+    if (publish) sets.push('hidden_at = NULL');
     // bkz. src/routes/legacyContent.js#setLegacyHidden'daki AYNI gerekçe — onaylı senkron kaydı
     // yayına alır, dolayısıyla ÖNİZLEME durumundan da çıkarmalı.
-    sets.push('preview_at = NULL');
+    if (publish) sets.push('preview_at = NULL');
     // relisted_at: önizlemeden çıkan kayıt listede canlılar arasında EN ÖNE geçsin (kullanıcı isteği:
     // "yeni bir paylaşım gibi ilk sıraya yerleşsin", bkz. migrations/0108_relisted_at.sql). CASE ile
     // korunur: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına FIRLATMAMALI.
     // Burada damgalanmalı, setLegacyHidden'da DEĞİL — çağrı sırası gereği oraya gelindiğinde
     // preview_at bu satır tarafından ZATEN temizlenmiş olur ve koşul hiç tutmazdı.
-    sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
+    if (publish) sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     result = { ...target, id: target.id, name: row.name || target.name };
@@ -800,6 +803,7 @@ async function syncOffice(env, row) {
       `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, cover_url, awards, social_links, source, legacy_key, claimed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, row.cover_url || null, awards, socialLinks, marker, claimedByUserId));
+    if (opts.publish === false) await markInsertedAsPreview(env, 'offices', insert.meta.last_row_id);
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
     // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/
@@ -856,7 +860,7 @@ async function splitAdminApprovedOffices(env, ownerUserId, officeNames, officeId
   return { linkIds, pendingIds };
 }
 
-async function syncArchitect(env, row) {
+async function syncArchitect(env, row, opts = {}) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
 
@@ -945,17 +949,19 @@ async function syncArchitect(env, row) {
     if (row.directory_listed !== undefined && row.directory_listed !== null) {
       sets.push('directory_listed = ?'); vals.push(Number(row.directory_listed) === 0 ? 0 : 1);
     }
-    // bkz. syncOffice'teki AYNI koşulsuz hidden_at temizliği ve gerekçesi.
-    sets.push('hidden_at = NULL');
+    // bkz. syncOffice'teki AYNI koşulsuz hidden_at temizliği ve gerekçesi — ve AYNI opts.publish
+    // istisnası (admin beyan onaylamadan kaydettiyse görünürlük olduğu gibi kalır).
+    const publish = opts.publish !== false;
+    if (publish) sets.push('hidden_at = NULL');
     // bkz. src/routes/legacyContent.js#setLegacyHidden'daki AYNI gerekçe — onaylı senkron kaydı
     // yayına alır, dolayısıyla ÖNİZLEME durumundan da çıkarmalı.
-    sets.push('preview_at = NULL');
+    if (publish) sets.push('preview_at = NULL');
     // relisted_at: önizlemeden çıkan kayıt listede canlılar arasında EN ÖNE geçsin (kullanıcı isteği:
     // "yeni bir paylaşım gibi ilk sıraya yerleşsin", bkz. migrations/0108_relisted_at.sql). CASE ile
     // korunur: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına FIRLATMAMALI.
     // Burada damgalanmalı, setLegacyHidden'da DEĞİL — çağrı sırası gereği oraya gelindiğinde
     // preview_at bu satır tarafından ZATEN temizlenmiş olur ve koşul hiç tutmazdı.
-    sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
+    if (publish) sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     await syncOfficeFounderLink(env, target.id, founderLinkIds, founderPendingIds);
@@ -972,6 +978,7 @@ async function syncArchitect(env, row) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
   ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, portfolio, officeId, Number(row.directory_listed) === 0 ? 0 : 1, marker, claimedByUserId));
   const architectId = insert.meta.last_row_id;
+  if (opts.publish === false) await markInsertedAsPreview(env, 'architects', architectId);
   await syncOfficeFounderLink(env, architectId, founderLinkIds, founderPendingIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
   if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'architects', claimedKey);
@@ -1137,7 +1144,7 @@ async function setProjectProductLinks(env, side, ownerColumn, ownerId, otherColu
   ).bind(ownerId).run();
 }
 
-async function syncProject(env, row) {
+async function syncProject(env, row, opts = {}) {
   const claimedSlug = row.claimed_slug;
   const marker = submissionMarker(row.id);
   const target = claimedSlug
@@ -1182,7 +1189,11 @@ async function syncProject(env, row) {
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
-      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?', 'hidden_at = NULL', `relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`, 'preview_at = NULL', `updated_at = datetime('now')`,
+      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?',
+      // "yayına al" üçlüsü — opts.publish === false (admin beyan onaylamadan kaydetti) iken
+      // atlanır, bkz. syncApprovedSubmissionToCanonical yorumu.
+      ...(opts.publish === false ? [] : ['hidden_at = NULL', `relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`, 'preview_at = NULL']),
+      `updated_at = datetime('now')`,
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
@@ -1229,6 +1240,7 @@ async function syncProject(env, row) {
       marker, row.owner_user_id
     ));
     projectId = insert.meta.last_row_id;
+    if (opts.publish === false) await markInsertedAsPreview(env, 'projects', projectId);
     // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
     if (claimedSlug) await blacklistLegacyKey(env, row.owner_user_id, 'projects', claimedSlug);
   }
@@ -1336,7 +1348,7 @@ async function syncProject(env, row) {
   return env.DB.prepare(`SELECT * FROM projects WHERE id = ?`).bind(projectId).first();
 }
 
-async function syncProduct(env, row, kind) {
+async function syncProduct(env, row, kind, opts = {}) {
   // claimed_slug (kullanıcı isteği, 2026-09-05: "ürün ekle/düzenle de proje ekle/düzenle'deki
   // entegre sistemle aynı olsun") — syncProject'teki AYNI desen: doluysa bu satır YENİ bir ürün
   // DEĞİL, canonical products'taki (slug/legacy_key eşleşmesiyle) statik/legacy_static bir kaydın
@@ -1401,8 +1413,12 @@ async function syncProduct(env, row, kind) {
       : reconcileVariantImages(existing.variants, existing.images, images);
     const variantSet = nextVariants === null ? '' : ', variants = ?';
     const variantVal = nextVariants === null ? [] : [nextVariants];
+    // "yayına al" üçlüsü — opts.publish === false iken atlanır (bkz. syncApprovedSubmissionToCanonical).
+    const publishSet = opts.publish === false
+      ? ''
+      : `, hidden_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END, preview_at = NULL`;
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, hidden_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END, preview_at = NULL, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}${publishSet}, updated_at = datetime('now') WHERE id = ?`
     ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, ...variantVal, existing.id).run();
     productId = existing.id;
   } else {
@@ -1421,6 +1437,7 @@ async function syncProduct(env, row, kind) {
       // variants — bkz. UPDATE dalındaki not; yeni üründe null = "versiyon yok".
       Array.isArray(row.variants) && row.variants.length ? JSON.stringify(row.variants) : null));
     productId = insert.meta.last_row_id;
+    if (opts.publish === false) await markInsertedAsPreview(env, 'products', productId);
     // bkz. syncProject'teki AYNI "claimedSlug'lı ama hedef bulunamadı" durumu ve gerekçesi (ör.
     // sahiplenilen ürün claim onaylanmadan ÖNCE silindiyse) — stale link'ler ARAYA yeni bir
     // legacy_static kayıt oluşturmasın diye bir sonraki senkronda tekrar hedeflenmesinler.
@@ -1438,13 +1455,27 @@ async function syncProduct(env, row, kind) {
 
 // row: parseSubmissionRow(typeKey, rawRow) ile ZATEN parse edilmiş (JSON alanları diziye çevrilmiş)
 // olmalı — bkz. src/lib/submissionTypes.js#parseSubmissionRow. jobs/news canonical modelde yok, no-op.
-export async function syncApprovedSubmissionToCanonical(env, typeKey, row) {
-  if (typeKey === 'architects') return syncArchitect(env, row);
-  if (typeKey === 'offices') return syncOffice(env, row);
-  if (typeKey === 'projects') return syncProject(env, row);
-  if (typeKey === 'products') return syncProduct(env, row, 'product');
-  if (typeKey === 'materials') return syncProduct(env, row, 'material');
+// opts.publish (varsayılan true) — ADMIN TELİFSİZ KAYDI (kullanıcı isteği, 2026-09-11: "Admin
+// tarafından ... telif butonuna tıklanmadan değişiklik yapılabilsin. Değişiklik yapılınca
+// kaydedilebilsin ama içerik blursuz şekilde yayınlanmasın. Sadece telif butonuna tıklayıp kaydete
+// tıklanırsa içerikler blursuz şekilde yayınlansın."). false iken dört senkron da içeriği günceller
+// ama hidden_at/preview_at/relisted_at'e DOKUNMAZ — görünürlük (canlı / önizleme-blurlu / arşiv)
+// olduğu gibi kalır; YENİ bir kayıt ise önizleme (blurlu) olarak eklenir. Bu bayrağı yalnızca
+// src/routes/submissions.js, admin'in beyan onaylamadan kaydettiği durumda gönderir; diğer TÜM
+// çağıranlar (admin paneli onayı, arşivden yayına alma vb.) varsayılanla eskisi gibi yayına alır.
+export async function syncApprovedSubmissionToCanonical(env, typeKey, row, opts = {}) {
+  if (typeKey === 'architects') return syncArchitect(env, row, opts);
+  if (typeKey === 'offices') return syncOffice(env, row, opts);
+  if (typeKey === 'projects') return syncProject(env, row, opts);
+  if (typeKey === 'products') return syncProduct(env, row, 'product', opts);
+  if (typeKey === 'materials') return syncProduct(env, row, 'material', opts);
   return null;
+}
+
+// Yayına ALINMADAN eklenen yeni kaydı önizleme (blurlu) durumuna koyar — bkz. yukarıdaki opts.publish.
+// ÜÇÜNCÜ DURUM tanımı: hidden_at DOLU + preview_at DOLU (bkz. migrations/0107_preview_state.sql).
+async function markInsertedAsPreview(env, table, id) {
+  await env.DB.prepare(`UPDATE ${table} SET hidden_at = datetime('now'), preview_at = datetime('now') WHERE id = ?`).bind(id).run();
 }
 
 // Bir satır ONAYLIYKEN reddedilir/pending'e alınırsa (bkz. src/routes/admin.js#handleSubmissionsAdmin

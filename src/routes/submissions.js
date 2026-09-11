@@ -1,6 +1,6 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
-import { requireRightsAcceptance, recordRightsAcceptance } from '../lib/rightsConsent.js';
+import { requireRightsAcceptance, recordRightsAcceptance, hasRightsAcceptance } from '../lib/rightsConsent.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField, findInvalidFilesField, findInvalidVariantsField, findInvalidProjectsField, findInvalidPortfolioField, findInvalidOfficeCats } from '../lib/submissionTypes.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
@@ -327,8 +327,13 @@ async function createSubmission(request, env, user, typeKey) {
   // Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — istemci kapısının
   // (js/components/rights-consent.js) sunucu tarafı karşılığı; bu uca doğrudan atılan isteklerde de
   // onay ZORUNLU. Diğer doğrulamalardan ÖNCE bakılır: onay yoksa gönderi hiç işlenmemeli.
-  const rightsErr = requireRightsAcceptance(body);
-  if (rightsErr) return rightsErr;
+  // TEK İSTİSNA — ADMIN TELİFSİZ KAYDI (kullanıcı isteği, 2026-09-11): admin beyanı onaylamadan da
+  // kaydedebilir; o zaman değişiklik kaydedilir ama içerik YAYINA ALINMAZ (keepPreview — canonical
+  // senkron görünürlüğe dokunmaz, yeni kayıt önizleme olarak eklenir, statik kayıt gizliyse gizli
+  // kalır). Blursuz yayın yalnızca beyan onaylı kaydetmeyle olur. Admin olmayan herkes için 422 aynen.
+  const rightsAccepted = hasRightsAcceptance(body);
+  if (!rightsAccepted && user.role !== 'admin') return requireRightsAcceptance(body);
+  const keepPreview = !rightsAccepted;
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
   const oversizedField = findOversizedField(typeKey, body);
@@ -449,7 +454,8 @@ async function createSubmission(request, env, user, typeKey) {
   // Bu, önceden arşivlenmiş (bkz. handleContentAction/handleProjectAction) bir statik kaydın
   // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
   // hâlâ gizli olabilir; onaylandığı an tekrar görünür olmalı (bkz. unhideIfClaimedApproved).
-  await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? body.claimed_slug : body.claimed_profile_key);
+  // keepPreview (admin beyanı onaylamadan kaydetti): gizli/önizlemedeki statik kayıt görünür YAPILMAZ.
+  if (!keepPreview) await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? body.claimed_slug : body.claimed_profile_key);
 
   // Admin bu firmayı/mimarı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki
   // istisna) — statik ad hâlâ TÜM diğer D1 satırlarında (rozetler, kayıtlı öğeler vb.) anahtar
@@ -490,6 +496,14 @@ async function createSubmission(request, env, user, typeKey) {
   // satırları oraya kadar hâlâ eski adı taşıyabilir, cascade nihai (yeni) adla eşleşmelidir.
   if (typeKey === 'offices' && body.claimed_profile_key && status === 'approved') {
     if ('founders' in body) {
+      // Kutudan silinen kurucuyu firmadan KOPAR (office_founders + birincil firma + kişi taslağı) —
+      // eskiden bu yolda yalnızca claim'ler temizleniyordu, yapısal bağ kalıyordu (gerçek bulgu,
+      // 2026-09-11 Aboutblank; bkz. src/lib/officeFounderCascade.js#cascadeRemovedFounders).
+      // foundersShown — formun kutuda gösterdiği ilk liste (bkz. firma-ekle.html#foundersShown):
+      // yalnızca kullanıcının GÖRÜP sildiği isimler koparılır.
+      await cascadeRemovedFounders(env, user, row.name, Array.isArray(body.foundersShown) ? body.foundersShown : [], Array.isArray(body.founders) ? body.founders : [], {
+        newTeam: 'team' in body ? (Array.isArray(body.team) ? body.team : []) : null,
+      });
       await cascadeRemovedProfileClaims(env, row.name, Array.isArray(body.founders) ? body.founders : [], { founders: true });
     }
     if ('team' in body) {
@@ -506,7 +520,7 @@ async function createSubmission(request, env, user, typeKey) {
     // okuyor, admin'in anında yayına giren kendi gönderisi de aynı anda oraya senkronlanmalı.
     if (CANONICAL_TYPES.has(typeKey)) {
       const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-      syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+      syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow), { publish: !keepPreview });
       if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
     }
     await invalidatePublicCache(env);
@@ -522,13 +536,15 @@ async function createSubmission(request, env, user, typeKey) {
     // ÜZERİNE bindirilen düzenlemelerdir, "yeni içerik" değil). Bu blok yalnızca admin'in kendi
     // gönderisinin ANINDA yayına girdiği yola girer (bkz. yukarıdaki status ataması) — sıradan üye
     // gönderileri 'pending' kalır, bildirim admin onayladığında src/routes/admin.js'te gönderilir.
-    if (CANONICAL_TYPES.has(typeKey) && !isOwnerProfileEdit && !(typeKey === 'projects' && body.claimed_slug)) {
+    // keepPreview: önizlemede (blurlu) eklenen içerik henüz yayında değil — bülten bildirimi gitmez.
+    if (!keepPreview && CANONICAL_TYPES.has(typeKey) && !isOwnerProfileEdit && !(typeKey === 'projects' && body.claimed_slug)) {
       await notifyNewsletterOfNewContent(env, typeKey, syncedRow || { ...row, id });
     }
   }
   // Beyan denetim kaydı (bkz. src/lib/rightsConsent.js) — gönderi başarıyla oluştuktan SONRA yazılır
-  // ki başarısız/yarıda kalan denemeler için sahte bir onay izi kalmasın.
-  await recordRightsAcceptance(env, user, {
+  // ki başarısız/yarıda kalan denemeler için sahte bir onay izi kalmasın. Admin beyansız kaydettiyse
+  // (keepPreview) iz YAZILMAZ — ortada verilmiş bir beyan yok.
+  if (rightsAccepted) await recordRightsAcceptance(env, user, {
     contentType: typeKey,
     contentKey: body.claimed_profile_key || body.claimed_slug || (typeKey === 'projects' ? row.slug : body.name) || null,
     submissionId: id,
@@ -710,9 +726,11 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (typeKey === 'architects' && typeof body.name === 'string') body.name = titleCasePersonName(body.name);
   // bkz. createSubmission'daki AYNI kapı/gerekçe (kullanıcı isteği, 2026-09-10 madde 1) — düzenleme
   // de bir YAYINLAMA eylemidir (onaylı bir taslağın PATCH'i canonical satıra senkronlanır), bu
-  // yüzden beyan burada da her seferinde aranır.
-  const rightsErr = requireRightsAcceptance(body);
-  if (rightsErr) return rightsErr;
+  // yüzden beyan burada da her seferinde aranır. AYNI admin istisnası (2026-09-11): admin beyansız
+  // kaydederse değişiklik kaydedilir, görünürlük değişmez (keepPreview).
+  const rightsAccepted = hasRightsAcceptance(body);
+  if (!rightsAccepted && user.role !== 'admin') return requireRightsAcceptance(body);
+  const keepPreview = !rightsAccepted;
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
   const oversizedField = findOversizedField(typeKey, body, existing);
@@ -826,9 +844,20 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // src/lib/officeFounderCascade.js — gerçek "kurucu/ortak" görünürlüğü bu alandan gelir, founders
   // dizisinin kendisi yalnızca kozmetiktir).
   if (typeKey === 'offices' && 'founders' in body) {
-    const oldFounders = parseSubmissionRow('offices', existing).founders;
+    // "eski liste" = taslağın kayıtlı Kurucular metni + formun kutuda GÖSTERDİĞİ liste
+    // (foundersShown, bkz. createSubmission'daki AYNI alan) — ikisinden birinde görünüp yeni
+    // listede olmayan kişi koparılır.
+    const oldFounders = [
+      ...(parseSubmissionRow('offices', existing).founders || []),
+      ...(Array.isArray(body.foundersShown) ? body.foundersShown : []),
+    ];
     const newFounders = Array.isArray(body.founders) ? body.founders : [];
-    await cascadeRemovedFounders(env, user, existing.name, oldFounders, newFounders);
+    // newTeam: Kurucular'dan Ekip'e taşınan kişi firmada kalsın (yalnızca kurucu bağı kalkar).
+    // Gövdede Ekip yoksa taslağın mevcut Ekip listesi esas alınır.
+    const newTeamForCascade = 'team' in body
+      ? (Array.isArray(body.team) ? body.team : [])
+      : (parseSubmissionRow('offices', existing).team || []);
+    await cascadeRemovedFounders(env, user, existing.name, oldFounders, newFounders, { newTeam: newTeamForCascade });
     await cascadeRemovedProfileClaims(env, existing.name, newFounders, { founders: true });
   }
   // Ekip kutusundan çıkarılan bir isim, o firmaya onaylı bir profile_claims sahibiyse (bkz.
@@ -856,7 +885,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     if (CANONICAL_TYPES.has(typeKey)) {
       if (status === 'approved') {
         const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-        syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+        syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow), { publish: !keepPreview });
       } else if (existing.status === 'approved') {
         await hideCanonicalForUnapprovedSubmission(env, typeKey, existing);
       }
@@ -907,9 +936,11 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
 
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
   // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
-  await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? row.claimed_slug : row.claimed_profile_key);
-  // bkz. createSubmission'daki AYNI denetim kaydı (src/lib/rightsConsent.js).
-  await recordRightsAcceptance(env, user, {
+  // keepPreview (admin beyanı onaylamadan kaydetti): gizli/önizlemedeki statik kayıt görünür YAPILMAZ.
+  if (!keepPreview) await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? row.claimed_slug : row.claimed_profile_key);
+  // bkz. createSubmission'daki AYNI denetim kaydı (src/lib/rightsConsent.js) — beyansız admin
+  // kaydında (keepPreview) iz yazılmaz.
+  if (rightsAccepted) await recordRightsAcceptance(env, user, {
     contentType: typeKey,
     contentKey: row.claimed_profile_key || row.claimed_slug || (typeKey === 'projects' ? row.slug : row.name) || null,
     submissionId: id,
