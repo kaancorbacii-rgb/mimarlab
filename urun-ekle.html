@@ -294,6 +294,12 @@
   .specs-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
   .specs-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; color:var(--walnut);}
   .specs-add-btn:hover{border-color:var(--brass); background:var(--paper-alt);}
+  /* ÇOKLU KATEGORİ SEÇİMİ (kullanıcı isteği, 2026-09-11): Grup seçilir, altındaki kategoriler hap
+     olarak işaretlenir; farklı gruplardan seçilenler alttaki chip listesinde birikir. */
+  .cat-pill-grid{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+  .cat-pill{display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:100px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; line-height:1.2;}
+  .cat-pill:hover{border-color:var(--brass);}
+  .cat-pill[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
   /* ---------- VERSİYONLAR (kullanıcı isteği, 2026-09-10 on birinci tur madde 2) ----------
      Popup'taki "Versiyonlar" künyesinin form karşılığı. Her versiyon bir kart: ad + seçenek çiftleri
      (grup: değer) + galeriden seçilen görseller + versiyona özel teknik özellikler. Altta popup'ın
@@ -468,11 +474,13 @@
         <div class="form-row">
           <div class="form-field">
             <label for="u-group">Grup</label>
-            <select id="u-group"></select>
+            <select id="u-group" aria-describedby="u-group-hint"></select>
+            <div class="form-hint" id="u-group-hint">Grubu seç, altındaki kategorileri işaretle — birden fazla grup ve kategori seçebilirsin.</div>
           </div>
           <div class="form-field">
-            <label for="u-category">Kategori</label>
-            <select id="u-category"></select>
+            <label>Kategori <span class="req" aria-hidden="true">*</span></label>
+            <div class="cat-pill-grid" id="u-category-pills" role="group" aria-label="Kategoriler"></div>
+            <div class="brand-chip-list" id="u-category-chips" aria-live="polite"></div>
           </div>
         </div>
         <div class="form-row">
@@ -661,11 +669,46 @@ function escapeAttr(s){
   return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// ÇOKLU KATEGORİ (kullanıcı isteği, 2026-09-11: "Grup ve kategori kutucukları birden fazla seçmeli
+// olsunlar"). Grup <select>'i yalnızca hangi kategorilerin hap olarak listeleneceğini seçer; seçilen
+// kategoriler (farklı gruplardan da olabilir) `selectedCategories`'te birikir ve ' · ' ile birleşip
+// products.category'e yazılır — eski çoklu-seçim verisiyle AYNI ayraç, sunucu tarafı
+// (src/routes/product.js#splitCategories) diziye çözer. `categorySelect` sarmalayıcısı eski
+// okuyucular için (DuplicateNameCheck.type, kind hesabı) ilk seçili kategoriyi `.value` olarak verir.
 const groupSelect = document.getElementById('u-group');
-const categorySelect = document.getElementById('u-category');
+const categoryPills = document.getElementById('u-category-pills');
+const categoryChips = document.getElementById('u-category-chips');
+const selectedCategories = new Set();
+const categorySelect = { get value(){ return selectedCategories.values().next().value || ''; }, set value(v){ setSelectedCategories(v ? [v] : []); } };
 function populateCategoryOptions(group){
-  categorySelect.innerHTML = (CATALOG_TAXONOMY[group] || []).map(c => `<option value="${escapeAttr(c)}">${escapeAttr(c)}</option>`).join('');
+  categoryPills.innerHTML = (CATALOG_TAXONOMY[group] || []).map(c =>
+    `<button type="button" class="cat-pill" data-cat="${escapeAttr(c)}" aria-pressed="${selectedCategories.has(c) ? 'true' : 'false'}">${escapeAttr(c)}</button>`
+  ).join('');
 }
+function renderCategoryChips(){
+  categoryChips.innerHTML = [...selectedCategories].map(c =>
+    `<span class="brand-chip">${escapeAttr(c)} <button type="button" class="brand-chip-remove" data-cat-remove="${escapeAttr(c)}" aria-label="Kaldır">✕</button></span>`
+  ).join('');
+}
+function setSelectedCategories(list){
+  selectedCategories.clear();
+  (list || []).forEach(c => { if(CATALOG_CATEGORY_KIND[c] || Object.values(CATALOG_TAXONOMY).some(cs => cs.includes(c))) selectedCategories.add(c); });
+  populateCategoryOptions(groupSelect.value);
+  renderCategoryChips();
+}
+categoryPills.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.cat-pill'); if(!btn) return;
+  const c = btn.dataset.cat;
+  if(selectedCategories.has(c)) selectedCategories.delete(c); else selectedCategories.add(c);
+  btn.setAttribute('aria-pressed', selectedCategories.has(c) ? 'true' : 'false');
+  renderCategoryChips();
+});
+categoryChips.addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-cat-remove]'); if(!btn) return;
+  selectedCategories.delete(btn.dataset.catRemove);
+  populateCategoryOptions(groupSelect.value);
+  renderCategoryChips();
+});
 groupSelect.innerHTML = Object.keys(CATALOG_TAXONOMY).map(g => `<option value="${escapeAttr(g)}">${escapeAttr(g)}</option>`).join('');
 populateCategoryOptions(groupSelect.value);
 groupSelect.addEventListener('change', ()=> populateCategoryOptions(groupSelect.value));
@@ -1261,11 +1304,10 @@ function applyPrefillItem(item){
   document.getElementById('u-desc').value = item.description || '';
   // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
   // değeri alıp yeni Grup/Kategori taksonomisine eşleriz.
-  const cat = (item.category || '').split(' · ')[0].trim();
-  const group = taxonomyGroupOf(CATALOG_TAXONOMY, cat) || Object.keys(CATALOG_TAXONOMY)[0];
+  const cats = (item.category || '').split(' · ').map(c => c.trim()).filter(Boolean);
+  const group = taxonomyGroupOf(CATALOG_TAXONOMY, cats[0]) || Object.keys(CATALOG_TAXONOMY)[0];
   groupSelect.value = group;
-  populateCategoryOptions(group);
-  if(cat) categorySelect.value = cat;
+  setSelectedCategories(cats); // TÜM seçili kategoriler geri yüklenir (çoklu seçim)
   setExistingImages(item.images);
   renderPreviews();
   setExistingFiles(item.files);
@@ -1588,8 +1630,7 @@ function applyAiResult(data){
     const group = taxonomyGroupOf(CATALOG_TAXONOMY, data.category);
     if(group){
       groupSelect.value = group;
-      populateCategoryOptions(group);
-      categorySelect.value = data.category;
+      setSelectedCategories([data.category]);
     }
   }
   // Teknik Özellikler (bkz. src/routes/ai.js#URUN_SCHEMA.specs) — malzeme/renk/ölçü/ağırlık vb.
@@ -1782,6 +1823,12 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
+  if(!selectedCategories.size){
+    notice.textContent = 'En az bir kategori seç.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   if(dupNameCheck.isDuplicate()){
     notice.textContent = 'Bu ürün zaten yayınlandı.';
     notice.classList.add('show');
@@ -1816,7 +1863,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     website: document.getElementById('u-website').value || null,
     year: document.getElementById('u-year').value || null,
     designer: document.getElementById('u-designer').value || null,
-    category: categorySelect.value,
+    category: [...selectedCategories].join(' · '), // çoklu kategori — bkz. yukarıdaki not
     description: document.getElementById('u-desc').value,
     images,
     files,

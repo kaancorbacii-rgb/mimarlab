@@ -507,8 +507,12 @@ export async function buildOfficePayload(env, key) {
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
     ).bind(o.id).all(),
     env.DB.prepare(
-      `SELECT DISTINCT ${PROJECT_CARD_COLUMNS} FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND pd.office_id = ?`
+      // ÖNİZLEME projeleri de dahil (kullanıcı isteği, 2026-09-11: "projeler ve ürünlerin
+      // önizlemeleri firma ve marka popuplarında gözüksünler ama blurlu olsunlar") — kart tarafında
+      // preview-cards.js soluklaştırır, görsel baytları da sunucuda bulanık (gatedMedia.js).
+      `SELECT DISTINCT ${PROJECT_CARD_COLUMNS}, p.preview_at FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+       WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL) AND pd.office_id = ?
+       ORDER BY (p.preview_at IS NOT NULL) ASC`
     ).bind(o.id).all(),
     // relatedOffices — bkz. yukarıdaki officeCity yorumu. loc = 'İl / İlçe' ya da bazen bare 'İl'
     // olarak saklandığından (bkz. cityOf()'un aynı iki durumu ele alması) hem tam eşleşme hem
@@ -543,9 +547,11 @@ export async function buildOfficePayload(env, key) {
       // performance audit (2026-09-01, P2) — eskiden `SELECT *`; bu sonuç kümesinin TEK tüketicisi
       // brandCatalog (slug/title/images/category/kind) ve isPureBrandOffice'in okuduğu satır SAYISI.
       // description/specs/files gibi hiç okunmayan büyük kolonlar artık D1'den çekilmiyor.
-      `SELECT slug, title, images, category, kind FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL
+      // ÖNİZLEME ürünleri de dahil (kullanıcı isteği, 2026-09-11 — bkz. yukarıdaki relatedRes notu);
+      // önizlemeler listenin sonuna.
+      `SELECT slug, title, images, category, kind, preview_at FROM products WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)
        AND (brand_office_id = ? OR brand_name_raw = ? COLLATE NOCASE)
-       ORDER BY title COLLATE NOCASE`
+       ORDER BY (preview_at IS NOT NULL) ASC, title COLLATE NOCASE`
     ).bind(o.id, o.name).all(),
     // "Projelerde Kullanılan Ürünler" (kullanıcı isteği, 2026-08-31: "Projelerde kullanılan ürünler;
     // projenin sahibi mimarlık firması popupında da 'Projelerde Kullanılan Ürünler' kısmı açılarak

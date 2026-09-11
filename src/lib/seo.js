@@ -487,6 +487,13 @@ async function findOfficeRow(env, key) {
 // src/routes/project.js#DESIGNER_SEP ile AYNI görünmez kontrol karakteri () kullanılır — isim
 // içinde geçmesi imkansız olduğundan virgül/boşluk gibi ayraçların aksine isimleri asla bölmez.
 const DESIGNER_SEP = '';
+// ARŞİVLENMİŞ (410) künye kaydı — sağlık taraması bulgusu (2026-09-11, canlıda tarandı): Galataport
+// SSR gövdesi /firma/tanju-ozelgin-studio ve /firma/norm-mimarlik'e link veriyordu, ikisi de 410.
+// findProjectRow bilerek hidden_at'a bakmaz (arşivlenmiş bir firmanın ADI künyede kalmalı) ama
+// slug'ı ancak profil AÇILABİLİYORSA (yayında ya da önizleme) link olmalı. GROUP_CONCAT NULL'ları
+// atlayıp dizileri kaydırdığından "link yok" bu yer tutucuyla taşınır (bkz. linkableSlug).
+const UNLINKED_SLUG = '-';
+function linkableSlug(slug) { return slug && slug !== UNLINKED_SLUG ? slug : null; }
 function namesFromConcat(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
 }
@@ -499,9 +506,9 @@ async function findProjectRow(env, slug) {
   return env.DB.prepare(
     `SELECT p.*,
             GROUP_CONCAT(ar.name, '${DESIGNER_SEP}') AS architect_names,
-            GROUP_CONCAT(ar.slug, '${DESIGNER_SEP}') AS architect_slugs,
+            GROUP_CONCAT(CASE WHEN ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL THEN ar.slug ELSE '${UNLINKED_SLUG}' END, '${DESIGNER_SEP}') AS architect_slugs,
             GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS office_names,
-            GROUP_CONCAT(ofc.slug, '${DESIGNER_SEP}') AS office_slugs
+            GROUP_CONCAT(CASE WHEN ofc.hidden_at IS NULL OR ofc.preview_at IS NOT NULL THEN ofc.slug ELSE '${UNLINKED_SLUG}' END, '${DESIGNER_SEP}') AS office_slugs
      FROM projects p
      LEFT JOIN project_designers pd ON pd.project_id = p.id
      LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
@@ -827,10 +834,10 @@ async function buildProjectMeta(slug, env) {
     officeSlugs = [];
   }
   const creators = [
-    ...architectNames.map((name, i) => architectSlugs[i]
+    ...architectNames.map((name, i) => linkableSlug(architectSlugs[i])
       ? { '@type': 'Person', name, url: `${SITE_ORIGIN}/kisi/${encodeURIComponent(architectSlugs[i])}` }
       : { '@type': 'Person', name }),
-    ...officeNames.map((name, i) => officeSlugs[i]
+    ...officeNames.map((name, i) => linkableSlug(officeSlugs[i])
       ? { '@type': 'Organization', name, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(officeSlugs[i])}` }
       : { '@type': 'Organization', name }),
   ];
@@ -852,10 +859,10 @@ async function buildProjectMeta(slug, env) {
   // de artık iki ayrı satır üretir; tek bir "Mimar / Firma" satırı, ekranda ayrılmış olan bilgiyi
   // birleştiriyordu.
   const architectLinksHtml = architectNames
-    .map((name, i) => architectSlugs[i] ? internalLink(`/kisi/${encodeURIComponent(architectSlugs[i])}`, name) : escapeHtml(name))
+    .map((name, i) => linkableSlug(architectSlugs[i]) ? internalLink(`/kisi/${encodeURIComponent(architectSlugs[i])}`, name) : escapeHtml(name))
     .join(', ') || null;
   const officeDesignerLinksHtml = officeNames
-    .map((name, i) => officeSlugs[i] ? internalLink(`/firma/${encodeURIComponent(officeSlugs[i])}`, name) : escapeHtml(name))
+    .map((name, i) => linkableSlug(officeSlugs[i]) ? internalLink(`/firma/${encodeURIComponent(officeSlugs[i])}`, name) : escapeHtml(name))
     .join(', ') || null;
   const typeLabel = [...(p.category || []), ...(p.type || [])].join(', ') || null;
   // POPUP HİZALAMASI (bkz. "POPUP KÜNYE SÖZLEŞMESİ"): popup künyesi ÜÇ AYRI eksen gösterir —

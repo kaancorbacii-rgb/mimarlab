@@ -73,7 +73,15 @@
     document.head.appendChild(style);
   }
 
+  // Oturum ipucu (bkz. src/index.js#ml-auth meta): çerez yoksa istek hiç atılmaz — anonim
+  // ziyaretçide 401 üretmez, sayfa başına bir istek eksilir. Meta yoksa (eski önbellek/yerel
+  // statik) eski davranış.
+  function hasSessionHint() {
+    var m = document.querySelector('meta[name="ml-auth"]');
+    return !m || m.getAttribute('content') !== '0';
+  }
   function fetchMe() {
+    if (!hasSessionHint()) return Promise.resolve({ user: null });
     return fetch('/api/auth/me').then(res => (res.ok ? res.json() : { user: null })).catch(() => ({ user: null }));
   }
   // audit bulgusu: auth-nav.js (hemen hemen her sayfada) ve save-widget.js (kart ızgaralı

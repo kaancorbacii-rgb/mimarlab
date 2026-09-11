@@ -44,6 +44,12 @@ const CATALOG_CATEGORY_ORDER = new Map(
 // export EDİLİR: scripts/visual-search-eval.mjs (görsel arama regresyon testi) fetchProductPool'un
 // D1 erişimini REST API ile taklit ederken AYNI şekillendirmeyi kullanmak için import eder —
 // kopyalanmaz, tek kaynak burasıdır.
+// ' · ' ile ayrılmış çoklu kategori → dizi (bkz. fetchProductPool#categories). Tek kategori de
+// tek elemanlı dizi döner; boş/NULL → [].
+export function splitCategories(category) {
+  return String(category || '').split(' · ').map(s => s.trim()).filter(Boolean);
+}
+
 export function shapeProductItem(row) {
   const p = parseCanonicalRow('products', row);
   const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
@@ -82,13 +88,19 @@ export async function fetchProductPool(env) {
       const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
       const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
       const ratingKey = ratingKeyFor(p.title, p.brand, submissionId);
-      const group = taxonomyGroupOf(CATALOG_TAXONOMY, p.category);
+      // ÇOKLU KATEGORİ (kullanıcı isteği, 2026-09-11: "Grup ve kategori kutucukları birden fazla
+      // seçmeli olsun"): products.category ' · ' ile ayrılmış birden fazla kategori taşıyabilir
+      // (eski çoklu-seçim verisiyle AYNI ayraç). categories/groups dizileri filtre ve sayaçlarda
+      // kullanılır; `group` (ilk kategorinin grubu) geriye dönük uyumluluk için kalır.
+      const categories = splitCategories(p.category);
+      const groups = [...new Set(categories.map(c => taxonomyGroupOf(CATALOG_TAXONOMY, c)).filter(Boolean))];
+      const group = groups[0] || null;
       const ratingKind = p.kind === 'material' ? 'material' : 'product';
       const rating = ratingByKey.get(`${ratingKind}:${ratingKey}`) || { average: 0, count: 0 };
       const designers = (p.designer || '').split(',').map(s => s.trim()).filter(Boolean);
       return {
         slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
-        image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
+        image: (p.images && p.images[0]) || null, group, groups, categories, ratingKey, submissionId, rating,
         // images: kart karuseli için ilk 6 görsel (bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES
         // ve js/components/card-carousel.js). `image` (kapak) geriye dönük uyumluluk için kalır.
         images: (p.images || []).slice(0, 6),
@@ -493,8 +505,8 @@ export async function handleProductListRoute(request, env, url) {
     // urun.html#passesFilters ile BİREBİR aynı — exceptKey ile o grubun kendi seçimi hariç tutularak
     // faceted (diğer aktif filtrelerle bağımlı) sayaç üretir (bkz. proje.html#passesFilters'daki AYNI desen).
     function passes(p, exceptKey) {
-      if (groupParam && exceptKey !== 'group' && p.group !== groupParam) return false;
-      if (categoryParam && exceptKey !== 'category' && p.category !== categoryParam) return false;
+      if (groupParam && exceptKey !== 'group' && !(p.groups || [p.group]).includes(groupParam)) return false;
+      if (categoryParam && exceptKey !== 'category' && !(p.categories || [p.category]).includes(categoryParam)) return false;
       if (brandParam && exceptKey !== 'brand' && p.brand !== brandParam) return false;
       if (ratingParam && exceptKey !== 'rating' && !ratingBuckets(p.rating.average).includes(ratingParam)) return false;
       if (yearParam && exceptKey !== 'year' && p.year !== yearParam) return false;
@@ -564,13 +576,13 @@ export async function handleProductListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ group, rating, designers, ...rest }) => rest);
+    const items = filtered.slice(start, start + limit).map(({ group, groups, categories, rating, designers, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
       filters: {
-        group: countsFor('group', p => [p.group], CATALOG_GROUP_ORDER),
-        category: countsFor('category', p => [p.category], CATALOG_CATEGORY_ORDER),
+        group: countsFor('group', p => p.groups || [p.group], CATALOG_GROUP_ORDER),
+        category: countsFor('category', p => p.categories || [p.category], CATALOG_CATEGORY_ORDER),
         brand: countsFor('brand', p => [p.brand]),
         rating: countsFor('rating', p => ratingBuckets(p.rating.average)),
         year: countsFor('year', p => [p.year]),

@@ -766,7 +766,16 @@ export default {
       // aynı sürüm istemciye de verilir; onlar da ?v= ekleyip immutable önbellekten yararlanır.
       // <head>'in BAŞINA: <head>'deki senkron shim'ler ondan sonra çalışmalı.
       const versionMeta = `<meta name="ml-asset-version" content="${deployVersion(env)}">`;
-      rewriter.on('head', { element(el) { el.prepend(versionMeta, { html: true }); } });
+      // <meta name="ml-auth"> — OTURUM İPUCU (sağlık taraması, 2026-09-11): anonim ziyaretçide
+      // auth-nav.js/badge-shared.js her sayfada /api/auth/me + /api/badges/mine çağırıp 401 alıyor,
+      // konsolda iki kırmızı satır ve iki boşa istek üretiyordu. Oturum çerezi (HttpOnly, JS
+      // göremez) istekte YOKSA "0" yazılır ve istemci bu iki isteği hiç atmaz; varsa "1" (süresi
+      // dolmuş bir çerezde istek yine gider, 401 orada beklenen bir cevaptır). Her yanıta o an
+      // yazıldığından (bu blok önbellek SONRASI çalışır) ziyaretçiye özeldir, önbelleğe sızmaz.
+      const cookieHeader = request.headers.get('Cookie') || '';
+      const hasSessionCookie = /(?:^|;\s*)(?:__Host-)?mimarlab_session=/.test(cookieHeader);
+      const authMeta = `<meta name="ml-auth" content="${hasSessionCookie ? '1' : '0'}">`;
+      rewriter.on('head', { element(el) { el.prepend(versionMeta + authMeta, { html: true }); } });
       // charset=utf-8 ZORUNLU (kullanıcı isteği, 2026-09-10: "projeler sayfasına girince yazılar
       // bozuluyor"). HTMLRewriter belgenin kodlamasını Content-Type'ın charset parametresinden
       // alır; parametre YOKSA HTML spesifikasyonunun ön-taramasına düşer ve o yalnızca İLK 1024

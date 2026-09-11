@@ -68,7 +68,12 @@ fetch('/api/public/badges').then(r => r.ok ? r.json() : null).then(d => {
 let myEffectiveBadge = null;
 let resolveMyBadgeReady;
 const myEffectiveBadgePromise = new Promise(resolve => { resolveMyBadgeReady = resolve; });
-fetch('/api/badges/mine').then(r => r.ok ? r.json() : null).then(d => {
+// Oturum çerezi yoksa (bkz. src/index.js#ml-auth meta, auth-nav.js#hasSessionHint) istek atılmaz —
+// anonim ziyaretçide her sayfada bir 401 üretiyordu.
+((function(){ var m = document.querySelector('meta[name="ml-auth"]'); return !m || m.getAttribute('content') !== '0'; })()
+  ? fetch('/api/badges/mine').then(r => r.ok ? r.json() : null)
+  : Promise.resolve(null)
+).then(d => {
   myEffectiveBadge = (d && d.effectivePersonalBadge) || null;
 }).catch(()=>{}).finally(()=>{ resolveMyBadgeReady(myEffectiveBadge); });
 

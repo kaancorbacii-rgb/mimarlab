@@ -526,5 +526,70 @@ await test('kablolama: index.js gated kontrolü /media ve statik dallardan ÖNCE
   assert.ok(iu.includes("form.append('dblur'"));
 });
 
+// =============================================================================================
+// 2026-09-11 — sağlık taraması + çoklu kategori + firma popup önizlemeleri
+// =============================================================================================
+import { splitCategories } from '../src/routes/product.js';
+section('çoklu kategori (products.category " · ")');
+await test('splitCategories: tek/çoklu/boş', () => {
+  assert.deepEqual(splitCategories('Cam'), ['Cam']);
+  assert.deepEqual(splitCategories('Cam · Vitrifiye · '), ['Cam', 'Vitrifiye']);
+  assert.deepEqual(splitCategories(null), []);
+  const src = readFileSync(new URL('../src/routes/product.js', import.meta.url), 'utf8');
+  assert.ok(src.includes("!(p.groups || [p.group]).includes(groupParam)") && src.includes("!(p.categories || [p.category]).includes(categoryParam)"), 'filtre çoklu kategoriyi tanımalı');
+  const form = readFileSync(new URL('../urun-ekle.html', import.meta.url), 'utf8');
+  assert.ok(form.includes("category: [...selectedCategories].join(' · ')") && form.includes('id="u-category-pills"'));
+});
+section('firma/marka popup: önizleme proje/ürünleri dahil');
+await test('buildOfficePayload önizleme projelerini ve ürünlerini de döner (preview bayrağıyla)', async () => {
+  const db = freshDb();
+  db.exec(`
+    INSERT INTO offices (id, slug, name, cats) VALUES (1, 'f1', 'Firma Bir', '["Mimarlık"]');
+    INSERT INTO projects (id, slug, title, images, build_status, source, hidden_at, preview_at) VALUES
+      (1, 'p-canli', 'Canlı P', '[]', 'built', 'legacy_static', NULL, NULL),
+      (2, 'p-oniz', 'Önizleme P', '[]', 'built', 'legacy_static', '${NOW}', '${NOW}'),
+      (3, 'p-arsiv', 'Arşiv P', '[]', 'built', 'legacy_static', '${NOW}', NULL);
+    INSERT INTO project_designers (project_id, office_id) VALUES (1, 1), (2, 1), (3, 1);
+    INSERT INTO products (slug, title, kind, brand_office_id, images, hidden_at, preview_at) VALUES
+      ('u-canli', 'Canlı Ü', 'product', 1, '[]', NULL, NULL),
+      ('u-oniz', 'Önizleme Ü', 'product', 1, '[]', '${NOW}', '${NOW}'),
+      ('u-arsiv', 'Arşiv Ü', 'product', 1, '[]', '${NOW}', NULL);
+  `);
+  const { buildOfficePayload } = await import('../src/routes/office.js');
+  const p = await buildOfficePayload({ DB: d1(db), IMG_KV: null }, 'f1');
+  const pslugs = p.relatedProjects.map(x => x.slug);
+  assert.ok(pslugs.includes('p-canli') && pslugs.includes('p-oniz') && !pslugs.includes('p-arsiv'), JSON.stringify(pslugs));
+  assert.equal(pslugs[pslugs.length - 1], 'p-oniz', 'önizleme en sonda');
+  // preview bayrağı kartta gerekmez: preview-cards.js kartı href üzerinden işaretler, gatedMedia görseli sunucuda bulanıklaştırır.
+  const uslugs = p.relatedProducts.map(x => x.slug);
+  assert.ok(uslugs.includes('u-canli') && uslugs.includes('u-oniz') && !uslugs.includes('u-arsiv'), JSON.stringify(uslugs));
+});
+section('SSR künyesi arşivlenmiş firmaya link vermez');
+await test('findProjectRow: arşivlenmiş firma/kişi slug\'ı "-" (linksiz), önizleme ve canlı linkli', async () => {
+  const db = freshDb();
+  db.exec(`
+    INSERT INTO offices (id, slug, name, hidden_at, preview_at) VALUES (1, 'canli-f', 'Canlı F', NULL, NULL), (2, 'arsiv-f', 'Arşiv F', '${NOW}', NULL), (3, 'oniz-f', 'Öniz F', '${NOW}', '${NOW}');
+    INSERT INTO projects (id, slug, title, images, build_status, source) VALUES (1, 'px', 'PX', '[]', 'built', 'legacy_static');
+    INSERT INTO project_designers (project_id, office_id) VALUES (1, 1), (1, 2), (1, 3);
+  `);
+  const seo = await import('../src/lib/seo.js');
+  const meta = await seo.buildMeta('project', 'px', { DB: d1(db) });
+  const html = (meta && (meta.bodyHtml || meta.ssrBody || JSON.stringify(meta))) || '';
+  assert.ok(html.includes('/firma/canli-f'), 'canlı firma linkli');
+  assert.ok(html.includes('/firma/oniz-f'), 'önizleme firma linkli (açılabiliyor)');
+  assert.ok(!html.includes('/firma/arsiv-f'), 'arşiv firma LİNKSİZ');
+  assert.ok(html.includes('Arşiv F'), 'ama adı künyede kalır');
+});
+section('anonim 401 temizliği (ml-auth meta)');
+await test('index.js oturum ipucu metası; auth-nav/badge-shared ipucu 0 iken istek atmaz', () => {
+  const idx = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(idx.includes('<meta name="ml-auth" content="${hasSessionCookie ? \'1\' : \'0\'}">'));
+  assert.ok(/mimarlab_session=/.test(idx));
+  const an = readFileSync(new URL('../auth-nav.js', import.meta.url), 'utf8');
+  assert.ok(an.includes("if (!hasSessionHint()) return Promise.resolve({ user: null });"));
+  const bs = readFileSync(new URL('../badge-shared.js', import.meta.url), 'utf8');
+  assert.ok(bs.includes("meta[name=\"ml-auth\"]"));
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`  - ${f.name}: ${f.message}`); process.exit(1); }
