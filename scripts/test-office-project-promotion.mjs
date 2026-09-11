@@ -156,5 +156,58 @@ await test('proje havuzu sıralamasında (fetchActiveProjectPool ile aynı ORDER
   assert.equal(pool[0].slug, 'perse-en-yeni', `beklenen ilk sırada perse-en-yeni, gelen: ${pool[0].slug}`);
 });
 
+section('firma ÖNİZLEMEDEYKEN Yönetici atanır (kullanıcı isteği, 2026-09-11 ikinci tur)');
+
+// GERÇEK CANLI VAKA: AAW Ahmet Alataş Workshop'a 'Yönetici' atandı; projeleri önizlemedeydi, en son
+// projesi 'merzigo' relisted_at aldı ama display_order=344 kaldığı için proje sayfasında 56. sıradaydı.
+// Burada perse-en-yeni BİLEREK en yüksek id'yi TAŞIMIYOR (perse-en-eski'den önce eklendi) — "en son"
+// yayın tarihiyle seçilmeli, id ile değil.
+const PREV = '2026-09-10T00:00:00.000Z';
+function seedPreview(db) {
+  db.exec(`
+    INSERT INTO offices (slug, name, loc, cats, source, hidden_at, preview_at) VALUES
+      ('aaw', 'AAW Ahmet Alataş Workshop', 'İstanbul', '["Mimarlık"]', 'legacy_static', '${PREV}', '${PREV}'),
+      ('ilgisiz-firma', 'İlgisiz Firma', 'Ankara', '["Mimarlık"]', 'legacy_static', NULL, NULL);
+    INSERT INTO projects (slug, title, source, publish_date, created_at, display_order, hidden_at, preview_at) VALUES
+      ('merzigo', 'Merzigo', 'legacy_static', '2026-08-24T00:00:00.000Z', '2026-08-24T00:00:00.000Z', 344, '${PREV}', '${PREV}'),
+      ('aaw-eski', 'AAW Eski', 'legacy_static', '2026-08-04T00:00:00.000Z', '2026-08-04T00:00:00.000Z', 1454, '${PREV}', '${PREV}'),
+      ('aaw-canli', 'AAW Canlı', 'legacy_static', '2026-08-10T00:00:00.000Z', '2026-08-10T00:00:00.000Z', 900, NULL, NULL),
+      ('ilgisiz-proje', 'İlgisiz Proje', 'legacy_static', '2021-01-01T00:00:00.000Z', '2021-01-01T00:00:00.000Z', 5, NULL, NULL);
+    INSERT INTO project_designers (project_id, office_id) VALUES (1, 1), (2, 1), (3, 1), (4, 2);
+  `);
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-yeni', 'yeni@example.com', 'x', 'Yeni Yönetici', 'user', ?)`).run(Date.now());
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-admin', 'admin@example.com', 'x', 'Admin', 'admin', ?)`).run(Date.now());
+}
+async function assignManager(env) {
+  const url = new URL('https://mimarlab.com/api/admin/claims');
+  return handleAdminRoute(adminReq(url.pathname, {
+    method: 'POST', body: JSON.stringify({ userId: 'u-yeni', profileType: 'office', profileKey: 'AAW Ahmet Alataş Workshop', officePosition: 'Yönetici' }),
+  }), env, url);
+}
+
+await test('önizlemedeki firmanın EN SON YAYINLANAN projesi proje havuzunda 1. sırada', async () => {
+  const db = freshDb(); seedPreview(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  const res = await assignManager(env);
+  assert.equal(res.status, 200, await res.text());
+  const { fetchActiveProjectPool } = await import('../src/lib/projectPool.js');
+  const pool = await fetchActiveProjectPool(env, 'built');
+  assert.equal(pool[0].slug, 'merzigo', `beklenen ilk sırada merzigo, sıra: ${pool.map(p => p.slug).join(', ')}`);
+  assert.equal(db.prepare(`SELECT display_order FROM projects WHERE slug = 'merzigo'`).get().display_order, null, 'display_order temizlenmeli');
+});
+
+await test('önizlemeden çıkan DİĞER projeler damgalanmaz (partide tek damga), yayına yine de alınır', async () => {
+  const db = freshDb(); seedPreview(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignManager(env);
+  const eski = db.prepare(`SELECT relisted_at, preview_at, hidden_at FROM projects WHERE slug = 'aaw-eski'`).get();
+  assert.equal(eski.relisted_at, null);
+  assert.equal(eski.preview_at, null);
+  assert.equal(eski.hidden_at, null);
+  // ZATEN CANLI olan firma projesi eskisi gibi yayılır (1. sıranın bir gün gerisinde).
+  assert.ok(relistedAt(db, 'aaw-canli'), 'zaten canlı firma projesi yayılmalı');
+  assert.ok(relistedAt(db, 'merzigo') > relistedAt(db, 'aaw-canli'));
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(` - ${f.name}: ${f.message}`); process.exit(1); }

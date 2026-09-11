@@ -970,7 +970,10 @@ async function idsFrom(env, sql, binds) {
 // gelmesi gereken satırlar (kullanıcı atamayı yaptığı profili listenin başında görmeli).
 const RELIST_TOP_PER_TYPE = 1;
 
-async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [] } = {}) {
+// `relistTop` — partide damgalanacak "en son" kayıt sayısı. Projelerde activateClaimedProfile 0 geçer:
+// projelerin 1. sırası promoteOfficeProjectsOnAssignment'ın TEK kuralıyla verilir (bkz. oradaki
+// 2026-09-11 "yönetici ataması" notu).
+async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [], relistTop = RELIST_TOP_PER_TYPE } = {}) {
   if (!ids.length) return [];
   const capped = ids.slice(0, ACTIVATE_ID_LIMIT);
   const ph = capped.map(() => '?').join(', ');
@@ -983,7 +986,7 @@ async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [] } =
   if (!changed.length) return [];
 
   const forced = new Set(forceRelistIds);
-  const newest = [...changed].sort((a, b) => b - a).slice(0, RELIST_TOP_PER_TYPE);
+  const newest = [...changed].sort((a, b) => b - a).slice(0, relistTop);
   const relist = changed.filter(id => forced.has(id) || newest.includes(id));
   const natural = changed.filter(id => !relist.includes(id));
 
@@ -1024,11 +1027,22 @@ async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [] } =
 const PROMOTE_SPREAD_MAX = 10;
 const PROMOTE_SPREAD_STEP_MS = 24 * 60 * 60 * 1000; // bir gün
 
-async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso) {
+// GERÇEK BULGU (kullanıcı isteği, 2026-09-11 ikinci tur: "Bir firmaya bir kullanıcıyı yönetici
+// atadığımda da o firmanın en son yayınlanan projesi proje sayfasında 1. sıraya yerleşsin."): canlı
+// vaka AAW Ahmet Alataş Workshop — 'Yönetici' ataması 15:17'de yapıldı, en son projesi 'merzigo'
+// relisted_at=15:17 aldı ama proje sayfasında 56. sırada kaldı. Neden: firmanın projeleri
+// ÖNİZLEMEDEYDİ; o dal unpreviewByIds'in RELIST_TOP_PER_TYPE damgasıyla (display_order'a DOKUNMADAN,
+// "en son" = en yüksek id) çözülüyordu, bu fonksiyon ise yalnızca ZATEN CANLI satırlara bakıyordu —
+// yani yukarıdaki display_order düzeltmesi önizlemeden gelen firmalarda HİÇ çalışmıyordu.
+// Artık 1. sıra TEK kuraldır: aday küme atamadan SONRA canlı olan tüm projeler (önizlemeden bu
+// çağrıda çıkanlar dahil), birinci = en son YAYINLANAN, display_order temizlenir. `noSpreadIds`
+// (bu çağrıda önizlemeden çıkanlar) YAYILMAYA girmez — unpreviewByIds'in "partide tek damga, kalanı
+// doğal sırasına" kuralı korunur (bkz. scripts/test-claim-activation-cascade.mjs).
+async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso, { noSpreadIds = new Set() } = {}) {
   if (!projectIds.length) return;
   const capped = projectIds.slice(0, ACTIVATE_ID_LIMIT);
   const ph = capped.map(() => '?').join(', ');
-  // Yalnızca ZATEN CANLI satırlar (preview_at NULL) — önizlemedekiler unpreviewByIds'in işi.
+  // Atamadan SONRA canlı olan satırlar (preview_at NULL) — önizlemeden bu çağrıda çıkanlar dahil.
   const { results } = await env.DB.prepare(
     `SELECT id FROM projects WHERE id IN (${ph}) AND deleted_at IS NULL AND hidden_at IS NULL AND preview_at IS NULL
       ORDER BY COALESCE(publish_date, created_at) DESC, id DESC`
@@ -1051,7 +1065,7 @@ async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso) {
   await env.DB.prepare(`UPDATE projects SET relisted_at = ?, display_order = NULL WHERE id = ?`).bind(nowIso, topId).run();
 
   const nowMs = new Date(nowIso).getTime();
-  const spread = rest.slice(0, PROMOTE_SPREAD_MAX);
+  const spread = rest.filter(id => !noSpreadIds.has(id)).slice(0, PROMOTE_SPREAD_MAX);
   for (let i = 0; i < spread.length; i++) {
     const ts = new Date(nowMs - (i + 1) * PROMOTE_SPREAD_STEP_MS).toISOString();
     await env.DB.prepare(`UPDATE projects SET relisted_at = ?, display_order = NULL WHERE id = ?`).bind(ts, spread[i]).run();
@@ -1172,20 +1186,17 @@ async function activateClaimedProfile(env, profileType, profileKey, userId) {
   const activated = {
     architects: await unpreviewByIds(env, 'architects', architectIds, nowIso, { forceRelistIds: profileType === 'architect' ? seedIds : [] }),
     offices: await unpreviewByIds(env, 'offices', officeIds, nowIso, { forceRelistIds: profileType === 'office' ? seedIds : [] }),
-    projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso),
+    // relistTop: 0 — projelerin 1. sırası aşağıdaki promoteOfficeProjectsOnAssignment'tan gelir.
+    projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso, { relistTop: 0 }),
     products: await unpreviewByIds(env, 'products', [...new Set(productIds)], nowIso),
   };
 
-  // bkz. yukarıdaki promoteOfficeProjectsOnAssignment gerekçesi — ZATEN CANLI projeler için "en son
-  // yayınlanan 1. sıraya" kuralı. `activated.projects` (yukarıdaki unpreviewByIds'in DÖNDÜRDÜĞÜ,
-  // preview_at'i BU çağrıda NULL'lanan satırlar) BİLEREK dışlanır: o küme kendi RELIST_TOP_PER_TYPE
-  // kuralıyla (partide tip başına tek damga) zaten sıralandı — buraya da eklenirse unpreviewByIds'in
-  // "diğerleri doğal sırasına düşsün" için bilerek NULL'ladığı relisted_at'ler burada tekrar
-  // damgalanır ve iki kural birbirinin üstüne yazar (gerçek regresyon: bkz. scripts/
-  // test-claim-activation-cascade.mjs — "partide tek proje damgalanmalı").
-  const freshlyUnpreviewedIds = new Set(activated.projects);
-  const alreadyLiveProjectIds = [...new Set(projectIds)].filter(id => !freshlyUnpreviewedIds.has(id));
-  await promoteOfficeProjectsOnAssignment(env, alreadyLiveProjectIds, nowIso);
+  // "En son yayınlanan proje 1. sıraya" — firma önizlemede de olsa canlıda da olsa, görev ne olursa
+  // olsun (Kurucu/Yönetici/...) AYNI kural (bkz. promoteOfficeProjectsOnAssignment'ın 2026-09-11
+  // ikinci tur notu). Bu çağrıda önizlemeden çıkanlar 1. sıraya ADAY olur ama yayılmaya girmez —
+  // unpreviewByIds'in "diğerleri doğal sırasına düşsün" kuralı bozulmasın (gerçek regresyon: bkz.
+  // scripts/test-claim-activation-cascade.mjs — "partide tek proje damgalanmalı").
+  await promoteOfficeProjectsOnAssignment(env, [...new Set(projectIds)], nowIso, { noSpreadIds: new Set(activated.projects) });
 
   if (userId) {
     for (const table of Object.keys(activated)) {
