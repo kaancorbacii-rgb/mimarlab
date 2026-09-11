@@ -125,7 +125,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // ziyaretçiler s-maxage boyunca portfolyosuz eski modül dosyasını yükler.
 // v125 (2026-09-11): SSR künyesi arşivlenmiş firma/kişiye artık link vermiyor (seo.js#linkableSlug) —
 // önbellekteki eski detay HTML'leri 410'a giden linki taşımaya devam ederdi.
-export const SSR_CACHE_VERSION = 'v125';
+// v126 (2026-09-11): tarayıcı HTTP önbellek kilidi düzeltmesi — proje/kisi/firma/marka/urun.html
+// <head> ön-yükleme shim'i artık fetch(u,{cache:'no-store'}), modal-shell.js#fetchEntity takılma
+// zaman aşımı + önbellek kırıcılı yeniden deneme taşıyor. Önbellekteki eski detay gövdeleri hem eski
+// shim'i hem de (ml-asset-version üzerinden) eski modal-shell.js'i yükletirdi — e-postayla gönderilen
+// önizleme linkleri tam bu yol.
+export const SSR_CACHE_VERSION = 'v126';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

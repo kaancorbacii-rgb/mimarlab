@@ -377,7 +377,10 @@
       prefetchedPaths.add(path);
       const store = (window.__mlPrefetch = window.__mlPrefetch || {});
       if (store[path]) return;
-      const p = fetch(path);
+      // cache:'no-store' — bkz. modal-shell.js#ENTITY_STALL_TIMEOUT_MS yorumu (2026-09-11): tarayıcının
+      // HTTP önbellek kilidi yüzünden aynı URL'e sonraki istekler ~20 sn bekliyordu; önbelleğe hiç
+      // girmeyen istek kilit ne tutar ne bekler.
+      const p = fetch(path, { cache: 'no-store' });
       p.catch(() => {});
       store[path] = p;
     } catch { /* ön-yükleme hiçbir koşulda sayfayı bozmamalı */ }

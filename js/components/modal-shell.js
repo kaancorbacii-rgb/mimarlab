@@ -1135,10 +1135,42 @@ const ModalShell = (function () {
     if (store && store[path]) { const p = store[path]; delete store[path]; return p; }
     return null;
   }
+  // TAKILMA KORUMASI (canlı bulgu, 2026-09-11 — önizleme firma/proje popup'ları doğrudan girişte ve
+  // tıklamada BOŞ açılıyordu, e-postayla gönderilen /firma/<slug> linkleri tam bu yol). Ölçüm:
+  // parametresiz /api/project/karakoy-gulluoglu 3/3 denemede ~20,2 sn; Resource Timing'de
+  // requestStart = 20009 ms (DNS/connect 0) — istek tarayıcıdan HİÇ ÇIKMADAN 20 sn bekliyordu;
+  // `wrangler tail` Worker'ın isteği 20,25 sn geç alıp 184 ms'de yanıtladığını gösterdi; AYNI URL
+  // `cache:'no-store'` ile 184 ms, `?_=<ts>` ile 186 ms. Bu, tarayıcının HTTP önbellek KİLİDİ: aynı
+  // URL için önbellek girdisini yazan başka bir işlem (ör. edge/HTTP-3 katmanında takılan önceki bir
+  // istek — bkz. 2026-09-10 tumertekin-architects bulgusu) kilidi tutarken sonraki her istek ~20 sn'lik
+  // kilit zaman aşımını bekleyip ancak sonra önbelleği atlıyor; kilidi tutan ilk istek ise süresiz
+  // askıda kalabiliyor (popup o isteği bekleyip hiç çizilmiyordu). İki katmanlı çözüm:
+  //   1) Detay istekleri tarayıcının HTTP önbelleğine HİÇ girmez (`cache:'no-store'`) — girdi yok,
+  //      kilit yok. Kayıp ihmal edilebilir: bu uçların tarayıcı max-age'i 60 sn, asıl önbellek
+  //      Worker'ın Cache API'si (s-maxage 300) ve o aynen çalışır.
+  //   2) İlk deneme (ön-çekilmiş ya da taze) ENTITY_STALL_TIMEOUT_MS içinde başlık getirmezse
+  //      beklemeyi bırakıp önbellek kırıcılı (`_r=`) YENİ bir istek atılır — farklı URL, edge'de URL'e
+  //      özgü takılmayı da atlatır. Detay uçlarının Worker önbellek anahtarı yalnızca pathname'dir
+  //      (bkz. src/routes/*#cachedPublicJson(..., url.pathname, ...)), yani `_r` önbelleği kirletmez;
+  //      aynı isolate'te süren hesaplamaya withSingleFlight üzerinden katılır, D1'i iki kez yormaz.
+  const ENTITY_STALL_TIMEOUT_MS = 5000;
+  function entityRequest(path, attempt) {
+    if (attempt === 0) return fetch(path, { cache: 'no-store' });
+    const sep = path.indexOf('?') === -1 ? '?' : '&';
+    return fetch(`${path}${sep}_r=${Date.now()}`, { cache: 'no-store' });
+  }
+  function withStallTimeout(promise) {
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('entity-stall')), ENTITY_STALL_TIMEOUT_MS);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
   async function fetchEntity(path) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await ((attempt === 0 && takePrefetched(path)) || fetch(path));
+        const pending = (attempt === 0 && takePrefetched(path)) || entityRequest(path, attempt);
+        const res = attempt === 0 ? await withStallTimeout(pending) : await pending;
         // 404/410 = kaydın kendisi yok/kaldırılmış (bkz. src/lib/publicCache.js#statusFor) — bu
         // KESİN bir cevap, tekrar denemek anlamsız.
         // ÖNİZLEME ("soluk") kaydı da 410 döner ama "bulunamadı" DEĞİLDİR — kullanıcı isteği
@@ -1166,9 +1198,13 @@ const ModalShell = (function () {
             : { status: 'missing' };
         }
         return { status: 'ok', item: data.item, payload: data };
-      } catch {
-        // Ağ/DNS/çevrimdışı/JSON parse — hiçbiri "kayıt yok" anlamına gelmez.
-        if (attempt === 0) { await sleep(ENTITY_RETRY_DELAY_MS); continue; }
+      } catch (err) {
+        // Ağ/DNS/çevrimdışı/JSON parse — hiçbiri "kayıt yok" anlamına gelmez. Takılma zaman aşımında
+        // (bkz. ENTITY_STALL_TIMEOUT_MS) ek bekleme yapılmaz — zaten 5 sn beklendi, hemen yeniden denenir.
+        if (attempt === 0) {
+          if (!(err && err.message === 'entity-stall')) await sleep(ENTITY_RETRY_DELAY_MS);
+          continue;
+        }
         return { status: 'error' };
       }
     }

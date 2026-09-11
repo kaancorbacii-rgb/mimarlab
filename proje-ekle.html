@@ -2404,7 +2404,8 @@ async function prefillOwnOfficeForNewProject(){
   officeInput.value = officeNames.join(', ');
   const founderLists = await Promise.all(officeNames.map(async (name) => {
     try{
-      const res = await fetch(`/api/office/${encodeURIComponent(name)}`);
+      // cache:'no-store' — bkz. js/components/modal-shell.js#ENTITY_STALL_TIMEOUT_MS (tarayıcı önbellek kilidi).
+      const res = await fetch(`/api/office/${encodeURIComponent(name)}`, { cache: 'no-store' });
       if(!res.ok) return [];
       const { founders } = await res.json();
       return (founders || []).map(f => f && f.name).filter(Boolean);

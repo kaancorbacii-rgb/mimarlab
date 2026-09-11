@@ -163,10 +163,12 @@ export async function handleOfficeSearchRoute(request, env, url) {
     if (!q || q.length < 2) return { items: [] };
     // production audit (2026-09-01, madde B) — bkz. src/routes/architect.js#handleArchitectSearchRoute
     // ve migrations/0079: eşleştirme artık indexli name_fold kolonu üzerinde SQLite içinde yapılıyor.
+    // ÖNİZLEME (blurlu) firma/markalar da önerilir — bkz. src/routes/architect.js#
+    // handleArchitectSearchRoute'taki AYNI kullanıcı isteği (2026-09-11). Tam arşiv hariç.
     const rows = await foldedPrefixThenSubstring({
       runQuery: (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results),
       sqlFor: (cond, limit) => `SELECT id, name, loc FROM offices
-        WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} ORDER BY name LIMIT ${limit}`,
+        WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL) ${cond} ORDER BY name LIMIT ${limit}`,
       foldColumn: 'name_fold',
       // keyOf = satır kimliği — bkz. src/routes/architect.js'teki AYNI gerekçe.
       q, limit: 20, keyOf: r => r.id,

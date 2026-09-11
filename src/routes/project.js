@@ -299,13 +299,13 @@ export async function handlePhotographerSearchRoute(request, env, url) {
     const [archRes, officeRes] = await Promise.all([
       env.DB.prepare(
         `SELECT name, profession FROM architects
-         WHERE deleted_at IS NULL AND hidden_at IS NULL${cond}
+         WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)${cond}
          ORDER BY (profession LIKE '%Fotoğrafçı%') DESC, name COLLATE NOCASE
          LIMIT ${CREDIT_SUGGEST_PER_SOURCE}`
       ).bind(...params).all(),
       q ? env.DB.prepare(
         `SELECT name, loc, cats FROM offices
-         WHERE deleted_at IS NULL AND hidden_at IS NULL${cond}
+         WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)${cond}
          ORDER BY name COLLATE NOCASE
          LIMIT ${CREDIT_SUGGEST_PER_SOURCE}`
       ).bind(...params).all() : Promise.resolve({ results: [] }),

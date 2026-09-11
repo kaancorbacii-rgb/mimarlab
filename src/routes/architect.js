@@ -165,9 +165,12 @@ export async function handleArchitectSearchRoute(request, env, url) {
     // kendi filtre/etiket ihtiyaçları için).
     // directory_listed BİLEREK filtrelenmiyor: /kisi dizininde görünmek istemeyen biri de künyelere
     // eklenebilmeye devam eder (bkz. migrations/0081 başlığı).
+    // ÖNİZLEME (blurlu) kişiler de önerilir (kullanıcı isteği, 2026-09-11: "bir firma, kişi, marka,
+    // fotoğrafçı blurlu olsa dahi proje/ürün/kişi/firma/marka ekle sayfalarındaki arama çubuklarında
+    // öneri olarak gösterilsin"). Yalnızca tam arşiv (preview_at BOŞ) hariç kalır.
     const baseSelect = `SELECT a.id AS id, a.name AS name, a.profession AS profession, o.name AS office_name FROM architects a
        LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`;
+       WHERE a.deleted_at IS NULL AND (a.hidden_at IS NULL OR a.preview_at IS NOT NULL)`;
     const toItem = (r) => {
       const professionLabel = professionLabelList(r.profession).join(', ');
       return { label: r.name, sub: [r.office_name, professionLabel].filter(Boolean).join(' · '), profession: professionLabel || null };
