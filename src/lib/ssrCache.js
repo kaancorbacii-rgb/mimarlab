@@ -123,7 +123,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // <meta name="ml-asset-version"> değerinden sürümlenir (bkz. lazy-modals.js#versionedSrc) — sürüm
 // artırılmazsa önbellekteki /kisi/:slug gövdesi ESKİ asset sürümünü taşımaya devam eder ve
 // ziyaretçiler s-maxage boyunca portfolyosuz eski modül dosyasını yükler.
-export const SSR_CACHE_VERSION = 'v124';
+// v125 (2026-09-11): SSR künyesi arşivlenmiş firma/kişiye artık link vermiyor (seo.js#linkableSlug) —
+// önbellekteki eski detay HTML'leri 410'a giden linki taşımaya devam ederdi.
+export const SSR_CACHE_VERSION = 'v125';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',
