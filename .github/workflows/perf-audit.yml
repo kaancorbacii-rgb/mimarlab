@@ -1,0 +1,61 @@
+name: Performance audit (production, read-only)
+
+# PERFORMANS DENETİMİ ÖLÇÜMÜ (2026-09-12). Claude Code'un uzak oturumu mimarlab.com'a çıkamıyor
+# (CONNECT 403, bkz. CLAUDE.md "Uzak oturumdan deploy"); production ölçümü bu yüzden ağı açık olan
+# runner'da yapılır. Betik SALT OKUNUR: yalnızca GET/HEAD + geçersiz kimlik bilgisiyle tek bir
+# POST /api/auth/login (401 bekler). Hiçbir deploy/yazma yapmaz, sırlara ihtiyaç duymaz.
+#
+# Sonuç hem iş logunda ("===PERF-AUDIT-JSON===" işaretleri arasında) hem de artifact olarak durur.
+# Checkout: yalnızca scripts/ (sparse + blob:none) — depo 3,3 GB görsel taşıyor, tam checkout 35 dk.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Ölçülecek taban URL'
+        required: false
+        default: 'https://mimarlab.com'
+      widths:
+        description: 'Tarayıcı genişlikleri (virgülle)'
+        required: false
+        default: '1280,375'
+      browser:
+        description: 'Tarayıcı akışları da çalışsın mı (true/false)'
+        required: false
+        default: 'true'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: scripts
+          sparse-checkout-cone-mode: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Playwright kurulumu
+        if: ${{ inputs.browser != 'false' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null
+          npm i playwright@1.56.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Ölçüm
+        env:
+          AUDIT_BASE: ${{ inputs.base }}
+          AUDIT_WIDTHS: ${{ inputs.widths }}
+          AUDIT_BROWSER: ${{ inputs.browser }}
+        run: |
+          extra=""
+          if [ "$AUDIT_BROWSER" = "false" ]; then extra="--no-browser"; fi
+          node scripts/perf-audit.mjs --base "$AUDIT_BASE" --widths "$AUDIT_WIDTHS" --modules "$RUNNER_TEMP/pw/node_modules" --out "$RUNNER_TEMP/perf-audit.json" $extra
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-audit
+          path: ${{ runner.temp }}/perf-audit.json
+          retention-days: 14
