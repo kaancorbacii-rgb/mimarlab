@@ -56,6 +56,13 @@ const ShareWidget = (function () {
         color:var(--ink); display:inline-flex; align-items:center; justify-content:center; padding:0;
         cursor:pointer; text-decoration:none; transition:background .15s, color .15s, border-color .15s;
       }
+      /* GERÇEK BULGU (2026-09-12, Instagram turunda görüldü): "Diğer uygulamalar" (…) düğmesi
+         navigator.share YOKSA <button hidden> olarak basılıyor ama yukarıdaki display:inline-flex
+         tarayıcının [hidden]{display:none} kuralını EZİYOR — masaüstü Chrome/Firefox'ta ölü bir
+         düğme olarak görünüyor, tıklanınca (navigator.share undefined) sessizce hiçbir şey
+         yapmadan popover'ı kapatıyordu. Aynı sınıf tuzağı site genelinde kayıtlı (bkz. menü ikon
+         kuralının display:flex dayatması). */
+      .share-icon[hidden]{display:none;}
       .share-icon:hover{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
       .share-icon svg{display:block;}
       .share-popover-link{display:flex; gap:8px; align-items:stretch;}
@@ -86,6 +93,7 @@ const ShareWidget = (function () {
   const ICON_SHARE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>`;
   const ICON_COPY = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
   const ICON_CLOSE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  const ICON_INSTAGRAM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.1"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/></svg>`;
   const ICON_FACEBOOK = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 22v-8.2h2.8l.4-3.2h-3.2V8.5c0-.9.3-1.6 1.6-1.6h1.7V4.1c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.4H7.3v3.2h2.8V22h3.4z"/></svg>`;
   const ICON_X = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg>`;
   const ICON_LINKEDIN = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg>`;
@@ -95,7 +103,19 @@ const ShareWidget = (function () {
   const ICON_MORE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
 
   // Paylaşım hedefleri — kanal adları src/routes/shares.js#SHARE_CHANNELS ile AYNI (Paylaştıklarım kaydı).
+  //
+  // INSTAGRAM İLK SIRADA (kullanıcı isteği, 2026-09-12: "Tüm popuplarda paylaş butonlarında ilk
+  // sıraya instagram'ı koy") ve `href` TAŞIMAZ — çünkü Instagram'ın diğerleri gibi bir web paylaşım
+  // ucu YOKTUR: `?url=` alan bir sharer adresi sunmaz (bir gönderiye bağlantı ancak hikâye/DM/
+  // biyografi içinden, uygulamanın kendisinden eklenebilir). Düz bir <a href="instagram.com">
+  // kullanıcıyı bağlantıyı KAYBEDEREK Instagram ana sayfasına atardı.
+  // Bu yüzden aşağıdaki tıklama dinleyicisinde ÖZEL bir dal var (bkz. action === 'instagram'):
+  //   * navigator.share varsa (mobil/tablet, Instagram'ın gerçek hedef olarak göründüğü yer)
+  //     sistem paylaşım sayfası açılır — "Instagram'a paylaş"ın tek gerçek çalışan yolu budur;
+  //   * yoksa (masaüstü) bağlantı panoya KOPYALANIR ve instagram.com yeni sekmede açılır, kullanıcı
+  //     hikâyesine/DM'ine yapıştırır. Kopyalama başarısızsa sekme yine de açılır.
   const TARGETS = [
+    { action: 'instagram', label: "Instagram'da paylaş", icon: ICON_INSTAGRAM },
     { action: 'facebook', label: "Facebook'ta paylaş", icon: ICON_FACEBOOK, href: (t, u) => `https://www.facebook.com/sharer/sharer.php?u=${u}` },
     { action: 'x', label: "X'te paylaş", icon: ICON_X, href: (t, u) => `https://twitter.com/intent/tweet?text=${t}&url=${u}` },
     { action: 'linkedin', label: "LinkedIn'de paylaş", icon: ICON_LINKEDIN, href: (t, u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
@@ -266,8 +286,28 @@ const ShareWidget = (function () {
           try { await navigator.share({ title, url }); logShare(data, 'native'); } catch { /* iptal — sessiz */ }
           return;
         }
+        if (action === 'instagram') {
+          // bkz. TARGETS'taki gerekçe — Instagram'ın web paylaşım ucu yok.
+          e.preventDefault();
+          if (navigator.share) {
+            closePopover(popover);
+            try { await navigator.share({ title, url }); logShare(data, 'instagram'); } catch { /* iptal — sessiz */ }
+            return;
+          }
+          const copied = await copyText(url, urlInput);
+          if (copied) {
+            // Kullanıcı ne olduğunu görsün: panoya kopyalandı + Instagram açılıyor. Kopyala
+            // butonunun kendi geri bildirimi yeniden kullanılır (ayrı bir bileşen icat edilmedi).
+            copyBtn.classList.add('copied');
+            copyBtn.querySelector('span').textContent = 'Bağlantı kopyalandı';
+            setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.querySelector('span').textContent = 'Kopyala'; }, 2200);
+          }
+          logShare(data, 'instagram');
+          window.open('https://www.instagram.com/', '_blank', 'noopener');
+          return;
+        }
         const target = TARGETS.find(tg => tg.action === action);
-        if (!target) return;
+        if (!target || !target.href) return;
         // href tıklama anında yazılır (getData güncel URL'yi verir); <a target=_blank> varsayılan
         // davranışıyla yeni sekmede açılır — preventDefault YOK.
         el.href = target.href(encodeURIComponent(title || ''), encodeURIComponent(url || ''));

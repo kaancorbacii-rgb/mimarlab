@@ -22,7 +22,11 @@ export const SHARE_ITEM_TYPES = new Set(['project', 'product', 'material', 'arch
 // share-button.js'in gönderdiği kanallar; whitelist dışı bir değer sessizce null'a düşürülür (ham
 // kullanıcı/istemci girdisi Aktivitelerim satırının alt metnine basıldığından serbest metin olamaz).
 // facebook/email/telegram — Paylaş popover'ı (kullanıcı isteği, 2026-09-12, bkz. share-button.js#TARGETS).
-const SHARE_CHANNELS = new Set(['copy', 'whatsapp', 'x', 'linkedin', 'native', 'facebook', 'email', 'telegram']);
+// 'instagram' (kullanıcı isteği, 2026-09-12): Instagram'ın web paylaşım ucu olmadığından bu kanal
+// pratikte "sistem paylaşım sayfası (mobil)" ya da "bağlantı kopyalandı + instagram.com açıldı
+// (masaüstü)" demektir — bkz. js/components/share-button.js#TARGETS. Burada olmazsa channel NULL
+// yazılır ve Aktivitelerim > Paylaştıklarım satırı kanalsız görünürdü.
+const SHARE_CHANNELS = new Set(['copy', 'whatsapp', 'x', 'linkedin', 'native', 'facebook', 'email', 'telegram', 'instagram']);
 
 const CANONICAL_TYPE_BY_ITEM = { project: 'projects', architect: 'architects', office: 'offices' };
 

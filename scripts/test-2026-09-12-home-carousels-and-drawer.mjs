@@ -251,5 +251,35 @@ test('ShareWidget kayıtlı bir panel ve açılışını DÜĞMESİYLE bildiriyo
     'notifyOpen popover body’ye taşındıktan SONRA çağrılıyor');
 });
 
+section('Instagram — Paylaş panelinde ilk sıra');
+
+test('Instagram TARGETS’in İLK öğesi ve href taşımıyor (web paylaşım ucu yok)', () => {
+  const src = read('js/components/share-button.js');
+  const block = src.slice(src.indexOf('const TARGETS = ['), src.indexOf('function html(id)'));
+  const order = [...block.matchAll(/\{ action: '([a-z]+)'/g)].map(m => m[1]);
+  assert.equal(order[0], 'instagram', `ilk hedef instagram değil: ${order.join(', ')}`);
+  // Diğer beş kanal ve sıraları korunmalı (istek yalnızca "ilk sıraya instagram" diyordu).
+  assert.deepEqual(order, ['instagram', 'facebook', 'x', 'linkedin', 'email', 'whatsapp', 'telegram']);
+  const igLine = block.split('\n').find(l => l.includes("action: 'instagram'"));
+  assert.ok(!igLine.includes('href:'), 'instagram href taşımamalı — özel dal işler');
+});
+
+test('instagram dalı: navigator.share varsa sistem sayfası, yoksa kopyala + instagram.com', () => {
+  const src = read('js/components/share-button.js');
+  const i = src.indexOf("if (action === 'instagram')");
+  assert.ok(i > 0, 'özel dal yok');
+  const body = src.slice(i, i + 1400);
+  assert.ok(body.includes('if (navigator.share)'), 'mobilde sistem paylaşım sayfası kullanılmıyor');
+  assert.ok(body.includes('await copyText(url, urlInput)'), 'masaüstünde bağlantı kopyalanmıyor');
+  assert.ok(body.includes("window.open('https://www.instagram.com/'"), 'instagram.com açılmıyor');
+  // Özel dal, href’siz hedefi jenerik dala DÜŞÜRMEMELİ.
+  assert.ok(src.includes('if (!target || !target.href) return;'), 'href’siz hedef jenerik dalda korunmuyor');
+});
+
+test('instagram kanalı sunucuda ve Paylaştıklarım etiketlerinde tanımlı', () => {
+  assert.ok(read('src/routes/shares.js').includes("'telegram', 'instagram']"), 'SHARE_CHANNELS instagram tanımıyor');
+  assert.ok(read('js/components/auth-modal.js').includes("instagram: 'Instagram'"), 'Paylaştıklarım etiketi yok');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 process.exit(failed ? 1 : 0);

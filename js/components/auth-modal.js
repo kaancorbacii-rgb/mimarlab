@@ -1873,7 +1873,7 @@ const AuthModal = (function () {
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
   // gelirse satır kanal etiketi olmadan basılır.
-  const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı', facebook: 'Facebook', email: 'E-posta', telegram: 'Telegram' };
+  const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı', facebook: 'Facebook', email: 'E-posta', telegram: 'Telegram', instagram: 'Instagram' };
   const PAGE_SIZE_DASH = 10;
   // Panolarım'a bilgisayardan yüklenen görselin ÜST SINIRI (kullanıcı isteği, 2026-09-03).
   // src/routes/upload.js#CONTEXT_MAX_BYTES['collection'] ile AYNI değer olmak zorunda.
