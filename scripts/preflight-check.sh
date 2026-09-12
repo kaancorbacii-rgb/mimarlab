@@ -558,15 +558,16 @@ else
 fi
 rm -f /tmp/preflight_arch
 
-# slugify GLOBAL'i varlık modallerinin KORUMASIZ bağımlılığıdır (kullanıcı bildirimi, 2026-09-12:
+# Varlık popup'larının KORUMASIZ global bağımlılıkları (kullanıcı bildirimi, 2026-09-12:
 # "mesajlarda isme tıklayınca yanlış popup çıkıyor" — /hesabim'da ReferenceError ile yarım popup).
-# save-widget.js lazy-modals'ın varlık bağımlılıklarında DURMALI; aksi halde o dosyayı <script> ile
-# yüklemeyen her sayfada kişi/firma/ürün popup'ı sessizce yarım çizilir.
-if grep -q "'save-widget.js'," js/components/lazy-modals.js; then
-  ok "lazy-modals.js — save-widget.js (slugify global'i) varlık bağımlılıklarında"
+# Tarama STATİKTİR: yeni bir korumasız kullanım eklenip lazy-modals'a bildirilmezse burada durur.
+if node scripts/test-2026-09-12-entity-modal-globals.mjs >/tmp/preflight_globals 2>&1; then
+  ok "varlık popup global bağımlılıkları testleri geçti ($(grep -c '^  ok ' /tmp/preflight_globals) test)"
 else
-  bad "lazy-modals.js — save-widget.js ENTITY_UI_DEPS'ten düşmüş; slugify tanımsız kalır"
+  bad "varlık popup global bağımlılıkları testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_globals >&2
 fi
+rm -f /tmp/preflight_globals
 
 # Boşluksuz yazım araması ("perse" -> "Per Se Mimarlık", kullanıcı isteği 2026-09-11) — bkz.
 # src/lib/classicSearch.js#collapsedToken/likeCondition. Bkz. scripts/test-search-word-merge.mjs.

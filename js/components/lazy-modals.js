@@ -126,6 +126,17 @@
     // açtıktan HEMEN SONRA "ReferenceError: slugify is not defined" ile düşüyor ve kullanıcı
     // adı/fotoğrafı/içeriği olmayan YARIM bir popup görüyordu. Bağımlılık burada bildirilir;
     // dosyayı zaten <script> ile yükleyen sayfalarda loadDep tekrar enjekte etmez (no-op).
+    //
+    // AYNI SINIF BAĞIMLILIK, AYNI GEREKÇE (statik tarama ile bulundu, bkz.
+    // scripts/test-2026-09-12-entity-modal-globals.mjs — o test bu listeyi artık DOĞRULUYOR):
+    //   badge-shared.js — initials/officeColor/logoUrl/verifiedBadgeHtml
+    //   image-cdn.js    — cdnImg/cdnSrcset (gallery.js de korumasız kullanıyor)
+    //   save-widget.js  — slugify/paintFollowBtn/wireFollowButtons/wireSaveButtons
+    // Üçü de kişi/firma/ürün popup'ları tarafından KORUMASIZ (typeof/window kontrolü olmadan)
+    // çağrılıyor; biri eksikse popup ilk ReferenceError'da yarım kalır ve kullanıcı adsız/görselsiz
+    // boş bir kabuk görür. Bu yüzden "olsa iyi olur" değil, ZORUNLU bağımlılıklar.
+    'badge-shared.js',
+    'image-cdn.js',
     'save-widget.js',
   ];
   const ENTITY_MODULES = {
