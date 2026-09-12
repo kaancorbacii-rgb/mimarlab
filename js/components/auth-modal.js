@@ -7224,6 +7224,15 @@ const AuthModal = (function () {
     pushCountSinceOpen = 0;
   }
 
+  // Modal kapandığında ALTINDAKİ ana sayfa "görünür" hâle gelir. /giris, /hesabim gibi
+  // modal-first yollarda index.html karusel verisini tam bu ana kadar ertelediğinden (bkz.
+  // src/index.js#AUTH_MODAL_META modalFirst notu ve index.html'deki dinleyici) kapanış bir olayla
+  // duyurulur. Kapanış bir GEZİNME DEĞİL (aşağıdaki pushState) — bu yüzden belge aynı kalır ve
+  // listeleri o an doldurmak gerekir.
+  function announceModalClosed() {
+    try { document.dispatchEvent(new CustomEvent('mimarlab:modal-closed')); } catch (err) { /* yoksay */ }
+  }
+
   function close() {
     const mobile = currentHostIsMobile();
     currentView = null;
@@ -7234,10 +7243,13 @@ const AuthModal = (function () {
     else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/');
     deactivateHost(mobile);
     pushCountSinceOpen = 0;
+    announceModalClosed();
   }
 
   function handlePopState(view) {
-    if (!view) { if (isOpen()) { currentView = null; deactivateHost(currentHostIsMobile()); } return; }
+    // Geri tuşuyla kapanış da AYNI olayı yayar (bkz. announceModalClosed) — kullanıcı modalı
+    // nasıl kapattığından bağımsız olarak altındaki sayfa dolmalı.
+    if (!view) { if (isOpen()) { currentView = null; deactivateHost(currentHostIsMobile()); announceModalClosed(); } return; }
     if (!isOpen()) { openedViaPush = false; open(view, { pushHistory: false }); return; }
     if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;

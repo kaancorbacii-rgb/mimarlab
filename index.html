@@ -1248,7 +1248,22 @@ document.querySelector('.bento-grid').addEventListener('click', (e) => {
     .catch((err) => { console.warn('Ana sayfa popup açılamadı, sayfaya gidiliyor:', err); window.location.href = href; });
 });
 
-loadHomeSections(true);
+// MODAL-FIRST YOLLAR (kullanıcı isteği, 2026-09-12: "/hesabim ve /giris'i de düzelt").
+// /giris, /uye-ol, /hesabim, /aktivitelerim, /koleksiyonum, /sifremi-unuttum bu BELGEYİ servis
+// eder (bkz. src/index.js#serveInfoModalPage) çünkü modalı kapatan kişi altından çıkan sayfada
+// kalır — kapanış bir gezinme değil, pushState'tir. Ama o ziyaretçi ana sayfayı GÖRMÜYOR: üstünde
+// giriş/hesap modalı var. Altı karusel listesini o an çekmek, bir giriş formu için altı gereksiz
+// istek demekti (ölçüm: / üzerinde site-settings + 6 liste + preview = 9 API isteği).
+// Artık yükleme modal KAPANINCA başlar; güvenlik ağı olarak birkaç saniye sonra da başlar, yani
+// modal herhangi bir sebeple hiç açılmazsa sayfa kalıcı olarak boş kalmaz.
+if (document.documentElement.getAttribute('data-ml-modal-route') === '1') {
+  let homeStarted = false;
+  const startHome = () => { if (homeStarted) return; homeStarted = true; loadHomeSections(true); };
+  document.addEventListener('mimarlab:modal-closed', startHome, { once: true });
+  setTimeout(startHome, 4000);
+} else {
+  loadHomeSections(true);
+}
 
 // ARKA PLAN YENİLEMESİ — gömülü veri, HTML'in üretildiği andaki (HOME_SSR.t) veridir. Belge Worker'dan
 // az önce geldiyse veri API'nin döneceğiyle aynıdır, ek istek gereksiz. Belge tarayıcının kendi

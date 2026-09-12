@@ -510,5 +510,46 @@ await test('kaçınılmaz üç kopya (iki tarayıcı dosyası + Python) aynı ve
   assert.match(pf, /türev merdiveni AYRIŞMIŞ/);
 });
 
+console.log('\nmadde 15 — /giris ve /hesabim: gövde kalır, karusel verisi modal kapanana kadar bekler');
+
+await test('sunucu: yalnızca giriş/hesap yolları modalFirst; bilgi sayfaları değil', () => {
+  const idx = read('src/index.js');
+  const authBlock = idx.slice(idx.indexOf('const AUTH_MODAL_META = {'), idx.indexOf('const INFO_MODAL_META'));
+  for (const path of ['/giris', '/uye-ol', '/hesabim', '/aktivitelerim', '/koleksiyonum', '/sifremi-unuttum']) {
+    const line = authBlock.split('\n').find(l => l.includes(`'${path}':`));
+    assert.ok(line, `${path} AUTH_MODAL_META'da yok`);
+    assert.ok(/modalFirst: true/.test(line), `${path} modalFirst taşımalı`);
+  }
+  // İndexlenen bilgi sayfaları (gövdeleri Googlebot'un gördüğü içerik) işareti ALMAMALI.
+  const infoBlock = idx.slice(idx.indexOf('const INFO_MODAL_META'), idx.indexOf('const INFO_MODAL_META') + 2500);
+  assert.ok(!/modalFirst/.test(infoBlock), 'INFO_MODAL_META modalFirst almamalı');
+});
+
+await test('sunucu: işaret <html> üzerine yalnızca modalFirst ise konur', () => {
+  const idx = read('src/index.js');
+  assert.match(idx, /if \(meta\.modalFirst\) \{[\s\S]{0,400}?setAttribute\('data-ml-modal-route', '1'\)/);
+  // Gövde SERVİS EDİLMEYE DEVAM EDER: serveInfoModalPage hâlâ '/' varlığını çekiyor (modalı
+  // kapatan kişi altındaki sayfada kalır — kapanış pushState, gezinme değil).
+  assert.match(idx, /async function serveInfoModalPage[\s\S]{0,400}?assetUrl\.pathname = '\/';/);
+});
+
+await test('istemci: işaretli belgede karusel yüklemesi ertelenir, kapanışta ve güvenlik ağıyla başlar', () => {
+  const html = read('index.html');
+  assert.match(html, /document\.documentElement\.getAttribute\('data-ml-modal-route'\) === '1'/);
+  assert.match(html, /document\.addEventListener\('mimarlab:modal-closed', startHome, \{ once: true \}\)/);
+  assert.match(html, /setTimeout\(startHome, 4000\)/, 'modal hiç açılmazsa sayfa boş kalmasın');
+  // İşaretsiz belgede davranış birebir eski hâli.
+  assert.match(html, /\} else \{\s*\n\s*loadHomeSections\(true\);\s*\n\}/);
+});
+
+await test('istemci: modal kapanışı (düğme ve geri tuşu) olayı yayar', () => {
+  const modal = read('js/components/auth-modal.js');
+  assert.match(modal, /function announceModalClosed\(\) \{[\s\S]{0,240}?dispatchEvent\(new CustomEvent\('mimarlab:modal-closed'\)\)/);
+  const closeFn = modal.slice(modal.indexOf('  function close() {'), modal.indexOf('  function handlePopState('));
+  assert.ok(closeFn.includes('announceModalClosed();'), 'close() olayı yaymalı');
+  const popFn = modal.slice(modal.indexOf('  function handlePopState('), modal.indexOf('  function handlePopState(') + 600);
+  assert.ok(popFn.includes('announceModalClosed();'), 'geri tuşuyla kapanış da yaymalı');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 process.exit(failed ? 1 : 0);

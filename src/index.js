@@ -448,13 +448,25 @@ const PATH_RENAME_REDIRECTS = {
 // bir mekanizma icat edilmez, serveInfoModalPage yeniden kullanılır. canonical'ın ana sayfaya
 // DEĞİL kendi yoluna işaret etmesi bilinçli: "noindex + başka bir URL'e canonical" çelişkili bir
 // sinyaldir ve Google'ın canonical HEDEFİNİ (burada ana sayfayı) de indeksten düşürme riski taşır.
+// modalFirst — BU YOLLARDA GÖVDE DEĞİL MODAL ASILDIR (kullanıcı isteği, 2026-09-12: "/hesabim ve
+// /giris'i de düzelt"). Ziyaretçi bu adreslere geldiğinde gördüğü şey giriş/hesap modalıdır; ana
+// sayfa gövdesi yalnızca modal KAPANDIĞINDA altından çıkan zemindir (kapanış bir gezinme değil,
+// pushState — bkz. js/components/auth-modal.js#close, bu yüzden gövde SERVİS EDİLMEYE DEVAM EDER,
+// aksi halde modalı kapatan kişi boş bir sayfada kalırdı).
+//
+// Değişen şey gövdenin VERİSİ: index.html altı karusel listesini (proje/kişi/firma/ürün/marka/
+// gündem) ağdan çekiyor ve bu yollarda da çekiyordu — bir giriş formu için altı liste isteği.
+// Artık belgeye data-ml-modal-route="1" işareti konur; index.html bu işareti görünce karusel
+// yüklemesini MODAL KAPANANA kadar (ya da güvenlik ağı olarak birkaç saniye sonra) başlatmaz.
+// INFO_MODAL_META yolları (/hakkinda, /iletisim, ...) BU İŞARETİ ALMAZ: onlar indexlenen gerçek
+// sayfalar ve Googlebot'un gördüğü gövde onların da gövdesidir.
 const AUTH_MODAL_META = {
-  '/giris': { title: 'Giriş Yap — MİMARLAB', description: 'MİMARLAB hesabına giriş yap; projelerini, kaydettiklerini ve profilini yönet.', noindex: true },
-  '/uye-ol': { title: 'Üye Ol — MİMARLAB', description: 'MİMARLAB\'a ücretsiz üye ol; proje, kişi, firma ve ürün ekle, içerikleri kaydet ve takip et.', noindex: true },
-  '/hesabim': { title: 'Hesabım — MİMARLAB', description: 'MİMARLAB hesap ayarların, profil bilgilerin ve üyelik yönetimin.', noindex: true },
-  '/aktivitelerim': { title: 'Aktivitelerim — MİMARLAB', description: 'MİMARLAB\'da kaydettiklerin, takip ettiklerin, puanladıkların, yorumların ve eklediklerin.', noindex: true },
-  '/koleksiyonum': { title: 'Koleksiyonum — MİMARLAB', description: 'MİMARLAB panoların ve koleksiyonların.', noindex: true },
-  '/sifremi-unuttum': { title: 'Şifremi Unuttum — MİMARLAB', description: 'MİMARLAB şifreni sıfırla; e-posta adresine sıfırlama bağlantısı gönderelim.', noindex: true },
+  '/giris': { title: 'Giriş Yap — MİMARLAB', description: 'MİMARLAB hesabına giriş yap; projelerini, kaydettiklerini ve profilini yönet.', noindex: true, modalFirst: true },
+  '/uye-ol': { title: 'Üye Ol — MİMARLAB', description: 'MİMARLAB\'a ücretsiz üye ol; proje, kişi, firma ve ürün ekle, içerikleri kaydet ve takip et.', noindex: true, modalFirst: true },
+  '/hesabim': { title: 'Hesabım — MİMARLAB', description: 'MİMARLAB hesap ayarların, profil bilgilerin ve üyelik yönetimin.', noindex: true, modalFirst: true },
+  '/aktivitelerim': { title: 'Aktivitelerim — MİMARLAB', description: 'MİMARLAB\'da kaydettiklerin, takip ettiklerin, puanladıkların, yorumların ve eklediklerin.', noindex: true, modalFirst: true },
+  '/koleksiyonum': { title: 'Koleksiyonum — MİMARLAB', description: 'MİMARLAB panoların ve koleksiyonların.', noindex: true, modalFirst: true },
+  '/sifremi-unuttum': { title: 'Şifremi Unuttum — MİMARLAB', description: 'MİMARLAB şifreni sıfırla; e-posta adresine sıfırlama bağlantısı gönderelim.', noindex: true, modalFirst: true },
 };
 // (Bu yollar artık ayrı bir Set üzerinden değil, doğrudan AUTH_MODAL_META üzerinden eşleşiyor —
 // bkz. routeAsset'teki `AUTH_MODAL_META[url.pathname] || INFO_MODAL_META[url.pathname]`.)
@@ -1168,6 +1180,14 @@ async function serveInfoModalPage(request, env, url, meta) {
   if (meta.noindex) {
     finalResponse = new HTMLRewriter()
       .on('head', { element(el) { el.append('<meta name="robots" content="noindex, follow">', { html: true }); } })
+      .transform(finalResponse);
+  }
+  // bkz. AUTH_MODAL_META'daki modalFirst notu — yalnızca giriş/hesap yollarında, gövdenin karusel
+  // verisini modal kapanana kadar ertelemesi için. İşaret <html> üzerinde durur: index.html'in
+  // satır içi script'i belge çözümlenirken (karusel yüklemesi başlamadan ÖNCE) okuyabilsin.
+  if (meta.modalFirst) {
+    finalResponse = new HTMLRewriter()
+      .on('html', { element(el) { el.setAttribute('data-ml-modal-route', '1'); } })
       .transform(finalResponse);
   }
   return finalResponse;
