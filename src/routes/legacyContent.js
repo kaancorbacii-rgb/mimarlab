@@ -16,7 +16,7 @@ import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 import { classicSearch } from '../lib/classicSearch.js';
-import { activateOfficesOnPublish, previewOfficeIdsByKeys } from './admin.js';
+import { activateProfilesOnPublish, previewProfileIdsByKeys, PUBLISH_GRAPH_PROFILE_TYPE } from './admin.js';
 
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
 const FACET_TYPES = new Set(['projects']);
@@ -676,15 +676,17 @@ export async function runContentAction(env, user, { type, action, id, key }) {
       if (targetKey) await setLegacyHidden(env, user, type, targetKey, true);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else {
-      // Arşiv > "Yayınla" önizlemedeki bir firmayı açıyorsa projeleri + kişileri de (bkz.
-      // src/routes/admin.js#activateOfficesOnPublish) — id'ler senkrondan ÖNCE yakalanır.
-      const publishingOfficeIds = type === 'offices'
-        ? await previewOfficeIdsByKeys(env, [targetKey, row.name, `submission:${id}`]) : [];
+      // Arşiv > "Yayınla" önizlemedeki bir firmayı ya da KİŞİYİ açıyorsa grafı da (projeler,
+      // firmalar/ortaklar, ürünler — bkz. src/routes/admin.js#activateProfilesOnPublish);
+      // id'ler senkrondan ÖNCE yakalanır.
+      const publishGraphType = PUBLISH_GRAPH_PROFILE_TYPE[type] || null;
+      const publishingProfileIds = publishGraphType
+        ? await previewProfileIdsByKeys(env, publishGraphType, [targetKey, row.name, `submission:${id}`]) : [];
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, id).run();
       await syncApprovedSubmissionToCanonical(env, type, parseSubmissionRow(type, { ...row, status: 'approved' }));
       if (targetKey) await setLegacyHidden(env, user, type, targetKey, false);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
-      if (publishingOfficeIds.length) await activateOfficesOnPublish(env, publishingOfficeIds, user.id);
+      if (publishingProfileIds.length) await activateProfilesOnPublish(env, publishGraphType, publishingProfileIds, user.id);
     }
     await invalidatePublicCache(env);
     const target = ssrPurgeTargetFor(type, row);

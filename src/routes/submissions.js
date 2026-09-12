@@ -16,7 +16,7 @@ import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { notifySubmissionApproved } from '../lib/notify.js';
-import { activateOfficesOnPublish, previewOfficeIdsByKeys } from './admin.js';
+import { activateProfilesOnPublish, previewProfileIdsByKeys, PUBLISH_GRAPH_PROFILE_TYPE } from './admin.js';
 import { foldTr, titleCasePersonName } from '../lib/textMatch.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
@@ -456,11 +456,12 @@ async function createSubmission(request, env, user, typeKey) {
   // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
   // hâlâ gizli olabilir; onaylandığı an tekrar görünür olmalı (bkz. unhideIfClaimedApproved).
   // keepPreview (admin beyanı onaylamadan kaydetti): gizli/önizlemedeki statik kayıt görünür YAPILMAZ.
-  // Önizlemedeki firma beyanla yayına alınıyorsa projeleri + kişileri de yayına çıkar (bkz.
-  // admin.js#activateOfficesOnPublish). id'ler BURADA, unhideIfClaimedApproved'dan ÖNCE yakalanır —
-  // o çağrı (setLegacyHidden) preview_at'i temizlediği için sonradan firma önizlemede görünmez.
-  const publishingOfficeIds = typeKey === 'offices' && !keepPreview && status === 'approved'
-    ? await previewOfficeIdsByKeys(env, [body.claimed_profile_key, `submission:${id}`]) : [];
+  // Önizlemedeki firma/KİŞİ beyanla yayına alınıyorsa grafı da yayına çıkar (bkz.
+  // admin.js#activateProfilesOnPublish). id'ler BURADA, unhideIfClaimedApproved'dan ÖNCE yakalanır —
+  // o çağrı (setLegacyHidden) preview_at'i temizlediği için sonradan profil önizlemede görünmez.
+  const publishGraphType = PUBLISH_GRAPH_PROFILE_TYPE[typeKey] || null;
+  const publishingProfileIds = publishGraphType && !keepPreview && status === 'approved'
+    ? await previewProfileIdsByKeys(env, publishGraphType, [body.claimed_profile_key, `submission:${id}`]) : [];
   if (!keepPreview) await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? body.claimed_slug : body.claimed_profile_key);
 
   // Admin bu firmayı/mimarı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki
@@ -526,9 +527,9 @@ async function createSubmission(request, env, user, typeKey) {
     // okuyor, admin'in anında yayına giren kendi gönderisi de aynı anda oraya senkronlanmalı.
     if (CANONICAL_TYPES.has(typeKey)) {
       const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-      // publishingOfficeIds — yukarıda, unhideIfClaimedApproved'dan ÖNCE yakalandı.
+      // publishingProfileIds — yukarıda, unhideIfClaimedApproved'dan ÖNCE yakalandı.
       syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow), { publish: !keepPreview });
-      if (publishingOfficeIds.length) await activateOfficesOnPublish(env, publishingOfficeIds, user.id);
+      if (publishingProfileIds.length) await activateProfilesOnPublish(env, publishGraphType, publishingProfileIds, user.id);
       if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
     }
     await invalidatePublicCache(env);
@@ -893,11 +894,12 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     if (CANONICAL_TYPES.has(typeKey)) {
       if (status === 'approved') {
         const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-        // bkz. createSubmission'daki AYNI blok — önizlemedeki firma beyanla yayına alınıyorsa graf.
-        const publishingOfficeIds = typeKey === 'offices' && !keepPreview
-          ? await previewOfficeIdsByKeys(env, [body.claimed_profile_key, existing.claimed_profile_key, existing.name, `submission:${id}`]) : [];
+        // bkz. createSubmission'daki AYNI blok — önizlemedeki firma/kişi beyanla yayına alınıyorsa graf.
+        const publishGraphType = PUBLISH_GRAPH_PROFILE_TYPE[typeKey] || null;
+        const publishingProfileIds = publishGraphType && !keepPreview
+          ? await previewProfileIdsByKeys(env, publishGraphType, [body.claimed_profile_key, existing.claimed_profile_key, existing.name, `submission:${id}`]) : [];
         syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow), { publish: !keepPreview });
-        if (publishingOfficeIds.length) await activateOfficesOnPublish(env, publishingOfficeIds, user.id);
+        if (publishingProfileIds.length) await activateProfilesOnPublish(env, publishGraphType, publishingProfileIds, user.id);
       } else if (existing.status === 'approved') {
         await hideCanonicalForUnapprovedSubmission(env, typeKey, existing);
       }

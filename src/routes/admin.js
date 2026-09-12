@@ -1126,28 +1126,37 @@ async function activateClaimedProfile(env, profileType, profileKey, userId) {
   await activateProfileGraph(env, profileType, seedIds, userId);
 }
 
-// ADMIN FİRMAYI YAYINLAYINCA (kullanıcı isteği, 2026-09-11: "Admin canlı sitede bir firmayı yayınla
-// diyerek blurdan kurtardığı zaman otomatikman firmaya ait tüm projeler ve firmadaki kişiler de
-// blurdan çıkıp yayınlansın. Son paylaşılan projeleri proje sayfasında 1. sıraya otursun.") — atamayla
-// AYNI graf (activateProfileGraph), tetikleyicisi farklı: firma-ekle/marka-ekle'de telif beyanı
-// onaylı kaydetme (src/routes/submissions.js) ve admin panelinin Arşiv > "Yayınla"sı
-// (src/routes/legacyContent.js#runContentAction). Çağıran, ÖNİZLEMEDEN çıkan firmanın id'lerini
-// senkrondan ÖNCE yakalar (senkron preview_at'i temizlediği için sonradan ayırt edilemez).
-export async function activateOfficesOnPublish(env, officeIds, userId) {
-  const ids = [...new Set((officeIds || []).filter(id => id !== null && id !== undefined))];
+// ADMIN PROFİLİ YAYINLAYINCA — atamayla AYNI graf (activateProfileGraph), tetikleyicisi farklı:
+// ekle/düzenle formunda telif beyanıyla onaylı kaydetme (src/routes/submissions.js) ve admin
+// panelinin Arşiv > "Yayınla"sı (src/routes/legacyContent.js#runContentAction). Çağıran,
+// ÖNİZLEMEDEN çıkan profilin id'lerini senkrondan ÖNCE yakalar (senkron preview_at'i temizlediği
+// için sonradan ayırt edilemez).
+//   * firma/marka (kullanıcı isteği, 2026-09-11): "Admin canlı sitede bir firmayı yayınla diyerek
+//     blurdan kurtardığı zaman otomatikman firmaya ait tüm projeler ve firmadaki kişiler de blurdan
+//     çıkıp yayınlansın. Son paylaşılan projeleri proje sayfasında 1. sıraya otursun."
+//   * kişi (kullanıcı isteği, 2026-09-12): "Profilinin bluru kaldırılmış yani yayına alınmış
+//     mimarların projeleri de otomatik olarak yayına alınsın." Kişi dalı zaten atamada kullanılan
+//     graf olduğundan projelerin yanında kişinin firmaları/ortakları/ürünleri de yayına gelir —
+//     AYNI kuralın iki tetikleyicisi olsun diye bilerek ikinci bir "yalnızca projeler" yolu açılmadı.
+export async function activateProfilesOnPublish(env, profileType, profileIds, userId) {
+  const ids = [...new Set((profileIds || []).filter(id => id !== null && id !== undefined))];
   if (!ids.length) return;
-  await activateProfileGraph(env, 'office', ids, userId);
+  await activateProfileGraph(env, profileType, ids, userId);
 }
 
-// Senkrondan ÖNCE çağrılır — anahtar (ad/slug/legacy_key) ile eşleşen, şu an ÖNİZLEMEDEKİ firmalar.
-export async function previewOfficeIdsByKeys(env, keys) {
+// Senkrondan ÖNCE çağrılır — anahtar (ad/slug/legacy_key) ile eşleşen, şu an ÖNİZLEMEDEKİ profiller.
+export async function previewProfileIdsByKeys(env, profileType, keys) {
+  const table = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
   const wanted = [...new Set((keys || []).filter(Boolean))];
-  if (!wanted.length) return [];
+  if (!table || !wanted.length) return [];
   const ph = wanted.map(() => '?').join(', ');
   return idsFrom(env,
-    `SELECT id FROM offices WHERE deleted_at IS NULL AND preview_at IS NOT NULL
+    `SELECT id FROM ${table} WHERE deleted_at IS NULL AND preview_at IS NOT NULL
        AND (name IN (${ph}) OR slug IN (${ph}) OR legacy_key IN (${ph}))`, [...wanted, ...wanted, ...wanted]);
 }
+
+// Gönderi tipi -> profil tipi (yalnızca bu iki tip bir profil grafına sahiptir; proje/ürün yok).
+export const PUBLISH_GRAPH_PROFILE_TYPE = { offices: 'office', architects: 'architect' };
 
 // Firma popup'ının Kurucular/Ekip METİN kutularına yazılıp (office_submissions.founders/team)
 // office_founders'a hiç bağlanmamış ama bir kişi profiliyle AD eşleşmesi olan kişiler — popup onları

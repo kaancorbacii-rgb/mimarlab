@@ -5,9 +5,12 @@
 //            paylaşılan projeleri proje sayfasında 1. sıraya otursun."
 //   ek:      "Firmalarda Ekip Lideri ekip bölümünde yer alsın."
 //
-// Kural tek yerde: src/routes/admin.js#activateOfficesOnPublish (atamayla AYNI graf). İki tetikleyici
-// test edilir: firma-ekle'nin telif beyanlı kaydı (src/routes/submissions.js) ve admin panelinin
-// Arşiv > "Yayınla"sı (src/routes/legacyContent.js#runContentAction).
+//   2026-09-12: "Profilinin bluru kaldırılmış yani yayına alınmış mimarların projeleri de otomatik
+//            olarak yayına alınsın." — AYNI graf, seed'i KİŞİ olan dal.
+//
+// Kural tek yerde: src/routes/admin.js#activateProfilesOnPublish (atamayla AYNI graf). İki tetikleyici
+// test edilir: ekle formunun telif beyanlı kaydı (src/routes/submissions.js) ve admin panelinin
+// Arşiv > "Yayınla"sı (src/routes/legacyContent.js#runContentAction); ikisi de hem firma hem kişi için.
 // scripts/test-2026-09-11-founder-detach-admin-preview-save.mjs ile AYNI desen.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -138,6 +141,59 @@ await test('admin paneli Arşiv > "Yayınla" (runContentAction publish) da AYNI 
   for (const id of [10, 11, 12, 13]) assert.ok(isLive(db, 'architects', id), `kişi ${id} yayında olmalı`);
   assert.ok(isLive(db, 'projects', 101), 'proje yayında olmalı');
   assert.ok(project(db, 101).relisted_at, 'en son proje 1. sıraya');
+});
+
+section('2026-09-12 — kişi yayına alınınca projeleri de yayına çıkar');
+
+// Kişi dalının KENDİ bağı: project_designers.architect_id (firmanın office_id bağından ayrı).
+// 103 yalnızca Gökhan'a, 104 yalnızca İlgisiz Mimar'a bağlı — ikincisine dokunulmamalı.
+async function seedArchitect(db) {
+  await seed(db);
+  db.exec(`
+    INSERT INTO projects (id, slug, title, source, publish_date, hidden_at, preview_at) VALUES
+      (103, 'gokhan-projesi', 'Gökhan Projesi', 'legacy_static', '2024-01-01 00:00:00', '${PREV}', '${PREV}'),
+      (104, 'ilgisiz-mimar-projesi', 'İlgisiz Mimar Projesi', 'legacy_static', '2024-01-01 00:00:00', '${PREV}', '${PREV}');
+    INSERT INTO project_designers (project_id, architect_id) VALUES (103, 10), (104, 14);
+  `);
+}
+// office ZORUNLU: kişi formundaki "Firma" alanı boş kaydedilirse syncOfficeFounderLink kişinin
+// office_founders bağını SİLER (kişi artık o firmada değil demektir) — o zaman graf firmaya hiç
+// ulaşamaz. Gerçek akışta da kişi firmasıyla birlikte kaydedilir.
+const architectBody = (extra = {}) => ({
+  name: 'Gökhan Aktan Altuğ', claimed_profile_key: 'Gökhan Aktan Altuğ', about: 'Mimar',
+  office: 'Tago Architects', ...extra,
+});
+
+await test('kişi-ekle kaydı (beyanlı): kişi + künyesindeki projesi yayında', async () => {
+  const db = freshDb(); await seedArchitect(db); envRef.env = { DB: d1(db) };
+  const res = await call('u-admin', '/api/architects', { method: 'POST', body: JSON.stringify(architectBody({ rightsAccepted: true })) });
+  assert.equal(res.status, 201, await res.clone().text());
+  assert.ok(isLive(db, 'architects', 10), 'kişi yayında olmalı');
+  assert.ok(isLive(db, 'projects', 103), 'kişinin künyesindeki proje yayında olmalı');
+  // Atamadaki graf ile AYNI: kişinin firması, o firmanın ortakları ve projeleri de gelir.
+  assert.ok(isLive(db, 'offices', 1) && isLive(db, 'projects', 101), 'kişinin firması ve projeleri de yayına gelir');
+  assert.ok(isPreview(db, 'projects', 104), 'başka mimarın projesine dokunulmamalı');
+  assert.ok(isPreview(db, 'architects', 14) && isPreview(db, 'offices', 2), 'ilgisiz kişi/firma önizlemede kalmalı');
+});
+
+await test('admin BEYANSIZ kaydeder: kişi blurlu kalır, projesi de', async () => {
+  const db = freshDb(); await seedArchitect(db); envRef.env = { DB: d1(db) };
+  const res = await call('u-admin', '/api/architects', { method: 'POST', body: JSON.stringify(architectBody()) });
+  assert.equal(res.status, 201, await res.clone().text());
+  assert.ok(isPreview(db, 'architects', 10), 'kişi önizlemede kalmalı');
+  assert.ok(isPreview(db, 'projects', 103), 'projesi önizlemede kalmalı');
+});
+
+await test('admin paneli Arşiv > "Yayınla" kişide de AYNI grafı yürütür', async () => {
+  const db = freshDb(); await seedArchitect(db); envRef.env = { DB: d1(db) };
+  const now = Date.now();
+  db.prepare(`INSERT INTO architect_submissions (id, owner_user_id, status, created_at, updated_at, name, claimed_profile_key) VALUES (?, 'u-admin', 'archived', ?, ?, ?, ?)`)
+    .run('as-gokhan', now, now, 'Gökhan Aktan Altuğ', 'Gökhan Aktan Altuğ');
+  const res = await runContentAction(envRef.env, { id: 'u-admin', role: 'admin' }, { type: 'architects', action: 'publish', id: 'as-gokhan' });
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.ok(isLive(db, 'architects', 10), 'kişi yayında olmalı');
+  assert.ok(isLive(db, 'projects', 103), 'projesi yayında olmalı');
+  assert.ok(isPreview(db, 'projects', 104), 'başka mimarın projesine dokunulmamalı');
 });
 
 section('ek — Ekip Lideri firma popup\'ında Ekip bölümünde');

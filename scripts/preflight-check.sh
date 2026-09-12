@@ -504,14 +504,15 @@ else
 fi
 rm -f /tmp/preflight_projpromo
 
-# Admin önizlemedeki firmayı telif beyanıyla yayına alınca projeleri + kişileri de yayına çıkar, en son
-# projesi 1. sıraya (kullanıcı isteği, 2026-09-11); firma popup'ında Ekip Lideri Ekip'te. Kural tek
-# yerde (admin.js#activateOfficesOnPublish), iki tetikleyicisi var: submissions.js ve
+# Admin önizlemedeki firmayı ya da KİŞİYİ yayına alınca grafı da yayına çıkar (projeler, firmadaki
+# kişiler; en son proje 1. sıraya) — kullanıcı isteği 2026-09-11 (firma) + 2026-09-12 ("yayına
+# alınmış mimarların projeleri de"); firma popup'ında Ekip Lideri Ekip'te. Kural tek yerde
+# (admin.js#activateProfilesOnPublish), iki tetikleyicisi var: submissions.js ve
 # legacyContent.js#runContentAction. Bkz. scripts/test-2026-09-11-office-publish-cascade.mjs.
 if node scripts/test-2026-09-11-office-publish-cascade.mjs >/tmp/preflight_offpub 2>&1; then
-  ok "firma yayını cascade + Ekip Lideri testleri geçti ($(grep -c '^  ok ' /tmp/preflight_offpub) test)"
+  ok "firma/kişi yayını cascade + Ekip Lideri testleri geçti ($(grep -c '^  ok ' /tmp/preflight_offpub) test)"
 else
-  bad "firma yayını cascade + Ekip Lideri testleri BAŞARISIZ:"
+  bad "firma/kişi yayını cascade + Ekip Lideri testleri BAŞARISIZ:"
   tail -25 /tmp/preflight_offpub >&2
 fi
 rm -f /tmp/preflight_offpub
