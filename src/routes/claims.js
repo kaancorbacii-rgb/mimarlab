@@ -3,7 +3,8 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
-import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers, OFFICE_MANAGER_REVOKED } from '../lib/claimedProfiles.js';
+import { foldTr } from '../lib/textMatch.js';
+import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers, fetchOwnOfficeRoles, OFFICE_MANAGER_REVOKED, OFFICE_MANAGER_DISMISSED } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../lib/projectClaimAccess.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
@@ -29,6 +30,9 @@ export async function handleClaimsRoute(request, env, url) {
   }
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
     return myClaims(env, user);
+  }
+  if (segments.length === 3 && segments[2] === 'office-link' && request.method === 'DELETE') {
+    return dismissOfficeLink(env, url, user);
   }
   if (segments.length === 3 && segments[2] === 'office-managers') {
     if (request.method === 'GET') return officeManagers(env, url, user);
@@ -93,9 +97,12 @@ async function myClaims(env, user) {
   // değiştiren gerçek sahip, sunucu hâlâ izin verdiği hâlde butonu hiçbir yerde göremiyor (kendi
   // firmasından kilitleniyor); (b) yetkisiz bir pozisyonla onaylanmış biri pozisyonunu "Kurucu"
   // yapınca butonu görüyor, formu dolduruyor ve kaydederken 403 yiyor. Doğru değer sunucudan gelmeli.
+  // status='removed' — kullanıcı bu firmayı Hesabım kutusundan KENDİSİ kaldırdı (bkz.
+  // dismissOfficeLink). Satır yetkinin iptal kaydı olarak DURUR ama kutuda bir daha görünmez.
   const { results } = await env.DB.prepare(
-    'SELECT profile_type, profile_key, status, office_position AS officePosition FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
-  ).bind(user.id).all();
+    `SELECT profile_type, profile_key, status, office_position AS officePosition FROM profile_claims
+      WHERE user_id = ? AND status != ? ORDER BY updated_at DESC`
+  ).bind(user.id, OFFICE_MANAGER_DISMISSED).all();
   // slug: hesabim.html/auth-modal.js'in "Düzenle" linkini profile_key (bare isim, boşluk/TR karakter
   // içerebilir — bkz. kullanıcı isteği 2026-08-17: "?claim= şeklinde bozuk bir URL çıkıyor") yerine
   // temiz bir slug'la kurabilmesi için — yalnızca onaylı taleplerde anlamlı (canonical satır ancak
@@ -117,6 +124,17 @@ async function myClaims(env, user) {
   // kapsar, bu yüzden istemcinin eskiden yaptığı "yalnızca onaylı talebi olanda çalışan" türetme
   // ortadan kalkar.
   const officeLinks = await fetchOfficeFounderLinks(env, user, OFFICE_EDIT_POSITIONS);
+  // KÜNYEDEKİ GÖREV (kullanıcı bildirimi, 2026-09-12) — Hesabım'daki "Görevin" satırı artık
+  // dondurulmuş claim görevini değil, pop-up'ların gösterdiği GÜNCEL künye görevini okur; üç ekran
+  // tek alandan (architects.position) besleniyor ve birlikte değişiyor. Bkz. fetchOwnOfficeRoles.
+  const officeRoles = await fetchOwnOfficeRoles(env, user);
+  const roleFor = (key) => officeRoles.get(foldTr(key)) || null;
+  // Kullanıcının kendi kaldırdığı (removed) firmalar kurucu bağı üzerinden geri sızmamalı.
+  const dismissed = new Set(
+    (await env.DB.prepare(
+      `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND status = ?`
+    ).bind(user.id, OFFICE_MANAGER_DISMISSED).all()).results?.map(r => foldTr(r.profile_key)) || []
+  );
   // architectProfile — hesabın KİŞİ profili (kullanıcı isteği, 2026-09-08 madde 3: Hesabım'daki
   // "Ad Soyad" satırı, firma satırı gibi, o profilin pop-up'ına gitsin). officeLinks ile AYNI
   // yardımcıdan gelir, yani sahipliğin İKİ yolunu da kapsar: onaylı talep ÖNCE, yoksa hesabın
@@ -124,8 +142,12 @@ async function myClaims(env, user) {
   const own = await fetchOwnArchitectRows(env, user);
   const ownArchitect = own.claimed[0] || own.selfNamed[0] || null;
   return json({
-    items,
-    officeLinks,
+    items: items
+      .filter(r => !(r.profile_type === 'office' && dismissed.has(foldTr(r.profile_key))))
+      .map(r => (r.profile_type === 'office' ? { ...r, officeRole: roleFor(r.profile_key) } : r)),
+    officeLinks: officeLinks
+      .filter(l => !dismissed.has(foldTr(l.name)))
+      .map(l => ({ ...l, officeRole: roleFor(l.name) || l.role || null })),
     architectProfile: ownArchitect ? { name: ownArchitect.name, slug: ownArchitect.slug } : null,
   });
 }
@@ -173,6 +195,41 @@ async function invalidateClaimCaches(env, profileType, profileKey) {
     await purgeSsrDetailCache(profileType, profileKey, env);
     await invalidatePublicCache(env);
   } catch { /* önbellek temizliği yetkilendirme sonucunu ETKİLEMEZ: hata yutulur */ }
+}
+
+// DELETE /api/claims/office-link?key=<firma> — "Kaldır" düğmesi (kullanıcı isteği, 2026-09-12):
+// yetkisi kaldırılmış bir kullanıcı, firmayı Hesabım > "Firma / Marka Bilgileri" kutusundan
+// tamamen kaldırır.
+//
+// SATIR SİLİNMEZ, status='removed' olur. Silmek YANLIŞ olurdu: kurucu bağıyla yetkili olup yetkisi
+// X ile alınmış bir kullanıcıda iptal kaydı O SATIRDIR (bkz. OFFICE_MANAGER_REVOKED) — satırı
+// silmek yetkiyi sessizce GERİ VERİRDİ. 'removed' hem "yetkisi yok" hem "kutuda gösterme" demektir.
+//
+// KAPI: yalnızca ONAYLI OLMAYAN (yetkisiz) bir kayıt kaldırılabilir. Hâlâ yetkili bir kullanıcı
+// firmayı gizleyemez — gizlediği hâlde düzenlemeye devam edebildiği, kendisinin de göremediği bir
+// durum oluşurdu; önce yetkinin kaldırılması gerekir.
+async function dismissOfficeLink(env, url, user) {
+  const key = (url.searchParams.get('key') || '').trim();
+  if (!key) return errorJson('Geçersiz istek.');
+  const officeName = (await resolveCanonicalName(env, 'offices', key)) || key;
+  const existing = await env.DB.prepare(
+    `SELECT id, status FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND (profile_key = ?2 OR profile_key = ?3)`
+  ).bind(user.id, officeName, key).first();
+  if (existing && existing.status === 'approved') {
+    return errorJson('Bu firmada hâlâ yetkilisin; önce yetkinin kaldırılması gerekiyor.', 409);
+  }
+  const now = Date.now();
+  if (existing) {
+    await env.DB.prepare('UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?').bind(OFFICE_MANAGER_DISMISSED, now, existing.id).run();
+  } else {
+    // Kaydı olmayan (yalnızca kurucu bağıyla görünen) firma da kutudan kaldırılabilsin diye
+    // 'removed' satırı açılır — bu aynı zamanda yetkiyi de kapatır (bkz. isOfficeManagerRevoked).
+    await env.DB.prepare(
+      `INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at, office_position)
+       VALUES (?, ?, 'office', ?, ?, ?, ?, ?, NULL)`
+    ).bind(newId(), user.id, officeName, OFFICE_MANAGER_DISMISSED, 'Hesabım > kullanıcı kutudan kaldırdı', now, now).run();
+  }
+  return json({ ok: true });
 }
 
 // POST /api/claims/office-managers {key, email} — "+" düğmesi: e-postasıyla bir ÜYEYE bu firmanın

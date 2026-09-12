@@ -23,7 +23,8 @@ import { getSessionUser } from '../lib/auth.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { newId } from '../lib/crypto.js';
 import { slugify } from '../lib/slugify.js';
-import { fetchOwnArchitectRows, fetchOfficeFounderLinks } from '../lib/claimedProfiles.js';
+import { fetchOwnArchitectRows, fetchOfficeFounderLinks, fetchUserEditableOffices } from '../lib/claimedProfiles.js';
+import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 import { purgeGundemCache } from '../lib/gundemCache.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { parseGundemImages, GUNDEM_USER_CATEGORIES } from '../lib/gundemSsr.js';
@@ -169,8 +170,34 @@ async function loadOwnRow(env, id) {
   return env.DB.prepare(`SELECT ${OWN_COLUMNS} FROM gundem_items WHERE id = ? AND source_id = 'user'`).bind(id).first();
 }
 
-function canTouch(user, row) {
-  return !!row && (user.role === 'admin' || row.submitted_by === user.id);
+// FİRMA/MARKA ADINA gönderilmiş içerik, o firmanın YETKİLİLERİNİN hepsi tarafından düzenlenip
+// silinebilir (kullanıcı isteği, 2026-09-12: "bir kullanıcı bir firmaya ya da markaya yönetici
+// olarak atandığı zaman o firmaya ait ... gündem içeriklerini de düzenleyebilsin"). Eskiden
+// yalnızca GÖNDEREN hesap yetkiliydi: firmanın ikinci bir yetkilisi, firma adına yayımlanmış bir
+// içeriğe hiç dokunamıyordu. Kişi (architect) adına gönderilenlerde kural değişmedi — o içerik
+// kişinin kendisine aittir.
+async function canTouch(env, user, row) {
+  if (!row) return false;
+  if (user.role === 'admin' || row.submitted_by === user.id) return true;
+  if (row.submitter_type !== 'office' || !row.submitter_key) return false;
+  const offices = await fetchUserEditableOffices(env, user, OFFICE_EDIT_POSITIONS);
+  return offices.some(o => o.slug === row.submitter_key || o.name === row.submitter_key);
+}
+
+// "Gönderilerim" listesine, kullanıcının YÖNETTİĞİ firma/marka adına BAŞKASININ gönderdiği
+// içerikler de girer — düzenleme yetkisi olan bir içeriğin listede hiç görünmemesi, yetkiyi
+// pratikte kullanılamaz kılardı (kullanıcı isteği, 2026-09-12).
+async function fetchManagedOfficeRows(env, user) {
+  const offices = await fetchUserEditableOffices(env, user, OFFICE_EDIT_POSITIONS);
+  const keys = [...new Set(offices.flatMap(o => [o.slug, o.name]).filter(Boolean))].slice(0, 60);
+  if (!keys.length) return [];
+  const { results } = await env.DB.prepare(
+    `SELECT ${OWN_COLUMNS} FROM gundem_items
+      WHERE source_id = 'user' AND submitted_by != ? AND submitter_type = 'office'
+        AND submitter_key IN (${keys.map(() => '?').join(', ')})
+      ORDER BY created_at DESC LIMIT 100`
+  ).bind(user.id, ...keys).all();
+  return results || [];
 }
 
 // Seçilen profil kullanıcının listesinde mi? Boş seçim = profilsiz, kullanıcının kendi adıyla.
@@ -190,12 +217,15 @@ export async function handleGundemSubmitRoute(request, env, url) {
   const method = request.method;
 
   if (rest === 'mine' && method === 'GET') {
-    const [profiles, { results }] = await Promise.all([
+    const [profiles, { results: ownRows }, managedRows] = await Promise.all([
       allowedProfiles(env, user),
       env.DB.prepare(
         `SELECT ${OWN_COLUMNS} FROM gundem_items WHERE submitted_by = ? AND source_id = 'user' ORDER BY created_at DESC LIMIT 100`
       ).bind(user.id).all(),
+      fetchManagedOfficeRows(env, user).catch(() => []),
     ]);
+    // Kendi gönderileri + yönettiği firma adına gönderilenler, tarihe göre birlikte sıralanır.
+    const results = [...(ownRows || []), ...managedRows].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     return json({
       profiles,
       items: (results || []).map(shapeOwn),
@@ -236,7 +266,7 @@ export async function handleGundemSubmitRoute(request, env, url) {
   if (!rest || rest.includes('/')) return errorJson('Bulunamadı', 404);
   const id = rest;
   const row = await loadOwnRow(env, id);
-  if (!canTouch(user, row)) return errorJson('Bulunamadı', 404);
+  if (!(await canTouch(env, user, row))) return errorJson('Bulunamadı', 404);
 
   if (method === 'GET') {
     const profiles = row.submitted_by === user.id ? await allowedProfiles(env, user) : [];

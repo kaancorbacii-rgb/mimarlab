@@ -348,5 +348,111 @@ await test('istemci: X ve + düğmeleri satırda, liste BOŞ olsa da satır çiz
   assert.match(modal, /künyesinden \(Kurucular, Ekip\) SİLİNMEZ/, 'onay metni kullanıcıya künyeye dokunulmadığını söylemeli');
 });
 
+console.log('\nmadde 9 — "Kaldır": yetkisi kaldırılan kullanıcı firmayı kutusundan çıkarır');
+
+async function mine(env, uid) {
+  const url = new URL('https://mimarlab.com/api/claims/mine');
+  const res = await handleClaimsRoute(new Request(url, { headers: { cookie: `__Host-mimarlab_session=tok-${uid}` } }), env, url);
+  return res.json();
+}
+async function dismiss(env, uid, key) {
+  const url = new URL(`https://mimarlab.com/api/claims/office-link?key=${encodeURIComponent(key)}`);
+  return handleClaimsRoute(new Request(url, { method: 'DELETE', headers: { cookie: `__Host-mimarlab_session=tok-${uid}` } }), env, url);
+}
+
+await test('yetkisi kaldırılan kullanıcı firmayı kutudan çıkarır: satır removed olur, listeden düşer', async () => {
+  const { db, env } = await freshEnv();
+  await del(env, 'u-kurucu', OFFICE, 'Yönetici Kişi');          // önce yetkisi kaldırılır
+  const before = await mine(env, 'u-yonetici');
+  assert.ok(before.items.some(i => i.profile_key === OFFICE), 'kaldırmadan önce kutuda görünmeli');
+  assert.equal((await dismiss(env, 'u-yonetici', OFFICE)).status, 200);
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE id = 'c-u-yonetici'`).get().status, 'removed');
+  const after = await mine(env, 'u-yonetici');
+  assert.ok(!after.items.some(i => i.profile_key === OFFICE), 'kaldırdıktan sonra kutuda görünmemeli');
+});
+
+await test('kurucu bağıyla görünen firma da kaldırılabilir; kurucu bağı ve yetki kapalı kalır', async () => {
+  const { db, env } = await freshEnv();
+  await del(env, 'u-kurucu', OFFICE, 'Kurucu Bağı Kişi');
+  assert.ok((await mine(env, 'u-founder')).officeLinks.some(l => l.name === OFFICE));
+  assert.equal((await dismiss(env, 'u-founder', OFFICE)).status, 200);
+  assert.ok(!(await mine(env, 'u-founder')).officeLinks.some(l => l.name === OFFICE), 'kutudan düşmeli');
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM office_founders WHERE architect_id = 10`).get().n, 1, 'künye bağı korunmalı');
+  const { canEditOfficeViaFounderLink } = await import('../src/lib/claimedProfiles.js');
+  const { OFFICE_EDIT_POSITIONS } = await import('../src/lib/projectClaimAccess.js');
+  assert.equal(await canEditOfficeViaFounderLink(env, { id: 'u-founder' }, OFFICE, OFFICE_EDIT_POSITIONS), false, 'yetki geri gelmemeli');
+});
+
+await test('hâlâ YETKİLİ olan kullanıcı firmayı kutudan kaldıramaz (409)', async () => {
+  const { env } = await freshEnv();
+  const res = await dismiss(env, 'u-yonetici', OFFICE);
+  assert.equal(res.status, 409);
+  assert.match((await res.json()).error, /hâlâ yetkilisin/i);
+});
+
+console.log('\nmadde 10 — "Görevin" künyeden okunur (Hesabım = kişi/firma pop-up\'ı)');
+
+await test('myClaims: officeRole KÜNYEDEKİ görevi taşır, dondurulmuş claim görevini değil', async () => {
+  const { db, env } = await freshEnv();
+  // u-yonetici'nin kişi profili firmaya bağlı ve künyedeki görevi 'Ekip Lideri';
+  // atamanın dondurulmuş görevi ise 'Yönetici'. Hesabım artık künyeyi göstermeli.
+  db.prepare(`INSERT INTO architects (id, slug, name, position, source) VALUES (12, 'yonetici-kisi', 'Yönetici Kişi', 'Ekip Lideri', 'legacy_static')`).run();
+  db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES ('c-y-arch', 'u-yonetici', 'architect', 'Yönetici Kişi', 'approved', ?, ?)`).run(Date.now(), Date.now());
+  db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (1, 12)`).run();
+  const data = await mine(env, 'u-yonetici');
+  const row = data.items.find(i => i.profile_key === OFFICE);
+  assert.equal(row.officePosition, 'Yönetici', 'dondurulmuş yetki değeri korunur');
+  assert.equal(row.officeRole, 'Ekip Lideri', 'Görevin satırı künyeden gelmeli');
+});
+
+await test('istemci: "Görevin" officeRole -> role -> hesap pozisyonu sırasıyla okunur (claim görevi DEĞİL)', () => {
+  const modal = read('js/components/auth-modal.js');
+  assert.match(modal, /const role = entry\.officeRole \|\| entry\.role \|\| \(accountUser && accountUser\.position\);/);
+  assert.ok(!/const role = entry\.position \|\|/.test(modal), 'dondurulmuş claim görevi hâlâ okunuyor');
+});
+
+console.log('\nmadde 11 — firma yetkilisi firmanın gündem içeriğini düzenler');
+
+await test('firma adına gönderilen gündem içeriğini firmanın DİĞER yetkilisi düzenler/siler, yabancı düzenleyemez', async () => {
+  const { db, env } = await freshEnv();
+  db.exec(readFileSync(new URL('../migrations/0113_gundem_user_submissions.sql', import.meta.url), 'utf8'));
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO gundem_items (id, slug, title, summary, category, status, source_id, source_name, source_domain, source_url,
+       image_url, image_host, content_hash, title_key, images, submitted_by, submitter_type, submitter_key, submitter_name, created_at, updated_at, published_at)
+     VALUES ('g1', 'firma-haberi', 'Firma Haberi', 'özet', 'haber', 'published', 'user', ?, 'mimarlab.com', 'https://mimarlab.com/gundem',
+       '/media/u/u-yonetici/a.webp', 'mimarlab.com', 'hash-g1', 'firma-haberi', ?, 'u-yonetici', 'office', 'yetki-mimarlik', ?, ?, ?, ?)`
+  ).run(OFFICE, JSON.stringify(['/media/u/u-yonetici/a.webp']), OFFICE, now, now, now);
+  const { handleGundemSubmitRoute } = await import('../src/routes/gundemSubmit.js');
+  const call = (uid, method) => {
+    const url = new URL('https://mimarlab.com/api/gundem-submissions/g1');
+    return handleGundemSubmitRoute(new Request(url, { method, headers: { cookie: `__Host-mimarlab_session=tok-${uid}` } }), env, url);
+  };
+  // Gönderen u-yonetici; u-kurucu aynı firmanın BAŞKA bir yetkilisi.
+  assert.equal((await call('u-kurucu', 'GET')).status, 200, 'firma yetkilisi içeriği açabilmeli');
+  assert.equal((await call('u-yabanci', 'GET')).status, 404, 'yabancı görmemeli');
+  assert.equal((await call('u-ekip', 'GET')).status, 404, 'Ekip Üyesi (yetkisiz) görmemeli');
+  // Listede de görünür (aksi halde yetkiye ulaşılamaz).
+  const listUrl = new URL('https://mimarlab.com/api/gundem-submissions/mine');
+  const list = await (await handleGundemSubmitRoute(new Request(listUrl, { headers: { cookie: '__Host-mimarlab_session=tok-u-kurucu' } }), env, listUrl)).json();
+  assert.ok((list.items || []).some(i => i.id === 'g1'), 'yönettiği firmanın içeriği listede olmalı');
+  // Yetkisi X ile kaldırılırsa erişim de kapanır.
+  await del(env, 'u-kurucu', OFFICE, 'Yönetici Kişi'); // (başka bir hesabı kaldırmak u-kurucu'yu etkilemez)
+  assert.equal((await call('u-kurucu', 'DELETE')).status, 200, 'yetkili silebilmeli');
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM gundem_items WHERE id = 'g1'`).get().n, 0);
+});
+
+console.log('\nmadde 12 — Arşivim kutusu İstatistikler\'in üstünde');
+
+await test('Hesabım paneli sırası: Bildirimler/Mesajlar -> Arşivim -> İstatistikler', () => {
+  const modal = read('js/components/auth-modal.js');
+  const msgs = modal.indexOf('id="am-dash-messages"');
+  const archive = modal.indexOf('id="am-archive-section"');
+  const stats = modal.indexOf('id="am-stats-row"');
+  assert.ok(msgs !== -1 && archive !== -1 && stats !== -1, 'bölümlerden biri yok');
+  assert.ok(msgs < archive, 'Arşivim, Mesajlar satırının ALTINDA olmalı');
+  assert.ok(archive < stats, 'Arşivim, İstatistikler\'in ÜSTÜNDE olmalı');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 process.exit(failed ? 1 : 0);

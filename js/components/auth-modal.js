@@ -334,6 +334,8 @@ const AuthModal = (function () {
     #am-panel .am-mgr-form input{flex:1 1 180px; min-width:0; height:30px; padding:0 10px; border:1px solid var(--line); border-radius:100px; background:var(--paper-card); color:var(--ink); font-family:inherit; font-size:12px;}
     #am-panel .am-mgr-form button{height:30px; padding:0 14px; border:none; border-radius:100px; background:var(--ink); color:var(--paper-card); font-size:12px; font-weight:600;}
     #am-panel .am-mgr-form button.ghost{background:none; color:var(--ink-soft);}
+    #am-panel .am-firm-dismiss{padding:5px 14px; border-radius:100px; border:1px solid var(--line); background:none; color:var(--rust); font-size:12px; font-weight:600;}
+    #am-panel .am-firm-dismiss:hover{background:var(--rust); border-color:var(--rust); color:var(--paper-card);}
     #am-panel .am-mgr-msg{width:100%; font-size:11.5px; margin-top:6px; color:var(--ink-soft);}
     #am-panel .am-mgr-msg.err{color:var(--rust);}
     #am-panel .am-mgr-msg.ok{color:var(--sage);}
@@ -1377,6 +1379,27 @@ const AuthModal = (function () {
         </div>
       </div>
 
+      <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
+        <div class="dash-section">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
+            <h2 style="margin:0;">Bildirimler</h2>
+          </div>
+          <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-notif-pagination"></div>
+        </div>
+
+        <div class="dash-section">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
+            <h2 style="margin:0;">Mesajlar</h2>
+          </div>
+          <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-msg-pagination"></div>
+        </div>
+      </div>
+
+      <!-- ARŞİVİM'İN YERİ (kullanıcı isteği, 2026-09-12): kutu artık Bildirimler/Mesajlar
+           satırının ÜSTÜNDE değil, İSTATİSTİKLER'in hemen ÜSTÜNDE. Önceki konumu 2026-09-10
+           madde 2'nin isteğiydi; bu satır onun yerini alır. -->
       <!-- ARŞİVİM (kullanıcı isteği, 2026-09-10 madde 2: "Hesabım sayfasında açılır kapanır buton
            olarak tek satırı kaplayacak şekilde Arşivim kutusu yap. Bu kutuyu Tümü, Proje, Kişi,
            Firma, Ürün, Marka şeklinde butonlarla filtrelere böl. Bildirimler ve mesajlar satırının
@@ -1414,24 +1437,6 @@ const AuthModal = (function () {
             <div id="am-archive-list"><div class="dash-empty">Yükleniyor…</div></div>
             <div class="dash-pagination" id="am-archive-pagination"></div>
           </div>
-        </div>
-      </div>
-
-      <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
-        <div class="dash-section">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-            <h2 style="margin:0;">Bildirimler</h2>
-          </div>
-          <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-notif-pagination"></div>
-        </div>
-
-        <div class="dash-section">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-            <h2 style="margin:0;">Mesajlar</h2>
-          </div>
-          <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-msg-pagination"></div>
         </div>
       </div>
 
@@ -3696,17 +3701,20 @@ const AuthModal = (function () {
         const folded = foldTrAm(name);
         if (seen.has(folded)) return;
         seen.add(folded);
-        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, founderCanEdit: false, ...extra });
+        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, officeRole: null, founderCanEdit: false, ...extra });
       };
       for (const c of officeClaims.filter(c => c.status === 'approved')) {
         pushEntry(c.profile_key, {
           status: c.status, approved: true, position: c.officePosition || null,
+          // officeRole — KÜNYEDEKİ güncel görev (bkz. src/lib/claimedProfiles.js#fetchOwnOfficeRoles);
+          // "Görevin" satırı bunu tercih eder, dondurulmuş claim görevini değil.
+          officeRole: c.officeRole || null,
           // Künye çekilemese bile buton bir hedefe sahip olsun: talebin kendi slug'ı (yoksa adı).
           slug: c.slug || c.profile_key,
         });
       }
       for (const c of officeClaims.filter(c => c.status !== 'approved')) {
-        pushEntry(c.profile_key, { status: c.status, approved: false, slug: c.slug || c.profile_key });
+        pushEntry(c.profile_key, { status: c.status, approved: false, slug: c.slug || c.profile_key, officeRole: c.officeRole || null });
       }
       // fetchClaimedArchitect / fetchOwnSelfSubmission ikisi de belleklenmiş TEK istektir (bkz. o
       // fonksiyonlar) — syncClaimedArchitectData ve prefillFirmaSelect zaten aynı yanıtı kullanıyor,
@@ -3726,7 +3734,7 @@ const AuthModal = (function () {
       // pushEntry ilk gireni koruduğundan, aynı firma hem claim'li hem office_founders'lıysa CLAIM
       // girdisi kazanır (yetkiyi orada dondurulmuş görev belirler).
       for (const l of myOfficeLinks) {
-        pushEntry(l.name, { role: l.role || null, slug: l.slug || l.name, founderCanEdit: !!l.canEdit });
+        pushEntry(l.name, { role: l.role || null, officeRole: l.officeRole || l.role || null, slug: l.slug || l.name, founderCanEdit: !!l.canEdit });
       }
       firmEntries = entries;
       if (firmPage > entries.length) firmPage = 1;
@@ -3855,6 +3863,40 @@ const AuthModal = (function () {
       }
     }
 
+    // "Kaldır" — firmayı kullanıcının kendi kutusundan çıkarır (kullanıcı isteği, 2026-09-12).
+    // Yalnızca yetkisiz (Durum satırı olan) kayıtlarda çizilir; sunucu da aynı kapıyı ayrıca arar.
+    function wireFirmDismiss(key) {
+      const box = document.getElementById('am-firm-facts');
+      const btn = box && box.querySelector('[data-role="firm-dismiss"]');
+      if (!btn) return;
+      const msg = box.querySelector('[data-role="firm-dismiss-msg"]');
+      btn.addEventListener('click', async () => {
+        if (!confirm(`${key} bu kutudan kaldırılsın mı?\n\nFirmanın kendi künyesi (Kurucular, Ekip) etkilenmez; yalnızca bu kayıt hesabının Firma / Marka Bilgileri kutusundan çıkar.`)) return;
+        btn.disabled = true;
+        if (msg) { msg.textContent = 'Kaldırılıyor…'; msg.className = 'am-mgr-msg'; }
+        try {
+          const res = await fetch(`/api/claims/office-link?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) {
+            if (msg) { msg.textContent = (data && data.error) || 'Kaldırılamadı.'; msg.className = 'am-mgr-msg err'; }
+            btn.disabled = false;
+            return;
+          }
+          // Kutu yerelde de tazelenir: kayıt listeden düşer, sayfa numaraları yeniden hesaplanır.
+          firmEntries = firmEntries.filter(e => e.key !== key);
+          delete firmOfficeCache[key];
+          delete firmManagersCache[key];
+          if (firmPage > firmEntries.length) firmPage = Math.max(1, firmEntries.length);
+          renderFirmPage();
+          ensureFirmOffice();
+          ensureFirmManagers();
+        } catch {
+          if (msg) { msg.textContent = 'Bağlantı hatası, tekrar dene.'; msg.className = 'am-mgr-msg err'; }
+          btn.disabled = false;
+        }
+      });
+    }
+
     // Kutunun tek bir sayfasını (tek firma/marka) çizer. Ağ isteği YAPMAZ — künye hazır değilse
     // (henüz uçuşta) en azından ad satırı gösterilir, kutu asla "Yükleniyor…"da takılı kalmaz.
     function renderFirmPage() {
@@ -3898,10 +3940,15 @@ const AuthModal = (function () {
         if (cats) rows.push(['Hizmet Alanı', cats]);
         if (office.yil) rows.push(['Kuruluş Yılı', String(office.yil)]);
       }
-      // "Görevin": önce bu talebin ONAY ANINDA dondurulmuş pozisyonu (firmaya ÖZGÜ tek doğru değer),
-      // o yoksa hesabın kendi pozisyonu, o da yoksa mimar kaydındaki rol (fallback kaynağıyla AYNI
-      // kayıttan gelir, bkz. entry.role).
-      const role = entry.position || (accountUser && accountUser.position) || entry.role;
+      // "Görevin" — KÜNYEDEKİ GÜNCEL GÖREV ÖNCE (kullanıcı bildirimi, 2026-09-12: "Hesabım'da Ekip
+      // Üyesi, kişi ve firma profilinde Ekip Lideri görünüyor; bu bilgiler entegre ve dinamik
+      // olsun"). entry.officeRole, pop-up'ların yazdığı alanın TA KENDİSİDİR (architects.position,
+      // bkz. src/lib/claimedProfiles.js#fetchOwnOfficeRoles) — üç ekran artık birlikte değişir.
+      // Sonraki sıra: kurucu bağının taşıdığı rol, sonra hesabın kendi pozisyonu. Atamanın ONAY
+      // ANINDA dondurulmuş değeri (entry.position) ARTIK OKUNMAZ: o bir ünvan değil, yalnızca
+      // yetkidir (hepsi 'Yönetici' donuyor, bkz. src/routes/admin.js#normalizeOfficePosition) ve
+      // kişi görevini değiştirdiğinde künyeden kalıcı olarak ayrışıyordu — bu bildirimin kök nedeni.
+      const role = entry.officeRole || entry.role || (accountUser && accountUser.position);
       if (role) rows.push(['Görevin', role]);
       // "Yetkili Kullanıcılar" (kullanıcı isteği, 2026-09-12): bu firmanın içeriklerini yönetmekle
       // görevlendirilmiş DİĞER hesaplar; her biri bir çip, çipin içinde yetkiyi kaldıran X, satır
@@ -3917,6 +3964,12 @@ const AuthModal = (function () {
       // artık her firma kendi sayfasında göründüğü için durum da o sayfada yazar.
       if (entry.status && entry.status !== 'approved') {
         rows.push(['Durum', CLAIM_STATUS_LABELS_ACCOUNT[entry.status] || entry.status]);
+        // KALDIR (kullanıcı isteği, 2026-09-12): yetkisi kaldırılmış (ya da reddedilmiş/bekleyen)
+        // bir kayıtta kullanıcı bu firmayı kutusundan tamamen çıkarabilir. Sunucu satırı SİLMEZ,
+        // 'removed' yapar (bkz. src/routes/claims.js#dismissOfficeLink) — silmek, kurucu bağıyla
+        // gelen bir yetkinin iptalini de geri alırdı.
+        rows.push(['', '', `<button type="button" class="am-firm-dismiss" data-role="firm-dismiss">Kaldır</button>
+          <div class="am-mgr-msg" data-role="firm-dismiss-msg"></div>`]);
       }
       const slug = firmInfoSlug;
       // Firma satırında, firmanın rozeti varsa adının yanında gösterilir (kullanıcı isteği,
@@ -3944,6 +3997,7 @@ const AuthModal = (function () {
             : escapeHtml(value))}${i === 0 && firmBadgeType ? accountBadgeIconHtml(firmBadgeType) : ''}</span>
         </div>`).join('');
       wireManagersRow(entry.key);
+      wireFirmDismiss(entry.key);
       renderFirmPagination();
       renderClaimsList();
     }
