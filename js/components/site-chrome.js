@@ -481,7 +481,8 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a><a href="/gundem">Gündem</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/hakkinda">Hakkında</a><a href="/iletisim">İletişim</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
+      <!-- Sıra (kullanıcı isteği, 2026-09-12): İletişim, Hakkında, Neden MİMARLAB?, sonrası aynı. -->
+      <div class="footer-col"><h4>Kurumsal</h4><a href="/iletisim">İletişim</a><a href="/hakkinda">Hakkında</a><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
       <div class="footer-social">
@@ -590,12 +591,18 @@
       /* "Sen de Ekle" sütundaki <a> kardeşleriyle birebir aynı görünmeli (bkz. .footer-add-content
          kuralı) — o kural text-align:left yazdığı için burada ortaya çekilir. */
       .footer-top .footer-add-content{text-align:center;}
-      /* Alt satır: sosyal ikonlar sol kenara, telif hakkı ortaya, gece/gündüz düğmesi sağ kenara
-         (bkz. kullanıcı isteği: "sol ve sağ hizayla eşitle") — grid'in dış iki sütunu 1fr olduğundan
-         orta sütun (telif metni) sosyal/toggle genişliklerinden bağımsız her zaman TAM ortada kalır. */
-      .footer-bottom{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; max-width:1080px; margin:0 auto; box-sizing:border-box;}
-      .footer-bottom .footer-social{justify-self:start;}
-      .footer-copyright{justify-self:center; text-align:center;}
+      /* ALT SATIR — ÜSTTEKİ SÜTUNLARLA HİZALI (kullanıcı isteği, 2026-09-12: "sosyal simgeleri
+         1. sütuna göre ortala, gece-gündüz butonunu da 4. sütuna göre ortala").
+         Raylar .footer-top ile BİREBİR aynı — repeat(4, 1fr) + 32px gap, bkz. bu bloğun birkaç
+         satır yukarısındaki .footer-top kuralı (sayfa CSS'indeki 2fr 1fr 1fr 1fr'i zaten o ezer) —
+         ve iki kapsayıcı aynı max-width/padding'i taşıdığı için sütun merkezleri tam tutar:
+         sosyal ikonlar marka sütununun (1), düğme Kurumsal sütununun (4) ortasına oturur.
+         Satır GÖRSEL OLARAK yine ÜÇ parçadır: telif metni ortadaki iki rayı birlikte kaplar (2/4).
+         Dört ray eşit olduğundan bu span'in ortası sayfanın tam ortasıdır, yani telif metni
+         eskisi gibi ortada kalır. Önceki "1fr auto 1fr + sola/sağa yasla" düzeninin yerini alır. */
+      .footer-bottom{display:grid; grid-template-columns:repeat(4, 1fr); align-items:center; gap:32px; max-width:1080px; margin:0 auto; box-sizing:border-box;}
+      .footer-bottom .footer-social{grid-column:1; justify-self:center;}
+      .footer-copyright{grid-column:2 / 4; justify-self:center; text-align:center;}
       /* Arsiv ibaresi (kullanici istegi 2026-09-07): footer'in EN ALTINDA, sayfayi ortalayan
          tek satirlik not. Sitedeki kayitlarin kamuya acik kaynaklardan derlendigini ve hata
          bildiriminin nasil yapilacagini soyler. Renkler footer'in kendi sabit paletinden gelir
@@ -609,10 +616,9 @@
       }
       .footer-archive-note a{color:rgba(237,240,243,0.72); text-decoration:underline; text-underline-offset:2px;}
       .footer-archive-note a:hover{color:rgba(237,240,243,0.95);}
-      /* kullanıcı isteği (2026-09-01): gece/gündüz düğmesi artık sağ kenara YAPIŞMAZ, kendi
-         (sağdaki 1fr) sütununun ortasına oturur — telif metniyle sağ kenar arasında duran daha
-         dengeli bir konum. Sütun 1fr olduğundan bu konum pencere genişliğiyle birlikte kayar. */
-      .footer-bottom .footer-theme-toggle{justify-self:center;}
+      /* Gece/gündüz düğmesi: Kurumsal sütununun (4) ortası — bkz. yukarıdaki ray açıklaması.
+         2026-09-01'deki "sağ kenara yapışmasın" kararının devamı, yalnızca referans sütun netleşti. */
+      .footer-bottom .footer-theme-toggle{grid-column:4; justify-self:center;}
       .footer-social{display:flex; align-items:center; gap:14px; height:28px;}
       .footer-social a{display:flex; align-items:center; justify-content:center;}
       .footer-social svg{display:block;}
@@ -684,16 +690,27 @@
         .footer-newsletter-btn{width:28px; height:28px; padding:0;}
         .footer-newsletter-btn-icon{flex-shrink:0;}
       }
-      /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
-         gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
-         social, copyright, theme-toggle — masaüstü grid sırası korunur, burada yalnızca CSS order
-         özelliğiyle görsel sıra değiştirilir). Aynı gün içindeki önceki "tek satırda kalsın" kararının
-         (bkz. git geçmişi) yerini alır. */
+      /* TABLET VE MOBİL (kullanıcı isteği, 2026-09-12): alt satır ÜÇ SÜTUN kalır ve üç öğe de
+         kendi sütununun ortasına hizalanır. Masaüstündeki 4 raylı hizalama burada bırakılır: üstteki
+         ızgara da bu genişlikte 2 sütuna indiğinden (bkz. sayfa CSS'indeki .footer-top kuralı)
+         referans sütunlar artık yok. Yan sütunlar 1fr, orta ray auto: telif metni kendi doğal
+         genişliğini alır, ikonlar ve düğme iki yanında ortalanır.
+         2026-08-28'deki "mobilde üç satıra yığılsın" kararının yerini alır. */
+      @media (max-width: 860px){
+        .footer-bottom{grid-template-columns:1fr auto 1fr; gap:16px;}
+        .footer-bottom .footer-social{grid-column:1; justify-self:center;}
+        .footer-copyright{grid-column:2; justify-self:center; text-align:center;}
+        .footer-bottom .footer-theme-toggle{grid-column:3; justify-self:center;}
+      }
+      /* Dar telefonlarda üç sütun aynı satırda kalabilsin diye yalnızca ölçüler daralır: ikon
+         aralığı, sütun boşluğu ve yan boşluklar. Şablon (üç sütun) DEĞİŞMEZ. */
       @media (max-width: 560px){
-        .footer-bottom{display:flex; flex-direction:column; align-items:center; gap:14px;}
-        .footer-theme-toggle{order:1;}
-        .footer-social{order:2;}
-        .footer-copyright{order:3; text-align:center;}
+        /* Dar telefonda 1fr raylar kendi içeriklerinin altına inemediğinden yan sütunlar farklı
+           genişlikte kalıyordu (ikonlar ~72px, düğme 34px) ve orta sütun sayfanın ortasından
+           kayıyordu. Ortak bir taban (72px) ikisini eşitler: üç öğe de kendi sütununun ortasında
+           VE telif metni sayfanın tam ortasında kalır. */
+        .footer-bottom{grid-template-columns:minmax(72px, 1fr) auto minmax(72px, 1fr); gap:10px; padding-left:14px; padding-right:14px;}
+        .footer-social{gap:9px;}
       }
     `;
     document.head.appendChild(style);
