@@ -2278,9 +2278,13 @@ document.getElementById('seo-robots-save').addEventListener('click', async ()=>{
 //     yazılmadı. Yayındaki İçerikler sekmesindeki "Öne Çıkar" düğmesi AYNI `featured_project_slugs`
 //     anahtarına yazmaya devam eder, iki arayüz birbirini görür.
 // ---------------------------------------------------------------------------------------------
-const HOME_CAROUSEL_SLOTS = 9;
+// 9 -> 6 (kullanıcı isteği, 2026-09-12: karusel başına 6 gönderi). src/lib/homeCarousels.js#
+// HOME_SLOT_COUNT ile AYNI olmalı — sunucu seçimi zaten o sınırla kırpar, arayüz de aynı sayıda
+// slot çizmeli. Karuselin göstermediği sonraki 6 kayıt ana sayfada "Son ..." şeritlerine düşer
+// (bkz. index.html#createRail), yani seçim bu şeritlerin içeriğini de dolaylı olarak belirler.
+const HOME_CAROUSEL_SLOTS = 6;
 // fetchLimit: ana sayfanın o uç için çektiği pencere (bkz. index.html#PROJECT_CAROUSEL_FETCH_LIMIT —
-// proje karuseli kapak görseli olmayanları eleyebildiği için 24 çeker, diğerleri tam 9).
+// proje karuseli kapak görseli olmayanları eleyebildiği için 24 çeker, diğerleri tam 6).
 const HOME_CAROUSELS = [
   { key: 'projects',   label: 'Projeler',           settingKey: 'featured_project_slugs',   api: '/api/projects',   fetchLimit: 24, coverRequired: true,
     title: (it) => it.title, image: (it) => (it.images && it.images[0]) || '', sub: (it) => it.location || (it.designer || []).join(', ') || '' },

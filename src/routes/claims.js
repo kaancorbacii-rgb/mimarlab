@@ -3,7 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
-import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
+import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
@@ -27,6 +27,9 @@ export async function handleClaimsRoute(request, env, url) {
   }
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
     return myClaims(env, user);
+  }
+  if (segments.length === 3 && segments[2] === 'office-managers' && request.method === 'GET') {
+    return officeManagers(env, url, user);
   }
   return errorJson('Bulunamadı', 404);
 }
@@ -119,6 +122,33 @@ async function myClaims(env, user) {
     officeLinks,
     architectProfile: ownArchitect ? { name: ownArchitect.name, slug: ownArchitect.slug } : null,
   });
+}
+
+// GET /api/claims/office-managers?key=<firma adı> — Hesabım > "Firma / Marka Bilgileri"
+// kutusundaki "Yetkili Kullanıcılar" satırı (kullanıcı isteği, 2026-09-12): bu firmanın
+// içeriklerini yönetmekle görevlendirilmiş DİĞER hesapların ad soyadları.
+//
+// KAPI: isteyenin kendisi de aynı firmanın yetkilisi olmalı — yetkili değilse (ör. Ekip Üyesi ya
+// da hiç ilgisi olmayan bir hesap) 403 döner ve istemci satırı hiç çizmez. Yetki kararı
+// SUNUCUNUN kendi kapılarıyla birebir aynı iki yoldan okunur (onaylı talep + dondurulmuş görev,
+// ya da kurucu bağı) — yani "listeyi görebilenler" ile "künyeyi kaydedebilenler" aynı kümedir.
+// Yanıt yalnızca ad soyad ve görev taşır; e-posta/kullanıcı id'si DÖNMEZ.
+async function officeManagers(env, url, user) {
+  const key = (url.searchParams.get('key') || '').trim();
+  if (!key) return errorJson('Geçersiz istek.');
+  // Kendi talebin: onay ANINDA dondurulmuş görev (canlı position DEĞİL — bkz. myClaims'teki
+  // uzun gerekçe: ikisi ayrıştığında kullanıcı ya kilitlenir ya da yetkisi varmış gibi görünür).
+  const mine = await env.DB.prepare(
+    `SELECT office_position AS position FROM profile_claims
+      WHERE user_id = ? AND profile_type = 'office' AND status = 'approved' AND profile_key = ?`
+  ).bind(user.id, key).first();
+  const allowed = (mine && OFFICE_EDIT_POSITIONS.has(mine.position))
+    || (await canEditOfficeViaFounderLink(env, user, key, OFFICE_EDIT_POSITIONS));
+  if (!allowed) return errorJson('Bu firmanın yetkili kullanıcılarını göremezsin.', 403);
+  const managers = await fetchOfficeManagers(env, key, OFFICE_EDIT_POSITIONS);
+  // "DİĞER hesaplar" — isteği yapan kişi listede kendini görmez (kendi görevi zaten hemen
+  // üstteki "Görevin" satırında yazıyor).
+  return json({ items: managers.filter(m => m.userId !== user.id).map(m => ({ name: m.name, position: m.position })) });
 }
 
 async function createClaim(request, env, user) {

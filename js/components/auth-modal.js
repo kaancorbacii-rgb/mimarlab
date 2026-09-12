@@ -1987,6 +1987,10 @@ const AuthModal = (function () {
   // aynı firma için ikinci kez ağ isteği atılmasını önler — eski tek-firmalı koddaki firmInfoKey
   // guard'ının yerini alır.
   const firmOfficeCache = Object.create(null);
+  // "Yetkili Kullanıcılar" satırının verisi (kullanıcı isteği, 2026-09-12) — firma anahtarı başına
+  // tek istek, firmOfficeCache ile AYNI desen. undefined = uçuşta, null = yetkisiz/başarısız
+  // (satır çizilmez), dizi = gelen liste.
+  const firmManagersCache = Object.create(null);
   // #am-firm-facts kutusunda O AN gösterilen sayfanın firması (bkz. renderFirmPage).
   // amClaimItems ile AYNI kapsamda tutulur çünkü renderClaimsList onu, loadFirmInfo'dan ÖNCE de
   // çağrılabilecek şekilde okuyor (bkz. oradaki filtre).
@@ -3708,6 +3712,7 @@ const AuthModal = (function () {
       if (firmPage > entries.length) firmPage = 1;
       renderFirmPage();
       ensureFirmOffice();
+      ensureFirmManagers();
     }
 
     // O an gösterilen sayfanın firma künyesini (/api/office/:key) çeker ve gelince sayfayı yeniden
@@ -3725,6 +3730,25 @@ const AuthModal = (function () {
         .then(() => {
           // Kullanıcı bu arada başka bir sayfaya geçmiş olabilir — yalnızca hâlâ bu giriş
           // gösteriliyorsa yeniden çiz (aksi halde açık sayfanın üzerine yanlış künye yazılırdı).
+          const current = firmEntries[firmPage - 1];
+          if (current && current.key === key) renderFirmPage();
+        });
+    }
+
+    // O an gösterilen firmanın DİĞER yetkili kullanıcılarını çeker (kullanıcı isteği, 2026-09-12).
+    // Uç, isteyen kişinin kendisi de o firmanın yetkilisi değilse 403 döner — o durumda cache null
+    // kalır ve satır hiç çizilmez (bkz. renderFirmPage). ensureFirmOffice ile AYNI "sayfa başına
+    // tek istek + yalnızca hâlâ o sayfadaysak yeniden çiz" deseni.
+    function ensureFirmManagers() {
+      const entry = firmEntries[firmPage - 1];
+      if (!entry || entry.key in firmManagersCache) return;
+      const key = entry.key;
+      firmManagersCache[key] = undefined;
+      fetch(`/api/claims/office-managers?key=${encodeURIComponent(key)}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { firmManagersCache[key] = (d && Array.isArray(d.items)) ? d.items : null; })
+        .catch(() => { firmManagersCache[key] = null; })
+        .then(() => {
           const current = firmEntries[firmPage - 1];
           if (current && current.key === key) renderFirmPage();
         });
@@ -3778,6 +3802,15 @@ const AuthModal = (function () {
       // kayıttan gelir, bkz. entry.role).
       const role = entry.position || (accountUser && accountUser.position) || entry.role;
       if (role) rows.push(['Görevin', role]);
+      // "Yetkili Kullanıcılar" (kullanıcı isteği, 2026-09-12): bu firmanın içeriklerini yönetmekle
+      // görevlendirilmiş DİĞER hesaplar. Liste SUNUCUDAN gelir (bkz. src/routes/claims.js#
+      // officeManagers) — yetki kuralı istemcide yeniden hesaplanmaz; kullanıcı bu firmanın
+      // yetkilisi değilse uç 403 döner ve satır hiç görünmez. Görev parantez içinde yazılır
+      // (kimin ne yetkiyle bağlı olduğu tek bakışta okunsun).
+      const managers = firmManagersCache[entry.key];
+      if (Array.isArray(managers) && managers.length) {
+        rows.push(['Yetkili Kullanıcılar', managers.map(m => m.position ? `${m.name} (${m.position})` : m.name).join(', ')]);
+      }
       // Bekleyen talep — durum bilgisi eskiden altındaki #am-claims-mine-list satırında duruyordu;
       // artık her firma kendi sayfasında göründüğü için durum da o sayfada yazar.
       if (entry.status && entry.status !== 'approved') {
@@ -3830,6 +3863,7 @@ const AuthModal = (function () {
           firmPage = parseInt(btn.dataset.page, 10);
           renderFirmPage();
           ensureFirmOffice();
+          ensureFirmManagers();
         });
       });
     }
@@ -4064,7 +4098,7 @@ const AuthModal = (function () {
     // doldurup 403 alacağı bir form yerine, hesabına yeni bağlanan künyeyi görür.
     function showFirmPageFor(officeKey) {
       const idx = firmEntries.findIndex(e => foldTrAm(e.key) === foldTrAm(officeKey));
-      if (idx !== -1) { firmPage = idx + 1; renderFirmPage(); ensureFirmOffice(); }
+      if (idx !== -1) { firmPage = idx + 1; renderFirmPage(); ensureFirmOffice(); ensureFirmManagers(); }
       const box = document.getElementById('am-firm-facts');
       if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }

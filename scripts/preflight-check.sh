@@ -580,6 +580,20 @@ else
 fi
 rm -f /tmp/preflight_hcar
 
+# Ana sayfa şeritleri ("Son Projeler/Kişiler/Firmalar/Markalar/Ürünler/Gündem"), karusel slotunun
+# 6'ya inmesi, footer "Üye Ol" metni, mobil bülten okunun görünürlüğü ve Hesabım'daki "Yetkili
+# Kullanıcılar" satırı — kullanıcı isteği, 2026-09-12 (ikinci tur). Slot sabiti DÖRT dosyada,
+# gömülü veri sürümü İKİ dosyada birlikte yaşıyor; ayrışmaları sessizdir (karusel/şerit yarım
+# dolar). Yetkili Kullanıcılar ucu ayrıca GERÇEK rota + node:sqlite ile yetki kapısından geçirilir.
+# Bkz. scripts/test-2026-09-12-home-rails.mjs.
+if node scripts/test-2026-09-12-home-rails.mjs >/tmp/preflight_rails 2>&1; then
+  ok "ana sayfa şeritleri + footer + yetkili kullanıcılar testleri geçti ($(grep -c '^  ok ' /tmp/preflight_rails) test)"
+else
+  bad "ana sayfa şeritleri + footer + yetkili kullanıcılar testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_rails >&2
+fi
+rm -f /tmp/preflight_rails
+
 # Bülten kapsamı (kişi/firma/marka mail ALMAZ), gündem bildirimi (5'te 1, AYRI sayaç) ve popup
 # açılış karesi — kullanıcı isteği, 2026-09-12 madde 2 ve 3. Üçü de sözdizimi kontrolünden geçen
 # SESSİZ regresyonlar: TYPE_LABEL'a bir satır, tek bir sayaç anahtarı ya da kaldırılan bir CSS

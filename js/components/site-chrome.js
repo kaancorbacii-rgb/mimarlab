@@ -456,7 +456,7 @@
         <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
         <p class="footer-subscribe-join-desc">Kişi, firma veya marka bilgilerini hemen doldur.</p>
         <div class="footer-subscribe-join-action">
-          <a class="footer-subscribe-btn" href="/uye-ol">Ücretsiz Üye Ol</a>
+          <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
         </div>
         <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
         <p class="footer-newsletter-desc">Yeni proje, ürün ve gündem içerikleri e-postana gelsin.</p>
@@ -480,7 +480,7 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a><a href="/gundem">Gündem</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Ücretsiz Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/hakkinda">Hakkında</a><a href="/iletisim">İletişim</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
@@ -650,7 +650,17 @@
         .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:13px;}
         .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
         .footer-newsletter-input{height:34px; padding:0 40px 0 12px;}
-        .footer-newsletter-btn{width:28px; height:28px;}
+        /* padding:0 BURADA TEKRAR EDİLİR (kullanıcı bulgusu, 2026-09-12: "mobilde e-posta
+           çubuğunun sağındaki ok işareti gözükmüyor"). GERÇEK NEDEN: hemen yukarıdaki
+           `.footer-subscribe-btn{padding:0 14px; ...}` kuralı bu media bloğunda daha SONRA
+           geldiğinden (aynı özgüllük, kaynak sırası kazanır) dairesel gönder butonunun yatay
+           dolgusunu 14px'e çıkarıyordu; buton 28px geniş ve `*{box-sizing:border-box}` yürürlükte
+           olduğundan içeriğe kalan genişlik TAM SIFIR oluyor, flex çocuğu olan SVG de sıfıra
+           büzülüp ok görünmez hale geliyordu (masaüstünde sorun yoktu: orada .footer-newsletter-btn
+           kuralı sonra geliyor). flex-shrink:0 ikinci güvence — ikon bir daha hiçbir dar kutuda
+           büzülmez. */
+        .footer-newsletter-btn{width:28px; height:28px; padding:0;}
+        .footer-newsletter-btn-icon{flex-shrink:0;}
       }
       /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
          gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:

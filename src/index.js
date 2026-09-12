@@ -1285,7 +1285,14 @@ function withListPageCacheHeaders(response) {
 // ve index.html o bölümü eskisi gibi istemcide çeker — sayfa ASLA bu yüzden düşmez.
 // ---------------------------------------------------------------------------------------------
 const HOME_PROJECT_FETCH_LIMIT = 24; // index.html#PROJECT_CAROUSEL_FETCH_LIMIT ile aynı
-const HOME_SLOTS = 9;                // index.html#PROJECT_CAROUSEL_SLOTS ile aynı
+const HOME_SLOTS = 6;                // index.html#PROJECT_CAROUSEL_SLOTS ile aynı (9 -> 6, kullanıcı isteği 2026-09-12 madde 3)
+// Karusellerin altındaki "Son ..." şeritleri (kullanıcı isteği, madde 4) AYNI listenin sonraki 6
+// kaydını gösterir; bu yüzden gömülü veri artık karusel + şerit kadar (12) kayıt taşır ve istemci
+// tek yanıttan ikisini de çizer (bkz. index.html#HOME_LIST_FETCH_LIMIT — ayrışmamalı).
+// Markalar/Gündem şeritlerinin karuseli yok: onlar ekranın çok altında kaldığından BİLEREK
+// gömülmez, istemci şeritler yaklaşınca çeker (bkz. index.html#loadRailExtras).
+const HOME_RAIL_SLOTS = 6;
+const HOME_LIST_LIMIT = HOME_SLOTS + HOME_RAIL_SLOTS;
 const HOME_DATA_TIMEOUT_MS = 2000;
 // index.html'deki <img sizes> değerleriyle BİREBİR aynı — preload'un kullanılabilmesi için şart.
 const HOME_IMG = {
@@ -1327,9 +1334,9 @@ async function loadHomeData(env, ctx) {
       // taşımak ayrıca "9 çekip 9'dan azını göster" sorununu da çözer — 9 slot artık her zaman
       // yayındaki kayıtlarla dolar (bkz. src/routes/*.js#noPreview).
       internalApiJson(env, ctx, withPinParam(`/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}&noPreview=1`, pinFor('projects'))),
-      internalApiJson(env, ctx, withPinParam(`/api/architects?limit=${HOME_SLOTS}&noPreview=1`, pinFor('architects'))),
-      internalApiJson(env, ctx, withPinParam(`/api/offices?limit=${HOME_SLOTS}&noPreview=1`, pinFor('offices'))),
-      internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_SLOTS}&noPreview=1`, pinFor('products'))),
+      internalApiJson(env, ctx, withPinParam(`/api/architects?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('architects'))),
+      internalApiJson(env, ctx, withPinParam(`/api/offices?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('offices'))),
+      internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('products'))),
     ]);
     let projectItems = null;
     if (projects && Array.isArray(projects.items)) {
@@ -1341,11 +1348,14 @@ async function loadHomeData(env, ctx) {
       // devam ederler; kısıt yalnızca karusele özgüdür.
       projectItems = projects.items
         .filter(p => p && !p.preview && Array.isArray(p.images) && p.images[0])
-        .slice(0, HOME_SLOTS);
+        .slice(0, HOME_LIST_LIMIT);
     }
-    const items = (res) => (res && Array.isArray(res.items)) ? res.items.slice(0, HOME_SLOTS) : null;
+    const items = (res) => (res && Array.isArray(res.items)) ? res.items.slice(0, HOME_LIST_LIMIT) : null;
     // t: üretim anı (ms) — index.html bununla gömülü verinin yaşını ölçer (bkz. oradaki arka plan yenilemesi).
-    const data = { v: 1, t: Date.now(), projects: projectItems, architects: items(architects), offices: items(offices), products: items(products) };
+    // v: 2 — gövde şekli değişti (bölüm başına 9 değil 12 kayıt: karusel 6 + şerit 6). Tarayıcı
+    // önbelleğinde duran ESKİ bir belge v:1 taşır; index.html onu yok sayıp listeleri ağdan çeker,
+    // yani eski bir belge yarım dolu bir şerit çizmez.
+    const data = { v: 2, t: Date.now(), projects: projectItems, architects: items(architects), offices: items(offices), products: items(products) };
     return (data.projects || data.architects || data.offices || data.products) ? data : null;
   })();
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), HOME_DATA_TIMEOUT_MS));

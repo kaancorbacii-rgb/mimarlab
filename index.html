@@ -245,7 +245,10 @@
   /* ---------- HOME BENTO GRID ---------- */
   .bento-grid{
     max-width:1220px; margin:0 auto;
-    padding:0 32px 64px;
+    /* Alt boşluk 64px -> 34px: bu blok artık sayfanın SONU değil, hemen altında "Son ..."
+       şeritleri var (kullanıcı isteği, 2026-09-12 madde 4); 64px iki blok arasında kopukluk
+       yaratıyordu. Sayfanın alt boşluğu artık .home-rails'in padding'inde. */
+    padding:0 32px 34px;
     display:grid; grid-template-columns:2fr 1fr;
     gap:16px;
   }
@@ -362,6 +365,85 @@
   .side-slider .slide-title{font-size:12.5px;}
   .side-slider .slide-designer{font-size:10.5px; margin-top:1px;}
 
+  /* ---------- ANA SAYFA ŞERİTLERİ ("Son ..." satırları) ----------
+     Kullanıcı isteği (2026-09-12): karusellerin ALTINDA, sağa doğru kaydırılan altı şerit —
+     Son Projeler / Kişiler / Firmalar / Markalar / Ürünler / Gündem İçerikleri, her birinde 6
+     gönderi. Şeritler karusellerle AYNI veriyi paylaşır (bkz. loadHomeSections): karusel ilk 6'yı,
+     şerit SONRAKİ 6'yı gösterir — yani aynı kayıt iki kez çıkmaz, ikinci bir istek de atılmaz.
+     Kaydırma NATIVE overflow-x'tir (JS ile taşınan bir track değil): dokunmatikte parmakla,
+     masaüstünde oklarla ya da trackpad'le çalışır, klavyeyle odaklanan kart kendiliğinden
+     görünür alana girer. Oklar yalnızca gerçekten kaydırılabilir bir şeritte ve yalnızca gidilecek
+     yön varsa çizilir (bkz. syncArrows). */
+  .home-rails{
+    max-width:1220px; margin:0 auto; padding:0 32px 64px;
+    display:flex; flex-direction:column; gap:16px;
+  }
+  .home-rail{
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:20px; padding:22px 24px 24px;
+  }
+  .rail-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;}
+  .rail-title{
+    margin:0; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size:19px; font-weight:700; letter-spacing:-0.01em;
+  }
+  .rail-all{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:600; color:var(--brass); white-space:nowrap;}
+  .rail-all:hover{color:var(--ink);}
+  .rail-viewport{position:relative;}
+  /* scrollbar gizlenir ama kaydırma AÇIK kalır — şerit görsel olarak sade dursun, erişilebilirlik
+     (klavye/dokunmatik/trackpad) bozulmasın. */
+  .rail-track{
+    display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
+    scroll-snap-type:x proximity; scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .rail-track::-webkit-scrollbar{display:none;}
+  .rail-card{flex:0 0 calc((100% - 70px) / 6); min-width:0; scroll-snap-align:start;}
+  .rail-thumb{
+    position:relative; width:100%; aspect-ratio:4/3; border-radius:12px;
+    overflow:hidden; background:var(--paper-alt); margin-bottom:10px;
+  }
+  .rail-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  /* Logo/ürün görselleri kırpılmaz (kisi/firma kartlarındaki AYNI ayrım — bkz. .slide-logo-img). */
+  .rail-thumb img.rail-thumb-contain{object-fit:contain; background:var(--paper-card); padding:8px;}
+  .rail-thumb-fallback{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight:700; font-size:26px; color:rgba(255,255,255,0.92);
+  }
+  .rail-card-title{
+    margin:0; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size:13.5px; font-weight:700; line-height:1.32;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .rail-card:hover .rail-card-title{color:var(--brass);}
+  .rail-card-meta{
+    margin-top:4px; font-size:11.5px; color:var(--ink-soft); line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .rail-arrow{
+    position:absolute; top:38%; transform:translateY(-50%); z-index:3;
+    width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--line); background:var(--paper-card); color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 10px rgba(27,42,61,0.14);
+  }
+  .rail-arrow:hover{background:var(--paper-alt);}
+  /* `hidden` özniteliği TEK BAŞINA yetmez: tarayıcının [hidden]{display:none} kuralı UA
+     stil sayfasındadır ve yukarıdaki .rail-arrow{display:flex} onu ezer (yazar stili her zaman
+     kazanır) — gerçek bulgu: headless render'da sığan bir şeritte de iki ok birden çiziliyordu. */
+  .rail-arrow[hidden]{display:none;}
+  /* Aynı tuzak şeridin kendisinde YOK (.home-rail bir display kuralı taşımıyor), ama içeriği
+     gelene kadar gizli kalması bu davranışa bağlı olduğundan açıkça yazılır. */
+  .home-rail[hidden]{display:none;}
+  .rail-arrow.prev{left:-12px;}
+  .rail-arrow.next{right:-12px;}
+  /* Boş/başarısız şerit: kutuyu renkli bir boşluk olarak bırakmak yerine kısa bir not
+     (karusellerdeki .slider-fallback deseninin şerit karşılığı). */
+  .rail-fallback{font-size:12.5px; color:var(--ink-soft); padding:8px 0 4px;}
+
+  @media (max-width: 1100px){ .rail-card{flex-basis:calc((100% - 42px) / 4);} }
+  @media (max-width: 860px){ .rail-card{flex-basis:calc((100% - 28px) / 3);} }
+
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{
@@ -426,7 +508,7 @@
     .hero h1{font-size:clamp(30px, 8vw, 46px);}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
-    .bento-grid{padding:0 14px 50px; gap:10px;}
+    .bento-grid{padding:0 14px 26px; gap:10px;}
     .proje-slider{aspect-ratio:4/3; border-radius:16px;}
     .slide-title{font-size:14.5px;}
     .slide-designer{font-size:11px;}
@@ -442,6 +524,19 @@
     .side-slider .slide-tag{top:8px; left:8px; font-size:9px; padding:3px 8px;}
     .side-slider .slider-arrow{width:24px; height:24px;}
     .side-slider .slider-arrow svg{width:11px; height:11px;}
+ 
+    /* Şeritler mobilde: ekran genişliğinin ~yarısı kadar kart (bir sonrakinin kenarı görünür ki
+       kaydırılabildiği anlaşılsın), oklar YOK — burada kaydırma parmakla yapılır. */
+    .home-rails{padding:0 14px 50px; gap:12px;}
+    .home-rail{padding:16px 14px 18px; border-radius:16px;}
+    .rail-head{margin-bottom:12px;}
+    .rail-title{font-size:16px;}
+    .rail-all{font-size:12px;}
+    .rail-track{gap:10px;}
+    .rail-card{flex-basis:calc((100% - 10px) / 2.15);}
+    .rail-card-title{font-size:12.5px;}
+    .rail-card-meta{font-size:11px;}
+    .rail-arrow{display:none;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -534,6 +629,117 @@
     </div>
   </section>
 
+  <!-- ANA SAYFA ŞERİTLERİ (kullanıcı isteği, 2026-09-12 madde 4). Başlıklar/bağlantılar HTML'de
+       SABİT durur (JS'e bağlı değil), yalnızca kart listeleri doldurulur — bkz. createRail.
+       Her şerit içeriği gelene kadar `hidden`: boş bir kutu çizilmez, veri gelince açılır.
+       Projeler/Kişiler/Firmalar/Ürünler şeritleri karusellerin ZATEN çektiği listenin 7-12.
+       kayıtlarıdır (ek istek yok); Markalar ve Gündem'in karuseli olmadığından onlar şeritler
+       görünüm alanına yaklaşınca ayrıca çekilir (bkz. loadRailExtras). -->
+  <div class="home-rails" id="home-rails">
+    <section class="home-rail" id="rail-projects" hidden>
+      <div class="rail-head">
+        <h2 class="rail-title">Son Projeler</h2>
+        <a class="rail-all" href="/proje">Tümünü Gör
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail-track"></div>
+        <button class="rail-arrow prev" type="button" aria-label="Önceki projeler" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="rail-arrow next" type="button" aria-label="Sonraki projeler" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </section>
+    <section class="home-rail" id="rail-architects" hidden>
+      <div class="rail-head">
+        <h2 class="rail-title">Son Kişiler</h2>
+        <a class="rail-all" href="/kisi">Tümünü Gör
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail-track"></div>
+        <button class="rail-arrow prev" type="button" aria-label="Önceki kişiler" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="rail-arrow next" type="button" aria-label="Sonraki kişiler" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </section>
+    <section class="home-rail" id="rail-offices" hidden>
+      <div class="rail-head">
+        <h2 class="rail-title">Son Firmalar</h2>
+        <a class="rail-all" href="/firma">Tümünü Gör
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail-track"></div>
+        <button class="rail-arrow prev" type="button" aria-label="Önceki firmalar" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="rail-arrow next" type="button" aria-label="Sonraki firmalar" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </section>
+    <section class="home-rail" id="rail-brands" hidden>
+      <div class="rail-head">
+        <h2 class="rail-title">Son Markalar</h2>
+        <a class="rail-all" href="/marka">Tümünü Gör
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail-track"></div>
+        <button class="rail-arrow prev" type="button" aria-label="Önceki markalar" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="rail-arrow next" type="button" aria-label="Sonraki markalar" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </section>
+    <section class="home-rail" id="rail-products" hidden>
+      <div class="rail-head">
+        <h2 class="rail-title">Son Ürünler</h2>
+        <a class="rail-all" href="/urun">Tümünü Gör
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail-track"></div>
+        <button class="rail-arrow prev" type="button" aria-label="Önceki ürünler" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="rail-arrow next" type="button" aria-label="Sonraki ürünler" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </section>
+    <section class="home-rail" id="rail-gundem" hidden>
+      <div class="rail-head">
+        <h2 class="rail-title">Son Gündem İçerikleri</h2>
+        <a class="rail-all" href="/gundem">Tümünü Gör
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail-track"></div>
+        <button class="rail-arrow prev" type="button" aria-label="Önceki gündem içerikleri" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="rail-arrow next" type="button" aria-label="Sonraki gündem içerikleri" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </section>
+  </div>
+
   <footer id="site-footer-mount"></footer>
 <!-- image-cdn.js (8 KB) BİLEREK senkron ve defer'sız: aşağıdaki inline script karuselleri artık
      DOMContentLoaded'ı beklemeden, ayrıştırma sırasında render eder (bkz. loadHomeSections) — cdnImg/
@@ -555,7 +761,18 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // filtresi) — bu yüzden 6'dan daha büyük bir tampon (24) çekilip görseli olanlar arasından ilk 6'sı
 // alınır, tam olarak eski `projectsWithImages.slice(0,6)` davranışının karşılığı.
 const PROJECT_CAROUSEL_FETCH_LIMIT = 24;
-const PROJECT_CAROUSEL_SLOTS = 9;
+// Karusel slot sayısı 9 -> 6 (kullanıcı isteği, 2026-09-12 madde 3: "Ana sayfadaki carosellerde
+// gösterilen her bir kategori için gönderi sayısını 6'ya düşür"). Sabit ÜÇ yerde birlikte yaşar:
+// burası, src/index.js#HOME_SLOTS (gömülü veri) ve src/lib/homeCarousels.js#HOME_SLOT_COUNT
+// (admin'in elle seçebileceği en fazla kayıt) — bkz. scripts/test-2026-09-12-home-rails.mjs,
+// üçünün ayrışmasını deploy'dan önce durdurur.
+const PROJECT_CAROUSEL_SLOTS = 6;
+// Karusellerin ALTINDAKİ şeritler (madde 4) aynı listenin SONRAKİ 6 kaydını gösterir; bu yüzden
+// liste uçlarından karusel + şerit kadar kayıt çekilir (6 + 6 = 12) ve tek bir yanıt ikisini de
+// besler. Proje ucu istisnadır: kapak görseli olmayan kayıtlar elendiğinden 24'lük tampondan
+// (PROJECT_CAROUSEL_FETCH_LIMIT) ilk 12 GÖRSELLİ proje alınır.
+const HOME_RAIL_SLOTS = 6;
+const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS + HOME_RAIL_SLOTS;
 
 // Mimar/Firma mini-carousel'leri artık (bkz. kullanıcı isteği) Proje carousel'iyle aynı
 // desende — statik dizi/el ile seçilmiş vitir YOK, doğrudan D1'den "son eklenen 6 gönderi"
@@ -912,6 +1129,122 @@ const mimarSlider = createMiniSlider('mimar-slider-track', 'mimar-prev', 'mimar-
 const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
 const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next', urunSlideHtml, p => `${p.slug}|||${p.title}`);
 
+// -----------------------------------------------------------------------------------------------
+// ANA SAYFA ŞERİTLERİ — "Son Projeler / Kişiler / Firmalar / Markalar / Ürünler / Gündem"
+// (kullanıcı isteği, 2026-09-12 madde 4). Karusellerin altında, sağa doğru kaydırılan altı satır.
+//
+// VERİ: dört şerit (proje/kişi/firma/ürün) karusellerin ZATEN çektiği listeden beslenir —
+// karusel ilk 6'yı, şerit 7-12. kayıtları alır ("caroselde gösterilenlerden SONRAKİ 6 gönderi").
+// Sıralama da karuselinkiyle AYNI uçtan geldiği için aynı kayıt iki yerde çıkmaz ve admin'in
+// karusel seçimi (pin=) şeridi de doğru kaydırır. Markalar ve Gündem'in karuseli yok; onlar
+// kendi uçlarından ayrıca çekilir (bkz. loadRailExtras) ve doğal sıralarının ilk 6'sını gösterir.
+//
+// KAYDIRMA: native overflow-x (bkz. .rail-track CSS notu). Oklar yalnızca kaydırılacak yer varken
+// görünür; şerit pencereye sığıyorsa (masaüstünde 6 kart tam sığar) hiç çizilmezler.
+// -----------------------------------------------------------------------------------------------
+const RAIL_IMG = { widths: [300, 400, 600], sizes: '(max-width: 720px) 45vw, (max-width: 1100px) 25vw, 190px' };
+
+// Şerit kartının görseli. Karusel slaytlarının AYNI kuralları (türev srcset, eksik görselde baş
+// harf rozeti), tek farkı: burada `loading="lazy"` GERÇEKTEN çalışır — slaytlar absolute konumlu ve
+// görünüm alanının içindeydi (bkz. slideImgHtml notu), şerit kartları ise normal akışta ve
+// ekranın altında kalır, yani tarayıcı yakınlaşana kadar indirmez.
+function railThumbHtml(path, label, contain){
+  if(!path) return `<div class="rail-thumb-fallback" style="background:${slideAvatarColor(label)}">${escapeHtml(slideInitials(label))}</div>`;
+  const srcset = cdnSrcset(path, RAIL_IMG.widths);
+  return `<img class="${contain ? 'rail-thumb-contain' : ''}" src="${escapeAttr(cdnImg(path, 600))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="${RAIL_IMG.sizes}"` : ''} alt="${escapeAttr(label)}" loading="lazy" decoding="async">`;
+}
+function railCardHtml(href, thumb, title, meta){
+  return `<a class="rail-card" href="${escapeAttr(href)}">
+    <div class="rail-thumb">${thumb}</div>
+    <h3 class="rail-card-title">${escapeHtml(title)}</h3>
+    ${meta ? `<div class="rail-card-meta">${escapeHtml(meta)}</div>` : ''}
+  </a>`;
+}
+function projectRailCard(p){
+  const cityName = (typeof parseLocationFull === 'function') ? parseLocationFull(p.location).city : p.location;
+  const designerNames = (p.officeNames && p.officeNames.length) ? p.officeNames : (p.designer || []);
+  const meta = [designerNames.join(', '), cityName, lastProjectYear(p.date)].filter(Boolean).join(', ');
+  return railCardHtml('/proje/' + encodeURIComponent(p.slug), railThumbHtml((p.images && p.images[0]) || '', p.title, false), p.title, meta);
+}
+function architectRailCard(a){
+  return railCardHtml('/kisi/' + encodeURIComponent(a.slug || idxSlugify(a.name)), railThumbHtml(a.photo, a.name, false), a.name, a.office || a.positionRaw || '');
+}
+// Firma ve marka şeritleri AYNI kartı kullanır (tek kayıt türü, bkz. src/routes/office.js) —
+// kanonik URL öneki yine o.brand bayrağından gelir (bkz. officeSlideHtml'deki aynı gerekçe).
+function officeRailCard(o){
+  return railCardHtml((o.brand ? '/marka/' : '/firma/') + encodeURIComponent(o.slug || idxSlugify(o.name)), railThumbHtml(o.logo, o.name, true), o.name, o.loc || '');
+}
+function productRailCard(p){
+  return railCardHtml('/urun/' + encodeURIComponent(p.slug), railThumbHtml(p.image, p.title, true), p.title, p.brand || '');
+}
+// Gündem görseli DIŞ bir adrestir (hotlink) — türev/CDN yolundan geçmez ve js/pages/gundem.js'deki
+// kartla AYNI referrerpolicy'yi taşımalı (bazı yayıncılar referrer'lı isteği reddediyor).
+function gundemRailDate(value){
+  const d = value ? new Date(value) : null;
+  if(!d || isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function gundemRailCard(g){
+  const thumb = g.image
+    ? `<img src="${escapeAttr(g.image)}" alt="${escapeAttr(g.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+    : `<div class="rail-thumb-fallback" style="background:${slideAvatarColor(g.title)}">${escapeHtml(slideInitials(g.title))}</div>`;
+  const meta = [gundemRailDate(g.date), g.sourceName].filter(Boolean).join(' · ');
+  return railCardHtml('/gundem/' + encodeURIComponent(g.slug), thumb, g.title, meta);
+}
+
+function createRail(key, cardFn){
+  const section = document.getElementById('rail-' + key);
+  const track = section.querySelector('.rail-track');
+  const prevBtn = section.querySelector('.rail-arrow.prev');
+  const nextBtn = section.querySelector('.rail-arrow.next');
+  let cacheKey = null;
+
+  // Oklar: solda/sağda GERÇEKTEN gidilecek yer varsa görünür. 2px tolerans, tarayıcıların
+  // kesirli scrollWidth/clientWidth farkı için (aksi halde sığan bir şeritte "sonraki" oku
+  // kalıcı olarak açık kalıyordu).
+  function syncArrows(){
+    const max = track.scrollWidth - track.clientWidth;
+    prevBtn.hidden = track.scrollLeft <= 2;
+    nextBtn.hidden = track.scrollLeft >= max - 2;
+  }
+  function scrollByPage(dir){
+    track.scrollBy({ left: dir * Math.max(160, track.clientWidth * 0.9), behavior: 'smooth' });
+  }
+  prevBtn.addEventListener('click', ()=> scrollByPage(-1));
+  nextBtn.addEventListener('click', ()=> scrollByPage(1));
+  track.addEventListener('scroll', syncArrows, { passive: true });
+  window.addEventListener('resize', syncArrows);
+
+  function render(items){
+    const list = (items || []).filter(Boolean);
+    const k = list.map(x => x.slug || x.name || '').join('|');
+    if(k === cacheKey) return; // içerik aynıysa DOM'a dokunma (arka plan yenilemesi boşuna çizmesin)
+    cacheKey = k;
+    if(!list.length){ section.hidden = true; return; } // veri yoksa şerit hiç görünmez
+    track.innerHTML = list.map(cardFn).join('');
+    section.hidden = false;
+    syncArrows();
+    // Görseller yüklendikçe (kart yüksekliği değişmez ama yatay ölçü tarayıcıya göre yuvarlanır)
+    // okları bir kez daha tazele — ilk çizimde clientWidth henüz 0 olabilir (section yeni açıldı).
+    requestAnimationFrame(syncArrows);
+  }
+  function renderError(message){
+    if(cacheKey === '__error__') return;
+    cacheKey = '__error__';
+    track.innerHTML = `<div class="rail-fallback">${escapeHtml(message)}</div>`;
+    section.hidden = false;
+    prevBtn.hidden = true; nextBtn.hidden = true;
+  }
+  return { render, renderError };
+}
+
+const projeRail = createRail('projects', projectRailCard);
+const kisiRail = createRail('architects', architectRailCard);
+const firmaRail = createRail('offices', officeRailCard);
+const markaRail = createRail('brands', officeRailCard);
+const urunRail = createRail('products', productRailCard);
+const gundemRail = createRail('gundem', gundemRailCard);
+
 // Ağ hatası/5xx durumunda {items:[]} ile "gerçekten boş" arasında ayrım yapabilmek için (bkz.
 // aşağıdaki kullanım — kullanıcı isteği: "API isteği başarısız olursa ... boş ekran gösterme,
 // zarif bir hata/fallback görünümü sun") başarısız istekler items:[] YERİNE failed:true döner.
@@ -945,7 +1278,10 @@ function readHomeSsrData(){
     const el = document.getElementById('ml-home-data');
     if(!el) return null;
     const d = JSON.parse(el.textContent || 'null');
-    return (d && d.v === 1) ? d : null;
+    // v === 2: gömülü gövde artık bölüm başına 12 kayıt taşır (karusel 6 + şerit 6, bkz.
+    // src/index.js#loadHomeData). Tarayıcı önbelleğinden gelen ESKİ (v:1, 9 kayıtlık) bir belge
+    // yok sayılır ve listeler ağdan çekilir — aksi halde şeritler 3 kartla yarım kalırdı.
+    return (d && d.v === 2) ? d : null;
   }catch(e){ return null; }
 }
 const HOME_SSR = readHomeSsrData();
@@ -992,12 +1328,12 @@ function loadHomeSections(useSsr){
     pick('projects', '/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT + '&noPreview=1'),
     // Mimar/Firma mini-carousel'leri: proje.html/kisi.html/firma.html'in kendi listeleme
     // sayfalarında da kullandığı genel D1 uçları, Proje carousel'iyle AYNI slot sayısıyla
-    // (PROJECT_CAROUSEL_SLOTS=9). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
+    // (HOME_LIST_FETCH_LIMIT=12: karusel 6 + şerit 6). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
     // src/routes/architect.js|office.js#handle*ListRoute — "Default Popularity-Based Sorting").
-    pick('architects', '/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
-    pick('offices', '/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
+    pick('architects', '/api/architects?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
+    pick('offices', '/api/offices?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
     // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
-    pick('products', '/api/products?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
+    pick('products', '/api/products?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
   ]).then(([yapiRes, architectRes, officeRes, productRes])=>{
     if(yapiRes.failed){
       renderSliderError('Projeler şu an yüklenemedi.');
@@ -1007,6 +1343,8 @@ function loadHomeSections(useSsr){
       // yoksa devreye giren doğrudan fetch yolunu da kapsar.
       const pool = (yapiRes.items || []).filter(p => !p.preview && p.images && p.images[0]);
       renderSlider(pool.slice(0, PROJECT_CAROUSEL_SLOTS));
+      // Şerit: karuselin gösterdiği 6'dan SONRAKİ 6 proje (kullanıcı isteği, madde 4).
+      projeRail.render(pool.slice(PROJECT_CAROUSEL_SLOTS, PROJECT_CAROUSEL_SLOTS + HOME_RAIL_SLOTS));
     }
 
     // İstek başarısız olursa trackEl kalıcı olarak boş bir renkli kutu olarak kalmasın diye failed:true
@@ -1016,19 +1354,62 @@ function loadHomeSections(useSsr){
     // edge'de duran ESKİ bir gövdeyi (ya da eski bir gömülü ml-home-data'yı) okuyan tarayıcıda da
     // blurlu kartın vitrine düşmemesini garanti eder; proje karuselindeki AYNI desen.
     const notPreview = (list) => (list || []).filter(x => x && !x.preview);
-    if(architectRes.failed) mimarSlider.renderError('Kişiler şu an yüklenemedi.');
-    else mimarSlider.render(notPreview(architectRes.items));
+    // Karusel ilk 6, şerit sonraki 6 — TEK yanıttan (bkz. HOME_LIST_FETCH_LIMIT).
+    const head = (list) => notPreview(list).slice(0, PROJECT_CAROUSEL_SLOTS);
+    const tail = (list) => notPreview(list).slice(PROJECT_CAROUSEL_SLOTS, PROJECT_CAROUSEL_SLOTS + HOME_RAIL_SLOTS);
+    if(architectRes.failed){ mimarSlider.renderError('Kişiler şu an yüklenemedi.'); kisiRail.renderError('Kişiler şu an yüklenemedi.'); }
+    else { mimarSlider.render(head(architectRes.items)); kisiRail.render(tail(architectRes.items)); }
 
-    if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
-    else markaSlider.render(notPreview(officeRes.items));
+    if(officeRes.failed){ markaSlider.renderError('Firmalar şu an yüklenemedi.'); firmaRail.renderError('Firmalar şu an yüklenemedi.'); }
+    else { markaSlider.render(head(officeRes.items)); firmaRail.render(tail(officeRes.items)); }
 
-    if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
-    else urunSlider.render(notPreview(productRes.items));
+    if(productRes.failed){ urunSlider.renderError('Ürünler şu an yüklenemedi.'); urunRail.renderError('Ürünler şu an yüklenemedi.'); }
+    else { urunSlider.render(head(productRes.items)); urunRail.render(tail(productRes.items)); }
   });
   });
 }
 
 loadHomeSections(true);
+
+// MARKA + GÜNDEM ŞERİTLERİ (madde 4) — bu ikisinin karuseli yok, yani karusellerin yanıtından
+// beslenemezler; kendi uçlarını çağırırlar. İkisi de EKRANIN ALTINDA olduğundan istek sayfa
+// açılışında DEĞİL, şeritler görünüm alanına yaklaşınca atılır (IntersectionObserver, 600px
+// önden) — ana sayfanın ilk yükü (LCP görseli + dört karusel isteği) bu iki istekle yarışmasın.
+// IntersectionObserver desteklenmiyorsa (çok eski tarayıcı) sayfa yükü bitince çekilir.
+let railExtrasLoaded = false;
+function loadRailExtras(){
+  if(railExtrasLoaded) return;
+  railExtrasLoaded = true;
+  // brands=1 — yalnızca kataloğunda ürünü olan üretici firmalar (marka.html'in kullandığı AYNI
+  // süzgeç, bkz. src/routes/office.js#brandsOnly). sort=newest: bu şeridin karuseli olmadığından
+  // "Son Markalar" başlığı harfiyen son EKLENEN markaları gösterir.
+  fetchPublicJson('/api/offices?brands=1&sort=newest&limit=' + HOME_RAIL_SLOTS + '&noPreview=1')
+    .then(res => {
+      if(res.failed) markaRail.renderError('Markalar şu an yüklenemedi.');
+      else markaRail.render((res.items || []).filter(x => x && !x.preview).slice(0, HOME_RAIL_SLOTS));
+    });
+  // /api/gundem varsayılan sıralaması zaten en yeni tarihten eskiye (bkz. src/routes/gundem.js).
+  fetchPublicJson('/api/gundem?limit=' + HOME_RAIL_SLOTS)
+    .then(res => {
+      if(res.failed) gundemRail.renderError('Gündem içerikleri şu an yüklenemedi.');
+      else gundemRail.render((res.items || []).slice(0, HOME_RAIL_SLOTS));
+    });
+}
+(function watchRailExtras(){
+  // Gözlenen eleman ŞERİT KAPSAYICISIDIR, tek bir şerit değil: şeritler içerikleri gelene kadar
+  // `hidden` durur ve hidden bir elemanın layout kutusu olmadığından IntersectionObserver onu
+  // HİÇBİR ZAMAN kesişmiş saymaz (sessizce hiç tetiklenmeyen bir gözlemci olurdu).
+  const anchorEl = document.getElementById('home-rails');
+  if(!anchorEl || typeof IntersectionObserver === 'undefined'){
+    if(document.readyState === 'complete') loadRailExtras();
+    else window.addEventListener('load', loadRailExtras, { once: true });
+    return;
+  }
+  const io = new IntersectionObserver((entries)=>{
+    if(entries.some(e => e.isIntersecting)){ io.disconnect(); loadRailExtras(); }
+  }, { rootMargin: '600px 0px' });
+  io.observe(anchorEl);
+})();
 
 // ARKA PLAN YENİLEMESİ — gömülü veri, HTML'in üretildiği andaki (HOME_SSR.t) veridir. Belge Worker'dan
 // az önce geldiyse veri API'nin döneceğiyle aynıdır, ek istek gereksiz. Belge tarayıcının kendi

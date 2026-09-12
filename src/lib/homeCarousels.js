@@ -11,7 +11,7 @@
 // UYGULAMA YERİ — LİSTE UÇLARI, ana sayfa DEĞİL. Seçim, ilgili liste ucuna `pin=slug1,slug2`
 // parametresi olarak taşınır (bkz. applyPinnedOrder'ın çağrıldığı dört handler). Neden burada:
 //   * Havuzun TAMAMI o handler'ın elindedir — admin'in seçtiği kayıt doğal sırada 300. olsa bile
-//     ilk 9'a girer. Eleme/sıralama dışarıda yapılsaydı (eski davranış: ana sayfa 24 proje çekip
+//     ilk 6'ya girer. Eleme/sıralama dışarıda yapılsaydı (eski davranış: ana sayfa 24 proje çekip
 //     JS'te başa alıyordu) seçilen kayıt çekilen pencereye düşmediğinde SESSİZCE kaybolurdu.
 //   * Gizli/silinmiş/önizleme (blurlu) kayıtlar havuzdan zaten elenmiştir — pinlenmiş bir slug o
 //     süzgeçlerden geçemiyorsa karusele de girmez (yayından kaldırılan bir seçim sessizce düşer,
@@ -31,10 +31,14 @@ export const HOME_FEATURED_KEYS = {
 };
 
 // Ana sayfada her karusel kaç slot gösterir (index.html#PROJECT_CAROUSEL_SLOTS ile AYNI).
-export const HOME_SLOT_COUNT = 9;
+// 9 -> 6 (kullanıcı isteği, 2026-09-12: "carosellerde gösterilen her bir kategori için gönderi
+// sayısını 6'ya düşür"). Seçimin üst sınırı da budur: karusele giremeyecek bir slug'ı kaydetmenin
+// anlamı yok. Karusellerin ALTINDAKİ "Son ..." şeritleri aynı listenin 7-12. kayıtlarıdır, yani
+// seçilmeyen kayıtlar oraya kayar — seçim onları da doğru sıraya iter.
+export const HOME_SLOT_COUNT = 6;
 
 // "a, b, c" -> ['a','b','c']. Boş/tekrarlı girdiler düşer, slot sayısıyla sınırlanır — admin
-// kutusuna 50 slug yapıştırsa bile ilk 9'dan fazlası zaten karusele giremez.
+// kutusuna 50 slug yapıştırsa bile ilk 6'dan fazlası zaten karusele giremez.
 export function parseFeaturedSlugs(raw) {
   const out = [];
   for (const part of String(raw || '').split(',')) {

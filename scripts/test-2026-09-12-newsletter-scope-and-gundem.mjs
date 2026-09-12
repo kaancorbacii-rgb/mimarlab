@@ -216,10 +216,11 @@ await test('gundemIngest.js (otomatik hat) ve gundemAdmin.js (kullanıcı onayı
 
 console.log('\nFooter + Üye Ol metinleri (madde 1 ve 2)');
 
-await test('footer: "Ücretsiz Üye Ol" + yeni bülten açıklaması', () => {
+// NOT (2026-09-12 ikinci tur): footer metni kullanıcı isteğiyle "Ücretsiz Üye Ol"dan tekrar
+// "Üye Ol"a döndü — bu testin footer beklentisi artık orada, tek yerde yaşıyor (bkz.
+// scripts/test-2026-09-12-home-rails.mjs#madde 1). Burada yalnızca bülten AÇIKLAMASI kalır.
+await test('footer: yeni bülten açıklaması', () => {
   const chrome = readFileSync(new URL('../js/components/site-chrome.js', import.meta.url), 'utf8');
-  assert.match(chrome, /footer-subscribe-btn" href="\/uye-ol">Ücretsiz Üye Ol</);
-  assert.match(chrome, /<a href="\/uye-ol">Ücretsiz Üye Ol<\/a>/, 'Topluluk sütunundaki bağlantı güncellenmemiş');
   assert.match(chrome, /Yeni proje, ürün ve gündem içerikleri e-postana gelsin\./);
   assert.ok(!/Yeni proje, ürün, firma ve markalar e-postana gelsin\./.test(chrome), 'eski bülten metni hâlâ duruyor');
 });

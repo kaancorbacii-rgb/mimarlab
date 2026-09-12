@@ -446,3 +446,63 @@ export async function fetchUnclaimedPhotographers(env) {
   ).all();
   return (results || []).map(r => ({ slug: r.slug, photo_url: r.photo_url || null }));
 }
+
+// -----------------------------------------------------------------------------------------------
+// BİR FİRMANIN/MARKANIN YETKİLİ KULLANICILARI (kullanıcı isteği, 2026-09-12: "Hesabım sayfasındaki
+// Firma / Marka Bilgileri kutusunda Görevin satırının altına 'Yetkili Kullanıcılar' satırı aç ve
+// bu kısımda admin tarafından firmanın içeriklerini yönetmesi için görevlendirilmiş (kurucu,
+// kurucu ortak, ortak, yönetici, ekip lideri) diğer hesapların ad soyadları yazsın.")
+//
+// "Yetkili" TANIMI BURADA YENİDEN YAZILMAZ: düzenleme hakkının zaten var olan İKİ yolu okunur ve
+// ikisi de o yolun kendi kuralına birebir uyar —
+//   (a) ONAYLI firma talebi + dondurulmuş görev (bkz. submissions.js#verifyClaimedProfileKey:
+//       profile_claims.office_position, OFFICE_EDIT_POSITIONS içinde olmalı),
+//   (b) KURUCU BAĞI (bkz. canEditOfficeViaFounderLink): kullanıcının ONAYLI kişi profili firmanın
+//       office_founders listesinde ve o kişi kaydının pozisyonu yetkili pozisyonlardan biri.
+// Yani bu liste "kimler bu firmanın künyesini kaydedebilir" sorusunun cevabıdır; yeni bir yetki
+// kavramı icat etmez ve sunucunun gerçek kapısıyla ayrışamaz.
+//
+// GİZLİLİK: yalnızca AD SOYAD döner (e-posta/kullanıcı id'si asla) ve ucu çağıran tarafın kendisi
+// de aynı firmanın yetkilisi olmak zorundadır (bkz. src/routes/claims.js#officeManagers).
+// -----------------------------------------------------------------------------------------------
+export async function fetchOfficeManagers(env, officeName, officeEditPositions) {
+  const key = (officeName || '').trim();
+  if (!key) return [];
+  const positions = [...officeEditPositions];
+  const ph = positions.map(() => '?').join(', ');
+  // Firmanın adı ile legacy_key'i ayrı ayrı sorulur: profile_claims bu depoda ikisiyle de
+  // anahtarlanmış olabilir (bkz. canEditOfficeViaFounderLink'teki AYNI OR).
+  const [claimRes, founderRes] = await Promise.all([
+    env.DB.prepare(
+      `SELECT u.id AS userId, u.name AS name, c.office_position AS position
+         FROM profile_claims c
+         JOIN users u ON u.id = c.user_id
+        WHERE c.profile_type = 'office' AND c.status = 'approved'
+          AND (c.profile_key = ?1 OR c.profile_key = (SELECT o.legacy_key FROM offices o WHERE o.name = ?1 AND o.deleted_at IS NULL))
+          AND c.office_position IN (${ph})`
+    ).bind(key, ...positions).all(),
+    env.DB.prepare(
+      `SELECT u.id AS userId, u.name AS name, a.position AS position
+         FROM office_founders f
+         JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
+         JOIN architects a ON a.id = f.architect_id AND a.deleted_at IS NULL
+         JOIN profile_claims c ON c.profile_type = 'architect' AND c.status = 'approved'
+          AND (c.profile_key = a.name OR (a.legacy_key IS NOT NULL AND c.profile_key = a.legacy_key))
+         JOIN users u ON u.id = c.user_id
+        WHERE (o.name = ?1 OR o.legacy_key = ?1)
+          AND a.position IN (${ph})`
+    ).bind(key, ...positions).all(),
+  ]);
+  const out = [];
+  const seen = new Set();
+  // Talep yolu ÖNCE eklenir: aynı kullanıcı iki yoldan da yetkiliyse görev olarak onay anında
+  // dondurulmuş değer gösterilir (firmaya ÖZGÜ tek doğru değer — bkz. auth-modal.js#renderFirmPage
+  // "Görevin" satırındaki AYNI öncelik).
+  for (const r of [...(claimRes.results || []), ...(founderRes.results || [])]) {
+    if (!r || !r.name || seen.has(r.userId)) continue;
+    seen.add(r.userId);
+    out.push({ userId: r.userId, name: r.name, position: r.position || null });
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  return out;
+}
