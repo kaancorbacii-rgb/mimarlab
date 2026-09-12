@@ -56,7 +56,11 @@ health-check + smoke-test aynen çalışır; hiçbir kontrol orada tekrarlanmad�
   `package-lock.json` yazar; bunlar `.gitignore`'da **olmadığı** için 3. kapı (temiz working tree)
   deploy'u haklı olarak durdurur. Sürüm `^4.131.0`'a sabitlendi (build-hook'un dayandığı
   `WRANGLER_COMMAND` davranışı o sürümle ölçüldü).
-- **Gereken secret'lar:** `CLOUDFLARE_API_TOKEN` (zorunlu). `CLOUDFLARE_ACCOUNT_ID` yalnızca token
-  birden fazla hesaba yetkiliyse gerekir; tanımsızsa workflow onu boş bırakmaz, tamamen kaldırır.
+- **Gereken secret'lar:** `CLOUDFLARE_API_TOKEN` (zorunlu). En kolayı Cloudflare'in hazır
+  *Edit Cloudflare Workers* token şablonu — `wrangler.jsonc`'daki bağlayıcıların hepsini (D1, R2,
+  KV, AI + Workers Scripts) kapsar; elle verilecekse Workers Scripts:Edit, D1:Edit,
+  Workers R2 Storage:Edit, Workers KV Storage:Edit, Workers AI:Edit, Account Settings:Read.
+  `CLOUDFLARE_ACCOUNT_ID` yalnızca token birden fazla hesaba yetkiliyse gerekir; tanımsızsa
+  workflow onu boş bırakmaz, tamamen kaldırır.
 - **GitHub kısıtı:** `workflow_dispatch` yalnızca **default dalda (`main`) duran** workflow dosyaları
   için tetiklenebilir. Bu dosya `main`'e merge edilene kadar ne arayüzde ne API'den görünür.

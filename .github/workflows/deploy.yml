@@ -107,8 +107,10 @@ jobs:
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
             echo "DEPLOY DURDURULDU: CLOUDFLARE_API_TOKEN secret'ı tanımlı değil." >&2
             echo "  GitHub > Settings > Secrets and variables > Actions > New repository secret" >&2
-            echo "  Gereken izinler: Workers Scripts:Edit, Workers R2 Storage:Edit, D1:Edit," >&2
-            echo "  Workers KV Storage:Edit, Account Settings:Read." >&2
+            echo "  En kolayı Cloudflare'in hazır 'Edit Cloudflare Workers' token şablonu: bu repo'nun" >&2
+            echo "  bağlayıcılarının hepsini (D1, R2, KV, AI + Workers Scripts) kapsar." >&2
+            echo "  Elle veriyorsanız: Workers Scripts:Edit, D1:Edit, Workers R2 Storage:Edit," >&2
+            echo "  Workers KV Storage:Edit, Workers AI:Edit, Account Settings:Read." >&2
             exit 1
           fi
           # Secret tanımsızsa GitHub boş string koyar; BOŞ bir CLOUDFLARE_ACCOUNT_ID wrangler'ı
