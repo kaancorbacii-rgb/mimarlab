@@ -16,11 +16,17 @@
 //
 // BU DOSYANIN KİLİTLEDİĞİ SÖZLEŞMELER (hepsi sessizce sapabilecek türden):
 //
-// 1) YERLEŞİM TEK BİR ŞABLONDAN GELİR. Beş eşit sütun + üç satır; oranların tamamı
-//    grid-template-areas'ta yaşıyor (proje 4 sütun × 2 satır, sağ sütun 1, alt satır 2+1+2).
-//    Eski iç içe grid (.hero-side) kaldırıldı — kalırsa alt satırın sütunları üst satırla hizasını
-//    kaybeder. Yükseklik .proje-slider'ın aspect-ratio'sundan doğduğu için satır şablonu `1fr`
-//    kalmalı; mobilde şablon iki sütuna indiğinde kutular kendi aspect-ratio'larını taşır.
+// 1) YERLEŞİM TEK BİR ŞABLONDAN GELİR — HER GENİŞLİKTE. Beş eşit sütun + üç satır; oranların
+//    tamamı grid-template-areas'ta yaşıyor (proje 4 sütun × 2 satır, sağ sütun 1, alt satır
+//    2+1+2). Eski iç içe grid (.hero-side) kaldırıldı — kalırsa alt satırın sütunları üst satırla
+//    hizasını kaybeder. Yükseklik .proje-slider'ın aspect-ratio'sundan doğduğu için satır şablonu
+//    `1fr` kalmalı.
+//    Kullanıcı isteği (2026-09-12, altıncı tur): "Tablet ve mobilde de aynı sistem gözüksün,
+//    sıralamayı değiştirme" — yani HİÇBİR breakpoint şablonu yeniden dizmemeli. Bu test onu
+//    kilitler: dar ekran bloklarında grid-template-columns/areas/rows yeniden tanımlanamaz ve
+//    kutular mobil-özel aspect-ratio taşıyamaz (taşırsa oran grid'den değil karttan gelir ve
+//    sistem masaüstündekinden farklı görünür).
+//    Aynı turda kapsayıcı 1220 -> 1000px daraltıldı ("sağdan ve soldan carosel sistemini küçült").
 //
 // 2) İKİ AYRI BAĞLANTI TÜRÜ, İÇ İÇE OLMADAN. Kategori etiketi liste sayfasına, slaytın kendisi
 //    gönderiye gider. Etiket bu yüzden slaytın DIŞINDA, karusel kapsayıcısının çocuğu olmalı:
@@ -97,17 +103,55 @@ test('proje kutusunun yüksekliği aspect-ratio 4/3 ile geliyor (satırların da
   assert.ok(rule && /aspect-ratio:4\/3;/.test(rule[0]), '.proje-slider aspect-ratio 4/3 taşımıyor');
 });
 
-test('≤860px: şablon iki sütuna iner ve altı kutunun HEPSİ yerleşimde kalır', () => {
-  const block = indexHtml.slice(indexHtml.indexOf('@media (max-width: 860px)'));
-  const grid = block.slice(0, 1200);
-  assert.match(grid, /grid-template-columns:repeat\(2, 1fr\);/);
-  assert.match(grid, /grid-template-rows:none;/, 'satır şablonu kalkmazsa kutular yükseklik bulamaz');
-  for (const row of ['"proje proje"', '"kisi firma"', '"urun urun"', '"marka gundem"']) {
-    assert.ok(grid.includes(row), `mobil şablonda ${row} satırı yok`);
+test('masaüstü kapsayıcısı daraltıldı: 1000px (footer bandından da içeride)', () => {
+  const grid = indexHtml.match(/\.bento-grid\{[\s\S]*?\}/)[0];
+  const max = Number(grid.match(/max-width:(\d+)px;/)[1]);
+  assert.equal(max, 1000, 'bento kapsayıcısı 1000px değil');
+  assert.ok(max < 1080, 'sistem footer bandından (1080px) daha geniş olmamalı');
+  assert.match(grid, /padding:0 32px 64px;/, 'yan boşluk kuralı değişmiş');
+});
+
+test('HİÇBİR breakpoint şablonu yeniden dizmiyor (tablet/mobil de aynı sistem, aynı sıra)', () => {
+  // .bento-grid'e yazan TÜM kurallar toplanır (taban + media blokları). Şablonu tanımlayan üç
+  // özellik yalnızca BİRİNDE, taban kuralda geçmeli. Kapsam bilerek `.bento-grid{...}` bloklarına
+  // sınırlı: stil sayfasında başka grid'ler de var (ör. .footer-top) ve onların sütun tanımları
+  // bu sözleşmeyle ilgisizdir.
+  const rules = [...indexHtml.matchAll(/\.bento-grid\{([\s\S]*?)\}/g)].map(m => m[1]);
+  assert.ok(rules.length >= 2, 'bento kuralları bulunamadı');
+  for (const prop of ['grid-template-columns', 'grid-template-areas', 'grid-template-rows']) {
+    const n = rules.filter(r => r.includes(prop)).length;
+    assert.equal(n, 1, `${prop} ${n} .bento-grid kuralında tanımlı — dar ekranda yeniden dizilim var`);
   }
-  // Satır şablonu kalktığı için kutular kendi oranlarını taşımak ZORUNDA.
-  assert.match(grid, /\.card-kisi, \.card-firma, \.card-marka, \.card-gundem\{aspect-ratio:1\/1;\}/);
-  assert.match(grid, /\.card-urun\{aspect-ratio:1\.7\/1;\}/);
+  // İlk (taban) kural şablonu taşıyan kural olmalı; media blokları yalnızca ölçü değiştirir.
+  assert.ok(rules[0].includes('grid-template-areas'), 'şablon taban kuralda değil');
+  // Mobil-özel kart oranı da olmamalı: oran her genişlikte grid'in kendisinden gelir.
+  for (const cls of ['card-kisi', 'card-firma', 'card-marka', 'card-gundem', 'card-urun']) {
+    assert.ok(!new RegExp(`\\.${cls}\\{aspect-ratio`).test(indexHtml), `.${cls} kendi aspect-ratio'sunu taşıyor`);
+  }
+  // .proje-slider'ın oranı da tek yerde (taban kural) durmalı.
+  assert.equal((indexHtml.match(/aspect-ratio:4\/3;/g) || []).length, 1, '.proje-slider oranı birden fazla yerde tanımlı');
+  assert.ok(!indexHtml.includes('aspect-ratio:16/11'), 'eski mobil proje oranı (16/11) hâlâ duruyor');
+});
+
+test('dar ekranda sistem ÖLÇEKLENİR: boşluk daralır, telefonda tipografi/oklar küçülür', () => {
+  const at = (bp) => {
+    const start = indexHtml.indexOf(`@media (max-width: ${bp}px)`);
+    assert.ok(start > 0, `${bp}px bloğu yok`);
+    return indexHtml.slice(start, indexHtml.indexOf('\n  }', start));
+  };
+  // Boşluk kademeli daralır: 16 (taban) -> 10 -> 8 -> 6.
+  assert.match(at(860), /\.bento-grid\{gap:10px;\}/);
+  assert.match(at(720), /\.bento-grid\{padding:0 14px 50px; gap:8px;\}/);
+  const phone = at(560);
+  assert.match(phone, /\.bento-grid\{gap:6px;\}/);
+  // Telefonda bir sütun ~65px: iki ok kartın tamamını kaplardı. Yalnızca KÜÇÜK kutuların
+  // okları gizlenir; PROJE kutusu 4 sütun genişliğinde olduğundan oklarını korur.
+  assert.match(phone, /\.side-slider \.slider-arrow\{display:none;\}/, 'telefonda küçük kutu okları gizlenmiyor');
+  assert.ok(!/\n    \.slider-arrow\{display:none;\}/.test(phone), 'PROJE kutusunun okları da gizlenmiş');
+  assert.match(phone, /\.side-slider \.slide-title\{font-size:8\.5px;/, 'telefonda küçük kutu başlığı küçültülmemiş');
+  assert.match(phone, /\.side-slider \.slide-designer\{display:none;\}/, 'telefonda okunmayan ikinci satır gizlenmiyor');
+  // Parmakla kaydırma her kutuda bağlı olduğundan ok gizlemek karuseli erişilemez BIRAKMAZ.
+  assert.ok(indexHtml.includes('wireSwipe(wrapEl,'), 'mini karusellerde swipe bağlı değil');
 });
 
 console.log('\nbağlantılar — kategori etiketi liste sayfasına, slayt gönderiye');

@@ -1292,14 +1292,16 @@ const HOME_SLOTS = 6;                // index.html#PROJECT_CAROUSEL_SLOTS ile ay
 const HOME_LIST_LIMIT = HOME_SLOTS;
 const HOME_DATA_TIMEOUT_MS = 2000;
 // index.html'deki <img sizes> değerleriyle BİREBİR aynı — preload'un kullanılabilmesi için şart.
-// Değerler yeni bento yerleşiminin kutu genişliklerinden gelir (beş sütunlu grid, bkz.
-// index.html#.bento-grid): PROJE 4 sütun (~920px), KİŞİ/FİRMA/MARKA 1 sütun (~220px),
-// ÜRÜN/GÜNDEM 2 sütun (~460px); ≤860px'te şablon iki sütuna indiğinden 100vw/50vw.
+// Değerler bento yerleşiminin kutu genişliklerinden gelir (beş sütunlu grid, kapsayıcı en fazla
+// 1000px, bkz. index.html#.bento-grid): PROJE 4 sütun (~744px), KİŞİ/FİRMA/MARKA 1 sütun
+// (~174px), ÜRÜN/GÜNDEM 2 sütun (~356px). Şablon hiçbir breakpoint'te yeniden dizilmediğinden
+// dar ekranda da AYNI oranlar geçerlidir — o yüzden ikinci daldaki değerler vw cinsinden aynı
+// yüzdeler (%78 / %18 / %38), sabit bir 100vw/50vw kırılması yok.
 const HOME_IMG = {
-  project:   { widths: [600, 900, 1200], sizes: '(max-width: 860px) 100vw, 920px' },
-  architect: { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 220px' },
-  office:    { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 220px' },
-  product:   { widths: [400, 800, 1600], sizes: '(max-width: 860px) 100vw, 460px' },
+  project:   { widths: [600, 900, 1200], sizes: '(max-width: 1000px) 78vw, 744px' },
+  architect: { widths: [400, 800],       sizes: '(max-width: 1000px) 18vw, 174px' },
+  office:    { widths: [400, 800],       sizes: '(max-width: 1000px) 18vw, 174px' },
+  product:   { widths: [400, 800, 1600], sizes: '(max-width: 1000px) 38vw, 356px' },
 };
 
 // Sentetik (çerezsiz -> admin değil -> önbelleklenebilir yol) bir GET ile AYNI API yönlendiricisinden

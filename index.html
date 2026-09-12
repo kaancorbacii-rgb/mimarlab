@@ -252,10 +252,19 @@
 
      YÜKSEKLİK: üç satır da `1fr`. Grid'in kendi yüksekliği .proje-slider'ın aspect-ratio'sundan
      (4/3) doğar; iki satıra yayıldığı için fr dağıtımı üçüncü satıra da AYNI yüksekliği verir,
-     yani alt satırın kutuları ayrı bir aspect-ratio taşımak zorunda kalmaz (mobilde satır
-     şablonu kalktığında taşıyorlar, bkz. ≤860px bloğu). */
+     yani alt satırın kutuları ayrı bir aspect-ratio taşımak zorunda kalmaz.
+
+     TEK ŞABLON, HER GENİŞLİKTE (kullanıcı isteği, 2026-09-12: "Tablet ve mobilde de aynı sistem
+     gözüksün, sıralamayı değiştirme"). Şablon hiçbir breakpoint'te YENİDEN DİZİLMEZ: tablet ve
+     telefonda da aynı altı kutu, aynı sırayla, yalnızca ÖLÇEKLENEREK görünür. Bu yüzden kutular
+     mobilde ayrı bir aspect-ratio da taşımaz — oranlar her yerde grid'in kendisinden gelir.
+     Küçük ekranlarda değişen tek şey ölçü/tipografi (bkz. ≤720px ve ≤560px blokları). */
   .bento-grid{
-    max-width:1220px; margin:0 auto;
+    /* GENİŞLİK 1220 -> 1000 (kullanıcı isteği, 2026-09-12: "Masaüstü görünümde tüm carosel
+       sistemi çok alan kaplıyor sağdan ve soldan carosel sistemini küçült"). Sayfanın en geniş
+       öğesi bu bloktu; artık footer bandından (1080px) da belirgin biçimde içeride durur, yani
+       sistemin en sağ/en sol kenarı sayfa kenarından uzaklaşır. */
+    max-width:1000px; margin:0 auto;
     /* Alt boşluk 64px: "Son ..." şeritleri kaldırıldıktan sonra (kullanıcı isteği, 2026-09-12)
        bu blok yeniden sayfanın SONU — footer'dan önceki nefes payı burada durur. */
     padding:0 32px 64px;
@@ -336,6 +345,11 @@
   a.slide-tag:hover{background:rgba(27,42,61,0.72); opacity:1;}
   .slide-caption{
     position:absolute; left:18px; bottom:18px; right:18px; z-index:2;
+    /* 36px = left(18) + right(18). Bu çıkarma İNSET'LERLE BİRLİKTE ÖLÇEKLENMEK ZORUNDA: dar
+       breakpoint'lerde inset küçülürken bu değer 36px'te kalırsa altyazı kutusu gereksizce
+       daralır — telefonda 68px'lik KİŞİ/FİRMA/MARKA kutularında başlık "Mimar ar…" gibi 3-4
+       karaktere iniyordu (headless render'da görüldü). Her media bloğu kendi insetine karşılık
+       gelen değeri yazar. */
     width:fit-content; max-width:calc(100% - 36px);
     background:rgba(27,42,61,0.72); backdrop-filter:blur(3px);
     color:#fff; padding:14px 18px; border-radius:12px;
@@ -418,24 +432,11 @@
   .city-select svg{flex-shrink:0; margin-top:1px;}
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
+  /* ≤860px: ŞABLON DEĞİŞMEZ (kullanıcı isteği: tablette ve mobilde de aynı sistem, aynı sıra) —
+     yalnızca kutular arası boşluk daralır ki beş sütun dar ekranda da nefes alsın. Eskiden bu
+     breakpoint grid'i iki sütuna diziyordu; o yeniden dizilim BİLEREK kaldırıldı. */
   @media (max-width: 860px){
-    /* Tablet/mobil: beş sütunlu şablon iki sütuna iner — PROJE tam genişlik, altında masaüstündeki
-       AYNI eşleşmeler yan yana (KİŞİ|FİRMA, sonra tam genişlik ÜRÜN, sonra MARKA|GÜNDEM). */
-    .bento-grid{
-      grid-template-columns:repeat(2, 1fr);
-      grid-template-rows:none;
-      grid-template-areas:
-        "proje proje"
-        "kisi firma"
-        "urun urun"
-        "marka gundem";
-    }
-    .proje-slider{aspect-ratio:16/11;}
-    /* Satır şablonu kalktığı için "1fr" satırların dayanacağı bir yükseklik kalmaz — her kart
-       yüksekliğini kendi aspect-ratio'suyla belirler: kare kutular kare, tam genişlik ÜRÜN
-       1.7:1 (eski kutu oranı korunur). */
-    .card-kisi, .card-firma, .card-marka, .card-gundem{aspect-ratio:1/1;}
-    .card-urun{aspect-ratio:1.7/1;}
+    .bento-grid{gap:10px;}
   }
 
   @media (max-width:960px){
@@ -457,21 +458,45 @@
     .hero h1{font-size:clamp(30px, 8vw, 46px);}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
-    .bento-grid{padding:0 14px 50px; gap:10px;}
-    .proje-slider{aspect-ratio:4/3; border-radius:16px;}
+    /* Şablon burada da AYNI kalır (bkz. .bento-grid yorumu) — yalnızca ölçüler küçülür.
+       aspect-ratio artık taban kuralda (4/3) durduğundan burada TEKRAR EDİLMEZ. */
+    .bento-grid{padding:0 14px 50px; gap:8px;}
+    .proje-slider{border-radius:16px;}
     .slide-title{font-size:14.5px;}
     .slide-designer{font-size:11px;}
-    .slide-caption{padding:11px 14px; left:12px; right:12px; bottom:12px;}
+    .slide-caption{padding:11px 14px; left:12px; right:12px; bottom:12px; max-width:calc(100% - 24px);}
     .slide-tag{top:12px; left:12px; font-size:10px; padding:5px 10px;}
     .slider-arrow{width:32px; height:32px;}
     .side-slider{border-radius:12px;}
     .side-slider .proje-slide{border-radius:12px;}
     .side-slider .slide-title{font-size:11.5px;}
     .side-slider .slide-designer{font-size:9.5px;}
-    .side-slider .slide-caption{padding:7px 10px; left:8px; right:8px; bottom:8px;}
+    .side-slider .slide-caption{padding:7px 10px; left:8px; right:8px; bottom:8px; max-width:calc(100% - 16px);}
     .side-slider .slide-tag{top:8px; left:8px; font-size:9px; padding:3px 8px;}
     .side-slider .slider-arrow{width:24px; height:24px;}
     .side-slider .slider-arrow svg{width:11px; height:11px;}
+  }
+
+  /* ≤560px (telefon) — sistem yine AYNI ve aynı sırada; bu blok yalnızca beş sütunun telefonda
+     da okunur kalmasını sağlar. Bir sütun burada ~65px'e iner, o yüzden:
+       • küçük kutuların OKLARI gizlenir: iki 24px'lik ok 65px'lik bir kartın neredeyse tamamını
+         kaplardı. Karusel yine döner — otomatik oynatma sürüyor ve parmakla kaydırma zaten
+         bağlı (bkz. wireSwipe). PROJE kutusu 4 sütun genişliğinde olduğundan OKLARI KALIR.
+       • küçük kutularda ikinci satır (ör. ürünün markası, gündemin tarih/kaynağı) gizlenir:
+         bu ölçekte okunmuyor ve başlığın yerini alıyordu. Kaydın kimliği başlıktır, o kalır. */
+  @media (max-width: 560px){
+    .bento-grid{gap:6px;}
+    .slide-caption{padding:9px 11px; left:9px; right:9px; bottom:9px; max-width:calc(100% - 18px);}
+    .slide-title{font-size:13px;}
+    .slide-tag{top:9px; left:9px; font-size:9px; padding:4px 8px;}
+    .side-slider{border-radius:9px;}
+    .side-slider .proje-slide{border-radius:9px;}
+    .side-slider .slide-caption{padding:4px 5px; left:4px; right:4px; bottom:4px; border-radius:7px; max-width:calc(100% - 8px);}
+    .side-slider .slide-title{font-size:8.5px; line-height:1.2em !important; max-height:2.4em !important;}
+    .side-slider .slide-designer{display:none;}
+    .side-slider .slide-tag{top:4px; left:4px; font-size:7px; padding:2px 5px; letter-spacing:0.04em;}
+    .side-slider .slider-arrow{display:none;}
+    .side-slider .slide-fallback-avatar{font-size:18px;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -639,9 +664,10 @@ const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;
 // GÜNDEM slaydının görsel türevleri. Diğer karuseller slideImgHtml'in widths/sizes parametrelerini
 // çağrı yerinde taşır; gündem görseli çoğunlukla DIŞ bir adres olduğundan (türev üretilemez) kendi
 // yardımcı fonksiyonuna sahip ve değerleri burada, tek yerde durur (bkz. gundemSlideImgHtml).
-// Kutu masaüstünde iki grid sütunu genişliğinde (~455px), mobilde tam genişlik.
+// Kutu HER genişlikte iki grid sütunu kadardır (şablon yeniden dizilmiyor, bkz. .bento-grid):
+// 1000px'lik kapsayıcıda ~356px, daha darda kapsayıcının ~%38'i.
 const GUNDEM_IMG_WIDTHS = [400, 800, 1600];
-const GUNDEM_IMG_SIZES = '(max-width: 860px) 100vw, 460px';
+const GUNDEM_IMG_SIZES = '(max-width: 1000px) 38vw, 356px';
 
 // GERÇEK BULGU (kullanıcı isteği 2026-08-30, İçeriklerim > Mimar/Firma Profilim popup entegrasyonu):
 // auth-modal.js#loadProfileModals artık index.html'e save-widget.js'i DİNAMİK olarak yüklüyor —
@@ -722,7 +748,7 @@ function projectSlideHtml(p, i){
   const meta = [designerNames.join(', '), cityName, lastProjectYear(p.date)].filter(Boolean).join(', ');
   const slideImg = (p.images && p.images[0]) || '';
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/proje/${encodeURIComponent(p.slug)}" data-index="${i}">
-    ${slideImgHtml(slideImg, [600, 900, 1200], '(max-width: 860px) 100vw, 920px', p.title, i, '')}
+    ${slideImgHtml(slideImg, [600, 900, 1200], '(max-width: 1000px) 78vw, 744px', p.title, i, '')}
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(p.title)}</h2>
       ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
@@ -893,7 +919,7 @@ function slideAvatarColor(name){
 
 function architectSlideHtml(a, i){
   const media = a.photo
-    ? slideImgHtml(a.photo, [400, 800], '(max-width: 860px) 50vw, 220px', a.name, i, '')
+    ? slideImgHtml(a.photo, [400, 800], '(max-width: 1000px) 18vw, 174px', a.name, i, '')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(a.name)}">${escapeHtml(slideInitials(a.name))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/kisi/${encodeURIComponent(a.slug || idxSlugify(a.name))}" data-index="${i}">
     ${media}
@@ -905,7 +931,7 @@ function architectSlideHtml(a, i){
 
 function officeSlideHtml(o, i){
   const media = o.logo
-    ? slideImgHtml(o.logo, [400, 800], '(max-width: 860px) 50vw, 220px', o.name, i, 'slide-logo-img')
+    ? slideImgHtml(o.logo, [400, 800], '(max-width: 1000px) 18vw, 174px', o.name, i, 'slide-logo-img')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(o.name)}">${escapeHtml(slideInitials(o.name))}</div>`;
   // o.brand: kaydın KANONİK URL öneki (/marka/:slug yalnızca saf markalarda — bkz.
   // src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). /api/offices bu bayrağı liste
@@ -921,7 +947,7 @@ function officeSlideHtml(o, i){
 
 function urunSlideHtml(p, i){
   const media = p.image
-    ? slideImgHtml(p.image, [400, 800, 1600], '(max-width: 860px) 100vw, 460px', p.title, i, 'slide-logo-img')
+    ? slideImgHtml(p.image, [400, 800, 1600], '(max-width: 1000px) 38vw, 356px', p.title, i, 'slide-logo-img')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(p.title)}">${escapeHtml(slideInitials(p.title))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/urun/${encodeURIComponent(p.slug)}" data-index="${i}">
     ${media}
