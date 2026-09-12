@@ -39,6 +39,8 @@ import { resolveCanonicalName } from '../lib/canonicalRead.js';
 import { foldTr } from '../lib/textMatch.js';
 import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { notArchivedIfCanonicalLiveSql, markSubmissionsPublished } from '../lib/archiveSync.js';
+// MANAGER_POSITION — firma/marka atamasında dondurulan TEK görev (bkz. normalizeOfficePosition).
+import { MANAGER_POSITION } from '../lib/projectClaimAccess.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -947,9 +949,17 @@ const OFFICE_POSITIONS_ADMIN = new Set([
   'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi',
   'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz',
 ]);
-function normalizeOfficePosition(value) {
-  const v = (value || '').trim();
-  return OFFICE_POSITIONS_ADMIN.has(v) ? v : null;
+// ATAMA ARTIK BİR ÜNVAN DEĞİL, YALNIZCA YETKİDİR (kullanıcı isteği, 2026-09-12): bir firma/marka
+// bir hesaba atandığında dondurulan görev HER ZAMAN 'Yönetici' olur. Gerekçe: bu satır iki ayrı işi
+// birden yapıyordu — (a) düzenleme yetkisi vermek, (b) firma pop-up'ının Kurucular/Ekip
+// listelerinde o hesabı ÜNVANIYLA göstermek. İkincisi kaldırıldı (bkz. src/routes/office.js#
+// buildOfficePeople): künye artık YALNIZCA firmanın kendi Kurucular/Ekip kutularından ve kişi
+// profili bağlarından beslenir, atama ise sadece "bu hesap bu firmanın içeriklerini yönetebilir"
+// demektir. OFFICE_POSITIONS_ADMIN kümesi, ESKİ satırların (canlıda Kurucu/Ortak/... ile donmuş
+// atamalar) okunabilir kalması ve yetki kapısının onları tanımaya devam etmesi için duruyor —
+// bkz. OFFICE_EDIT_POSITIONS; yeni yazılan hiçbir satır artık bu değerleri almaz.
+function normalizeOfficePosition() {
+  return MANAGER_POSITION;
 }
 
 // Bir profile_claims satırı (atama/onay/red/kaldırma) değiştiğinde, o profilin TEKİL detay ucunu
@@ -1379,11 +1389,11 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // bkz. migrations/0068 — office_position, admin BU ANDA gördüğü/onayladığı position'ın
     // dondurulmuş kopyası; kullanıcının sonradan kendi profilinden değiştirdiği position bu
     // atamanın yetkisini artık ETKİLEMEZ (P1 güvenlik düzeltmesi).
-    // body.officePosition — admin açıkça bir pozisyon gönderdiyse o kazanır (bkz. dosya üstündeki
-    // OFFICE_POSITIONS_ADMIN gerekçesi), aksi halde kullanıcının o anki position'ı dondurulur.
-    const officePosition = profileType === 'office'
-      ? (normalizeOfficePosition(body.officePosition) || userRow.position || null)
-      : null;
+    // Firma/marka atamasında görev HER ZAMAN 'Yönetici' — atama bir ünvan değil, yetkidir (bkz.
+    // dosya üstündeki normalizeOfficePosition gerekçesi). Eski davranış (admin'in seçtiği ya da
+    // kullanıcının kendi position'ından dondurulan görev) kaldırıldı; body.officePosition artık
+    // yok sayılır, admin panelindeki seçici de kaldırıldı (bkz. admin.html).
+    const officePosition = profileType === 'office' ? normalizeOfficePosition() : null;
     const existing = await env.DB.prepare(
       'SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
     ).bind(userId, profileType, profileKey).first();
@@ -1461,11 +1471,10 @@ async function handleClaimsAdmin(request, env, url, segments) {
     let approvedOfficePosition = null;
     const bindArgs = [body.status, Date.now()];
     if (body.status === 'approved' && claim.profile_type === 'office') {
-      const claimUser = await env.DB.prepare('SELECT position FROM users WHERE id = ?').bind(claim.user_id).first();
       officePositionUpdate = ', office_position = ?';
-      // bkz. dosya üstündeki OFFICE_POSITIONS_ADMIN gerekçesi — admin panelindeki pozisyon seçici
-      // bu alanı gönderir; gönderilmezse (eski istemci) davranış aynen korunur.
-      approvedOfficePosition = normalizeOfficePosition(body.officePosition) || (claimUser ? (claimUser.position || null) : null);
+      // Onayda da görev HER ZAMAN 'Yönetici' (bkz. dosya üstündeki normalizeOfficePosition
+      // gerekçesi) — talebi gönderenin kendi position'ı ya da admin'in seçimi artık okunmaz.
+      approvedOfficePosition = normalizeOfficePosition();
       bindArgs.push(approvedOfficePosition);
     }
     bindArgs.push(id);

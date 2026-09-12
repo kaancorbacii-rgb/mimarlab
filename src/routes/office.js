@@ -12,7 +12,6 @@ import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 // sınıflandırma referansı (hangi hizmet alanı firmaya, hangisi markaya ait).
 import { isBrandUrlOffice } from '../lib/officeUrl.js';
 import { fetchOfficeProductCounts } from '../lib/officeProductCounts.js';
-import { MANAGER_POSITION } from '../lib/projectClaimAccess.js';
 import officeKindJs from '../../office-kind.js';
 // il-ilce-data.js — bkz. src/lib/projectPool.js'teki AYNI CJS-interop importu (Konum filtresi).
 import ilIlceJs from '../../il-ilce-data.js';
@@ -587,17 +586,17 @@ export async function buildOfficePeople(env, o) {
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND (ar.hidden_at IS NULL OR ar.preview_at IS NOT NULL)`
     ).bind(o.id).all(),
     fetchRawFounderNames(env, o),
-    // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
-    // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
-    // bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı". Pozisyonu
-    // Kurucu/Kurucu Ortak olanlar aşağıda foundersFromClaims'e (Kurucular/Ortaklar'a karışır),
-    // diğerleri Ekip'e (team) düşer. Hesap adı bir architects satırıyla eşleşiyorsa o satırın slug'ı
-    // taşınır ve kart tıklanabilir olur; eşleşmiyorsa `unregistered` (tıklanamaz kare kart).
-    // GÖREV KAYNAĞI (kullanıcı isteği, 2026-09-08 madde 2): admin'in atama/onay anında DONDURDUĞU
-    // c.office_position ASILDIR (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN); yalnızca o boşsa
-    // — eski, pozisyonsuz onaylarda — kullanıcının kendi profilindeki u.position'a düşülür. Eskiden
-    // yalnızca u.position okunuyordu: admin panelinden "Görev: Kurucu" ile atanan bir hesap, kendi
-    // profilinde pozisyon seçmediği için popup'ta Kurucular yerine Ekip'te görünüyordu.
+    // ONAYLI profile_claims('office') satırları — ARTIK YALNIZCA `claimed` BAYRAĞI İÇİN okunur.
+    //
+    // DEĞİŞİKLİK (kullanıcı isteği, 2026-09-12): bir hesabın firmaya ATANMIŞ olması artık künyede
+    // bir ÜNVAN değil, yalnızca "bu hesap bu firmanın içeriklerini yönetebilir" yetkisidir (bkz.
+    // src/routes/admin.js#normalizeOfficePosition — atamalar tek bir görevle, 'Yönetici' ile
+    // donuyor). Bu yüzden atanan hesap adları Kurucular/Ekip listelerine ARTIK EKLENMEZ; o
+    // listeler yalnızca künyenin kendi kaynaklarından beslenir: yapısal kişi bağı
+    // (office_founders) ve firma künyesindeki Kurucular/Ekip kutularının serbest metin adları.
+    // Eski davranış (Kurucu/Kurucu Ortak/Ortak → Kurucular, diğerleri → Ekip) kaldırıldı; zaten
+    // 'Yönetici' görevi en baştan beri listelenmiyordu, yeni kural onu TÜM atamalara genelliyor.
+    // Bir hesabın popup'ta görünmesi isteniyorsa adı künyedeki Kurucular/Ekip kutusuna yazılır.
     env.DB.prepare(
       `SELECT u.name, COALESCE(NULLIF(c.office_position, ''), u.position) AS position, u.photo_url
          FROM profile_claims c JOIN users u ON u.id = c.user_id
@@ -667,25 +666,8 @@ export async function buildOfficePeople(env, o) {
     if (sectionFor(name, 'founders') === 'team') team.push({ name, role: m.position, photo: m.photo || null, slug: m.slug || null });
     else founders.push({ name, role: m.position || null, photo: m.photo || null, slug: m.slug || null, badges: [], unregistered: !m.slug });
   }
-  for (const row of teamClaimRows.results || []) {
-    if (!row.name || knownFounderNames.has(foldTr(row.name))) continue;
-    // KURUMSAL YÖNETİCİ HESABI (kullanıcı isteği, 2026-09-08 madde 2): "Yönetici" görevi, firmanın
-    // KENDİ adına açtığı hesabı (ör. "DS Mimarlık" adlı üye) temsil eder — firma künyesini
-    // düzenleme yetkisi verir (bkz. OFFICE_EDIT_POSITIONS) ama bir İNSAN değildir, bu yüzden
-    // Kurucular'da da Ekip'te de LİSTELENMEZ. Eskiden böyle bir hesap firmanın kendi popup'ında
-    // "Ekip: DS Mimarlık" olarak görünüyordu.
-    if (row.position === MANAGER_POSITION) continue;
-    // photo: hesabın kendi profil fotoğrafı (users.photo_url) yoksa, aynı isimli kişi profilinin
-    // fotoğrafına düşülür — iki kayıt aynı kişiyi temsil ediyor (bkz. matchFor).
-    const m = matchFor(row.name) || {};
-    const photo = row.photo_url || m.photo || null;
-    if (FOUNDER_POSITIONS.has(row.position)) {
-      knownFounderNames.add(foldTr(row.name));
-      founders.push({ name: row.name, role: row.position, photo, slug: m.slug || null, badges: [], unregistered: !m.slug });
-    } else {
-      team.push({ name: row.name, role: row.position || null, photo, slug: m.slug || null });
-    }
-  }
+  // (Atanan HESAPLAR buraya ARTIK eklenmiyor — bkz. yukarıdaki teamClaimRows notu: atama yetkidir,
+  // künye değil. teamClaimRows yalnızca `claimed` bayrağını ve rawNameMatches'i besler.)
   // firma-ekle.html'deki opsiyonel "Ekip" kutusuna serbest metin girilen isimler — foundersFromClaims
   // ile AYNI dedup (kurucu ya da hesap üzerinden zaten eklenmiş biriyle çakışan isim atlanır).
   const knownTeamNames = new Set(team.map(t => foldTr(t.name)));

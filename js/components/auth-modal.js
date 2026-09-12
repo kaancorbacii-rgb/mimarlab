@@ -319,6 +319,24 @@ const AuthModal = (function () {
     #am-panel .profile-fact-label{color:var(--ink-soft); flex:0 0 110px;}
     #am-panel .profile-fact-value{font-weight:600;}
     #am-panel .profile-fact-avatar{width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; display:block;}
+    /* "Yetkili Kullanıcılar" satırı (kullanıcı isteği, 2026-09-12): her yetkili bir çip, çipin
+       içinde yetkiyi kaldıran X; satırın sonunda e-postayla yetkili ekleyen + düğmesi. Satır
+       YALNIZCA isteği yapanın kendisi de o firmanın yetkilisi olduğunda çizilir (uç yetkisize
+       403 döner, bkz. src/routes/claims.js#officeManagers). */
+    #am-panel .am-mgr-wrap{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+    #am-panel .am-mgr-chip{display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px; border-radius:100px; background:var(--paper-alt); font-size:12px; font-weight:600;}
+    #am-panel .am-mgr-chip-role{color:var(--ink-soft); font-weight:500;}
+    #am-panel .am-mgr-x{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; padding:0; border:none; border-radius:50%; background:rgba(124,75,75,0.14); color:var(--rust); font-size:12px; line-height:1;}
+    #am-panel .am-mgr-x:hover{background:var(--rust); color:var(--paper-card);}
+    #am-panel .am-mgr-add{display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:100px; border:1px dashed var(--line); background:none; color:var(--ink-soft); font-size:12px; font-weight:600;}
+    #am-panel .am-mgr-add:hover{color:var(--ink); border-color:var(--ink-soft);}
+    #am-panel .am-mgr-form{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; width:100%;}
+    #am-panel .am-mgr-form input{flex:1 1 180px; min-width:0; height:30px; padding:0 10px; border:1px solid var(--line); border-radius:100px; background:var(--paper-card); color:var(--ink); font-family:inherit; font-size:12px;}
+    #am-panel .am-mgr-form button{height:30px; padding:0 14px; border:none; border-radius:100px; background:var(--ink); color:var(--paper-card); font-size:12px; font-weight:600;}
+    #am-panel .am-mgr-form button.ghost{background:none; color:var(--ink-soft);}
+    #am-panel .am-mgr-msg{width:100%; font-size:11.5px; margin-top:6px; color:var(--ink-soft);}
+    #am-panel .am-mgr-msg.err{color:var(--rust);}
+    #am-panel .am-mgr-msg.ok{color:var(--sage);}
     #am-panel .profile-fact-avatar-fallback{display:flex; align-items:center; justify-content:center; background:var(--walnut); color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:11px;}
     #am-panel .saved-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft);}
     #am-panel .saved-row:last-child{border-bottom:none;}
@@ -1924,7 +1942,9 @@ const AuthModal = (function () {
     { value: 'youtube', label: 'YouTube' },
     { value: 'website', label: 'Web Sitesi / Diğer' },
   ];
-  const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
+  // 'revoked' — yetkisi "Yetkili Kullanıcılar" satırındaki X ile kaldırılmış atama (bkz.
+  // src/lib/claimedProfiles.js#OFFICE_MANAGER_REVOKED); etiketsiz bırakılırsa kutuda ham değer görünür.
+  const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', revoked: 'Yetki kaldırıldı' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
   const CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
   // Saf markaların düzenleme sayfası AYRIDIR (bkz. js/components/office-modal.js#editUrlBase ile
@@ -3754,6 +3774,87 @@ const AuthModal = (function () {
         });
     }
 
+    // "Yetkili Kullanıcılar" satırının işaretlemesi. Kullanıcıdan gelen her değer (ad, görev)
+    // escapeHtml/escapeAttr'dan geçer — satır renderFirmPage'de ham HTML olarak basılıyor.
+    function managersRowHtml(managers) {
+      const chips = managers.map(m => `
+        <span class="am-mgr-chip">${escapeHtml(m.name)}${m.position ? ` <span class="am-mgr-chip-role">(${escapeHtml(m.position)})</span>` : ''}
+          <button type="button" class="am-mgr-x" data-mgr-name="${escapeAttr(m.name)}" title="Yetkiyi kaldır" aria-label="${escapeAttr(m.name + ' yetkisini kaldır')}">✕</button>
+        </span>`).join('');
+      return `<span class="am-mgr-wrap">${chips}
+        <button type="button" class="am-mgr-add" data-role="mgr-add">+ Yetkili ekle</button>
+      </span>
+      <div class="am-mgr-form" data-role="mgr-form" hidden>
+        <input type="email" data-role="mgr-email" placeholder="E-posta adresi" autocomplete="off">
+        <button type="button" data-role="mgr-save">Ekle</button>
+        <button type="button" class="ghost" data-role="mgr-cancel">Vazgeç</button>
+      </div>
+      <div class="am-mgr-msg" data-role="mgr-msg"></div>`;
+    }
+
+    // Satır her çizimde yeniden kurulduğundan olay bağlama da her çizimde yapılır (kutu innerHTML
+    // ile tazeleniyor — eski düğmeler DOM'dan tamamen çıkıyor, dinleyici birikmesi olmaz).
+    function wireManagersRow(key) {
+      const box = document.getElementById('am-firm-facts');
+      if (!box) return;
+      const msgEl = box.querySelector('[data-role="mgr-msg"]');
+      const setMsg = (text, kind) => { if (msgEl) { msgEl.textContent = text || ''; msgEl.className = 'am-mgr-msg' + (kind ? ' ' + kind : ''); } };
+      // Yetki verildikten/kaldırıldıktan sonra liste SUNUCUDAN tazelenir (yanıtı taklit etmek
+      // yerine) — böylece kurucu bağından gelen yetkiler gibi türetilmiş durumlar da doğru kalır.
+      const refresh = () => { delete firmManagersCache[key]; ensureFirmManagers(); };
+
+      box.querySelectorAll('[data-mgr-name]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.mgrName;
+          if (!confirm(`${name} adlı kullanıcının bu firmadaki yönetim yetkisi kaldırılsın mı?\n\nKişi firma/marka künyesinden (Kurucular, Ekip) SİLİNMEZ — yalnızca içerikleri düzenleme yetkisi biter.`)) return;
+          btn.disabled = true;
+          setMsg('Kaldırılıyor…');
+          try {
+            const res = await fetch(`/api/claims/office-managers?key=${encodeURIComponent(key)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) { setMsg((data && data.error) || 'Yetki kaldırılamadı.', 'err'); btn.disabled = false; return; }
+            setMsg(`${name} artık bu firmanın içeriklerini yönetemez.`, 'ok');
+            refresh();
+          } catch {
+            setMsg('Bağlantı hatası, tekrar dene.', 'err');
+            btn.disabled = false;
+          }
+        });
+      });
+
+      const addBtn = box.querySelector('[data-role="mgr-add"]');
+      const form = box.querySelector('[data-role="mgr-form"]');
+      const email = box.querySelector('[data-role="mgr-email"]');
+      if (addBtn && form) {
+        addBtn.addEventListener('click', () => { form.hidden = false; addBtn.hidden = true; setMsg(''); if (email) email.focus(); });
+        const cancel = box.querySelector('[data-role="mgr-cancel"]');
+        if (cancel) cancel.addEventListener('click', () => { form.hidden = true; addBtn.hidden = false; setMsg(''); if (email) email.value = ''; });
+        const save = box.querySelector('[data-role="mgr-save"]');
+        const submit = async () => {
+          const value = (email && email.value || '').trim();
+          if (!value) { setMsg('E-posta adresi yaz.', 'err'); return; }
+          if (save) save.disabled = true;
+          setMsg('Ekleniyor…');
+          try {
+            const res = await fetch('/api/claims/office-managers', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ key, email: value }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) { setMsg((data && data.error) || 'Yetki verilemedi.', 'err'); if (save) save.disabled = false; return; }
+            setMsg(`${(data && data.item && data.item.name) || value} artık bu firmanın içeriklerini yönetebilir.`, 'ok');
+            if (email) email.value = '';
+            refresh();
+          } catch {
+            setMsg('Bağlantı hatası, tekrar dene.', 'err');
+            if (save) save.disabled = false;
+          }
+        };
+        if (save) save.addEventListener('click', submit);
+        if (email) email.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+      }
+    }
+
     // Kutunun tek bir sayfasını (tek firma/marka) çizer. Ağ isteği YAPMAZ — künye hazır değilse
     // (henüz uçuşta) en azından ad satırı gösterilir, kutu asla "Yükleniyor…"da takılı kalmaz.
     function renderFirmPage() {
@@ -3803,13 +3904,14 @@ const AuthModal = (function () {
       const role = entry.position || (accountUser && accountUser.position) || entry.role;
       if (role) rows.push(['Görevin', role]);
       // "Yetkili Kullanıcılar" (kullanıcı isteği, 2026-09-12): bu firmanın içeriklerini yönetmekle
-      // görevlendirilmiş DİĞER hesaplar. Liste SUNUCUDAN gelir (bkz. src/routes/claims.js#
+      // görevlendirilmiş DİĞER hesaplar; her biri bir çip, çipin içinde yetkiyi kaldıran X, satır
+      // sonunda e-postayla yetkili ekleyen +. Liste SUNUCUDAN gelir (bkz. src/routes/claims.js#
       // officeManagers) — yetki kuralı istemcide yeniden hesaplanmaz; kullanıcı bu firmanın
-      // yetkilisi değilse uç 403 döner ve satır hiç görünmez. Görev parantez içinde yazılır
-      // (kimin ne yetkiyle bağlı olduğu tek bakışta okunsun).
+      // yetkilisi değilse uç 403 döner (cache null) ve satır hiç görünmez. Liste BOŞ olsa da satır
+      // çizilir: + düğmesi ilk yetkiliyi eklemenin tek yoludur.
       const managers = firmManagersCache[entry.key];
-      if (Array.isArray(managers) && managers.length) {
-        rows.push(['Yetkili Kullanıcılar', managers.map(m => m.position ? `${m.name} (${m.position})` : m.name).join(', ')]);
+      if (Array.isArray(managers)) {
+        rows.push(['Yetkili Kullanıcılar', '', managersRowHtml(managers)]);
       }
       // Bekleyen talep — durum bilgisi eskiden altındaki #am-claims-mine-list satırında duruyordu;
       // artık her firma kendi sayfasında göründüğü için durum da o sayfada yazar.
@@ -3831,13 +3933,17 @@ const AuthModal = (function () {
       // src/lib/officeUrl.js#officePath) — yanlış önekte sunucu zaten 301 atar, ama doğrudan doğru
       // adrese gitmek bir gereksiz gidiş-dönüşü önler.
       const detailBase = firmInfoIsBrand ? '/marka/' : '/firma/';
-      box.innerHTML = rows.map(([label, value], i) => `
+      // Üçüncü eleman (html) varsa değer HAZIR HTML'dir ve escape EDİLMEZ — yalnızca bu dosyanın
+      // kendi ürettiği, içindeki her kullanıcı verisi zaten escapeHtml/escapeAttr'dan geçmiş
+      // işaretleme için kullanılır (bkz. managersRowHtml).
+      box.innerHTML = rows.map(([label, value, html], i) => `
         <div class="profile-fact">
           <span class="profile-fact-label">${escapeHtml(label)}</span>
-          <span class="profile-fact-value">${i === 0 && slug
+          <span class="profile-fact-value">${html !== undefined ? html : (i === 0 && slug
             ? `<a href="${escapeAttr(detailBase + encodeURIComponent(slug))}" style="color:var(--walnut); font-weight:600;">${escapeHtml(value)}</a>`
-            : escapeHtml(value)}${i === 0 && firmBadgeType ? accountBadgeIconHtml(firmBadgeType) : ''}</span>
+            : escapeHtml(value))}${i === 0 && firmBadgeType ? accountBadgeIconHtml(firmBadgeType) : ''}</span>
         </div>`).join('');
+      wireManagersRow(entry.key);
       renderFirmPagination();
       renderClaimsList();
     }

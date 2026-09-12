@@ -208,27 +208,36 @@ async function officePayload(slug) {
   return buildOfficePayload(env, slug);
 }
 
-await test('Yönetici hesabı Kurucular/Ekip listelerinde GÖRÜNMEZ', async () => {
+// KURAL DEĞİŞTİ (kullanıcı isteği, 2026-09-12): firma/marka ATAMASI artık bir ünvan değil,
+// yalnızca yetkidir — atanan HİÇBİR hesap (yalnızca 'Yönetici' değil, hepsi) Kurucular/Ekip
+// listelerinde görünmez. Künye yalnızca kendi kaynaklarından beslenir: office_founders (yapısal
+// kişi bağı) ve firma künyesindeki Kurucular/Ekip kutularının serbest metin adları.
+// Bkz. src/routes/office.js#buildOfficePeople ve src/routes/admin.js#normalizeOfficePosition.
+await test('atanan hesaplar (Yönetici DAHİL, Ekip Üyesi dahil) Kurucular/Ekip listelerinde GÖRÜNMEZ', async () => {
   const p = await officePayload('ds-mimarlik');
   const names = [...p.founders, ...p.team].map(x => x.name);
-  assert.ok(!names.includes('DS Mimarlık'), `görünmemeliydi: ${JSON.stringify(names)}`);
-  // aynı firmadaki normal ekip üyesi ETKİLENMEZ
-  assert.ok(p.team.map(x => x.name).includes('Ayşe Demir'), JSON.stringify(names));
+  assert.ok(!names.includes('DS Mimarlık'), `Yönetici hesabı görünmemeliydi: ${JSON.stringify(names)}`);
+  assert.ok(!names.includes('Ayşe Demir'), `atanan hesap artık künyede görünmemeli: ${JSON.stringify(names)}`);
+  // ...ama atama hâlâ SAHİPLENME sayılır (kaynak ibaresi/rozet mantığı buna bakar).
+  assert.equal(p.claimed, true);
 });
 
 // KULLANICI BİLDİRİMİ, 2026-09-12: "MİMARLAB Robotu ekip üyesinin kişi profili olmasına rağmen
 // üzerine tıklanmıyor." Hesap üyeliğinden (profile_claims) gelen ekip üyesinin adı bir architects
 // satırıyla eşleşiyorsa kart o kişi profiline gitmeli — payload `slug` taşımazsa popup onu kişi
 // profili olmayan biriyle aynı, tıklanamaz kart olarak çizer (js/components/office-modal.js#teamCardHtml).
-await test('ekip üyesi: eşleşen kişi profili varsa slug taşır, yoksa taşımaz', async () => {
+// Bu test eskiden hesap üyeliğinden (profile_claims) gelen ekip kartının slug'ını doğruluyordu.
+// Atama artık künyeye hiç girmediği için (yukarıdaki kural) aynı garanti YAPISAL bağ üzerinden
+// doğrulanır: office_founders ile bağlı kişi kartı kişi profiline gider, serbest metinden gelen
+// isim eşleşmiyorsa tıklanamaz kalır.
+await test('yapısal ekip üyesi kişi profiline gider; eşleşmeyen serbest metin adı tıklanamaz', async () => {
   const db = freshDb(); seed(db);
-  db.prepare(`INSERT INTO architects (slug, name, position, source) VALUES ('ayse-demir', 'Ayşe Demir', 'Ekip Üyesi', 'legacy_static')`).run();
+  db.prepare(`INSERT INTO architects (id, slug, name, position, source) VALUES (900, 'ayse-demir', 'Ayşe Demir', 'Ekip Üyesi', 'legacy_static')`).run();
+  const officeId = db.prepare(`SELECT id FROM offices WHERE slug = 'ds-mimarlik'`).get().id;
+  db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (?, 900)`).run(officeId);
   const { buildOfficePayload } = await import('../src/routes/office.js');
   const withProfile = await buildOfficePayload({ DB: d1(db), IMG_KV: null }, 'ds-mimarlik');
   assert.equal(withProfile.team.find(x => x.name === 'Ayşe Demir').slug, 'ayse-demir');
-  // Kişi profili olmayan aynı üye slug taşımaz — tıklanamaz kart korunur.
-  const withoutProfile = await officePayload('ds-mimarlik');
-  assert.equal(withoutProfile.team.find(x => x.name === 'Ayşe Demir').slug, null);
 });
 
 await test('aynı kişi hem Kurucular hem Ekip listesinde çıkmaz (aksan katlamalı)', async () => {

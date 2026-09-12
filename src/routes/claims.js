@@ -3,8 +3,10 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
-import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers } from '../lib/claimedProfiles.js';
-import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
+import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers, OFFICE_MANAGER_REVOKED } from '../lib/claimedProfiles.js';
+import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../lib/projectClaimAccess.js';
+import { purgeSsrDetailCache } from '../lib/ssrCache.js';
+import { invalidatePublicCache } from '../lib/publicCache.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
 // profile_claims.profile_key'in eşleşmesi GEREKEN canonical tablo (bkz. src/routes/admin.js#
@@ -28,8 +30,12 @@ export async function handleClaimsRoute(request, env, url) {
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
     return myClaims(env, user);
   }
-  if (segments.length === 3 && segments[2] === 'office-managers' && request.method === 'GET') {
-    return officeManagers(env, url, user);
+  if (segments.length === 3 && segments[2] === 'office-managers') {
+    if (request.method === 'GET') return officeManagers(env, url, user);
+    // Yetki VER / yetki KALDIR (kullanıcı isteği, 2026-09-12: "Yetkili Kullanıcılar" satırındaki
+    // + ve X). İkisi de aynı kapıdan geçer: isteği yapan da o firmanın yetkilisi olmalı.
+    if (request.method === 'POST') return grantOfficeManager(request, env, user);
+    if (request.method === 'DELETE') return revokeOfficeManager(env, url, user);
   }
   return errorJson('Bulunamadı', 404);
 }
@@ -133,22 +139,118 @@ async function myClaims(env, user) {
 // SUNUCUNUN kendi kapılarıyla birebir aynı iki yoldan okunur (onaylı talep + dondurulmuş görev,
 // ya da kurucu bağı) — yani "listeyi görebilenler" ile "künyeyi kaydedebilenler" aynı kümedir.
 // Yanıt yalnızca ad soyad ve görev taşır; e-posta/kullanıcı id'si DÖNMEZ.
-async function officeManagers(env, url, user) {
-  const key = (url.searchParams.get('key') || '').trim();
-  if (!key) return errorJson('Geçersiz istek.');
-  // Kendi talebin: onay ANINDA dondurulmuş görev (canlı position DEĞİL — bkz. myClaims'teki
-  // uzun gerekçe: ikisi ayrıştığında kullanıcı ya kilitlenir ya da yetkisi varmış gibi görünür).
+// İsteği yapan bu firmanın yetkilisi mi (ÜÇ ucun da ortak kapısı: listele / yetki ver / kaldır).
+// Kendi talebin: onay ANINDA dondurulmuş görev (canlı position DEĞİL — bkz. myClaims'teki
+// uzun gerekçe: ikisi ayrıştığında kullanıcı ya kilitlenir ya da yetkisi varmış gibi görünür).
+async function canManageOfficeManagers(env, user, key) {
+  if (user.role === 'admin') return true;
   const mine = await env.DB.prepare(
     `SELECT office_position AS position FROM profile_claims
       WHERE user_id = ? AND profile_type = 'office' AND status = 'approved' AND profile_key = ?`
   ).bind(user.id, key).first();
-  const allowed = (mine && OFFICE_EDIT_POSITIONS.has(mine.position))
-    || (await canEditOfficeViaFounderLink(env, user, key, OFFICE_EDIT_POSITIONS));
-  if (!allowed) return errorJson('Bu firmanın yetkili kullanıcılarını göremezsin.', 403);
+  if (mine && OFFICE_EDIT_POSITIONS.has(mine.position)) return true;
+  return canEditOfficeViaFounderLink(env, user, key, OFFICE_EDIT_POSITIONS);
+}
+
+async function officeManagers(env, url, user) {
+  const key = (url.searchParams.get('key') || '').trim();
+  if (!key) return errorJson('Geçersiz istek.');
+  if (!(await canManageOfficeManagers(env, user, key))) return errorJson('Bu firmanın yetkili kullanıcılarını göremezsin.', 403);
   const managers = await fetchOfficeManagers(env, key, OFFICE_EDIT_POSITIONS);
   // "DİĞER hesaplar" — isteği yapan kişi listede kendini görmez (kendi görevi zaten hemen
   // üstteki "Görevin" satırında yazıyor).
-  return json({ items: managers.filter(m => m.userId !== user.id).map(m => ({ name: m.name, position: m.position })) });
+  return json({ items: managers.filter(m => m.userId !== user.id).map(m => ({ name: m.name, position: m.position, source: m.source })) });
+}
+
+// Yetki verildiğinde/kaldırıldığında, o firmanın TEKİL detay ucu + SSR HTML'i ve liste
+// önbellekleri tazelenmeli — src/routes/admin.js#purgeClaimProfileCaches ile AYNI gerekçe:
+// `claimed` bayrağı (kaynak ibaresi) ve rozet JOIN'leri doğrudan profile_claims'e bakar, detay ucu
+// ise caches.default'ta 5 dakikalık s-maxage ile durur ve fingerprint taşımaz. Kurucuların kişi
+// detayları BURADA purge EDİLMEZ (admin yolunun aksine): bu uç künyeye hiç dokunmadığından
+// kurucu kartlarının içeriği değişmez.
+async function invalidateClaimCaches(env, profileType, profileKey) {
+  try {
+    await purgeSsrDetailCache(profileType, profileKey, env);
+    await invalidatePublicCache(env);
+  } catch { /* önbellek temizliği yetkilendirme sonucunu ETKİLEMEZ: hata yutulur */ }
+}
+
+// POST /api/claims/office-managers {key, email} — "+" düğmesi: e-postasıyla bir ÜYEYE bu firmanın
+// içeriklerini yönetme yetkisi verir.
+//
+// Yetki kaydı, admin atamasının kullandığı AYNI satırdır (profile_claims, status='approved',
+// office_position='Yönetici') — yeni bir yetki kavramı/tablosu yok, dolayısıyla düzenleme
+// kapılarının hepsi (proje/ürün/künye/ilan) bu satırı olduğu gibi okur. Görev HER ZAMAN 'Yönetici':
+// atama artık bir ÜNVAN değil, yalnızca yetkidir (kullanıcı isteği, 2026-09-12) — künyedeki
+// Kurucular/Ekip listeleri buradan beslenmez (bkz. src/routes/office.js#buildOfficePeople).
+async function grantOfficeManager(request, env, user) {
+  const body = await readJson(request);
+  const key = (body.key || '').trim();
+  const email = (body.email || '').trim().toLowerCase();
+  if (!key || !email) return errorJson('Geçersiz istek.');
+  if (!(await canManageOfficeManagers(env, user, key))) return errorJson('Bu firmaya yetkili kullanıcı ekleyemezsin.', 403);
+  // Kayıtlı ÜYE zorunlu (kullanıcı kararı, 2026-09-12): davet/bekleyen kayıt tutulmaz, net bir
+  // hata verilir — kişi önce üye olmalı.
+  const target = await env.DB.prepare('SELECT id, name FROM users WHERE lower(email) = ?').bind(email).first();
+  if (!target) return errorJson('Bu e-posta ile kayıtlı bir üye yok. Kişi önce MİMARLAB üyesi olmalı.', 404);
+  // Firma gerçekten var mı + anahtar KANONİK ADA çevrilir (bkz. admin.js'deki AYNI gerekçe:
+  // sahiplenmeyi adıyla sorgulayan her yerin beklediği biçim canonical `name`).
+  const officeName = await resolveCanonicalName(env, 'offices', key);
+  if (!officeName) return errorJson('Böyle bir firma bulunamadı.', 404);
+  const now = Date.now();
+  const existing = await env.DB.prepare(
+    `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ?`
+  ).bind(target.id, officeName).first();
+  if (existing) {
+    // Daha önce iptal edilmiş (status='revoked') ya da bekleyen bir satır varsa yetki geri verilir.
+    await env.DB.prepare(
+      `UPDATE profile_claims SET status = 'approved', office_position = ?, updated_at = ? WHERE id = ?`
+    ).bind(MANAGER_POSITION, now, existing.id).run();
+  } else {
+    await env.DB.prepare(
+      `INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at, office_position)
+       VALUES (?, ?, 'office', ?, 'approved', ?, ?, ?, ?)`
+    ).bind(newId(), target.id, officeName, 'Hesabım > Yetkili Kullanıcılar', now, now, MANAGER_POSITION).run();
+  }
+  await invalidateClaimCaches(env, 'office', officeName);
+  return json({ item: { name: target.name, position: MANAGER_POSITION, source: 'claim' } }, 201);
+}
+
+// DELETE /api/claims/office-managers?key=<firma>&name=<ad soyad> — "X" düğmesi: yetkiyi kaldırır.
+//
+// KÜNYEYE DOKUNMAZ (kullanıcı kararı, 2026-09-12: "bu X işareti kişileri bu popuplardan silmez").
+// Bu yüzden office_founders/Kurucular-Ekip kutuları hiç değişmez; iptal profile_claims satırında
+// status='revoked' olarak yaşar (bkz. src/lib/claimedProfiles.js#OFFICE_MANAGER_REVOKED) ve admin
+// tarafından verilmiş bir yetkiyi de kapsar.
+async function revokeOfficeManager(env, url, user) {
+  const key = (url.searchParams.get('key') || '').trim();
+  const name = (url.searchParams.get('name') || '').trim();
+  if (!key || !name) return errorJson('Geçersiz istek.');
+  if (!(await canManageOfficeManagers(env, user, key))) return errorJson('Bu firmanın yetkilerini değiştiremezsin.', 403);
+  const officeName = await resolveCanonicalName(env, 'offices', key);
+  if (!officeName) return errorJson('Böyle bir firma bulunamadı.', 404);
+  // Üye adları benzersizdir (bkz. src/routes/auth.js kayıt kuralı) — yine de birden fazla satır
+  // dönerse YANLIŞ kişinin yetkisini kaldırmaktansa işlemi reddetmek doğrudur.
+  const { results } = await env.DB.prepare('SELECT id FROM users WHERE name = ? COLLATE NOCASE').bind(name).all();
+  if (!results || !results.length) return errorJson('Böyle bir üye bulunamadı.', 404);
+  if (results.length > 1) return errorJson('Aynı ada sahip birden fazla üye var; bu satırdan kaldırılamaz.', 409);
+  const targetId = results[0].id;
+  if (targetId === user.id) return errorJson('Kendi yetkini buradan kaldıramazsın.', 400);
+  const now = Date.now();
+  const existing = await env.DB.prepare(
+    `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ?`
+  ).bind(targetId, officeName).first();
+  if (existing) {
+    await env.DB.prepare('UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?').bind(OFFICE_MANAGER_REVOKED, now, existing.id).run();
+  } else {
+    // Kurucu bağıyla yetkili olan kullanıcı: ortada iptal edilecek bir satır yok, iptal KAYDI açılır.
+    await env.DB.prepare(
+      `INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at, office_position)
+       VALUES (?, ?, 'office', ?, ?, ?, ?, ?, ?)`
+    ).bind(newId(), targetId, officeName, OFFICE_MANAGER_REVOKED, 'Hesabım > Yetkili Kullanıcılar (yetki kaldırıldı)', now, now, null).run();
+  }
+  await invalidateClaimCaches(env, 'office', officeName);
+  return json({ ok: true });
 }
 
 async function createClaim(request, env, user) {

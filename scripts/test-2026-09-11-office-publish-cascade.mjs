@@ -266,16 +266,24 @@ async function seedRule(db) {
   }
 }
 
-await test('her kaynakta Kurucu/Kurucu Ortak/Ortak → Kurucular, diğerleri → Ekip', async () => {
+// KURAL GÜNCELLENDİ (kullanıcı isteği, 2026-09-12): Kurucu/Ortak → Kurucular, diğerleri → Ekip
+// ayrımı KÜNYE KAYNAKLARI için aynen sürüyor (yapısal office_founders bağı + Kurucular/Ekip
+// kutularındaki serbest metin adları), ama HESAP ATAMALARI (profile_claims) künyeyi artık hiç
+// beslemiyor: atama bir ünvan değil, yalnızca düzenleme yetkisi (bkz. src/routes/office.js#
+// buildOfficePeople). 'Hesaplı Ortak' ve 'Hesaplı Üye' bu yüzden listelerde YOK.
+await test('künye kaynaklarında Kurucu/Kurucu Ortak/Ortak → Kurucular, diğerleri → Ekip; atanan HESAPLAR hiçbirinde yok', async () => {
   const db = freshDb(); await seedRule(db);
   const payload = await buildOfficePayload({ DB: d1(db) }, 'tago-architects');
   const f = new Set(payload.founders.map(x => x.name));
   const t = new Set(payload.team.map(x => x.name));
-  for (const name of ['Gökhan Aktan Altuğ', 'Ortak Kişi', 'Hesaplı Ortak', 'Metinde Kurucu', 'Profilsiz Kurucu']) {
+  for (const name of ['Gökhan Aktan Altuğ', 'Ortak Kişi', 'Metinde Kurucu', 'Profilsiz Kurucu']) {
     assert.ok(f.has(name) && !t.has(name), `${name} Kurucular'da olmalı`);
   }
-  for (const name of ['Müge Eker Eryakar', 'Akademisyen Kişi', 'Hesaplı Üye', 'Metinde Ekip Lideri', 'Profilsiz Ekip']) {
+  for (const name of ['Müge Eker Eryakar', 'Akademisyen Kişi', 'Metinde Ekip Lideri', 'Profilsiz Ekip']) {
     assert.ok(t.has(name) && !f.has(name), `${name} Ekip'te olmalı`);
+  }
+  for (const name of ['Hesaplı Ortak', 'Hesaplı Üye']) {
+    assert.ok(!f.has(name) && !t.has(name), `${name} yalnızca YETKİLİ, künyede görünmemeli`);
   }
 });
 
@@ -299,8 +307,10 @@ await test('kişi payload\'ı: ortaklar Kurucu/Kurucu Ortak/Ortak, ekip arkadaş
   const c = new Set(payload.colleagues.map(x => x.name));
   const t = new Set(payload.teammates.map(x => x.name));
   assert.ok(!c.has('Gökhan Aktan Altuğ') && !t.has('Gökhan Aktan Altuğ'), 'kişinin kendisi listelenmemeli');
-  for (const name of ['Ortak Kişi', 'Hesaplı Ortak', 'Metinde Kurucu']) assert.ok(c.has(name) && !t.has(name), `${name} Ortaklar'da olmalı`);
-  for (const name of ['Müge Eker Eryakar', 'Akademisyen Kişi', 'Hesaplı Üye']) assert.ok(t.has(name) && !c.has(name), `${name} Ekip Arkadaşları'nda olmalı`);
+  for (const name of ['Ortak Kişi', 'Metinde Kurucu']) assert.ok(c.has(name) && !t.has(name), `${name} Ortaklar'da olmalı`);
+  for (const name of ['Müge Eker Eryakar', 'Akademisyen Kişi']) assert.ok(t.has(name) && !c.has(name), `${name} Ekip Arkadaşları'nda olmalı`);
+  // Atanan hesaplar künyeye girmediğinden kişi popup'ında da yok (firma popup'ıyla AYNI kural).
+  for (const name of ['Hesaplı Ortak', 'Hesaplı Üye']) assert.ok(!c.has(name) && !t.has(name), `${name} künyede görünmemeli`);
   const office = await buildOfficePayload({ DB: d1(db) }, 'tago-architects');
   assert.deepEqual(
     [...c].sort(), office.founders.map(x => x.name).filter(n => n !== 'Gökhan Aktan Altuğ').sort(),

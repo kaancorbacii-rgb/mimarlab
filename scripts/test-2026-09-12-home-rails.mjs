@@ -31,6 +31,22 @@
 //   yetkili pozisyonlardaki (OFFICE_EDIT_POSITIONS) onaylı hesaplar olmalı. Aşağıdaki testler
 //   GERÇEK rota + node:sqlite + GERÇEK schema.sql ile çalışır (statik grep değil): yetki kuralı
 //   sapınca burada durur.
+// MADDE 6 (ikinci tur, kullanıcı isteği 2026-09-12) — "Yetkili Kullanıcılar" satırındaki X:
+//   yetkiyi KALDIRIR (admin tarafından verilmiş olsa bile) ama künyeye DOKUNMAZ ("bu X işareti
+//   kişileri bu popuplardan silmez"). İptal, yeni bir tablo açmadan profile_claims'in kendi
+//   satırında status='revoked' olarak yaşar — claim yolundaki tüm kapılar status='approved'
+//   aradığı için kendiliğinden kapanır; KURUCU BAĞI yolunda ise iptal kaydı iki fonksiyonda
+//   (canEditOfficeViaFounderLink, fetchOfficeFounderLinks) açıkça okunur. Yeni tablo bilerek
+//   SEÇİLMEDİ: migration'lar deploy ile otomatik uygulanmıyor (bkz. CLAUDE.md), tablo gelmeden
+//   canlıya çıkan kod yetki sorgularını düşürürdü.
+//
+// MADDE 7 — "+" ile e-postadan yetki verme: kayıtlı ÜYE zorunlu (kullanıcı kararı: davet tutulmaz,
+//   hata verilir). Kayıt, admin atamasının kullandığı AYNI satırdır (approved + 'Yönetici').
+//
+// MADDE 8 — Atama artık ÜNVAN değil, YALNIZCA YETKİ: her firma/marka ataması 'Yönetici' olarak
+//   donar ve atanan hesaplar firma/kişi pop-up'larının Kurucular/Ekip listelerinde ARTIK
+//   GÖRÜNMEZ (kullanıcı kararı: "Kalksın — rol = sadece yetki"). Künye yalnızca office_founders
+//   ve künye kutularındaki adlardan beslenir.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -189,8 +205,8 @@ await test('yetkili kullanıcı listeyi görür: yalnızca YETKİLİ pozisyonlar
   assert.deepEqual(items.find(i => i.name === 'Yönetici Kişi').position, 'Yönetici');
   assert.ok(!items.some(i => i.name === 'Kurucu Kişi'), 'isteyen kendi adını görmemeli');
   assert.ok(!items.some(i => i.name === 'Ekip Üyesi Kişi'), 'Ekip Üyesi yetkili değil, listeye girmemeli');
-  // E-posta/kullanıcı id'si asla dönmez.
-  assert.deepEqual([...new Set(items.flatMap(i => Object.keys(i)))].sort(), ['name', 'position']);
+  // E-posta/kullanıcı id'si asla dönmez (source = yetkinin nereden geldiği: 'claim' | 'founder').
+  assert.deepEqual([...new Set(items.flatMap(i => Object.keys(i)))].sort(), ['name', 'position', 'source']);
 });
 
 await test('kurucu bağıyla yetkili olan da listeyi görür (claim yolu olmadan)', async () => {
@@ -211,14 +227,125 @@ await test('Ekip Üyesi / yabancı 403, anonim 401, anahtarsız istek 400', asyn
   assert.equal(res.status, 400);
 });
 
-await test('istemci: satır "Görevin"in ALTINDA ve yalnızca liste doluyken çizilir', () => {
+await test('istemci: satır "Görevin"in ALTINDA; yetkisiz yanıtta (null) hiç çizilmez', () => {
   const modal = read('js/components/auth-modal.js');
   const gorev = modal.indexOf("rows.push(['Görevin', role])");
   const yetkili = modal.indexOf("rows.push(['Yetkili Kullanıcılar'");
   assert.ok(gorev !== -1 && yetkili !== -1, 'satırlardan biri yok');
   assert.ok(yetkili > gorev, '"Yetkili Kullanıcılar" satırı "Görevin"in altında olmalı');
-  assert.match(modal, /if \(Array\.isArray\(managers\) && managers\.length\) \{/, 'boş/yetkisiz yanıtta satır çizilmemeli');
+  // 403/ağ hatası cache'e null yazar -> Array.isArray false -> satır yok. (Boş dizi = yetkili ama
+  // başka yetkili yok: satır + düğmesiyle çizilir, bkz. madde 6/7 testleri.)
+  assert.match(modal, /firmManagersCache\[key\] = \(d && Array\.isArray\(d\.items\)\) \? d\.items : null;/);
   assert.match(modal, /\/api\/claims\/office-managers\?key=/);
+});
+
+console.log('\nmadde 6/7 — yetki kaldır (X) ve e-postayla yetki ver (+)');
+
+async function post(env, uid, body) {
+  const url = new URL('https://mimarlab.com/api/claims/office-managers');
+  return handleClaimsRoute(new Request(url, {
+    method: 'POST',
+    headers: { cookie: `__Host-mimarlab_session=tok-${uid}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }), env, url);
+}
+async function del(env, uid, key, name) {
+  const url = new URL(`https://mimarlab.com/api/claims/office-managers?key=${encodeURIComponent(key)}&name=${encodeURIComponent(name)}`);
+  return handleClaimsRoute(new Request(url, { method: 'DELETE', headers: { cookie: `__Host-mimarlab_session=tok-${uid}` } }), env, url);
+}
+const names = async (env, uid) => ((await (await managers(env, uid)).json()).items || []).map(i => i.name).sort();
+
+await test('X: admin ATAMASIYLA gelen yetkiyi kaldırır — satır revoked olur, künyeye dokunulmaz', async () => {
+  const { db, env } = await freshEnv();
+  const res = await del(env, 'u-kurucu', OFFICE, 'Yönetici Kişi');
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE id = 'c-u-yonetici'`).get().status, 'revoked');
+  assert.deepEqual(await names(env, 'u-kurucu'), ['Kurucu Bağı Kişi'], 'listeden düşmeli');
+  // KÜNYE: office_founders satırları olduğu gibi durur (X kimseyi popup'tan silmez).
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM office_founders`).get().n, 1);
+});
+
+await test('X: KURUCU BAĞIYLA gelen yetkiyi de kaldırır — office_founders korunur, yetki kapanır', async () => {
+  const { db, env } = await freshEnv();
+  const { canEditOfficeViaFounderLink } = await import('../src/lib/claimedProfiles.js');
+  const { OFFICE_EDIT_POSITIONS } = await import('../src/lib/projectClaimAccess.js');
+  const founderUser = { id: 'u-founder', name: 'Kurucu Bağı Kişi' };
+  assert.equal(await canEditOfficeViaFounderLink(env, founderUser, OFFICE, OFFICE_EDIT_POSITIONS), true, 'önce yetkili olmalı');
+  assert.equal((await del(env, 'u-kurucu', OFFICE, 'Kurucu Bağı Kişi')).status, 200);
+  assert.equal(await canEditOfficeViaFounderLink(env, founderUser, OFFICE, OFFICE_EDIT_POSITIONS), false, 'iptalden sonra yetki kalmamalı');
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM office_founders WHERE architect_id = 10`).get().n, 1, 'kurucu bağı SİLİNMEMELİ');
+  assert.deepEqual(await names(env, 'u-kurucu'), ['Yönetici Kişi']);
+});
+
+await test('X: yetkisiz kullanıcı kaldıramaz (403), kendini kaldıramaz (400), olmayan üye 404', async () => {
+  const { env } = await freshEnv();
+  assert.equal((await del(env, 'u-ekip', OFFICE, 'Yönetici Kişi')).status, 403);
+  assert.equal((await del(env, 'u-yabanci', OFFICE, 'Yönetici Kişi')).status, 403);
+  assert.equal((await del(env, 'u-kurucu', OFFICE, 'Kurucu Kişi')).status, 400, 'kendi yetkisi');
+  assert.equal((await del(env, 'u-kurucu', OFFICE, 'Olmayan Kişi')).status, 404);
+});
+
+await test('+: kayıtlı üyeye yetki verir (approved + Yönetici) ve iptali geri alır', async () => {
+  const { db, env } = await freshEnv();
+  // önce yetkisiz bir hesap: Ekip Üyesi
+  let res = await post(env, 'u-kurucu', { key: OFFICE, email: 'u-ekip@example.com' });
+  assert.equal(res.status, 201, await res.clone().text());
+  assert.equal((await res.json()).item.position, 'Yönetici');
+  const row = db.prepare(`SELECT status, office_position FROM profile_claims WHERE user_id = 'u-ekip' AND profile_type = 'office'`).get();
+  assert.deepEqual([row.status, row.office_position], ['approved', 'Yönetici']);
+  assert.ok((await names(env, 'u-kurucu')).includes('Ekip Üyesi Kişi'));
+  // iptal sonrası tekrar ekleme yetkiyi geri verir
+  await del(env, 'u-kurucu', OFFICE, 'Ekip Üyesi Kişi');
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE user_id = 'u-ekip' AND profile_type = 'office'`).get().status, 'revoked');
+  assert.equal((await post(env, 'u-kurucu', { key: OFFICE, email: 'u-ekip@example.com' })).status, 201);
+  assert.equal(db.prepare(`SELECT status FROM profile_claims WHERE user_id = 'u-ekip' AND profile_type = 'office'`).get().status, 'approved');
+});
+
+await test('+: kayıtlı OLMAYAN e-posta hata verir (davet kaydı tutulmaz), yetkisiz ekleyemez', async () => {
+  const { db, env } = await freshEnv();
+  const res = await post(env, 'u-kurucu', { key: OFFICE, email: 'yok@example.com' });
+  assert.equal(res.status, 404);
+  assert.match((await res.json()).error, /kayıtlı bir üye yok/i);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE profile_key = ?`).get(OFFICE).n, 3, 'hiçbir satır eklenmemeli');
+  assert.equal((await post(env, 'u-yabanci', { key: OFFICE, email: 'u-ekip@example.com' })).status, 403);
+  assert.equal((await post(env, 'u-kurucu', { key: 'Olmayan Firma', email: 'u-ekip@example.com' })).status, 403, 'yetkisi olmayan firma');
+});
+
+console.log('\nmadde 8 — atama = yalnızca yetki (künyede görünmez)');
+
+await test('sunucu: firma ataması HER ZAMAN Yönetici olarak donar (admin seçimi yok sayılır)', () => {
+  const admin = read('src/routes/admin.js');
+  assert.match(admin, /function normalizeOfficePosition\(\) \{[\s\S]{0,80}?return MANAGER_POSITION;/, 'atama görevi sabitlenmemiş');
+  assert.ok(!/normalizeOfficePosition\(body\.officePosition\)/.test(admin), 'admin hâlâ gönderilen görevi okuyor');
+  const adminHtml = read('admin.html');
+  assert.ok(!/id="ud-assign-office-position"/.test(adminHtml), 'atama kutusundaki görev seçici kaldırılmalı');
+  assert.ok(!/<select class="claim-position-select"/.test(adminHtml), 'onay ekranındaki görev seçici kaldırılmalı');
+  assert.ok(!/<select class="ud-claim-position-select"/.test(adminHtml), 'kullanıcı detayındaki görev seçici kaldırılmalı');
+});
+
+await test('firma pop-up payload: atanan hesap Kurucular/Ekip listelerinde YOK, claimed hâlâ true', async () => {
+  const { db, env } = await freshEnv();
+  db.prepare(`INSERT INTO architects (id, slug, name, position, source) VALUES (11, 'kurucu-kisi-profil', 'Kurucu Kişi', 'Kurucu', 'legacy_static')`).run();
+  db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (1, 11)`).run();
+  const { buildOfficePayload } = await import('../src/routes/office.js');
+  const payload = await buildOfficePayload(env, 'yetki-mimarlik');
+  const listed = [...payload.founders, ...payload.team].map(x => x.name);
+  // Yapısal bağdan gelen kişi profilleri görünmeye DEVAM eder...
+  assert.ok(listed.includes('Kurucu Kişi'), JSON.stringify(listed));
+  assert.ok(listed.includes('Kurucu Bağı Kişi'), JSON.stringify(listed));
+  // ...ama yalnızca ATAMASI olan hesaplar (Yönetici Kişi, Ekip Üyesi Kişi) görünmez.
+  assert.ok(!listed.includes('Yönetici Kişi'), JSON.stringify(listed));
+  assert.ok(!listed.includes('Ekip Üyesi Kişi'), JSON.stringify(listed));
+  assert.equal(payload.claimed, true, 'atama hâlâ sahiplenme sayılır (kaynak ibaresi)');
+});
+
+await test('istemci: X ve + düğmeleri satırda, liste BOŞ olsa da satır çizilir', () => {
+  const modal = read('js/components/auth-modal.js');
+  assert.match(modal, /if \(Array\.isArray\(managers\)\) \{/, 'boş listede + görünmeli');
+  assert.match(modal, /data-mgr-name=/, 'X düğmesi yok');
+  assert.match(modal, /data-role="mgr-add"/, '+ düğmesi yok');
+  assert.match(modal, /method: 'DELETE'/, 'X isteği yok');
+  assert.match(modal, /künyesinden \(Kurucular, Ekip\) SİLİNMEZ/, 'onay metni kullanıcıya künyeye dokunulmadığını söylemeli');
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

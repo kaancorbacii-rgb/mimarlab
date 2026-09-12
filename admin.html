@@ -124,7 +124,6 @@
   /* Sahiplenme talebi onaylanırken dondurulacak pozisyon seçici (bkz. claimPositionPickerHtml). */
   .claim-position-row{margin-top:8px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft);}
   .claim-position-row label{display:flex; align-items:center; gap:6px; font-weight:600; color:var(--ink);}
-  .claim-position-row select{font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink);}
   .claim-position-warning{font-size:11.5px; font-weight:600; color:#B84C4C; background:rgba(184,76,76,0.10); border-radius:100px; padding:3px 10px;}
   .admin-card-details{margin-top:8px; font-size:12.5px; color:var(--ink-soft); display:flex; flex-direction:column; gap:3px;}
   .admin-card-details span{font-weight:600; color:var(--ink);}
@@ -289,7 +288,6 @@
   .ud-assign-box input{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink);}
   .ud-assign-position-label{display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft); margin:0 0 4px;}
   .ud-assign-position-hint{font-size:11px; line-height:1.45; color:var(--ink-soft); margin:5px 0 8px;}
-  .ud-claim-position-select{font-size:11.5px; padding:3px 6px;}
   .ud-assign-box select{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); margin-bottom:8px;}
   .ud-assign-results{margin-top:4px; max-height:180px; overflow-y:auto; border:1px solid var(--line); border-radius:9px; background:var(--paper-card);}
   .ud-assign-results:empty{display:none; border:none;}
@@ -661,18 +659,14 @@
             <h4>Firma / Marka</h4>
             <div id="ud-claims-office-list"></div>
             <div class="ud-assign-box">
-              <!-- Atamada DONDURULACAK görev (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN). Bu
-                   kutu olmadan POST /api/admin/claims kullanıcının o anki users.position'ına
-                   düşüyordu; yeni üye olmuş bir kullanıcıda o alan NULL olduğundan atama onaylı
-                   görünüyor ama künyeyi düzenleme yetkisi VERMİYORDU (bekleyen talep akışındaki
-                   pozisyon seçicinin çözdüğü AYNI tuzak — bkz. claimPositionPickerHtml). Varsayılan
-                   "Kurucu": bir firma/marka bir üyeye atanırken beklenen tipik ilişki budur. -->
-              <label class="ud-assign-position-label" for="ud-assign-office-position">Görev</label>
-              <select id="ud-assign-office-position"></select>
-              <!-- "Yönetici": firmanın KENDİ adına açtığı kurumsal hesaplar için (ör. "DS Mimarlık"
-                   adlı üye). Künyeyi düzenleme yetkisi verir ama firma pop-up'ının Kurucular/Ekip
-                   listelerinde GÖRÜNMEZ — bkz. src/lib/projectClaimAccess.js#MANAGER_POSITION. -->
-              <div class="ud-assign-position-hint">“Yönetici”: firmanın kendi kurumsal hesabı — yalnızca kendi firmasını yönetir, Kurucular/Ekip listelerinde görünmez.</div>
+              <!-- GÖREV SEÇİCİ KALDIRILDI (kullanıcı isteği, 2026-09-12): firma/marka ataması artık
+                   bir ünvan değil, YALNIZCA yetkidir — sunucu her atamayı 'Yönetici' olarak
+                   donduruyor (bkz. src/routes/admin.js#normalizeOfficePosition). Eskiden seçilen
+                   görev iki işi birden yapıyordu: yetki vermek ve hesabı firma pop-up'ının
+                   Kurucular/Ekip listelerinde ünvanıyla göstermek; ikincisi kaldırıldı (bkz.
+                   src/routes/office.js#buildOfficePeople), künye yalnızca firmanın kendi
+                   Kurucular/Ekip kutularından ve kişi profili bağlarından besleniyor. -->
+              <div class="ud-assign-position-hint">Atama yalnızca <b>yönetim yetkisi</b> verir (görev: Yönetici): hesap bu firmanın/markanın içeriklerini düzenleyebilir. Künyedeki Kurucular/Ekip listeleri bundan etkilenmez — oraya bir isim eklemek için firma künyesini düzenle.</div>
               <input type="text" id="ud-assign-office-q" placeholder="Atamak için firma veya marka ara…">
               <div class="ud-assign-results" id="ud-assign-office-results"></div>
             </div>
@@ -1237,7 +1231,9 @@ let correctionsStatus = 'pending';
 let badgesStatus = 'pending';
 let consultationsStatus = 'pending';
 let consultationActionsStatus = 'pending';
-const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
+// 'revoked': yetkisi Hesabım > Yetkili Kullanıcılar satırından kaldırılmış atama (bkz.
+// src/lib/claimedProfiles.js#OFFICE_MANAGER_REVOKED).
+const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', revoked:'Yetki kaldırıldı' };
 const CORRECTION_STATUS_LABELS = { pending:'Beklemede', resolved:'Çözüldü', dismissed:'Reddedildi' };
 const CLAIM_KIND_LABELS = { ownership:'Sahiplenme Talepleri', correction:'Düzeltme Önerileri' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
@@ -1287,23 +1283,15 @@ async function loadOwnershipClaims(){
       ${c.note ? `<div class="admin-card-note"><strong>Kullanıcının notu</strong>${escapeHtml(c.note)}</div>` : ''}
     </div>
   `).join('');
-  list.querySelectorAll('.claim-position-select').forEach(sel=>{
-    sel.addEventListener('change', ()=> updateClaimPositionWarning(sel));
-    updateClaimPositionWarning(sel);
-  });
   list.querySelectorAll('[data-action]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const card = btn.closest('.admin-card');
       const id = card.dataset.id;
-      // 'reposition' — zaten onaylı bir firma talebinin dondurulmuş pozisyonunu düzeltmek (aynı PATCH,
-      // status yine 'approved'). Bkz. claimPositionPickerHtml.
-      const status = (btn.dataset.action === 'approve' || btn.dataset.action === 'reposition') ? 'approved' : 'rejected';
-      // Firma/marka onayında dondurulacak pozisyon (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN)
-      // — kutuda ne seçiliyse o gider; boş bırakılırsa sunucu eski davranışa (kullanıcının o anki
-      // position'ı) düşer.
+      const status = btn.dataset.action === 'approve' ? 'approved' : 'rejected';
+      // officePosition ARTIK GÖNDERİLMEZ (kullanıcı isteği, 2026-09-12): firma/marka onayı tek bir
+      // görevle ('Yönetici' = yönetim yetkisi) donuyor, sunucu gönderilen değeri yok sayıyor
+      // (bkz. src/routes/admin.js#normalizeOfficePosition).
       const body = { status };
-      const sel = card.querySelector('.claim-position-select');
-      if(status === 'approved' && sel && sel.value) body.officePosition = sel.value;
       btn.disabled = true;
       await api(`/api/admin/claims/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
       loadClaims();
@@ -1319,32 +1307,23 @@ async function loadOwnershipClaims(){
 // UD_POSITIONS ile AYNI liste; OFFICE_EDIT_POSITIONS ise src/routes/submissions.js'teki düzenleme
 // yetkisi veren alt küme (BİREBİR aynı dört değer).
 const CLAIM_OFFICE_EDIT_POSITIONS = ['Yönetici', 'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri'];
-// Bir claim'in "Görev"i, kullanıcının kendi profil pozisyonundan (UD_POSITIONS) FARKLI bir listedir:
-// buna ek olarak 'Yönetici' (firmanın kendi kurumsal hesabı — düzenleme yetkisi verir, popup'ta
-// Kurucular/Ekip'te GÖRÜNMEZ; bkz. src/lib/projectClaimAccess.js#MANAGER_POSITION) seçilebilir.
-const CLAIM_POSITIONS = ['Yönetici', 'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
+// (Görev SEÇİM listesi kaldırıldı — kullanıcı isteği, 2026-09-12: atama artık tek bir görevle,
+// 'Yönetici' yetkisiyle donuyor. Eski atamalarda donmuş değerler yalnızca GÖSTERİLİR, bkz.
+// CLAIM_OFFICE_EDIT_POSITIONS ve udClaimPositionHtml.)
+// KULLANICI İSTEĞİ, 2026-09-12: onayda da görev seçilmez — her firma/marka onayı 'Yönetici'
+// yetkisi olarak donar (bkz. src/routes/admin.js#normalizeOfficePosition). Kutu, yalnızca
+// ESKİ onaylarda donmuş görevi GÖSTERMEK için duruyor; seçim ve "Pozisyonu Güncelle" kaldırıldı.
 function claimPositionPickerHtml(c){
   if(c.profile_type !== 'office') return '';
   if(c.status !== 'pending' && c.status !== 'approved') return '';
-  // Beklemede: kullanıcının o anki pozisyonu ön seçili (onaylandığında dondurulacak değer).
-  // Onaylı: ZATEN dondurulmuş office_position seçili — yanlış/boş donmuş eski bir onay (canlıdaki
-  // "MEEZ Mimarlık" gibi) panelden düzeltilebilsin diye, "Pozisyonu Güncelle" ile yeniden onaylanır.
-  const current = (c.status === 'approved' ? c.office_position : c.user_position) || '';
-  const options = ['', ...CLAIM_POSITIONS].map(p =>
-    `<option value="${escapeAttr(p)}"${p === current ? ' selected' : ''}>${p ? escapeHtml(p) : '— pozisyon seçilmemiş —'}</option>`
-  ).join('');
-  return `<div class="claim-position-row">
-    <label>${c.status === 'approved' ? 'Onaydaki pozisyon' : 'Onaydaki pozisyon'} <select class="claim-position-select">${options}</select></label>
-    ${c.status === 'approved' ? '<button class="admin-btn" data-action="reposition">Pozisyonu Güncelle</button>' : ''}
-    <span class="claim-position-warning" style="display:none;"></span>
-  </div>`;
+  if(c.status === 'approved'){
+    const frozen = c.office_position || '—';
+    return `<div class="claim-position-row"><label>Yetki: <b>${escapeHtml(frozen)}</b></label>
+      <span class="claim-position-warning" style="display:${CLAIM_OFFICE_EDIT_POSITIONS.includes(frozen) ? 'none' : ''};">⚠ Bu eski görev düzenleme yetkisi VERMEZ; atamayı yenilemek için talebi tekrar onayla.</span></div>`;
+  }
+  return `<div class="claim-position-row"><label>Onaylanırsa: <b>Yönetici yetkisi</b> (içerikleri düzenleyebilir; künyedeki Kurucular/Ekip listelerini etkilemez)</label></div>`;
 }
-function updateClaimPositionWarning(sel){
-  const warn = sel.closest('.claim-position-row').querySelector('.claim-position-warning');
-  const ok = CLAIM_OFFICE_EDIT_POSITIONS.includes(sel.value);
-  warn.style.display = ok ? 'none' : '';
-  warn.textContent = ok ? '' : '⚠ Bu görev firma bilgilerini düzenleme yetkisi VERMEZ (yalnızca Yönetici, Kurucu, Kurucu Ortak, Ortak, Ekip Lideri verir).';
-}
+
 
 async function loadCorrections(){
   renderStatusSubtabs(document.getElementById('claims-subtabs'), CORRECTION_STATUS_LABELS, correctionsStatus, (s)=>{ correctionsStatus = s; loadClaims(); }, true);
@@ -1904,7 +1883,7 @@ const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mima
 const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
 const UD_CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
 const UD_CLAIM_EDIT_STYPE = { architect: 'architects', office: 'offices' };
-const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
+const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', revoked: 'Yetki kaldırıldı' };
 
 (function wireUdSelects(){
   const prof = document.getElementById('ud-f-profession');
@@ -2004,16 +1983,17 @@ async function loadUdClaims(userId){
 // görülebiliyor ne düzeltilebiliyordu; görev yetkisiz/boş donmuşsa satır "ONAYLANDI" görünmesine
 // rağmen kullanıcıya HİÇBİR düzenleme yetkisi vermiyordu (bkz. src/routes/admin.js#
 // listUserClaimsAdmin). Kişi (architect) atamalarında görevin yetkiyle ilgisi yok, seçici çizilmez.
+// SALT GÖSTERİM (kullanıcı isteği, 2026-09-12): görev artık seçilmiyor, her atama 'Yönetici'
+// yetkisi olarak donuyor. Kutu, ESKİ atamalarda donmuş görevi ve o görevin düzenleme yetkisi
+// verip vermediğini göstermeye devam eder — yetkisiz donmuş eski bir atama, aynı profili yeniden
+// atayarak (soldaki arama kutusu) 'Yönetici'ye yükseltilir.
 function udClaimPositionHtml(c){
   if(c.profile_type !== 'office' || c.status !== 'approved') return '';
   const current = c.office_position || '';
-  const options = ['', ...CLAIM_POSITIONS].map(p =>
-    `<option value="${escapeAttr(p)}"${p === current ? ' selected' : ''}>${p ? escapeHtml(p) : '— görev yok —'}</option>`
-  ).join('');
   const ok = CLAIM_OFFICE_EDIT_POSITIONS.includes(current);
-  return `<span class="ud-claim-position" style="display:flex; align-items:center; gap:6px;">
-    <select class="ud-claim-position-select" data-id="${escapeAttr(c.id)}" title="Bu atamada dondurulmuş görev">${options}</select>
-    <span title="${ok ? 'Bu görev firma bilgilerini düzenleme yetkisi verir.' : 'Bu görev firma bilgilerini düzenleme yetkisi VERMEZ.'}">${ok ? '✓' : '⚠'}</span>
+  return `<span class="ud-claim-position" style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft);">
+    <span>${current ? escapeHtml(current) : '— görev yok —'}</span>
+    <span title="${ok ? 'Bu görev firma bilgilerini düzenleme yetkisi verir.' : 'Bu görev firma bilgilerini düzenleme yetkisi VERMEZ; profili yeniden ata.'}">${ok ? '✓' : '⚠'}</span>
   </span>`;
 }
 
@@ -2031,18 +2011,6 @@ function renderUdClaimCol(containerId, items){
       </span>
     </div>
   `).join('');
-  // Görev değişince aynı PATCH ucu (status yine 'approved') çağrılır — bkz. Profil Talepleri
-  // sekmesindeki "Pozisyonu Güncelle" ile BİREBİR aynı istek.
-  container.querySelectorAll('.ud-claim-position-select').forEach(sel=>{
-    sel.addEventListener('change', async ()=>{
-      sel.disabled = true;
-      await api(`/api/admin/claims/${encodeURIComponent(sel.dataset.id)}`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ status: 'approved', officePosition: sel.value }),
-      });
-      loadUdClaims(udCurrentUserId);
-    });
-  });
   container.querySelectorAll('.ud-claim-remove-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!confirm('Bu profil ataması kaldırılsın mı? Kullanıcı bu profili artık düzenleyemez.')) return;
@@ -2060,12 +2028,10 @@ function renderUdClaimCol(containerId, items){
 function wireUdAssign(profileType, inputId, resultsId, positionSelectId){
   const input = document.getElementById(inputId);
   const results = document.getElementById(resultsId);
-  // Firma/marka atamasında dondurulacak görev — bkz. markup'taki gerekçe. Yalnızca office için var.
-  const positionSel = positionSelectId ? document.getElementById(positionSelectId) : null;
-  if(positionSel){
-    positionSel.innerHTML = CLAIM_POSITIONS.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
-    positionSel.value = 'Kurucu';
-  }
+  // positionSelectId artık KULLANILMIYOR (kullanıcı isteği, 2026-09-12): atama tek bir görevle
+  // ('Yönetici') donuyor, sunucu body.officePosition'ı yok sayıyor. Parametre imzada kalmadı;
+  // çağrı yerleri de göndermiyor.
+  void positionSelectId;
   let timer = null;
   function runSearch(){
     clearTimeout(timer);
@@ -2091,7 +2057,6 @@ function wireUdAssign(profileType, inputId, resultsId, positionSelectId){
           if(!udCurrentUserId) return;
           row.style.opacity = '0.5';
           const payload = { userId: udCurrentUserId, profileType, profileKey: row.dataset.name };
-          if(positionSel && positionSel.value) payload.officePosition = positionSel.value;
           await api('/api/admin/claims', {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify(payload),
@@ -2107,7 +2072,7 @@ function wireUdAssign(profileType, inputId, resultsId, positionSelectId){
   input.addEventListener('focus', ()=>{ if(!results.innerHTML) runSearch(); });
 }
 wireUdAssign('architect', 'ud-assign-architect-q', 'ud-assign-architect-results');
-wireUdAssign('office', 'ud-assign-office-q', 'ud-assign-office-results', 'ud-assign-office-position');
+wireUdAssign('office', 'ud-assign-office-q', 'ud-assign-office-results');
 
 async function loadUdSubmissions(userId){
   const container = document.getElementById('ud-submissions-list');

@@ -269,6 +269,10 @@ export async function fetchOfficeFounderLinks(env, user, officeEditPositions) {
       ORDER BY o.name COLLATE NOCASE ASC`
   ).bind(...ids).all();
   const posById = new Map(all.map(r => [r.id, r.position || null]));
+  // Yetkisi elle kaldırılmış firmalar (bkz. canEditOfficeViaFounderLink'teki AYNI gerekçe) — firma
+  // kutuda GÖRÜNMEYE devam eder (kurucu bağı duruyor), yalnızca canEdit düşer, yani "Profili
+  // Düzenle" butonu çıkmaz. Tek sorgu: kullanıcının tüm iptal kayıtları.
+  const revoked = await revokedOfficeKeysForUser(env, user.id);
   const out = [];
   const seen = new Set();
   for (const r of results || []) {
@@ -277,8 +281,65 @@ export async function fetchOfficeFounderLinks(env, user, officeEditPositions) {
     const position = posById.get(r.architect_id) || null;
     out.push({
       name: r.name, slug: r.slug, role: position,
-      canEdit: claimedIds.has(r.architect_id) && officeEditPositions.has(position || ''),
+      canEdit: claimedIds.has(r.architect_id) && officeEditPositions.has(position || '')
+        && !revoked.has(foldTr(r.name)),
     });
+  }
+  return out;
+}
+
+// -----------------------------------------------------------------------------------------------
+// YETKİ İPTALİ (kullanıcı isteği, 2026-09-12: Hesabım > "Yetkili Kullanıcılar" satırındaki X).
+//
+// NEDEN YENİ TABLO YOK: iptal, profile_claims'in KENDİ satırında yaşar — status = 'revoked'.
+//   * claim yoluyla yetkili olan biri için satır zaten vardır; 'approved' olmaktan çıkması tek
+//     başına YETERLİDİR, çünkü yetkiyi okuyan her kapı (submissions.js#verifyClaimedProfileKey,
+//     projectClaimAccess.js, badgeAccess.js, officeJobs.js ...) status='approved' arar.
+//   * kurucu bağıyla yetkili olan biri için satır YOKTUR; X o kullanıcıya 'revoked' bir satır
+//     açar ve kurucu bağını okuyan İKİ fonksiyon (canEditOfficeViaFounderLink,
+//     fetchOfficeFounderLinks) bunu kontrol eder. Başka okuma noktası yoktur.
+// Yeni bir tablo, deploy ile birlikte otomatik uygulanmayan bir migration gerektirirdi (bkz.
+// CLAUDE.md: migration'lar elle çalıştırılır) — kod canlıya çıkıp tablo gelmediğinde yetki
+// sorguları hata verirdi. Mevcut tablo ve UNIQUE(user_id, profile_type, profile_key) kısıtı
+// hem bu riski hem "aynı kullanıcı için iki çelişkili kayıt" ihtimalini ortadan kaldırır.
+// -----------------------------------------------------------------------------------------------
+export const OFFICE_MANAGER_REVOKED = 'revoked';
+
+// Firmanın adı VE legacy_key'i birlikte aranır: profile_claims bu depoda ikisiyle de anahtarlanmış
+// olabilir (bkz. canEditOfficeViaFounderLink'teki AYNI OR deseni).
+export async function isOfficeManagerRevoked(env, userId, officeName) {
+  if (!userId || !officeName) return false;
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM profile_claims c
+      WHERE c.user_id = ? AND c.profile_type = 'office' AND c.status = ?
+        AND (c.profile_key = ?3
+             OR c.profile_key IN (SELECT o.name FROM offices o WHERE o.deleted_at IS NULL AND (o.name = ?3 OR o.legacy_key = ?3))
+             OR c.profile_key IN (SELECT o.legacy_key FROM offices o WHERE o.deleted_at IS NULL AND o.legacy_key IS NOT NULL AND (o.name = ?3 OR o.legacy_key = ?3)))
+      LIMIT 1`
+  ).bind(userId, OFFICE_MANAGER_REVOKED, officeName).first();
+  return !!row;
+}
+
+// Kullanıcının TÜM iptal kayıtları, Türkçe katlamalı anahtar kümesi olarak (fetchOfficeFounderLinks
+// listeyi isimle eşleştirdiğinden ad başına ayrı sorgu atmamak için tek seferde okunur).
+export async function revokedOfficeKeysForUser(env, userId) {
+  const out = new Set();
+  if (!userId) return out;
+  const { results } = await env.DB.prepare(
+    `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND status = ?`
+  ).bind(userId, OFFICE_MANAGER_REVOKED).all();
+  for (const r of results || []) {
+    if (!r.profile_key) continue;
+    out.add(foldTr(r.profile_key));
+    // legacy_key ile kaydedilmiş bir iptali canonical adla da eşleştirebilmek için karşılığı eklenir.
+  }
+  if (!out.size) return out;
+  const { results: offices } = await env.DB.prepare(
+    `SELECT name, legacy_key FROM offices WHERE deleted_at IS NULL AND legacy_key IS NOT NULL`
+  ).all();
+  for (const o of offices || []) {
+    if (out.has(foldTr(o.legacy_key))) out.add(foldTr(o.name));
+    if (out.has(foldTr(o.name)) && o.legacy_key) out.add(foldTr(o.legacy_key));
   }
   return out;
 }
@@ -299,6 +360,13 @@ export async function fetchOfficeFounderLinks(env, user, officeEditPositions) {
 // ayrım office_founders'a rol kolonu eklemeden mümkün değil.
 export async function canEditOfficeViaFounderLink(env, user, officeName, officeEditPositions) {
   if (!user || !officeName) return false;
+  // YETKİSİ ELLE KALDIRILMIŞ MI (kullanıcı isteği, 2026-09-12: Hesabım'daki "Yetkili Kullanıcılar"
+  // satırındaki X). İptal kaydı profile_claims'te status='revoked' satırıdır (bkz.
+  // OFFICE_MANAGER_REVOKED) — claim YOLUYLA yetkili olanlarda o satırın kendisi 'approved'dan
+  // çıktığı için tüm kapılar zaten kapanır; KURUCU BAĞI yolunda ise ortada iptal edilecek bir
+  // satır olmadığından iptal kaydı burada okunmak ZORUNDA. X künyeye (office_founders) DOKUNMAZ:
+  // kişi firma popup'ının Kurucular listesinde kalır, yalnızca düzenleme yetkisi biter.
+  if (await isOfficeManagerRevoked(env, user.id, officeName)) return false;
   const { claimed } = await fetchOwnArchitectRows(env, user);
   const eligible = claimed.filter(r => officeEditPositions.has(r.position || ''));
   if (!eligible.length) return false;
@@ -470,6 +538,8 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
   if (!key) return [];
   const positions = [...officeEditPositions];
   const ph = positions.map(() => '?').join(', ');
+  // Sabit, kullanıcı girdisi DEĞİL (bu dosyanın kendi export'u) — SQL'e gömülmesi güvenli.
+  const OFFICE_MANAGER_REVOKED_SQL = OFFICE_MANAGER_REVOKED;
   // Firmanın adı ile legacy_key'i ayrı ayrı sorulur: profile_claims bu depoda ikisiyle de
   // anahtarlanmış olabilir (bkz. canEditOfficeViaFounderLink'teki AYNI OR).
   const [claimRes, founderRes] = await Promise.all([
@@ -482,6 +552,9 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
           AND c.office_position IN (${ph})`
     ).bind(key, ...positions).all(),
     env.DB.prepare(
+      // NOT EXISTS — yetkisi ELLE KALDIRILMIŞ kurucu bağı listeye girmez (bkz.
+      // isOfficeManagerRevoked: claim yolunda status='approved' süzgeci bunu zaten yapıyor,
+      // kurucu bağında iptal kaydı ayrıca sorulmak zorunda).
       `SELECT u.id AS userId, u.name AS name, a.position AS position
          FROM office_founders f
          JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
@@ -490,7 +563,11 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
           AND (c.profile_key = a.name OR (a.legacy_key IS NOT NULL AND c.profile_key = a.legacy_key))
          JOIN users u ON u.id = c.user_id
         WHERE (o.name = ?1 OR o.legacy_key = ?1)
-          AND a.position IN (${ph})`
+          AND a.position IN (${ph})
+          AND NOT EXISTS (SELECT 1 FROM profile_claims rc
+                           WHERE rc.user_id = u.id AND rc.profile_type = 'office'
+                             AND rc.status = '${OFFICE_MANAGER_REVOKED_SQL}'
+                             AND (rc.profile_key = o.name OR (o.legacy_key IS NOT NULL AND rc.profile_key = o.legacy_key)))`
     ).bind(key, ...positions).all(),
   ]);
   const out = [];
@@ -498,10 +575,15 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
   // Talep yolu ÖNCE eklenir: aynı kullanıcı iki yoldan da yetkiliyse görev olarak onay anında
   // dondurulmuş değer gösterilir (firmaya ÖZGÜ tek doğru değer — bkz. auth-modal.js#renderFirmPage
   // "Görevin" satırındaki AYNI öncelik).
-  for (const r of [...(claimRes.results || []), ...(founderRes.results || [])]) {
-    if (!r || !r.name || seen.has(r.userId)) continue;
-    seen.add(r.userId);
-    out.push({ userId: r.userId, name: r.name, position: r.position || null });
+  // source — istemci için: 'claim' admin ataması (ya da Hesabım'daki + ile verilen yetki),
+  // 'founder' firmanın Kurucular listesindeki onaylı kişi profilinden gelen yetki. İkisinde de X
+  // aynı şeyi yapar (yetkiyi kaldırır, künyeye dokunmaz) — alan yalnızca ipucu metni içindir.
+  for (const [source, rows] of [['claim', claimRes.results || []], ['founder', founderRes.results || []]]) {
+    for (const r of rows) {
+      if (!r || !r.name || seen.has(r.userId)) continue;
+      seen.add(r.userId);
+      out.push({ userId: r.userId, name: r.name, position: r.position || null, source });
+    }
   }
   out.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
   return out;
