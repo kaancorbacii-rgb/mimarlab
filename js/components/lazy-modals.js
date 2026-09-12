@@ -204,6 +204,11 @@
     project: {
       src: 'js/components/project-modal.js', globalName: 'ProjectModal',
       owner: 'project', pathRe: /^\/proje\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
+      // Proje popup'ının GÖRÜNÜMÜ bu dosyada (bkz. yukarıdaki loadCss gerekçesi ve
+      // css/project-detail.css dosya başı). Diğer üç varlık modalı stillerini JS'ten enjekte
+      // ediyor; proje modalı sayfanın CSS'ine bağımlıydı ve popup her sayfadan açılır olunca
+      // çıplak kalıyordu. Tek kaynak artık burada bildiriliyor.
+      cssDeps: ['css/project-detail.css'],
       // proje.html'in <script defer> SIRASIYLA birebir aynı (bkz. o dosyadaki script bloğu) —
       // loadDep etiketleri async=false ile eklediğinden indirme paralel, ÇALIŞMA bu sırayla olur.
       //   il-ilce-data.js — parseLocationFull: künyedeki il adı ve "Şehirdeki Diğer Projeler"
@@ -313,6 +318,36 @@
       dep.onerror = () => { dep.remove(); res(); };
       document.head.appendChild(dep);
     });
+    // CSS BAĞIMLILIĞI (kullanıcı bildirimi, 2026-09-12: "popup'ı açınca sayfa böyle gözüktü,
+    // yenileyince düzeldi"). Bir modal, tasarımını barındıran sayfanın satır içi <style>'ına
+    // bağımlı olamaz — artık her sayfadan açılabiliyor. Proje popup'ının kuralları bu yüzden
+    // css/project-detail.css'e taşındı (bkz. o dosyanın başı) ve burada, modül çalışmadan ÖNCE
+    // yüklenip BEKLENİYOR: stil gelmeden çizilen popup, kullanıcının gördüğü çıplak HTML'di.
+    // Sayfa dosyayı zaten <link>'lediyse (proje.html, en-iyi-100.html) ikinci kez eklenmez.
+    const loadCss = (rawHref) => new Promise(res => {
+      const href = versionedSrc(rawHref);
+      const already = document.querySelector(`link[rel="stylesheet"][href="${href}"], link[rel="stylesheet"][href="/${rawHref}"], link[rel="stylesheet"][href="${rawHref}"]`);
+      if (already) {
+        // Zaten varsa yüklenmesini bekle: sayfa etiketleri çoğunlukla çoktan yüklüdür (sheet
+        // dolu), değilse load olayına bağlanılır.
+        if (already.sheet) return res();
+        already.addEventListener('load', () => res(), { once: true });
+        already.addEventListener('error', () => res(), { once: true });
+        setTimeout(res, 3000);
+        return;
+      }
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      link.onload = () => res();
+      // Hata hâlinde de çözülür: stilsiz bir popup, HİÇ açılmayan bir popup'tan iyidir.
+      link.onerror = () => res();
+      document.head.appendChild(link);
+      // Güvenlik ağı — CSS bir nedenle askıda kalırsa popup süresiz beklemesin.
+      setTimeout(res, 3000);
+    });
+    const cssReady = Promise.all((mod.cssDeps || []).map(loadCss));
+
     // Modülün KENDİ baytlarını bağımlılıklarla AYNI ANDA çekmeye başla. <script> etiketi yine
     // bağımlılıklar bittikten SONRA eklenir (çalışma sırası garantisi bozulmasın) ama o an dosya
     // zaten tarayıcı önbelleğinde olduğundan ikinci bir gidiş-dönüş oluşmaz. Canlıda ölçüldü: bu
@@ -335,9 +370,11 @@
     // zincir her biri için AYRI bir gidiş-dönüş demekti (yerelde ölçüldü: 4 bağımlılık + modül =
     // 5 ardışık istek, ~57 ms; canlıdaki RTT ile bu birkaç yüz ms'ye çıkardı). auth/info bu
     // bayrağı TAŞIMAZ — orada profession-shared.js → profession-drawer.js sırası korunur.
-    const depsReady = mod.parallelDeps
+    const jsDepsReady = mod.parallelDeps
       ? Promise.all((mod.deps || []).map(loadDep))
       : (mod.deps || []).reduce((chain, src) => chain.then(() => loadDep(src)), Promise.resolve());
+    // CSS ile JS paralel iner; modül ikisi de hazır olmadan ÇALIŞMAZ.
+    const depsReady = Promise.all([jsDepsReady, cssReady]);
 
     // Sayfa modülü KENDİ <script> etiketiyle zaten yüklüyorsa (proje.html#project-modal.js, urun.html#
     // product-modal.js) ikinci bir etiket enjekte etmek aynı dosyayı iki kez çalıştırır (top-level
@@ -355,7 +392,9 @@
       const poll = setInterval(() => { if (window[mod.globalName]) finish(); }, 50);
       setTimeout(() => { if (!done) finish(); }, 15000);
     });
-    if (pageScript) { pending[key] = waitForPageScript(); pending[key].catch(() => { delete pending[key]; }); return pending[key]; }
+    // Sayfa modülü kendi etiketiyle yüklüyor olsa bile CSS beklenir: proje.html/en-iyi-100.html
+    // dosyayı zaten <link>'liyor, loadCss orada yalnızca "yüklendi mi" diye bakar (no-op).
+    if (pageScript) { pending[key] = cssReady.then(waitForPageScript); pending[key].catch(() => { delete pending[key]; }); return pending[key]; }
 
     pending[key] = depsReady.then(() => new Promise((resolve, reject) => {
       const script = document.createElement('script');

@@ -961,6 +961,11 @@
   }
 
 </style>
+<!-- Proje popup (detay) stilleri — proje.html ile AYNI tek kaynak (bkz. css/project-detail.css).
+     Bu sayfa da proje popup'ını açar; kendi satır içi kuralları bu dosyanınkilerle çakışmaz,
+     dosya <style>'dan SONRA geldiği için eşit özgüllükte olan kurallarda paylaşılan sürüm kazanır
+     — yani popup her iki sayfada da birebir aynı görünür. -->
+<link rel="stylesheet" href="/css/project-detail.css">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
   window.dataLayer = window.dataLayer || [];

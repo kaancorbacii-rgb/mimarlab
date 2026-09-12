@@ -41,7 +41,12 @@ test('dinamik bağımlılıklar async=false ile eklenir (indirme paralel, çalı
 });
 test('sayfa kendi <script> etiketiyle yüklemişse modül İKİNCİ kez enjekte edilmez', () => {
   assert.match(lazyCode, /const pageScript = document\.querySelector\(`script\[src="\$\{modSrc\}"\]`\)/);
-  assert.match(lazyCode, /if \(pageScript\) \{ pending\[key\] = waitForPageScript\(\)/);
+  // Sabitleme GEVŞETİLDİ (2026-09-12): satır artık CSS bağımlılığını da bekliyor
+  // (`cssReady.then(waitForPageScript)` — bkz. proje popup'ının stilsiz açılma hatası ve
+  // lazy-modals.js#loadCss). Testin amacı "sayfa kendi etiketini taşıyorsa modül İKİNCİ kez
+  // enjekte EDİLMEZ, o etiketin çalışması beklenir"; bu, waitForPageScript'in o dalda
+  // kullanılmasıyla doğrulanır — satırın birebir metniyle değil.
+  assert.match(lazyCode, /if \(pageScript\) \{ pending\[key\] = [^;]*waitForPageScript/);
 });
 test('proje.html project-modal.js\'i hâlâ kendi etiketiyle yükler (ilk açılış hızı korunur)', () => {
   assert.match(read('proje.html'), /<script src="js\/components\/project-modal\.js" defer><\/script>/);

@@ -427,6 +427,20 @@ else
 fi
 rm -f /tmp/preflight_photosrc
 
+# KULLANICI BİLDİRİMİ (2026-09-12, üç kez tekrarlandı): "popup'ı açınca sayfa böyle gözüktü,
+# yenileyince düzeldi." Proje popup'ı, kuralları proje.html'in satır içi <style>'ında durduğu için
+# başka sayfalardan açıldığında ÇIPLAK çiziliyordu (performans turu popup'ı her sayfada aynı
+# belgede açılır yapınca ortaya çıktı). Kurallar css/project-detail.css'e taşındı; bu test o
+# çözümün aşınmasını — bir popup sınıfının yeniden yalnızca sayfa <style>'ında tanımlanmasını —
+# deploy'dan önce durdurur. Bkz. scripts/test-2026-09-12-project-modal-css.mjs.
+if node scripts/test-2026-09-12-project-modal-css.mjs >/tmp/preflight_pmcss 2>&1; then
+  ok "proje popup CSS tek kaynak testleri geçti ($(grep -c '^  ok ' /tmp/preflight_pmcss) test)"
+else
+  bad "proje popup CSS testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_pmcss >&2
+fi
+rm -f /tmp/preflight_pmcss
+
 # Kullanıcı isteği, 2026-09-10 on birinci tur: claim kutusu flash'ı, önizleme kişi/firma/marka
 # popup'larının açılabilir olması (görseller blurlu), withSingleFlight bayat girdi koruması.
 # Bkz. scripts/test-2026-09-10-round11.mjs.
