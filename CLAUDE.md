@@ -64,3 +64,39 @@ health-check + smoke-test aynen çalışır; hiçbir kontrol orada tekrarlanmad�
   workflow onu boş bırakmaz, tamamen kaldırır.
 - **GitHub kısıtı:** `workflow_dispatch` yalnızca **default dalda (`main`) duran** workflow dosyaları
   için tetiklenebilir. Bu dosya `main`'e merge edilene kadar ne arayüzde ne API'den görünür.
+
+### Cloudflare Workers Builds (Git entegrasyonu) — BAĞLI KALMAMALI
+
+**Bulgu (2026-09-12):** Cloudflare panelinden bu repoya bir *Workers Builds* Git entegrasyonu
+bağlanmış ve hiçbir yerde belgelenmemişti — bu dosyada, `docs/`'ta, `deploy.sh`'te, `scripts/`'te
+"Workers Builds" geçmiyordu. Her push'ta Cloudflare repoyu klonlayıp kendi deploy'unu başlatıyor ve
+PR'lara `Workers Builds: mimarlab` check'i ile `cloudflare-workers-and-pages[bot]` yorumu düşüyor.
+
+Bu entegrasyon çıplak `wrangler deploy` / `versions upload` çalıştırdığı için `wrangler.jsonc`'un
+build hook'u (`scripts/deploy-guard.sh --hook`, `0a44bfcb` / 2026-09-10) onu **reddediyor**. Yerelde
+birebir üretildi:
+
+```
+$ WRANGLER_COMMAND=deploy bash scripts/deploy-guard.sh --hook
+DEPLOY DURDURULDU: doğrudan 'wrangler deploy' kullanılamaz.     (çıkış 1)
+```
+
+Komut bazında: `deploy` ve `versions upload` reddedilir (yani non-production dal önizlemeleri de),
+`dev` ve `types` etkilenmez. Yani entegrasyon **2026-09-10'dan beri her commit'te düşüyor**; canlıya
+bir şey yayınlamıyor, ama sürekli kırmızı bir check üretiyor — ve "kırmızı normaldir" alışkanlığı
+zamanla gerçek bir hatayı gizler.
+
+**Karar (2026-09-12): entegrasyon Cloudflare panelinden kaldırılacak** (Workers → `mimarlab` →
+Settings → Build → Git repository → Disconnect). Reddedilen alternatifler:
+
+- Workers Builds'in deploy komutunu `./deploy.sh` yapmak — `main`'e her push'u otomatik production
+  deploy'una çevirirdi; canlıya çıkış açık bir karar olarak kalmalı.
+- Workers Builds ortamına `MIMARLAB_ALLOW_BARE_DEPLOY=1` vermek — 2026-09-10'da bilerek eklenen
+  kapıyı etkisiz kılar: eşzamanlı deploy kilidi, preflight ve deploy sonrası health-check +
+  smoke-test atlanır.
+
+Kaldırmak **hiçbir deploy yolunu bozmaz**: yerelde `./deploy.sh`, uzaktan
+`.github/workflows/deploy.yml` (API token ile doğrudan Cloudflare API'sine gider, bu entegrasyonu
+kullanmaz). Yayında duran Worker de etkilenmez — kaldırılan şey deploy'u *tetikleyen* bağlantı.
+
+**Hâlâ bağlı mı?** Yeni bir commit'te `Workers Builds: mimarlab` check'i beliriyorsa bağlı demektir.
