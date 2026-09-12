@@ -438,7 +438,13 @@ await test('ürün: marka metni farklı olsa da brand_office_id bağı yeter', a
   await seedMembers(db);
   seedBrand(db);
   const oid = db.prepare(`SELECT id FROM offices WHERE name = 'Örnek Marka'`).get().id;
-  db.prepare(`INSERT INTO products (slug, legacy_key, kind, title, brand_office_id, brand_name_raw, source) VALUES ('masa-ornek', 'x|||Masa', 'product', 'Masa', ?, 'Eski Ad', 'legacy_static')`).run(oid);
+  // hidden_at DOLU: bu testte canonical satır ELLE ekleniyor (runContentAction'ın archive yolundan
+  // geçmiyor), ama "arşiv" bu depoda İKİ satırın birlikte okunmasıdır — gönderi 'archived' VE
+  // canonical satır hidden_at ile canlıdan çekilmiş (bkz. src/routes/archive.js dosya başı).
+  // Gizlenmemiş hâli gerçekte hiç oluşmayan bir durumdu ve 2026-09-12'de eklenen "canlı içerik
+  // arşivde görünmesin" süzgeci (src/lib/archiveSync.js) onu haklı olarak eliyor. Testin konusu
+  // brand_office_id bağı; gizlilik durumu ona dokunmaz.
+  db.prepare(`INSERT INTO products (slug, legacy_key, kind, title, brand_office_id, brand_name_raw, source, hidden_at) VALUES ('masa-ornek', 'x|||Masa', 'product', 'Masa', ?, 'Eski Ad', 'legacy_static', '2026-09-01')`).run(oid);
   db.prepare(`INSERT INTO product_submissions (id, owner_user_id, status, created_at, updated_at, title, brand, claimed_slug) VALUES ('p-bag', 'u-admin', 'archived', 1, 1, 'Masa', 'Eski Ad', 'masa-ornek')`).run();
   const items = (await mine('u-ekip')).filter(it => it.kind === 'product');
   assert.equal(items.length, 1, JSON.stringify(items));

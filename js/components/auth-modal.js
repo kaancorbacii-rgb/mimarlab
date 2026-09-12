@@ -4448,8 +4448,14 @@ const AuthModal = (function () {
           closeMessageThread();
           const fallback = () => { window.location.href = senderLink.href; };
           if (!window.LazyModals || !LazyModals.load) { fallback(); return; }
+          // Modal.open() SÖZÜ DÖNDÜRÜLÜR (return): aksi halde open() içinde oluşan bir hata
+          // (ör. eksik bir bağımlılık yüzünden ReferenceError) bu zincirin .catch'ine HİÇ ulaşmaz,
+          // "unhandled rejection" olarak sessizce kaybolur ve kullanıcı ekranda yarım çizilmiş bir
+          // popup'la kalırdı — 2026-09-12'de tam olarak bu yaşandı (bkz. lazy-modals.js#
+          // ENTITY_UI_DEPS'e eklenen save-widget.js). Artık böyle bir durumda tam sayfa gezinmeye
+          // düşülür, yani kullanıcı her hâlükârda doğru profili görür.
           LazyModals.load(key)
-            .then((Modal) => { if (Modal && Modal.open) Modal.open(slug, { triggerEl: senderLink, basePath }); else fallback(); })
+            .then((Modal) => { if (!Modal || !Modal.open) return fallback(); return Modal.open(slug, { triggerEl: senderLink, basePath }); })
             .catch(fallback);
         });
       }

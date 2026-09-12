@@ -116,6 +116,17 @@
     'js/components/related-strip.js',     // RelatedStrip — "Diğer Projeler"/"İlgili" şeritleri
     'js/components/project-group-filter.js', // ProjectGroupFilter — şeritlerin gruba göre çentiği
     'js/components/share-button.js',      // ShareWidget — başlıktaki Paylaş düğmesi
+    // save-widget.js — GERÇEK BULGU (kullanıcı bildirimi, 2026-09-12: "mesajlarda isme tıklayınca
+    // yanlış popup çıkıyor"): bu dosya yalnızca Kaydet/Takip düğmelerini değil, `slugify()`
+    // GLOBAL'ini de tanımlıyor (save-widget.js#37) ve architect/office/product modalleri onu
+    // KORUMASIZ çağırıyor (ör. architect-modal.js#updateHeadMeta -> canonicalUrl). kisi/firma/urun/
+    // proje.html dosyayı kendi <script> etiketiyle yüklediğinden sorun orada hiç görünmüyordu; ama
+    // bu modaller artık save-widget.js taşımayan sayfalardan da açılabiliyor (ör. /hesabim'daki
+    // mesaj kutusundan gönderenin profili). O sayfalarda renderItem, bölümlerin görünürlüğünü
+    // açtıktan HEMEN SONRA "ReferenceError: slugify is not defined" ile düşüyor ve kullanıcı
+    // adı/fotoğrafı/içeriği olmayan YARIM bir popup görüyordu. Bağımlılık burada bildirilir;
+    // dosyayı zaten <script> ile yükleyen sayfalarda loadDep tekrar enjekte etmez (no-op).
+    'save-widget.js',
   ];
   const ENTITY_MODULES = {
     architect: {

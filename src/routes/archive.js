@@ -38,6 +38,7 @@ import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 import { foldTr } from '../lib/textMatch.js';
 import officeKindJs from '../../office-kind.js';
+import { notArchivedIfCanonicalLiveSql } from '../lib/archiveSync.js';
 
 const { isBrandOffice } = officeKindJs;
 
@@ -153,6 +154,11 @@ async function brandTextsMatching(env, table, names) {
 async function fetchArchivedRows(env, user, typeKey, claimKeys) {
   const table = TYPE_TO_TABLE[typeKey];
   const claimedCol = CLAIMED_COLUMN[typeKey];
+  // Canonical satırı YAYINDA (blursuz, canlı) olan hiçbir satır arşiv kutusuna girmez — admin
+  // panelinin Arşiv sekmesiyle AYNI süzgeç, çünkü ikisi de AYNI status='archived' satırlarını
+  // okuyor (kullanıcı bildirimi, 2026-09-12; kök neden ve gerekçe: src/lib/archiveSync.js).
+  // Sorgular tabloyu takma adsız seçtiğinden alias olarak tablo adı geçilir.
+  const liveGuard = notArchivedIfCanonicalLiveSql(typeKey, table);
   const editNames = [...claimKeys.architects, ...claimKeys.offices];
   const seeNames = [...new Set([...claimKeys.architects, ...claimKeys.memberOffices])];
   if (typeKey === 'projects') {
@@ -164,7 +170,7 @@ async function fetchArchivedRows(env, user, typeKey, claimKeys) {
       `WITH see_slugs AS (${see.sql}), edit_slugs AS (${edit.sql})
        SELECT *, (owner_user_id = ? OR claimed_slug IN (SELECT slug FROM edit_slugs) OR slug IN (SELECT slug FROM edit_slugs)) AS _can_edit
        FROM project_submissions
-       WHERE status = 'archived' AND (owner_user_id = ? OR claimed_slug IN (SELECT slug FROM see_slugs) OR slug IN (SELECT slug FROM see_slugs))
+       WHERE status = 'archived' AND (owner_user_id = ? OR claimed_slug IN (SELECT slug FROM see_slugs) OR slug IN (SELECT slug FROM see_slugs))${liveGuard}
        ORDER BY updated_at DESC LIMIT 500`
     ).bind(...see.binds, ...edit.binds, user.id, user.id).all();
     return results || [];
@@ -184,7 +190,7 @@ async function fetchArchivedRows(env, user, typeKey, claimKeys) {
     const edit = brandMatchSql(claimKeys.offices, editBrands);
     const { results } = await env.DB.prepare(
       `SELECT *, (owner_user_id = ? OR ${edit.sql}) AS _can_edit FROM ${table}
-       WHERE status = 'archived' AND (owner_user_id = ? OR ${see.sql})
+       WHERE status = 'archived' AND (owner_user_id = ? OR ${see.sql})${liveGuard}
        ORDER BY updated_at DESC LIMIT 500`
     ).bind(user.id, ...edit.binds, user.id, ...see.binds).all();
     return results || [];
@@ -193,7 +199,7 @@ async function fetchArchivedRows(env, user, typeKey, claimKeys) {
   const keys = typeKey === 'architects' ? claimKeys.architects : claimKeys.offices;
   const { results } = await env.DB.prepare(
     `SELECT *, 1 AS _can_edit FROM ${table}
-     WHERE status = 'archived' AND (owner_user_id = ? OR ${claimedCol} IN (${inClause(keys)}) OR name IN (${inClause(keys)}))
+     WHERE status = 'archived' AND (owner_user_id = ? OR ${claimedCol} IN (${inClause(keys)}) OR name IN (${inClause(keys)}))${liveGuard}
      ORDER BY updated_at DESC LIMIT 500`
   ).bind(user.id, ...keys, ...keys).all();
   return results || [];

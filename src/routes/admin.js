@@ -38,6 +38,7 @@ import { removeEntityImages } from '../lib/imageEmbedStore.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
 import { foldTr } from '../lib/textMatch.js';
 import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
+import { notArchivedIfCanonicalLiveSql, markSubmissionsPublished } from '../lib/archiveSync.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -623,8 +624,14 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
     // göndermedi) — admin panelinde "kim gönderdi" bilgisi (bkz. kullanıcı isteği) bu durumda
     // boş kalır, satır yine de listelenir. profile_claims yönetim ekranındaki AYNI u.name/u.email
     // deseni (bkz. yukarıdaki handleClaimsAdmin).
+    // ARŞİV SEKMESİ SÜZGECİ (kullanıcı bildirimi, 2026-09-12: "Sitede hali hazırda yayınlanmış ve
+    // blursuz olan içerikler neden admin panelinde arşiv kısmında gözüküyorlar"): canonical satırı
+    // YAYINDA olan hiçbir gönderi arşiv listesine girmez — bkz. src/lib/archiveSync.js dosya başı
+    // (kök neden + iki katmanlı çözüm). Yalnızca status='archived' sorgusuna eklenir; diğer
+    // durumların (pending/approved/rejected) listeleri hiç değişmez.
+    const archiveGuard = status === 'archived' ? notArchivedIfCanonicalLiveSql(typeKey) : '';
     const query = status
-      ? env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id WHERE s.status = ? ORDER BY s.created_at DESC LIMIT 2000`).bind(status)
+      ? env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id WHERE s.status = ?${archiveGuard} ORDER BY s.created_at DESC LIMIT 2000`).bind(status)
       : env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id ORDER BY s.created_at DESC LIMIT 2000`);
     const { results } = await query.all();
     const items = results.map(r => parseSubmissionRow(typeKey, r));
@@ -1062,6 +1069,11 @@ async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [], re
       `UPDATE ${table} SET hidden_at = NULL, preview_at = NULL, relisted_at = NULL WHERE id IN (${natural.map(() => '?').join(', ')})`
     ).bind(...natural).run();
   }
+  // KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-12): bu fonksiyon canonical satırı YAYINA
+  // ALIYOR ama gönderi satırının status'una hiç dokunmuyordu — içerik canlıda blursuz görünürken
+  // gönderisi 'archived' kalıyor, hem admin panelinin Arşiv sekmesinde hem kullanıcının Arşivim
+  // kutusunda arşivlenmiş gibi listeleniyordu (canlıda 62 satır). Bkz. src/lib/archiveSync.js.
+  await markSubmissionsPublished(env, table, changed);
   return changed;
 }
 
