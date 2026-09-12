@@ -17,7 +17,8 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import { handleSubmissionRoute } from '../src/routes/submissions.js';
-import { runContentAction } from '../src/routes/legacyContent.js';
+import { runContentAction, setLegacyHidden } from '../src/routes/legacyContent.js';
+import { handleAdminRoute } from '../src/routes/admin.js';
 import { buildOfficePayload } from '../src/routes/office.js';
 import { sha256Hex } from '../src/lib/crypto.js';
 
@@ -194,6 +195,37 @@ await test('admin paneli Arşiv > "Yayınla" kişide de AYNI grafı yürütür',
   assert.ok(isLive(db, 'architects', 10), 'kişi yayında olmalı');
   assert.ok(isLive(db, 'projects', 103), 'projesi yayında olmalı');
   assert.ok(isPreview(db, 'projects', 104), 'başka mimarın projesine dokunulmamalı');
+});
+
+// KULLANICI BİLDİRİMİ, 2026-09-12 (Richard Meier): profil yayına alındı ama projesi blurlu kaldı.
+// preview_at'i temizleyen HER yol grafı yürütmeli — yalnızca beyanlı kayıt ve Arşiv > "Yayınla"
+// değil: admin panelinin Gizle/Göster anahtarı (legacyContent.js#setLegacyHidden) ve "Bekleyen
+// Gönderiler" onayı (admin.js PATCH) da.
+await test('admin Gizle/Göster anahtarı (setLegacyHidden unhide) grafı yürütür', async () => {
+  const db = freshDb(); await seedArchitect(db); envRef.env = { DB: d1(db) };
+  await setLegacyHidden(envRef.env, { id: 'u-admin', role: 'admin' }, 'architects', 'Gökhan Aktan Altuğ', false);
+  assert.ok(isLive(db, 'architects', 10), 'kişi yayında olmalı');
+  assert.ok(isLive(db, 'projects', 103), 'künyesindeki proje de yayında olmalı');
+  assert.ok(isPreview(db, 'projects', 104), 'başka mimarın projesine dokunulmamalı');
+});
+
+await test('ZATEN CANLI kaydı tekrar "göster" grafı tetiklemez', async () => {
+  const db = freshDb(); await seedArchitect(db); envRef.env = { DB: d1(db) };
+  db.exec(`UPDATE architects SET hidden_at = NULL, preview_at = NULL WHERE id = 10`);
+  await setLegacyHidden(envRef.env, { id: 'u-admin', role: 'admin' }, 'architects', 'Gökhan Aktan Altuğ', false);
+  assert.ok(isPreview(db, 'projects', 103), 'tetikleyici önizlemeden ÇIKIŞtır; canlı kayıt grafı yürütmez');
+});
+
+await test('admin "Bekleyen Gönderiler" onayı (PATCH status=approved) da grafı yürütür', async () => {
+  const db = freshDb(); await seedArchitect(db); envRef.env = { DB: d1(db) };
+  const now = Date.now();
+  db.prepare(`INSERT INTO architect_submissions (id, owner_user_id, status, created_at, updated_at, name, claimed_profile_key) VALUES (?, 'u-admin', 'pending', ?, ?, ?, ?)`)
+    .run('as-pending', now, now, 'Gökhan Aktan Altuğ', 'Gökhan Aktan Altuğ');
+  const path = '/api/admin/submissions/architects/as-pending';
+  const res = await handleAdminRoute(req('u-admin', path, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) }), envRef.env, new URL(`https://mimarlab.com${path}`));
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.ok(isLive(db, 'architects', 10), 'kişi yayında olmalı');
+  assert.ok(isLive(db, 'projects', 103), 'künyesindeki proje de yayında olmalı');
 });
 
 section('ek — Ekip Lideri firma popup\'ında Ekip bölümünde');

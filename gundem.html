@@ -515,8 +515,13 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';(window.
        flex-shrink:0 + min-width:auto, bloğun genişliğini max-content'te kilitliyor, satır hiç
        dolmadığı için de sarma tetiklenmiyordu (375px'te ölçüldü: çip bloğu 433px, toolbar 347px —
        taşan çip ekranın dışında kalıyordu). Masaüstündeki flex-shrink:0, üç kolonlu ızgarada
-       çiplerin sıkışmaması için konmuştu; burada toolbar zaten tam genişlik olduğundan gereksiz. */
-    .gundem-chips{flex-shrink:1; min-width:0; width:100%;}
+       çiplerin sıkışmaması için konmuştu; burada toolbar zaten tam genişlik olduğundan gereksiz.
+       display:contents (kullanıcı isteği, 2026-09-12: "içerik ekle butonu iş / staj ilanı butonunun
+       sağ yanında olsun"): çipler .gundem-toolbar'ın DOĞRUDAN flex öğeleri olur, böylece sarma
+       çipler ile "İçerik Ekle" arasında TEK bir akışta olur ve buton son çipin sağında kalır.
+       Kutunun kendisi kalsaydı (flex-shrink/width ne olursa olsun) buton, çip BLOĞUNUN yanında
+       dikeyde ortalanırdı — istenen "son çipin sağında" değil. */
+    .gundem-chips{display:contents;}
   }
 
   /* MOBİL — tek kolon: görsel üstte, metin altta (madde 3/23). */

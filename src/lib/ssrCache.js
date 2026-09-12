@@ -150,7 +150,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // v134 (2026-09-12): 'ilan' etiketi 'İş / Staj İlanı' oldu (SSR kart etiketi), gundem.html'de çip
 // satırı mobilde sarıyor, /gundem-ekle'de İş / Staj İlanı seçilince metin kutusu gizleniyor; ayrıca
 // kişi profili olan ekip üyeleri/ortaklar tıklanabilir (office-modal.js/architect-modal.js değişti).
-export const SSR_CACHE_VERSION = 'v134';
+// v135 (2026-09-12): mobilde "İçerik Ekle" son çipin (İş / Staj İlanı) SAĞINDA — gundem.html'de
+// .gundem-chips display:contents.
+export const SSR_CACHE_VERSION = 'v135';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

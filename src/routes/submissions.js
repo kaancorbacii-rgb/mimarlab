@@ -103,7 +103,10 @@ async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue)
   const claimedColumn = CLAIMED_COLUMN_BY_TYPE[typeKey];
   if (!claimedColumn) return;
   const key = RENAMABLE_TABLE_BY_TYPE[typeKey] ? await resolveCurrentProfileName(env, typeKey, claimedValue) : claimedValue;
-  await setLegacyHidden(env, user, typeKey, key, false);
+  // skipPublishGraph — bu iki yol (createSubmission/updateOwnSubmission) grafı senkrondan SONRA
+  // kendi yakaladıkları id'lerle yürütür; bkz. setLegacyHidden'daki gerekçe (çift yürütme
+  // "kümelenme yok" kuralını bozuyor).
+  await setLegacyHidden(env, user, typeKey, key, false, { skipPublishGraph: true });
 }
 
 const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' };

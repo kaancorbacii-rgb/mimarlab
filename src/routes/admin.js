@@ -677,6 +677,15 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       // updateOwnSubmission'daki AYNI sıralama yorumu/gerekçesi (syncArchitect/syncOffice claimed
       // profilleri claimed_profile_key/SABİT ad ile bulur; cascade önce çalışırsa canonical adı
       // değiştirip senkronun kendi hedefini bulamamasına, ikinci bir "hayalet" kayıt oluşmasına yol açar).
+      // Admin bu gönderiyi onaylayarak ÖNİZLEMEDEKİ bir profili yayına alıyorsa graf de yürür
+      // (kullanıcı isteği, 2026-09-12) — bu, "Bekleyen Gönderiler"den onay yolu; aşağıdaki
+      // syncApprovedSubmissionToCanonical preview_at'i temizlediğinden id'ler ÖNCE yakalanır
+      // (submissions.js'teki AYNI tuzak/çözüm).
+      const publishGraphType = PUBLISH_GRAPH_PROFILE_TYPE[typeKey] || null;
+      const publishingProfileIds = publishGraphType && body.status === 'approved'
+        ? await previewProfileIdsByKeys(env, publishGraphType,
+            [existing.claimed_profile_key, body.name, existing.name, `submission:${id}`]) : [];
+
       if (existing.status === 'approved' || body.status === 'approved') {
         // Okuma yolları artık *_submissions'ı DEĞİL, canonical tabloları okuyor (bkz.
         // src/routes/architect.js/office.js/project.js/product.js, Faz 3) — bu yüzden bu satırın
@@ -687,6 +696,8 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
           const finalStatus = freshRow.status;
           if (finalStatus === 'approved') {
             const syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+            // publishingProfileIds — yukarıda, senkrondan ÖNCE yakalandı.
+            if (publishingProfileIds.length) await activateProfilesOnPublish(env, publishGraphType, publishingProfileIds, user.id);
             // Bülten bildirimi (bkz. src/lib/newsletterNotify.js) — YALNIZCA bu onayla İLK KEZ
             // 'approved'a geçen ve claimed_slug/claimed_profile_key'siz (yani mevcut statik bir
             // kaydın üzerine bindirilen bir düzenleme DEĞİL, gerçekten yeni bir kayıt olan) satırlar

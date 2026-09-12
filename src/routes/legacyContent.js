@@ -180,7 +180,12 @@ async function searchLegacy(env, url) {
 // skipFacets: bkz. src/routes/unassignedArchive.js#archiveOne — toplu turda facet yeniden hesabı
 // KAYIT BAŞINA değil PARTİ BAŞINA yapılır (recomputeProjectFacets her çağrıda TÜM aktif proje
 // havuzunu tarar). Tekil admin işlemlerinde bu bayrak hiç geçilmez, davranış birebir aynı kalır.
-export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets = false } = {}) {
+// skipPublishGraph: bkz. src/routes/submissions.js#unhideIfClaimedApproved — o yol grafı KENDİSİ
+// yürütür (id'leri bu çağrıdan ÖNCE yakalar) ve iki kez yürütmek zararsız DEĞİLDİR: ikinci turda
+// unpreviewByIds boş döner ama promoteOfficeProjectsOnAssignment `noSpreadIds` BOŞ kümeyle çalışıp
+// partideki ikinci projeyi de 1. sıraya damgalar — "kümelenme yok" kuralı bozulur (gerçek regresyon,
+// scripts/test-2026-09-11-office-publish-cascade.mjs yakaladı).
+export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets = false, skipPublishGraph = false } = {}) {
   const row = await findCanonicalRowByNaturalKey(env, type, key);
   if (!row) return; // henüz canonical karşılığı yoksa sessizce atla (ör. bozuk/eski bir anahtar)
   const table = CANONICAL_TABLE_BY_TYPE[type];
@@ -200,8 +205,18 @@ export async function setLegacyHidden(env, user, type, key, hidden, { skipFacets
   // damgalanır: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına fırlatmamalı.
   const previewSet = hidden ? ', preview_at = NULL' : ', preview_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN ? ELSE relisted_at END';
   const previewBinds = hidden ? [] : [new Date().toISOString()];
+  // YAYIN GRAFI (kullanıcı isteği, 2026-09-12: "Bir mimar profili yayına alınınca projeleri, firması,
+  // ortakları vs. hepsi yayına alınmış olsun"). Burası preview_at'i temizleyen İKİ çıkış kapısından
+  // biri (öteki canonicalSync'in publish dalı, onu çağıran üç yol grafı KENDİ yakaladıkları id'lerle
+  // yürütür) — admin panelinin Gizle/Göster anahtarı ve claim'li gönderinin unhide'ı buradan geçer ve
+  // eskiden hiçbir graf çalıştırmıyordu. `wasPreview` UPDATE'ten ÖNCE okunmalı: satır sonrasında
+  // önizlemede görünmez. Graf ZATEN CANLI satırlara dokunmaz (unpreviewByIds preview_at süzer), bu
+  // yüzden çağıranın ayrıca yürüttüğü grafla çakışması zararsızdır.
+  const graphType = (!hidden && !skipPublishGraph) ? PUBLISH_GRAPH_PROFILE_TYPE[type] : null;
+  const wasPreview = !!(graphType && row.preview_at);
   await env.DB.prepare(`UPDATE ${table} SET hidden_at = ?${previewSet} WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, ...previewBinds, row.id).run();
   if (!skipFacets && FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
+  if (wasPreview) await activateProfilesOnPublish(env, graphType, [row.id], user && user.id);
 }
 
 async function toggleLegacyHidden(request, env, user) {
