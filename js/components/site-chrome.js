@@ -652,13 +652,17 @@
         .footer-newsletter-input{height:34px; padding:0 40px 0 12px;}
         /* padding:0 BURADA TEKRAR EDİLİR (kullanıcı bulgusu, 2026-09-12: "mobilde e-posta
            çubuğunun sağındaki ok işareti gözükmüyor"). GERÇEK NEDEN: hemen yukarıdaki
-           `.footer-subscribe-btn{padding:0 14px; ...}` kuralı bu media bloğunda daha SONRA
+           .footer-subscribe-btn kuralı (padding:0 14px) bu media bloğunda daha SONRA
            geldiğinden (aynı özgüllük, kaynak sırası kazanır) dairesel gönder butonunun yatay
-           dolgusunu 14px'e çıkarıyordu; buton 28px geniş ve `*{box-sizing:border-box}` yürürlükte
-           olduğundan içeriğe kalan genişlik TAM SIFIR oluyor, flex çocuğu olan SVG de sıfıra
-           büzülüp ok görünmez hale geliyordu (masaüstünde sorun yoktu: orada .footer-newsletter-btn
-           kuralı sonra geliyor). flex-shrink:0 ikinci güvence — ikon bir daha hiçbir dar kutuda
-           büzülmez. */
+           dolgusunu 14px'e çıkarıyordu; buton 28px geniş ve global box-sizing:border-box
+           yürürlükte olduğundan içeriğe kalan genişlik TAM SIFIR oluyor, flex çocuğu olan SVG de
+           sıfıra büzülüp ok görünmez hale geliyordu (masaüstünde sorun yoktu: orada
+           .footer-newsletter-btn kuralı sonra geliyor). flex-shrink:0 ikinci güvence — ikon bir
+           daha hiçbir dar kutuda büzülmez.
+           NOT — bu yorumda ASLA ters tırnak karakteri kullanılmaz: tüm blok injectFooterStyle içindeki
+           bir şablon dizesinin (template literal) İÇİNDE yaşıyor; tek bir ters tırnak dizeyi
+           erkenden kapatıp dosyayı sözdizimi hatasına düşürür ve site-chrome.js hiç çalışmadığı
+           için ÜST MENÜ İLE FOOTER TAMAMEN KAYBOLUR (canlıda bu şekilde yaşandı, 2026-09-12). */
         .footer-newsletter-btn{width:28px; height:28px; padding:0;}
         .footer-newsletter-btn-icon{flex-shrink:0;}
       }

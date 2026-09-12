@@ -39,6 +39,23 @@ done
 ok "kök seviyesi .js dosyaları kontrol edildi"
 
 echo ""
+echo "2b) js/**/*.js (tarayıcıya giden paylaşılan bileşenler)"
+# CANLI OLAY (2026-09-12): js/components/site-chrome.js'te bir CSS yorumunun İÇİNE yazılan tek bir
+# TERS TIRNAK, injectFooterStyle'daki şablon dizesini erken kapatıp dosyayı sözdizimi hatasına
+# düşürdü. site-chrome.js hem ÜST MENÜYÜ hem FOOTER'ı basıyor; dosya hiç çalışmayınca ikisi de
+# sitenin TAMAMINDAN kayboldu ve bu deploy'a kadar gitti — çünkü preflight yalnızca src/**/*.js,
+# KÖK seviyesindeki *.js ve bazı HTML'lerin inline script'lerini kontrol ediyordu; js/ altındaki
+# 43 dosya HİÇ kontrol edilmiyordu. Bu adım tam olarak o boşluğu kapatır.
+js_dir_fail=0
+while IFS= read -r -d '' f; do
+  if ! node --check "$f" 2>/tmp/preflight_err; then
+    bad "$f — sözdizimi hatası: $(head -3 /tmp/preflight_err)"
+    js_dir_fail=1
+  fi
+done < <(find js -name '*.js' -print0)
+[ "$js_dir_fail" -eq 0 ] && ok "js/**/*.js dosyalarının tamamı temiz sözdizimine sahip ($(find js -name '*.js' | wc -l | tr -d ' ') dosya)"
+
+echo ""
 echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/kisi-ekle/firma-ekle/urun-ekle/index/admin/hesabim)"
 # marka.html EKLENDİ (2026-09-06): kisi/firma ile birebir aynı iskelete sahip ve aynı elle yazılmış
 # inline render mantığını taşıyor, ama bu listede yoktu — yani onun inline script'i hiç kontrol
