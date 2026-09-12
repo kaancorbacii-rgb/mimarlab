@@ -1,0 +1,246 @@
+/* FIRMA / MARKA POPUP'I — TEK KAYNAK (CSS artık JS dizesi değil).
+ *
+ * NEDEN (kullanıcı isteği, 2026-09-12): bu kurallar js/components/office-modal.js'in içinde bir
+ * şablon dizesi olarak yaşıyordu ve her açılışta <style> olarak enjekte ediliyordu. Aynı tasarım
+ * dili dört ayrı yerde (üç modal bloğu + proje.html) duruyordu; CSS olarak ayrı durduğunda
+ * tarayıcı onu bağımsız önbellekler, JS ayrıştırma bütçesinden düşer ve gerçek CSS olarak
+ * düzenlenebilir. Proje popup'ıyla AYNI mekanizma: bkz. css/project-detail.css.
+ *
+ * KURALLAR BİREBİR TAŞINDI — sıra, seçici ve bildirimler değişmedi. Blok içinde AYNI seçicinin
+ * iki kez geçtiği (sıraya bağımlı ezme) yerler var; bu yüzden kurallar yeniden sıralanmadı ve
+ * üç modalın ORTAK kuralları TEK bir dosyada birleştirilmedi — ölçüldü: güvenle paylaşılabilir
+ * (üçünde de birebir aynı VE blok içinde tekrarsız) çekirdek yalnızca 27 kural / 2,9 KB, yani
+ * 43 KB'ın ~%7'si. O %7 için dört dosyanın cascade sırasını karıştırmak, canlıda yoğun kullanılan
+ * popup'larda karşılığı olmayan bir risk olurdu.
+ *
+ * YÜKLEME ÜÇ YOLDAN DA GARANTİ:
+ *   1. Modülü kendi <script>'iyle yükleyen sayfalar bu dosyayı <link>'ler,
+ *   2. lazy-modals.js modülü açmadan önce cssDeps olarak yükleyip bekler,
+ *   3. modülün kendi ensureStylesheet()'i, ikisi de olmamışsa mount anında <link>'i ekler.
+ * Üçüncüsü son çare ağıdır: proje popup'ı 2026-09-12'de tam bu boşluk yüzünden stilsiz açıldı.
+ */
+.detail-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0; line-height:1.25;}
+      /* İş / Staj İlanları kutusu (kullanıcı isteği, 2026-09-11) — kabuk .feedback-card (bkz.
+         claim-correction-box.js), içerik 4:3 önizleme ızgarası. Görsele tıklayınca galeri modunda
+         lightbox açılır (bkz. image-lightbox.js#openGallery). */
+      .om-jobs-count{font-weight:600; color:var(--ink-soft); margin-left:4px;}
+      .om-jobs-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; margin-top:6px;}
+      .om-job{position:relative; min-width:0;}
+      .om-job-thumb{display:block; width:100%; aspect-ratio:4/3; padding:0; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; background:var(--paper-alt); cursor:zoom-in;}
+      .om-job-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+      .om-job-title{margin:6px 0 0 !important; font-size:12.5px !important; font-weight:600; color:var(--ink) !important; line-height:1.35 !important; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;}
+      .om-job-del{position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
+      .om-job-del:hover{background:rgba(27,42,61,0.9);}
+      .om-jobs-empty{margin:0 !important;}
+      .om-jobs-publish{margin-top:14px; width:100%; border:1px solid var(--walnut); background:var(--paper-card); color:var(--walnut); border-radius:100px; padding:10px 14px; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer;}
+      .om-jobs-publish:hover{background:var(--walnut); color:#fff;}
+      .om-jobpub-overlay{position:fixed; inset:0; z-index:220; display:flex; align-items:flex-start; justify-content:center; background:rgba(27,42,61,0.55); padding:40px 16px; overflow-y:auto;}
+      .om-jobpub-panel{width:100%; max-width:460px; background:var(--paper-card); border-radius:16px; padding:28px 26px 24px; box-shadow:0 24px 60px rgba(27,42,61,0.3); position:relative; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;}
+      .om-jobpub-close{position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:50%; border:none; background:var(--paper-alt); color:var(--ink-soft); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1;}
+      .om-jobpub-close:hover{color:var(--ink);}
+      .om-jobpub-heading{font-size:20px; font-weight:700; margin:0 0 4px; color:var(--ink); padding-right:30px;}
+      .om-jobpub-sub{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
+      .om-jobpub-field{margin-bottom:14px;}
+      .om-jobpub-field > label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
+      .om-jobpub-field input[type="text"]{width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit; color:var(--ink); background:var(--paper-card);}
+      .om-jobpub-field input[type="text"]:focus{outline:none; border-color:var(--walnut);}
+      .om-jobpub-drop{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; aspect-ratio:4/3; box-sizing:border-box; border:1.5px dashed var(--line); border-radius:12px; background:var(--paper-alt); color:var(--ink-soft); font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; overflow:hidden; padding:0;}
+      .om-jobpub-drop:hover{border-color:var(--walnut); color:var(--ink);}
+      .om-jobpub-drop small{font-size:11.5px; font-weight:400;}
+      .om-jobpub-drop.has-image{border-style:solid; border-color:var(--line-soft);}
+      .om-jobpub-drop img{width:100%; height:100%; object-fit:cover; display:block;}
+      .om-jobpub-hint{font-size:11.5px; color:var(--ink-soft); margin:6px 0 0;}
+      .om-jobpub-send{width:100%; border:none; border-radius:100px; background:var(--walnut); color:#fff; font-size:14.5px; font-weight:700; padding:13px; cursor:pointer; font-family:inherit; margin-top:4px;}
+      .om-jobpub-send:hover{filter:brightness(0.94);}
+      .om-jobpub-send:disabled{opacity:0.6; cursor:default;}
+      .om-jobpub-error{font-size:12.5px; color:#B3261E; margin-top:10px; text-align:center;}
+      .om-identity{display:flex; align-items:center; gap:16px; margin-bottom:18px;}
+      .profile-logo{
+        width:64px; height:64px; border-radius:50%; flex-shrink:0;
+        border:1px solid var(--line); overflow:hidden; position:relative;
+        display:flex; align-items:center; justify-content:center;
+        background:var(--walnut); color:var(--paper-card);
+        font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;
+      }
+      .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper-card);}
+      /* ---------- MARKA KAPAK BANDI (kullanıcı isteği, 2026-08-31 madde 6) ----------
+         LinkedIn profil başlığındaki düzenin karşılığı: geniş kapak + sol alt köşesine binen yuvarlak
+         logo. Bant, sol panelin KENDİ kutusu içinde kalır (tam kanama YAPMAZ) — .modal-shell-left'in
+         64px/32px'lik iç boşluğu ve mobildeki tamamen farklı (display:contents + tek sütun akış)
+         yerleşimi negatif kenar boşluklarıyla dövüşmek yerine olduğu gibi bırakılır; sonuç yine
+         ekteki görselin ilişkisi, ama modalin kendi ritmine uygun.
+         .om-cover-fallback her zaman basılır, görsel (varsa) üzerine biner — marka.html#office-card-cover
+         ile AYNI gerekçe (yükleme sırasında/404'te boş beyaz kutu kalmaz). Rengi renderCover()
+         officeColor(o.name)'den atar, yani kapaksız marka da temaya uygun sabit bir renk alır. */
+      /* width:100% ZORUNLU (yalnızca kozmetik değil): aspect-ratio + min-height birlikte
+         kullanıldığında ve genişlik auto kaldığında, CSS min-height'i orana çevirip AKTARILMIŞ
+         BİR min-width üretir (110px × 3 = 330px). Sol panelin içerik genişliği tablette (~1024px
+         ekran, %32'lik sütun) yalnızca ~247px olduğundan bant kutusundan taşıp bölme çizgisinin
+         sağına kayıyordu (bkz. kullanıcı bildirimi 2026-08-31). Genişliği açıkça vermek oranın
+         yüksekliği genişlikten türetmesini sağlar; min-height artık SADECE yüksekliği kelepçeler,
+         geriye genişliğe aktarılmaz. */
+      .om-cover{
+        position:relative; width:100%; aspect-ratio:3/1; min-height:110px;
+        border-radius:14px; margin-bottom:38px; background:var(--paper-alt);
+      }
+      .om-cover-fallback{
+        position:absolute; inset:0; border-radius:14px;
+        background-image:linear-gradient(150deg, rgba(255,255,255,0.16), rgba(0,0,0,0.20));
+      }
+      .om-cover-img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:14px;}
+      /* Logonun bandın dışına taşan kısmı için .om-cover'a 38px alt boşluk verildi (yukarısı) —
+         72px'lik dairenin yarısı + nefes payı. */
+      .profile-logo-on-cover{
+        position:absolute; left:16px; bottom:-30px; z-index:2;
+        width:72px; height:72px; border:3px solid var(--paper-card);
+        box-shadow:0 6px 16px rgba(27,42,61,0.18);
+      }
+      /* Kapak bandı gösterilirken başlık satırındaki eski logo gizlenir (aynı logo iki kez
+         görünmesin) — renderIdentity bu sınıfı .om-identity'ye ekler/kaldırır. */
+      .om-identity.om-identity-has-cover .profile-logo{display:none;}
+      .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+      /* Düzenle/Arşivle/Sil (X'in KARŞI kenarında), Paylaş/Takip Et (X'in yanında) artık burada
+         DEĞİL — modal-shell.js'in paylaşılan header'ında render edilir (bkz. kullanıcı isteği: bu
+         satır tamamen kaldırıldı, altındaki içerik yukarı çekildi). .detail-title-actions/.save-btn/
+         .card-edit-btn/.card-delete-btn/.profile-edit-btn kuralları buradan kaldırıldı; TEK stil
+         kaynağı artık modal-shell.js#injectStyles. Websitesi ARTIK sosyal ikonlar satırının en
+         başında (bkz. aşağısı .social-icons .social-icon-website). */
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Paylaş ile AYNI
+         yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
+         paintFollowBtn tarafından basılır. */
+      .follow-btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 12px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
+      }
+      .follow-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .follow-btn.following{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+      .detail-info{margin-top:8px;}
+      /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (firma-ekle.html#social-row) */
+      .social-icons{display:flex; align-items:center; gap:12px; margin-top:4px; flex-wrap:wrap;}
+      .social-icons a{color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px;}
+      .social-icons a:hover{color:var(--walnut);}
+      /* Websitesi — artık sosyal ikonların EN BAŞINDA (bkz. kullanıcı isteği: firma-ekle.html'de
+         website adresi girildiğinde burada görünsün), ikonu+metni diğer sosyal ikonlarla AYNI
+         büyüklükte (18px ikon) — yalnızca bu buton yanında "Websitesi" yazısı taşır. */
+      .social-icons .social-icon-website{font-size:13px; font-weight:600;}
+      .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
+      .detail-meta strong{font-weight:600; color:var(--ink);}
+      /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
+         isteği), hepsi AYNI büyüklükte. */
+      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+      .meta-icon svg{display:block; width:100%; height:100%;}
+      .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+      .detail-meta .meta-row .meta-icon{margin-top:3px;}
+      .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
+      .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
+      .detail-desc-more:hover{color:var(--ink);}
+      .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0;}
+      .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+      .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
+      .related-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+      /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
+         görünümlerde gönderi başlıkları görselin altında olsun). */
+      .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+      /* background: yükleme sırasında (yavaş bağlantı) veya görsel 404/hata verirse kutu şeffaf/beyaz
+         kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
+      .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
+      .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700;}
+      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700;}
+      /* Pop-up içindeki proje/mimar kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
+         js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
+         satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
+         sonuna ellipsis eklenir. */
+      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
+      /* "Projeler" (bu firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR (bkz.
+         kullanıcı isteği: "ismi uzun olan mimarın/firmanın diğer yapılarında metinlerindeki üç nokta
+         sistemini sil", js/components/architect-modal.js#am-related-projects-grid ile AYNI) —
+         yukarıdaki genel kural Kurucular/Ortaklar kartlarında (isim tek satır) aynen kalır, yalnızca
+         #om-related-projects-grid'e özel bu override başlığın normal şekilde birden çok satıra
+         sarmasına izin verir. */
+      #om-related-projects-grid .related-card-title-text{white-space:normal !important; overflow:visible !important; text-overflow:clip !important;}
+      .related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
+      .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .related-grid-scroll::-webkit-scrollbar{display:none;}
+      .related-grid-scroll .related-card{flex:0 0 200px;}
+      /* Tercih Eden Firmalar | Tercih Eden Mimarlar ikili satırı (kullanıcı isteği, 2026-09-01
+         madde 7) — js/components/architect-modal.js#.am-two-col-row bloğunun BİREBİR kopyası, .om-*
+         önekiyle (architect-modal.js firma.html/marka.html'de yüklü DEĞİL, o kurallara güvenilemez).
+         min-width:0 ZORUNLU: grid hücresinin varsayılan min-width:auto'su içindeki yatay kaydırma
+         şeridini taşırıp satırı kırar. */
+      .om-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .om-two-col-cell{min-width:0;}
+      .om-two-col-cell .related-title{margin-bottom:16px;}
+      .om-two-col-row::after{content:''; display:none;}
+      .om-two-col-row.om-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .om-two-col-row{gap:14px;}
+        .om-two-col-row.om-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
+      /* MOBİL (kullanıcı isteği: "Mobil görünümde bölümler alt alta 2 ayrı satırda sergilensinler")
+         — tablet (768px ve üzeri) masaüstüyle AYNI iki sütunda kalır. */
+      @media (max-width:767px){
+        .om-two-col-row.om-two-col-row-stack-mobile{grid-template-columns:1fr; gap:28px;}
+        .om-two-col-row.om-two-col-row-stack-mobile.om-two-col-row-both::after{display:none;}
+      }
+      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+      .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a:hover{border-color:var(--walnut);}
+      .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
+      .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14px;}
+      .prevnext-text{min-width:0; flex:1;}
+      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+      /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
+         inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
+         dışına taşıyordu (bkz. kullanıcı isteği). */
+      /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
+         butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
+         sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
+      @media (max-width:860px){
+        .related-grid-scroll .related-card{flex:0 0 140px;}
+        .related-grid-scroll{gap:10px;}
+        /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
+           modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/geri
+           bildirim kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
+        #om-jobs-card, #claim-info-card, #correction-info-card{order:98;}
+        /* Önceki/Sonraki popup'ın EN ALTINDA, claim/geri bildirim kutularının da altında (kullanıcı
+           isteği, 2026-09-11: "Tablet ve mobil görünümde tüm önceki sonraki butonları popupın en
+           altında olsunlar") — kutular sol panelde, bu buton sağ panelde; order ikisini ayırır. */
+        #om-prevnext{order:99;}
+        /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
+           gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Kurucular / Ortaklar" artık görsel
+           olarak ilk değil, hemen üstünde kimlik/künye bölümünün hr.detail-info-divider'ı var (bkz.
+           kullanıcı isteği: "Projeler" başlığıyla BİREBİR aynı boşluk). :first-child sıfırlamasını
+           burada geri alıp diğer .related-section'larla eşit boşluk/çizgiye döndürür. */
+        .related-section:first-child{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+        /* related-section:first-child'ın üstteki border-top'u zaten açıklamadan sonra TEK bir çizgi
+           oluşturuyor — detail-info-divider (açıklamanın hemen altındaki hr) burada hala görünür
+           kalsaydı üst üste 2 çizgi (bkz. kullanıcı isteği: çift çizgi hatası) belirirdi, bu yüzden
+           mobil/tablette gizlenir. */
+        .detail-info-divider{display:none;}
+      }
+      /* Projeler haritası — bkz. js/components/architect-modal.js#injectStyles İLE BİREBİR AYNI
+         (kullanıcı isteği: "Projeler"in altına, firmanın koordinatlı TÜM projelerini pinleyen açık
+         bir harita) — js/pages/proje.js#loadLeaflet İLE AYNI Leaflet + Esri World Imagery yığını/
+         marker popup kartı, bu modül firma.html'de Leaflet YÜKLEMEYEN diğer sayfalardan bağımsız
+         kendi yükleyicisini taşır (bkz. aşağıdaki loadOmMapLeaflet). */
+      .om-projects-map-wrap{margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--line-soft); height:280px; background:var(--paper-alt);}
+      .om-projects-map-wrap .leaflet-container{width:100%; height:100%; background:var(--paper-alt); font-family:inherit;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content-wrapper{padding:0; border-radius:10px; overflow:hidden;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content{margin:0; width:auto !important;}
+      .pm-map-marker-card{display:block; text-decoration:none; color:inherit; cursor:pointer;}
+      .pm-map-marker-card-photo{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:var(--paper-alt);}
+      .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff; width:100%; aspect-ratio:1/1;}
+      .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
+      @media (max-width:860px){
+        .om-projects-map-wrap{height:220px;}
+      }

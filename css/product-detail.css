@@ -1,0 +1,346 @@
+/* ÜRÜN POPUP'I — TEK KAYNAK (CSS artık JS dizesi değil).
+ *
+ * NEDEN (kullanıcı isteği, 2026-09-12): bu kurallar js/components/product-modal.js'in içinde bir
+ * şablon dizesi olarak yaşıyordu ve her açılışta <style> olarak enjekte ediliyordu. Aynı tasarım
+ * dili dört ayrı yerde (üç modal bloğu + proje.html) duruyordu; CSS olarak ayrı durduğunda
+ * tarayıcı onu bağımsız önbellekler, JS ayrıştırma bütçesinden düşer ve gerçek CSS olarak
+ * düzenlenebilir. Proje popup'ıyla AYNI mekanizma: bkz. css/project-detail.css.
+ *
+ * KURALLAR BİREBİR TAŞINDI — sıra, seçici ve bildirimler değişmedi. Blok içinde AYNI seçicinin
+ * iki kez geçtiği (sıraya bağımlı ezme) yerler var; bu yüzden kurallar yeniden sıralanmadı ve
+ * üç modalın ORTAK kuralları TEK bir dosyada birleştirilmedi — ölçüldü: güvenle paylaşılabilir
+ * (üçünde de birebir aynı VE blok içinde tekrarsız) çekirdek yalnızca 27 kural / 2,9 KB, yani
+ * 43 KB'ın ~%7'si. O %7 için dört dosyanın cascade sırasını karıştırmak, canlıda yoğun kullanılan
+ * popup'larda karşılığı olmayan bir risk olurdu.
+ *
+ * YÜKLEME ÜÇ YOLDAN DA GARANTİ:
+ *   1. Modülü kendi <script>'iyle yükleyen sayfalar bu dosyayı <link>'ler,
+ *   2. lazy-modals.js modülü açmadan önce cssDeps olarak yükleyip bekler,
+ *   3. modülün kendi ensureStylesheet()'i, ikisi de olmamışsa mount anında <link>'i ekler.
+ * Üçüncüsü son çare ağıdır: proje popup'ı 2026-09-12'de tam bu boşluk yüzünden stilsiz açıldı.
+ */
+.detail-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+      /* margin-bottom 18px (14px değil) — Düzenle/Arşivle/Sil satırı (eski .pr-actions) buradan
+         kaldırılıp X'in yanına taşındığından (bkz. kullanıcı isteği) bu artık künye bloğuna en yakın
+         komşu; sayfadaki diğer blok aralarıyla (.detail-meta/.detail-desc margin-top:18px) AYNI
+         dikey ritme oturur. */
+      /* Puanla/Kaydet/Paylaş/Websitesi/Düzenle/Arşivle/Sil artık bu satırda DEĞİL — Kaydet/Paylaş
+         X'in yanında render edilir (bkz. kullanıcı isteği), Düzenle X'in KARŞI kenarında render
+         edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons); Websitesi tamamen kaldırıldı,
+         Puanla ve "X tarafından" byline'ı KALDIRILDI (kullanıcı isteği, 2026-09-09). Kaydet
+         header'da da .save-btn/.card-save-btn sınıflarını taşıdığından TEK stil kaynağı hâlâ
+         burasıdır (modal-shell.js yalnızca header bağlamındaki override'ları ekler). */
+      .save-btn{
+        display:inline-flex; align-items:center; gap:5px;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1; text-decoration:none;
+      }
+      .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .save-btn svg{flex-shrink:0;}
+      .designer-section{margin-top:0;}
+      .designer-section + .designer-section{margin-top:16px;}
+      .designer-label{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+      /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
+         isteği), hepsi AYNI büyüklükte. */
+      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+      .meta-icon svg{display:block; width:100%; height:100%;}
+      .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+      .detail-meta .meta-row .meta-icon{margin-top:3px;}
+      .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
+      .designer-chip{
+        display:flex; align-items:center; gap:9px;
+        background:var(--paper); border:1px solid var(--line-soft);
+        border-radius:100px; padding:6px 16px 6px 6px;
+        transition:border-color .15s ease, transform .15s ease;
+      }
+      a.designer-chip:hover{border-color:var(--brass); transform:translateY(-1px);}
+      .designer-chip-avatar{
+        width:32px; height:32px; border-radius:50%; flex-shrink:0;
+        border:1px solid var(--line); overflow:hidden; position:relative;
+        display:flex; align-items:center; justify-content:center;
+        color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:11.5px;
+      }
+      .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
+      .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
+      .designer-chip-no-avatar{padding:6px 16px; min-height:46px;}
+      /* ---------- Versiyonlar / Varyantlar (kullanıcı isteği, 2026-09-04) ----------
+         Aynı ürün ailesinin türevleri (sırt yüksekliği, ayak tipi, ebat/modül…) ana ürünün
+         İÇİNDE seçilir; her seçenek grubu kendi satırında hap butonlarla listelenir. Görsel dil
+         .designer-chip'ten türetildi (aynı yuvarlak hat, aynı çerçeve rengi) — modalda üçüncü bir
+         buton stili icat etmemek için; farkı, seçili hap'ın dolu (var(--ink)) olması.
+         [data-owner="product"] KAPSAMI ZORUNLU DEĞİL: bu sınıflar (.pr-variant-*) yalnızca bu
+         dosyada tanımlı ve proje.html'de karşılığı yok (bkz. yukarıdaki #pr-desc gerçek bulgusu —
+         orada kapsam gerekiyordu çünkü sınıf adı İKİ dosyada birden vardı). */
+      .pr-variant-group{margin-bottom:12px;}
+      .pr-variant-group:last-child{margin-bottom:0;}
+      .pr-variant-group-label{font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:7px;}
+      .pr-variant-pills{display:flex; flex-wrap:wrap; gap:8px;}
+      .pr-variant-pill{
+        display:inline-flex; align-items:center; justify-content:center;
+        background:var(--paper); border:1px solid var(--line-soft); border-radius:100px;
+        padding:7px 15px; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink);
+        cursor:pointer; line-height:1.2; transition:border-color .15s ease, background .15s ease, color .15s ease;
+      }
+      .pr-variant-pill:hover{border-color:var(--brass);}
+      .pr-variant-pill[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+      /* Mevcut olmayan kombinasyon — kapalı görünüm (bkz. syncVariantPills): soluk, kesikli çerçeve,
+         üstü çizili. cursor:pointer korunur — tıklanınca en yakın gerçek versiyona geçilir. */
+      .pr-variant-pill.is-off{opacity:.45; border-style:dashed; text-decoration:line-through; background:transparent;}
+      .pr-variant-pill.is-off:hover{opacity:.7;}
+      /* Seçili kombinasyonun tam adı — hap satırlarının altında tek satır, kullanıcı hangi
+         versiyona baktığını hap'lara bakıp zihninde birleştirmek zorunda kalmasın. */
+      .pr-variant-current{margin:10px 0 0; font-size:12.5px; color:var(--ink-soft);}
+      .pr-variant-current strong{color:var(--ink); font-weight:600;}
+      .detail-info{margin-top:8px;}
+      .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
+      .detail-meta strong{font-weight:600; color:var(--ink);}
+      .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
+      .detail-meta a:hover{color:var(--ink);}
+      /* GERÇEK BULGU (2026-09-01 madde 2): bu <style> artık proje.html'de de DOM'a giriyor —
+         ProductModal o sayfada da yüklü (proje popup'ından ürün popup'ına geçiş için, bkz. dosya
+         sonundaki wireInternalNav) ve injectStyles() ilk ürün açılışında bunu sayfanın KENDİ
+         <style>'ından SONRA head'e ekliyor. Eşit özgüllükte çakışan her sınıf bu yüzden proje
+         popup'ını da ele geçirirdi. proje.html ile DEĞER OLARAK AYRIŞAN dört kural (bu üçü +
+         aşağıdaki .related-card-title / .detail-info order'ı) bu nedenle ürüne özgü bir id'ye ya da
+         [data-owner="product"] kapsamına bağlandı; geri kalan onlarca ortak kural (bkz. dosya başı
+         yorumu: "proje.html'deki AYNI ...") iki dosyada zaten BİREBİR aynı değerleri taşıdığından
+         hangisi kazanırsa kazansın sonuç değişmiyor. */
+      #pr-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
+      #pr-desc .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer; white-space:normal;}
+      #pr-desc .detail-desc-more:hover{color:var(--ink);}
+      /* Teknik Özellikler — açılır/kapanır (bkz. kullanıcı isteği: buton görünümü DEĞİL, mevcut
+         başlık aynen kalıp yanına + eklensin) — native <details>/<summary>, .pr-feedback-card'ın
+         (Dosyalar/Geri Bildirim) AYNI .feedback-card-plus ikonunu paylaşır, ama kutu çerçevesi/
+         arkaplanı OLMADAN — bu yüzden .pr-feedback-card yerine kendi (kutusuz) .specs-details sarmalayıcısı var. */
+      .specs-details{margin:0;}
+      .specs-details > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between;}
+      .specs-details > summary::-webkit-details-marker{display:none;}
+      .specs-details[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
+      .specs-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
+      .specs-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px;}
+      .specs-table tr{border-bottom:1px solid var(--line-soft);}
+      .specs-table tr:last-child{border-bottom:none;}
+      .specs-table td{padding:10px 0; vertical-align:top;}
+      .specs-table td:first-child{color:var(--ink-soft); font-weight:600; width:38%; padding-right:16px;}
+      .gallery-wrap{position:relative; min-width:0;}
+      .gallery-media{position:relative;}
+      .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .detail-gallery::-webkit-scrollbar{display:none;}
+      /* proje.html'deki AYNI 2:1 desen — kutunun boyutu ANKORDA (.detail-gallery a) sabitlenir,
+         img/placeholder onu object-fit:cover ile doldurur (bkz. o dosyadaki AYNI yorum). Ürün
+         galerisi eskiden kendi 4:3/sabit-yükseklik kutu modelini taşıyordu (kullanıcı isteği: Ürün
+         pop-up'ı Proje pop-up'ıyla birebir aynı kart/grid yapısına getirilsin), o desen kaldırıldı. */
+      .detail-gallery a{
+        flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px; overflow:hidden;
+        display:block; background:var(--paper-card);
+      }
+      .detail-gallery img{width:100%; height:100%; object-fit:cover; display:block;}
+      /* flex-direction:column+gap proje.html'in placeholder'ında YOK — yalnızca ürün galerisinde
+         marka favicon'u (bkz. renderItem#catalogBrandFavicon) initials'in ÜSTÜNDE ayrı bir satırda
+         gösterilir, bu içerik farkı ürüne özgü olduğundan korunur; kutunun kendisi (flex-basis/
+         aspect-ratio/border-radius/font-size) proje.html ile birebir aynıdır. */
+      .gallery-placeholder{
+        flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px;
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+        color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:40px; font-weight:700;
+      }
+      .gallery-placeholder img{height:36px; width:36px; border-radius:9px; background:#fff; padding:6px; object-fit:contain;}
+      .gallery-nav{
+        position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+        width:38px; height:38px; border-radius:50%; border:none;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(27,42,61,0.45); color:#fff;
+      }
+      .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+      .gallery-prev{left:14px;}
+      .gallery-next{right:14px;}
+      .gallery-counter{text-align:center; margin-top:8px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12.5px; color:var(--ink-soft);}
+      .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+      .lightbox.open{display:flex;}
+      .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+      .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+      .lightbox-close:hover{opacity:1;}
+      .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+      .lightbox-nav:hover{opacity:1;}
+      .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+      .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+      .lightbox-counter{
+        position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+        color:#fff; font-size:13px; font-weight:600; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+      }
+      /* "Tümünü Gör" ızgara görünümü — bkz. proje.html'deki AYNI blok, paylaşılan stylesheet
+         olmadığından burada da ayrıca tutulur (bkz. js/components/gallery.js#initDetailGallery).
+         Buton .lightbox-close İLE BİREBİR AYNI çerçevesiz/metinsiz/ikon-only stile sahip (bkz.
+         kullanıcı isteği: minimalist, X ile aynı boyut/renk). */
+      .lightbox-grid-toggle{
+        position:absolute; top:24px; right:78px; background:none; border:none;
+        color:var(--paper); opacity:0.8; z-index:2;
+      }
+      .lightbox-grid-toggle:hover{opacity:1;}
+      .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}
+      .lightbox.grid-mode .lightbox-grid{display:block;}
+      /* ÖNEMLİ gerçek bulgu (bkz. proje.html'deki AYNI yorum) — çocuk kısıtlaması OLMADAN ".lightbox.
+         grid-mode img" ızgara kutucuklarının İÇİNDEKİ img'leri de eşleştirip .lightbox-grid-item
+         img'nin display:block kuralını eziyordu, thumbnail'lar boş/beyaz kutu render oluyordu.
+         Doğrudan-çocuk (>) kısıtlaması yalnızca tekli lightbox görselini hedefler. */
+      .lightbox.grid-mode > img,
+      .lightbox.grid-mode .lightbox-nav,
+      .lightbox.grid-mode .lightbox-counter{display:none;}
+      .lightbox-grid-list{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; max-width:1080px; margin:0 auto;}
+      .lightbox-grid-item{aspect-ratio:1/1; border-radius:10px; overflow:hidden; display:block; background:var(--paper-card);}
+      .lightbox-grid-item img{width:100%; height:100%; object-fit:cover; display:block;}
+      @media (max-width:768px){
+        .lightbox-grid{padding:60px 14px 24px;}
+        .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
+      }
+      .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+      .related-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+      /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
+         görünümlerde gönderi başlıkları görselin altında olsun). */
+      .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+      /* background: yükleme sırasında (yavaş bağlantı) veya görsel 404/hata verirse kutu şeffaf/beyaz
+         kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
+      .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
+      .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700;}
+      /* [data-owner="product"] — bkz. yukarıdaki #pr-desc gerçek bulgusu: proje.html'in kendi
+         .related-card-title padding'i (10px 14px 12px) farklı, bu kural oraya sızmamalı. */
+      .modal-shell-overlay[data-owner="product"] .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700;}
+      /* Pop-up içindeki ilgili ürün kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
+         js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
+         satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
+         sonuna ellipsis eklenir. */
+      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
+      .related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
+      .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .related-grid-scroll::-webkit-scrollbar{display:none;}
+      .related-grid-scroll .related-card{flex:0 0 200px;}
+      /* Kullanan Firmalar | Kullanan Mimarlar ikili satırı — js/components/architect-modal.js#
+         .am-two-col-row bloğunun BİREBİR kopyası (bkz. RIGHT_TEMPLATE'teki gerekçe). min-width:0
+         ZORUNLU, aksi halde grid hücresinin varsayılan min-width:auto'su içindeki yatay şeridi
+         taşırıp satırı kırar. Kullanıcı isteği (2026-09-01 madde 9): masaüstü VE tablette iki sütun,
+         MOBİLDE alt alta iki ayrı satır — bkz. aşağıdaki 767px media query'si. */
+      .pr-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .pr-two-col-cell{min-width:0;}
+      .pr-two-col-cell .related-title{margin-bottom:16px;}
+      .pr-two-col-row::after{content:''; display:none;}
+      .pr-two-col-row.pr-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .pr-two-col-row{gap:14px;}
+        .pr-two-col-row.pr-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
+      /* MOBİL (kullanıcı isteği, 2026-09-01 madde 9) — tek sütun; tablet (768px ve üzeri) masaüstüyle
+         AYNI iki sütunda kalır. Tek sütuna düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır. */
+      @media (max-width:767px){
+        .pr-two-col-row{grid-template-columns:1fr; gap:28px;}
+        .pr-two-col-row.pr-two-col-row-both::after{display:none;}
+      }
+      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+      .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a:hover{border-color:var(--walnut);}
+      .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
+      .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14px;}
+      .prevnext-text{min-width:0; flex:1;}
+      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+      /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
+         inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
+         dışına taşıyordu (bkz. kullanıcı isteği). */
+      /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
+         butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
+         sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
+      /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
+         #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
+         kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */
+      .pr-info-divider{margin:28px 0 0; border:none; border-top:1px solid var(--line);}
+      .pr-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
+      .pr-feedback-card h5{margin:0 0 6px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700;}
+      .pr-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
+      /* Kart ilk açılışta kapalı (bkz. kullanıcı isteği: "Geri Bildirim +" ön başlığı) — native
+         <details>/<summary>, proje.html#.pm-feedback-card İLE AYNI desen. */
+      .pr-feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      .pr-feedback-card > summary::-webkit-details-marker{display:none;}
+      .pr-feedback-card[open] > summary{margin-bottom:6px;}
+      .feedback-card-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}
+      .feedback-card-plus::before, .feedback-card-plus::after{content:''; position:absolute; top:50%; left:50%; background:var(--ink-soft); transform:translate(-50%,-50%); transition:transform 0.15s ease;}
+      .feedback-card-plus::before{width:12px; height:2px;}
+      .feedback-card-plus::after{width:2px; height:12px;}
+      .pr-feedback-card[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
+      /* Bildir butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği,
+         js/components/project-modal.js#wireFeedbackBox ile AYNI desen) — yazının butonun altına/
+         arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür. */
+      .feedback-input-wrap{position:relative;}
+      .pr-feedback-card textarea{width:100%; min-height:64px; padding:9px 92px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+      .feedback-input-wrap #pr-feedback-btn{position:absolute; right:6px; bottom:6px;}
+      #pr-feedback-btn{background:var(--ink); color:var(--paper-card); padding:7px 14px; border-radius:100px; font-weight:600; font-size:12px; border:none;}
+      #pr-feedback-btn:hover{background:var(--walnut);}
+      #pr-feedback-btn:disabled{opacity:0.5; cursor:not-allowed;}
+      #pr-feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
+      /* BIM/CAD/Katalog dosyaları — Geri Bildirim kartıyla AYNI .pr-feedback-card kabuğunu paylaşır
+         (bkz. kullanıcı isteği: Geri Bildirim'in üzerine, aynı açılır-kapanır görünümde) — yalnızca
+         kare kutucuk ızgarası kendine özgüdür. Ürün ekle/düzenle sayfasına yükleme kutusu HENÜZ yok
+         (bkz. kullanıcı isteği: "daha sonra ekleyeceğiz"), bu yüzden p.files şimdilik her zaman boş —
+         ızgara "Yüklenen dosya yok." gösterir.
+         */
+      .pr-files-grid{display:flex; flex-wrap:wrap; gap:10px;}
+      .pr-files-empty{margin:0; font-size:13px; color:var(--ink-soft);}
+      .pr-file-tile{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; width:84px; height:84px; padding:8px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); text-decoration:none; color:inherit; text-align:center; flex-shrink:0; box-sizing:border-box;}
+      .pr-file-tile:hover{border-color:var(--walnut);}
+      .pr-file-icon{min-width:34px; height:22px; padding:0 6px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:9.5px; font-weight:800; letter-spacing:0.02em; color:#fff; flex-shrink:0;}
+      .pr-file-name{font-size:10px; color:var(--ink-soft); line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; width:100%;}
+      @media (max-width:860px){
+        .related-grid-scroll .related-card{flex:0 0 140px;}
+        .related-grid-scroll{gap:10px;}
+        .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
+
+        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama →
+           Firmanın Diğer Ürünleri → Benzer Ürünler → Bilgi Kaynağı (bkz. proje.html'deki AYNI #pm-*
+           order deseni, kullanıcı isteği: Ürün pop-up'ı Proje pop-up'ıyla birebir aynı grid yapısına
+           getirilsin; Bilgi Kaynağı & Geri Bildirim kutusu bu breakpoint'te sayfanın en altına
+           taşındı) — modal-shell.js bu kırılma noktasında sol/sağ paneli display:contents yaptığından
+           tüm bölümler AYNI dikey flex akışının parçası. .detail-info künye/açıklama/teknik
+           özellikleri TEK blok olarak taşır. Proje modalının aksine burada yorum/aynı-tasarımcı/
+           malzeme bölümleri yok, iki related section (Firmanın Diğer Ürünleri, Benzer Ürünler) var. */
+        /* order KESİNLİKLE tam sayı olmalı (CSS <integer> — bkz. proje.html'deki AYNI gerçek bulgu:
+           ondalıklı order değerleri geçersiz sayılıp sessizce order:0'a düşüyor, ilgili öğeyi
+           modalın EN ÜSTÜNE zıplatıyordu). */
+        #pr-gallery-wrap{order:1;}
+        #pr-title{order:2; margin-top:20px;}
+        /* [data-owner="product"] — proje.html AYNI sınıfa order:5 veriyor (bkz. yukarıdaki #pr-desc
+           gerçek bulgusu); kapsamsız bırakılırsa proje popup'ının mobil dizilimi bozulurdu. */
+        .modal-shell-overlay[data-owner="product"] .detail-info{order:6;}
+        /* Kullanılan Projeler (bkz. kullanıcı isteği 2026-08-31) — proje modalındaki "Kullanılan
+           Ürünler"in AYNADAKİ karşılığı, iki "diğer ürünler" bölümünden ÖNCE gelir (ürünün kendi
+           gerçek kullanımları, benzer/ilgili önerilerden daha öncelikli). */
+        #pr-projects-section{order:7;}
+        /* Kullanan Firmalar/Mimarlar — "Kullanılan Projeler"in hemen ardından (aynı kenardan
+           türetilmiş bilgi), iki "diğer ürünler" önerisinden ÖNCE (bkz. kullanıcı isteği madde 3). */
+        #pr-users-pair{order:8;}
+        #pr-company-section{order:9;}
+        #pr-related-section{order:10;}
+        /* Önceki/Sonraki Ürün popup'ın EN ALTINDA (kullanıcı isteği, 2026-09-11: "Tablet ve mobil
+           görünümde tüm önceki sonraki butonları popupın en altında olsunlar") — dosyalar ve geri
+           bildirim kutusunun da altında; proje popup'ındaki #pm-prevnext ile AYNI kural. */
+        #pr-prevnext{order:15;}
+        #pr-info-divider{order:12;}
+        #pr-files-card{order:13;}
+        #pr-feedback-card{order:14;}
+
+        /* Puanla/Kaydet/Paylaş/Websitesi artık bu satırda değil, X'in yanında sabit 36px'te (bkz.
+           modal-shell.js#injectStyles) — buradaki eski dokunma-hedefi/gizleme kuralları kaldırıldı. */
+      }
+      /* Mobil galeri oranı — proje.html'deki AYNI kural (kullanıcı isteği): masaüstünde 2:1 korunur,
+         yalnızca ≤768px'te 4:3'e geçilir. 860px bloğundan SONRA tanımlanır ki aynı özgüllükteki
+         aspect-ratio kuralı ≤768px genişliklerde kaynak sırasına göre onu ezsin. */
+      @media (max-width:768px){
+        .detail-gallery a, .gallery-placeholder{aspect-ratio:4/3;}
+      }

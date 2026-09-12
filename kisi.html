@@ -452,6 +452,10 @@ if(p.replace(/\/+$/,'')==='/kisi'&&!location.search){var u='/api/architects?page
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<!-- Varlık popup stilleri — tek kaynak (bkz. css/architect-detail.css dosya başı). Bu sayfa ilgili modal
+     modülünü kendi <script> etiketiyle yüklüyor; stil de bu yüzden burada <link>'lenir ki
+     popup açıldığı anda stilli çizilsin (modülün ensureStylesheet güvenlik ağı son çaredir). -->
+<link rel="stylesheet" href="/css/architect-detail.css">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
   window.dataLayer = window.dataLayer || [];

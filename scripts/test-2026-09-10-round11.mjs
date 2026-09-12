@@ -302,7 +302,12 @@ await test('pickIndex: kapalı hap\'a tıklamak en yakın gerçek versiyona dü�
 await test('product-modal.js kapalı hap sınıfını yazıyor; form ve popup aynı modülü kullanıyor', () => {
   const pm = readFileSync(new URL('../js/components/product-modal.js', import.meta.url), 'utf8');
   assert.ok(pm.includes("btn.classList.toggle('is-off', off && !active)"));
-  assert.ok(pm.includes('.pr-variant-pill.is-off{'));
+  // Kuralın YERİ değişti (2026-09-12): ürün popup'ının CSS'i artık JS dizesinde değil,
+  // css/product-detail.css'te (bkz. o dosyanın başı — popup her sayfadan açılabildiği için
+  // stiller gerçek bir stil dosyasında tek kaynakta tutuluyor). Testin amacı "kapalı hap
+  // GÖRSEL olarak da işaretleniyor"; kural hangi dosyada olursa olsun bu doğrulanır.
+  const productCss = readFileSync(new URL('../css/product-detail.css', import.meta.url), 'utf8');
+  assert.ok(productCss.includes('.pr-variant-pill.is-off{'), '.pr-variant-pill.is-off kuralı css/product-detail.css\'te olmalı');
   assert.ok(pm.includes('window.MLProductVariants'));
   const form = readFileSync(new URL('../urun-ekle.html', import.meta.url), 'utf8');
   assert.ok(form.includes('id="variants-section"'));

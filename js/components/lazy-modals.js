@@ -152,6 +152,9 @@
     architect: {
       src: 'js/components/architect-modal.js', globalName: 'ArchitectModal',
       owner: 'architect', pathRe: /^\/kisi\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
+      // Popup'ın GÖRÜNÜMÜ artık JS dizesinde değil, gerçek bir stil dosyasında (bkz.
+      // css/architect-detail.css dosya başı) — modül açılmadan ÖNCE yüklenir ve BEKLENİR.
+      cssDeps: ['css/architect-detail.css'],
       // kisi.html'in architect-modal.js'ten ÖNCE yüklediği ama proje/urun/firma/marka.html'de
       // BULUNMAYAN modüller. MessageWidget/SocialLinks/ConsultationModal architect-modal.js içinde
       // `typeof … !== 'undefined'` ile korunuyor (eksik olsalar çökmez, yalnızca o bölümler
@@ -182,6 +185,9 @@
       // office-kind.js#isPureBrandOffice ve js/components/office-modal.js#syncCanonicalBasePath).
       src: 'js/components/office-modal.js', globalName: 'OfficeModal',
       owner: 'office', pathRe: /^\/(?:firma|marka)\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
+      // Popup'ın GÖRÜNÜMÜ artık JS dizesinde değil, gerçek bir stil dosyasında (bkz.
+      // css/office-detail.css dosya başı) — modül açılmadan ÖNCE yüklenir ve BEKLENİR.
+      cssDeps: ['css/office-detail.css'],
       // firma.html/marka.html'in office-modal.js'ten önce yüklediği aynı üçlü (ConsultationModal
       // firma popup'ında kullanılmıyor) + logoyu büyüten image-lightbox (bkz. architect'teki AYNI
       // markup-üzerinden-bağımlılık notu).
@@ -191,6 +197,9 @@
     product: {
       src: 'js/components/product-modal.js', globalName: 'ProductModal',
       owner: 'product', pathRe: /^\/urun\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
+      // Popup'ın GÖRÜNÜMÜ artık JS dizesinde değil, gerçek bir stil dosyasında (bkz.
+      // css/product-detail.css dosya başı) — modül açılmadan ÖNCE yüklenir ve BEKLENİR.
+      cssDeps: ['css/product-detail.css'],
       // product-modal.js initDetailGallery (gallery.js) ve mountRateButton (rating-widget.js)
       // çağırıyor; ilki KORUMASIZ. Diğer bağımlılıkları (RelatedStrip/ProjectGroupFilter/
       // ShareWidget/cdnImg/savedWidgetReady) kişi/firma/marka sayfalarında zaten yüklü.

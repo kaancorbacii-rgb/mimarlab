@@ -118,5 +118,63 @@ await test('popup\'ın hiçbir sınıfı yalnızca sayfa <style>\'ında tanıml�
     `Kuralları css/project-detail.css'e taşı: ${leaked.join(', ')}`);
 });
 
+section('kişi / firma / ürün popup\'ları da CSS\'ini JS dizesinde taşımaz');
+
+// Aynı sınıf hatanın diğer üç modalda oluşmasını engeller: CSS bir JS şablon dizesine geri
+// taşınırsa (ya da bir sayfanın <style>'ına yazılırsa) o kural, popup başka bir yerden
+// açıldığında yine eksik kalabilir. Kurallar artık gerçek stil dosyalarında.
+const ENTITY_CSS = {
+  architect: { file: 'css/architect-detail.css', module: 'js/components/architect-modal.js',
+    pages: ['kisi.html', 'kisi-ekle.html'], probe: ['am-identity', 'detail-title', 'detail-meta'] },
+  office: { file: 'css/office-detail.css', module: 'js/components/office-modal.js',
+    pages: ['firma.html', 'firma-ekle.html', 'marka.html', 'marka-ekle.html', 'neden-mimarlab.html'],
+    probe: ['om-identity', 'detail-title', 'detail-meta'] },
+  product: { file: 'css/product-detail.css', module: 'js/components/product-modal.js',
+    pages: ['urun.html', 'urun-ekle.html', 'proje.html', 'en-iyi-100.html'],
+    probe: ['designer-chip', 'detail-title', 'detail-meta'] },
+};
+
+await test('üç modalın CSS\'i gerçek dosyada ve çekirdek sınıfları tanımlı', () => {
+  for (const [key, cfg] of Object.entries(ENTITY_CSS)) {
+    const defined = classesDefinedIn(read(cfg.file));
+    for (const c of cfg.probe) assert.ok(defined.has(c), `${key}: .${c} ${cfg.file}'te tanımlı olmalı`);
+  }
+});
+
+await test('modal modülleri artık <style> metni enjekte etmiyor (CSS JS dizesinde değil)', () => {
+  for (const [key, cfg] of Object.entries(ENTITY_CSS)) {
+    const src = read(cfg.module);
+    assert.ok(!/style\.textContent\s*=\s*`/.test(src),
+      `${key}: modül hâlâ JS dizesinden CSS enjekte ediyor — kurallar ${cfg.file}'e taşınmalı`);
+    assert.match(src, new RegExp(`const href = '/${cfg.file.replace('/', '\\/')}'`),
+      `${key}: modül güvenlik ağı olarak stil dosyasını <link>'lemeli`);
+  }
+});
+
+await test('modülü kendi <script>\'iyle yükleyen HER sayfa stil dosyasını da <link>\'liyor', () => {
+  for (const [key, cfg] of Object.entries(ENTITY_CSS)) {
+    for (const page of cfg.pages) {
+      assert.ok(read(page).includes(`<link rel="stylesheet" href="/${cfg.file}">`),
+        `${page} ${cfg.file} dosyasını <link>'lemeli (popup o sayfada stilsiz açılır)`);
+    }
+    // Modülü <script> ile yükleyen başka bir sayfa varsa ve <link>'i yoksa yakala.
+    const modRe = new RegExp(cfg.module.replace(/[/.]/g, m => '\\' + m));
+    for (const page of ['kisi.html','firma.html','marka.html','urun.html','proje.html','en-iyi-100.html',
+      'kisi-ekle.html','firma-ekle.html','marka-ekle.html','urun-ekle.html','neden-mimarlab.html','arama.html','index.html']) {
+      const html = read(page);
+      if (!modRe.test(html)) continue;
+      assert.ok(html.includes(`<link rel="stylesheet" href="/${cfg.file}">`),
+        `${page} ${cfg.module} yüklüyor ama ${cfg.file} <link>'i yok`);
+    }
+  }
+});
+
+await test('lazy-modals dört modalın da CSS\'ini açmadan önce yükleyip bekliyor', () => {
+  const lm = read('js/components/lazy-modals.js');
+  for (const f of ['css/architect-detail.css', 'css/office-detail.css', 'css/product-detail.css', 'css/project-detail.css']) {
+    assert.ok(lm.includes(`cssDeps: ['${f}']`), `${f} cssDeps olarak bildirilmeli`);
+  }
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`  - ${f.name}: ${f.message}`); process.exit(1); }

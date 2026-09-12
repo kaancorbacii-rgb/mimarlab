@@ -599,6 +599,10 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
     .content-card-by{display:none;}
   }
 </style>
+<!-- Varlık popup stilleri — tek kaynak (bkz. css/product-detail.css dosya başı). Bu sayfa ilgili modal
+     modülünü kendi <script> etiketiyle yüklüyor; stil de bu yüzden burada <link>'lenir ki
+     popup açıldığı anda stilli çizilsin (modülün ensureStylesheet güvenlik ağı son çaredir). -->
+<link rel="stylesheet" href="/css/product-detail.css">
 <!-- Proje popup (detay) stilleri — bkz. css/project-detail.css dosya başı: popup her sayfadan
      açılabildiği için bu kurallar artık sayfanın satır içi <style>'ında DEĞİL, paylaşılan tek
      kaynakta. Konum <style>'ın hemen ARDI: kurallar eskiden bloğun SONUNDAYDI, cascade sırası

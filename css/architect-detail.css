@@ -1,0 +1,270 @@
+/* KIŞI POPUP'I — TEK KAYNAK (CSS artık JS dizesi değil).
+ *
+ * NEDEN (kullanıcı isteği, 2026-09-12): bu kurallar js/components/architect-modal.js'in içinde bir
+ * şablon dizesi olarak yaşıyordu ve her açılışta <style> olarak enjekte ediliyordu. Aynı tasarım
+ * dili dört ayrı yerde (üç modal bloğu + proje.html) duruyordu; CSS olarak ayrı durduğunda
+ * tarayıcı onu bağımsız önbellekler, JS ayrıştırma bütçesinden düşer ve gerçek CSS olarak
+ * düzenlenebilir. Proje popup'ıyla AYNI mekanizma: bkz. css/project-detail.css.
+ *
+ * KURALLAR BİREBİR TAŞINDI — sıra, seçici ve bildirimler değişmedi. Blok içinde AYNI seçicinin
+ * iki kez geçtiği (sıraya bağımlı ezme) yerler var; bu yüzden kurallar yeniden sıralanmadı ve
+ * üç modalın ORTAK kuralları TEK bir dosyada birleştirilmedi — ölçüldü: güvenle paylaşılabilir
+ * (üçünde de birebir aynı VE blok içinde tekrarsız) çekirdek yalnızca 27 kural / 2,9 KB, yani
+ * 43 KB'ın ~%7'si. O %7 için dört dosyanın cascade sırasını karıştırmak, canlıda yoğun kullanılan
+ * popup'larda karşılığı olmayan bir risk olurdu.
+ *
+ * YÜKLEME ÜÇ YOLDAN DA GARANTİ:
+ *   1. Modülü kendi <script>'iyle yükleyen sayfalar bu dosyayı <link>'ler,
+ *   2. lazy-modals.js modülü açmadan önce cssDeps olarak yükleyip bekler,
+ *   3. modülün kendi ensureStylesheet()'i, ikisi de olmamışsa mount anında <link>'i ekler.
+ * Üçüncüsü son çare ağıdır: proje popup'ı 2026-09-12'de tam bu boşluk yüzünden stilsiz açıldı.
+ */
+.detail-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0; line-height:1.25;}
+      .am-identity{display:flex; align-items:center; gap:16px; margin-bottom:18px;}
+      .profile-logo{
+        width:64px; height:64px; border-radius:50%; flex-shrink:0;
+        border:1px solid var(--line); overflow:hidden; position:relative;
+        display:flex; align-items:center; justify-content:center;
+        background:var(--walnut); color:var(--paper-card);
+        font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;
+      }
+      .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+      /* Düzenle/Arşivle/Sil (X'in KARŞI kenarında), Paylaş/Takip Et (X'in yanında) artık burada
+         DEĞİL — modal-shell.js'in paylaşılan header'ında render edilir (bkz. kullanıcı isteği: bu
+         satır tamamen kaldırıldı, altındaki içerik yukarı çekildi). .detail-title-actions/
+         .card-edit-btn/.card-delete-btn/.profile-edit-btn kuralları buradan kaldırıldı; TEK stil
+         kaynağı artık modal-shell.js#injectStyles. */
+      /* Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok)
+         — bu profillerde içerik aksiyonları Paylaş + Takip Et'tir. */
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Paylaş ile AYNI
+         yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
+         paintFollowBtn tarafından basılır. */
+      .follow-btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 12px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
+      }
+      .follow-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .follow-btn.following{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+      /* Danışmanlık Al — kullanıcı isteği, 2026-09-05: ŞİMDİLİK yalnızca kaan-corbaci profilinde
+         (bkz. renderItem'daki a.slug kapısı) Mesajlaşma ile Takip Et arasında görünen buton.
+         .follow-btn İLE AYNI pil ölçüsü/yüksekliği ama walnut dolgu ile öne çıkar. */
+      .consult-btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--walnut); border:1px solid var(--walnut); border-radius:100px;
+        padding:0 14px !important; font-size:12px !important; font-weight:600; color:var(--paper-card);
+        font-family:inherit; line-height:1;
+      }
+      .consult-btn:hover{opacity:0.88;}
+      .detail-info{margin-top:8px;}
+      .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
+      .detail-meta strong{font-weight:600; color:var(--ink);}
+      /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
+         isteği), hepsi AYNI büyüklükte. */
+      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+      .meta-icon svg{display:block; width:100%; height:100%;}
+      .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+      .detail-meta .meta-row .meta-icon{margin-top:3px;}
+      /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (kisi-ekle.html#social-row) */
+      .social-icons{display:flex; gap:12px; margin-top:12px;}
+      .social-icons a{color:var(--ink-soft); display:flex;}
+      .social-icons a:hover{color:var(--walnut);}
+      .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
+      .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
+      .detail-desc-more:hover{color:var(--ink);}
+      .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0;}
+      .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+      .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
+      .related-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+      /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
+         görünümlerde gönderi başlıkları görselin altında olsun). */
+      .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+      /* background: yükleme sırasında (yavaş bağlantı) veya görsel 404/hata verirse kutu şeffaf/beyaz
+         kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
+      .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
+      .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700;}
+      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700;}
+      /* Pop-up içindeki proje/danışman kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği):
+         uzun başlıklar tek satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle
+         geçmez, satır sonuna ellipsis eklenir. */
+      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
+      /* "Projeler" (bu mimarın/firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR
+         (bkz. kullanıcı isteği: "ismi uzun olan mimarın/firmanın diğer yapılarında metinlerindeki üç
+         nokta sistemini sil") — yukarıdaki genel kural Firmalar/Firma Ortakları kartlarında
+         (isim tek satır) aynen kalır, yalnızca #am-related-projects-grid'e özel bu override başlığın
+         normal şekilde birden çok satıra sarmasına izin verir. */
+      #am-related-projects-grid .related-card-title-text{white-space:normal !important; overflow:visible !important; text-overflow:clip !important;}
+      .related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
+      .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .related-grid-scroll::-webkit-scrollbar{display:none;}
+      .related-grid-scroll .related-card{flex:0 0 200px;}
+      /* Firmalar | Firma Ortakları ikili satırı (kullanıcı isteği, 2026-08-31). Kasıtlı olarak HİÇBİR
+         media query'de tek sütuna düşmez — kullanıcı üç görünümde de tek satır/iki sütun istedi.
+         min-width:0 ZORUNLU: grid hücrelerinin varsayılan min-width:auto'su, içindeki yatay kaydırma
+         şeridinin (.related-grid-scroll) taşmasına ve sütunun kart genişliği kadar şişip satırı
+         kırmasına yol açar (bkz. en-iyi-100 mobil taşma hatasıyla AYNI kök neden). */
+      .am-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .am-two-col-cell{min-width:0;}
+      .am-two-col-cell .related-title{margin-bottom:16px;}
+      /* Ortadaki KISA dik çizgi — yatay ayırıcılarla aynı renk/kalınlık. Yalnızca İKİ sütun da
+         doluyken çizilir (tek sütun varsa boşlukta asılı bir çizgi kalırdı, bkz. renderItem'daki
+         am-two-col-row-both sınıfı). */
+      .am-two-col-row::after{content:''; display:none;}
+      /* Yükseklik ORANSAL (kullanıcı isteği, 2026-08-31: "biraz daha uzat") — sabit px yerine satır
+         yüksekliğinin %70'i, böylece kartlı satırlarda belirgin şekilde uzar ama alt/üst sınırlarla
+         hiçbir zaman ne kaybolur ne de bölümün tamamına yayılıp "tam bölme çizgisi"ne dönüşür. */
+      .am-two-col-row.am-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .am-two-col-row{gap:14px;}
+        .am-two-col-row.am-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
+      /* am-two-col-row-stacked — YALNIZCA bu modifiyeyi taşıyan satır (Tercih Ettiği Markalar |
+         Kullandığı Ürünler) HER genişlikte tek sütuna, yani ayrı satırlara düşer; Firmalar | Firma
+         Ortakları satırı üç görünümde de iki sütun kalmaya devam eder (2026-08-31'deki AYRI istek).
+         ÖNCEDEN bu kural bir @media (max-width:767px) bloğunun içindeydi (modifiye o yüzden
+         "-stack-mobile" adını taşıyordu): masaüstü/tablette iki sütun, yalnızca mobilde alt alta.
+         Kullanıcı isteği (2026-09-05 madde 3: "Mimar ve Proje popuplarındaki yan yana 2 sütun
+         şeklinde duran markalar ve ürünler kısımları, mobil görünümdeki gibi ayrı ayrı satır
+         olsunlar") bunu tersine çevirdi — mobildeki davranış artık TÜM genişliklerde geçerli, bu
+         yüzden kural media query'den çıkarıldı ve modifiye yeniden adlandırıldı. Tek sütuna
+         düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır. */
+      .am-two-col-row.am-two-col-row-stacked{grid-template-columns:1fr; gap:28px;}
+      .am-two-col-row.am-two-col-row-stacked.am-two-col-row-both::after{display:none;}
+      .unregistered-badge{
+        display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
+        background:var(--paper-card); border:1px solid var(--line-soft);
+        border-radius:100px; padding:6px 16px 6px 6px; cursor:default;
+      }
+      .unregistered-badge-avatar{
+        width:32px; height:32px; border-radius:50%; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:11.5px;
+      }
+      .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
+      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+      .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a:hover{border-color:var(--walnut);}
+      .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
+      .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14px;}
+      .prevnext-text{min-width:0; flex:1;}
+      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+      /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
+         inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
+         dışına taşıyordu (bkz. kullanıcı isteği). */
+      /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
+         butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
+         sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
+      @media (max-width:860px){
+        .related-grid-scroll .related-card{flex:0 0 140px;}
+        .related-grid-scroll{gap:10px;}
+        /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
+           modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/geri
+           bildirim kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
+        #claim-info-card, #correction-info-card{order:98;}
+        /* Önceki/Sonraki popup'ın EN ALTINDA, claim/geri bildirim kutularının da altında (kullanıcı
+           isteği, 2026-09-11: "Tablet ve mobil görünümde tüm önceki sonraki butonları popupın en
+           altında olsunlar") — kutular sol panelde, bu buton sağ panelde; order ikisini ayırır. */
+        #am-prevnext{order:99;}
+        /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
+           gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Firmalar" artık görsel olarak ilk
+           değil, hemen üstünde kimlik/künye bölümünün hr.detail-info-divider'ı var (bkz. kullanıcı
+           isteği: "Projeler" başlığıyla BİREBİR aynı boşluk). :first-child sıfırlamasını burada geri
+           alıp diğer .related-section'larla eşit boşluk/çizgiye döndürür. */
+        .related-section:first-child{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+        /* related-section:first-child'ın üstteki border-top'u zaten açıklamadan sonra TEK bir çizgi
+           oluşturuyor — detail-info-divider (açıklamanın hemen altındaki hr) burada hala görünür
+           kalsaydı üst üste 2 çizgi (bkz. kullanıcı isteği: çift çizgi hatası) belirirdi, bu yüzden
+           mobil/tablette gizlenir. */
+        .detail-info-divider{display:none;}
+      }
+      /* Projeler haritası — bkz. kullanıcı isteği: "Projeler"in altına, mimarın/firmanın koordinatlı
+         TÜM projelerini pinleyen açık bir harita; js/pages/proje.js#loadLeaflet İLE AYNI Leaflet +
+         Esri World Imagery yığını/marker popup kartı (bu modül kisi.html'de Leaflet YÜKLEMEYEN diğer
+         sayfalardan bağımsız kendi yükleyicisini taşır, bkz. aşağıdaki loadAmMapLeaflet). */
+      .am-projects-map-wrap{margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--line-soft); height:280px; background:var(--paper-alt);}
+      .am-projects-map-wrap .leaflet-container{width:100%; height:100%; background:var(--paper-alt); font-family:inherit;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content-wrapper{padding:0; border-radius:10px; overflow:hidden;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content{margin:0; width:auto !important;}
+      .pm-map-marker-card{display:block; text-decoration:none; color:inherit; cursor:pointer;}
+      .pm-map-marker-card-photo{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:var(--paper-alt);}
+      .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff; width:100%; aspect-ratio:1/1;}
+      .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
+      @media (max-width:860px){
+        .am-projects-map-wrap{height:220px;}
+      }
+      /* PORTFOLYO galerisi (kullanıcı isteği, 2026-09-08: "Kişi popupında bu görselleri ya da pdf'in
+         her sayfasını tek tek sırayla göstereceksin … tıklayınca popup şeklinde büyüsünler ve
+         büyüyen görsellerden de ileri geri yapıp diğer görselleri de görebilelim").
+         Bu blok js/components/product-modal.js#injectStyles'taki galeri/lightbox bloğunun BİREBİR
+         kopyasıdır — üç modül (proje/ürün/kişi) AYNI js/components/gallery.js#initDetailGallery
+         motorunu kullanır ama paylaşılan bir stylesheet olmadığından her modül kendi kopyasını
+         taşır (bkz. o dosyadaki AYNI not). Tek fark: kişi portfolyosunda ürün işaretçisi/marka
+         favicon'u yok, bu yüzden .gallery-placeholder'ın favicon satırı alınmadı. */
+      .gallery-wrap{position:relative; min-width:0;}
+      .gallery-media{position:relative;}
+      .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .detail-gallery::-webkit-scrollbar{display:none;}
+      .detail-gallery a{
+        flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px; overflow:hidden;
+        display:block; background:var(--paper-card);
+      }
+      /* object-fit:contain — portfolyo öğeleri ÇOĞUNLUKLA dikey PDF sayfalarıdır (A4/A3 sunum
+         paftası); 2:1 kutuya cover ile sığdırmak sayfanın üstünü ve altını keserdi. Proje/ürün
+         galerisinde görseller zaten yatay fotoğraflar olduğundan orada cover doğru; burada ise
+         "sayfanın TAMAMI görünsün" tek doğru davranış. Kutu zemini kâğıt rengiyle doldurulur. */
+      .detail-gallery img{width:100%; height:100%; object-fit:contain; display:block; background:var(--paper-alt);}
+      .gallery-nav{
+        position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+        width:38px; height:38px; border-radius:50%; border:none;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(27,42,61,0.45); color:#fff;
+      }
+      .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+      .gallery-prev{left:14px;}
+      .gallery-next{right:14px;}
+      .gallery-counter{text-align:center; margin-top:8px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12.5px; color:var(--ink-soft);}
+      .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+      .lightbox.open{display:flex;}
+      .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+      .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+      .lightbox-close:hover{opacity:1;}
+      .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+      .lightbox-nav:hover{opacity:1;}
+      .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+      .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+      .lightbox-counter{
+        position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+        color:#fff; font-size:13px; font-weight:600; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+      }
+      .lightbox-grid-toggle{
+        position:absolute; top:24px; right:78px; background:none; border:none;
+        color:var(--paper); opacity:0.8; z-index:2;
+      }
+      .lightbox-grid-toggle:hover{opacity:1;}
+      .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}
+      .lightbox.grid-mode .lightbox-grid{display:block;}
+      /* bkz. product-modal.js'teki AYNI gerçek bulgu — doğrudan-çocuk (>) kısıtlaması olmadan bu
+         kural ızgara kutucuklarının içindeki img'leri de gizliyordu. */
+      .lightbox.grid-mode > img,
+      .lightbox.grid-mode .lightbox-nav,
+      .lightbox.grid-mode .lightbox-counter{display:none;}
+      .lightbox-grid-list{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; max-width:1080px; margin:0 auto;}
+      .lightbox-grid-item{aspect-ratio:1/1; border-radius:10px; overflow:hidden; display:block; background:var(--paper-card);}
+      .lightbox-grid-item img{width:100%; height:100%; object-fit:cover; display:block;}
+      @media (max-width:768px){
+        .lightbox-grid{padding:60px 14px 24px;}
+        .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
+      }
