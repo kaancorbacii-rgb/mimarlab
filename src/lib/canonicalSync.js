@@ -1201,6 +1201,16 @@ async function syncProject(env, row, opts = {}) {
       row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
       row.lat ?? null, row.lng ?? null,
     ];
+    // source_url YALNIZCA DOLU GELDİĞİNDE yazılır (kullanıcı bildirimi, 2026-09-12 madde 1): bu alan
+    // daha önce yalnızca INSERT dalında vardı, yani var olan bir projeyi AI akışıyla (proje-ekle.html#
+    // ai-url-input, "Kaynak Bağlantı") yeniden analiz edip kaydeden kullanıcının verdiği kaynak
+    // bağlantısı hiçbir yere işlenmiyordu. Koşulsuz yazılamaz — AI'dan geçmeyen sıradan bir
+    // düzenleme bu alanı NULL gönderir (bkz. proje-ekle.html: payload.source_url yalnızca
+    // aiGenerated iken eklenir) ve mevcut kaynağı sessizce silerdi; images ile AYNI koruma deseni.
+    if (row.source_url) {
+      sets.splice(-1, 0, 'source_url = ?');
+      vals.push(row.source_url);
+    }
     if (row.images && row.images.length) {
       sets.splice(-1, 0, 'images = ?');
       vals.push(images);

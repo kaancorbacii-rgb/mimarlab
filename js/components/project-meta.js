@@ -55,6 +55,35 @@ const ProjectMeta = (function () {
   }
   window.safeUrl = window.safeUrl || safeUrl;
 
+  // DIŞ (harici) bağlantılar için safeUrl'in KARŞITI: değer ASLA document.baseURI'ye göre
+  // çözülmez. src/lib/externalUrl.js#externalHttpUrl'in İSTEMCİ KOPYASIDIR (bu dosya klasik bir
+  // <script>, ES modülü değil — import edemez); davranışları aynı kalmalı, biri değişirse diğeri de.
+  //
+  // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-12 madde 1): "Kaynak" kutusu bilerek type="url"
+  // DEĞİL (bkz. proje-ekle.html#p-credit-url) ve sunucu şemasız değerleri de kabul ediyor (bkz.
+  // submissionTypes.js#isSafeUrlValue), yani veritabanında "ytong.com.tr/x" gibi bir kaynak durması
+  // NORMAL. safeUrl böyle bir değeri https://mimarlab.com/ytong.com.tr/x'e çözüyordu — fotoğrafçı
+  // etiketi kırık bir SİTE-İÇİ bağlantıya gidiyordu. Şema yoksa artık "https://" varsayılır, ama
+  // yalnızca değer gerçekten bir alan adı gibi görünüyorsa; aksi halde '' döner (bağlantı üretilmez).
+  const HOSTLIKE_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?::\d{2,5})?(?:[/?#]|$)/i;
+  function externalHttpUrl(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return '';
+    if (/["'<>\s]/.test(raw)) return '';
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw)) {
+      try {
+        const parsed = new URL(raw);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+      } catch (e) { /* ayrıştırılamayan — bağlantı üretme */ }
+      return '';
+    }
+    if (raw.startsWith('//')) {
+      try { return new URL('https:' + raw).href; } catch (e) { return ''; }
+    }
+    if (!HOSTLIKE_RE.test(raw)) return '';
+    try { return new URL('https://' + raw).href; } catch (e) { return ''; }
+  }
+
   // .designer-chip'in TÜM görsel kuralları sayfanın kendi CSS'inde (proje.html / en-iyi-100.html)
   // duruyor; bu bileşen normalde hiç stil enjekte etmez. TEK istisna aşağıdaki kural: kaynak
   // bağlantısı taşıyan fotoğrafçı etiketinin ALTI ÇİZİLİ olması (kullanıcı isteği, 2026-09-10
@@ -160,9 +189,11 @@ const ProjectMeta = (function () {
   function photographerChipList(item) {
     const matched = (item.photographerDetails || []).filter(p => p && p.name);
     const text = item.photoCredit && item.photoCredit.text ? item.photoCredit.text : '';
-    // Kaynak yalnızca gerçekten http(s)'e çözülüyorsa kullanılır (safeUrl, bu dosyada tanımlı) —
-    // javascript:/data: gibi bir değer künyeye yazılmış olsa bile bağlantıya dönüşmez.
-    const sourceUrl = (item.photoCredit && item.photoCredit.url) ? safeUrl(item.photoCredit.url) : '';
+    // Kaynak yalnızca gerçekten DIŞ bir http(s) adresine çözülüyorsa kullanılır (externalHttpUrl,
+    // bu dosyada tanımlı) — javascript:/data: gibi bir değer künyeye yazılmış olsa bile bağlantıya
+    // dönüşmez, şemasız yazılmış bir alan adı ("ytong.com.tr/x") ise site-içi bir yola DEĞİL
+    // https://ytong.com.tr/x'e çözülür (bkz. o fonksiyondaki gerçek bulgu).
+    const sourceUrl = externalHttpUrl(item.photoCredit && item.photoCredit.url);
     const byName = new Map(matched.map(p => [p.name.trim().toLocaleLowerCase('tr'), p]));
     const chips = [];
     const seen = new Set();

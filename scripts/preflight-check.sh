@@ -415,6 +415,18 @@ else
 fi
 rm -f /tmp/preflight_claimkey
 
+# Kullanıcı bildirimi, 2026-09-12 madde 1: profili olmayan fotoğrafçının adı, projeye girilen kaynak
+# bağlantısına (photo_credit_url ya da AI akışındaki source_url) giden, YENİ SEKMEDE açılan bir
+# bağlantı olmalı; şemasız girilmiş bir kaynak site-içi kırık bir yola çözülmemeli.
+# Bkz. scripts/test-2026-09-12-photographer-source-link.mjs.
+if node scripts/test-2026-09-12-photographer-source-link.mjs >/tmp/preflight_photosrc 2>&1; then
+  ok "fotoğrafçı kaynak bağlantısı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_photosrc) test)"
+else
+  bad "fotoğrafçı kaynak bağlantısı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_photosrc >&2
+fi
+rm -f /tmp/preflight_photosrc
+
 # Kullanıcı isteği, 2026-09-10 on birinci tur: claim kutusu flash'ı, önizleme kişi/firma/marka
 # popup'larının açılabilir olması (görseller blurlu), withSingleFlight bayat girdi koruması.
 # Bkz. scripts/test-2026-09-10-round11.mjs.

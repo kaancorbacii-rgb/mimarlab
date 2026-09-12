@@ -7,6 +7,7 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // sınıflandırma üretebilirdi.
 import { isOfficeName } from './projectPool.js';
 import { officePath, isBrandUrlOffice } from './officeUrl.js';
+import { externalHttpUrl } from './externalUrl.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
 // proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
 // products) tablolarından okunuyor, src/routes/architect.js|office.js|project.js|product.js'in
@@ -77,6 +78,14 @@ function factsListHtml(facts) {
 
 function internalLink(path, name) {
   return `<a href="${escapeHtml(path)}">${escapeHtml(name)}</a>`;
+}
+
+// SİTE DIŞI bağlantı — yalnızca künyedeki "Kaynak" adresinde kullanılır (bkz. aşağıda
+// fetchProjectPhotographers). Popup'taki karşılığıyla (js/components/project-meta.js#
+// designerChipHtml) AYNI öznitelikler: yeni sekme + noopener/noreferrer (açılan sayfaya
+// window.opener verilmez) + nofollow (kullanıcı girdisi bir adrese SEO ağırlığı taşınmaz).
+function externalLink(href, name) {
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer nofollow">${escapeHtml(name)}</a>`;
 }
 
 // =============================================================================================
@@ -376,8 +385,12 @@ async function fetchProjectProductsAndBrands(env, projectId) {
 // (photo_credit_text, virgülle ayrılmış) + project_photographers kenarındaki kayıtlı fotoğrafçılar,
 // AYNI sırayla ve AYNI tekilleştirmeyle (Türkçe küçük harf anahtarı). Kenarda eşleşen isim gerçek
 // /kisi/:slug bağlantısı olur, eşleşmeyen düz metin kalır — popup'ın `unregistered` davranışı.
-async function fetchProjectPhotographers(env, projectId, photoCreditText) {
+async function fetchProjectPhotographers(env, projectId, photoCreditText, sourceUrl) {
   const text = String(photoCreditText || '').trim();
+  // Profili OLMAYAN isim, künyedeki "Kaynak" bağlantısını taşır (kullanıcı isteği 2026-09-10 madde
+  // 7 + kullanıcı bildirimi 2026-09-12 madde 1) — popup'taki photographerChipList ile AYNI öncelik:
+  // profil varsa ASLA dış bağlantıya gidilmez.
+  const external = externalHttpUrl(sourceUrl);
   let matched = [];
   if (env && env.DB && projectId) {
     try {
@@ -396,7 +409,11 @@ async function fetchProjectPhotographers(env, projectId, photoCreditText) {
     const key = name.toLocaleLowerCase('tr');
     if (!name || seen.has(key)) return;
     seen.add(key);
-    out.push({ name: hit ? hit.name : name, slug: hit ? hit.slug : null });
+    out.push({
+      name: hit ? hit.name : name,
+      slug: hit ? hit.slug : null,
+      externalUrl: hit ? null : (external || null),
+    });
   };
   text.split(',').map(s => s.trim()).filter(Boolean).forEach(n => push(n, byName.get(n.toLocaleLowerCase('tr'))));
   matched.forEach(r => push(r.name.trim(), r));
@@ -424,7 +441,14 @@ async function fetchDesignerLinks(env, designerText) {
 
 function personLinksHtml(people) {
   if (!people || !people.length) return null;
-  return people.map(p => (p.slug ? internalLink(`/kisi/${encodeURIComponent(p.slug)}`, p.name) : escapeHtml(p.name))).join(', ');
+  // p.externalUrl yalnızca fotoğrafçı satırında doluyor (bkz. fetchProjectPhotographers): MİMARLAB'da
+  // profili olmayan bir fotoğrafçı adı, projenin kaynak sayfasına giden DIŞ bir bağlantı olur —
+  // popup künyesindeki çip ile aynı davranış, SSR gövdesi ondan ayrışmasın diye.
+  return people.map(p => {
+    if (p.slug) return internalLink(`/kisi/${encodeURIComponent(p.slug)}`, p.name);
+    if (p.externalUrl) return externalLink(p.externalUrl, p.name);
+    return escapeHtml(p.name);
+  }).join(', ');
 }
 function productLinksHtml(list) {
   if (!list || !list.items.length) return null;
@@ -873,7 +897,9 @@ async function buildProjectMeta(slug, env) {
   // gerçek kenar tablolarından okunur (uydurma veri yok) ve /kisi, /urun, /firma'ya crawlable iç
   // bağlantı üretir.
   const [photographers, used] = await Promise.all([
-    fetchProjectPhotographers(env, row.id, p.photo_credit_text),
+    // photo_credit_url ÖNCELİKLİ, boşsa source_url — src/routes/project.js#handleProjectDetailRoute
+    // ile AYNI kural (o dosyadaki "link alan İKİ kutu" notuna bkz.).
+    fetchProjectPhotographers(env, row.id, p.photo_credit_text, p.photo_credit_url || row.source_url),
     fetchProjectProductsAndBrands(env, row.id),
   ]);
   const disciplineLabel = (p.discipline || []).join(' / ') || null;

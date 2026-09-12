@@ -152,7 +152,9 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // kişi profili olan ekip üyeleri/ortaklar tıklanabilir (office-modal.js/architect-modal.js değişti).
 // v135 (2026-09-12): mobilde "İçerik Ekle" son çipin (İş / Staj İlanı) SAĞINDA — gundem.html'de
 // .gundem-chips display:contents.
-export const SSR_CACHE_VERSION = 'v135';
+// v136 (2026-09-12): proje SSR gövdesindeki "Fotoğraf" satırı — MİMARLAB'da profili olmayan
+// fotoğrafçı adı artık projenin kaynak bağlantısına giden dış bir link (seo.js/project-meta.js).
+export const SSR_CACHE_VERSION = 'v136';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

@@ -516,8 +516,13 @@ async function withSingleFlight(key, fn) {
 //     kayıtları başa alıyor (bkz. src/lib/homeCarousels.js). (a) satırların updated_at'ini
 //     değiştirmeden GÖVDEYİ değiştirdiğinden bump ŞART — aksi halde önbellekteki eski gövde 6
 //     görsel taşımaya devam ederdi.
+// v41 -> v42 (kullanıcı bildirimi, 2026-09-12 madde 1): /api/project/:slug yükündeki
+//     `photoCredit.url` artık (a) boşsa projects.source_url'e düşüyor ve (b) her iki durumda da
+//     mutlak http(s) adresine normalize ediliyor (bkz. src/routes/project.js#handleProjectDetailRoute
+//     ve src/lib/externalUrl.js). Satırların updated_at'i DEĞİŞMEDEN gövde değiştiğinden bump şart —
+//     aksi halde önbellekteki eski gövde fotoğrafçı etiketini bağlantısız göstermeye devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v41';
+const API_PAYLOAD_VERSION = 'v42';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

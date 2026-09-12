@@ -32,6 +32,7 @@ import { foldTr } from '../lib/textMatch.js';
 // TEK kaynağı sunucudur (bkz. js/components/office-modal.js#item.isBrand'daki AYNI gerekçe;
 // office-kind.js proje.html'de yüklü DEĞİL, istemci bu ayrımı yeniden hesaplayamaz).
 import { officePath } from '../lib/officeUrl.js';
+import { externalHttpUrl } from '../lib/externalUrl.js';
 
 const { isBrandOffice } = officeKindJs;
 
@@ -442,6 +443,24 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // (preview_at BOŞ) kayıtlarda 410 koruması aynen sürer. ÜRÜNLER bilerek dışarıda kaldı.
     if (row.hidden_at && !row.preview_at) return { item: null, hidden: true, preview: false, previewTitle: null, previewSlug: null };
     const item = shapeProjectItem(row);
+    // KAYNAK BAĞLANTISI İÇİN İKİNCİ KAYNAK: projects.source_url (kullanıcı bildirimi, 2026-09-12
+    // madde 1 — "kaynak linki ekledim ama fotoğrafçıya link olarak atanmadı").
+    //
+    // proje-ekle.html'de link alan İKİ kutu var ve ikisi AYRI kolona yazıyor:
+    //   #p-credit-url  ("Kaynak")          -> photo_credit_url
+    //   #ai-url-input  ("Kaynak Bağlantı") -> source_url  (AI ile sayfa analizi akışı, yalnızca
+    //                                        ai_generated gönderimlerde, bkz. o dosyadaki aiSourceUrl)
+    // Künye (bkz. js/components/project-meta.js#photographerChipList) yalnızca photo_credit_url'ü
+    // okuyordu, yani projeyi AI akışıyla bir kaynak sayfadan aktaran kullanıcının verdiği bağlantı
+    // sitede HİÇBİR YERDE görünmüyordu — fotoğrafçı etiketi ölü metin olarak kalıyordu. İkisi de
+    // aynı şeyi ifade ediyor: "bu projenin/görsellerin alındığı sayfa". photo_credit_url ÖNCELİKLİ
+    // kalır (elle girilmiş, daha spesifik), yalnızca o boşken source_url'e düşülür.
+    // externalHttpUrl: şemasız saklanmış bir değer ("ytong.com.tr/x") istemcide site-içi bir yola
+    // çözülmesin diye burada tek yerde mutlak hâle getirilir (bkz. src/lib/externalUrl.js).
+    item.photoCredit = {
+      text: item.photoCredit ? item.photoCredit.text : '',
+      url: externalHttpUrl((item.photoCredit && item.photoCredit.url) || row.source_url || ''),
+    };
     const [designerDetails, rawNames, owner, photographerDetails, photographerOffices] = await Promise.all([
       fetchDesignerDetails(env, row.id),
       fetchRawDesignerNames(env, row),
