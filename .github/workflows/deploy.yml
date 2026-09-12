@@ -1,0 +1,117 @@
+name: Deploy to production
+
+# UZAKTAN (TELEFONDAN) DEPLOY YOLU — 2026-09-12.
+#
+# NEDEN VAR: bilgisayar kapalıyken de canlıya çıkabilmek. Claude Code'un bulut konteynerinden
+# DOĞRUDAN deploy mümkün DEĞİL, iki sebeple ölçüldü (2026-09-12): (1) o ortamda hiçbir Cloudflare
+# kimlik bilgisi tanımlı değil, (2) ağ politikası hem api.cloudflare.com hem mimarlab.com için
+# proxy CONNECT'ini 403 ile reddediyor — yani token verilse bile wrangler Cloudflare'e, deploy
+# sonrası health-check/smoke-test de canlı siteye ulaşamaz. GitHub runner'ının ağı açık olduğu için
+# zincir BURADA sorunsuz çalışır ve API token'ı GitHub secret'ında kalır, hiçbir oturum
+# konteynerine girmez.
+#
+# BU WORKFLOW deploy.sh'İ SARMALAMAZ, OLDUĞU GİBİ ÇAĞIRIR. Kapıların tek kaynağı (deploy.sh +
+# scripts/deploy-guard.sh) değişmeden kalsın diye hiçbir kontrol burada tekrarlanmadı: preflight,
+# miras/ manifesti, dal ayrışması, temiz working tree ve deploy sonrası health-check + smoke-test
+# aynen çalışır (bkz. CLAUDE.md#Deploy).
+#
+# push TETİKLEYİCİSİ BİLEREK YOK: main'e her push otomatik canlıya çıkmaz. Canlıya çıkış açık bir
+# karar olarak kalır. Repo PUBLIC (bkz. .gitignore notu), ama workflow_dispatch yalnızca yazma
+# yetkisi olanlara açıktır ve fork PR'ları secret'lara erişemez.
+#
+# DİKKAT: GitHub, workflow_dispatch'i yalnızca DEFAULT DALDA (main) duran dosyalar için tetiklenebilir
+# kılar. Bu dosya main'e merge EDİLENE KADAR ne arayüzde ne API'den görünür.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Canlıya deploy etmek için tam olarak "deploy" yazın'
+        required: true
+        type: string
+
+# deploy.sh'in eşzamanlı-deploy kilidi .git/mimarlab-deploy.lock'ta yaşıyor; her CI çalıştırması
+# TAZE bir checkout aldığından o kilit CI çalıştırmaları ARASINDA hiçbir şey korumaz. Aynı işi
+# burada concurrency yapar. cancel-in-progress BİLEREK false: yarıda kesilen bir `wrangler deploy`
+# canlıyı yarı yayınlanmış halde bırakabilir, o yüzden ikinci çalıştırma iptal etmez, SIRAYA girer.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 16.000 dosya / ~3,5 GB'lık working tree'nin checkout'u + asset yüklemesi uzun sürebilir.
+    timeout-minutes: 60
+    steps:
+      - name: Onay girdisini doğrula
+        # Girdi, script'e ${{ }} ile GÖMÜLMEZ, env üzerinden geçer: public bir repoda şablon
+        # enterpolasyonu shell'e kod enjekte etmenin bilinen yoludur.
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "deploy" ]; then
+            echo "DEPLOY DURDURULDU: onay kutusuna tam olarak 'deploy' yazılmadı (gelen: '$CONFIRM')." >&2
+            echo "  Bu kapı, arayüzde 'Run workflow' düğmesine kazara basılınca canlıya çıkılmasını önler." >&2
+            exit 1
+          fi
+          echo "Onay alındı."
+
+      - name: Deploy edilecek dalın main olduğunu doğrula
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          # scripts/deploy-guard.sh'in 2. kapısı (başka bir worktree'nin dalı bu daldan ileride mi)
+          # CI'da SESSİZCE BOŞTUR: runner'da tek worktree vardır ve kullanıcının makinesindeki
+          # kardeş worktree'leri göremez. O kapının koruduğu şey "eski/eksik bir dal canlıya
+          # çıkmasın"dı; CI'daki telafisi, production'ın YALNIZCA main'den çıkması.
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "DEPLOY DURDURULDU: bu workflow yalnızca main dalından çalıştırılabilir (gelen ref: $REF)." >&2
+            echo "  Önce değişikliği main'e merge edin, sonra tekrar tetikleyin." >&2
+            exit 1
+          fi
+          echo "Dal kontrolü geçti (main)."
+
+      - uses: actions/checkout@v4
+        with:
+          # deploy.sh geçmişten yalnızca `git rev-parse --short=10 HEAD` okur (bilgilendirici
+          # DEPLOY_VERSION). Bu boyutta bir repoda tam geçmişi çekmenin karşılığı yok.
+          # NOT: checkout, dal ref'lerinde `-B <dal>` kullandığı için HEAD detached KALMAZ —
+          # deploy-guard.sh'in `git branch --show-current` okuması buna bağlı.
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          # scripts/preflight-check.sh sözdizimi kontrollerini `node --check` ile yapar.
+          node-version: '22'
+
+      - name: wrangler'ı GLOBAL kur (working tree'yi kirletmeden)
+        # `npm install wrangler` repo köküne node_modules/ + package-lock.json yazar; bunlar
+        # .gitignore'DA OLMADIĞI için deploy-guard.sh'in 3. kapısı (temiz working tree) deploy'u
+        # haklı olarak DURDURUR. Global kurulum repoya hiç dokunmaz ve deploy.sh'in `npx wrangler`
+        # çağrısı PATH'teki bu kurulumu bulup ayrıca indirmez.
+        # v4'e sabit: deploy-guard.sh'in dayandığı build-hook davranışı (WRANGLER_COMMAND ortam
+        # değişkeni) wrangler 4.131.0 ile ölçüldü (bkz. scripts/deploy-guard.sh dosya başı).
+        run: npm install -g 'wrangler@^4.131.0'
+
+      - name: ./deploy.sh (preflight -> deploy -> health-check -> smoke-test)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Opsiyonel: token birden fazla hesaba yetkiliyse wrangler hesabı kendi seçemez ve hata
+          # verir; o durumda bu secret'ı da tanımlayın.
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "DEPLOY DURDURULDU: CLOUDFLARE_API_TOKEN secret'ı tanımlı değil." >&2
+            echo "  GitHub > Settings > Secrets and variables > Actions > New repository secret" >&2
+            echo "  Gereken izinler: Workers Scripts:Edit, Workers R2 Storage:Edit, D1:Edit," >&2
+            echo "  Workers KV Storage:Edit, Account Settings:Read." >&2
+            exit 1
+          fi
+          # Secret tanımsızsa GitHub boş string koyar; BOŞ bir CLOUDFLARE_ACCOUNT_ID wrangler'ı
+          # şaşırtabildiği için tamamen kaldırıyoruz (tanımsız olması, boş olmasından güvenli).
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || unset CLOUDFLARE_ACCOUNT_ID
+          ./deploy.sh
