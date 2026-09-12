@@ -49,8 +49,12 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Checkout ~3,4 GB (projects/ + miras/) + preflight (~4 dk) + asset yükleme: bol pay.
-    timeout-minutes: 60
+    # ÖLÇÜLDÜ (run #3, 2026-09-12): checkout TEK BAŞINA 35+ dakika sürdü ve 60 dakikalık sınır
+    # deploy'a yer bırakmadı (run iptal edildi). Depo git içinde ~3,3 GB görsel + ~15.000 dosya
+    # taşıyor (projects/ 2,6 GB, miras/ 763 MB); bu maliyet her deploy'da yeniden ödenir. Sınır,
+    # yavaş bir checkout'un deploy'u ORTASINDA kesmemesi için yükseltildi — asıl çözüm bir gün
+    # bu görselleri git'ten çıkarmak olur (kapsam dışı, ayrı bir iş).
+    timeout-minutes: 120
     env:
       # Token YALNIZCA bu iki değişkenle wrangler'a geçer; log'a hiç yazılmaz.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -92,6 +96,17 @@ jobs:
             exit 1
           fi
           echo "Cloudflare sırları yerinde."
+
+      # Git'in kendi paralellikleri — depo ~15.000 dosya taşıdığından checkout'un darboğazı ağ
+      # değil, tek iş parçacıklı dosya yazımı ve delta çözümü (bkz. timeout notu: run #3'te
+      # checkout 35+ dk). checkout.workers=0 "çekirdek sayısı kadar", fetch.parallel=0 aynısını
+      # fetch tarafında yapar. Davranışı değiştirmez, yalnızca hızlandırır; actions/checkout bu
+      # ayarları kendisi vermiyor, bu yüzden ondan ÖNCE global olarak yazılıyor.
+      - name: Git paralel checkout ayarları
+        run: |
+          git config --global checkout.workers 0
+          git config --global fetch.parallel 0
+          git config --global core.compression 0
 
       - uses: actions/checkout@v4
         with:
