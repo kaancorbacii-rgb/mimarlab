@@ -54,6 +54,7 @@ import officeKindJs from '../office-kind.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
 import { getSessionUser } from './lib/auth.js';
 import { getSiteSettings } from './lib/siteSettings.js';
+import { featuredSlugsFromSettings, withPinParam } from './lib/homeCarousels.js';
 import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
 // GÜNDEM (kullanıcı isteği, 2026-09-06) — otomatik toplanan mimarlık/tasarım gündemi.
 import { handleGundemRoute, gundemSsrListBody, listGundemSitemapUrls } from './routes/gundem.js';
@@ -1310,37 +1311,39 @@ async function internalApiJson(env, ctx, pathname) {
 
 async function loadHomeData(env, ctx) {
   const load = (async () => {
-    const [projects, architects, offices, products, settings] = await Promise.all([
+    // SEÇİM ÖNCE OKUNUR (kullanıcı isteği, 2026-09-12 madde 1). getSiteSettings bu isteğin BAŞINDA
+    // bakım modu kapısı tarafından zaten çağrıldığından (bkz. maybeServeMaintenancePage) isolate
+    // içi memo sıcaktır — pratikte ek bir gidiş-dönüş doğurmaz. Seçim, dört liste ucuna `pin=`
+    // olarak taşınır: sıralama havuzun TAMAMI üzerinde yapılır, böylece admin'in seçtiği kayıt
+    // doğal sırada kaçıncı olursa olsun karusele girer (eski davranış yalnızca çekilen 24/9'luk
+    // pencere İÇİNDE sıralıyordu ve pencereye düşmeyen bir seçim sessizce kayboluyordu).
+    const settings = await getSiteSettings(env);
+    const pinFor = (key) => featuredSlugsFromSettings(settings, key);
+    const [projects, architects, offices, products] = await Promise.all([
       // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 6: "Ana sayfadaki carosellerde blurlu
       // gönderileri gösterme") — proje karuseli bunu zaten aşağıdaki `!p.preview` süzgeciyle
       // yapıyordu ama kişi/firma/ürün karuselleri YAPMIYORDU: onlarda eleme yoktu, dolayısıyla
       // limit=9 isteğinin ilk 9'una giren önizleme kayıtları vitrine çıkıyordu. Elemeyi SUNUCUYA
       // taşımak ayrıca "9 çekip 9'dan azını göster" sorununu da çözer — 9 slot artık her zaman
       // yayındaki kayıtlarla dolar (bkz. src/routes/*.js#noPreview).
-      internalApiJson(env, ctx, `/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}&noPreview=1`),
-      internalApiJson(env, ctx, `/api/architects?limit=${HOME_SLOTS}&noPreview=1`),
-      internalApiJson(env, ctx, `/api/offices?limit=${HOME_SLOTS}&noPreview=1`),
-      internalApiJson(env, ctx, `/api/products?limit=${HOME_SLOTS}&noPreview=1`),
-      internalApiJson(env, ctx, '/api/public/site-settings'),
+      internalApiJson(env, ctx, withPinParam(`/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}&noPreview=1`, pinFor('projects'))),
+      internalApiJson(env, ctx, withPinParam(`/api/architects?limit=${HOME_SLOTS}&noPreview=1`, pinFor('architects'))),
+      internalApiJson(env, ctx, withPinParam(`/api/offices?limit=${HOME_SLOTS}&noPreview=1`, pinFor('offices'))),
+      internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_SLOTS}&noPreview=1`, pinFor('products'))),
     ]);
     let projectItems = null;
     if (projects && Array.isArray(projects.items)) {
-      // index.html'deki AYNI seçim: yalnızca kapak görseli olanlar, öne çıkanlar başa, ilk 9.
+      // index.html'deki AYNI seçim: yalnızca kapak görseli olanlar, ilk 9. Öne çıkanların başa
+      // alınması ARTIK BURADA DEĞİL — uç `pin=` ile o işi havuzun tamamı üzerinde yaptı (yukarısı).
       // ÖNİZLEME ("soluk") projeleri ana sayfa karuselinde YER ALMAZ (kullanıcı isteği, 2026-09-10:
       // "Ana sayfadaki caroselde de blurlu olan gönderiler yer almasın") — karusel sitenin vitrini,
       // tıklanamayan bir kart oraya konmamalı. Liste sayfalarında (soluk kart olarak) görünmeye
       // devam ederler; kısıt yalnızca karusele özgüdür.
-      let pool = projects.items.filter(p => p && !p.preview && Array.isArray(p.images) && p.images[0]);
-      const featured = (settings && Array.isArray(settings.featuredProjectSlugs)) ? settings.featuredProjectSlugs : [];
-      if (featured.length) {
-        pool = [
-          ...featured.map(slug => pool.find(p => p.slug === slug)).filter(Boolean),
-          ...pool.filter(p => !featured.includes(p.slug)),
-        ];
-      }
-      projectItems = pool.slice(0, HOME_SLOTS);
+      projectItems = projects.items
+        .filter(p => p && !p.preview && Array.isArray(p.images) && p.images[0])
+        .slice(0, HOME_SLOTS);
     }
-    const items = (res) => (res && Array.isArray(res.items)) ? res.items : null;
+    const items = (res) => (res && Array.isArray(res.items)) ? res.items.slice(0, HOME_SLOTS) : null;
     // t: üretim anı (ms) — index.html bununla gömülü verinin yaşını ölçer (bkz. oradaki arka plan yenilemesi).
     const data = { v: 1, t: Date.now(), projects: projectItems, architects: items(architects), offices: items(offices), products: items(products) };
     return (data.projects || data.architects || data.offices || data.products) ? data : null;

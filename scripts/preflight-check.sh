@@ -569,6 +569,17 @@ else
 fi
 rm -f /tmp/preflight_globals
 
+# Ana sayfa karusel seçimi (madde 1), proje kartında 4 görsel (madde 2) ve çekmeceden açılan
+# popup'ın kapanışta çekmeceye dönmesi (madde 3) — kullanıcı isteği, 2026-09-12.
+# Bkz. scripts/test-2026-09-12-home-carousels-and-drawer.mjs.
+if node scripts/test-2026-09-12-home-carousels-and-drawer.mjs >/tmp/preflight_hcar 2>&1; then
+  ok "ana sayfa karuselleri + çekmece dönüşü testleri geçti ($(grep -c '^  ok ' /tmp/preflight_hcar) test)"
+else
+  bad "ana sayfa karuselleri + çekmece dönüşü testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_hcar >&2
+fi
+rm -f /tmp/preflight_hcar
+
 # Boşluksuz yazım araması ("perse" -> "Per Se Mimarlık", kullanıcı isteği 2026-09-11) — bkz.
 # src/lib/classicSearch.js#collapsedToken/likeCondition. Bkz. scripts/test-search-word-merge.mjs.
 if node scripts/test-search-word-merge.mjs >/tmp/preflight_wmerge 2>&1; then

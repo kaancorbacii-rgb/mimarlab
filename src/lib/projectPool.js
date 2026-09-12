@@ -84,7 +84,13 @@ function parseHotspots(raw) {
 // Tekil proje detayı ve handleProjectFiltersRoute'un kendi ayrı havuzu bu fonksiyonu opts'suz
 // çağırmaya devam ediyor — varsayılan (opts yok) davranış ESKİSİYLE BİREBİR AYNI (tam images dizisi).
 // Kart karuselinin taşıdığı en fazla görsel — bkz. shapeProjectItem#images (coverOnly).
-export const CARD_CAROUSEL_IMAGES = 6;
+// 6 -> 4 (kullanıcı isteği, 2026-09-12 madde 2: "Proje sayfasındaki proje önizlemelerinde ard arda
+// 4 tane görsel görülebilsin 6 değil"). Kapak dahil sayılır: kartta ileri okuna basarak en fazla 4
+// görsel gezilir. Değer YALNIZCA PROJE kartlarını bağlar — ürün kartları kendi sınırını
+// src/routes/product.js#fetchProductPool'da taşır (istek yalnızca proje sayfasını sayıyordu).
+// js/pages/proje.js#renderCards istemci tarafında AYNI sayıyla ikinci bir kırpma yapar (eski bir
+// edge gövdesi daha fazlasını taşısa bile kart 4'ü aşmasın).
+export const CARD_CAROUSEL_IMAGES = 4;
 
 export function shapeProjectItem(row, opts) {
   const p = parseCanonicalRow('projects', row);

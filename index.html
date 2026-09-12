@@ -951,13 +951,36 @@ function readHomeSsrData(){
 const HOME_SSR = readHomeSsrData();
 function ssrList(key){ return HOME_SSR && Array.isArray(HOME_SSR[key]) ? HOME_SSR[key] : null; }
 
+// ANA SAYFA KARUSEL SEÇİMİ (kullanıcı isteği, 2026-09-12 madde 1). Admin panelinin "Ana Sayfa"
+// sekmesinden seçilen kayıtlar her karuselin BAŞINA geçer, kalan slotlar ucun doğal sırasıyla
+// (son eklenenler/popülerlik) dolar. Sıralamayı SUNUCU yapar: seçim liste ucuna `pin=` olarak
+// gider ve orada HAVUZUN TAMAMI üzerinde uygulanır (bkz. src/lib/homeCarousels.js). İstemcide
+// yeniden sıralamak YETMEZDİ — çekilen 9/24'lük pencereye düşmeyen bir seçim burada hiç
+// görünmezdi (eski "öne çıkan projeler" davranışının sessiz kusuru).
+// Bu yüzden yedek fetch yolunda ayarlar listelerden ÖNCE okunur; gömülü veri (#ml-home-data)
+// varsa hiçbir istek atılmadığından bu bekleme normal yolda HİÇ oluşmaz.
+const HOME_SETTINGS_KEY = { projects: 'featuredProjectSlugs', architects: 'featuredArchitectSlugs', offices: 'featuredOfficeSlugs', products: 'featuredProductSlugs' };
+function siteSettingsPromise(){
+  // window.__siteSettingsPromise: auth-nav.js duyuru banner'ı için AYNI endpoint'i çekiyor —
+  // paylaşılan promise, aynı istek iki kez atılmaz.
+  return window.__siteSettingsPromise || (window.__siteSettingsPromise =
+    fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null));
+}
+function pinQuery(settings, key){
+  const list = (settings && settings[HOME_SETTINGS_KEY[key]]) || [];
+  return list.length ? '&pin=' + encodeURIComponent(list.join(',')) : '';
+}
+
 // useSsr=false: gömülü veri yok sayılır, her şey ağdan tazelenir (arka plan yenilemesi, aşağıya bkz.).
 function loadHomeSections(useSsr){
+  const ssrAll = useSsr && !!(ssrList('projects') && ssrList('architects') && ssrList('offices') && ssrList('products'));
+  // Dördü de gömülü geldiyse ayarlara hiç bakılmaz (sunucu sıralamayı zaten uyguladı); en az biri
+  // eksikse o uç için `pin=` gerekir, o yüzden ayarlar okunur.
+  return (ssrAll ? Promise.resolve(null) : siteSettingsPromise()).then((siteSettings)=>{
   const pick = (key, url) => {
     const list = useSsr ? ssrList(key) : null;
-    return list ? Promise.resolve({ items: list }) : fetchPublicJson(url);
+    return list ? Promise.resolve({ items: list }) : fetchPublicJson(url + pinQuery(siteSettings, key));
   };
-  const projectsFromSsr = useSsr && !!ssrList('projects');
   return Promise.all([
     // proje.html'in kullandığı AYNI canonical uç (bkz. yukarıdaki PROJECT_CAROUSEL_FETCH_LIMIT
     // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
@@ -975,29 +998,14 @@ function loadHomeSections(useSsr){
     pick('offices', '/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
     // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
     pick('products', '/api/products?limit=' + PROJECT_CAROUSEL_SLOTS + '&noPreview=1'),
-    // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
-    // featured_project_slugs). Projeler gömülü veriden geliyorsa sunucu bu sıralamayı ZATEN uygulamış
-    // olur, istek atılmaz. window.__siteSettingsPromise: auth-nav.js duyuru banner'ı için AYNI
-    // endpoint'i çekiyor — burada oluşturulan promise paylaşılır, aynı istek iki kez atılmaz.
-    projectsFromSsr ? Promise.resolve(null)
-      : (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null))),
-  ]).then(([yapiRes, architectRes, officeRes, productRes, siteSettings])=>{
+  ]).then(([yapiRes, architectRes, officeRes, productRes])=>{
     if(yapiRes.failed){
       renderSliderError('Projeler şu an yüklenemedi.');
     } else {
       // ÖNİZLEME ("soluk") projeleri karusele GİRMEZ (kullanıcı isteği, 2026-09-10) — sunucu tarafı
       // gömülü veri de aynı filtreyi uygular (bkz. src/index.js#loadHomeData); bu satır, gömülü veri
       // yoksa devreye giren doğrudan fetch yolunu da kapsar.
-      let pool = (yapiRes.items || []).filter(p => !p.preview && p.images && p.images[0]);
-      // Öne çıkan projeler bu havuz İÇİNDE başa alınır — tamamen istemci tarafında (sunucu tarafı
-      // gömülü veride aynı işlem zaten yapılmıştır, burada tekrar uygulanması sonucu değiştirmez).
-      const featured = (siteSettings && siteSettings.featuredProjectSlugs) || [];
-      if(featured.length){
-        pool = [
-          ...featured.map(slug => pool.find(p => p.slug === slug)).filter(Boolean),
-          ...pool.filter(p => !featured.includes(p.slug)),
-        ];
-      }
+      const pool = (yapiRes.items || []).filter(p => !p.preview && p.images && p.images[0]);
       renderSlider(pool.slice(0, PROJECT_CAROUSEL_SLOTS));
     }
 
@@ -1016,6 +1024,7 @@ function loadHomeSections(useSsr){
 
     if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
     else urunSlider.render(notPreview(productRes.items));
+  });
   });
 }
 

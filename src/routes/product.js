@@ -1,6 +1,7 @@
 import { json, errorJson, pageParam } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { applyPinnedOrder, pinnedSlugsFromUrl } from '../lib/homeCarousels.js';
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring, likePattern } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
@@ -576,10 +577,18 @@ export async function handleProductListRoute(request, env, url) {
       return keys.map(v => ({ value: v, count: counts[v] }));
     }
 
+    // pin=slug1,slug2 — ANA SAYFA KARUSELİNDE admin'in elle seçtiği kayıtlar (kullanıcı isteği,
+    // 2026-09-12 madde 1). Seçilenler listenin BAŞINA verilen sırayla geçer, kalan slotlar bu ucun
+    // doğal sırasıyla dolar ("örneğin 3 proje seçersem diğer 6 tanesi son eklenenler olsun").
+    // Filtreleme/sıralamadan SONRA, sayfalamadan ÖNCE uygulanır — seçilen kayıt doğal sırada
+    // kaçıncı olursa olsun ilk sayfaya girer; havuzdan elenmişse (gizli/silinmiş/önizleme) sessizce
+    // düşer. Parametreyi YALNIZCA ana sayfa gönderir (bkz. src/lib/homeCarousels.js).
+    const ordered = applyPinnedOrder(filtered, pinnedSlugsFromUrl(url));
+
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ group, groups, categories, rating, designers, ...rest }) => rest);
+    const items = ordered.slice(start, start + limit).map(({ group, groups, categories, rating, designers, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,

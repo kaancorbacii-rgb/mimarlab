@@ -16,7 +16,15 @@ export const DEFAULT_SETTINGS = {
   announcement_enabled: '0',
   announcement_text: '',
   announcement_link: '',
+  // ANA SAYFA KARUSEL SEÇİMİ — dördü de virgülle ayrılmış SIRALI slug listesi (bkz.
+  // src/lib/homeCarousels.js#HOME_FEATURED_KEYS, admin panelinin "Ana Sayfa" sekmesi). Seçilenler
+  // karuselin başına geçer, kalan slotlar o ucun doğal sırasıyla (son eklenenler/popülerlik) dolar.
+  // featured_project_slugs 2026-08'den beri vardı; diğer üçü 2026-09-12'de eklendi (kullanıcı
+  // isteği madde 1) ve BİREBİR aynı biçimi kullanır.
   featured_project_slugs: '',
+  featured_architect_slugs: '',
+  featured_office_slugs: '',
+  featured_product_slugs: '',
   robots_txt: '',
   // GÜNDEM KILL SWITCH (kullanıcı isteği, 2026-09-06 madde 17). '1' = otomasyon açık (varsayılan),
   // başka her değer = KAPALI: cron çalışır ama hiçbir kaynağa gidilmez ve hiçbir içerik yayınlanmaz

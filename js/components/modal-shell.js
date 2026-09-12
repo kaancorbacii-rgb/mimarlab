@@ -1030,8 +1030,26 @@ const ModalShell = (function () {
   //
   // Aynı tür içindeki gezinme (proje→proje swap) zaten bu sayaçla çalışıyordu; tek değişen, sayacın
   // tür sınırında sıfırlanmaması.
+  //
+  // TEK İSTİSNA — `pageBase` (kullanıcı bildirimi, 2026-09-12 madde 3: "Hesabım, Aktivitelerim ve
+  // Koleksiyonum sayfaları yandan çekmece şeklinde açıldıkları için buradan bir popup açıp
+  // kapattığımızda eski sayfamıza geri dönemiyoruz").
+  //
+  // GERÇEK BULGU (deterministik, geçmiş girdileri sayarak doğrulandı): Hesabım/Aktivitelerim/
+  // Koleksiyonum kullanıcı için birer POPUP DEĞİL, birer SAYFADIR — auth-modal.js onları zaten
+  // ModalShell.markRealPage ile "son gerçek sayfa" olarak işaretliyor. Ama history.state'te diğer
+  // popup'larla aynı `depth` alanını taşıdıklarından tür-bağımsız sayaç onları da zincire bir
+  // KATMAN olarak ekliyordu: ana sayfa -> Koleksiyonum (depth 1) -> oradan açılan bir ürün/kişi/
+  // firma popup'ı (depth 2) -> kapanış history.go(-2) yapıp Koleksiyonum'u da atlayarak ANA SAYFAYA
+  // düşüyordu (üstelik çekmecenin karartma katmanı ekranda kaldığı için "hafif karartılı ana sayfa"
+  // olarak). Doğru davranış: bu üç görünüm zincirin TABANIDIR, üstlerine açılan popup depth=1 alır
+  // ve kapanış tek adımda çekmeceye geri döner.
+  //
+  // Bayrağı YAZAN taraf auth-modal.js#open/swap'tir (bkz. PAGE_VIEWS). Bayrak taşımayan eski
+  // girdilerde davranış bit-bit eskisiyle aynı kalır.
   function popupHistoryDepth() {
     const st = history.state;
+    if (st && st.mimarlabModal && st.pageBase) return 0;
     return (st && st.mimarlabModal && typeof st.depth === 'number') ? st.depth : 0;
   }
 

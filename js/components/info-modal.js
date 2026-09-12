@@ -2172,6 +2172,16 @@ const InfoModal = (function () {
     if (isOpen()) handlePopState(null);
   });
 
+  // bkz. js/components/auth-modal.js'teki AYNI dinleyici/gerekçe — çekmece (NavDrawer) OverlayManager
+  // tarafından kapatıldığında bu modülün `currentView`'i de bırakılır, aksi halde isOpen() ekranda
+  // hiçbir şey yokken "açık" der ve geri dönüşte görünüm yeniden açılmaz. history'e DOKUNULMAZ.
+  document.addEventListener('mimarlab-navdrawer-closed', () => {
+    if (currentView === null) return;
+    currentView = null;
+    pushCountSinceOpen = 0;
+    openedViaPush = false;
+  });
+
   // Doğrudan URL ile açılış (F5/deep-link) — bkz. kullanıcı isteği: "Sayfa yenilendiğinde veya
   // doğrudan URL'ye gidildiğinde modal açık olarak render edilsin".
   const initialView = pathToView(location.pathname);

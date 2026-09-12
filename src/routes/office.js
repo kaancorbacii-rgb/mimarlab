@@ -1,6 +1,7 @@
 import { errorJson, pageParam } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { applyPinnedOrder, pinnedSlugsFromUrl } from '../lib/homeCarousels.js';
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
@@ -386,13 +387,21 @@ export async function handleOfficeListRoute(request, env, url) {
       if (expBucket) expCounts[expBucket] = (expCounts[expBucket] || 0) + 1;
     });
 
+    // pin=slug1,slug2 — ANA SAYFA KARUSELİNDE admin'in elle seçtiği kayıtlar (kullanıcı isteği,
+    // 2026-09-12 madde 1). Seçilenler listenin BAŞINA verilen sırayla geçer, kalan slotlar bu ucun
+    // doğal sırasıyla dolar ("örneğin 3 proje seçersem diğer 6 tanesi son eklenenler olsun").
+    // Filtreleme/sıralamadan SONRA, sayfalamadan ÖNCE uygulanır — seçilen kayıt doğal sırada
+    // kaçıncı olursa olsun ilk sayfaya girer; havuzdan elenmişse (gizli/silinmiş/önizleme) sessizce
+    // düşer. Parametreyi YALNIZCA ana sayfa gönderir (bkz. src/lib/homeCarousels.js).
+    const ordered = applyPinnedOrder(filtered, pinnedSlugsFromUrl(url));
+
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
     // brand: kartın KANONİK URL öneki (bkz. src/lib/officeUrl.js — saf markalar /marka/:slug).
     // productCount/projectCount karta çıkmaz (eskiden de çıkmıyordu) ama önek kararı ikisinden
     // birine bağlı olduğundan burada, düşürülmeden ÖNCE hesaplanır.
-    const items = filtered.slice(start, start + limit)
+    const items = ordered.slice(start, start + limit)
       .map(({ projectCount, productCount, ...rest }) => ({ ...rest, brand: isBrandUrlOffice(rest.cats, productCount) ? 1 : 0 }));
 
     return {

@@ -173,8 +173,20 @@ function isSearchPath(pathname) {
 // dolana kadar bayat kalır (gerçek bulgu: "ana sayfa Proje carousel'i yeni eklenen projeyi
 // göstermiyor" — bkz. kullanıcı isteği). Bu yüzden en sık ziyaret edilen ana sayfa varyantları da
 // AÇIKÇA listelenip her yazma işleminde birlikte temizlenir.
+// GERÇEK URL'LER (2026-09-12'de düzeltildi): ana sayfa 2026-09-10'dan beri dört ucun tamamına
+// `&noPreview=1` ekliyor (bkz. src/index.js#loadHomeData / index.html#loadHomeSections) —
+// cacheKeyFor TAM STRING eşleşmesi aradığından noPreview'süz eski satırlar gerçek trafikle HİÇ
+// eşleşmiyor, yani bu invalidation sessizce no-op'a dönmüştü (DEFAULT_FIRST_PAGE_PATHS'teki
+// buildStatus bulgusunun AYNISI). Her iki biçim de listede tutuluyor: var olmayan bir URL için
+// atılan DELETE zararsız, eksik bir URL ise en fazla s-maxage (5dk) bayatlık demek.
+// `pin=` taşıyan varyantlar (admin'in ana sayfa karusel seçimi, bkz. src/lib/homeCarousels.js)
+// BİLEREK listelenmiyor: değer adminin seçimine göre değişir, yani önceden yazılamaz. Gerek de
+// yok — seçim her değiştiğinde URL'in KENDİSİ değişir (yeni anahtar, taze gövde); içerik
+// mutasyonlarında ise cachedPublicJson'ın her HIT'te yaptığı fingerprint doğrulaması devreye girer.
 const HOMEPAGE_LIST_PATHS = [
   '/api/projects?limit=24', '/api/architects?limit=9', '/api/offices?limit=9', '/api/products?limit=9',
+  '/api/projects?limit=24&noPreview=1', '/api/architects?limit=9&noPreview=1',
+  '/api/offices?limit=9&noPreview=1', '/api/products?limit=9&noPreview=1',
 ];
 // proje.html/urun.html'in filtresiz/sıralamasız ilk ziyarette gerçekten çektiği TAM URL (bkz.
 // proje.html#render/urun.html#render — page=1&limit=24, hiçbir filtre/arama/sort aktif değilken) —
@@ -498,8 +510,14 @@ async function withSingleFlight(key, fn) {
 //     AYNI sürümde: /api/office/:key `founders`/`team` artık eşleşen kişi profilinin `slug`'ını
 //     taşıyor (ve `unregistered` "kişi profili YOK" anlamına geldi) — firma/kişi popup'ında ekip
 //     üyesi/ortak kartları tıklanabilir oldu. Satırların updated_at'i değişmediğinden bump şart.
+// v40 -> v41 (kullanıcı isteği, 2026-09-12): (a) /api/projects kart yükündeki `images` dizisi artık
+//     en fazla 4 görsel taşıyor (6 değil — bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES);
+//     (b) dört liste ucu `pin=` parametresini tanıyor ve ana sayfa karusellerinde admin'in seçtiği
+//     kayıtları başa alıyor (bkz. src/lib/homeCarousels.js). (a) satırların updated_at'ini
+//     değiştirmeden GÖVDEYİ değiştirdiğinden bump ŞART — aksi halde önbellekteki eski gövde 6
+//     görsel taşımaya devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v40';
+const API_PAYLOAD_VERSION = 'v41';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

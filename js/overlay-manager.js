@@ -9,22 +9,35 @@
 //   1) register(id, closeFn) + notifyOpen(id) — kendi kapatma mantığı olan (history/scroll/focus
 //      gibi yan etkileri olan) bileşenler için, bkz. modal-shell.js#open/close. closeFn çağrıldığında
 //      panel GERÇEKTEN kendi close() akışından geçer, salt bir CSS sınıfı silinmez.
-//   2) Otomatik grup — hamburger/avatar/arama/paylaş popover'ları her sayfada ayrı inline
+//   2) Otomatik grup — avatar menüsü/arama önerileri/Paylaş popover'ları her sayfada ayrı inline
 //      script'lerle (bkz. her *.html dosyasının sonundaki <script>, share-button.js) kendi `.open`
 //      sınıflarını toggle'lıyor; bu paneller register EDİLMEDEN, bilinen seçicilerdeki `.open` sınıf
 //      değişiklikleri bir MutationObserver ile izlenir — side-effect'siz sade CSS toggle'lar olduğundan
 //      diğerlerini kapatmak için sınıflarını kaldırmak güvenlidir (bkz. AUTO_SELECTOR).
+//      Hamburger ÇEKMECESİ 2026-09-12'de bu gruptan (1)'e taşındı — gerekçe AUTO_SELECTOR'ün başında.
 const OverlayManager = (function () {
-  const registry = new Map(); // id -> closeFn
-  const AUTO_SELECTOR = '.nav-mobile-menu, .nav-avatar-menu, .nav-search-suggest, .share-popover';
+  const registry = new Map(); // id -> { closeFn, rootEl }
+  // '.nav-mobile-menu' ARTIK BURADA DEĞİL (kullanıcı bildirimi, 2026-09-12 madde 3): hamburger
+  // çekmecesi "side-effect'siz sade bir CSS toggle" DEĞİLDİR — kendi karartma katmanı
+  // (#nav-mobile-overlay), body scroll kilidi ve alt sayfa durumu (subpageActive/içerik) vardır.
+  // Otomatik grupta durduğu sürece bir modal açıldığında yalnızca `.open` sınıfı siliniyordu:
+  // panel kayıp gidiyor ama KARARTMA ekranda kalıyordu (kullanıcının gördüğü "hafif karartılı ana
+  // sayfa") ve NavDrawer kendini hâlâ açık sanıyordu. Artık çekmece register() ile GERÇEK kapatma
+  // fonksiyonunu (closeDrawer) veriyor — bkz. js/components/site-chrome.js#initNavDrawer.
+  const AUTO_SELECTOR = '.nav-avatar-menu, .nav-search-suggest, .share-popover';
 
-  function register(id, closeFn) { registry.set(id, closeFn); }
+  // rootEl (opsiyonel): panelin kök elemanı. Verilirse, AÇILAN panel bu kökün İÇİNDEYSE bu panel
+  // kapatılmaz — otomatik gruptaki `el.contains(exceptEl)` korumasının (aşağısı) register edilmiş
+  // paneller için karşılığı. Şart: hamburger çekmecesinin içinde açılan arama öneri paneli ya da
+  // bir Paylaş popover'ı, altındaki çekmeceyi kapatmamalı.
+  function register(id, closeFn, rootEl) { registry.set(id, { closeFn, rootEl: rootEl || null }); }
   function unregister(id) { registry.delete(id); }
 
   function closeOthers(exceptEl, exceptId) {
-    registry.forEach((closeFn, id) => {
+    registry.forEach((entry, id) => {
       if (id === exceptId) return;
-      closeFn();
+      if (entry.rootEl && exceptEl && entry.rootEl.contains(exceptEl)) return;
+      entry.closeFn();
     });
     document.querySelectorAll(AUTO_SELECTOR).forEach(el => {
       if (el === exceptEl) return;

@@ -11,6 +11,16 @@
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
   const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', collections: '/koleksiyonum', forgot: '/sifremi-unuttum' };
+  // PAGE_VIEWS — kullanıcı için POPUP DEĞİL, SAYFA sayılan görünümler (bkz. open()'daki markRealPage
+  // çağrısının AYNI gerekçesi). Bunların history girdisi `pageBase: true` taşır ve
+  // ModalShell.popupHistoryDepth onu görünce derinliği SIFIRLAR — yani bu üç sayfanın ÜSTÜNE açılan
+  // bir proje/kişi/firma/ürün popup'ı depth=1 alır ve kapanışta tek adımda buraya geri döner.
+  // Bayrak olmadan zincir "ana sayfa -> Koleksiyonum -> ürün" olarak sayılıyor, kapanış iki adım
+  // birden geri sarıp kullanıcıyı (çekmecenin karartması ekranda kalmış hâlde) ana sayfaya
+  // düşürüyordu — kullanıcı bildirimi, 2026-09-12 madde 3.
+  // login/signup/forgot BİLEREK DIŞARIDA: onlar gerçek birer ara-adım popup'ı (bkz. VIEW_PATH),
+  // markRealPage de onları "gerçek sayfa" saymaz.
+  const PAGE_VIEWS = new Set(['account', 'activities', 'collections']);
   // ESKİ (*.html) bağlantı biçimi — artık sitede hiç üretilmiyor ama bookmark/eski sekme/harici
   // bağlantılar hâlâ bu biçimde gelebildiğinden tanınmaya devam eder. KANONİK temiz yollar
   // (VIEW_PATH'in kendisi) pathToView ile eşlenir, bkz. hrefToView.
@@ -6891,7 +6901,7 @@ const AuthModal = (function () {
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
-    if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
+    if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen, pageBase: PAGE_VIEWS.has(view) }, '', VIEW_PATH[view]);
     // Hesabım/Aktivitelerim/Koleksiyonum kullanıcı için birer SAYFADIR (bkz. kullanıcı
     // isteği: "koleksiyonum sayfasındayken bir proje popup'ına girip ... kapattığımda koleksiyonum
     // sayfası karşıma çıksın") — bu yüzden buradan açılan varlık popup'ları kapatılınca dönülecek
@@ -6921,7 +6931,7 @@ const AuthModal = (function () {
     currentView = view;
     const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
+    history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen, pageBase: PAGE_VIEWS.has(view) }, '', VIEW_PATH[view]);
     if (ModalShell.markRealPage) ModalShell.markRealPage(); // bkz. open()'daki AYNI gerekçe
     // Tüm AuthModal görünümleri her iki host'ta da (mobil/masaüstü) açılabildiğinden host normalde
     // swap sırasında DEĞİŞMEZ — yalnızca resize sırasında (bkz. aşağıdaki resize dinleyicisi) farklı
@@ -7068,6 +7078,20 @@ const AuthModal = (function () {
     const view = pathToView(location.pathname);
     if (view) { handlePopState(view); return; }
     if (isOpen()) handlePopState(null);
+  });
+
+  // ÇEKMECE DIŞARIDAN KAPATILDI (kullanıcı bildirimi, 2026-09-12 madde 3). NavDrawer.closeDrawer()
+  // yalnızca bizim close()/deactivateHost yolumuzdan değil, OverlayManager'dan da çağrılır — tipik
+  // senaryo: Koleksiyonum çekmecesindeki bir karttan bir proje/ürün/kişi popup'ı açılır, ModalShell
+  // açılırken altta kalan çekmeceyi kapatır. O an ekranda bizim görünümümüzden eser yoktur ama
+  // `currentView` hâlâ dolu kalıyordu; geri dönüldüğünde (popstate) handlePopState "zaten açığım"
+  // deyip hiçbir şey yapmıyor ve kullanıcı boş bir sayfaya düşüyordu. Burada YALNIZCA state
+  // bırakılır — history'e DOKUNULMAZ, çünkü o an zinciri üstteki popup yönetiyor.
+  document.addEventListener('mimarlab-navdrawer-closed', () => {
+    if (currentView === null) return;
+    currentView = null;
+    pushCountSinceOpen = 0;
+    openedViaPush = false;
   });
 
   // Doğrudan URL ile açılış (F5/deep-link) — bkz. kullanıcı isteği: "Sayfa yenilendiğinde veya

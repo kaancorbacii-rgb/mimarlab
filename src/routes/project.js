@@ -2,6 +2,7 @@ import { json, errorJson, pageParam } from '../lib/http.js';
 import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 import { getSessionUser } from '../lib/auth.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { applyPinnedOrder, pinnedSlugsFromUrl } from '../lib/homeCarousels.js';
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring, likePattern } from '../lib/searchFold.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
@@ -727,6 +728,12 @@ const SORT_REQUIRES_JS_FILTER = new Set(['name_asc', 'date_desc', 'date_asc', 'r
 function hasActiveProjectListFilters(url) {
   const filterKeys = buildFilterGroups(new Map()).map(g => g.key);
   if (filterKeys.some(k => url.searchParams.has(k))) return true;
+  // pin= (ana sayfa karusel seçimi, bkz. src/lib/homeCarousels.js): hızlı yol D1'de LIMIT/OFFSET
+  // ile YALNIZCA ilk sayfayı okur, dolayısıyla doğal sırada 24. sıranın ötesinde kalan bir seçimi
+  // GÖREMEZ. Seçim varken tam havuz yoluna düşülür (havuz zaten KV önbellekli ve yanıtın kendisi
+  // caches.default'ta pin değerine göre anahtarlı) — parametresiz istekler eskisi gibi hızlı yolda
+  // kalır, yani /proje liste sayfasının ilk yükü hiç etkilenmez.
+  if ((url.searchParams.get('pin') || '').trim()) return true;
   return !!(url.searchParams.get('search') || '').trim();
 }
 
@@ -1012,13 +1019,21 @@ export async function handleProjectListRoute(request, env, url) {
       return { items: serializePublicEntity(mapItems), total: mapItems.length, page: 1, totalPages: 1 };
     }
 
+    // pin=slug1,slug2 — ANA SAYFA KARUSELİNDE admin'in elle seçtiği kayıtlar (kullanıcı isteği,
+    // 2026-09-12 madde 1). Seçilenler listenin BAŞINA verilen sırayla geçer, kalan slotlar bu ucun
+    // doğal sırasıyla dolar ("örneğin 3 proje seçersem diğer 6 tanesi son eklenenler olsun").
+    // Filtreleme/sıralamadan SONRA, sayfalamadan ÖNCE uygulanır — seçilen kayıt doğal sırada
+    // kaçıncı olursa olsun ilk sayfaya girer; havuzdan elenmişse (gizli/silinmiş/önizleme) sessizce
+    // düşer. Parametreyi YALNIZCA ana sayfa gönderir (bkz. src/lib/homeCarousels.js).
+    const ordered = applyPinnedOrder(filtered, pinnedSlugsFromUrl(url));
+
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
     // rating/ratingCount: js/components/project-related.js#RelatedProjects'in puan bazlı skorlama
     // algoritmasındaki "yüksek puanlama" bileşeni için — ratingBySlug zaten yukarıda hesaplanmış,
     // burada sadece sayfalanmış dilime iğneleniyor, ek bir sorgu gerekmiyor.
-    const items = filtered.slice(start, start + limit).map(p => {
+    const items = ordered.slice(start, start + limit).map(p => {
       const r = ratingBySlug.get(p.slug);
       return { ...stripListOnlyFields(p), rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
     });

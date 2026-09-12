@@ -175,6 +175,58 @@
   .top100-add-suggestion{padding:8px 10px; border-radius:8px; font-size:13px; color:var(--ink); cursor:pointer;}
   .top100-add-suggestion:hover{background:var(--paper-alt);}
   .top100-add-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+
+  /* ---------- "Ana Sayfa" sekmesi: karusel içerik seçici (kullanıcı isteği, 2026-09-12 madde 1:
+     "ana sayfadaki tüm carosel içeriklerini açılabilir menüden seçebileyim ... güzel bir tasarım
+     yap"). Dört karuselin her biri bir kart; kart, ana sayfadaki 9 slotu OLDUĞU GİBİ gösterir —
+     seçilenler başta (sürüklenebilir, kaldırılabilir), kalanlar "Otomatik" rozetiyle. ---------- */
+  .hc-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(460px, 1fr)); gap:20px;}
+  @media (max-width: 1020px){ .hc-grid{grid-template-columns:1fr;} }
+  .hc-card{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:18px 18px 16px; margin:0;}
+  .hc-card-head{display:flex; align-items:center; gap:10px; margin-bottom:4px;}
+  .hc-card-head h3{font-size:15.5px; margin:0; flex:1;}
+  .hc-count{font-size:11.5px; font-weight:700; letter-spacing:0.02em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:4px 10px; white-space:nowrap;}
+  .hc-hint{font-size:12px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5;}
+  .hc-slots{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+  .hc-slot{display:flex; align-items:center; gap:10px; padding:7px 10px; border:1px solid var(--line-soft); border-radius:11px; background:var(--paper); min-height:52px;}
+  .hc-slot.is-pinned{border-color:var(--brass-soft); background:var(--paper-card);}
+  .hc-slot.is-pinned[draggable="true"]{cursor:grab;}
+  .hc-slot.hc-dragging{opacity:0.45;}
+  .hc-slot-no{width:20px; flex-shrink:0; text-align:center; font-size:11.5px; font-weight:700; color:var(--ink-soft);}
+  .hc-slot-thumb{width:44px; height:36px; flex-shrink:0; border-radius:7px; object-fit:cover; background:var(--paper-alt); display:block;}
+  .hc-slot-thumb-fallback{width:44px; height:36px; flex-shrink:0; border-radius:7px; background:var(--paper-alt); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;}
+  .hc-slot-text{flex:1; min-width:0;}
+  .hc-slot-title{font-size:13px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hc-slot-sub{font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hc-slot-tag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:3px 8px; border-radius:100px; white-space:nowrap;}
+  .hc-slot-tag.auto{color:var(--ink-soft); background:var(--paper-alt);}
+  .hc-slot-tag.pinned{color:var(--paper-card); background:var(--walnut);}
+  .hc-slot-tag.missing{color:var(--bad); background:rgba(184,76,76,0.12);}
+  .hc-slot-remove{flex-shrink:0; border:none; background:none; color:var(--ink-soft); font-size:17px; line-height:1; padding:4px 6px; border-radius:7px;}
+  .hc-slot-remove:hover{color:var(--bad); background:rgba(184,76,76,0.1);}
+  .hc-slot.is-empty{border-style:dashed; color:var(--ink-soft); font-size:12px;}
+  /* Açılabilir menü — top100-add-suggestions ile AYNI görsel dil, çoklu seçim için işaretli satırlar. */
+  .hc-picker{position:relative;}
+  .hc-toggle{width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:11px; border:1px solid var(--line); background:var(--paper); font-size:13px; font-weight:600; color:var(--ink);}
+  .hc-toggle:hover{border-color:var(--walnut);}
+  .hc-toggle-caret{font-size:10px; color:var(--ink-soft);}
+  .hc-menu{display:none; position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:30; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 16px 36px rgba(27,42,61,0.18); padding:10px;}
+  .hc-menu.open{display:block;}
+  .hc-menu-search{width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13px; color:var(--ink); margin-bottom:8px;}
+  .hc-options{max-height:280px; overflow-y:auto;}
+  .hc-option{display:flex; align-items:center; gap:10px; padding:7px 9px; border-radius:9px; cursor:pointer;}
+  .hc-option:hover{background:var(--paper-alt);}
+  .hc-option.is-selected{background:var(--paper-alt);}
+  .hc-option-check{width:17px; height:17px; flex-shrink:0; border-radius:5px; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:11px; color:transparent;}
+  .hc-option.is-selected .hc-option-check{background:var(--walnut); border-color:var(--walnut); color:var(--paper-card);}
+  .hc-option-thumb{width:34px; height:28px; flex-shrink:0; border-radius:6px; object-fit:cover; background:var(--paper-alt);}
+  .hc-option-text{flex:1; min-width:0;}
+  .hc-option-title{font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hc-option-sub{font-size:11px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hc-menu-note{padding:10px; font-size:12px; color:var(--ink-soft); text-align:center;}
+  .hc-actions{display:flex; align-items:center; gap:10px; margin-top:12px;}
+  .hc-dirty{font-size:12px; color:var(--accent); font-weight:600;}
+
   .top100-row{display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line-soft); font-size:13px; background:var(--panel-bg, transparent);}
   .top100-row:first-child{border-top:1px solid var(--line-soft);}
   /* Sürükle-bırak (bkz. kullanıcı isteği: "admine projeleri sürükleyerek yer değiştirebilme yetkisi
@@ -344,6 +396,7 @@
         <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
         <button class="admin-tab" data-tab="conflicts">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="conflicts"></span></button>
         <button class="admin-tab" data-tab="seo">SEO</button>
+        <button class="admin-tab" data-tab="home">Ana Sayfa</button>
         <button class="admin-tab" data-tab="settings">Site Ayarları</button>
         <button class="admin-tab" data-tab="performance">Performans</button>
         <button class="admin-tab" data-tab="top100">En İyi 100</button>
@@ -495,6 +548,23 @@
         </div>
       </div>
 
+      <!-- ANA SAYFA — karusel içerik seçimi (kullanıcı isteği, 2026-09-12 madde 1). Kartlar
+           loadHomeCarousels() tarafından çizilir; ayarlar site_settings'te (bkz.
+           src/lib/homeCarousels.js#HOME_FEATURED_KEYS) yaşar. -->
+      <div class="admin-section" id="section-home">
+        <div class="admin-form" style="margin-bottom:20px;">
+          <h3>Ana Sayfa Karüselleri</h3>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0; line-height:1.6;">
+            Her karusel ana sayfada <strong>9 slot</strong> gösterir. Açılır menüden seçtiklerin, seçtiğin sırayla en başa geçer;
+            kalan slotlar o bölümün doğal sırasıyla (projeler/ürünler: son eklenenler, kişiler/firmalar: popülerlik) otomatik dolar.
+            Yani 3 proje seçersen diğer 6’sı son eklenenlerden gelir. Hiçbir şey seçmezsen bölüm tamamen otomatik çalışır.
+            Yayından kaldırılan ya da önizlemeye alınan bir kayıt seçili olsa bile karusele girmez.
+            Seçili satırları sürükleyerek sırasını değiştirebilirsin.
+          </p>
+        </div>
+        <div class="hc-grid" id="home-carousels"></div>
+      </div>
+
       <div class="admin-section" id="section-settings">
         <div class="admin-form">
           <h3>Bakım Modu</h3>
@@ -512,9 +582,8 @@
           <div class="admin-field"><label>Link (opsiyonel)</label><input type="text" id="settings-announcement-link" placeholder="https://…"></div>
         </div>
         <div class="admin-form">
-          <h3>Öne Çıkan Projeler</h3>
-          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">Proje slug'larını virgülle ayır. Yalnızca anasayfadaki güncel proje havuzunda olan slug'lar öne çıkar.</p>
-          <div class="admin-field"><input type="text" id="settings-featured-projects" placeholder="ornek-proje-slug, baska-proje-slug"></div>
+          <h3>Ana Sayfa Karüselleri</h3>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0;">Öne çıkan proje/kişi/firma/ürün seçimi buradan taşındı — artık <strong>Ana Sayfa</strong> sekmesinde, her karusel için açılır menüden seçiliyor (slug elle yazmaya gerek yok).</p>
         </div>
         <button class="admin-btn primary" id="settings-save">Kaydet</button>
         <span class="ud-save-msg" id="settings-save-msg"></span>
@@ -2192,6 +2261,303 @@ document.getElementById('seo-robots-save').addEventListener('click', async ()=>{
   document.getElementById('seo-robots-msg').textContent = 'Kaydedildi.';
 });
 
+// ---------------------------------------------------------------------------------------------
+// ANA SAYFA sekmesi — dört karuselin içeriğini açılır menüden seç (kullanıcı isteği, 2026-09-12
+// madde 1: "ana sayfadaki tüm carosel içeriklerini açılabilir menüden seçebileyim. Örneğin 3 proje
+// seçersem diğer 6 tanesi son eklenenler olsun").
+//
+// TASARIM KARARLARI:
+//   * Her kart, ana sayfanın O ANDA göstereceği 9 SLOTU olduğu gibi çizer — seçilenler başta
+//     (sürüklenip sıralanabilir, ✕ ile çıkarılabilir), kalanlar "Otomatik" rozetiyle. Yani admin
+//     "kaydedince ne olacağını" tahmin etmek zorunda kalmaz, doğrudan görür.
+//   * Önizleme AYRI bir uçtan değil, ana sayfanın KENDİ kullandığı liste ucundan gelir — aynı
+//     `pin=`/`noPreview=1` parametreleriyle (bkz. src/lib/homeCarousels.js). Bu yüzden gizlenmiş/
+//     önizlemeye alınmış bir seçim burada da otomatik olarak "Bulunamadı" görünür; iki tarafın
+//     sonucu sapamaz.
+//   * Kayıt anahtarı mevcut jenerik ayar mekanizmasıdır (PATCH /api/admin/settings) — yeni bir uç
+//     yazılmadı. Yayındaki İçerikler sekmesindeki "Öne Çıkar" düğmesi AYNI `featured_project_slugs`
+//     anahtarına yazmaya devam eder, iki arayüz birbirini görür.
+// ---------------------------------------------------------------------------------------------
+const HOME_CAROUSEL_SLOTS = 9;
+// fetchLimit: ana sayfanın o uç için çektiği pencere (bkz. index.html#PROJECT_CAROUSEL_FETCH_LIMIT —
+// proje karuseli kapak görseli olmayanları eleyebildiği için 24 çeker, diğerleri tam 9).
+const HOME_CAROUSELS = [
+  { key: 'projects',   label: 'Projeler',           settingKey: 'featured_project_slugs',   api: '/api/projects',   fetchLimit: 24, coverRequired: true,
+    title: (it) => it.title, image: (it) => (it.images && it.images[0]) || '', sub: (it) => it.location || (it.designer || []).join(', ') || '' },
+  { key: 'architects', label: 'Kişiler',            settingKey: 'featured_architect_slugs', api: '/api/architects', fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false,
+    title: (it) => it.name,  image: (it) => it.photo || '', sub: (it) => it.office || it.positionRaw || '' },
+  { key: 'offices',    label: 'Firmalar & Markalar', settingKey: 'featured_office_slugs',   api: '/api/offices',    fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false,
+    title: (it) => it.name,  image: (it) => it.logo || '', sub: (it) => it.loc || '' },
+  { key: 'products',   label: 'Ürünler',            settingKey: 'featured_product_slugs',   api: '/api/products',   fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false,
+    title: (it) => it.title, image: (it) => it.image || '', sub: (it) => it.brand || '' },
+];
+const homeCarouselState = {};
+
+// src/lib/homeCarousels.js#parseFeaturedSlugs ile AYNI normalizasyon (boşluk kırp, tekrarı at,
+// slot sayısını aşma) — sunucu zaten aynısını uygular, arayüz de aynı sınırı göstermeli.
+function parseHomeSlugs(raw){
+  const out = [];
+  String(raw || '').split(',').forEach(part => {
+    const slug = part.trim();
+    if(slug && !out.includes(slug) && out.length < HOME_CAROUSEL_SLOTS) out.push(slug);
+  });
+  return out;
+}
+
+async function loadHomeCarousels(){
+  const box = document.getElementById('home-carousels');
+  box.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const s = await api('/api/admin/settings');
+  HOME_CAROUSELS.forEach(c => {
+    const slugs = parseHomeSlugs(s[c.settingKey]);
+    homeCarouselState[c.key] = { slugs, saved: slugs.join(','), items: null, options: null, menuOpen: false, msg: '' };
+  });
+  box.innerHTML = HOME_CAROUSELS.map(c => `
+    <div class="admin-form hc-card" data-carousel="${c.key}">
+      <div class="hc-card-head">
+        <h3>${escapeHtml(c.label)}</h3>
+        <span class="hc-count" data-role="count">—</span>
+      </div>
+      <p class="hc-hint">Ana sayfada görünecek ${HOME_CAROUSEL_SLOTS} slot. Seçilenleri sürükleyerek sıralayabilirsin.</p>
+      <div class="hc-slots" data-role="slots"><div class="admin-empty" style="padding:20px;">Yükleniyor…</div></div>
+      <div class="hc-picker">
+        <button type="button" class="hc-toggle" data-role="toggle">İçerik seç <span class="hc-toggle-caret">▼</span></button>
+        <div class="hc-menu" data-role="menu">
+          <input type="text" class="hc-menu-search" data-role="search" placeholder="Ara…" autocomplete="off">
+          <div class="hc-options" data-role="options"><div class="hc-menu-note">Yükleniyor…</div></div>
+        </div>
+      </div>
+      <div class="hc-actions">
+        <button class="admin-btn primary" data-role="save">Kaydet</button>
+        <button class="admin-btn" data-role="clear">Seçimi Temizle</button>
+        <span class="ud-save-msg" data-role="msg"></span>
+      </div>
+    </div>`).join('');
+  HOME_CAROUSELS.forEach(c => { wireHomeCarousel(c); refreshHomeCarouselPreview(c); });
+}
+
+function homeCardEl(key){ return document.querySelector(`.hc-card[data-carousel="${key}"]`); }
+
+// Ana sayfanın KENDİ çektiği liste — aynı uç, aynı parametreler (bkz. index.html#loadHomeSections).
+async function refreshHomeCarouselPreview(c){
+  const st = homeCarouselState[c.key];
+  const pin = st.slugs.length ? `&pin=${encodeURIComponent(st.slugs.join(','))}` : '';
+  let items = [];
+  try{
+    const data = await api(`${c.api}?limit=${c.fetchLimit}&noPreview=1${pin}`);
+    items = (data && data.items) || [];
+  }catch(e){ items = []; }
+  // Proje karuseli kapak görseli olmayanları eler (index.html ve src/index.js#loadHomeData'daki
+  // AYNI süzgeç) — önizleme aynı kuralı uygulamazsa admin'e yanlış slot gösterirdi.
+  if(c.coverRequired) items = items.filter(p => p && p.images && p.images[0]);
+  st.items = items;
+  renderHomeCarouselSlots(c);
+}
+
+function homeSlotRowHtml(c, item, no, pinned){
+  const img = c.image(item);
+  const thumb = img
+    ? `<img class="hc-slot-thumb" src="${escapeAttr(img)}" alt="" loading="lazy" decoding="async">`
+    : `<div class="hc-slot-thumb-fallback">${escapeHtml((c.title(item) || '?').trim().charAt(0).toUpperCase())}</div>`;
+  return `
+    <div class="hc-slot${pinned ? ' is-pinned' : ''}" data-slug="${escapeAttr(item.slug || '')}"${pinned ? ' draggable="true"' : ''}>
+      <span class="hc-slot-no">${no}</span>
+      ${thumb}
+      <div class="hc-slot-text">
+        <div class="hc-slot-title">${escapeHtml(c.title(item) || item.slug || '—')}</div>
+        <div class="hc-slot-sub">${escapeHtml(c.sub(item) || '')}</div>
+      </div>
+      <span class="hc-slot-tag ${pinned ? 'pinned' : 'auto'}">${pinned ? 'Seçili' : 'Otomatik'}</span>
+      ${pinned ? '<button type="button" class="hc-slot-remove" data-role="remove" aria-label="Seçimden çıkar">&times;</button>' : ''}
+    </div>`;
+}
+
+function renderHomeCarouselSlots(c){
+  const card = homeCardEl(c.key);
+  if(!card) return;
+  const st = homeCarouselState[c.key];
+  const slotsEl = card.querySelector('[data-role="slots"]');
+  const items = st.items || [];
+  const bySlug = new Map(items.map(it => [it.slug, it]));
+  const resolved = st.slugs.filter(sl => bySlug.has(sl));
+  // Seçilmemişlerden kalan slotlar — sunucunun döndürdüğü sıra zaten "seçililer önce" olduğundan
+  // burada yalnızca seçilileri düşürüp kalan boşluğu doldurmak yeterli.
+  const auto = items.filter(it => !st.slugs.includes(it.slug)).slice(0, HOME_CAROUSEL_SLOTS - resolved.length);
+
+  let no = 0;
+  const rows = [];
+  st.slugs.forEach(slug => {
+    const item = bySlug.get(slug);
+    if(item){ no += 1; rows.push(homeSlotRowHtml(c, item, no, true)); return; }
+    // Seçili ama havuzda yok: yayından kaldırılmış/önizlemeye alınmış/silinmiş olabilir. Slot
+    // TÜKETMEZ (ana sayfada da görünmez) — yalnızca admin bilsin ve isterse temizlesin diye durur.
+    rows.push(`
+      <div class="hc-slot is-pinned" data-slug="${escapeAttr(slug)}">
+        <span class="hc-slot-no">—</span>
+        <div class="hc-slot-thumb-fallback">?</div>
+        <div class="hc-slot-text">
+          <div class="hc-slot-title">${escapeHtml(slug)}</div>
+          <div class="hc-slot-sub">Yayında değil — karusele girmez.</div>
+        </div>
+        <span class="hc-slot-tag missing">Bulunamadı</span>
+        <button type="button" class="hc-slot-remove" data-role="remove" aria-label="Seçimden çıkar">&times;</button>
+      </div>`);
+  });
+  auto.forEach(item => { no += 1; rows.push(homeSlotRowHtml(c, item, no, false)); });
+  while(no < HOME_CAROUSEL_SLOTS){
+    no += 1;
+    rows.push(`<div class="hc-slot is-empty"><span class="hc-slot-no">${no}</span> Bu bölümde yeterli yayında içerik yok.</div>`);
+  }
+  slotsEl.innerHTML = rows.join('');
+
+  const dirty = st.slugs.join(',') !== st.saved;
+  card.querySelector('[data-role="count"]').textContent =
+    `${resolved.length} seçili · ${Math.max(0, HOME_CAROUSEL_SLOTS - resolved.length)} otomatik`;
+  const msgEl = card.querySelector('[data-role="msg"]');
+  msgEl.textContent = dirty ? 'Kaydedilmedi' : st.msg;
+  msgEl.className = dirty ? 'ud-save-msg hc-dirty' : 'ud-save-msg';
+  renderHomeCarouselOptions(c); // seçim değişince menüdeki işaretler de tazelenmeli
+}
+
+// ---- Açılır menü ----
+async function loadHomeCarouselOptions(c, query){
+  const st = homeCarouselState[c.key];
+  const q = (query || '').trim();
+  const url = `${c.api}?limit=12&noPreview=1${q ? `&search=${encodeURIComponent(q)}` : ''}`;
+  try{
+    const data = await api(url);
+    st.options = (data && data.items) || [];
+  }catch(e){ st.options = []; }
+  renderHomeCarouselOptions(c);
+}
+
+function renderHomeCarouselOptions(c){
+  const card = homeCardEl(c.key);
+  if(!card) return;
+  const st = homeCarouselState[c.key];
+  const box = card.querySelector('[data-role="options"]');
+  if(st.options === null){ box.innerHTML = '<div class="hc-menu-note">Yükleniyor…</div>'; return; }
+  if(!st.options.length){ box.innerHTML = '<div class="hc-menu-note">Sonuç yok.</div>'; return; }
+  box.innerHTML = st.options.map(it => {
+    const selected = st.slugs.includes(it.slug);
+    const img = c.image(it);
+    return `
+      <div class="hc-option${selected ? ' is-selected' : ''}" data-slug="${escapeAttr(it.slug || '')}">
+        <span class="hc-option-check">✓</span>
+        ${img ? `<img class="hc-option-thumb" src="${escapeAttr(img)}" alt="" loading="lazy" decoding="async">` : '<span class="hc-option-thumb"></span>'}
+        <div class="hc-option-text">
+          <div class="hc-option-title">${escapeHtml(c.title(it) || it.slug)}</div>
+          <div class="hc-option-sub">${escapeHtml(c.sub(it) || '')}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleHomeCarouselSlug(c, slug){
+  const st = homeCarouselState[c.key];
+  if(st.slugs.includes(slug)) st.slugs = st.slugs.filter(v => v !== slug);
+  else if(st.slugs.length >= HOME_CAROUSEL_SLOTS) { alert(`Bir karuselde en fazla ${HOME_CAROUSEL_SLOTS} içerik seçebilirsin.`); return; }
+  else st.slugs = [...st.slugs, slug];
+  st.msg = '';
+  refreshHomeCarouselPreview(c); // yeni seçim havuzda kaçıncı sırada olursa olsun önizlemeye girsin
+}
+
+function wireHomeCarousel(c){
+  const card = homeCardEl(c.key);
+  if(!card) return;
+  const st = homeCarouselState[c.key];
+  const menu = card.querySelector('[data-role="menu"]');
+  const search = card.querySelector('[data-role="search"]');
+
+  card.querySelector('[data-role="toggle"]').addEventListener('click', ()=>{
+    st.menuOpen = !st.menuOpen;
+    menu.classList.toggle('open', st.menuOpen);
+    if(st.menuOpen){
+      if(st.options === null) loadHomeCarouselOptions(c, search.value);
+      search.focus();
+    }
+  });
+  let searchTimer = null;
+  search.addEventListener('input', ()=>{
+    clearTimeout(searchTimer);
+    st.options = null;
+    renderHomeCarouselOptions(c);
+    searchTimer = setTimeout(()=> loadHomeCarouselOptions(c, search.value), 220);
+  });
+  card.querySelector('[data-role="options"]').addEventListener('click', (e)=>{
+    const row = e.target.closest('.hc-option');
+    if(row && row.dataset.slug) toggleHomeCarouselSlug(c, row.dataset.slug);
+  });
+  // Menü dışına tıklayınca kapan — top100 önerileri kutusundaki AYNI desen.
+  document.addEventListener('click', (e)=>{
+    if(!st.menuOpen) return;
+    if(e.target.closest(`.hc-card[data-carousel="${c.key}"] .hc-picker`)) return;
+    st.menuOpen = false;
+    menu.classList.remove('open');
+  });
+
+  const slotsEl = card.querySelector('[data-role="slots"]');
+  slotsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-role="remove"]');
+    if(!btn) return;
+    const slug = btn.closest('.hc-slot').dataset.slug;
+    if(slug) toggleHomeCarouselSlug(c, slug);
+  });
+
+  // Sürükle-bırak sıralama — YALNIZCA seçili satırlar arasında (top100 listesindeki AYNI teknik:
+  // dragover'da imleç satırın üst/alt yarısına göre insertBefore, bırakışta DOM sırası okunur).
+  let draggingEl = null;
+  slotsEl.addEventListener('dragstart', (e)=>{
+    const row = e.target.closest('.hc-slot.is-pinned');
+    if(!row){ e.preventDefault(); return; }
+    draggingEl = row;
+    row.classList.add('hc-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try{ e.dataTransfer.setData('text/plain', row.dataset.slug || ''); }catch(err){}
+  });
+  slotsEl.addEventListener('dragover', (e)=>{
+    if(!draggingEl) return;
+    e.preventDefault();
+    const over = e.target.closest('.hc-slot.is-pinned');
+    if(!over || over === draggingEl) return;
+    const rect = over.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    slotsEl.insertBefore(draggingEl, before ? over : over.nextSibling);
+  });
+  slotsEl.addEventListener('dragend', ()=>{
+    if(!draggingEl) return;
+    draggingEl.classList.remove('hc-dragging');
+    draggingEl = null;
+    st.slugs = Array.from(slotsEl.querySelectorAll('.hc-slot.is-pinned')).map(el => el.dataset.slug).filter(Boolean);
+    st.msg = '';
+    renderHomeCarouselSlots(c); // numaralar/rozetler yeniden yazılsın (yeni istek gerekmez)
+  });
+
+  card.querySelector('[data-role="clear"]').addEventListener('click', ()=>{
+    if(!st.slugs.length) return;
+    st.slugs = [];
+    st.msg = '';
+    refreshHomeCarouselPreview(c);
+  });
+  card.querySelector('[data-role="save"]').addEventListener('click', async (e)=>{
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try{
+      await api('/api/admin/settings', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [c.settingKey]: st.slugs.join(', ') }),
+      });
+      st.saved = st.slugs.join(',');
+      st.msg = 'Kaydedildi — ana sayfaya ~1 dakika içinde yansır.';
+    }catch(err){
+      st.msg = 'Kaydedilemedi.';
+    }finally{
+      btn.disabled = false;
+      renderHomeCarouselSlots(c);
+    }
+  });
+}
+
 // ---------- Site Ayarları sekmesi (bkz. src/routes/admin.js#handleSiteSettingsAdmin) ----------
 async function loadSiteSettings(){
   const s = await api('/api/admin/settings');
@@ -2199,7 +2565,6 @@ async function loadSiteSettings(){
   document.getElementById('settings-announcement-enabled').checked = s.announcement_enabled === '1';
   document.getElementById('settings-announcement-text').value = s.announcement_text || '';
   document.getElementById('settings-announcement-link').value = s.announcement_link || '';
-  document.getElementById('settings-featured-projects').value = s.featured_project_slugs || '';
   document.getElementById('settings-save-msg').textContent = '';
 }
 document.getElementById('settings-save').addEventListener('click', async ()=>{
@@ -2208,7 +2573,6 @@ document.getElementById('settings-save').addEventListener('click', async ()=>{
     announcement_enabled: document.getElementById('settings-announcement-enabled').checked ? '1' : '0',
     announcement_text: document.getElementById('settings-announcement-text').value,
     announcement_link: document.getElementById('settings-announcement-link').value,
-    featured_project_slugs: document.getElementById('settings-featured-projects').value,
   };
   await api('/api/admin/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   document.getElementById('settings-save-msg').textContent = 'Kaydedildi — değişiklik ~30 saniye içinde yansır.';
@@ -2433,6 +2797,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
     if(tab.dataset.tab === 'conflicts') loadMigrationConflicts();
     if(tab.dataset.tab === 'seo') loadSeo();
+    if(tab.dataset.tab === 'home') loadHomeCarousels();
     if(tab.dataset.tab === 'settings') loadSiteSettings();
     if(tab.dataset.tab === 'performance') loadPerformance();
     if(tab.dataset.tab === 'top100') loadTop100Admin();

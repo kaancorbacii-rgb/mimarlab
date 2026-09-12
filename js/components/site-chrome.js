@@ -1490,6 +1490,24 @@
 
     function openDrawer(){
       if(!navMobileMenu) return;
+      // bkz. js/overlay-manager.js — çekmece artık otomatik grupta DEĞİL, register()'lı bir panel;
+      // açılışını kendisi bildirir (altta açık kalmış bir modal/avatar menüsü/Paylaş popover'ı
+      // kapansın diye). Eskiden bunu `.open` sınıfını izleyen MutationObserver yapıyordu.
+      //
+      // KAYIT NEDEN BURADA (ilk açılışta), initNavDrawer'ın gövdesinde DEĞİL: overlay-manager.js
+      // her sayfada `defer` ile yüklenirken bu dosya <body> içinde SENKRON çalışıyor — yani
+      // initNavDrawer çağrıldığı anda `OverlayManager` HENÜZ TANIMLI DEĞİL ve oradaki bir kayıt
+      // sessizce atlanırdı (register'lar `typeof ... undefined` ile korunuyor). İlk openDrawer()
+      // ise her zaman kullanıcı etkileşiminden sonra, defer'lı betikler çalıştıktan SONRA olur.
+      // Map.set idempotenttir, tekrar tekrar çağrılması zararsızdır.
+      // closeDrawer (requestClose DEĞİL): başka bir panel devraldığında history'e dokunulmadan
+      // yalnızca görsel/durum temizliği yapılmalı; history'i o an üstteki popup yönetir. rootEl
+      // olarak çekmece verilir ki İÇİNDE açılan arama öneri paneli ya da Paylaş popover'ı altındaki
+      // çekmeceyi kapatmasın (otomatik gruptaki AYNI koruma).
+      if(typeof OverlayManager !== 'undefined'){
+        OverlayManager.register('nav-drawer', closeDrawer, navMobileMenu);
+        OverlayManager.notifyOpen('nav-drawer');
+      }
       navMobileMenu.classList.add('open');
       if(navMobileOverlay) navMobileOverlay.classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -1512,6 +1530,13 @@
       // kopyayı bulup yeni ModalShell popup'ının GÖRÜNMEYEN bir hayalet içerikle karışmasına yol açar.
       if(navMobileSubpageBody) navMobileSubpageBody.innerHTML = '';
       if(navMobileHeadCenter) navMobileHeadCenter.innerHTML = '';
+      // ÇEKMECE KAPANDI BİLDİRİMİ (kullanıcı bildirimi, 2026-09-12 madde 3). closeDrawer() yalnızca
+      // alt sayfa SAHİBİNİN kendi close()'undan değil, OverlayManager'dan da çağrılabilir (üstüne bir
+      // varlık popup'ı açıldığında) — o durumda auth-modal.js/info-modal.js'in `currentView`'i
+      // ekranda hiçbir şey yokken "açık" kalıyor ve geri dönüşte (popstate) kendilerini yeniden
+      // açmıyorlardı. İki modül de bu olayı dinleyip durumlarını bırakır; history'e DOKUNULMAZ
+      // (o an zinciri yöneten taraf üstteki popup'tır).
+      document.dispatchEvent(new CustomEvent('mimarlab-navdrawer-closed'));
     }
     // Yalnızca alt sayfayı gizleyip ana menüye döner — çekmece AÇIK kalır (bkz. kullanıcı isteği:
     // "breadcrumb/back ile hamburger ana menüsüne dönülsün", çekmecenin kendisi kapanmaz).

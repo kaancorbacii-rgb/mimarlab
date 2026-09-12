@@ -11,6 +11,7 @@ import { handlePlatformRoute } from './platform.js';
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
 import { foldTr } from '../lib/textMatch.js';
 import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
+import { featuredSlugsFromSettings } from '../lib/homeCarousels.js';
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
@@ -42,7 +43,13 @@ async function handlePublicSiteSettings(request, env, url) {
       announcementEnabled: s.announcement_enabled === '1',
       announcementText: s.announcement_text || '',
       announcementLink: s.announcement_link || '',
-      featuredProjectSlugs: (s.featured_project_slugs || '').split(',').map(v => v.trim()).filter(Boolean),
+      // Ana sayfa karusel seçimleri — dördü de SIRALI slug listesi (bkz. src/lib/homeCarousels.js).
+      // index.html yalnızca gömülü veri (#ml-home-data) YOKSA, yedek fetch yolunda okur; normal
+      // yolda sunucu bu seçimi zaten liste uçlarına `pin=` olarak taşımıştır.
+      featuredProjectSlugs: featuredSlugsFromSettings(s, 'projects'),
+      featuredArchitectSlugs: featuredSlugsFromSettings(s, 'architects'),
+      featuredOfficeSlugs: featuredSlugsFromSettings(s, 'offices'),
+      featuredProductSlugs: featuredSlugsFromSettings(s, 'products'),
     };
   });
 }
