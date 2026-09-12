@@ -340,7 +340,7 @@ async function handleAdminSummary(env) {
   const gundemPending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM gundem_items WHERE status = 'pending'`).first().catch(() => null);
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0) + (gundemPending?.n || 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow, consultationActionsRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow, consultationActionsRow, newUsersRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
@@ -349,6 +349,7 @@ async function handleAdminSummary(env) {
     env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_actions WHERE status = 'pending'`).first(),
+    countNewUsers(env),
   ]);
 
   return json({
@@ -360,7 +361,49 @@ async function handleAdminSummary(env) {
     unseenComments: commentsRow?.n || 0,
     pendingConsultations: consultationsRow?.n || 0,
     pendingConsultationActions: consultationActionsRow?.n || 0,
+    newUsers: newUsersRow?.n || 0,
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// ÜYELER SEKMESİNİN TURUNCU NOKTASI (kullanıcı isteği, 2026-09-12 madde 2: "Admin panelindeki
+// üyeler butonunda siteye yeni bir üye kaydı olunca turuncu nokta yani bildirim işareti çıksın.")
+//
+// Diğer sekmelerin noktası "bekleyen satır sayısı"dır (status='pending'), ama bir üye kaydının
+// böyle bir durumu yok — soru "SON BAKIŞIMDAN BERİ yeni üye geldi mi?". Bu yüzden tek bir imleç
+// saklanır: admin Üyeler sekmesini en son ne zaman açtı.
+//
+// SAKLAMA YERİ: site_settings (mevcut jenerik key/value tablosu) — users tablosuna kolon eklemek
+// için migration açmaya değmez, üstelik imleç kullanıcı BAŞINA değil TEK bir global işaret.
+// setSiteSetting() BİLEREK kullanılmıyor: o, yalnızca DEFAULT_SETTINGS'te tanımlı "site ayarı"
+// anahtarlarını kabul eder ve bu bir ayar değil, bir iç imleç (bkz. src/lib/gatedMedia.js#
+// GATED_MEDIA_VERSION_KEY — aynı tabloda duran AYNI türden ikinci iç anahtar; ikisi de
+// siteSettings.js#INTERNAL_SETTING_KEYS ile ayar nesnesinin dışında tutulur).
+const USERS_SEEN_KEY = 'admin_users_seen_at';
+
+async function countNewUsers(env) {
+  const row = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(USERS_SEEN_KEY).first();
+  const seenAt = Number(row?.value) || 0;
+  // İmleç hiç yazılmamışsa (özellik yeni açıldı) TÜM üyeleri "yeni" saymak, ilk açılışta anlamsız
+  // bir nokta gösterirdi. Onun yerine imleç TAM BURADA, ilk okumada "şimdi" ile tohumlanır: nokta
+  // ilk seferde sönük kalır ama BUNDAN SONRAKİ her kayıt sayılır — yani admin, Üyeler sekmesini hiç
+  // açmamış olsa bile nokta yanar (özelliğin bütün amacı bu). Tohumlama bir kez olur, sonraki
+  // okumalar yazma yapmaz.
+  if (!seenAt) { await writeUsersSeen(env, Date.now()); return { n: 0 }; }
+  return env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at > ?').bind(seenAt).first();
+}
+
+async function writeUsersSeen(env, at) {
+  await env.DB.prepare(
+    `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).bind(USERS_SEEN_KEY, String(at), at).run();
+}
+
+async function markUsersSeen(env) {
+  const now = Date.now();
+  await writeUsersSeen(env, now);
+  return json({ ok: true, seenAt: now });
 }
 
 // /api/admin/comments  (GET: ?status=pending|approved|'' ile filtrelenmiş son yorumları listeler)
@@ -488,6 +531,12 @@ async function listUsers(env) {
 // değiştirmemeli, hesabını da sessizce silmemeli.
 async function handleUsersAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'GET') return await listUsers(env);
+  // POST /api/admin/users/seen — "Üyeler" sekmesi açıldığında çağrılır, turuncu noktayı söndürür
+  // (bkz. USERS_SEEN_KEY). 'seen' geçerli bir kullanıcı id'si olamayacağından (id'ler newId()
+  // ürünü) aşağıdaki targetId dallarıyla çakışmaz.
+  if (segments.length === 4 && segments[3] === 'seen' && request.method === 'POST') {
+    return await markUsersSeen(env);
+  }
 
   const targetId = segments[3];
   if (!targetId) return errorJson('Bulunamadı', 404);

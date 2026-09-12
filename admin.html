@@ -101,6 +101,11 @@
   .admin-tab.active{color:var(--ink); background:var(--paper-card); border-color:var(--line); border-bottom-color:var(--paper-card); margin-bottom:-1px;}
   .admin-tab-dot{display:none; position:absolute; top:6px; right:6px; width:8px; height:8px; border-radius:50%; background:var(--bad); border:1.5px solid var(--paper);}
   .admin-tab-dot.show{display:block;}
+  /* Üyeler sekmesi (kullanıcı isteği, 2026-09-12 madde 2) TURUNCU nokta kullanır: diğer noktalar
+     "bekleyen iş var, karar ver" (var(--bad), kırmızı), bu ise "yeni üye kaydı oldu" — bir iş değil
+     bir haber. Aynı turuncu, kullanıcı tarafındaki bildirim noktasıyla da (auth-nav.js#.nav-alert-dot)
+     aynı anlamı taşır. */
+  .admin-tab-dot.dot-new{background:var(--accent);}
 
   .admin-section{display:none;}
   .admin-section.active{display:block;}
@@ -335,7 +340,7 @@
         <button class="admin-tab" data-tab="consultation-actions">Görüşme Aksiyonları<span class="admin-tab-dot" data-dot="consultation-actions"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
-        <button class="admin-tab" data-tab="users">Üyeler</button>
+        <button class="admin-tab" data-tab="users">Üyeler<span class="admin-tab-dot dot-new" data-dot="users"></span></button>
         <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
         <button class="admin-tab" data-tab="conflicts">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="conflicts"></span></button>
         <button class="admin-tab" data-tab="seo">SEO</button>
@@ -2098,6 +2103,7 @@ async function refreshAdminSummary(){
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
       conflicts: data.pendingMigrationConflicts > 0,
+      users: data.newUsers > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
       const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
@@ -2415,7 +2421,15 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     // Sekmeye her girişte liste yeniden çekilir (arama kutusuna yazarken DEĞİL — bkz. usersCache).
-    if(tab.dataset.tab === 'users'){ usersCache = null; loadUsers(); }
+    // Sekme açıldığı an "son bakış" imleci ileri alınır (bkz. src/routes/admin.js#markUsersSeen) ve
+    // turuncu nokta anında söner — sunucu yanıtını beklemeden, çünkü admin listeyi ZATEN görüyor.
+    if(tab.dataset.tab === 'users'){
+      usersCache = null;
+      loadUsers();
+      const usersDot = document.querySelector('.admin-tab-dot[data-dot="users"]');
+      if(usersDot) usersDot.classList.remove('show');
+      api('/api/admin/users/seen', { method:'POST' }).catch(()=>{});
+    }
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
     if(tab.dataset.tab === 'conflicts') loadMigrationConflicts();
     if(tab.dataset.tab === 'seo') loadSeo();

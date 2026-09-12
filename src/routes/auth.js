@@ -299,10 +299,23 @@ async function logout(request, env) {
   return json({ ok: true }, 200, { 'Set-Cookie': clearSessionCookieHeader(request) });
 }
 
+// unreadCount — auth-nav.js'in avatar menüsündeki TURUNCU NOKTA'nın (kullanıcı isteği, 2026-09-12
+// madde 1: "bir bildirim veya mesaj geldiğinde Hesabım başlığının sağ yanında turuncu bir nokta
+// çıksın") tek veri kaynağı. Mesajlar da bu tabloda yaşar (bkz. src/routes/messages.js#
+// appendMessageToThread -> createNotification(type:'message')), bu yüzden "bildirim VEYA mesaj"
+// sorusunun cevabı TEK bir COUNT'tur — ikinci bir uç/istek gerekmez.
+//
+// AYRI BİR UÇ AÇILMADI, BİLEREK: auth-nav.js zaten her sayfada /api/auth/me çağırıyor (ve o istek
+// save-widget.js ile de paylaşılıyor, bkz. o dosyadaki window.__authMeFetch notu) — sayıyı aynı
+// yanıta koymak sayfa başına ekstra bir gidiş-dönüş eklemez. idx_notifications_user (user_id)
+// indeksi bu COUNT'u karşılar.
 async function me(request, env) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Oturum yok.', 401);
-  return json({ user: publicUser(user) });
+  const unreadRow = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND is_read = 0'
+  ).bind(user.id).first().catch(() => null);
+  return json({ user: publicUser(user), unreadCount: unreadRow?.n || 0 });
 }
 
 async function changePassword(request, env) {

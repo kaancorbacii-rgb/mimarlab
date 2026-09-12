@@ -538,6 +538,17 @@ else
 fi
 rm -f /tmp/preflight_seen
 
+# Bildirim noktaları + tıklanabilir gönderen profili (kullanıcı isteği, 2026-09-12) — bkz.
+# src/routes/auth.js#me (unreadCount), src/routes/admin.js#countNewUsers,
+# src/routes/messages.js#resolveSenderProfile. Bkz. scripts/test-2026-09-12-notification-dots.mjs.
+if node scripts/test-2026-09-12-notification-dots.mjs >/tmp/preflight_dots 2>&1; then
+  ok "bildirim noktası + gönderen profili testleri geçti ($(grep -c '^  ok ' /tmp/preflight_dots) test)"
+else
+  bad "bildirim noktası + gönderen profili testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_dots >&2
+fi
+rm -f /tmp/preflight_dots
+
 # Boşluksuz yazım araması ("perse" -> "Per Se Mimarlık", kullanıcı isteği 2026-09-11) — bkz.
 # src/lib/classicSearch.js#collapsedToken/likeCondition. Bkz. scripts/test-search-word-merge.mjs.
 if node scripts/test-search-word-merge.mjs >/tmp/preflight_wmerge 2>&1; then

@@ -40,7 +40,10 @@
     style.id = 'auth-nav-style';
     style.textContent = `
       .nav-avatar-wrap{position:relative;}
-      .nav-avatar{display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:5px 14px 5px 5px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
+      /* position:relative — .nav-avatar-alert (bildirim noktası) DÜĞMENİN kendi köşesine çıpalanır.
+         Sarmalayıcı .nav-avatar-wrap'e bırakılsaydı nokta, sarmalayıcı bir nedenle düğmeden geniş
+         kaldığı her düzende (ör. .nav-right flex olmayan bir barındırıcıda) avatarın uzağına kayardı. */
+      .nav-avatar{position:relative; display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:5px 14px 5px 5px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
       .nav-avatar-circle{width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12px; font-weight:600; flex-shrink:0;}
       .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:240px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
       .nav-avatar-menu.open{display:flex;}
@@ -69,6 +72,23 @@
          olsun — ikisi de aynı .nav-mobile-link sınıfını paylaştığından burada, hesap bölümüne özel
          daha spesifik bir seçiciyle geçersiz kılınır. */
       .nav-mobile-account-links .nav-mobile-link{font-size:14px;}
+      /* BİLDİRİM/MESAJ NOKTASI (kullanıcı isteği, 2026-09-12 madde 1): "Kullanıcı hesabına bir
+         bildirim veya mesaj geldiğinde Hesabım başlığının sağ yanında turuncu bir nokta çıksın."
+         Nokta ÜÇ yerde birden gösterilir ve hepsi TEK bir sayıdan (bkz. applyAlertDot) beslenir:
+         (a) avatar düğmesinin köşesi — menü KAPALIYKEN de görünsün diye, kullanıcı menüyü açmadan
+         yeni bir şey olduğunu anlar; (b) açılır menüdeki "Hesabım" satırı; (c) mobil çekmecedeki
+         "Hesabım" satırı. Renk var(--accent) (#E08A3E) — admin panelindeki var(--bad) kırmızı
+         noktalardan bilinçli olarak ayrı: bu bir uyarı değil, "yeni içerik var" işareti.
+
+         ELEMENT <i>, <span> DEĞİL — bilerek: yukarıdaki ".nav-avatar-menu a span" ve
+         ".nav-mobile-account-links .nav-mobile-link span" kuralları (ikon sarmalayıcıları için)
+         display:flex dayatıyor ve ikisi de tek sınıflı ".nav-alert-dot"tan DAHA SPESİFİK
+         (0,1,2 > 0,1,0) — bir <span> olsaydı nokta display:none'ı yiyip HER ZAMAN görünürdü.
+         <i> o seçicilerin hiçbirine takılmaz, böylece spesifiklik yarışına girmeden doğru çalışır. */
+      .nav-alert-dot{display:none; width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0;}
+      .nav-alert-dot.show{display:inline-block;}
+      .nav-avatar-alert{display:none; position:absolute; top:-1px; right:-1px; width:9px; height:9px; border-radius:50%; background:var(--accent); border:2px solid var(--paper-card); box-sizing:content-box;}
+      .nav-avatar-alert.show{display:block;}
     `;
     document.head.appendChild(style);
   }
@@ -92,6 +112,27 @@
   // olarak yüklendiğinden (bkz. proje/mimar/firma/urun.html script sırası), o script kendi
   // isteğini atmadan önce bunu bulur ve AYNI Promise'i paylaşır — tek network isteği.
   window.__authMeFetch = window.__authMeFetch || fetchMe();
+
+  // Turuncu nokta (bkz. injectStyleOnce'taki .nav-alert-dot yorumu) — DOM'daki üç noktayı da tek
+  // hamlede günceller. Menü/çekmece henüz render edilmemişse (initAuthNav bitmeden çağrıldıysa)
+  // querySelectorAll boş döner ve çağrı zararsızca no-op olur.
+  let lastUnread = 0;
+  function applyAlertDot(hasUnread) {
+    lastUnread = hasUnread ? 1 : 0;
+    document.querySelectorAll('.nav-alert-dot, .nav-avatar-alert').forEach(el => el.classList.toggle('show', !!hasUnread));
+  }
+
+  // Hesabım popup'ı (js/components/auth-modal.js) bildirim/mesaj okuduğunda, sildiğinde ya da
+  // listeyi tazelediğinde bunu çağırır — nokta sayfa yenilenmeden söner/yanar. Sayının kendisi yine
+  // TEK kaynaktan, /api/auth/me'den gelir (bkz. src/routes/auth.js#me) ki istemcide ikinci bir
+  // "okunmamış" tanımı oluşmasın. count parametresi verilirse istek hiç atılmaz.
+  window.refreshAuthNavAlert = (count) => {
+    if (typeof count === 'number') { applyAlertDot(count > 0); return Promise.resolve(count); }
+    return fetch('/api/auth/me', { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { const n = (data && data.unreadCount) || 0; applyAlertDot(n > 0); return n; })
+      .catch(() => lastUnread);
+  };
 
   // fresh:true — window.refreshAuthNav() login/signup SONRASI (bkz. dosya sonu) çağrıldığında,
   // yukarıdaki paylaşılan promise ARTIK BAYAT (sayfa ilk yüklendiğindeki, login ÖNCESİ) sonucu
@@ -121,6 +162,7 @@
       <div class="nav-avatar-wrap">
         <button class="nav-avatar" id="nav-avatar-btn" type="button">
           <span class="nav-avatar-circle">${avatarInner}</span> ${escapeHtml(firstName(user.name))}
+          <i class="nav-avatar-alert" id="nav-avatar-alert" aria-hidden="true"></i>
         </button>
         <div class="nav-avatar-menu" id="nav-avatar-menu">
           <div class="nav-avatar-menu-header">
@@ -131,7 +173,7 @@
             </div>
           </div>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="/hesabim"><span>${ICON_ACCOUNT}</span> Hesabım</a>
+          <a href="/hesabim"><span>${ICON_ACCOUNT}</span> Hesabım <i class="nav-alert-dot" aria-hidden="true"></i></a>
           <div class="nav-avatar-menu-sep"></div>
           <a href="/aktivitelerim"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
           <div class="nav-avatar-menu-sep"></div>
@@ -160,7 +202,7 @@
         </div>
         <div class="nav-mobile-account-sep"></div>
         <div class="nav-mobile-account-links">
-          <a class="nav-mobile-link" href="/hesabim"><span>${ICON_ACCOUNT}</span> Hesabım</a>
+          <a class="nav-mobile-link" href="/hesabim"><span>${ICON_ACCOUNT}</span> Hesabım <i class="nav-alert-dot" aria-hidden="true"></i></a>
           <a class="nav-mobile-link" href="/aktivitelerim"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
           <a class="nav-mobile-link" href="/koleksiyonum"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
           ${mobileAdminLink}
@@ -174,6 +216,10 @@
         });
       }
     }
+
+    // Nokta, menü markup'ı (masaüstü + mobil) yazıldıktan SONRA uygulanır — üç hedefin üçü de
+    // artık DOM'da. Sayı zaten yukarıdaki /api/auth/me yanıtından geldiğinden ekstra istek yok.
+    applyAlertDot((data.unreadCount || 0) > 0);
 
     const btn = document.getElementById('nav-avatar-btn');
     const menu = document.getElementById('nav-avatar-menu');

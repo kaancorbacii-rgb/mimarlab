@@ -387,6 +387,13 @@ const AuthModal = (function () {
     .am-thread-sender{border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; font-size:12.5px;}
     .am-thread-sender-row{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; color:var(--ink);}
     .am-thread-sender-row strong{font-size:13.5px;}
+    /* Gönderenin adı, açılabilir bir kişi/firma/marka profili VARSA bağlantıya döner (kullanıcı
+       isteği, 2026-09-12 madde 3). Profili olmayan gönderende (ör. yalnızca üyeliği olan bir
+       kullanıcı) <strong> düz metin kalır — tıklanabilir görünüp hiçbir şey açmayan bir isim
+       olmaz. Alt çizgi hover'da beliriyor: kutu kalabalıklaşmasın ama tıklanabilirlik keşfedilebilir
+       olsun. */
+    a.am-thread-sender-link{color:inherit; text-decoration:none; cursor:pointer;}
+    a.am-thread-sender-link:hover{text-decoration:underline; color:var(--accent);}
     .am-thread-sender-row span{color:var(--ink-soft);}
     .am-thread-sender-extra{margin-top:3px; color:var(--ink-soft);}
     .am-thread-messages{display:flex; flex-direction:column; gap:12px; max-height:340px; overflow-y:auto; margin-bottom:14px;}
@@ -3981,6 +3988,14 @@ const AuthModal = (function () {
     let notifPage = 1;
     let msgItems = [];
     let msgPage = 1;
+    // Header'daki turuncu nokta (bkz. auth-nav.js#applyAlertDot). Bu ekranda okunmamış sayısını
+    // DEĞİŞTİREN her işlemden sonra çağrılır — okundu işaretleme, silme ve bir mesaj konuşmasını
+    // açma (sunucu o thread'in mesaj bildirimlerini okundu yapar, bkz. src/routes/messages.js#
+    // getThread). Sayıyı İSTEMCİDE hesaplamıyoruz bilerek: "okunmamış"ın tek tanımı sunucudadır,
+    // burada ikinci bir kopyası olsaydı iki taraf sessizce ayrışabilirdi.
+    function syncNavAlert() {
+      if (window.refreshAuthNavAlert) window.refreshAuthNavAlert();
+    }
     // Bildirimler kutusu — /api/notifications/mine, type==='message' olanlar hariç (bkz. aşağıdaki
     // loadMessages — mesajlar artık kendi ucundan, KONUŞMA başına gruplanmış olarak gelir).
     async function loadNotifications() {
@@ -4252,7 +4267,8 @@ const AuthModal = (function () {
             const dot = row.querySelector('.notif-dot');
             if (dot) dot.remove();
             item.is_read = true;
-            fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) }).catch(() => {});
+            fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) })
+              .then(syncNavAlert).catch(() => {});
           }
           // Tek karar noktası (bkz. notifActionFor) — satırdaki "aç" oku da AYNI fonksiyondan
           // türetildiğinden, ok gösterilen her satır gerçekten bir ekran açar.
@@ -4270,6 +4286,7 @@ const AuthModal = (function () {
           if (idx !== -1) items.splice(idx, 1);
           setPage(page);
           try { await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' }); } catch {}
+          syncNavAlert();
         });
       });
       renderDashPagination(paginationId, page, totalPages, (p) => setPage(p));
@@ -4357,14 +4374,18 @@ const AuthModal = (function () {
         return;
       }
       renderThreadBody(overlay, data);
+      syncNavAlert();
     }
     function renderThreadBody(overlay, data) {
       const bodyEl = overlay.querySelector('.am-thread-body');
       const s = data.sender;
+      const senderProfile = data.senderProfile || null;
       bodyEl.innerHTML = `
         <h2 class="am-thread-title">${data.isSender ? 'Gönderdiğin Mesaj' : 'Gelen Mesaj'}</h2>
         <div class="am-thread-sender">
-          <div class="am-thread-sender-row"><strong>${escapeHtml(s.name)}</strong><span>${escapeHtml(s.email)}</span></div>
+          <div class="am-thread-sender-row">${senderProfile
+            ? `<strong><a class="am-thread-sender-link" href="${escapeAttr(senderProfile.href)}" data-profile-type="${escapeAttr(senderProfile.type)}" title="${escapeAttr(senderProfile.name)} profilini aç">${escapeHtml(s.name)}</a></strong>`
+            : `<strong>${escapeHtml(s.name)}</strong>`}<span>${escapeHtml(s.email)}</span></div>
           ${(s.city || s.company || s.phone) ? `<div class="am-thread-sender-row am-thread-sender-extra">${[s.city, s.company, s.phone].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
         </div>
         <div class="am-thread-messages">${(() => {
@@ -4399,6 +4420,39 @@ const AuthModal = (function () {
       // yeterli: cevap gönderildiğinde de yeni mesaj görünür kalır.
       const messagesEl = bodyEl.querySelector('.am-thread-messages');
       if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      // Gönderenin adı -> kişi/firma/marka popup'ı (kullanıcı isteği, 2026-09-12 madde 3).
+      //
+      // js/components/lazy-modals.js'in KENDİ varlık-linki yakalayıcısı buraya UZANMAZ: o, kapsamı
+      // bilerek dar tutulmuş şekilde yalnızca AÇIK bir `.modal-shell-overlay.open` İÇİNDEKİ
+      // tıklamaları dinler, bu konuşma kutusu ise ModalShell'den bağımsız kendi overlay'i
+      // (.am-thread-overlay, bkz. openMessageThread). Bu yüzden aynı zincir (loadModule -> Modal.open,
+      // hata halinde tam sayfa gezinmeye düş) burada açıkça çağrılır — YENİ bir yükleyici yazılmadı,
+      // LazyModals.load() tekilleştirme/bağımlılık çözümünün tek kapısı olmayı sürdürür.
+      //
+      // basePath '/firma/' olarak geçilse bile office-modal.js veri gelince kanonik öneki kendisi
+      // düzeltir (bkz. syncCanonicalBasePath) — yine de doğru öneki sunucudan alıp (officePath)
+      // buraya taşıyoruz ki bağlantıyı yeni sekmede açmak da kanonik URL'e gitsin.
+      const senderLink = bodyEl.querySelector('.am-thread-sender-link');
+      if (senderLink) {
+        senderLink.addEventListener('click', (e) => {
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // yeni sekme: tarayıcıya bırak
+          e.preventDefault();
+          const key = senderLink.dataset.profileType === 'office' ? 'office' : 'architect';
+          const path = new URL(senderLink.getAttribute('href'), document.baseURI).pathname;
+          const slug = decodeURIComponent(path.split('/')[2] || '');
+          const basePath = `/${path.split('/')[1]}/`;
+          if (!slug) return;
+          // Konuşma kutusu ÖNCE kapanır: kendi overlay'i ModalShell'in üstünde durduğundan açık
+          // kalsaydı profil popup'ını örterdi.
+          closeMessageThread();
+          const fallback = () => { window.location.href = senderLink.href; };
+          if (!window.LazyModals || !LazyModals.load) { fallback(); return; }
+          LazyModals.load(key)
+            .then((Modal) => { if (Modal && Modal.open) Modal.open(slug, { triggerEl: senderLink, basePath }); else fallback(); })
+            .catch(fallback);
+        });
+      }
 
       const replyForm = bodyEl.querySelector('#am-thread-reply-form');
       if (replyForm) {

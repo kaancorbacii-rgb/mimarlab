@@ -4,6 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge, BADGE_RANK } from '../lib/badgeAccess.js';
+import { officePath } from '../lib/officeUrl.js';
 
 // Kullanıcı isteği: doğrulanmış mimar/firma profillerine kullanıcıların mesaj gönderebilmesi —
 // mimar için tek alıcı (o profili claim eden onaylı kullanıcı), firma için BİRDEN FAZLA alıcı.
@@ -263,6 +264,55 @@ async function assertParticipant(env, threadId, userId) {
   return { thread, isParticipant: false };
 }
 
+// MESAJI GÖNDEREN KULLANICININ PROFİLİ (kullanıcı isteği, 2026-09-12 madde 3: "Mesaj gönderen
+// kullanıcının kişi, firma ya da marka profili yüklüyse ... kullanıcı ismine tıklanabilsin.
+// Tıklayınca kişi, firma ya da marka profili popup'ı açılsın. WARCHDb'nin herhangi bir popup'ı
+// olmadığı için buna tıklanamayacak.") — profili YOKSA null döner ve istemci ismi düz metin bırakır.
+//
+// SAHİPLİĞİN İKİ YOLU (bkz. proje notu "Profil sahipliğinin İKİ yolu"): onaylı bir profile_claims
+// satırı YA DA kaydın kendi claimed_by_user_id'si (kullanıcı profili kendi gönderisiyle açmışsa
+// claim satırı hiç oluşmaz). İkisine birden bakılır, aksi halde kullanıcıların bir bölümünde isim
+// sebepsizce tıklanamaz kalırdı.
+//
+// GÖRÜNÜRLÜK: silinmiş kayıtlar hariç; gizlenmiş kayıtlardan yalnızca ÖNİZLEMEdekiler geçer —
+// `(hidden_at IS NULL OR preview_at IS NOT NULL)` (bkz. migrations/0107_preview_state.sql). Tam
+// arşivlenmiş bir profilin popup'ı 404 döneceğinden linki hiç üretmemek doğru davranış.
+//
+// ÖNCELİK kişi profilidir: bir kullanıcı hem kişi hem firma profiline sahip olabilir, ama mesajı
+// yazan bir KİŞİdir — ismine tıklayan kişinin beklediği ekran kendi profilidir.
+//
+// /firma/ mı /marka/ mı: src/lib/officeUrl.js#officePath tek kaynak (saf markalar /marka/) — ürün
+// sayısı indeksli brand_office_id ile sayılır, bkz. src/routes/project.js#fetchPhotographerOfficeDetails'teki
+// AYNI alt sorgu.
+async function resolveSenderProfile(env, userId) {
+  if (!userId) return null;
+  const architect = await env.DB.prepare(
+    `SELECT name, slug FROM architects
+      WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)
+        AND (claimed_by_user_id = ?1
+             OR name IN (SELECT profile_key FROM profile_claims
+                          WHERE user_id = ?1 AND profile_type = 'architect' AND status = 'approved'))
+      LIMIT 1`
+  ).bind(userId).first();
+  if (architect) {
+    return { type: 'architect', name: architect.name, href: `/kisi/${encodeURIComponent(architect.slug)}` };
+  }
+  const office = await env.DB.prepare(
+    `SELECT name, slug, cats,
+            (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.brand_office_id = offices.id) AS product_count
+       FROM offices
+      WHERE deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)
+        AND (claimed_by_user_id = ?1
+             OR name IN (SELECT profile_key FROM profile_claims
+                          WHERE user_id = ?1 AND profile_type = 'office' AND status = 'approved'))
+      LIMIT 1`
+  ).bind(userId).first();
+  if (office) {
+    return { type: 'office', name: office.name, href: officePath(office.slug, office.cats, office.product_count || 0) };
+  }
+  return null;
+}
+
 async function getThread(env, user, threadId) {
   const { thread, isParticipant } = await assertParticipant(env, threadId, user.id);
   if (!thread) return errorJson('Bulunamadı', 404);
@@ -308,6 +358,8 @@ async function getThread(env, user, threadId) {
      WHERE m.thread_id = ? ORDER BY m.created_at ASC`
   ).bind(threadId).all();
 
+  const senderProfile = await resolveSenderProfile(env, thread.sender_user_id);
+
   return json({
     id: thread.id,
     profileType: thread.profile_type,
@@ -321,6 +373,8 @@ async function getThread(env, user, threadId) {
       company: thread.sender_company,
       phone: thread.sender_phone,
     },
+    // null = gönderenin açılabilir bir profili yok, isim düz metin kalır (bkz. resolveSenderProfile).
+    senderProfile,
     messages: messageRows.map(m => {
       const isMe = m.sender_user_id === user.id;
       return {

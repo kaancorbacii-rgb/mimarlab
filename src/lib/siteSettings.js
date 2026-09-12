@@ -35,6 +35,8 @@ export const DEFAULT_SETTINGS = {
 // gelen isteklerde 15 sn boyunca son değer elde tutulur; KV'nin kendi 60 sn TTL'i zaten bu kadar
 // gecikmeyi kabul ediyordu, yani bakım modu/duyuru yayılması pratikte değişmez. setSiteSetting aynı
 // isolate'teki kopyayı hemen düşürür.
+const INTERNAL_SETTING_KEYS = new Set(['gated_media_version', 'admin_users_seen_at']);
+
 const MEMO_TTL_MS = 15000;
 let memo = { value: null, expiresAt: 0 };
 
@@ -62,9 +64,11 @@ async function readSiteSettings(env) {
   }
   const { results } = await env.DB.prepare(`SELECT key, value FROM site_settings`).all();
   const out = {};
-  // gated_media_version — site ayarı DEĞİL, görsel kapısının sürüm damgası (bkz. src/lib/gatedMedia.js
-  // #GATED_MEDIA_VERSION_KEY); aynı tabloda durur ama ayar nesnesine (public uç/admin) karışmaz.
-  for (const row of results) if (row.key !== 'gated_media_version') out[row.key] = row.value;
+  // İÇ ANAHTARLAR — site ayarı DEĞİL, aynı jenerik key/value tablosunda duran iç imleçler; ayar
+  // nesnesine (public uç/admin Site Ayarları) karışmazlar:
+  //   gated_media_version  — görsel kapısının sürüm damgası (bkz. src/lib/gatedMedia.js)
+  //   admin_users_seen_at  — Üyeler sekmesinin "son bakış" imleci (bkz. src/routes/admin.js#USERS_SEEN_KEY)
+  for (const row of results) if (!INTERNAL_SETTING_KEYS.has(row.key)) out[row.key] = row.value;
   if (env.FACET_CACHE && await reserveKvWrite(env)) {
     try {
       await env.FACET_CACHE.put(KV_KEY, JSON.stringify(out), { expirationTtl: KV_TTL_SECONDS });
