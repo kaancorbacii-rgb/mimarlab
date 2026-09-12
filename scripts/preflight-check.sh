@@ -597,16 +597,18 @@ else
 fi
 rm -f /tmp/preflight_hcar
 
-# Ana sayfa şeritleri ("Son Projeler/Kişiler/Firmalar/Markalar/Ürünler/Gündem"), karusel slotunun
-# 6'ya inmesi, footer "Üye Ol" metni, mobil bülten okunun görünürlüğü ve Hesabım'daki "Yetkili
-# Kullanıcılar" satırı — kullanıcı isteği, 2026-09-12 (ikinci tur). Slot sabiti DÖRT dosyada,
-# gömülü veri sürümü İKİ dosyada birlikte yaşıyor; ayrışmaları sessizdir (karusel/şerit yarım
-# dolar). Yetkili Kullanıcılar ucu ayrıca GERÇEK rota + node:sqlite ile yetki kapısından geçirilir.
+# Ana sayfa şeritlerinin ("Son Projeler/Kişiler/Firmalar/Markalar/Ürünler/Gündem") KALDIRILMASI,
+# karusel slotunun 6'ya inmesi, footer "Üye Ol" metni, mobil bülten okunun görünürlüğü ve
+# Hesabım'daki "Yetkili Kullanıcılar" satırı — kullanıcı isteği, 2026-09-12. Slot sabiti DÖRT
+# dosyada, gömülü veri sürümü İKİ dosyada birlikte yaşıyor; ayrışmaları sessizdir (karusel yarım
+# dolar). Şerit kaldırmanın yarım kalması da sessiz DEĞİL ama pahalıdır: geride bir
+# createRail/loadRailExtras kalırsa ana sayfa betiği var olmayan bir DOM düğümünde düşer.
+# Yetkili Kullanıcılar ucu ayrıca GERÇEK rota + node:sqlite ile yetki kapısından geçirilir.
 # Bkz. scripts/test-2026-09-12-home-rails.mjs.
 if node scripts/test-2026-09-12-home-rails.mjs >/tmp/preflight_rails 2>&1; then
-  ok "ana sayfa şeritleri + footer + yetkili kullanıcılar testleri geçti ($(grep -c '^  ok ' /tmp/preflight_rails) test)"
+  ok "ana sayfa (şerit kaldırma) + footer + yetkili kullanıcılar testleri geçti ($(grep -c '^  ok ' /tmp/preflight_rails) test)"
 else
-  bad "ana sayfa şeritleri + footer + yetkili kullanıcılar testleri BAŞARISIZ:"
+  bad "ana sayfa (şerit kaldırma) + footer + yetkili kullanıcılar testleri BAŞARISIZ:"
   tail -25 /tmp/preflight_rails >&2
 fi
 rm -f /tmp/preflight_rails
