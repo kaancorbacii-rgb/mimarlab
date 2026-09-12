@@ -5,7 +5,7 @@ import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { findProductsByKeys } from './product.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
-import { invalidatePublicCache } from '../lib/publicCache.js';
+import { invalidatePublicCache, cachedPublicJson } from '../lib/publicCache.js';
 
 const TARGET_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 
@@ -13,7 +13,7 @@ export async function handleRatingsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "ratings", "bulk"?/"mine"?]
 
   if (segments.length === 3 && segments[2] === 'bulk' && request.method === 'GET') {
-    return bulkRatings(env, url);
+    return bulkRatings(request, env, url);
   }
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
     const user = await getSessionUser(request, env);
@@ -187,15 +187,21 @@ export async function myRatings(env, user) {
   return json({ items });
 }
 
-async function bulkRatings(env, url) {
+async function bulkRatings(request, env, url) {
   const targetType = url.searchParams.get('targetType');
   if (!TARGET_TYPES.has(targetType)) return errorJson('Geçersiz istek.');
+  // Edge önbelleği (performans denetimi, 2026-09-12) — bkz. publicCache.js#CACHEABLE_PATHS'teki
+  // '/api/ratings/bulk' notu: yanıt herkes için aynıdır, her puanlama yazımı invalidatePublicCache()
+  // ile temizler; admin oturumu yine no-store alır (cachedPublicJson'ın kendi kuralı).
+  return cachedPublicJson(request, env, url.pathname + url.search, () => computeBulkRatings(env, targetType));
+}
 
+async function computeBulkRatings(env, targetType) {
   const { results } = await env.DB.prepare(
     'SELECT target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = ? GROUP BY target_id'
   ).bind(targetType).all();
 
-  if (targetType !== 'project') return json({ items: results });
+  if (targetType !== 'project') return { items: results };
 
   // summarize()'daki AYNI harmanlama, toplu (kart rozetleri) tarafı için — bkz. o fonksiyondaki
   // yorum. Bir top100 projesi hiç gerçek oy almamışsa yukarıdaki GROUP BY sorgusunda satırı hiç
@@ -215,5 +221,5 @@ async function bulkRatings(env, url) {
     if (!seen.has(slug)) merged.push({ target_id: slug, average: base.base_avg, count: base.base_count });
   }
 
-  return json({ items: merged });
+  return { items: merged };
 }

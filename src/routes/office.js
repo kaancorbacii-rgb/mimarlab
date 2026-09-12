@@ -512,8 +512,8 @@ async function fetchOtherOfficesFallback(env, selfId, isBrand, need, excludeSlug
   const base = `SELECT o2.slug, o2.name, o2.loc, o2.cats, o2.logo_url, o2.website,
        (SELECT COUNT(*) FROM products pr WHERE pr.brand_office_id = o2.id AND pr.deleted_at IS NULL) AS product_count
      FROM offices o2 WHERE o2.deleted_at IS NULL AND o2.hidden_at IS NULL AND o2.id != ?`;
-  const start = await env.DB.prepare(`SELECT abs(random()) % (COALESCE(MAX(id), 0) + 1) AS s FROM offices`).first('s');
-  let rows = (await env.DB.prepare(`${base} AND o2.id >= ? ORDER BY o2.id LIMIT 60`).bind(selfId, start || 0).all()).results || [];
+  // Rastgele başlangıç noktası AYNI sorgunun içinde (bkz. architect.js#fetchOtherArchitectsFallback'taki not).
+  let rows = (await env.DB.prepare(`${base} AND o2.id >= (SELECT abs(random()) % (COALESCE(MAX(id), 0) + 1) FROM offices) ORDER BY o2.id LIMIT 60`).bind(selfId).all()).results || [];
   if (rows.length < 60) {
     rows = rows.concat((await env.DB.prepare(`${base} ORDER BY o2.id LIMIT 60`).bind(selfId).all()).results || []);
   }
@@ -919,6 +919,10 @@ export async function buildOfficePayload(env, key) {
   // metnini ("Bu marka sana mı ait?") ve Düzenle bağlantısının hedefini (marka-ekle.html) bu belirler
   // — Autoban gibi hem mimarlık yapıp hem ürün tasarlayan firmalar FİRMA kimliğini korur.
   const isBrand = isPureBrandOffice(o.cats, brandProductsRes.results.length);
+  // Önceki/sonraki firma yalnızca id + isBrand'e bağlı: sorgu BURADA başlatılır, dönüşten hemen önce
+  // beklenir — aradaki "şehirdeki diğer firmalar" yedek sorgusuyla (fetchOtherOfficesFallback) aynı
+  // anda gider (performans denetimi, 2026-09-12; eskiden ardışık iki D1 turuydu).
+  const adjacentPromise = fetchAdjacentOffice(env, o.id, isBrand);
 
   // D1 audit (2026-08-25) P1-4 — yukarıdaki sorgu artık ORDER BY RANDOM() içermiyor, bkz. o
   // yorum: eşleşen kayıtlar (en fazla 50) burada Fisher-Yates ile karıştırılıp ilk 12'si alınır —
@@ -1008,7 +1012,7 @@ export async function buildOfficePayload(env, key) {
   const isSubmissionMarker = typeof o.legacy_key === 'string' && o.legacy_key.startsWith('submission:');
   if (o.legacy_key && !isSubmissionMarker && o.legacy_key !== o.name) item._claimKey = o.legacy_key;
 
-  const adjacent = await fetchAdjacentOffice(env, o.id, isBrand);
+  const adjacent = await adjacentPromise;
 
   // claimed (kullanıcı isteği, 2026-09-08 madde 5): bu firma/marka bir üyeye atanmışsa pop-up'taki
   // kaynak ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısı kalır (bkz.

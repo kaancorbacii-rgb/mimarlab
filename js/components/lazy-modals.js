@@ -96,12 +96,21 @@
   // SSR meta + #ssr-entity-body + JSON-LD üretir (bkz. src/index.js#injectMeta). Değişen tek şey,
   // SİTE İÇİ bir tıklamanın tarayıcıyı yeni bir belge yüklemeye zorlamaması.
   //
-  // preloadedOnly: modül SAYFADA ZATEN VARSA kullan, YOKSA indirme (tarayıcının normal gezinmesine
-  // bırak). 'project' için böyle: project-modal.js'in bağımlılık zinciri (galeri/künye/aksiyon/
-  // yorum/ilgili/ürünler/hotspot/rating — 10+ dosya) tembel indirilecek kadar küçük değil. Yine de
-  // kayıtlı olması ŞART: proje.html'de bir kişi/firma popup'ı açıkken oradaki `/proje/:slug`
-  // bağlantısı, ProjectModal'ın kendi (sahip kontrollü) dinleyicisi tarafından ele alınmaz ve
-  // ZATEN YÜKLÜ bir modül dururken gereksiz bir tam sayfa yeniden yüklemesine düşerdi.
+  // PROJE MODÜLÜ DE TEMBEL YÜKLENİR (performans denetimi, 2026-09-12). Buraya kadar 'project'
+  // `preloadedOnly` idi: "sayfada zaten varsa kullan, yoksa İNDİRME, tarayıcı gitsin" — gerekçe
+  // bağımlılık zincirinin (galeri/künye/aksiyon/yorum/ilgili/ürünler/hotspot/rating, ~18 dosya)
+  // tembel indirilecek kadar küçük olmamasıydı. ÖLÇÜLDÜ (headless Chromium, yerel worker, ağ
+  // gecikmesiz): kişi/firma popup'ından `/proje/:slug` tıklaması TAM SAYFA gezinmeydi ve popup
+  // içeriği ~390-480 ms'de geliyordu; aynı belgede açılan kişi/firma/ürün popup'ları ~130-170 ms.
+  // Canlıda aradaki fark TTFB + tam kabuk + ~30 script kadar (saniye mertebesi). Oysa tam sayfa
+  // gezinme de AYNI dosyaları indirir (proje.html hepsini <script defer> ile yükler) — üstüne bir
+  // HTML + liste sayfasının yeniden çizimi. Yani "zincir büyük" gerekçesi tam sayfa gezinmeye karşı
+  // bir tasarruf değil, ek maliyetti. Sürümlü (?v=) URL'ler bir yıl immutable olduğundan zincir cihaz
+  // başına sürüm başına bir kez iner; sonraki açılışlar yalnızca çalıştırma + veri isteği öder.
+  //
+  // Sayfanın KENDİ <script> etiketiyle yüklediği modül (proje.html#project-modal.js) ise ikinci kez
+  // enjekte EDİLMEZ: loadModule bir sayfa etiketi görürse yalnızca global'in gelmesini bekler (bkz.
+  // waitForPageScript). Böylece proje.html'deki davranış birebir aynı kalır.
   // VARLIK POPUP'LARININ PAYLAŞTIĞI ARAYÜZ MODÜLLERİ (performans denetimi, 2026-09-06 madde 4).
   // Bu dört dosya kişi/firma/marka liste sayfalarında <script> etiketiyle SENKRON yükleniyordu —
   // yalnızca modal-shell.js 71 KB, dördü birlikte ~100 KB — oysa hiçbiri LİSTE görünümü için
@@ -194,7 +203,25 @@
     },
     project: {
       src: 'js/components/project-modal.js', globalName: 'ProjectModal',
-      owner: 'project', pathRe: /^\/proje\/(?!sayfa-\d+\/?$)([^/?#]+)/, preloadedOnly: true,
+      owner: 'project', pathRe: /^\/proje\/(?!sayfa-\d+\/?$)([^/?#]+)/, parallelDeps: true,
+      // proje.html'in <script defer> SIRASIYLA birebir aynı (bkz. o dosyadaki script bloğu) —
+      // loadDep etiketleri async=false ile eklediğinden indirme paralel, ÇALIŞMA bu sırayla olur.
+      //   il-ilce-data.js — parseLocationFull: künyedeki il adı ve "Şehirdeki Diğer Projeler"
+      //     (project-modal.js/project-related.js typeof ile korur ama dosya yoksa o bölüm
+      //     görünmez, il yazılmazdı — popup /proje listesinden açılanla AYNI olsun diye yüklenir).
+      //   rating-widget.js — mountRateButton (typeof ile korunur; Puanla düğmesi için).
+      //   image-hotspots.js + hotspot-tagger.js + gallery.js — galeri/lightbox/ürün işaretçileri
+      //     (gallery.js ikisini KORUMASIZ kullanır).
+      //   project-gallery/meta/actions/comments/related/products — ProjectModal.renderItem'ın
+      //     KORUMASIZ çağırdığı bölüm modülleri (ProjectGallery.render vb.).
+      //   analytics-beacon.js — görüntülenme sayacı (window.MimarlabAnalytics, korunur).
+      //   product-variants.js — proje popup'ından açılan ürün popup'ının Versiyonlar seçicisi
+      //     (ProductModal zaten kendi deps'inde de listeler; burada olması zararsız tekilleşir).
+      deps: [...ENTITY_UI_DEPS, 'il-ilce-data.js', 'rating-widget.js', 'js/components/image-hotspots.js',
+        'js/components/gallery.js', 'js/components/project-gallery.js', 'js/components/hotspot-tagger.js',
+        'js/components/project-meta.js', 'js/components/project-actions.js', 'js/components/project-comments.js',
+        'js/analytics-beacon.js', 'js/components/image-lightbox.js', 'js/components/project-related.js',
+        'js/components/project-products.js', 'js/components/product-variants.js'],
     },
   };
 
@@ -275,6 +302,12 @@
       const src = versionedSrc(rawSrc);
       if (document.querySelector(`script[src="${src}"]`)) return res();
       const dep = document.createElement('script');
+      // async=false (performans denetimi, 2026-09-12): dinamik eklenen <script> varsayılan olarak
+      // async'tir — parallelDeps'te hepsi aynı anda eklendiğinden ÇALIŞMA sırası VARIŞ sırasıydı.
+      // async=false, indirmeyi paralel bırakıp çalışmayı EKLENME sırasına bağlar (tarayıcı standardı,
+      // <script defer> ile aynı garanti) — proje modülünün zinciri gibi sıra gerektiren listeler
+      // (gallery.js -> project-gallery.js ...) tek bir gidiş-dönüşte güvenle iner.
+      dep.async = false;
       dep.src = src;
       dep.onload = () => res();
       dep.onerror = () => { dep.remove(); res(); };
@@ -305,6 +338,24 @@
     const depsReady = mod.parallelDeps
       ? Promise.all((mod.deps || []).map(loadDep))
       : (mod.deps || []).reduce((chain, src) => chain.then(() => loadDep(src)), Promise.resolve());
+
+    // Sayfa modülü KENDİ <script> etiketiyle zaten yüklüyorsa (proje.html#project-modal.js, urun.html#
+    // product-modal.js) ikinci bir etiket enjekte etmek aynı dosyayı iki kez çalıştırır (top-level
+    // `const ProjectModal` ikinci seferde "already declared" fırlatır). Bunun yerine o etiketin
+    // çalışmasını bekleriz: defer'lı bir <script> çalıştığında `load` olayı fırlatır; global çoktan
+    // gelmişse (etiket bizden önce çalışmış) anında çözülür.
+    const pageScript = document.querySelector(`script[src="${modSrc}"]`);
+    const waitForPageScript = () => new Promise((resolve, reject) => {
+      if (window[mod.globalName]) return resolve(window[mod.globalName]);
+      let done = false;
+      const finish = () => { if (done) return; done = true; clearInterval(poll); window[mod.globalName] ? resolve(window[mod.globalName]) : reject(new Error('lazy-modals: ' + mod.src + ' sayfa etiketi global vermedi')); };
+      pageScript.addEventListener('load', finish, { once: true });
+      pageScript.addEventListener('error', finish, { once: true });
+      // load olayı bizden önce fırlamış ama global henüz yazılmamış olamaz; yine de bir güvenlik ağı.
+      const poll = setInterval(() => { if (window[mod.globalName]) finish(); }, 50);
+      setTimeout(() => { if (!done) finish(); }, 15000);
+    });
+    if (pageScript) { pending[key] = waitForPageScript(); pending[key].catch(() => { delete pending[key]; }); return pending[key]; }
 
     pending[key] = depsReady.then(() => new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -337,11 +388,10 @@
   // promise'ine bağlanır, ikinci bir indirme OLUŞMAZ. Sayfaların <head>'indeki senkron betik ayrıca
   // iki büyük dosya için <link rel="preload"> bastığından baytlar bundan da önce yola çıkar.
   //
-  // preloadedOnly modüller (project) ATLANIR: onların sözleşmesi "sayfada zaten varsa kullan, yoksa
-  // indirme"dir (bkz. ENTITY_MODULES.project) — burada indirmek o kararı sessizce bozardı.
+  // 'project' için bu döngü proje.html'de çalışır (yol /proje/:slug) ve loadModule oradaki sayfa
+  // etiketini görüp yalnızca bekler (bkz. waitForPageScript) — hiçbir şey indirmez.
   for (const key in ENTITY_MODULES) {
     const mod = ENTITY_MODULES[key];
-    if (mod.preloadedOnly) continue;
     if (mod.pathRe.test(location.pathname)) loadModule(key).catch(() => {});
   }
 
@@ -363,8 +413,9 @@
   // varlık tipinin modülü, sayfa yüklendikten sonra boşta (<link rel="preload" as="script">, yalnızca
   // bayt — değerlendirme yok) indirilir; ilk tıklama artık yalnızca çalıştırma + veri isteği öder.
   // saveData / 2g bağlantılarda atlanır. /proje ve /urun kendi modal script'lerini zaten <script>
-  // etiketiyle yüklüyor (preloadedOnly / defer), onlara dokunulmaz; ana sayfa dört tipe birden
-  // bağlandığından bilerek kapsam dışıdır (400 KB'yi her ziyaretçiye indirtmek isabetsiz).
+  // etiketiyle yüklüyor (defer), onlara dokunulmaz; ana sayfa beş tipe birden bağlandığından bilerek
+  // kapsam dışıdır (her ziyaretçiye yüz KB'lerce dosya indirtmek isabetsiz) — orada modül ilk
+  // tıklamada iner (bkz. index.html#openHomeEntityPopup).
   const LIST_PAGE_ENTITY_MODULE = { '/kisi': 'architect', '/firma': 'office', '/marka': 'office', '/urun': 'product' };
   (function warmListPageModule() {
     const key = LIST_PAGE_ENTITY_MODULE[location.pathname.replace(/\/+$/, '') || '/'];
@@ -416,7 +467,7 @@
   const preloadedModules = new Set();
   function preloadModuleAssets(key) {
     const mod = ALL_MODULES[key];
-    if (!mod || mod.preloadedOnly || preloadedModules.has(key) || window[mod.globalName]) return;
+    if (!mod || preloadedModules.has(key) || window[mod.globalName]) return;
     preloadedModules.add(key);
     [mod.src, ...(mod.deps || []), ...(mod.deferredDeps || [])].forEach((rawSrc) => {
       const src = versionedSrc(rawSrc);
@@ -520,7 +571,6 @@
       // işlememişse (ör. beklenmedik bir DOM yolu) tarayıcının normal gezinmesine bırakmak
       // buradan open() çağırmaktan daha güvenli — çift history girdisi yazmayalım.
       if (window.ModalShell && ModalShell.getContentOwner() === mod.owner) return;
-      if (mod.preloadedOnly && !window[mod.globalName]) return; // indirme, tarayıcı gitsin
       e.preventDefault();
       const slug = decodeURIComponent(m[1]);
       const href = a.href;

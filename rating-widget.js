@@ -378,6 +378,8 @@ function ensureRatePopup(){
 // kullanıcı isteği: proje popup'ındaki puanlama düğmesi de böyle olsun). opts.avgEl verilirse
 // (opsiyonel), oy sayısı>0 olduğunda "4.8 (312)" metni oraya yazılır — bu düğme her zaman sabit
 // "Puanla" metni gösterdiğinden ortalama/oy sayısı ayrı bir elemanda gösterilir.
+// bkz. mountRateButton içindeki 'mimarlab:ratingchange' notu — kopuk düğmelerin dinleyicileri buradan temizlenir.
+const RATE_CHANGE_HANDLERS = new Map();
 async function mountRateButton(el, opts){
   opts = opts || {};
   const targetType = opts.targetType || el.dataset.type;
@@ -427,10 +429,22 @@ async function mountRateButton(el, opts){
   // yalnızca YUKARIDAKİ pending-oy akışında (giriş sonrası otomatik gönderim) tetiklenir; popup
   // doğrudan açıkken zaten onRated callback'i (paint) kullanılır.
   if(el._rateChangeHandler) document.removeEventListener('mimarlab:ratingchange', el._rateChangeHandler);
-  el._rateChangeHandler = (e)=>{
+  // GERÇEK BULGU (performans denetimi, 2026-09-12, canlıda CDP ile ölçüldü): proje popup'ı her
+  // açılışta Puanla düğmesini YENİDEN kuruyor (ProjectActions.render innerHTML) — eski düğme DOM'dan
+  // kopuyor ama document'teki bu dinleyici ona kapalı kalıp sonsuza kadar birikiyordu (10 aç/kapat
+  // sonrası document'te 10 'mimarlab:ratingchange' dinleyicisi). Dinleyici artık düğme belgeden
+  // koptuysa ilk olayda kendini söker; ayrıca her mount, önceki mount'ların kopuk düğmelerine ait
+  // dinleyicileri de temizler (modül düzeyi kayıt) — davranış aynı, birikim yok.
+  const handler = (e)=>{
+    if(!el.isConnected){ document.removeEventListener('mimarlab:ratingchange', handler); RATE_CHANGE_HANDLERS.delete(el); return; }
     if(e.detail && e.detail.targetType === targetType && e.detail.targetId === targetId) paint();
   };
-  document.addEventListener('mimarlab:ratingchange', el._rateChangeHandler);
+  for(const [oldEl, oldHandler] of RATE_CHANGE_HANDLERS){
+    if(!oldEl.isConnected){ document.removeEventListener('mimarlab:ratingchange', oldHandler); RATE_CHANGE_HANDLERS.delete(oldEl); }
+  }
+  el._rateChangeHandler = handler;
+  RATE_CHANGE_HANDLERS.set(el, handler);
+  document.addEventListener('mimarlab:ratingchange', handler);
 
   await paint();
 }

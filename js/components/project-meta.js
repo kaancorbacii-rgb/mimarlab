@@ -246,7 +246,16 @@ const ProjectMeta = (function () {
     if (item.category && item.category.length) html += metaRow('tag', `<strong>Tip:</strong> ${item.category.map(v => filterLinkHtml(item, 'category', v)).join(' / ')}`);
     if (item.type && item.type.length) html += metaRow('grid', `<strong>Grup:</strong> ${item.type.map(v => filterLinkHtml(item, 'type', v)).join(' / ')}`);
     if (item.location) {
-      const loc = parseLocation(item.location);
+      // parseLocation, js/pages/proje.js'in top-level sabitidir (= parseLocationFull) ve yalnızca
+      // proje.html'de vardır. Popup artık kişi/firma/marka/ürün/ana sayfada da tembel açılıyor
+      // (performans denetimi, 2026-09-12; bkz. lazy-modals.js#ENTITY_MODULES.project) — orada
+      // il-ilce-data.js'in kendi parseLocationFull'u kullanılır; o da yoksa ham metne düşülür
+      // (gerçek bulgu: bu satır kişi popup'ından açılan proje popup'ında ReferenceError ile
+      // renderMeta'yı düşürüp galeriyi hiç çizdirmiyordu).
+      const parseLoc = (typeof parseLocation === 'function') ? parseLocation
+        : (typeof parseLocationFull === 'function') ? parseLocationFull
+        : (v) => ({ city: v || null, district: null });
+      const loc = parseLoc(item.location);
       const districtText = loc.district ? escapeHtml(loc.district) + ', ' : '';
       html += metaRow('pin', `<strong>Yer:</strong> ${districtText}${filterLinkHtml(item, 'location', loc.city, loc.city)}`);
     }

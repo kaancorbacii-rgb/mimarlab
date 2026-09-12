@@ -477,8 +477,9 @@ async function fetchOtherArchitectsFallback(env, selfId, need, excludeSlugs) {
   const base = `SELECT slug, name, dob, photo_url FROM architects
      WHERE deleted_at IS NULL AND hidden_at IS NULL AND directory_listed = 1 AND name != 'Bilinmiyor' AND id != ?
        AND photo_url IS NOT NULL AND photo_url != ''`;
-  const start = await env.DB.prepare(`SELECT abs(random()) % (COALESCE(MAX(id), 0) + 1) AS s FROM architects`).first('s');
-  let rows = (await env.DB.prepare(`${base} AND id >= ? ORDER BY id LIMIT 40`).bind(selfId, start || 0).all()).results || [];
+  // Rastgele başlangıç noktası artık AYNI sorgunun içinde (alt sorgu) — eskiden ayrı bir D1 turuydu
+  // (performans denetimi, 2026-09-12); semantik birebir aynı: rowid aralık taraması, ORDER BY RANDOM() yok.
+  let rows = (await env.DB.prepare(`${base} AND id >= (SELECT abs(random()) % (COALESCE(MAX(id), 0) + 1) FROM architects) ORDER BY id LIMIT 40`).bind(selfId).all()).results || [];
   if (rows.length < need + excludeSlugs.size) {
     rows = rows.concat((await env.DB.prepare(`${base} ORDER BY id LIMIT 40`).bind(selfId).all()).results || []);
   }
@@ -552,9 +553,21 @@ export async function buildArchitectPayload(env, key) {
   // ÖNİZLEME firması/ortakları da gelir (kullanıcı isteği, 2026-09-11: "kişi popup'larında firma ve
   // diğer ortaklar da blurlu olarak gözüksün") — kartlar /firma|kisi/:slug'a gittiği için
   // preview-cards.js onları zaten soluk+blurlu çizer. Tam arşiv (preview_at BOŞ) yine hariç.
-  const officeRow = a.office_id
-    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)`).bind(a.office_id).first()
-    : null;
+  // PARALEL (performans denetimi, 2026-09-12): bağlı firma, kurucu/ortak olduğu firmalar ve ham
+  // firma adları yalnızca `a`'ya bağlıdır ama üç ardışık await ile üç D1 gidiş-dönüşüydü (canlıda
+  // ölçüldü: soğuk /api/architect/:slug 1,5-2,1 sn; PoP D1'den uzakken her tur ~100 ms+). Sorgular ve
+  // sonuçların işlenme sırası aynen korunur, yalnızca aynı anda gönderilir; aşağıdaki büyük
+  // Promise.all'a da önceki/sonraki kişi ve sahiplenme kontrolü eklendi (aynı gerekçe).
+  const [officeRow, founderOfficeRowsRes, rawOfficeNames] = await Promise.all([
+    a.office_id
+      ? env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)`).bind(a.office_id).first()
+      : Promise.resolve(null),
+    env.DB.prepare(
+      `SELECT o.* FROM office_founders f JOIN offices o ON o.id = f.office_id
+       WHERE f.architect_id = ? AND o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL)`
+    ).bind(a.id).all(),
+    fetchRawOfficeNames(env, a),
+  ]);
   const office = officeRow ? parseCanonicalRow('offices', officeRow) : null;
 
   // Mimarın kurucu/ortak olduğu TÜM firmalar — yalnızca kendi office_id'siyle bağlı olduğu firma
@@ -562,10 +575,7 @@ export async function buildArchitectPayload(env, key) {
   // profilinde "Pozisyon: Kurucu" yazmasına rağmen office_id'si boş olduğundan, yalnızca office_id
   // okunsaydı Tümertekin Architects hiç görünmezdi — firma tarafında Kurucular listesine eklenerek
   // office_founders'a bağlanmış olsa bile). Tekilleştirilmiş, office_id'deki varsa önce o sırayla.
-  const { results: founderOfficeRows } = await env.DB.prepare(
-    `SELECT o.* FROM office_founders f JOIN offices o ON o.id = f.office_id
-     WHERE f.architect_id = ? AND o.deleted_at IS NULL AND (o.hidden_at IS NULL OR o.preview_at IS NOT NULL)`
-  ).bind(a.id).all();
+  const { results: founderOfficeRows } = founderOfficeRowsRes;
   const officesById = new Map();
   if (office) officesById.set(office.id, office);
   for (const row of founderOfficeRows) {
@@ -574,7 +584,6 @@ export async function buildArchitectPayload(env, key) {
   }
   const offices = [...officesById.values()];
 
-  const rawOfficeNames = await fetchRawOfficeNames(env, a);
   const knownOfficeNames = new Set(offices.map(o => trLower(o.name)));
   const unregisteredOffices = [];
   for (const name of rawOfficeNames) {
@@ -590,7 +599,7 @@ export async function buildArchitectPayload(env, key) {
   const dobYear = a.dob ? parseInt(String(a.dob).slice(0, 4), 10) : null;
   const AGE_RANGE_YEARS = 5;
 
-  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes, usedProductsRes, preferredBrandsRes, photographedRes] = await Promise.all([
+  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes, usedProductsRes, preferredBrandsRes, photographedRes, adjacent, claimed] = await Promise.all([
     // Firmadaki diğer kişiler — firma popup'ıyla AYNI Kurucular/Ekip kuralı ve AYNI üç kaynak
     // (kullanıcı isteği, 2026-09-11: "Kişi popup'ında da aynı Kurucular/Ekip kuralı uygulansın");
     // tek kaynak src/routes/office.js#buildOfficePeople. Eskiden yalnızca office_founders okunuyor
@@ -671,6 +680,10 @@ export async function buildArchitectPayload(env, key) {
       `SELECT ${PROJECT_CARD_COLUMNS}, p.preview_at AS is_preview FROM project_photographers pp JOIN projects p ON p.id = pp.project_id
        WHERE pp.architect_id = ? AND p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL)`
     ).bind(a.id).all(),
+    // Önceki/sonraki kişi ve sahiplenme kontrolü — yalnızca `a`'ya bağlı, bu yüzden burada (eskiden
+    // dönüşten hemen önce iki ayrı ardışık await'ti, bkz. yukarıdaki PARALEL notu).
+    fetchAdjacentArchitect(env, a.id),
+    isArchitectProfileClaimed(env, [a.name, a.legacy_key]),
   ]);
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
@@ -784,7 +797,6 @@ export async function buildArchitectPayload(env, key) {
   const isSubmissionMarker = typeof a.legacy_key === 'string' && a.legacy_key.startsWith('submission:');
   if (a.legacy_key && !isSubmissionMarker && a.legacy_key !== a.name) item._claimKey = a.legacy_key;
 
-  const adjacent = await fetchAdjacentArchitect(env, a.id);
   // claimed — bkz. src/lib/claimedProfiles.js (kullanıcı isteği, 2026-09-08 madde 5): bu kişi
   // profili bir üyeye atanmışsa pop-up'taki kaynak ibaresi "doğrulanmamıştır" demez, yalnızca
   // "yanlışlık için bize ulaş" çağrısı kalır. legacy_key de sorulur: sonradan yeniden adlandırılmış statik profillerde claim
@@ -793,7 +805,6 @@ export async function buildArchitectPayload(env, key) {
   // isArchitectProfileClaimed (kullanıcı isteği, 2026-09-10 onuncu tur madde 1): kurucusu olduğu
   // firma/marka sahiplenilmişse de true — bkz. src/lib/claimedProfiles.js'teki gerekçe. Aynı kural
   // /api/public/claim-status'te de uygulanır, ibare ile davet kutusu birlikte kalkar.
-  const claimed = await isArchitectProfileClaimed(env, [a.name, a.legacy_key]);
 
   // photoBlur (kullanıcı isteği, 2026-09-10 on birinci tur madde 7): sahiplenilmemiş bir
   // FOTOĞRAFÇININ profil fotoğrafı popup'ta blurlanır (telif). Kural isArchitectProfileClaimed ile

@@ -154,7 +154,13 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // .gundem-chips display:contents.
 // v136 (2026-09-12): proje SSR gövdesindeki "Fotoğraf" satırı — MİMARLAB'da profili olmayan
 // fotoğrafçı adı artık projenin kaynak bağlantısına giden dış bir link (seo.js/project-meta.js).
-export const SSR_CACHE_VERSION = 'v136';
+// v137 (performans denetimi, 2026-09-12): proje popup'ı artık kişi/firma/marka/ürün SSR kabuklarından
+// da TEMBEL yüklenip aynı belgede açılıyor (bkz. js/components/lazy-modals.js#ENTITY_MODULES.project).
+// Davranışı taşıyan dosyalar kabuğun İÇİNDE değil (ayrı, sürümlü .js'ler) ama kabuk o script'lere
+// `?v=<deploy sürümü>` ile bağlanıyor: sürüm artırılmazsa edge'de duran ESKİ kabuklar s-maxage
+// boyunca ESKİ sürüm etiketleriyle servis edilir ve o ziyaretlerde düzeltme hiç görünmezdi
+// (v110–v115'teki AYNI tuzak).
+export const SSR_CACHE_VERSION = 'v137';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

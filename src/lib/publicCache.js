@@ -78,6 +78,14 @@ const CACHEABLE_PATHS = [
   // her içerik mutasyonunda invalidatePublicCache() ile temizlendiğinden yeni onaylanan bir
   // proje/ürün sayacı anında yükseltir.
   '/api/public/platform',
+  // /api/ratings/bulk?targetType=… (performans denetimi, 2026-09-12): liste sayfalarının (proje/
+  // urun.html kartları, rating-widget.js#loadBulkRatings) her açılışında çektiği, ratings tablosunun
+  // tamamını GROUP BY ile tarayan uç — canlıda 342 ms ve `private, no-store` ile hiçbir katmanda
+  // önbelleklenmiyordu. Oturuma özel HİÇBİR alan taşımaz (herkese aynı ortalamalar), sorgu dizesi
+  // sabit üç değerden biridir; top100 ile AYNI sınıf (ratings'e bağlı, PUBLIC_LIST_CACHE_HEADERS) ve
+  // AYNI tazelik yolu: her puanlama yazımı invalidatePublicCache() çağırır (bkz. src/routes/
+  // ratings.js#rate), o da CACHEABLE_PATHS'in tamamını temizler.
+  '/api/ratings/bulk?targetType=project', '/api/ratings/bulk?targetType=product', '/api/ratings/bulk?targetType=material',
 ];
 
 // kökten bulgu (2026-08-16): '/api/public/badges' bir ara CACHEABLE_PATHS'teydi (bkz. bir üstteki
@@ -117,7 +125,16 @@ const BADGE_NO_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, must-reval
 // GEREKLİ DEĞİLDİR: Gündem içeriği admin yazma yollarından değil, cron'dan gelir ve o taraf kendi
 // dar purge'ünü çağırır (bkz. src/lib/gundemCache.js#purgeGundemCache — neden site geneli purge
 // KULLANILMADIĞI orada açıklanıyor).
-const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/gundem'];
+// '/api/projects/filters' EKLENDİ (performans denetimi, 2026-09-12). Canlıda ölçüldü: proje.html'in
+// kenar çubuğu sayaçları, üst menünün "önerilen aramalar"ı (site-chrome.js#loadRecommendedTerms) ve
+// /proje hub SSR'ının kendisi (src/index.js#HUB_SSR) bu ucu çekiyor; uç `cachedPublicJson`'dan geçiyor
+// ama buradaki listelerin hiçbirinde olmadığından `!cacheable` dalına düşüp caches.default'a HİÇ
+// yazılmıyordu — her istek havuz + facet hesabı: 515 ms sıcak, 1044 ms soğuk, /proje TTFB'sinin
+// yarısı. Diğer dört liste ucuyla AYNI profil (auth yok, oturuma özel alan yok, anahtar TAM URL) ve
+// AYNI parmak izi (project.js#projectListFingerprint) — HIT yolunda tazelik doğrulanır, admin yazma
+// yolları BARE_LIST_PATHS üzerinden bare yolu, DEFAULT_FIRST_PAGE_PATHS üzerinden /proje'nin
+// `?buildStatus=built` varyantını temizler.
+const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/gundem', '/api/projects/filters'];
 
 // D1 audit (2026-08-25) P0-1 — tekil kayıt (detay) uçları: /api/project/:slug, /api/architect/:key,
 // /api/office/:key, /api/product/:key. Önceden bu 4 uç `isListPath`'in yalnızca ÇOĞUL path'leri
@@ -203,7 +220,7 @@ const HOMEPAGE_LIST_PATHS = [
 // istek içinde kendiliğinden düzeliyordu, bu satır olmadan gerçek "anında" invalidation hiç
 // çalışmıyordu). /api/products için urun.html#currentQueryParams böyle sabit bir varsayılan
 // parametre SET ETMİYOR, bu yüzden o girdi zaten doğru.
-const DEFAULT_FIRST_PAGE_PATHS = ['/api/projects?buildStatus=built&page=1&limit=24', '/api/products?page=1&limit=24'];
+const DEFAULT_FIRST_PAGE_PATHS = ['/api/projects?buildStatus=built&page=1&limit=24', '/api/products?page=1&limit=24', '/api/projects/filters?buildStatus=built'];
 const BARE_LIST_PATHS = [...CACHEABLE_LIST_PREFIXES, ...HOMEPAGE_LIST_PATHS, ...DEFAULT_FIRST_PAGE_PATHS];
 
 function isListPath(pathname) {
@@ -548,7 +565,7 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   // mutasyonundaki invalidatePublicCache()'ten gelir — kısa ANON TTL'i yalnızca gereksiz D1 turu
   // yaratırdı.
   const headers = pathname === '/api/public/badges' ? BADGE_NO_CACHE_HEADERS
-    : (listPath || detailPath || pathname === '/api/public/top100' || pathname === '/api/public/platform') ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
+    : (listPath || detailPath || pathname === '/api/public/top100' || pathname === '/api/public/platform' || pathname.startsWith('/api/ratings/bulk?')) ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
   if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, computeData); return json(data, statusFor(data), headers); }
 

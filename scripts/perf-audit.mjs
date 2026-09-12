@@ -36,6 +36,8 @@ const HTTP_REPEAT = parseInt(arg('--repeat', '3'), 10);
 
 const report = { base: BASE, startedAt: new Date().toISOString(), http: {}, browser: {}, errors: [] };
 const log = (...a) => console.error('[perf-audit]', ...a);
+// Ara kayıt: runner zaman aşımına düşse bile o ana kadarki ölçümler artifact'ta kalsın.
+function checkpoint() { if (OUT) { try { writeFileSync(OUT, JSON.stringify(report)); } catch { /* yoksay */ } } }
 const ms = (n) => Math.round(n);
 
 // ------------------------------------------------------------------------------------------
@@ -257,30 +259,36 @@ async function measurePageLoad(browser, key, pathname, width) {
   await ctx.close();
 }
 
-// Tıklamadan overlay'e ve içerik başlığına kadar süre (aynı belge).
-async function timeClickToModal(page, clickSel, titleSel, owner, { fullNav = false, label = '' } = {}) {
+// Tıklamadan overlay'e ve içerik başlığına kadar süre. Aynı belgede açılan popup ile TAM SAYFA
+// gezinme AYNI yoldan ölçülür: tıklamadan önce belgeye bir işaret yazılır; içerik geldiğinde işaret
+// yoksa belge değişmiştir (tam sayfa gezinme). Bekleyişler gezinme sırasında yok edilen yürütme
+// bağlamına dayanıklıdır (retryEval). Süreler Node saatinden ölçülür (iki durumda da aynı ölçek).
+async function retryEval(page, fn, arg, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try { const v = await page.evaluate(fn, arg); if (v) return v; }
+    catch (e) { if (!/Execution context was destroyed|navigation|Target closed|detached/i.test(e.message)) throw e; }
+    if (Date.now() > deadline) throw new Error('retryEval zaman aşımı');
+    await page.waitForTimeout(16);
+  }
+}
+async function timeClickToModal(page, clickSel, titleSel, owner, { label = '' } = {}) {
   const out = { label, clickSel, owner };
-  const hadOwner = await page.evaluate((o) => { const el = document.querySelector('.modal-shell-overlay.open'); return el ? (el.getAttribute('data-owner') || '') : ''; }, owner);
+  const hadOwner = await page.evaluate(() => { const el = document.querySelector('.modal-shell-overlay.open'); return el ? (el.getAttribute('data-owner') || '') : ''; });
   const prevTitle = await page.evaluate((s) => { const el = document.querySelector(s); return el ? el.textContent.trim() : ''; }, titleSel).catch(() => '');
   const apiBefore = await page.evaluate(() => performance.getEntriesByType('resource').length);
+  await page.evaluate(() => { window.__paDocMark = 1; });
   const t0 = performance.now();
-  await page.evaluate(() => { window.__paClick = performance.now(); });
-  const nav = fullNav ? page.waitForNavigation({ waitUntil: 'commit', timeout: 30000 }).catch(() => null) : null;
   await page.click(clickSel, { timeout: 10000 });
-  if (fullNav) {
-    await nav;
-    out.navCommit = ms(performance.now() - t0);
-    await page.waitForSelector('.modal-shell-overlay.open', { timeout: 30000 });
-    out.overlayVisible = ms(performance.now() - t0);
-    await page.waitForFunction((s) => { const el = document.querySelector(s); return el && el.textContent.trim().length > 0; }, titleSel, { timeout: 30000 });
-    out.contentReady = ms(performance.now() - t0);
+  await retryEval(page, ([o, had]) => { const el = document.querySelector('.modal-shell-overlay.open'); if (!el) return false; const cur = el.getAttribute('data-owner') || ''; return !o || cur === o ? true : false; }, [owner, hadOwner], 30000);
+  out.overlayVisible = ms(performance.now() - t0);
+  await retryEval(page, ([s, prev]) => { const el = document.querySelector(s); const t = el ? el.textContent.trim() : ''; return t.length > 0 && (t !== prev || !window.__paDocMark); }, [titleSel, prevTitle], 30000);
+  out.contentReady = ms(performance.now() - t0);
+  out.fullNavigation = !(await page.evaluate(() => !!window.__paDocMark));
+  if (out.fullNavigation) {
     out.nextDocTiming = await page.evaluate(() => { const n = performance.getEntriesByType('navigation')[0]; return n ? { ttfb: Math.round(n.responseStart), dcl: Math.round(n.domContentLoadedEventEnd), load: Math.round(n.loadEventEnd), transfer: n.transferSize } : null; });
     out.nextDocRequests = await page.evaluate(() => performance.getEntriesByType('resource').length);
   } else {
-    await page.waitForFunction((o, prev) => { const el = document.querySelector('.modal-shell-overlay.open'); return el && (!o || el.getAttribute('data-owner') === o); }, owner, hadOwner, { timeout: 30000 });
-    out.overlayVisible = await page.evaluate(() => Math.round(performance.now() - window.__paClick));
-    await page.waitForFunction((s, prev) => { const el = document.querySelector(s); const t = el ? el.textContent.trim() : ''; return t.length > 0 && t !== prev; }, titleSel, prevTitle, { timeout: 30000 });
-    out.contentReady = await page.evaluate(() => Math.round(performance.now() - window.__paClick));
     // popup açılırken atılan istekler
     out.requests = await page.evaluate((n) => performance.getEntriesByType('resource').slice(n).map(r => ({ u: r.name.replace(location.origin, '').replace(/\?v=[^&]+/, '').slice(0, 90), d: Math.round(r.duration), t: r.initiatorType, b: r.encodedBodySize })), apiBefore);
     out.requestCount = out.requests.length;
@@ -305,6 +313,9 @@ async function closeWithEscape(page) {
 async function cdpMetrics(page) {
   const session = await page.context().newCDPSession(page);
   await session.send('Performance.enable');
+  // Zorunlu GC: Nodes/JSEventListeners sayaçları henüz toplanmamış kopuk düğümleri de sayar; GC'siz
+  // okuma "sızıntı" gibi görünen geçici birikimi raporlar (ilk turda öyle oldu).
+  try { await session.send('HeapProfiler.enable'); await session.send('HeapProfiler.collectGarbage'); await page.waitForTimeout(300); } catch { /* yoksay */ }
   const { metrics } = await session.send('Performance.getMetrics');
   const pick = (n) => { const m = metrics.find(x => x.name === n); return m ? m.value : null; };
   const listeners = await (async () => {
@@ -325,10 +336,10 @@ const LIST_CARD = { kisi: 'a.person-card', firma: 'a.office-card', marka: 'a.off
 const TITLE = { architect: '#am-name-text', office: '#om-name-text', project: '#pm-title', product: '#pr-title' };
 const OWNER_OF = { kisi: 'architect', firma: 'office', marka: 'office', proje: 'project', urun: 'product' };
 
-async function popupFlows(browser, width) {
+async function popupFlows(browser, width, opts = {}) {
   const results = {};
   // Liste → popup (soğuk: modül henüz yüklü değil) + ESC + tekrar aç (sıcak) + geri tuşu
-  for (const list of ['kisi', 'firma', 'marka', 'urun', 'proje']) {
+  for (const list of (opts.lists || ['kisi', 'firma', 'marka', 'urun', 'proje'])) {
     const { ctx, page, consoleErrors } = await newPage(browser, width);
     attachRequestLog(page);
     const key = `list:${list}@${width}`;
@@ -362,6 +373,7 @@ async function popupFlows(browser, width) {
     { from: 'marka', to: 'urun', owner: 'product' }, { from: 'urun', to: 'marka', owner: 'office' }, { from: 'urun', to: 'proje', owner: 'project' },
   ];
   for (const tr of transitions) {
+    if (opts.transitions && !opts.transitions.includes(`${tr.from}->${tr.to}`)) continue;
     const key = `popup:${tr.from}->${tr.to}@${width}`;
     const { ctx, page, consoleErrors } = await newPage(browser, width);
     attachRequestLog(page);
@@ -389,20 +401,16 @@ async function popupFlows(browser, width) {
         }, tr.to);
       }
       if (!link) { results[key] = { skipped: 'hedef türe bağlantı bulunamadı', tried: Math.min(cards.length, 6) }; log(key, 'atlandı (bağlantı yok)'); await ctx.close(); continue; }
-      // Proje modülü preloadedOnly: proje.html dışında tam sayfa gezinme beklenir
-      const projectLoaded = await page.evaluate(() => !!window.ProjectModal);
-      const fullNav = tr.owner === 'project' && !projectLoaded;
-      const t = await timeClickToModal(page, 'a[data-pa-target="1"]', TITLE[tr.owner], tr.owner, { fullNav, label: 'transition' });
-      t.fullNavigation = fullNav;
+      const t = await timeClickToModal(page, 'a[data-pa-target="1"]', TITLE[tr.owner], tr.owner, { label: 'transition' });
       results[key] = { open: { overlayVisible: opened.overlayVisible, contentReady: opened.contentReady }, transition: t, link, consoleErrors: consoleErrors.slice(0, 8) };
-      log(`${key}: ${fullNav ? 'TAM SAYFA' : 'aynı belge'} overlay=${t.overlayVisible} content=${t.contentReady}${t.navCommit ? ' navCommit=' + t.navCommit : ''} api=${JSON.stringify(t.apiMs || [])}`);
+      log(`${key}: ${t.fullNavigation ? 'TAM SAYFA' : 'aynı belge'} overlay=${t.overlayVisible} content=${t.contentReady} api=${JSON.stringify(t.apiMs || [])}`);
     } catch (e) { results[key] = { err: e.message.slice(0, 300), consoleErrors: consoleErrors.slice(0, 8) }; log('HATA', key, e.message.slice(0, 200)); }
     await ctx.close();
   }
   return results;
 }
 
-async function homeFlows(browser, width) {
+async function homeFlows(browser, width, opts = {}) {
   const results = {};
   const targets = [
     { key: 'home->proje', track: '#slider-track', owner: 'project' }, { key: 'home->kisi', track: '#kisi-slider-track', owner: 'architect' },
@@ -410,6 +418,7 @@ async function homeFlows(browser, width) {
     { key: 'home->marka', track: '#marka-slider-track', owner: 'office' },
   ];
   for (const t of targets) {
+    if (opts.targets && !opts.targets.includes(t.key)) continue;
     const key = `${t.key}@${width}`;
     const { ctx, page, consoleErrors } = await newPage(browser, width);
     attachRequestLog(page);
@@ -417,9 +426,11 @@ async function homeFlows(browser, width) {
       await page.goto(BASE + '/', { waitUntil: 'load', timeout: 60000 });
       await page.waitForSelector(`${t.track} a.proje-slide.active`, { timeout: 30000 });
       await settle(page, 1500);
-      const r = await timeClickToModal(page, `${t.track} a.proje-slide.active`, TITLE[t.owner], t.owner, { fullNav: true, label: t.key });
+      const r = await timeClickToModal(page, `${t.track} a.proje-slide.active`, TITLE[t.owner], t.owner, { label: t.key });
+      // popup'ı kapat: arka sayfa (ana sayfa) yeniden kullanılabilir mi + URL geri döndü mü
+      r.close = await closeWithEscape(page).catch(e => ({ err: e.message }));
       results[key] = { ...r, consoleErrors: consoleErrors.slice(0, 6) };
-      log(`${key}: navCommit=${r.navCommit} overlay=${r.overlayVisible} content=${r.contentReady} nextDoc=${JSON.stringify(r.nextDocTiming)} req=${r.nextDocRequests}`);
+      log(`${key}: ${r.fullNavigation ? 'TAM SAYFA' : 'aynı belge'} overlay=${r.overlayVisible} content=${r.contentReady}${r.nextDocTiming ? ' nextDoc=' + JSON.stringify(r.nextDocTiming) + ' req=' + r.nextDocRequests : ' api=' + JSON.stringify(r.apiMs || [])} close=${JSON.stringify(r.close)}`);
     } catch (e) { results[key] = { err: e.message.slice(0, 300) }; log('HATA', key, e.message.slice(0, 200)); }
     await ctx.close();
   }
@@ -557,15 +568,21 @@ async function runBrowser() {
     }
     for (const width of WIDTHS) {
       const subset = width === WIDTHS[0] ? Object.entries(pages) : Object.entries(pages).filter(([k]) => ['home', 'proje', 'kisi', 'projectDetail'].includes(k));
-      for (const [k, p] of subset) await measurePageLoad(browser, k, p, width);
+      for (const [k, p] of subset) { await measurePageLoad(browser, k, p, width); checkpoint(); }
     }
-    for (const width of WIDTHS.slice(0, 2)) {
-      Object.assign(report.browser, await popupFlows(browser, width));
-      Object.assign(report.browser, await homeFlows(browser, width));
-      Object.assign(report.browser, await authFlows(browser, width));
+    // Akışlar: ilk genişlikte tam küme; ikinci (mobil) genişlikte daraltılmış küme (süre bütçesi).
+    const w0 = WIDTHS[0];
+    Object.assign(report.browser, await popupFlows(browser, w0)); checkpoint();
+    Object.assign(report.browser, await homeFlows(browser, w0)); checkpoint();
+    Object.assign(report.browser, await authFlows(browser, w0)); checkpoint();
+    await memoryFlow(browser, w0); checkpoint();
+    if (WIDTHS[1]) {
+      const w1 = WIDTHS[1];
+      Object.assign(report.browser, await popupFlows(browser, w1, { lists: ['kisi', 'proje'], transitions: ['proje->kisi', 'kisi->firma'] })); checkpoint();
+      Object.assign(report.browser, await homeFlows(browser, w1, { targets: ['home->proje', 'home->kisi'] })); checkpoint();
+      Object.assign(report.browser, await authFlows(browser, w1)); checkpoint();
     }
-    await memoryFlow(browser, WIDTHS[0]);
-    for (const width of [768, 1600]) if (!WIDTHS.includes(width)) await measurePageLoad(browser, 'home', '/', width);
+    for (const width of [768, 1600]) if (!WIDTHS.includes(width)) { await measurePageLoad(browser, 'home', '/', width); checkpoint(); }
   } finally { await browser.close(); }
 }
 

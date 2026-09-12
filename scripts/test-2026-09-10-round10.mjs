@@ -134,7 +134,9 @@ await test('firma tarafı claim-status davranışı DEĞİŞMEDİ (yalnızca ken
 await test('/api/architect/:key `claimed` bayrağı ve claim-status AYNI fonksiyondan geçer (kaynak)', () => {
   const architectRoute = read('../src/routes/architect.js');
   const publicRoute = read('../src/routes/public.js');
-  assert.match(architectRoute, /const claimed = await isArchitectProfileClaimed\(env, \[a\.name, a\.legacy_key\]\)/);
+  // Çağrı 2026-09-12 performans turunda buildArchitectPayload'ın büyük Promise.all'ına taşındı
+  // (ardışık D1 turu kaldırıldı) — testin amacı ÇAĞRININ AYNI fonksiyona yapılması, satırın yeri değil.
+  assert.match(architectRoute, /isArchitectProfileClaimed\(env, \[a\.name, a\.legacy_key\]\)/);
   assert.match(publicRoute, /profileType === 'architect'\) return \{ claimed: await isArchitectProfileClaimed\(env, \[profileKey\]\) \}/);
 });
 

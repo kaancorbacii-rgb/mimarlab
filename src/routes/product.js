@@ -421,11 +421,17 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     // — yeni bir puanlama/kaydetme SessizCE yanlış bir target_id'ye yazılıp mevcut ortalamadan/sayaçtan
     // kopardı. Doğru anahtar burada AYRICA döndürülüp istemci tarafında slug yerine bu kullanılmalı.
     item.ratingKey = ratingKeyFor(item.title, item.brand, item.submissionId);
-    const [adjacent, owner, usedInProjects, users] = await Promise.all([
+    // anyProfileClaimed yalnızca marka/tasarımcı adlarına bakar — hepsi satırdan zaten biliniyor, bu
+    // yüzden diğer dört sorguyla AYNI ANDA gider (performans denetimi, 2026-09-12; eskiden ayrı bir
+    // ardışık D1 turuydu). Ürünü zaten bir üye göndermişse (claimed_by_user_id) sonuç zaten true —
+    // sorgu hiç yapılmaz, eski `!!owner ||` kısa devresi korunur.
+    const designerNames = String(item.designer || '').split(',').map(x => x.trim()).filter(Boolean);
+    const [adjacent, owner, usedInProjects, users, claimedByProfile] = await Promise.all([
       fetchAdjacentProduct(env, row.id),
       fetchOwnerByline(env, row.claimed_by_user_id),
       fetchProductProjects(env, row.id),
       fetchProductUsers(env, row.id),
+      row.claimed_by_user_id ? Promise.resolve(false) : anyProfileClaimed(env, [item.brand, ...designerNames]),
     ]);
     item.prevItem = adjacent.prevItem;
     item.nextItem = adjacent.nextItem;
@@ -439,10 +445,9 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     // "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısını gösterir (bkz.
     // src/lib/claimedProfiles.js ve modal-shell.js#setSourceDisclaimer). designer serbest metindir ve birden çok adı virgülle taşıyabilir
     // (bkz. renameArchitectEverywhere'in product_submissions.architect split(',') deseni).
-    const designerNames = String(item.designer || '').split(',').map(x => x.trim()).filter(Boolean);
     // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/product-modal.js#
     // renderItem yalnızca item'ı alır, payload'ı değil.
-    item.claimed = !!owner || await anyProfileClaimed(env, [item.brand, ...designerNames]);
+    item.claimed = !!owner || !!claimedByProfile;
     return { item, hidden: !!row.hidden_at };
   });
 }

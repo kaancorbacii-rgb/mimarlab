@@ -652,6 +652,19 @@ else
 fi
 rm -f /tmp/preflight_acc
 
+# PERFORMANS TURU (2026-09-12): proje popup'ının tembel yüklenmesi, ana sayfa karusellerinin aynı
+# belgede popup açması, /api/projects/filters + /api/ratings/bulk edge önbelleği, detay uçlarındaki
+# paralel D1 turları ve rating-widget'ın dinleyici temizliği. Beşi de SESSİZ regresyonlar: tek bir
+# bayrak (preloadedOnly), tek bir liste girdisi ya da tekrar ardışığa çevrilmiş bir await hiçbir
+# hata vermeden eski (yavaş) davranışa döndürür. Bkz. scripts/test-2026-09-12-perf-round.mjs.
+if node scripts/test-2026-09-12-perf-round.mjs >/tmp/preflight_perf 2>&1; then
+  ok "performans turu (tembel proje popup + edge cache + paralel D1) testleri geçti ($(grep -c '^  ok ' /tmp/preflight_perf) test)"
+else
+  bad "performans turu testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_perf >&2
+fi
+rm -f /tmp/preflight_perf
+
 # Bülten kapsamı (kişi/firma/marka mail ALMAZ), gündem bildirimi (5'te 1, AYRI sayaç) ve popup
 # açılış karesi — kullanıcı isteği, 2026-09-12 madde 2 ve 3. Üçü de sözdizimi kontrolünden geçen
 # SESSİZ regresyonlar: TYPE_LABEL'a bir satır, tek bir sayaç anahtarı ya da kaldırılan bir CSS

@@ -1209,6 +1209,45 @@ function loadHomeSections(useSsr){
   });
 }
 
+// ANA SAYFADAN VARLIK POPUP'I — AYNI BELGEDE (performans denetimi, 2026-09-12).
+// ÖLÇÜLDÜ (headless Chromium, yerel worker — ağ gecikmesi YOKKEN): karuseldeki bir kişi/firma/ürün/
+// marka/proje kartı TAM SAYFA gezinmeydi (/kisi/:slug açılır, kisi.html kendi kabuğunu, ~50 isteğini
+// ve "boot veil"ini kurar, sonra popup'ı hidrasyonla açar): tıklamadan içeriğe ~300-500 ms. Aynı
+// belgede açılan bir popup ~130-170 ms. Canlıda fark TTFB + kabuk + script kadar (saniye mertebesi).
+// Çözüm kisi.html#card-grid tıklama dinleyicisinin BİREBİR aynı deseni: modül YALNIZCA ilk tıklamada
+// lazy-modals.js zincirinden iner (ana sayfaya ilk yükte hiçbir şey eklenmez — o karar korunur,
+// bkz. lazy-modals.js#warmListPageModule), popup AYNI belgede açılır, URL yine history.pushState ile
+// kanonik /kisi/:slug vb. yola yazılır (SEO/paylaşım değişmez), kapanış ModalShell'in mevcut
+// goBackAndWait yolundan '/'a döner ve karuseller yerinde kalır. Modül inemezse (offline/timeout)
+// tarayıcının normal gezinmesine düşülür — kisi.html'deki AYNI güvenlik ağı.
+// ModalShell kapanışta başlık/canonical/OG'yi window.__mlSsrDefaults'tan geri yazar (bkz.
+// modal-shell.js#resetSsrEntity); ana sayfanın kendi değerleri buradan verilir, aksi halde popup
+// kapanınca sekme başlığı son açılan kaydın adında kalırdı.
+window.__mlSsrDefaults = window.__mlSsrDefaults || (function(){
+  const content = (id) => { const el = document.getElementById(id); return el ? (el.getAttribute('content') || '') : ''; };
+  return {
+    title: document.title, h1: '', description: content('meta-description'), canonicalUrl: 'https://mimarlab.com/',
+    ogType: 'website', image: content('og-image'),
+  };
+})();
+const HOME_ENTITY_MODULE = { proje: 'project', kisi: 'architect', firma: 'office', marka: 'office', urun: 'product' };
+document.querySelector('.bento-grid').addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a[href]');
+  if (!a || (a.target && a.target !== '_self')) return;
+  const m = (a.getAttribute('href') || '').match(/^\/(proje|kisi|firma|marka|urun)\/([^/?#]+)\/?$/);
+  if (!m || /^sayfa-\d+$/.test(m[2])) return;
+  // lazy-modals.js (defer) henüz gelmediyse bağlantı doğal davranışla SSR detay sayfasına gider.
+  if (typeof LazyModals === 'undefined' || !LazyModals.load) return;
+  let slug;
+  try { slug = decodeURIComponent(m[2]); } catch (err) { return; }
+  e.preventDefault();
+  const href = a.href;
+  LazyModals.load(HOME_ENTITY_MODULE[m[1]])
+    .then(Modal => { if (Modal && Modal.open) return Modal.open(slug, { triggerEl: a, basePath: '/' + m[1] + '/' }); window.location.href = href; })
+    .catch((err) => { console.warn('Ana sayfa popup açılamadı, sayfaya gidiliyor:', err); window.location.href = href; });
+});
+
 loadHomeSections(true);
 
 // ARKA PLAN YENİLEMESİ — gömülü veri, HTML'in üretildiği andaki (HOME_SSR.t) veridir. Belge Worker'dan

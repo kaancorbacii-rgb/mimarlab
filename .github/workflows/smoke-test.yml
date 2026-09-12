@@ -9,18 +9,7 @@ name: Production smoke test
 on:
   push:
     branches: [main]
-  # GEÇİCİ (performans denetimi, 2026-09-12 — PR'dan önce geri alınacak): perf-audit.yml henüz
-  # main'de olmadığından API ile tetiklenemiyor; ölçüm job'ı bu dosyadan `perf_audit=true` ile koşar.
-  workflow_dispatch:
-    inputs:
-      perf_audit:
-        description: 'Performans ölçümü (scripts/perf-audit.mjs) çalışsın mı'
-        required: false
-        default: 'false'
-      widths:
-        description: 'Tarayıcı genişlikleri'
-        required: false
-        default: '1280,375'
+  workflow_dispatch: {}
   schedule:
     - cron: '17 6 * * *'
 
@@ -33,33 +22,3 @@ jobs:
         run: |
           chmod +x scripts/smoke-test.sh
           ./scripts/smoke-test.sh
-
-  perf-audit:
-    if: ${{ inputs.perf_audit == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          sparse-checkout: scripts
-          sparse-checkout-cone-mode: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Playwright kurulumu
-        run: |
-          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
-          npm init -y >/dev/null
-          npm i playwright@1.56.0 >/dev/null 2>&1
-          npx playwright install --with-deps chromium
-      - name: Ölçüm
-        env:
-          AUDIT_WIDTHS: ${{ inputs.widths }}
-        run: node scripts/perf-audit.mjs --base https://mimarlab.com --widths "$AUDIT_WIDTHS" --modules "$RUNNER_TEMP/pw/node_modules" --out "$RUNNER_TEMP/perf-audit.json"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: perf-audit
-          path: ${{ runner.temp }}/perf-audit.json
-          retention-days: 14

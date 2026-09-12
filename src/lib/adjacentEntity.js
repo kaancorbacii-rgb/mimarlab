@@ -20,10 +20,21 @@ export async function fetchAdjacentEntity(env, table, id, { titleCol, imageCol, 
   const where = `deleted_at IS NULL AND hidden_at IS NULL${extraWhere ? ` AND ${extraWhere}` : ''}`;
   const cols = `id, slug, ${titleCol}, ${imageCol}`;
   const extraArgs = extraBindValue !== undefined ? [extraBindValue] : [];
-  let prev = await env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(...extraArgs, id).first();
-  let next = await env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(...extraArgs, id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} ORDER BY id DESC LIMIT 1`).bind(...extraArgs).first();
-  if (!next) next = await env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} ORDER BY id ASC LIMIT 1`).bind(...extraArgs).first();
+  // PARALEL (performans denetimi, 2026-09-12): prev/next birbirinden bağımsız iki sorgu ARDIŞIK
+  // await ediliyordu; sarma yedekleri (ilk/son kayıt) de ayrı ayrı. Canlıda ölçüldü: detay API'nin
+  // soğuk (cache MISS) yolu 0,7-2,1 sn ve maliyetin çoğu bu tür ardışık D1 gidiş-dönüşleri (PoP
+  // D1'den uzaksa her biri ~100 ms+). Sorgular ve sonuçları aynen korunur, yalnızca aynı anda gider.
+  let [prev, next] = await Promise.all([
+    env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(...extraArgs, id).first(),
+    env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(...extraArgs, id).first(),
+  ]);
+  if (!prev || !next) {
+    const [wrapPrev, wrapNext] = await Promise.all([
+      prev ? Promise.resolve(prev) : env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} ORDER BY id DESC LIMIT 1`).bind(...extraArgs).first(),
+      next ? Promise.resolve(next) : env.DB.prepare(`SELECT ${cols} FROM ${table} WHERE ${where} ORDER BY id ASC LIMIT 1`).bind(...extraArgs).first(),
+    ]);
+    prev = wrapPrev; next = wrapNext;
+  }
   if (prev && prev.id === id) prev = null;
   if (next && next.id === id) next = null;
   const shape = (row) => row ? { slug: row.slug, title: row[titleCol], image: imageIsJsonArray ? firstImage(row[imageCol]) : (row[imageCol] || null) } : null;

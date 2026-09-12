@@ -5,7 +5,8 @@
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <!-- (a) DETAY yolu: pm-boot-loading "boot veil"i — mevcut davranış, değişmedi. Burada modül
      preload'ı YOK: proje popup'ının bağımlılık zinciri bu sayfada zaten <script defer> ile
-     yükleniyor (bkz. lazy-modals.js#ENTITY_MODULES.project preloadedOnly notu).
+     yükleniyor (lazy-modals.js#loadModule sayfa etiketini görüp ikinci kez enjekte etmez, bkz.
+     oradaki waitForPageScript notu).
      (?!sayfa-N) ŞART (gerçek bulgu, 2026-09-11: "popup'tan çıkınca sayfa birkaç saniye blurlu
      kalıyor"): /proje/sayfa-2 bir LİSTE adresidir; veil'i kaldıran DOMContentLoaded handler'ı onu
      dışladığından veil 10 sn'lik emniyet süresine kadar takılı kalıyordu. AYNI dışlama kisi/firma/

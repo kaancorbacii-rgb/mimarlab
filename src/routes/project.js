@@ -517,16 +517,25 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
       }
     }
     item.designerDetails = designerDetails;
-    const adjacent = await fetchAdjacentProject(env, row.id, row.build_status === 'concept' ? 'concept' : 'built');
+    // PARALEL (performans denetimi, 2026-09-12): önceki/sonraki proje, katalog (ürün/malzeme/marka),
+    // hotspot zenginleştirme ve sahiplenme kontrolü birbirinden bağımsızdır ama dört ardışık await ile
+    // 4-6 D1 gidiş-dönüşü ekliyordu (canlıda ölçüldü: soğuk /api/project/:slug ~1 sn, her tur ~100 ms+).
+    // Sorgular ve dönen alanlar aynen korunur, yalnızca aynı anda gönderilir.
+    // item.imageHotspots yalnızca dolu olduğunda var (bkz. shapeProjectItem) — boşsa enrich hiç
+    // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
+    // claimed: owner varsa sorgu hiç yapılmaz (eski `!!owner ||` kısa devresi korunur).
+    const [adjacent, catalog, hotspots, claimed] = await Promise.all([
+      fetchAdjacentProject(env, row.id, row.build_status === 'concept' ? 'concept' : 'built'),
+      fetchProjectProducts(env, row.id),
+      item.imageHotspots ? enrichImageHotspots(env, item.imageHotspots) : Promise.resolve(null),
+      owner ? Promise.resolve(true) : anyProfileClaimed(env, designerDetails.map(d => d.name)),
+    ]);
     item.prevProject = adjacent.prevProject;
     item.nextProject = adjacent.nextProject;
-    const catalog = await fetchProjectProducts(env, row.id);
     item.products = catalog.products;
     item.materials = catalog.materials;
     item.brands = catalog.brands;
-    // item.imageHotspots yalnızca dolu olduğunda var (bkz. shapeProjectItem) — boşsa enrich hiç
-    // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
-    if (item.imageHotspots) item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);
+    if (item.imageHotspots) item.imageHotspots = hotspots;
     // claimed (kullanıcı isteği, 2026-09-08 madde 5): künyedeki mimar/firmalardan HERHANGİ BİRİ bir
     // üyeye atanmışsa — ya da projeyi zaten bir üye göndermişse (owner byline) — pop-up'taki kaynak
     // ibaresi "doğrulanmamıştır" demez, yalnızca "yanlışlık için bize ulaş" çağrısını gösterir (bkz.
@@ -534,7 +543,7 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // isim sorgusu doğmaz.
     // Bayrak `item`'ın ÜZERİNE yazılır (payload köküne değil): js/components/project-modal.js#
     // renderItem yalnızca item'ı alır, payload'ı değil.
-    item.claimed = !!owner || await anyProfileClaimed(env, designerDetails.map(d => d.name));
+    item.claimed = !!owner || !!claimed;
     // preview: bkz. yukarıdaki önizleme notu — popuptaki blur/medya kilidinin tek kaynağı.
     return { item, hidden: false, preview: !!row.preview_at };
   });
@@ -724,7 +733,9 @@ export async function handleProjectFiltersRoute(request, env, url) {
       out[g.key] = facetPayload(counts, options);
     }
     return { filters: out, total: pool.filter(p => passesFilters(p, null)).length };
-  });
+  // projectListFingerprint — liste ucuyla AYNI parmak izi: uç artık caches.default'a yazıldığından
+  // (bkz. publicCache.js#CACHEABLE_LIST_PREFIXES) HIT yolunda tazelik bununla doğrulanır.
+  }, () => projectListFingerprint(env));
 }
 
 // handleProjectListRoute'daki sort switch'inin BİREBİR eşlemesi (bkz. o dosyadaki case listesi) —
