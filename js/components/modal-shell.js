@@ -532,7 +532,12 @@ const ModalShell = (function () {
     // Global Overlay Manager (bkz. js/overlay-manager.js) — modal açıkken hamburger/Hesabım/arama/
     // Paylaş gibi diğer paneller altta açık kalmasın diye kaydolur; close() gerçek DOM/scroll/focus
     // temizliğini yaptığından (bkz. yukarısı) salt bir CSS sınıfı silmek yerine BU fonksiyon çağrılır.
-    if (typeof OverlayManager !== 'undefined') OverlayManager.register('modal-shell', close);
+    // ÜÇÜNCÜ ARGÜMAN overlayEl (kullanıcı bildirimi, 2026-09-12: "Paylaş butonu tüm popuplarda
+    // hatalı"): bu pop-up'ın İÇİNDEN açılan bir panel (Paylaş popover'ı — ankrajı olan düğme
+    // overlay'in içindedir) pop-up'ı KAPATMAMALI. Popover'ın kendisi konumlandırma için body'ye
+    // taşındığından kontrol panelin değil ANKRAJININ konumuna bakar (bkz. overlay-manager.js#
+    // notifyOpen'ın anchorEl argümanı).
+    if (typeof OverlayManager !== 'undefined') OverlayManager.register('modal-shell', close, overlayEl);
   }
 
   // GERÇEK BULGU (kullanıcı bildirimi, 2026-08-31): galeri lightbox'ı (bkz. js/components/gallery.js)

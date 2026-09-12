@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 2026-09-12 kullanıcı isteği — üç madde, tek test dosyası.
+// 2026-09-12 kullanıcı isteği — dört madde, tek test dosyası.
 //
 // MADDE 1 — "Admin panelinde; ana sayfadaki tüm carosel içeriklerini açılabilir menüden
 //   seçebileyim. Örneğin 3 proje seçersem diğer 6 tanesi son eklenenler olsun."
@@ -24,6 +24,16 @@
 //         (#nav-mobile-overlay.open) ve durumu (subpageActive) geride kalıyordu: kullanıcının
 //         gördüğü "hafif karartılı ana sayfa". Artık çekmece GERÇEK closeDrawer'ını register
 //         ediyor ve kapanışını auth/info modallerine olayla bildiriyor.
+//
+// MADDE 4 — "Paylaş butonu tüm popuplarda hatalı olmuş, hepsini düzelt."
+//   Paylaş popover'ı overlay-manager.js'in "otomatik grup"undaydı; `.open` sınıfını alır almaz
+//   MutationObserver kayıtlı 'modal-shell'i kapatıyor, ModalShell.close() de
+//   'mimarlab-modal-closed' yayınlayınca popover kendini kapatıyordu — yani Paylaş'a basınca HEM
+//   pop-up HEM panel kayboluyordu (proje/ürün/kişi/firma/marka, hepsi aynı paylaşılan bileşen).
+//   Otomatik gruptaki `el.contains(exceptEl)` koruması işe yaramıyordu, çünkü popover
+//   konumlandırma için body'ye TAŞINIYOR. Çözüm: ShareWidget de register()'lı bir panel oldu ve
+//   açılışını ANKRAJIYLA (düğmesiyle) bildiriyor; rootEl kontrolü panelin değil ankrajın konumuna
+//   bakıyor.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -204,6 +214,41 @@ test('auth/info modalleri çekmece kapanışında kendi durumlarını bırakıyo
     // history'e DOKUNULMAMALI: o an zinciri üstteki popup yönetiyor.
     assert.ok(!/history\.(go|pushState|replaceState)/.test(body), `${f}: dinleyici history'e dokunuyor`);
   }
+});
+
+section('Paylaş popover’ı — pop-up’ı kapatmamalı (tüm varlık pop-up’larında)');
+
+test('share-popover otomatik gruptan çıktı (body’ye taşınıyor, contains koruması işlemiyordu)', () => {
+  const src = read('js/overlay-manager.js');
+  const sel = (src.match(/const AUTO_SELECTOR = '([^']+)'/) || [])[1] || '';
+  assert.ok(!sel.includes('.share-popover'), 'popover hâlâ otomatik grupta — açılışı ModalShell’i kapatır');
+  assert.ok(!sel.includes('.nav-mobile-menu'), 'çekmece otomatik gruba geri dönmüş');
+});
+
+test('notifyOpen ankraj alıyor ve onu exceptEl olarak geçiriyor', () => {
+  const src = read('js/overlay-manager.js');
+  assert.ok(src.includes('function notifyOpen(id, anchorEl)'), 'notifyOpen ankraj almıyor');
+  assert.ok(src.includes('closeOthers(anchorEl || null, id);'), 'ankraj exceptEl olarak geçirilmiyor');
+});
+
+test('ModalShell kendini overlay’iyle kaydediyor (içindeki panel onu kapatmasın)', () => {
+  const src = read('js/components/modal-shell.js');
+  assert.ok(src.includes("OverlayManager.register('modal-shell', close, overlayEl);"),
+    'rootEl verilmezse pop-up içindeki Paylaş düğmesi pop-up’ı kapatır');
+});
+
+test('ShareWidget kayıtlı bir panel ve açılışını DÜĞMESİYLE bildiriyor', () => {
+  const src = read('js/components/share-button.js');
+  const i = src.indexOf("btn.addEventListener('click'");
+  assert.ok(i > 0);
+  const body = src.slice(i, i + 2600);
+  assert.ok(body.includes("OverlayManager.register('share', closeAllPopovers);"), 'ShareWidget register edilmiyor');
+  assert.ok(body.includes("OverlayManager.notifyOpen('share', btn);"), 'açılış düğmeyle bildirilmiyor');
+  // Bildirim, popover body'ye TAŞINMADAN önce olmalı: taşındıktan sonra çağrılsa ankraj yine
+  // düğmedir ama sıralama okunurluğu ve closeAllPopovers'ın kendi popover'ımızı kapatmaması için
+  // register/notify, appendChild'dan önce durmalı.
+  assert.ok(body.indexOf("OverlayManager.notifyOpen('share', btn);") < body.indexOf('document.body.appendChild(popover);'),
+    'notifyOpen popover body’ye taşındıktan SONRA çağrılıyor');
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

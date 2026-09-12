@@ -280,6 +280,25 @@ const ShareWidget = (function () {
       const willOpen = !popover.classList.contains('open');
       closeAllPopovers();
       if (!willOpen) return;
+      // GLOBAL OVERLAY PROTOKOLÜ (kullanıcı bildirimi, 2026-09-12: "Paylaş butonu tüm popuplarda
+      // hatalı"). Popover eskiden overlay-manager.js'in "otomatik grup"undaydı: `.open` sınıfını
+      // alır almaz MutationObserver closeOthers'ı tetikliyor, o da KAYITLI 'modal-shell'i
+      // kapatıyordu; ModalShell.close() 'mimarlab-modal-closed' yayınlayınca da aşağıdaki dinleyici
+      // popover'ı kapatıyordu — sonuç: proje/ürün/kişi/firma/marka pop-up'larının HEPSİNDE Paylaş'a
+      // basınca hem pop-up hem panel kayboluyordu (canlıda doğrulandı). Otomatik grubun
+      // `el.contains(exceptEl)` koruması burada işe yaramıyor, çünkü popover konumlandırma için
+      // BODY'ye taşınıyor (bir alt satır) — yani artık pop-up'ın içinde değil.
+      //
+      // Artık açıkça kaydolup açılışı ANKRAJIMIZLA (btn) bildiriyoruz: overlay-manager rootEl
+      // kontrolünü düğmenin konumuna göre yapar — düğme bir pop-up'ın/çekmecenin içindeyse o
+      // kapanmaz, sayfanın gövdesindeki bir karttaysa açık paneller eskisi gibi kapanır.
+      // Kayıt burada (wireGlobal'de değil): overlay-manager.js `defer` ile yüklenirken bu dosya
+      // bazı sayfalarda daha erken çalışabiliyor; ilk tıklama her koşulda yeterince geç. Map.set
+      // idempotenttir.
+      if (typeof OverlayManager !== 'undefined') {
+        OverlayManager.register('share', closeAllPopovers);
+        OverlayManager.notifyOpen('share', btn);
+      }
       urlInput.value = getData().url || '';
       document.body.appendChild(popover);
       popover.classList.add('open');

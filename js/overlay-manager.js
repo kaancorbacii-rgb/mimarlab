@@ -24,12 +24,28 @@ const OverlayManager = (function () {
   // panel kayıp gidiyor ama KARARTMA ekranda kalıyordu (kullanıcının gördüğü "hafif karartılı ana
   // sayfa") ve NavDrawer kendini hâlâ açık sanıyordu. Artık çekmece register() ile GERÇEK kapatma
   // fonksiyonunu (closeDrawer) veriyor — bkz. js/components/site-chrome.js#initNavDrawer.
-  const AUTO_SELECTOR = '.nav-avatar-menu, .nav-search-suggest, .share-popover';
+  // '.share-popover' DA ARTIK BURADA DEĞİL (kullanıcı bildirimi, 2026-09-12: "Paylaş butonu tüm
+  // popuplarda hatalı"). Popover, konumlandırılabilmek için açılmadan HEMEN ÖNCE
+  // document.body'ye TAŞINIYOR (bkz. share-button.js#btn click) — yani `.open` sınıfını aldığı anda
+  // artık ait olduğu pop-up'ın/çekmecenin İÇİNDE değil, body'nin doğrudan çocuğu. Bu yüzden
+  // otomatik gruptaki `el.contains(exceptEl)` koruması onu kurtaramıyor, closeOthers kayıtlı
+  // 'modal-shell'i kapatıyor, ModalShell.close() de 'mimarlab-modal-closed' yayınlayınca
+  // share-button.js popover'ı kendi kapatıyordu: kullanıcı Paylaş'a bastığında HEM pop-up HEM
+  // panel kayboluyordu (canlıda doğrulandı, proje/ürün/kişi/firma/marka pop-up'larının HEPSİNDE —
+  // Paylaş düğmesi paylaşılan bir bileşen). Artık ShareWidget de register()'lı bir paneldir ve
+  // açılışını ANKRAJIYLA (düğmenin kendisi) bildirir; aşağıdaki rootEl kontrolü düğmenin hangi
+  // panelin içinde durduğuna bakarak doğru kararı verir.
+  const AUTO_SELECTOR = '.nav-avatar-menu, .nav-search-suggest';
 
   // rootEl (opsiyonel): panelin kök elemanı. Verilirse, AÇILAN panel bu kökün İÇİNDEYSE bu panel
   // kapatılmaz — otomatik gruptaki `el.contains(exceptEl)` korumasının (aşağısı) register edilmiş
   // paneller için karşılığı. Şart: hamburger çekmecesinin içinde açılan arama öneri paneli ya da
   // bir Paylaş popover'ı, altındaki çekmeceyi kapatmamalı.
+  //
+  // KONTROL PANELİN KENDİSİNE DEĞİL ANKRAJINA BAKAR (bkz. notifyOpen'ın ikinci argümanı): yüzen
+  // paneller (Paylaş popover'ı) konumlandırma için body'ye taşınabildiğinden "panel şu kökün içinde
+  // mi" sorusu yanlış yanıt verir; doğru soru "panelin AÇILDIĞI YER (düğme/kutu) şu kökün içinde
+  // mi"dir. İkisi de aynı `exceptEl` parametresinden geçer — çağıran hangisinin doğru olduğunu bilir.
   function register(id, closeFn, rootEl) { registry.set(id, { closeFn, rootEl: rootEl || null }); }
   function unregister(id) { registry.delete(id); }
 
@@ -51,10 +67,15 @@ const OverlayManager = (function () {
     });
   }
 
-  // notifyOpen(id): register() ile kayıtlı bir panel kendi açılışını bildirir — diğer TÜM kayıtlı
-  // panelleri (kendisi hariç) VE otomatik gruptaki tüm panelleri kapatır.
-  function notifyOpen(id) {
-    closeOthers(null, id);
+  // notifyOpen(id, anchorEl): register() ile kayıtlı bir panel kendi açılışını bildirir — diğer TÜM
+  // kayıtlı panelleri (kendisi hariç) VE otomatik gruptaki tüm panelleri kapatır.
+  // anchorEl (opsiyonel): panelin ankrajı — onu açan düğme ya da içinde yaşadığı kutu. Verilirse,
+  // ankrajı KAPSAYAN paneller açık BIRAKILIR (bkz. register'ın rootEl'i). Paylaş popover'ı bunu
+  // kendi düğmesiyle çağırır: düğme bir pop-up'ın/çekmecenin içindeyse o pop-up kapanmaz, ama
+  // düğme sayfanın gövdesindeki bir karttaysa (ankraj hiçbir kökün içinde değil) açık paneller
+  // eskisi gibi kapanır.
+  function notifyOpen(id, anchorEl) {
+    closeOthers(anchorEl || null, id);
   }
 
   function closeAll() { closeOthers(null, null); }
