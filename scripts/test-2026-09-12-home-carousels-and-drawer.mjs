@@ -34,6 +34,13 @@
 //   konumlandırma için body'ye TAŞINIYOR. Çözüm: ShareWidget de register()'lı bir panel oldu ve
 //   açılışını ANKRAJIYLA (düğmesiyle) bildiriyor; rootEl kontrolü panelin değil ankrajın konumuna
 //   bakıyor.
+//
+// MADDE 5 — "Mobilde WhatsApp'tan paylaşmaya çalıştığımda konuşmaya herhangi bir link, içerik vs.
+//   yansımıyor." Ürettiğimiz href DOĞRUYDU (canlıda doğrulandı: wa.me adresi WhatsApp'ın kendi
+//   sayfasına yönleniyor ve metin orada eksiksiz görünüyor) — kayıp wa.me -> UYGULAMA devrinde:
+//   wa.me bir telefon numarasına mesaj kısaltmasıdır, uygulama onu universal link olarak yakalayıp
+//   yolu ayrıştırır ve yol BOŞKEN sorguyu (metnimizi) düşürür. Artık WhatsApp'ın "kullanıcının
+//   seçeceği sohbete metin gönder" için belgelediği uca (api.whatsapp.com/send) doğrudan gidiliyor.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -279,6 +286,18 @@ test('instagram dalı: navigator.share varsa sistem sayfası, yoksa kopyala + in
 test('instagram kanalı sunucuda ve Paylaştıklarım etiketlerinde tanımlı', () => {
   assert.ok(read('src/routes/shares.js').includes("'telegram', 'instagram']"), 'SHARE_CHANNELS instagram tanımıyor');
   assert.ok(read('js/components/auth-modal.js').includes("instagram: 'Instagram'"), 'Paylaştıklarım etiketi yok');
+});
+
+section('WhatsApp — metin uygulamaya ulaşmalı');
+
+test('whatsapp hedefi wa.me DEĞİL api.whatsapp.com/send kullanıyor', () => {
+  const src = read('js/components/share-button.js');
+  const line = src.split('\n').find(l => l.includes("action: 'whatsapp'"));
+  assert.ok(line, 'whatsapp hedefi yok');
+  assert.ok(line.includes('https://api.whatsapp.com/send?text='), `belgelenen uç kullanılmıyor: ${line.trim()}`);
+  assert.ok(!line.includes('wa.me'), 'wa.me boş yolda sorguyu düşürüyor — geri dönmüş');
+  // Hem başlık hem URL metne girmeli (biri düşerse sohbete yarım içerik gider).
+  assert.ok(/\$\{t\}%20\$\{u\}/.test(line), 'text parametresi başlık + URL taşımıyor');
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

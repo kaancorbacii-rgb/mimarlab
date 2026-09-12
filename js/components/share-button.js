@@ -120,7 +120,20 @@ const ShareWidget = (function () {
     { action: 'x', label: "X'te paylaş", icon: ICON_X, href: (t, u) => `https://twitter.com/intent/tweet?text=${t}&url=${u}` },
     { action: 'linkedin', label: "LinkedIn'de paylaş", icon: ICON_LINKEDIN, href: (t, u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
     { action: 'email', label: 'E-postayla gönder', icon: ICON_MAIL, href: (t, u) => `mailto:?subject=${t}&body=${t}%0A%0A${u}` },
-    { action: 'whatsapp', label: "WhatsApp'ta paylaş", icon: ICON_WHATSAPP, href: (t, u) => `https://wa.me/?text=${t}%20${u}` },
+    // WhatsApp: `wa.me` DEĞİL `api.whatsapp.com/send` (kullanıcı bildirimi, 2026-09-12: "Mobilde
+    // WhatsApp'tan paylaşmaya çalıştığımda konuşmaya herhangi bir link, içerik vs. yansımıyor").
+    //
+    // ÖLÇÜM: ürettiğimiz href DOĞRUYDU — canlıda `https://wa.me/?text=<başlık>%20<url>` üretiliyor
+    // ve o adres WhatsApp tarafından `https://api.whatsapp.com/send/?text=…&type=custom_url&
+    // app_absent=0` adresine yönlendirilip AÇILAN SAYFADA metin eksiksiz görünüyor (doğrulandı).
+    // Yani kayıp bizim tarafımızda değil, `wa.me` -> UYGULAMA devrinde: wa.me telefon numarasına
+    // mesaj göndermek için tasarlanmış bir kısaltma ve mobil uygulama onu bir universal link olarak
+    // yakalayıp yolu (`/<numara>`) ayrıştırıyor; yol BOŞ olduğunda uygulama ana ekranda açılıyor ve
+    // sorgu dizesi (yani metnimiz) düşüyor — kullanıcının gördüğü "sohbete hiçbir şey yansımıyor".
+    // api.whatsapp.com/send, WhatsApp'ın "kullanıcının seçeceği bir sohbete metin gönder" için
+    // belgelediği uçtur; wa.me'nin kendisi de zaten oraya yönlendiriyor. Doğrudan oraya giderek hem
+    // fazladan bir yönlendirme adımını hem de metni düşüren universal-link yakalamasını atlıyoruz.
+    { action: 'whatsapp', label: "WhatsApp'ta paylaş", icon: ICON_WHATSAPP, href: (t, u) => `https://api.whatsapp.com/send?text=${t}%20${u}` },
     { action: 'telegram', label: "Telegram'da paylaş", icon: ICON_TELEGRAM, href: (t, u) => `https://t.me/share/url?url=${u}&text=${t}` },
   ];
 
