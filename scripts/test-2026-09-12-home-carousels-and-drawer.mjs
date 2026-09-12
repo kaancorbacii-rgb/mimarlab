@@ -41,6 +41,10 @@
 //   wa.me bir telefon numarasına mesaj kısaltmasıdır, uygulama onu universal link olarak yakalayıp
 //   yolu ayrıştırır ve yol BOŞKEN sorguyu (metnimizi) düşürür. Artık WhatsApp'ın "kullanıcının
 //   seçeceği sohbete metin gönder" için belgelediği uca (api.whatsapp.com/send) doğrudan gidiliyor.
+//
+// MADDE 6 — "telegram iconunu kaldır. Instagram iconu DM'den mesaj göndermek için kullanılsın."
+//   Instagram DM'i dışarıdan METİNLE DOLDURULAMAZ (platform böyle bir adres sunmuyor), yapılabilecek
+//   en yakın şey: bağlantıyı panoya kopyala + DM kutusunu (instagram.com/direct/inbox/) aç.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -258,29 +262,42 @@ test('ShareWidget kayıtlı bir panel ve açılışını DÜĞMESİYLE bildiriyo
     'notifyOpen popover body’ye taşındıktan SONRA çağrılıyor');
 });
 
-section('Instagram — Paylaş panelinde ilk sıra');
+section('Paylaş ikon satırı — Instagram DM ilk sırada, Telegram yok');
 
-test('Instagram TARGETS’in İLK öğesi ve href taşımıyor (web paylaşım ucu yok)', () => {
+test('hedef sırası: instagram ilk, telegram KALDIRILDI', () => {
   const src = read('js/components/share-button.js');
   const block = src.slice(src.indexOf('const TARGETS = ['), src.indexOf('function html(id)'));
   const order = [...block.matchAll(/\{ action: '([a-z]+)'/g)].map(m => m[1]);
-  assert.equal(order[0], 'instagram', `ilk hedef instagram değil: ${order.join(', ')}`);
-  // Diğer beş kanal ve sıraları korunmalı (istek yalnızca "ilk sıraya instagram" diyordu).
-  assert.deepEqual(order, ['instagram', 'facebook', 'x', 'linkedin', 'email', 'whatsapp', 'telegram']);
+  assert.deepEqual(order, ['instagram', 'facebook', 'x', 'linkedin', 'email', 'whatsapp']);
   const igLine = block.split('\n').find(l => l.includes("action: 'instagram'"));
   assert.ok(!igLine.includes('href:'), 'instagram href taşımamalı — özel dal işler');
+  // Ölü sabit geride kalmasın.
+  assert.ok(!src.includes('ICON_TELEGRAM'), 'kullanılmayan ICON_TELEGRAM duruyor');
 });
 
-test('instagram dalı: navigator.share varsa sistem sayfası, yoksa kopyala + instagram.com', () => {
+test('instagram dalı: bağlantıyı kopyalayıp Instagram DM kutusunu açıyor', () => {
   const src = read('js/components/share-button.js');
   const i = src.indexOf("if (action === 'instagram')");
   assert.ok(i > 0, 'özel dal yok');
-  const body = src.slice(i, i + 1400);
-  assert.ok(body.includes('if (navigator.share)'), 'mobilde sistem paylaşım sayfası kullanılmıyor');
-  assert.ok(body.includes('await copyText(url, urlInput)'), 'masaüstünde bağlantı kopyalanmıyor');
-  assert.ok(body.includes("window.open('https://www.instagram.com/'"), 'instagram.com açılmıyor');
+  // Yalnızca dalın GÖVDESİ (jenerik dala kadar) ve yorumlar hariç — yorum metinleri yanlış
+  // pozitif üretiyordu (gövdede "navigator.share BİLEREK KULLANILMIYOR" yazıyor).
+  const body = src.slice(i, src.indexOf('const target = TARGETS.find', i))
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(body.includes('await copyText(url, urlInput)'), 'bağlantı kopyalanmıyor');
+  assert.ok(body.includes('window.open(INSTAGRAM_DM_URL'), 'DM kutusu açılmıyor');
+  // Kullanıcı Instagram ikonuna bastığında jenerik sistem sayfası DEĞİL, doğrudan DM beklenir.
+  assert.ok(!body.includes('navigator.share'), 'DM yerine sistem paylaşım sayfası açılıyor');
+  assert.ok(src.includes("const INSTAGRAM_DM_URL = 'https://www.instagram.com/direct/inbox/';"),
+    'DM adresi /direct/inbox/ değil');
   // Özel dal, href’siz hedefi jenerik dala DÜŞÜRMEMELİ.
   assert.ok(src.includes('if (!target || !target.href) return;'), 'href’siz hedef jenerik dalda korunmuyor');
+});
+
+test('telegram kanalı geçmiş kayıtlar için sunucuda/etiketlerde KALIYOR', () => {
+  // Düğme kaldırıldı ama shared_items'ta channel='telegram' satırları var; beyaz liste ve etiket
+  // silinirse Aktivitelerim > Paylaştıklarım o satırları kanalsız gösterirdi.
+  assert.ok(read('src/routes/shares.js').includes("'telegram'"), 'SHARE_CHANNELS telegram’ı düşürmüş');
+  assert.ok(read('js/components/auth-modal.js').includes("telegram: 'Telegram'"), 'Paylaştıklarım etiketi düşmüş');
 });
 
 test('instagram kanalı sunucuda ve Paylaştıklarım etiketlerinde tanımlı', () => {

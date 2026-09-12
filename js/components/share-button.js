@@ -93,29 +93,32 @@ const ShareWidget = (function () {
   const ICON_SHARE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>`;
   const ICON_COPY = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
   const ICON_CLOSE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  // Instagram DM kutusu. Mobilde uygulamanın DM'ine universal link olarak düşer, masaüstünde web
+  // DM'ini açar (oturum yoksa Instagram ?next= ile giriş sonrası buraya getirir — canlıda doğrulandı).
+  const INSTAGRAM_DM_URL = 'https://www.instagram.com/direct/inbox/';
   const ICON_INSTAGRAM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.1"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/></svg>`;
   const ICON_FACEBOOK = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 22v-8.2h2.8l.4-3.2h-3.2V8.5c0-.9.3-1.6 1.6-1.6h1.7V4.1c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.4H7.3v3.2h2.8V22h3.4z"/></svg>`;
   const ICON_X = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg>`;
   const ICON_LINKEDIN = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg>`;
   const ICON_MAIL = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/></svg>`;
   const ICON_WHATSAPP = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5C10 9 9.5 7.8 9.3 7.3c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.5.1-.7.3-.2.3-1 1-1 2.3s1 2.7 1.1 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`;
-  const ICON_TELEGRAM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2l-11 6.9-4.7-1.5c-1-.3-1-1 .2-1.5l18.4-7.1c.9-.3 1.6.2 1.5 1.2z"/></svg>`;
   const ICON_MORE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
 
   // Paylaşım hedefleri — kanal adları src/routes/shares.js#SHARE_CHANNELS ile AYNI (Paylaştıklarım kaydı).
   //
-  // INSTAGRAM İLK SIRADA (kullanıcı isteği, 2026-09-12: "Tüm popuplarda paylaş butonlarında ilk
-  // sıraya instagram'ı koy") ve `href` TAŞIMAZ — çünkü Instagram'ın diğerleri gibi bir web paylaşım
-  // ucu YOKTUR: `?url=` alan bir sharer adresi sunmaz (bir gönderiye bağlantı ancak hikâye/DM/
-  // biyografi içinden, uygulamanın kendisinden eklenebilir). Düz bir <a href="instagram.com">
-  // kullanıcıyı bağlantıyı KAYBEDEREK Instagram ana sayfasına atardı.
-  // Bu yüzden aşağıdaki tıklama dinleyicisinde ÖZEL bir dal var (bkz. action === 'instagram'):
-  //   * navigator.share varsa (mobil/tablet, Instagram'ın gerçek hedef olarak göründüğü yer)
-  //     sistem paylaşım sayfası açılır — "Instagram'a paylaş"ın tek gerçek çalışan yolu budur;
-  //   * yoksa (masaüstü) bağlantı panoya KOPYALANIR ve instagram.com yeni sekmede açılır, kullanıcı
-  //     hikâyesine/DM'ine yapıştırır. Kopyalama başarısızsa sekme yine de açılır.
+  // INSTAGRAM İLK SIRADA ve DM KUTUSUNU AÇAR (kullanıcı isteği, 2026-09-12: "ilk sıraya
+  // instagram'ı koy", ardından "Instagram iconu DM'den mesaj göndermek için kullanılsın").
+  // `href` TAŞIMAZ — Instagram'ın diğerleri gibi bir web paylaşım ucu YOKTUR: ne `?url=` alan bir
+  // sharer adresi ne de DM'i METİNLE ÖNDEN DOLDURAN bir adres sunar (platform buna izin vermiyor).
+  // Yapılabilecek en yakın şey ve bu dalın yaptığı (bkz. action === 'instagram'):
+  //   1) bağlantı panoya KOPYALANIR ("Bağlantı kopyalandı" geri bildirimiyle),
+  //   2) Instagram DM kutusu (https://www.instagram.com/direct/inbox/) yeni sekmede açılır —
+  //      mobilde bu adres uygulamanın DM kutusuna universal link olarak düşer, masaüstünde web
+  //      DM'ini açar; kullanıcı sohbeti seçip yapıştırır.
+  // Popover AÇIK BIRAKILIR: pano izni reddedilirse bağlantı kutusu seçili hâlde önde durur ve
+  // kullanıcı elle kopyalayabilir.
   const TARGETS = [
-    { action: 'instagram', label: "Instagram'da paylaş", icon: ICON_INSTAGRAM },
+    { action: 'instagram', label: "Instagram DM'den gönder", icon: ICON_INSTAGRAM },
     { action: 'facebook', label: "Facebook'ta paylaş", icon: ICON_FACEBOOK, href: (t, u) => `https://www.facebook.com/sharer/sharer.php?u=${u}` },
     { action: 'x', label: "X'te paylaş", icon: ICON_X, href: (t, u) => `https://twitter.com/intent/tweet?text=${t}&url=${u}` },
     { action: 'linkedin', label: "LinkedIn'de paylaş", icon: ICON_LINKEDIN, href: (t, u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
@@ -134,7 +137,6 @@ const ShareWidget = (function () {
     // belgelediği uçtur; wa.me'nin kendisi de zaten oraya yönlendiriyor. Doğrudan oraya giderek hem
     // fazladan bir yönlendirme adımını hem de metni düşüren universal-link yakalamasını atlıyoruz.
     { action: 'whatsapp', label: "WhatsApp'ta paylaş", icon: ICON_WHATSAPP, href: (t, u) => `https://api.whatsapp.com/send?text=${t}%20${u}` },
-    { action: 'telegram', label: "Telegram'da paylaş", icon: ICON_TELEGRAM, href: (t, u) => `https://t.me/share/url?url=${u}&text=${t}` },
   ];
 
   function html(id) {
@@ -300,23 +302,20 @@ const ShareWidget = (function () {
           return;
         }
         if (action === 'instagram') {
-          // bkz. TARGETS'taki gerekçe — Instagram'ın web paylaşım ucu yok.
+          // bkz. TARGETS'taki gerekçe — Instagram DM'i dışarıdan METİNLE DOLDURULAMAZ, o yüzden
+          // "kopyala + DM kutusunu aç". navigator.share BİLEREK KULLANILMIYOR: sistem paylaşım
+          // sayfası jenerik bir liste açar, oysa kullanıcı Instagram ikonuna basmışken doğrudan
+          // DM'e gitmeyi bekliyor (sistem sayfası zaten satırın sonundaki "Diğer" düğmesinde).
           e.preventDefault();
-          if (navigator.share) {
-            closePopover(popover);
-            try { await navigator.share({ title, url }); logShare(data, 'instagram'); } catch { /* iptal — sessiz */ }
-            return;
-          }
-          const copied = await copyText(url, urlInput);
-          if (copied) {
-            // Kullanıcı ne olduğunu görsün: panoya kopyalandı + Instagram açılıyor. Kopyala
+          if (await copyText(url, urlInput)) {
+            // Kullanıcı ne olduğunu görsün: panoya kopyalandı + DM kutusu açılıyor. Kopyala
             // butonunun kendi geri bildirimi yeniden kullanılır (ayrı bir bileşen icat edilmedi).
             copyBtn.classList.add('copied');
             copyBtn.querySelector('span').textContent = 'Bağlantı kopyalandı';
             setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.querySelector('span').textContent = 'Kopyala'; }, 2200);
           }
           logShare(data, 'instagram');
-          window.open('https://www.instagram.com/', '_blank', 'noopener');
+          window.open(INSTAGRAM_DM_URL, '_blank', 'noopener');
           return;
         }
         const target = TARGETS.find(tg => tg.action === action);
