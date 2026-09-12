@@ -17,13 +17,16 @@
 //   admin.html önizlemesi); biri geride kalırsa ya karusel ile admin önizlemesi ayrışır ya da
 //   gömülü veri karuselin beklediğinden az/çok kayıt taşır.
 //
-// MADDE 4 — Karusellerin altındaki altı "Son ..." şeridi. Sözleşme: şeritler karusellerin ZATEN
-//   çektiği listenin 7-12. kayıtlarını gösterir, yani liste uçlarından karusel + şerit kadar
-//   (6+6=12) kayıt çekilmeli ve gömülü veri (#ml-home-data) de 12 taşımalı. Gömülü gövdenin şekli
-//   değiştiği için sürüm v:1 -> v:2; iki tarafın sürümü ayrışırsa istemci gömülü veriyi SESSİZCE
-//   yok sayar (ya da yarım dolu şerit çizer). Gözlemci hedefi de kilitlenir: şeritler içerikleri
-//   gelene kadar `hidden` durur ve hidden bir elemanın layout kutusu olmadığından
-//   IntersectionObserver onu asla kesişmiş saymaz — bu yüzden KAPSAYICI gözlenir.
+// MADDE 4 — Karusellerin altındaki altı "Son ..." şeridi KALDIRILDI (kullanıcı isteği, 2026-09-12
+//   üçüncü tur: "Ana sayfaya koyduğumuz Son projeler, son kişiler, son firmalar, son markalar,
+//   son ürünler, son gündem içerikleri bölümlerini kaldır"). Kaldırma üç dosyaya dokunur ve
+//   yarısı kalırsa sessiz bir kusur doğar: (a) index.html'de şeritlerin HTML/CSS/JS'i ve
+//   /api/offices?brands=1 + /api/gundem istekleri tamamen gitmeli — geride kalan bir
+//   createRail/loadRailExtras artık var olmayan bir DOM düğümünü arar ve ana sayfa betiği
+//   ReferenceError'la düşerdi; (b) liste uçları yeniden TAM karusel slotu (6) kadar çekmeli —
+//   şerit için eklenen +6 kaydın alıcısı yok; (c) gömülü gövdenin şekli değiştiğinden sürüm
+//   v:2 -> v:3 ve iki taraf AYNI sürümü taşımalı — ayrışırsa istemci gömülü veriyi sessizce yok
+//   sayar (ya da eski bir belge yeni gövdeyi yanlış okuyup yarım dolu karusel çizer).
 //
 // MADDE 5 — Hesabım > "Firma / Marka Bilgileri" kutusunda "Yetkili Kullanıcılar" satırı. Liste
 //   sunucudan gelir (GET /api/claims/office-managers) ve iki yönlü bir kapı taşır: (a) görebilmek
@@ -98,50 +101,52 @@ await test('index.html / src/index.js / homeCarousels.js / admin.html aynı slot
   assert.equal(adm, 6, 'admin.html#HOME_CAROUSEL_SLOTS');
 });
 
-console.log('\nmadde 4 — ana sayfa şeritleri');
+console.log('\nmadde 4 — ana sayfa şeritleri kaldırıldı');
 
-await test('altı şerit HTML\'de sabit: başlık + "Tümünü Gör" hedefi', () => {
-  for (const [id, title, href] of [
-    ['rail-projects', 'Son Projeler', '/proje'],
-    ['rail-architects', 'Son Kişiler', '/kisi'],
-    ['rail-offices', 'Son Firmalar', '/firma'],
-    ['rail-brands', 'Son Markalar', '/marka'],
-    ['rail-products', 'Son Ürünler', '/urun'],
-    ['rail-gundem', 'Son Gündem İçerikleri', '/gundem'],
-  ]) {
-    const section = indexHtml.slice(indexHtml.indexOf(`id="${id}"`));
-    assert.ok(indexHtml.includes(`id="${id}"`), `${id} şeridi yok`);
-    assert.ok(section.slice(0, 600).includes(`>${title}<`), `${id} başlığı "${title}" değil`);
-    assert.ok(section.slice(0, 900).includes(`href="${href}"`), `${id} "Tümünü Gör" hedefi ${href} değil`);
+await test('altı şeridin HTML\'i, CSS\'i ve JS\'i index.html\'de kalmadı', () => {
+  for (const id of ['rail-projects', 'rail-architects', 'rail-offices', 'rail-brands', 'rail-products', 'rail-gundem']) {
+    assert.ok(!indexHtml.includes(`id="${id}"`), `${id} şeridi hâlâ HTML'de`);
   }
+  for (const title of ['Son Projeler', 'Son Kişiler', 'Son Firmalar', 'Son Markalar', 'Son Ürünler', 'Son Gündem İçerikleri']) {
+    assert.ok(!indexHtml.includes(`>${title}<`), `"${title}" başlığı hâlâ ana sayfada`);
+  }
+  // Kapsayıcı + CSS sınıfları: geride kalan bir kural ölü ağırlıktır, kalan bir kapsayıcı ise
+  // IntersectionObserver'ı yeniden canlandırırdı.
+  // Kapsayıcının kendisi: id VE class ayrı ayrı aranır (bu dosyanın ADI da "home-rails" geçtiği
+  // için çıplak alt dizgi araması index.html'deki test referansına takılırdı).
+  assert.ok(!indexHtml.includes('id="home-rails"'), 'şerit kapsayıcısı (#home-rails) hâlâ duruyor');
+  assert.ok(!indexHtml.includes('class="home-rails"'), 'şerit kapsayıcısı (.home-rails) hâlâ duruyor');
+  assert.ok(!indexHtml.includes('.home-rails{'), 'şerit kapsayıcısının CSS kuralı hâlâ duruyor');
+  assert.ok(!/\.rail-[a-z]/.test(indexHtml), 'şerit CSS kuralları hâlâ duruyor');
 });
 
-await test('şerit slotu 6 ve liste uçları karusel + şerit kadar çekiyor (6+6=12)', () => {
-  assert.equal(Number(indexHtml.match(/const HOME_RAIL_SLOTS = (\d+);/)[1]), 6);
-  assert.equal(Number(serverIndex.match(/const HOME_RAIL_SLOTS = (\d+);/)[1]), 6);
-  assert.match(indexHtml, /const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS \+ HOME_RAIL_SLOTS;/);
-  assert.match(serverIndex, /const HOME_LIST_LIMIT = HOME_SLOTS \+ HOME_RAIL_SLOTS;/);
+await test('şerit JS\'i tamamen gitti (var olmayan DOM\'u arayan kod kalmadı)', () => {
+  for (const sym of ['createRail', 'loadRailExtras', 'railExtrasLoaded', 'HOME_RAIL_SLOTS', 'RAIL_IMG',
+                     'projeRail', 'kisiRail', 'firmaRail', 'markaRail', 'urunRail', 'gundemRail']) {
+    assert.ok(!indexHtml.includes(sym), `${sym} hâlâ index.html'de — ana sayfa betiği düşebilir`);
+  }
+  assert.ok(!indexHtml.includes('/api/offices?brands=1&sort=newest'), 'marka şeridinin isteği hâlâ atılıyor');
+  assert.ok(!indexHtml.includes("fetchPublicJson('/api/gundem"), 'gündem şeridinin isteği hâlâ atılıyor');
+  assert.ok(!serverIndex.includes('HOME_RAIL_SLOTS'), 'src/index.js hâlâ şerit slotu taşıyor');
+});
+
+await test('liste uçları yeniden TAM karusel slotu kadar çekiyor (şerit için +6 yok)', () => {
+  assert.match(indexHtml, /const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;/);
+  assert.match(serverIndex, /const HOME_LIST_LIMIT = HOME_SLOTS;/);
   for (const ep of ['architects', 'offices', 'products']) {
     assert.ok(indexHtml.includes(`pick('${ep}', '/api/${ep}?limit=' + HOME_LIST_FETCH_LIMIT`), `index.html ${ep} ucu eski limiti kullanıyor`);
     assert.ok(serverIndex.includes(`/api/${ep}?limit=\${HOME_LIST_LIMIT}`), `src/index.js ${ep} ucu eski limiti kullanıyor`);
   }
 });
 
-await test('karusel ilk 6, şerit SONRAKİ 6 (aynı yanıt, ikinci istek yok)', () => {
-  assert.match(indexHtml, /projeRail\.render\(pool\.slice\(PROJECT_CAROUSEL_SLOTS, PROJECT_CAROUSEL_SLOTS \+ HOME_RAIL_SLOTS\)\)/);
+await test('karusel yanıtın ilk 6\'sını çizer (şerit kuyruğu kalmadı)', () => {
   assert.match(indexHtml, /const head = \(list\) => notPreview\(list\)\.slice\(0, PROJECT_CAROUSEL_SLOTS\);/);
-  assert.match(indexHtml, /const tail = \(list\) => notPreview\(list\)\.slice\(PROJECT_CAROUSEL_SLOTS, PROJECT_CAROUSEL_SLOTS \+ HOME_RAIL_SLOTS\);/);
+  assert.ok(!indexHtml.includes('const tail = '), 'şeridi besleyen tail() hâlâ duruyor');
 });
 
-await test('#ml-home-data sürümü iki tarafta AYNI (v:2 — gövde artık 12 kayıt taşıyor)', () => {
-  assert.match(serverIndex, /const data = \{ v: 2, t: Date\.now\(\)/);
-  assert.match(indexHtml, /return \(d && d\.v === 2\) \? d : null;/);
-});
-
-await test('marka/gündem şeritleri ayrı uçlardan ve KAPSAYICI gözlenerek (hidden şerit değil) yüklenir', () => {
-  assert.ok(indexHtml.includes("fetchPublicJson('/api/offices?brands=1&sort=newest&limit=' + HOME_RAIL_SLOTS + '&noPreview=1')"));
-  assert.ok(indexHtml.includes("fetchPublicJson('/api/gundem?limit=' + HOME_RAIL_SLOTS)"));
-  assert.match(indexHtml, /const anchorEl = document\.getElementById\('home-rails'\);/);
+await test('#ml-home-data sürümü iki tarafta AYNI (v:3 — gövde yeniden 6 kayıt taşıyor)', () => {
+  assert.match(serverIndex, /const data = \{ v: 3, t: Date\.now\(\)/);
+  assert.match(indexHtml, /return \(d && d\.v === 3\) \? d : null;/);
 });
 
 console.log('\nmadde 5 — Hesabım > Firma / Marka Bilgileri: "Yetkili Kullanıcılar"');

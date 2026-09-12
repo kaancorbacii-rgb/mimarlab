@@ -33,8 +33,7 @@ export const HOME_FEATURED_KEYS = {
 // Ana sayfada her karusel kaç slot gösterir (index.html#PROJECT_CAROUSEL_SLOTS ile AYNI).
 // 9 -> 6 (kullanıcı isteği, 2026-09-12: "carosellerde gösterilen her bir kategori için gönderi
 // sayısını 6'ya düşür"). Seçimin üst sınırı da budur: karusele giremeyecek bir slug'ı kaydetmenin
-// anlamı yok. Karusellerin ALTINDAKİ "Son ..." şeritleri aynı listenin 7-12. kayıtlarıdır, yani
-// seçilmeyen kayıtlar oraya kayar — seçim onları da doğru sıraya iter.
+// anlamı yok.
 export const HOME_SLOT_COUNT = 6;
 
 // "a, b, c" -> ['a','b','c']. Boş/tekrarlı girdiler düşer, slot sayısıyla sınırlanır — admin
