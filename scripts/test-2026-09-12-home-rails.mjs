@@ -144,9 +144,15 @@ await test('karusel yanıtın ilk 6\'sını çizer (şerit kuyruğu kalmadı)', 
   assert.ok(!indexHtml.includes('const tail = '), 'şeridi besleyen tail() hâlâ duruyor');
 });
 
-await test('#ml-home-data sürümü iki tarafta AYNI (v:3 — gövde yeniden 6 kayıt taşıyor)', () => {
-  assert.match(serverIndex, /const data = \{ v: 3, t: Date\.now\(\)/);
-  assert.match(indexHtml, /return \(d && d\.v === 3\) \? d : null;/);
+// Sürümün SAYISI burada BİLEREK sabitlenmez (o iş yeni gövdeyi ekleyen turun testinde: bkz.
+// scripts/test-2026-09-12-home-bento.mjs). Burada kilitlenen şey, gövde her değiştiğinde iki
+// tarafın BİRLİKTE değişmesi: sunucu v:N gömerken istemci v:N-1 bekliyorsa gömülü veri sessizce
+// yok sayılır (her ziyaret gereksiz API isteği) ya da daha kötüsü yanlış şekilde okunur.
+await test('#ml-home-data sürümü iki tarafta AYNI (şerit turunun 6 kayıtlık gövdesinden sonra ≥3)', () => {
+  const srv = Number(serverIndex.match(/const data = \{\s*\n?\s*v: (\d+), t: Date\.now\(\)/)[1]);
+  const cli = Number(indexHtml.match(/return \(d && d\.v === (\d+)\) \? d : null;/)[1]);
+  assert.equal(srv, cli, `sunucu v:${srv} gömüyor, istemci v:${cli} bekliyor — gömülü veri yok sayılır`);
+  assert.ok(srv >= 3, `sürüm şerit turunun altına düşmüş (v:${srv})`);
 });
 
 console.log('\nmadde 5 — Hesabım > Firma / Marka Bilgileri: "Yetkili Kullanıcılar"');

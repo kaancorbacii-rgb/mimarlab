@@ -1286,17 +1286,20 @@ function withListPageCacheHeaders(response) {
 // ---------------------------------------------------------------------------------------------
 const HOME_PROJECT_FETCH_LIMIT = 24; // index.html#PROJECT_CAROUSEL_FETCH_LIMIT ile aynı
 const HOME_SLOTS = 6;                // index.html#PROJECT_CAROUSEL_SLOTS ile aynı (9 -> 6, kullanıcı isteği 2026-09-12 madde 3)
-// Gömülü veri, bölüm başına TAM karusel slotu kadar kayıt taşır: karusellerin altındaki
-// "Son ..." şeritleri kaldırıldığından (kullanıcı isteği, 2026-09-12) fazladan kayıt gömmenin
-// alıcısı kalmadı (bkz. index.html#HOME_LIST_FETCH_LIMIT — ayrışmamalı).
+// Gömülü veri, bölüm başına TAM karusel slotu kadar kayıt taşır (bkz.
+// index.html#HOME_LIST_FETCH_LIMIT — ayrışmamalı). "Varsa 6, yoksa olduğu kadar": uç daha az
+// kayıt döndürürse bölüm o kadarıyla gömülür, istemci eksik slotu doldurmaz.
 const HOME_LIST_LIMIT = HOME_SLOTS;
 const HOME_DATA_TIMEOUT_MS = 2000;
 // index.html'deki <img sizes> değerleriyle BİREBİR aynı — preload'un kullanılabilmesi için şart.
+// Değerler yeni bento yerleşiminin kutu genişliklerinden gelir (beş sütunlu grid, bkz.
+// index.html#.bento-grid): PROJE 4 sütun (~920px), KİŞİ/FİRMA/MARKA 1 sütun (~220px),
+// ÜRÜN/GÜNDEM 2 sütun (~460px); ≤860px'te şablon iki sütuna indiğinden 100vw/50vw.
 const HOME_IMG = {
-  project:   { widths: [600, 900, 1200], sizes: '(max-width: 720px) 100vw, 700px' },
-  architect: { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 190px' },
-  office:    { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 190px' },
-  product:   { widths: [400, 800, 1600], sizes: '(max-width: 860px) 100vw, 380px' },
+  project:   { widths: [600, 900, 1200], sizes: '(max-width: 860px) 100vw, 920px' },
+  architect: { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 220px' },
+  office:    { widths: [400, 800],       sizes: '(max-width: 860px) 50vw, 220px' },
+  product:   { widths: [400, 800, 1600], sizes: '(max-width: 860px) 100vw, 460px' },
 };
 
 // Sentetik (çerezsiz -> admin değil -> önbelleklenebilir yol) bir GET ile AYNI API yönlendiricisinden
@@ -1323,7 +1326,7 @@ async function loadHomeData(env, ctx) {
     // pencere İÇİNDE sıralıyordu ve pencereye düşmeyen bir seçim sessizce kayboluyordu).
     const settings = await getSiteSettings(env);
     const pinFor = (key) => featuredSlugsFromSettings(settings, key);
-    const [projects, architects, offices, products] = await Promise.all([
+    const [projects, architects, offices, products, brands, gundem] = await Promise.all([
       // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 6: "Ana sayfadaki carosellerde blurlu
       // gönderileri gösterme") — proje karuseli bunu zaten aşağıdaki `!p.preview` süzgeciyle
       // yapıyordu ama kişi/firma/ürün karuselleri YAPMIYORDU: onlarda eleme yoktu, dolayısıyla
@@ -1334,6 +1337,13 @@ async function loadHomeData(env, ctx) {
       internalApiJson(env, ctx, withPinParam(`/api/architects?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('architects'))),
       internalApiJson(env, ctx, withPinParam(`/api/offices?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('offices'))),
       internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('products'))),
+      // MARKA ve GÜNDEM karuselleri (kullanıcı isteği, 2026-09-12 üçüncü tur). İkisinin de admin
+      // seçimi YOK (bkz. src/lib/homeCarousels.js#HOME_FEATURED_KEYS — dört anahtar), o yüzden
+      // withPinParam'dan geçmezler: URL'e dokunulmaması en sıcak önbellek anahtarını korur.
+      // ?brands=1 — marka.html'in kullandığı AYNI süzgeç; onsuz uç FİRMA listesini döndürür ve
+      // iki kutu aynı kayıtları gösterirdi.
+      internalApiJson(env, ctx, `/api/offices?brands=1&limit=${HOME_LIST_LIMIT}&noPreview=1`),
+      internalApiJson(env, ctx, `/api/gundem?limit=${HOME_LIST_LIMIT}`),
     ]);
     let projectItems = null;
     if (projects && Array.isArray(projects.items)) {
@@ -1349,11 +1359,15 @@ async function loadHomeData(env, ctx) {
     }
     const items = (res) => (res && Array.isArray(res.items)) ? res.items.slice(0, HOME_LIST_LIMIT) : null;
     // t: üretim anı (ms) — index.html bununla gömülü verinin yaşını ölçer (bkz. oradaki arka plan yenilemesi).
-    // v: 3 — gövde şekli yeniden değişti ("Son ..." şeritleri kaldırıldı, bölüm başına 12 değil 6
-    // kayıt). Tarayıcı önbelleğinde duran ESKİ bir belge v:2 bekler ve bu gövdeyi yok sayıp
-    // listeleri ağdan çeker (bkz. index.html#readHomeSsrData) — yarım dolu bir karusel çizilmez.
-    const data = { v: 3, t: Date.now(), projects: projectItems, architects: items(architects), offices: items(offices), products: items(products) };
-    return (data.projects || data.architects || data.offices || data.products) ? data : null;
+    // v: 4 — gövde şekli yeniden değişti: MARKA ve GÜNDEM bölümleri eklendi (altı bölüm).
+    // Tarayıcı önbelleğinde duran ESKİ bir belge v:3 bekler ve bu gövdeyi yok sayıp listeleri
+    // ağdan çeker (bkz. index.html#readHomeSsrData) — yarım dolu bir karusel çizilmez.
+    const data = {
+      v: 4, t: Date.now(),
+      projects: projectItems, architects: items(architects), offices: items(offices),
+      products: items(products), brands: items(brands), gundem: items(gundem),
+    };
+    return (data.projects || data.architects || data.offices || data.products || data.brands || data.gundem) ? data : null;
   })();
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), HOME_DATA_TIMEOUT_MS));
   try {
@@ -1375,14 +1389,21 @@ function imagePreloadLink(path, spec, high) {
   return `<link rel="preload" as="image" href="${escHtmlAttr(href)}"${srcset ? ` imagesrcset="${escHtmlAttr(srcset)}" imagesizes="${escHtmlAttr(spec.sizes)}"` : ''}${high ? ' fetchpriority="high"' : ''}${spec.extra ? ' ' + spec.extra : ''}>`;
 }
 
+// Her karuselin İLK slaydının görselini önden indirir. GÜNDEM bilerek DIŞARIDA: o görsel çoğunlukla
+// yayıncının kendi sunucusundadır (hotlink) — yeni bir TLS el sıkışması demek, üstelik preload'un
+// kullanılabilmesi için <img>'in referrerpolicy="no-referrer"'ıyla birebir eşleşmesi gerekir ve
+// eşleşmeyen bir preload boşa indirilmiş bir dosyadır. Marka logosu ise kendi CDN'imizden gelen
+// küçük bir dosya, LCP görseliyle yarışmaz.
 function buildHomePreloadLinks(data) {
   const first = (arr) => (Array.isArray(arr) && arr.length) ? arr[0] : null;
-  const p = first(data.projects), a = first(data.architects), o = first(data.offices), u = first(data.products);
+  const p = first(data.projects), a = first(data.architects), o = first(data.offices);
+  const u = first(data.products), b = first(data.brands);
   return [
     p ? imagePreloadLink(p.images[0], HOME_IMG.project, true) : '',
     a ? imagePreloadLink(a.photo, HOME_IMG.architect, false) : '',
     o ? imagePreloadLink(o.logo, HOME_IMG.office, false) : '',
     u ? imagePreloadLink(u.image, HOME_IMG.product, false) : '',
+    b ? imagePreloadLink(b.logo, HOME_IMG.office, false) : '',
   ].join('');
 }
 

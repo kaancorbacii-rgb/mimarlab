@@ -613,6 +613,19 @@ else
 fi
 rm -f /tmp/preflight_rails
 
+# Ana sayfa karusel YERLEŞİMİ (beş sütunlu bento) + MARKA/GÜNDEM kutuları + kategori başlığı
+# bağlantıları — kullanıcı isteği, 2026-09-12 (ekli tasarım görseli). Sessizce sapabilecek dört
+# sözleşme burada durur: grid şablonu, etiketin slaytın DIŞINDA olması (iç içe <a> geçersizdir),
+# FİRMA/MARKA'nın AYRI uçlardan beslenmesi (?brands=1) ve gömülü veri sürümünün iki tarafta
+# birlikte yürümesi. Bkz. scripts/test-2026-09-12-home-bento.mjs.
+if node scripts/test-2026-09-12-home-bento.mjs >/tmp/preflight_bento 2>&1; then
+  ok "ana sayfa bento yerleşimi + marka/gündem karusel testleri geçti ($(grep -c '^  ok ' /tmp/preflight_bento) test)"
+else
+  bad "ana sayfa bento yerleşimi + marka/gündem karusel testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_bento >&2
+fi
+rm -f /tmp/preflight_bento
+
 # Bülten kapsamı (kişi/firma/marka mail ALMAZ), gündem bildirimi (5'te 1, AYRI sayaç) ve popup
 # açılış karesi — kullanıcı isteği, 2026-09-12 madde 2 ve 3. Üçü de sözdizimi kontrolünden geçen
 # SESSİZ regresyonlar: TYPE_LABEL'a bir satır, tek bir sayaç anahtarı ya da kaldırılan bir CSS

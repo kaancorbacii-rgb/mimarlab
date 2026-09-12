@@ -242,18 +242,41 @@
   .hero p{
     font-size:16px; color:var(--ink-soft); margin:0; line-height:1.5;
   }
-  /* ---------- HOME BENTO GRID ---------- */
+  /* ---------- HOME BENTO GRID ----------
+     ALTI KUTU, TEK GRID (kullanıcı isteği, 2026-09-12 — ekli tasarım görseli): solda iki satır
+     yüksekliğinde PROJE, sağ sütunda KİŞİ ve FİRMA, altta ÜRÜN (geniş) · MARKA (dar) · GÜNDEM
+     (geniş). Beş eşit sütun bu oranların TAMAMINI tek bir şablonla verir: proje 4 sütun, sağ
+     sütun 1; alt satırda 2 + 1 + 2. İç içe bir grid (eski .hero-side) BİLEREK kaldırıldı —
+     alt satırın sütunları üst satırın sütunlarıyla hizalı kalsın, yükseklikler de tek bir
+     satır şablonundan gelsin.
+
+     YÜKSEKLİK: üç satır da `1fr`. Grid'in kendi yüksekliği .proje-slider'ın aspect-ratio'sundan
+     (4/3) doğar; iki satıra yayıldığı için fr dağıtımı üçüncü satıra da AYNI yüksekliği verir,
+     yani alt satırın kutuları ayrı bir aspect-ratio taşımak zorunda kalmaz (mobilde satır
+     şablonu kalktığında taşıyorlar, bkz. ≤860px bloğu). */
   .bento-grid{
     max-width:1220px; margin:0 auto;
     /* Alt boşluk 64px: "Son ..." şeritleri kaldırıldıktan sonra (kullanıcı isteği, 2026-09-12)
        bu blok yeniden sayfanın SONU — footer'dan önceki nefes payı burada durur. */
     padding:0 32px 64px;
-    display:grid; grid-template-columns:2fr 1fr;
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    grid-template-rows:repeat(3, 1fr);
+    grid-template-areas:
+      "proje proje proje proje kisi"
+      "proje proje proje proje firma"
+      "urun urun marka gundem gundem";
     gap:16px;
   }
-  /* Grid track'lerinin (ve iç içe hero-side grid'inin) içerik minimum genişliğine göre taşmasını
-     önler — varsayılan min-width:auto, absolute konumlanmış <img> içeren kartlarda taşmaya yol açar. */
-  .bento-grid > *, .hero-side > *{min-width:0;}
+  /* Grid track'lerinin içerik minimum genişliğine göre taşmasını önler — varsayılan
+     min-width:auto, absolute konumlanmış <img> içeren kartlarda taşmaya yol açar. */
+  .bento-grid > *{min-width:0;}
+  .card-proje{grid-area:proje;}
+  .card-kisi{grid-area:kisi;}
+  .card-firma{grid-area:firma;}
+  .card-urun{grid-area:urun;}
+  .card-marka{grid-area:marka;}
+  .card-gundem{grid-area:gundem;}
 
   /* project slider (left) */
   .proje-slider{
@@ -293,13 +316,24 @@
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:42px; color:rgba(255,255,255,0.92);
   }
+  /* KATEGORİ ETİKETİ = O KATEGORİNİN LİSTE SAYFASINA BAĞLANTI (kullanıcı isteği, 2026-09-12:
+     "Kategorilerin başlıklarına tıklayınca o sayfalar açılsın"). Etiket bu yüzden artık slaytın
+     İÇİNDE değil, karusel kapsayıcısının doğrudan çocuğu: slaytların kendisi birer <a>
+     (gönderiye gider) ve bir <a> içine ikinci bir <a> konamaz — iç içe bağlantı geçersiz
+     HTML'dir, tarayıcı onu dışarı taşıyıp işaretlemeyi bozar. Kapsayıcıda durması ayrıca
+     etiketi SABİT kılar: JS yalnızca slayt listesini yazar, etiket her karusel için HTML'de
+     bir kez yazılıp orada kalır.
+     Metin HTML'de ZATEN büyük harfle yazılır (KİŞİ/ÜRÜN/GÜNDEM): text-transform:uppercase
+     Türkçe'de 'i' -> 'I' üretir (lang="tr" olmayan bir alt ağaçta noktalı İ kaybolur), o yüzden
+     dönüşüme güvenilmez. */
   .slide-tag{
     position:absolute; top:18px; left:18px; z-index:2;
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:11px; letter-spacing:0.1em;
-    text-transform:uppercase; color:#fff; opacity:0.9;
+    color:#fff; opacity:0.9;
     background:rgba(27,42,61,0.35); padding:6px 12px; border-radius:100px;
     backdrop-filter:blur(2px);
   }
+  a.slide-tag:hover{background:rgba(27,42,61,0.72); opacity:1;}
   .slide-caption{
     position:absolute; left:18px; bottom:18px; right:18px; z-index:2;
     width:fit-content; max-width:calc(100% - 36px);
@@ -329,32 +363,18 @@
   .slider-arrow.prev{left:14px;}
   .slider-arrow.next{right:14px;}
 
-  /* small carousels (right, "mimar + firma" üstte yan yana, "ürün" altta tam genişlik — bkz.
-     kullanıcı isteği: proje-slider'la aynı görsel dilde, siteye son eklenen mimar/firma/ürünü
-     döngüyle ve oklarla gösteren mini carousel'ler. PROJE artık ayrı bir küçük kart değil —
-     zaten solda kendi büyük carousel'ine sahip. Ürün carousel'i 2026-08-28'de kullanıcı isteğiyle
-     ESKİ kutu boyutlarıyla geri eklendi, bkz. git geçmişi commit 66b5af2e — kaldırılmadan ÖNCEKİ
-     grid-template-areas ve aspect-ratio kuralları BİREBİR aynı). */
-  .hero-side{
-    display:grid;
-    grid-template-columns:repeat(2, 1fr);
-    grid-template-rows:repeat(2, 1fr);
-    grid-template-areas:
-      "mimar marka"
-      "urun urun";
-    gap:12px;
-  }
-  .card-mimar{grid-area:mimar;}
-  .card-marka{grid-area:marka;}
-  .card-urun{grid-area:urun;}
-
+  /* Küçük karuseller (KİŞİ · FİRMA · ÜRÜN · MARKA · GÜNDEM) — proje-slider'la AYNI görsel dil,
+     crossfade + otomatik oynatma + oklar (bkz. createMiniSlider). Yerleşimleri .bento-grid'in
+     grid-area'larından gelir, kutunun kendisi yalnızca kenar yuvarlaklığını ve arka planını verir. */
   .side-slider{
     position:relative; width:100%; height:100%; border-radius:16px; overflow:hidden;
     background:var(--paper-alt);
   }
   .side-slider .proje-slide{border-radius:16px;}
   .side-slider .slide-logo-img{object-fit:contain !important; background:var(--paper-card); padding:4px;}
-  .card-mimar .side-slider .proje-slide img{object-position:center top;}
+  /* Kişi fotoğrafları üstten hizalanır (portrede yüz kırpılmasın); logo/ürün görselleri
+     .slide-logo-img ile hiç kırpılmaz. */
+  .card-kisi .side-slider .proje-slide img{object-position:center top;}
   .side-slider .slider-arrow{width:28px; height:28px;}
   .side-slider .slider-arrow svg{width:13px; height:13px;}
   .side-slider .slider-arrow.prev{left:8px;}
@@ -399,14 +419,23 @@
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
   @media (max-width: 860px){
-    .bento-grid{grid-template-columns:1fr;}
+    /* Tablet/mobil: beş sütunlu şablon iki sütuna iner — PROJE tam genişlik, altında masaüstündeki
+       AYNI eşleşmeler yan yana (KİŞİ|FİRMA, sonra tam genişlik ÜRÜN, sonra MARKA|GÜNDEM). */
+    .bento-grid{
+      grid-template-columns:repeat(2, 1fr);
+      grid-template-rows:none;
+      grid-template-areas:
+        "proje proje"
+        "kisi firma"
+        "urun urun"
+        "marka gundem";
+    }
     .proje-slider{aspect-ratio:16/11;}
-    /* Tablet/mobilde (bkz. kullanıcı isteği) "1fr" satırların artık dayanacağı bir yükseklik
-       kalmaz — her kart kendi aspect-ratio'suyla yüksekliğini kendi belirler. Mimar/Firma
-       kartları kare (1:1), Ürün 1.7:1 oranını korur (eski kutu boyutları, bkz. yukarıdaki yorum). */
-    .hero-side{grid-template-rows:none;}
-    .side-card{aspect-ratio:1.7/1;}
-    .card-mimar, .card-marka{aspect-ratio:1/1;}
+    /* Satır şablonu kalktığı için "1fr" satırların dayanacağı bir yükseklik kalmaz — her kart
+       yüksekliğini kendi aspect-ratio'suyla belirler: kare kutular kare, tam genişlik ÜRÜN
+       1.7:1 (eski kutu oranı korunur). */
+    .card-kisi, .card-firma, .card-marka, .card-gundem{aspect-ratio:1/1;}
+    .card-urun{aspect-ratio:1.7/1;}
   }
 
   @media (max-width:960px){
@@ -435,7 +464,6 @@
     .slide-caption{padding:11px 14px; left:12px; right:12px; bottom:12px;}
     .slide-tag{top:12px; left:12px; font-size:10px; padding:5px 10px;}
     .slider-arrow{width:32px; height:32px;}
-    .hero-side{gap:8px;}
     .side-slider{border-radius:12px;}
     .side-slider .proje-slide{border-radius:12px;}
     .side-slider .slide-title{font-size:11.5px;}
@@ -488,8 +516,17 @@
     <p>Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu.</p>
   </section>
 
+  <!-- ANA SAYFA KARUSELLERİ — altı kutu, tek grid (kullanıcı isteği, 2026-09-12: ekli tasarım
+       görseli). Yerleşim .bento-grid'in grid-template-areas'ından gelir (bkz. oradaki yorum).
+       Her kutuda İKİ ayrı bağlantı türü var ve ikisi de HTML'de SABİT/JS'ten bağımsız durur:
+         • .slide-tag  → kategorinin LİSTE sayfası (PROJE -> /proje, KİŞİ -> /kisi, ...)
+         • slaytın kendisi (<a class="proje-slide">, JS'in yazdığı) → GÖNDERİNİN kendisi
+       Etiket bilerek slaytın DIŞINDA: iç içe <a> geçersizdir (bkz. .slide-tag CSS yorumu).
+       Her karusel kategorisinde en fazla 6 gönderi döner; daha azı varsa olduğu kadarı döner
+       (bkz. HOME_CAROUSEL_SLOTS ve createMiniSlider). -->
   <section class="bento-grid">
-    <div class="proje-slider" id="proje-slider">
+    <div class="proje-slider card-proje" id="proje-slider">
+      <a class="slide-tag" href="/proje">PROJE</a>
       <div class="slider-track" id="slider-track"></div>
       <button class="slider-arrow prev" id="slider-prev" type="button" aria-label="Önceki proje">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -499,39 +536,68 @@
       </button>
     </div>
 
-    <div class="hero-side">
-      <div class="side-card card-mimar">
-        <div class="side-slider">
-          <div class="slider-track" id="mimar-slider-track"></div>
-          <button class="slider-arrow prev" id="mimar-prev" type="button" aria-label="Önceki mimar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <button class="slider-arrow next" id="mimar-next" type="button" aria-label="Sonraki mimar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
+    <div class="side-card card-kisi">
+      <div class="side-slider">
+        <a class="slide-tag" href="/kisi">KİŞİ</a>
+        <div class="slider-track" id="kisi-slider-track"></div>
+        <button class="slider-arrow prev" id="kisi-prev" type="button" aria-label="Önceki kişi">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="slider-arrow next" id="kisi-next" type="button" aria-label="Sonraki kişi">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
-      <div class="side-card card-marka">
-        <div class="side-slider">
-          <div class="slider-track" id="marka-slider-track"></div>
-          <button class="slider-arrow prev" id="marka-prev" type="button" aria-label="Önceki firma">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <button class="slider-arrow next" id="marka-next" type="button" aria-label="Sonraki firma">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
+    </div>
+
+    <div class="side-card card-firma">
+      <div class="side-slider">
+        <a class="slide-tag" href="/firma">FİRMA</a>
+        <div class="slider-track" id="firma-slider-track"></div>
+        <button class="slider-arrow prev" id="firma-prev" type="button" aria-label="Önceki firma">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="slider-arrow next" id="firma-next" type="button" aria-label="Sonraki firma">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
-      <div class="side-card card-urun">
-        <div class="side-slider">
-          <div class="slider-track" id="urun-slider-track"></div>
-          <button class="slider-arrow prev" id="urun-prev" type="button" aria-label="Önceki ürün">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <button class="slider-arrow next" id="urun-next" type="button" aria-label="Sonraki ürün">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
+    </div>
+
+    <div class="side-card card-urun">
+      <div class="side-slider">
+        <a class="slide-tag" href="/urun">ÜRÜN</a>
+        <div class="slider-track" id="urun-slider-track"></div>
+        <button class="slider-arrow prev" id="urun-prev" type="button" aria-label="Önceki ürün">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="slider-arrow next" id="urun-next" type="button" aria-label="Sonraki ürün">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="side-card card-marka">
+      <div class="side-slider">
+        <a class="slide-tag" href="/marka">MARKA</a>
+        <div class="slider-track" id="marka-slider-track"></div>
+        <button class="slider-arrow prev" id="marka-prev" type="button" aria-label="Önceki marka">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="slider-arrow next" id="marka-next" type="button" aria-label="Sonraki marka">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="side-card card-gundem">
+      <div class="side-slider">
+        <a class="slide-tag" href="/gundem">GÜNDEM</a>
+        <div class="slider-track" id="gundem-slider-track"></div>
+        <button class="slider-arrow prev" id="gundem-prev" type="button" aria-label="Önceki gündem içeriği">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="slider-arrow next" id="gundem-next" type="button" aria-label="Sonraki gündem içeriği">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </div>
   </section>
@@ -558,21 +624,24 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // alınır, tam olarak eski `projectsWithImages.slice(0,6)` davranışının karşılığı.
 const PROJECT_CAROUSEL_FETCH_LIMIT = 24;
 // Karusel slot sayısı 9 -> 6 (kullanıcı isteği, 2026-09-12 madde 3: "Ana sayfadaki carosellerde
-// gösterilen her bir kategori için gönderi sayısını 6'ya düşür"). Sabit ÜÇ yerde birlikte yaşar:
-// burası, src/index.js#HOME_SLOTS (gömülü veri) ve src/lib/homeCarousels.js#HOME_SLOT_COUNT
-// (admin'in elle seçebileceği en fazla kayıt) — bkz. scripts/test-2026-09-12-home-rails.mjs,
-// üçünün ayrışmasını deploy'dan önce durdurur.
+// gösterilen her bir kategori için gönderi sayısını 6'ya düşür"; üçüncü tur: "Her kategoride
+// varsa 6 yoksa olduğu kadar gönderi döngüde olsun" — yani 6 bir ÜST sınır, alt sınır değil:
+// daha az kayıt varsa karusel olduğu kadarıyla döner, boş slot/yer tutucu üretilmez).
+// Sabit ÜÇ yerde birlikte yaşar: burası, src/index.js#HOME_SLOTS (gömülü veri) ve
+// src/lib/homeCarousels.js#HOME_SLOT_COUNT (admin'in elle seçebileceği en fazla kayıt) —
+// bkz. scripts/test-2026-09-12-home-rails.mjs, üçünün ayrışmasını deploy'dan önce durdurur.
 const PROJECT_CAROUSEL_SLOTS = 6;
-// Kişi/Firma/Ürün liste uçlarından TAM karusel slotu kadar kayıt çekilir: karusellerin altındaki
-// "Son ..." şeritleri kaldırıldığından (kullanıcı isteği, 2026-09-12) fazladan 6 kayıt çekmenin
-// alıcısı kalmadı. Proje ucu istisnadır: kapak görseli olmayan kayıtlar elendiğinden 24'lük bir
-// tampondan (PROJECT_CAROUSEL_FETCH_LIMIT) ilk 6 GÖRSELLİ proje alınır.
+// Kişi/Firma/Ürün/Marka/Gündem liste uçlarından TAM karusel slotu kadar kayıt çekilir. Proje ucu
+// istisnadır: kapak görseli olmayan kayıtlar elendiğinden 24'lük bir tampondan
+// (PROJECT_CAROUSEL_FETCH_LIMIT) ilk 6 GÖRSELLİ proje alınır.
 const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;
 
-// Mimar/Firma mini-carousel'leri artık (bkz. kullanıcı isteği) Proje carousel'iyle aynı
-// desende — statik dizi/el ile seçilmiş vitir YOK, doğrudan D1'den "son eklenen 6 gönderi"
-// (GET /api/architects|offices?limit=6, varsayılan sıralama src/routes/*.js#ORDER BY
-// id DESC) çekilip aynen render edilir (bkz. aşağıdaki Promise.all).
+// GÜNDEM slaydının görsel türevleri. Diğer karuseller slideImgHtml'in widths/sizes parametrelerini
+// çağrı yerinde taşır; gündem görseli çoğunlukla DIŞ bir adres olduğundan (türev üretilemez) kendi
+// yardımcı fonksiyonuna sahip ve değerleri burada, tek yerde durur (bkz. gundemSlideImgHtml).
+// Kutu masaüstünde iki grid sütunu genişliğinde (~455px), mobilde tam genişlik.
+const GUNDEM_IMG_WIDTHS = [400, 800, 1600];
+const GUNDEM_IMG_SIZES = '(max-width: 860px) 100vw, 460px';
 
 // GERÇEK BULGU (kullanıcı isteği 2026-08-30, İçeriklerim > Mimar/Firma Profilim popup entegrasyonu):
 // auth-modal.js#loadProfileModals artık index.html'e save-widget.js'i DİNAMİK olarak yüklüyor —
@@ -653,8 +722,7 @@ function projectSlideHtml(p, i){
   const meta = [designerNames.join(', '), cityName, lastProjectYear(p.date)].filter(Boolean).join(', ');
   const slideImg = (p.images && p.images[0]) || '';
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/proje/${encodeURIComponent(p.slug)}" data-index="${i}">
-    ${slideImgHtml(slideImg, [600, 900, 1200], '(max-width: 720px) 100vw, 700px', p.title, i, '')}
-    <span class="slide-tag">PROJE</span>
+    ${slideImgHtml(slideImg, [600, 900, 1200], '(max-width: 860px) 100vw, 920px', p.title, i, '')}
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(p.title)}</h2>
       ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
@@ -825,11 +893,10 @@ function slideAvatarColor(name){
 
 function architectSlideHtml(a, i){
   const media = a.photo
-    ? slideImgHtml(a.photo, [400, 800], '(max-width: 860px) 50vw, 190px', a.name, i, '')
+    ? slideImgHtml(a.photo, [400, 800], '(max-width: 860px) 50vw, 220px', a.name, i, '')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(a.name)}">${escapeHtml(slideInitials(a.name))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/kisi/${encodeURIComponent(a.slug || idxSlugify(a.name))}" data-index="${i}">
     ${media}
-    <span class="slide-tag">Kişi</span>
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(a.name)}</h2>
     </div>
@@ -838,7 +905,7 @@ function architectSlideHtml(a, i){
 
 function officeSlideHtml(o, i){
   const media = o.logo
-    ? slideImgHtml(o.logo, [400, 800], '(max-width: 860px) 50vw, 190px', o.name, i, 'slide-logo-img')
+    ? slideImgHtml(o.logo, [400, 800], '(max-width: 860px) 50vw, 220px', o.name, i, 'slide-logo-img')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(o.name)}">${escapeHtml(slideInitials(o.name))}</div>`;
   // o.brand: kaydın KANONİK URL öneki (/marka/:slug yalnızca saf markalarda — bkz.
   // src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). /api/offices bu bayrağı liste
@@ -846,7 +913,6 @@ function officeSlideHtml(o, i){
   // sunucu 301 ile kanonik adrese yönlendirir.
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="${o.brand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug || idxSlugify(o.name))}" data-index="${i}">
     ${media}
-    <span class="slide-tag">${o.brand ? 'Marka' : 'Firma'}</span>
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(o.name)}</h2>
     </div>
@@ -855,11 +921,10 @@ function officeSlideHtml(o, i){
 
 function urunSlideHtml(p, i){
   const media = p.image
-    ? slideImgHtml(p.image, [400, 800, 1600], '(max-width: 860px) 100vw, 380px', p.title, i, 'slide-logo-img')
+    ? slideImgHtml(p.image, [400, 800, 1600], '(max-width: 860px) 100vw, 460px', p.title, i, 'slide-logo-img')
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(p.title)}">${escapeHtml(slideInitials(p.title))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/urun/${encodeURIComponent(p.slug)}" data-index="${i}">
     ${media}
-    <span class="slide-tag">Ürün</span>
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(p.title)}</h2>
       ${p.brand ? `<div class="slide-designer">${escapeHtml(p.brand)}</div>` : ''}
@@ -867,9 +932,50 @@ function urunSlideHtml(p, i){
   </a>`;
 }
 
-// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını mimar, firma ve ürün
-// mini-carousel'lerinde tekrar kullanmak için genelleştirilmiş fabrika (bkz. kullanıcı isteği:
-// "carosel tasarımını temaya uygun yeniden tasarla ... oklarla hareket ettirilebilir olsun").
+// GÜNDEM SLAYDI (kullanıcı isteği, 2026-09-12: ana sayfaya MARKA ve GÜNDEM kutuları eklendi).
+// Görsel iki kaynaktan gelebilir ve ayrım js/pages/gundem.js#photoHtml ile BİREBİR aynıdır:
+// kendi R2'muzdaki üye görselleri (/media/...) türev/CDN yolundan geçer, dış yayıncı görselleri
+// (hotlink) ham adresle kalır. referrerpolicy="no-referrer" her iki durumda da taşınır — bazı
+// yayıncılar referrer'lı isteği reddediyor (aynı gerekçe gundem.js'te de yazılı).
+// Adres ERİŞİLEMEZ olursa (yayıncı görseli kaldırdı/engelledi) ayrıca bir onerror gerekmez:
+// js/components/broken-image-fallback.js belge üzerinde capture fazında `error` dinler ve kırık
+// görseli baş harf rozetine çevirir — headless render'da gündem slaytında doğrulandı.
+// fetchpriority="high" BİLEREK yok (proje kapağının aksine bu görsel LCP adayı değil).
+function gundemSlideImgHtml(src, alt, i){
+  const own = typeof src === 'string' && src.startsWith('/media/');
+  const url = own ? cdnImg(src, 900) : src;
+  const srcset = own ? cdnSrcset(src, GUNDEM_IMG_WIDTHS) : '';
+  const sizesAttr = srcset ? ` sizes="${GUNDEM_IMG_SIZES}"` : '';
+  if(i === 0){
+    return `<img src="${escapeAttr(url)}"${srcset ? ` srcset="${escapeAttr(srcset)}"` : ''}${sizesAttr} alt="${escapeAttr(alt)}" loading="eager" decoding="sync" referrerpolicy="no-referrer">`;
+  }
+  return `<img data-src="${escapeAttr(url)}"${srcset ? ` data-srcset="${escapeAttr(srcset)}"` : ''}${sizesAttr} alt="${escapeAttr(alt)}" decoding="async" referrerpolicy="no-referrer">`;
+}
+// Kartın gösterdiği tarih source_published_at'tir (bkz. src/routes/gundem.js#shapeItem) — gündem
+// listesindeki kartla aynı biçim.
+function gundemSlideDate(value){
+  const d = value ? new Date(value) : null;
+  if(!d || isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function gundemSlideHtml(g, i){
+  const media = g.image
+    ? gundemSlideImgHtml(g.image, g.title, i)
+    : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(g.title)}">${escapeHtml(slideInitials(g.title))}</div>`;
+  const meta = [gundemSlideDate(g.date), g.sourceName].filter(Boolean).join(' · ');
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/gundem/${encodeURIComponent(g.slug)}" data-index="${i}">
+    ${media}
+    <div class="slide-caption">
+      <h2 class="slide-title">${escapeHtml(g.title)}</h2>
+      ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını kişi, firma, ürün,
+// marka ve gündem mini-carousel'lerinde tekrar kullanmak için genelleştirilmiş fabrika (bkz.
+// kullanıcı isteği: "carosel tasarımını temaya uygun yeniden tasarla ... oklarla hareket
+// ettirilebilir olsun").
 function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
   const trackEl = document.getElementById(trackId);
   const wrapEl = trackEl.closest('.side-slider');
@@ -920,9 +1026,15 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
   return { render, renderError };
 }
 
-const mimarSlider = createMiniSlider('mimar-slider-track', 'mimar-prev', 'mimar-next', architectSlideHtml, a => a.name);
-const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
+// Altı karusel — HTML'deki kutu sırası (bkz. .bento-grid grid-template-areas). FİRMA ve MARKA
+// AYNI kart/slayt işaretlemesini paylaşır (tek kayıt türü, bkz. officeSlideHtml) ama AYRI
+// uçlardan beslenir: /api/offices saf markaları dışlar (firma listesi), ?brands=1 ise yalnızca
+// markaları verir — ayrım office-kind.js'te tek kaynaktan gelir.
+const kisiSlider = createMiniSlider('kisi-slider-track', 'kisi-prev', 'kisi-next', architectSlideHtml, a => a.name);
+const firmaSlider = createMiniSlider('firma-slider-track', 'firma-prev', 'firma-next', officeSlideHtml, o => o.name);
 const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next', urunSlideHtml, p => `${p.slug}|||${p.title}`);
+const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
+const gundemSlider = createMiniSlider('gundem-slider-track', 'gundem-prev', 'gundem-next', gundemSlideHtml, g => g.slug);
 
 // Ağ hatası/5xx durumunda {items:[]} ile "gerçekten boş" arasında ayrım yapabilmek için (bkz.
 // aşağıdaki kullanım — kullanıcı isteği: "API isteği başarısız olursa ... boş ekran gösterme,
@@ -943,7 +1055,7 @@ function fetchPublicJson(url){
     .catch(()=>({items:[], failed:true}));
 }
 
-// VERİ KAYNAĞI (performans turu, 2026-09-08). Worker, ana sayfa HTML'ini servis ederken dört liste
+// VERİ KAYNAĞI (performans turu, 2026-09-08). Worker, ana sayfa HTML'ini servis ederken ALTI liste
 // ucunun sonucunu <head>'e `<script id="ml-home-data" type="application/json">` olarak gömer (bkz.
 // src/index.js#loadHomeData — AYNI handler'lar, AYNI Cache API + parmak izi tazeliği). Blok varsa
 // hiçbir /api isteği atılmadan, ayrıştırma sırasında HEMEN render edilir; bir bölüm eksikse (null —
@@ -957,12 +1069,12 @@ function readHomeSsrData(){
     const el = document.getElementById('ml-home-data');
     if(!el) return null;
     const d = JSON.parse(el.textContent || 'null');
-    // v === 3: "Son ..." şeritleri kaldırıldı (kullanıcı isteği, 2026-09-12), gömülü gövde yeniden
-    // bölüm başına yalnızca karusel slotu kadar (6) kayıt taşır (bkz. src/index.js#loadHomeData).
-    // Sürüm ayrışması iki yönlü de güvenli: tarayıcı önbelleğinden gelen ESKİ bir belge (v:1/v:2)
-    // burada yok sayılıp listeler ağdan çekilir, ESKİ bir belge de yeni (v:3) gövdeyi yok sayar —
+    // v === 4: gövde artık ALTI bölüm taşır — MARKA ve GÜNDEM karuselleri eklendi (kullanıcı
+    // isteği, 2026-09-12 üçüncü tur), bölüm başına karusel slotu kadar (6) kayıt.
+    // Sürüm ayrışması iki yönlü de güvenli: tarayıcı önbelleğinden gelen ESKİ bir belge (v:1..3)
+    // burada yok sayılıp listeler ağdan çekilir, ESKİ bir belge de yeni (v:4) gövdeyi yok sayar —
     // yani hiçbir durumda yarım dolu bir karusel çizilmez.
-    return (d && d.v === 3) ? d : null;
+    return (d && d.v === 4) ? d : null;
   }catch(e){ return null; }
 }
 const HOME_SSR = readHomeSsrData();
@@ -984,15 +1096,21 @@ function siteSettingsPromise(){
     fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null));
 }
 function pinQuery(settings, key){
-  const list = (settings && settings[HOME_SETTINGS_KEY[key]]) || [];
+  // Marka/Gündem karusellerinin admin seçimi YOK (HOME_SETTINGS_KEY'de anahtarları yok) — bu
+  // durumda URL'e hiç dokunulmaz; en sıcak önbellek anahtarı korunur (aynı gerekçe
+  // src/lib/homeCarousels.js#withPinParam'da da yazılı).
+  const settingKey = HOME_SETTINGS_KEY[key];
+  const list = (settingKey && settings && settings[settingKey]) || [];
   return list.length ? '&pin=' + encodeURIComponent(list.join(',')) : '';
 }
 
 // useSsr=false: gömülü veri yok sayılır, her şey ağdan tazelenir (arka plan yenilemesi, aşağıya bkz.).
 function loadHomeSections(useSsr){
+  // PIN'Lİ bölümler: admin seçimi yalnızca bu dördünde var (bkz. HOME_SETTINGS_KEY). Dördü de
+  // gömülü geldiyse ayarlara hiç bakılmaz (sunucu sıralamayı zaten uyguladı); en az biri eksikse
+  // o uç için `pin=` gerekir, o yüzden ayarlar okunur. Marka/Gündem'in seçimi olmadığından
+  // eksiklikleri ayar okumayı GEREKTİRMEZ.
   const ssrAll = useSsr && !!(ssrList('projects') && ssrList('architects') && ssrList('offices') && ssrList('products'));
-  // Dördü de gömülü geldiyse ayarlara hiç bakılmaz (sunucu sıralamayı zaten uyguladı); en az biri
-  // eksikse o uç için `pin=` gerekir, o yüzden ayarlar okunur.
   return (ssrAll ? Promise.resolve(null) : siteSettingsPromise()).then((siteSettings)=>{
   const pick = (key, url) => {
     const list = useSsr ? ssrList(key) : null;
@@ -1012,10 +1130,20 @@ function loadHomeSections(useSsr){
     // (HOME_LIST_FETCH_LIMIT=12: karusel 6 + şerit 6). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
     // src/routes/architect.js|office.js#handle*ListRoute — "Default Popularity-Based Sorting").
     pick('architects', '/api/architects?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
+    // FİRMA kutusu: /api/offices SAF markaları (yalnızca üretici olan kayıtları) zaten dışlar —
+    // firma.html'in kullandığı AYNI uç ve AYNI ayrım (bkz. office-kind.js#isPureBrandOffice).
     pick('offices', '/api/offices?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
     // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
     pick('products', '/api/products?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
-  ]).then(([yapiRes, architectRes, officeRes, productRes])=>{
+    // MARKA kutusu (kullanıcı isteği, 2026-09-12 üçüncü tur): ?brands=1 — marka.html'in kullandığı
+    // AYNI süzgeç (bkz. src/routes/office.js#brandsOnly), yani kataloğunda ürünü olan ya da kendini
+    // marka kategorisiyle etiketlemiş firmalar. Firma kutusuyla aynı uç olsa da AYRI bir önbellek
+    // anahtarı/sıralaması taşır, bu yüzden kendi isteğidir.
+    pick('brands', '/api/offices?brands=1&limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
+    // GÜNDEM kutusu: /api/gundem varsayılan sıralaması en yeni tarihten eskiye (bkz.
+    // src/routes/gundem.js#GUNDEM_SORT). Gündem kayıtlarında `preview` kavramı YOK.
+    pick('gundem', '/api/gundem?limit=' + HOME_LIST_FETCH_LIMIT),
+  ]).then(([yapiRes, architectRes, officeRes, productRes, brandRes, gundemRes])=>{
     if(yapiRes.failed){
       renderSliderError('Projeler şu an yüklenemedi.');
     } else {
@@ -1033,15 +1161,24 @@ function loadHomeSections(useSsr){
     // edge'de duran ESKİ bir gövdeyi (ya da eski bir gömülü ml-home-data'yı) okuyan tarayıcıda da
     // blurlu kartın vitrine düşmemesini garanti eder; proje karuselindeki AYNI desen.
     const notPreview = (list) => (list || []).filter(x => x && !x.preview);
+    // head: "varsa 6, yoksa olduğu kadar" (kullanıcı isteği) — slice üst sınırdır, eksik kayıt
+    // yer tutucuyla doldurulmaz; tek kayıt varsa karusel o kayıtta durur (createMiniSlider'ın
+    // goTo'su modulo ile döndüğünden tek slaytlı bir karusel de sorunsuz çalışır).
     const head = (list) => notPreview(list).slice(0, PROJECT_CAROUSEL_SLOTS);
-    if(architectRes.failed) mimarSlider.renderError('Kişiler şu an yüklenemedi.');
-    else mimarSlider.render(head(architectRes.items));
+    if(architectRes.failed) kisiSlider.renderError('Kişiler şu an yüklenemedi.');
+    else kisiSlider.render(head(architectRes.items));
 
-    if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
-    else markaSlider.render(head(officeRes.items));
+    if(officeRes.failed) firmaSlider.renderError('Firmalar şu an yüklenemedi.');
+    else firmaSlider.render(head(officeRes.items));
 
     if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
     else urunSlider.render(head(productRes.items));
+
+    if(brandRes.failed) markaSlider.renderError('Markalar şu an yüklenemedi.');
+    else markaSlider.render(head(brandRes.items));
+
+    if(gundemRes.failed) gundemSlider.renderError('Gündem içerikleri şu an yüklenemedi.');
+    else gundemSlider.render((gundemRes.items || []).slice(0, PROJECT_CAROUSEL_SLOTS));
   });
   });
 }
