@@ -239,6 +239,16 @@ const AuthModal = (function () {
     #am-panel .dash-collapse-chevron{flex-shrink:0; transition:transform .18s ease; color:var(--ink-soft);}
     #am-panel .dash-collapse-toggle[aria-expanded="true"] .dash-collapse-chevron{transform:rotate(180deg);}
     #am-panel .dash-collapse-body{padding-top:4px;}
+    /* Okunmamış uyarı noktası (Bildirimler/Mesajlar başlıkları) — kutu KAPALIYKEN de görünür,
+       çünkü başlık satırının içinde durur. Renk .notif-dot/.msg-conv-dot ile AYNI (--accent). */
+    #am-panel .dash-alert-dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--accent); margin-left:8px; vertical-align:middle;}
+    /* hidden özniteliği TEK BAŞINA yetmez: tarayıcının [hidden]{display:none} kuralı UA stil
+       sayfasındadır ve yukarıdaki display:inline-block onu ezer (yazar stili kazanır) — bu satır
+       olmadan nokta okunmamış kayıt YOKKEN de çizilirdi.
+       NOT — bu blok bir şablon dizesinin (template literal) İÇİNDE yaşıyor: yorumlarda ters tırnak
+       KULLANILMAZ, tek bir tanesi dizeyi erkenden kapatıp dosyayı sözdizimi hatasına düşürür (aynı
+       uyarı js/components/site-chrome.js#injectFooterStyle içinde de yazılı). */
+    #am-panel .dash-alert-dot[hidden]{display:none;}
     /* Profili Düzenle formunun altındaki iki açılır bölüm (Şifre Değiştir + Hesabımı Sil, kullanıcı
        isteği 2026-09-08 madde 3). Eskiden ayrı ayrı <div>'lerle çizilen ayraç çizgileri artık
        bölümlerin KENDİ üst çizgisidir, böylece iki başlık kapalıyken de alt alta bitişik iki satır
@@ -1379,21 +1389,37 @@ const AuthModal = (function () {
         </div>
       </div>
 
+      <!-- BİLDİRİMLER + MESAJLAR — açılır kapanır (kullanıcı isteği, 2026-09-12: "Hesabım
+           sayfasındaki Bildirimler ve Mesajlar kutuları açılır kapanır buton şeklinde olsunlar.
+           Eğer bir bildirim veya mesaj gelirse buton kapalı olsa dahi başlığın sağ tarafında
+           turuncu nokta işaretiyle belirtilsin."). Arşivim/İstatistikler/Rozetlerim ile AYNI
+           sözleşme (.dash-collapse-toggle + data-collapse + hidden gövde) — wireCollapsibles
+           #am-panel içindeki TÜM bu düğmeleri zaten bağlar, ayrı bir kanca gerekmez.
+           Turuncu nokta BAŞLIĞIN İÇİNDE durur (sağındaki chevron değil): kutu kapalıyken de
+           görünen tek şey başlık satırıdır ve nokta orada okunur. Kaynağı satırların kendi
+           okunmadı durumudur (bkz. refreshDashAlertDots) — yani nav'daki uyarı noktasıyla aynı
+           veri, ikinci bir sayaç uydurulmaz. -->
       <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
         <div class="dash-section">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-            <h2 style="margin:0;">Bildirimler</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-notif-collapse" aria-expanded="false" aria-controls="am-notif-collapse">
+            <h2>Bildirimler<span class="dash-alert-dot" id="am-notif-dot" role="img" aria-label="Okunmamış bildirim var" hidden></span></h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-notif-collapse" hidden>
+            <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
+            <div class="dash-pagination" id="am-notif-pagination"></div>
           </div>
-          <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-notif-pagination"></div>
         </div>
 
         <div class="dash-section">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-            <h2 style="margin:0;">Mesajlar</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-msg-collapse" aria-expanded="false" aria-controls="am-msg-collapse">
+            <h2>Mesajlar<span class="dash-alert-dot" id="am-msg-dot" role="img" aria-label="Okunmamış mesaj var" hidden></span></h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-msg-collapse" hidden>
+            <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
+            <div class="dash-pagination" id="am-msg-pagination"></div>
           </div>
-          <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-msg-pagination"></div>
         </div>
       </div>
 
@@ -4200,6 +4226,15 @@ const AuthModal = (function () {
     function syncNavAlert() {
       if (window.refreshAuthNavAlert) window.refreshAuthNavAlert();
     }
+    // Bildirimler/Mesajlar başlıklarındaki turuncu nokta (kullanıcı isteği, 2026-09-12). Tek
+    // kaynak, iki kutu: nokta yalnızca o kutuda OKUNMAMIŞ satır varken görünür — satır okununca
+    // (ya da silinince) kendiliğinden kaybolur. Kutu kapalı olsa da başlık satırı görünür
+    // olduğundan nokta oradan okunur; açıp kapamak durumu etkilemez.
+    function refreshDashAlertDots() {
+      const set = (id, has) => { const el = document.getElementById(id); if (el) el.hidden = !has; };
+      set('am-notif-dot', notifItems.some(n => n && !n.is_read));
+      set('am-msg-dot', msgItems.some(c => c && c.unread));
+    }
     // Bildirimler kutusu — /api/notifications/mine, type==='message' olanlar hariç (bkz. aşağıdaki
     // loadMessages — mesajlar artık kendi ucundan, KONUŞMA başına gruplanmış olarak gelir).
     async function loadNotifications() {
@@ -4471,6 +4506,7 @@ const AuthModal = (function () {
             const dot = row.querySelector('.notif-dot');
             if (dot) dot.remove();
             item.is_read = true;
+            refreshDashAlertDots(); // son okunmamış satır da okunduysa başlıktaki nokta söner
             fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) })
               .then(syncNavAlert).catch(() => {});
           }
@@ -4497,9 +4533,11 @@ const AuthModal = (function () {
     }
     function renderNotifications() {
       renderNotifList(notifItems, notifPage, (p) => { notifPage = p; renderNotifications(); }, 'am-dash-notifications', 'am-notif-pagination', 'Henüz bir bildirimin yok.');
+      refreshDashAlertDots();
     }
     function renderMessages() {
       const container = document.getElementById('am-dash-messages');
+      refreshDashAlertDots(); // boş listede de çalışmalı, o yüzden erken çıkıştan ÖNCE
       if (!msgItems.length) {
         container.innerHTML = `<div class="dash-empty">Henüz bir mesajın yok.</div>`;
         document.getElementById('am-msg-pagination').innerHTML = '';
@@ -4536,6 +4574,7 @@ const AuthModal = (function () {
             row.classList.remove('unread');
             const dot = row.querySelector('.msg-conv-dot');
             if (dot) dot.remove();
+            refreshDashAlertDots();
           }
           openMessageThread(row.dataset.id);
         });

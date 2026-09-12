@@ -626,6 +626,20 @@ else
 fi
 rm -f /tmp/preflight_bento
 
+# Hesabım'daki Bildirimler/Mesajlar kutularının açılır kapanır olması + başlıktaki turuncu
+# okunmamış noktası, ve footer menüsünün sütunlara ortalanması — kullanıcı isteği, 2026-09-12.
+# Sessizce sapabilecek noktalar: noktanın [hidden] kuralı (display:inline-block UA kuralını ezer,
+# nokta hep görünür kalır), noktanın okunmadı durumu dışında bir sayaçtan beslenmesi ve footer'da
+# text-align'ın logo/açıklama/"Sen de Ekle" için yetmemesi.
+# Bkz. scripts/test-2026-09-12-account-collapse-and-footer.mjs.
+if node scripts/test-2026-09-12-account-collapse-and-footer.mjs >/tmp/preflight_acc 2>&1; then
+  ok "hesabım açılır kutular + footer ortalama testleri geçti ($(grep -c '^  ok ' /tmp/preflight_acc) test)"
+else
+  bad "hesabım açılır kutular + footer ortalama testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_acc >&2
+fi
+rm -f /tmp/preflight_acc
+
 # Bülten kapsamı (kişi/firma/marka mail ALMAZ), gündem bildirimi (5'te 1, AYRI sayaç) ve popup
 # açılış karesi — kullanıcı isteği, 2026-09-12 madde 2 ve 3. Üçü de sözdizimi kontrolünden geçen
 # SESSİZ regresyonlar: TYPE_LABEL'a bir satır, tek bir sayaç anahtarı ya da kaldırılan bir CSS

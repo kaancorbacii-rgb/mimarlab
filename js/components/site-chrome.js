@@ -574,7 +574,22 @@
       .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
       .footer-subscribe-btn:hover{opacity:0.9;}
       .footer-subscribe-btn:disabled{opacity:0.6; cursor:default;}
-      .footer-top{grid-template-columns: 1.3fr 0.9fr 1fr 1.15fr;}
+      /* FOOTER MENÜSÜ SÜTUNLARA ORTALANIR (kullanıcı isteği, 2026-09-12: "logo, açıklama,
+         başlıkların ve sayfa isimlerinin sütunlara ortalanmasını istiyorum ... Masaüstü
+         görünümde 4 sütun olarak görünen bu kısım yine sütunlara göre hizalansınlar").
+         Sütunlar EŞİT genişliğe çekilir: eski 1.3/0.9/1/1.15 oranları SOLA hizalı metin için
+         ayarlanmıştı (farklı uzunluktaki sütunlar arasındaki boşluk gözle eşit dursun diye);
+         içerik ortalandığında o eşitliği veren şey sütun MERKEZLERİNİN eşit aralıklı olmasıdır,
+         yani eşit sütunlar. Hizalama grid'in kendisine değil, hücrenin İÇİNE yazılır
+         (text-align) — kutular tam hücre genişliğinde kalır, yalnızca içerikleri ortalanır. */
+      .footer-top{grid-template-columns:repeat(4, 1fr); text-align:center;}
+      /* Logo bir flex kutusu, açıklama ise max-width taşıyan bir blok: ikisi text-align'dan
+         etkilenmez, kendi ortalamalarını ister. */
+      .footer-top .footer-logo{justify-content:center;}
+      .footer-top .footer-brand p{margin-left:auto; margin-right:auto;}
+      /* "Sen de Ekle" sütundaki <a> kardeşleriyle birebir aynı görünmeli (bkz. .footer-add-content
+         kuralı) — o kural text-align:left yazdığı için burada ortaya çekilir. */
+      .footer-top .footer-add-content{text-align:center;}
       /* Alt satır: sosyal ikonlar sol kenara, telif hakkı ortaya, gece/gündüz düğmesi sağ kenara
          (bkz. kullanıcı isteği: "sol ve sağ hizayla eşitle") — grid'in dış iki sütunu 1fr olduğundan
          orta sütun (telif metni) sosyal/toggle genişliklerinden bağımsız her zaman TAM ortada kalır. */
@@ -639,6 +654,9 @@
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
       @media (max-width: 860px){
+        /* Tablet/mobil: aynı ortalama, iki sütunda (kullanıcı isteği — ekli görselde bu kısım
+           sol baştan hizalıydı). text-align/justify-content kuralları yukarıdaki taban bloktan
+           gelir, burada yalnızca sütun sayısı ve boşluklar değişir. */
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
         .footer-subscribe-inner{padding:26px 32px;}
