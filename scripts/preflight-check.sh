@@ -893,6 +893,34 @@ else
 fi
 
 echo ""
+echo "5c) Görsel türev merdiveni — dört kaynak birebir aynı mı"
+# KULLANICI İSTEĞİ (2026-09-12): "elle eşlenmeli" notuyla bırakılmış kopyaları düzelt.
+# Worker tarafındaki üç kopya tek modülde birleşti (src/lib/imageDerivative.js; derivativeIngest ve
+# canonicalSync artık onu import ediyor). Kalan üç kopya KAÇINILMAZ: image-cdn.js ve image-upload.js
+# tarayıcıya <script src> ile giden global-scope dosyalar (bu repoda bundler yok, Worker onları
+# import edemez), scripts/generate-image-derivatives.py ise başka bir dil. Ayrışmanın bedeli
+# sessizdir — istemci var olmayan bir türev ister ve her seferinde orijinale düşer, yani iyileştirme
+# gürültüsüzce kaybolur. Bu kapı o sessizliği bitirir: ayrışma varsa deploy hiç başlamaz.
+ladder_of() { grep -m1 -oE '\[ *400 *, *800 *, *1600 *\]|\[[0-9]+(, *[0-9]+)*\]' "$1" | tr -d ' '; }
+LADDER_SRC="$(grep -m1 -oE 'export const DERIVATIVE_WIDTHS = \[[0-9, ]+\]' src/lib/imageDerivative.js | grep -oE '\[[0-9, ]+\]' | tr -d ' ')"
+LADDER_CDN="$(grep -m1 -oE 'DERIVATIVE_WIDTHS = \[[0-9, ]+\]' image-cdn.js | grep -oE '\[[0-9, ]+\]' | tr -d ' ')"
+LADDER_UPL="$(grep -m1 -oE 'DERIVATIVE_WIDTHS = \[[0-9, ]+\]' image-upload.js | grep -oE '\[[0-9, ]+\]' | tr -d ' ')"
+LADDER_PY="$(grep -m1 -oE '^WIDTHS = \[[0-9, ]+\]' scripts/generate-image-derivatives.py | grep -oE '\[[0-9, ]+\]' | tr -d ' ')"
+if [ -z "$LADDER_SRC" ]; then
+  bad "src/lib/imageDerivative.js — DERIVATIVE_WIDTHS okunamadı (tek kaynak kayıp)"
+elif [ "$LADDER_SRC" = "$LADDER_CDN" ] && [ "$LADDER_SRC" = "$LADDER_UPL" ] && [ "$LADDER_SRC" = "$LADDER_PY" ]; then
+  ok "türev merdiveni dört kaynakta da $LADDER_SRC"
+else
+  bad "türev merdiveni AYRIŞMIŞ — imageDerivative.js=$LADDER_SRC image-cdn.js=$LADDER_CDN image-upload.js=$LADDER_UPL generate-image-derivatives.py=$LADDER_PY"
+fi
+# Worker tarafında ikinci bir kopya geri gelmesin (tek kaynak iki olursa biri unutulur).
+if grep -qE '^(export )?const DERIVATIVE_WIDTHS(_[A-Z_]+)? = \[' src/lib/derivativeIngest.js src/lib/canonicalSync.js; then
+  bad "worker tarafında merdivenin ikinci bir kopyası var (derivativeIngest/canonicalSync) — imageDerivative.js'ten import edilmeli"
+else
+  ok "worker tarafı merdiveni tek kaynaktan (src/lib/imageDerivative.js) alıyor"
+fi
+
+echo ""
 echo "6) schema.sql sözdizimi (varsa sqlite3 ile)"
 if command -v sqlite3 >/dev/null 2>&1; then
   if sqlite3 ":memory:" < schema.sql >/tmp/preflight_err 2>&1; then

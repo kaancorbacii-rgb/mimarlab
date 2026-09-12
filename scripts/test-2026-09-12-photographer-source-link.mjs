@@ -222,9 +222,22 @@ await test('source_url dolu gelirse UPDATE eder, boş gelirse mevcut değeri KOR
   assert.ok(sync.includes("sets.splice(-1, 0, 'source_url = ?');"), 'UPDATE dalında source_url yazılmalı');
   assert.match(sync, /if \(row\.source_url\) \{\s*\n\s*sets\.splice\(-1, 0, 'source_url = \?'\);/, 'yalnızca dolu geldiğinde (images ile aynı koruma)');
 });
-await test('önbellek sürümleri artırıldı (eski gövde bağlantısız kalmasın)', () => {
-  assert.ok(read('../src/lib/publicCache.js').includes("const API_PAYLOAD_VERSION = 'v42';"));
-  assert.ok(read('../src/lib/ssrCache.js').includes("export const SSR_CACHE_VERSION = 'v136';"));
+// SÜRÜM SABİTLEMEZ, TABAN ARAR (düzeltme, 2026-09-12): bu test iki sürümü de TAM DEĞERLE
+// ('v42'/'v136') sabitliyordu, yani sonraki HER artırım onu kırıyordu. Nitekim kırdı: performans
+// turu SSR_CACHE_VERSION'ı v137'ye çıkarınca test başarısız oldu ve preflight — dolayısıyla
+// ./deploy.sh — main'de kırmızı kaldı. Testin asıl amacı "bu turun gövde değişikliği eski
+// önbelleği bağlantısız bırakmasın" yani sürüm GERİ GİTMESİN; ileri gitmesi sorun değil. Artık
+// sayısal taban karşılaştırılır: artırımlar geçer, düşürme/silme yakalanır.
+await test('önbellek sürümleri bu turun tabanının altına düşmemiş (artırım serbest)', () => {
+  const versionOf = (src, re, label) => {
+    const m = src.match(re);
+    assert.ok(m, `${label} okunamadı`);
+    return parseInt(m[1], 10);
+  };
+  const api = versionOf(read('../src/lib/publicCache.js'), /const API_PAYLOAD_VERSION = 'v(\d+)';/, 'API_PAYLOAD_VERSION');
+  const ssr = versionOf(read('../src/lib/ssrCache.js'), /export const SSR_CACHE_VERSION = 'v(\d+)';/, 'SSR_CACHE_VERSION');
+  assert.ok(api >= 42, `API_PAYLOAD_VERSION v${api} < v42 (bu turun tabanı)`);
+  assert.ok(ssr >= 136, `SSR_CACHE_VERSION v${ssr} < v136 (bu turun tabanı)`);
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

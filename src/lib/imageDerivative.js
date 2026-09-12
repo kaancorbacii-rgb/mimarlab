@@ -7,9 +7,16 @@
 // tarafından `import` EDİLEMEZ. İki uygulama bu yüzden kaçınılmaz olarak ayrı — ama AYNI anahtar
 // biçimini üretmek ZORUNDALAR: farklılaşırlarsa istemci/sunucu var olmayan bir türev ister ve
 // (kırılmaz ama) her seferinde orijinale geri düşer, yani iyileştirme sessizce kaybolur.
-// DERIVATIVE_WIDTHS burada ve image-cdn.js'te ve scripts/generate-image-derivatives.py#WIDTHS'te
-// BİREBİR AYNI olmalı.
-const DERIVATIVE_WIDTHS = [400, 800, 1600];
+// DERIVATIVE_WIDTHS — WORKER TARAFININ TEK KAYNAĞI (kullanıcı isteği, 2026-09-12: elle eşlenen
+// kopyaları düzelt). src/lib/derivativeIngest.js ve src/lib/canonicalSync.js artık kendi
+// kopyalarını taşımaz, buradan import eder.
+//
+// GERİ KALAN İKİ KOPYA KAÇINILMAZ ve elle eşlenmeye devam eder: image-cdn.js + image-upload.js
+// tarayıcıya <script src> ile giden global-scope dosyalardır (bu repoda bundler YOK, Worker onları
+// import EDEMEZ) ve scripts/generate-image-derivatives.py bambaşka bir dil. Eşleşmeyi artık insan
+// hafızası değil bir KAPI garanti ediyor: scripts/preflight-check.sh dört kaynağı da okuyup
+// karşılaştırır ve ayrışırlarsa deploy hiç başlamaz (bkz. oradaki "görsel türev merdiveni" adımı).
+export const DERIVATIVE_WIDTHS = [400, 800, 1600];
 const DERIVATIVE_SKIP_RE = /\.(svg|gif)(\?|$)/i;
 const SITE_HOSTS = new Set(['mimarlab.com', 'www.mimarlab.com']);
 

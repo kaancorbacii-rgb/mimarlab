@@ -465,5 +465,50 @@ await test('Hesabım paneli sırası: Bildirimler/Mesajlar -> Arşivim -> İstat
   assert.ok(archive < stats, 'Arşivim, İstatistikler\'in ÜSTÜNDE olmalı');
 });
 
+console.log('\nmadde 13 — "bilinçli dokunulmayanlar": kapalı kutunun verisi ertelenir');
+
+await test('İstatistikler kutusu tembel: toplu yüklemede yok, ilk açılışta çekiliyor', () => {
+  const modal = read('js/components/auth-modal.js');
+  // Toplu tetikleme listesinde loadStats() ARTIK yok.
+  const eager = modal.match(/\[loadBadges\(\)[^\]]*\]/);
+  assert.ok(eager, 'toplu yükleme listesi bulunamadı');
+  assert.ok(!/loadStats\(\)/.test(eager[0]), `loadStats hâlâ açılışta çağrılıyor: ${eager[0]}`);
+  // Başlık tembel olarak işaretli ve kayıt defterinde karşılığı var.
+  assert.match(modal, /data-collapse="am-stats-collapse am-stats-range" data-lazy="stats"/);
+  assert.match(modal, /const lazySectionLoaders = \{ stats: \(\) => loadStats\(\) \};/);
+  assert.match(modal, /if \(open && lazy && !lazySectionDone\.has\(lazy\) && lazySectionLoaders\[lazy\]\)/);
+});
+
+await test('kapalıyken veri GÖSTEREN kutular ertelenmedi (sayı/nokta/rozet kaybolmasın)', () => {
+  const modal = read('js/components/auth-modal.js');
+  const eager = modal.match(/\[loadBadges\(\)[^\]]*\]/)[0];
+  for (const fn of ['loadBadges()', 'loadNotifications()', 'loadMessages()', 'loadArchive()']) {
+    assert.ok(eager.includes(fn), `${fn} açılışta çağrılmalı — kapalı başlığında görünen verisi var`);
+  }
+});
+
+console.log('\nmadde 14 — görsel türev merdiveni tek kaynak + deploy kapısı');
+
+await test('worker tarafında merdivenin TEK kaynağı var, diğerleri import ediyor', () => {
+  assert.match(read('src/lib/imageDerivative.js'), /export const DERIVATIVE_WIDTHS = \[400, 800, 1600\];/);
+  for (const f of ['src/lib/derivativeIngest.js', 'src/lib/canonicalSync.js']) {
+    const src = read(f);
+    assert.ok(!/^(export )?const DERIVATIVE_WIDTHS(_[A-Z_]+)? = \[/m.test(src), `${f} hâlâ kendi kopyasını taşıyor`);
+    assert.match(src, /import \{ DERIVATIVE_WIDTHS \} from '\.\/imageDerivative\.js';/, `${f} tek kaynaktan import etmeli`);
+  }
+  // derivativeIngest bunu yeniden export etmeli (src/routes/ai.js oradan alıyor).
+  assert.match(read('src/lib/derivativeIngest.js'), /export \{ DERIVATIVE_WIDTHS \};/);
+});
+
+await test('kaçınılmaz üç kopya (iki tarayıcı dosyası + Python) aynı ve kapı bunu arıyor', () => {
+  const ladder = /\[400, 800, 1600\]/;
+  assert.match(read('image-cdn.js'), ladder);
+  assert.match(read('image-upload.js'), ladder);
+  assert.match(read('scripts/generate-image-derivatives.py'), /WIDTHS = \[400, 800, 1600\]/);
+  const pf = read('scripts/preflight-check.sh');
+  assert.match(pf, /5c\) Görsel türev merdiveni/);
+  assert.match(pf, /türev merdiveni AYRIŞMIŞ/);
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 process.exit(failed ? 1 : 0);

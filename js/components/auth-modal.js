@@ -1478,7 +1478,7 @@ const AuthModal = (function () {
           <!-- Dönem seçici (Son 7 Gün/30 Gün/…) başlık satırında KALIR ama bölümle birlikte
                gizlenir: kapalı bir bölümün dönemini değiştirmenin görünür bir karşılığı yok. -->
           <div class="dash-section-head">
-            <button type="button" class="dash-collapse-toggle" data-collapse="am-stats-collapse am-stats-range" aria-expanded="false" aria-controls="am-stats-collapse">
+            <button type="button" class="dash-collapse-toggle" data-collapse="am-stats-collapse am-stats-range" data-lazy="stats" aria-expanded="false" aria-controls="am-stats-collapse">
               <h2>İstatistikler</h2>
               <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -2312,6 +2312,21 @@ const AuthModal = (function () {
     // display kuralları var (ör. #am-my-badges-list JS ile display:none/'' arasında geçiyor,
     // #am-stats-hint/#am-stats-range kilitli üyede gizleniyor) — kapsayıcıyı hidden ile gizlemek o
     // kuralların hiçbirine dokunmaz.
+    // TEMBEL YÜKLEME (kullanıcı isteği, 2026-09-12): kapalı bir kutunun verisi Hesabım açılırken
+    // ÇEKİLMEZ; ilk kez açıldığında bir kez çekilir. data-lazy="<anahtar>" taşıyan başlıklar için
+    // geçerlidir.
+    //
+    // NEDEN YALNIZCA İSTATİSTİKLER: diğer açılır kutuların KAPALI başlığı da veriye bağlıdır ve
+    // ertelenirse görünür bir şey kaybolur — Arşivim başlıktaki sayıyı ("Arşivim (1)") gösterir,
+    // Bildirimler/Mesajlar başlıktaki okunmadı noktasını (bkz. refreshDashAlertDots), Rozetlerim'in
+    // verisi ise Ad Soyad satırındaki rozeti besler (bkz. myEffectiveBadgeType). İstatistikler'in
+    // kapalı başlığında hiçbir veri yoktur; üstelik /api/analytics/summary bu uçların en pahalısı ve
+    // Altın Rozet'i olmayan üyede zaten 401/403 dönüyor — yani her Hesabım açılışında boşa giden
+    // bir istekti.
+    const lazySectionLoaders = { stats: () => loadStats() };
+    // Oturum boyunca tek sefer: kutu bir kez açılıp veri geldiyse panel kapanıp yeniden açıldığında
+    // tekrar çekilmez (dönem düğmeleri zaten kendi loadStats()'ını çağırıyor).
+    const lazySectionDone = new Set();
     function wireCollapsibles() {
       document.querySelectorAll('#am-panel .dash-collapse-toggle[data-collapse]').forEach((btn) => {
         if (btn.dataset.collapseWired) return;
@@ -2323,6 +2338,11 @@ const AuthModal = (function () {
             const el = document.getElementById(id);
             if (el) el.hidden = !open;
           });
+          const lazy = btn.dataset.lazy;
+          if (open && lazy && !lazySectionDone.has(lazy) && lazySectionLoaders[lazy]) {
+            lazySectionDone.add(lazy);
+            Promise.resolve(lazySectionLoaders[lazy]()).catch(() => {});
+          }
         });
       });
     }
@@ -4917,7 +4937,10 @@ const AuthModal = (function () {
 
     loadUser({ shared: true }).then(() => {
       if (accountUser) {
-        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages(), loadStats(), loadArchive()]
+        // loadStats() BU LİSTEDE DEĞİL — İstatistikler kutusu kapalı açılır ve verisi ilk
+        // açılışında çekilir (bkz. lazySectionLoaders). Buradaki diğer yüklemelerin hepsinin
+        // KAPALI kutuda da görünen bir karşılığı var (başlıktaki sayı/nokta ya da isim rozeti).
+        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages(), loadArchive()]
           .forEach(p => p.catch(() => {}));
         const rangeWrap = document.getElementById('am-stats-range');
         if (rangeWrap && !rangeWrap.dataset.wired) {

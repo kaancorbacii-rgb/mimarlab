@@ -28,9 +28,12 @@
 // ve scripts/generate-image-derivatives.py tarafından toplu olarak tamamlanır.
 import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation } from './r2Quota.js';
 
-// image-cdn.js#DERIVATIVE_WIDTHS, src/lib/imageDerivative.js, image-upload.js ve
-// scripts/generate-image-derivatives.py#WIDTHS ile BİREBİR AYNI olmalı.
-export const DERIVATIVE_WIDTHS = [400, 800, 1600];
+// Merdivenin TEK worker-tarafı kaynağı src/lib/imageDerivative.js'tir; burada yalnızca yeniden
+// export edilir (bu modülü zaten import eden çağıranlar — bkz. src/routes/ai.js — değişmesin diye).
+// (import + re-export: bu dosya merdiveni AŞAĞIDA kendisi de kullanıyor, salt `export ... from`
+// yerel kapsama bağlamazdı.)
+import { DERIVATIVE_WIDTHS } from './imageDerivative.js';
+export { DERIVATIVE_WIDTHS };
 const MIN_SAVING_RATIO = 0.90;
 // image-upload.js#MIN_SOURCE_BYTES ile aynı: bu boyutun altındaki kaynaklarda 3 ek R2 nesnesinin
 // depolama/işlem maliyeti, kazandırdığı baytlardan büyüktür.

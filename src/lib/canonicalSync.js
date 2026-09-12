@@ -22,6 +22,7 @@ import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { releaseR2StorageBytes } from './r2Quota.js';
 import { clearPendingForKeys } from './derivativeIngest.js';
+import { DERIVATIVE_WIDTHS } from './imageDerivative.js';
 import { SUBMISSION_TYPES, dateBucketFor } from './submissionTypes.js';
 import { slugify } from './slugify.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
@@ -250,9 +251,8 @@ export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } 
 // hâlâ dururken sayaç "silindi" varsayıyordu. Bu, releaseR2StorageBytes'ın gerçek kullanımdan
 // sapmasına (drift) yol açar. Artık yalnızca delete() BAŞARILI olan chunk'ların head() boyutu
 // toplanıp düşürülüyor; başarısız chunk yapılandırılmış olarak loglanıyor (sessizce yutulmuyor).
-// image-cdn.js#DERIVATIVE_WIDTHS / src/lib/imageDerivative.js#DERIVATIVE_WIDTHS /
-// scripts/generate-image-derivatives.py#WIDTHS ile AYNI merdiven olmalı.
-const DERIVATIVE_WIDTHS_FOR_CLEANUP = [400, 800, 1600];
+// Merdiven artık kopyalanmaz: worker tarafının TEK kaynağı src/lib/imageDerivative.js
+// (bkz. oradaki not) — bu dosya onu import eder.
 
 // Denetim bulgusu (2026-09-03): silme yolu yalnızca ORİJİNAL anahtarı siliyordu — o görselin
 // _derived/w400|w800|w1600/r2/<anahtar> türevleri R2'de ÖKSÜZ kalıyordu. Türevler eskiden yalnızca
@@ -269,7 +269,7 @@ function withDerivativeKeys(keys) {
     out.push(key);
     // Türevi hiç olmayan (SVG/GIF, ya da kazanç yoksa yazılmayan) anahtarlar için delete() sessizce
     // başarılıdır — var olmayan nesneyi silmek hata değildir, ayrıca bir kontrol gerektirmez.
-    for (const w of DERIVATIVE_WIDTHS_FOR_CLEANUP) out.push(`_derived/w${w}/r2/${key}`);
+    for (const w of DERIVATIVE_WIDTHS) out.push(`_derived/w${w}/r2/${key}`);
   }
   return out;
 }
