@@ -690,27 +690,29 @@
         .footer-newsletter-btn{width:28px; height:28px; padding:0;}
         .footer-newsletter-btn-icon{flex-shrink:0;}
       }
-      /* TABLET VE MOBİL (kullanıcı isteği, 2026-09-12): alt satır ÜÇ SÜTUN kalır ve üç öğe de
+      /* TABLET (561–860px; kullanıcı isteği, 2026-09-12): alt satır ÜÇ SÜTUN kalır ve üç öğe de
          kendi sütununun ortasına hizalanır. Masaüstündeki 4 raylı hizalama burada bırakılır: üstteki
          ızgara da bu genişlikte 2 sütuna indiğinden (bkz. sayfa CSS'indeki .footer-top kuralı)
          referans sütunlar artık yok. Yan sütunlar 1fr, orta ray auto: telif metni kendi doğal
          genişliğini alır, ikonlar ve düğme iki yanında ortalanır.
-         2026-08-28'deki "mobilde üç satıra yığılsın" kararının yerini alır. */
+         MOBİL bu kuralın DIŞINDA: ≤560px'te aşağıdaki blok eski yığılmış tasarımı korur. */
       @media (max-width: 860px){
         .footer-bottom{grid-template-columns:1fr auto 1fr; gap:16px;}
         .footer-bottom .footer-social{grid-column:1; justify-self:center;}
         .footer-copyright{grid-column:2; justify-self:center; text-align:center;}
         .footer-bottom .footer-theme-toggle{grid-column:3; justify-self:center;}
       }
-      /* Dar telefonlarda üç sütun aynı satırda kalabilsin diye yalnızca ölçüler daralır: ikon
-         aralığı, sütun boşluğu ve yan boşluklar. Şablon (üç sütun) DEĞİŞMEZ. */
+      /* MOBİL (≤560px) TASARIMI DEĞİŞMEZ (kullanıcı isteği, 2026-09-12: "Mobil görünümdeki footer
+         menü tasarımını değiştirme"). 2026-08-28'de kararlaştırılan yığılmış düzen aynen korunur:
+         en alt satır üç AYRI satıra iner — sırasıyla gece/gündüz düğmesi, sosyal ikonlar, © telif
+         metni (DOM sırası social, copyright, theme-toggle olduğundan görsel sıra CSS order ile
+         kurulur). Bir üstteki ≤860px bloğunun üç sütunlu ızgarası burada display:flex ile
+         devre dışı kalır; o blok yalnızca TABLET aralığında (561–860px) geçerlidir. */
       @media (max-width: 560px){
-        /* Dar telefonda 1fr raylar kendi içeriklerinin altına inemediğinden yan sütunlar farklı
-           genişlikte kalıyordu (ikonlar ~72px, düğme 34px) ve orta sütun sayfanın ortasından
-           kayıyordu. Ortak bir taban (72px) ikisini eşitler: üç öğe de kendi sütununun ortasında
-           VE telif metni sayfanın tam ortasında kalır. */
-        .footer-bottom{grid-template-columns:minmax(72px, 1fr) auto minmax(72px, 1fr); gap:10px; padding-left:14px; padding-right:14px;}
-        .footer-social{gap:9px;}
+        .footer-bottom{display:flex; flex-direction:column; align-items:center; gap:14px;}
+        .footer-theme-toggle{order:1;}
+        .footer-social{order:2;}
+        .footer-copyright{order:3; text-align:center;}
       }
     `;
     document.head.appendChild(style);
