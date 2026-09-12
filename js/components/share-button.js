@@ -63,6 +63,10 @@ const ShareWidget = (function () {
          yapmadan popover'ı kapatıyordu. Aynı sınıf tuzağı site genelinde kayıtlı (bkz. menü ikon
          kuralının display:flex dayatması). */
       .share-icon[hidden]{display:none;}
+      /* Instagram ipucu satırı — bkz. showInstagramHint. [hidden] ile gizlenir, o yüzden display
+         veren bir kural VERİLMEZ (bkz. hemen yukarıdaki .share-icon[hidden] tuzağı). */
+      .share-popover-note{margin:0 0 10px; font-size:11.5px; line-height:1.45; color:var(--ink-soft);
+        background:var(--paper-alt); border-radius:9px; padding:8px 10px;}
       .share-icon:hover{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
       .share-icon svg{display:block;}
       .share-popover-link{display:flex; gap:8px; align-items:stretch;}
@@ -108,17 +112,22 @@ const ShareWidget = (function () {
   //
   // INSTAGRAM İLK SIRADA ve DM KUTUSUNU AÇAR (kullanıcı isteği, 2026-09-12: "ilk sıraya
   // instagram'ı koy", ardından "Instagram iconu DM'den mesaj göndermek için kullanılsın").
-  // `href` TAŞIMAZ — Instagram'ın diğerleri gibi bir web paylaşım ucu YOKTUR: ne `?url=` alan bir
-  // sharer adresi ne de DM'i METİNLE ÖNDEN DOLDURAN bir adres sunar (platform buna izin vermiyor).
-  // Yapılabilecek en yakın şey ve bu dalın yaptığı (bkz. action === 'instagram'):
-  //   1) bağlantı panoya KOPYALANIR ("Bağlantı kopyalandı" geri bildirimiyle),
-  //   2) Instagram DM kutusu (https://www.instagram.com/direct/inbox/) yeni sekmede açılır —
-  //      mobilde bu adres uygulamanın DM kutusuna universal link olarak düşer, masaüstünde web
-  //      DM'ini açar; kullanıcı sohbeti seçip yapıştırır.
-  // Popover AÇIK BIRAKILIR: pano izni reddedilirse bağlantı kutusu seçili hâlde önde durur ve
-  // kullanıcı elle kopyalayabilir.
+  //
+  // Instagram'ın diğerleri gibi bir web paylaşım ucu YOKTUR: ne `?url=` alan bir sharer adresi ne
+  // de DM'i METİNLE ÖNDEN DOLDURAN bir adres sunar (platform buna izin vermiyor). Yapılabilecek en
+  // yakın şey: bağlantıyı panoya kopyala + DM kutusunu aç, kullanıcı sohbeti seçip yapıştırsın.
+  //
+  // href: () => INSTAGRAM_DM_URL — SABİT ama yine de `href` OLARAK verilir, window.open ile DEĞİL
+  // (kullanıcı bildirimi, 2026-09-12: "Mobilde paylaş butonuna tıklayıp Instagram'ı seçince
+  // Instagram'a yeniden girmemizi istiyor. Halbuki uygulama yüklüyse bizi direkt uygulamaya
+  // yönlendirmesi lazım"). GERÇEK BULGU: window.open() script kaynaklı bir POPUP sayılır (tarayıcı
+  // pane'i canlıda "popups open only from the user's own clicks" diyerek engelledi) ve
+  // iOS Universal Links / Android App Links programatik gezinmelerde DEVREYE GİRMEZ — o yüzden
+  // uygulama yerine mobil web açılıyor ve kullanıcıdan yeniden giriş isteniyordu. <a href> üzerinden
+  // GERÇEK bir kullanıcı tıklaması ise universal link'i tetikler: uygulama yüklüyse Instagram
+  // açılır, değilse web DM'ine düşer. Bu yüzden bu dal preventDefault ETMEZ.
   const TARGETS = [
-    { action: 'instagram', label: "Instagram DM'den gönder", icon: ICON_INSTAGRAM },
+    { action: 'instagram', label: "Instagram DM'den gönder", icon: ICON_INSTAGRAM, href: () => INSTAGRAM_DM_URL },
     { action: 'facebook', label: "Facebook'ta paylaş", icon: ICON_FACEBOOK, href: (t, u) => `https://www.facebook.com/sharer/sharer.php?u=${u}` },
     { action: 'x', label: "X'te paylaş", icon: ICON_X, href: (t, u) => `https://twitter.com/intent/tweet?text=${t}&url=${u}` },
     { action: 'linkedin', label: "LinkedIn'de paylaş", icon: ICON_LINKEDIN, href: (t, u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
@@ -157,6 +166,7 @@ const ShareWidget = (function () {
             ${icons}
             <button type="button" class="share-icon" data-action="native" aria-label="Diğer uygulamalar" title="Diğer uygulamalar" hidden>${ICON_MORE}</button>
           </div>
+          <p class="share-popover-note" hidden></p>
           <div class="share-popover-link">
             <input class="share-popover-url" type="text" readonly aria-label="Bağlantı">
             <button type="button" class="share-popover-copy" data-action="copy">${ICON_COPY}<span>Kopyala</span></button>
@@ -252,6 +262,25 @@ const ShareWidget = (function () {
     } catch { /* fetch yoksa/engellendiyse sessiz */ }
   }
 
+  // Instagram DM'i önden doldurulamadığından kullanıcıya NE YAPACAĞINI söylemek şart (kullanıcı
+  // bildirimi, 2026-09-12: "masaüstünde ... bir kişiyle konuşmaya tıklayınca bu sefer de link
+  // gelmiyor"). Kopyalama gerçekten çalışıyor (canlıda gerçek tıklamayla doğrulandı: pano yazıldı)
+  // — eksik olan, kullanıcının YAPIŞTIRMASI gerektiğini bilmesiydi; üstelik "Kopyalandı" geri
+  // bildirimi yeni sekmeye geçince görülmüyordu. Bu satır popover'da KALICI kalır (kapanana kadar).
+  function showInstagramHint(popover, copyBtn, copied) {
+    const note = popover.querySelector('.share-popover-note');
+    if (note) {
+      note.textContent = copied
+        ? 'Bağlantı kopyalandı — Instagram’da sohbeti açıp yapıştır.'
+        : 'Bağlantıyı kutudan kopyalayıp Instagram’daki sohbete yapıştır.';
+      note.hidden = false;
+    }
+    if (!copied) return;
+    copyBtn.classList.add('copied');
+    copyBtn.querySelector('span').textContent = 'Kopyalandı';
+    setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.querySelector('span').textContent = 'Kopyala'; }, 2200);
+  }
+
   async function copyText(text, input) {
     try { await navigator.clipboard.writeText(text); return true; } catch { /* aşağıdaki yedek */ }
     // Pano API'si izin vermezse (eski tarayıcı/izin reddi) seçili kutu + execCommand yedeği.
@@ -302,20 +331,18 @@ const ShareWidget = (function () {
           return;
         }
         if (action === 'instagram') {
-          // bkz. TARGETS'taki gerekçe — Instagram DM'i dışarıdan METİNLE DOLDURULAMAZ, o yüzden
-          // "kopyala + DM kutusunu aç". navigator.share BİLEREK KULLANILMIYOR: sistem paylaşım
-          // sayfası jenerik bir liste açar, oysa kullanıcı Instagram ikonuna basmışken doğrudan
-          // DM'e gitmeyi bekliyor (sistem sayfası zaten satırın sonundaki "Diğer" düğmesinde).
-          e.preventDefault();
-          if (await copyText(url, urlInput)) {
-            // Kullanıcı ne olduğunu görsün: panoya kopyalandı + DM kutusu açılıyor. Kopyala
-            // butonunun kendi geri bildirimi yeniden kullanılır (ayrı bir bileşen icat edilmedi).
-            copyBtn.classList.add('copied');
-            copyBtn.querySelector('span').textContent = 'Bağlantı kopyalandı';
-            setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.querySelector('span').textContent = 'Kopyala'; }, 2200);
-          }
+          // bkz. TARGETS'taki gerekçe. preventDefault YOK ve window.open YOK: gezinmeyi <a>'nın
+          // KENDİ varsayılan davranışı yapar, çünkü universal link ancak GERÇEK bir kullanıcı
+          // tıklamasında uygulamayı açar. navigator.share de BİLEREK kullanılmıyor — kullanıcı
+          // Instagram ikonuna basmışken jenerik sistem listesini değil doğrudan DM'i bekler
+          // (sistem sayfası zaten satırın sonundaki "Diğer" düğmesinde).
+          el.href = INSTAGRAM_DM_URL;
           logShare(data, 'instagram');
-          window.open(INSTAGRAM_DM_URL, '_blank', 'noopener');
+          // AWAIT EDİLMEZ: await, dinleyicinin senkron kısmını bitirip varsayılan gezinmenin
+          // kararını geciktirirdi. copyText, clipboard.writeText'i SENKRON çağırır (geçici kullanıcı
+          // etkinliği hâlâ geçerli); target="_blank" olduğundan sayfamız kapanmaz ve geri bildirim
+          // kullanıcı sekmeden dönünce de ekranda durur.
+          copyText(url, urlInput).then((ok) => { showInstagramHint(popover, copyBtn, ok); });
           return;
         }
         const target = TARGETS.find(tg => tg.action === action);
@@ -352,6 +379,9 @@ const ShareWidget = (function () {
         OverlayManager.notifyOpen('share', btn);
       }
       urlInput.value = getData().url || '';
+      // Önceki açılıştan kalan Instagram ipucu yeni açılışta durmasın (bkz. showInstagramHint).
+      const note = popover.querySelector('.share-popover-note');
+      if (note) { note.hidden = true; note.textContent = ''; }
       document.body.appendChild(popover);
       popover.classList.add('open');
       positionPopover(btn, popover);

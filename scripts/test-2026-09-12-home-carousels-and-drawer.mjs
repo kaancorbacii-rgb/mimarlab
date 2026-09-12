@@ -45,6 +45,16 @@
 // MADDE 6 — "telegram iconunu kaldır. Instagram iconu DM'den mesaj göndermek için kullanılsın."
 //   Instagram DM'i dışarıdan METİNLE DOLDURULAMAZ (platform böyle bir adres sunmuyor), yapılabilecek
 //   en yakın şey: bağlantıyı panoya kopyala + DM kutusunu (instagram.com/direct/inbox/) aç.
+//
+// MADDE 7 — "Mobilde ... Instagram'ı seçince Instagram'a yeniden girmemizi istiyor ... masaüstünde
+//   DM sayfasına yönlendiriyor ama bir kişiyle konuşmaya tıklayınca bu sefer de link gelmiyor."
+//   (a) window.open() SCRIPT KAYNAKLI POPUP sayılır ve iOS Universal Links / Android App Links
+//       programatik gezinmelerde devreye girmez — uygulama yerine mobil web açılıp giriş isteniyordu
+//       (canlıda doğrulandı: tarayıcı çağrıyı "popups open only from the user's own clicks" diyerek
+//       engelledi). Artık adres <a href> olarak veriliyor ve gezinmeyi GERÇEK tıklama yapıyor.
+//   (b) Masaüstünde kopyalama ZATEN çalışıyordu (gerçek tıklamayla doğrulandı: pano yazıldı) —
+//       eksik olan, DM'in önden doldurulamadığını ve YAPIŞTIRMAK gerektiğini söyleyen bir ipucuydu;
+//       üstelik "Kopyalandı" geri bildirimi yeni sekmeye geçilince görülmüyordu.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -269,28 +279,46 @@ test('hedef sırası: instagram ilk, telegram KALDIRILDI', () => {
   const block = src.slice(src.indexOf('const TARGETS = ['), src.indexOf('function html(id)'));
   const order = [...block.matchAll(/\{ action: '([a-z]+)'/g)].map(m => m[1]);
   assert.deepEqual(order, ['instagram', 'facebook', 'x', 'linkedin', 'email', 'whatsapp']);
+  // instagram href TAŞIR ama SABİTTİR (başlık/URL almaz): gezinme <a>'nın varsayılan davranışıyla
+  // olmalı ki mobilde universal link uygulamayı açsın (bkz. aşağıdaki dal testi).
   const igLine = block.split('\n').find(l => l.includes("action: 'instagram'"));
-  assert.ok(!igLine.includes('href:'), 'instagram href taşımamalı — özel dal işler');
+  assert.ok(igLine.includes('href: () => INSTAGRAM_DM_URL'), 'instagram DM adresini href olarak vermiyor');
   // Ölü sabit geride kalmasın.
   assert.ok(!src.includes('ICON_TELEGRAM'), 'kullanılmayan ICON_TELEGRAM duruyor');
 });
 
-test('instagram dalı: bağlantıyı kopyalayıp Instagram DM kutusunu açıyor', () => {
+test('instagram dalı: GERÇEK link aktivasyonu (window.open YOK) + kopyala + yapıştır ipucu', () => {
   const src = read('js/components/share-button.js');
   const i = src.indexOf("if (action === 'instagram')");
   assert.ok(i > 0, 'özel dal yok');
-  // Yalnızca dalın GÖVDESİ (jenerik dala kadar) ve yorumlar hariç — yorum metinleri yanlış
-  // pozitif üretiyordu (gövdede "navigator.share BİLEREK KULLANILMIYOR" yazıyor).
+  // Yalnızca dalın GÖVDESİ (jenerik dala kadar), yorumlar hariç — yorum metinleri yanlış pozitif
+  // üretiyordu (gövdenin yorumlarında "window.open"/"navigator.share" geçiyor).
   const body = src.slice(i, src.indexOf('const target = TARGETS.find', i))
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  assert.ok(body.includes('await copyText(url, urlInput)'), 'bağlantı kopyalanmıyor');
-  assert.ok(body.includes('window.open(INSTAGRAM_DM_URL'), 'DM kutusu açılmıyor');
-  // Kullanıcı Instagram ikonuna bastığında jenerik sistem sayfası DEĞİL, doğrudan DM beklenir.
+  // KRİTİK: window.open script kaynaklı popup sayılır ve iOS Universal Links / Android App Links
+  // programatik gezinmede DEVREYE GİRMEZ — uygulama yerine mobil web açılır, kullanıcıdan yeniden
+  // giriş istenir (canlıda doğrulandı: tarayıcı çağrıyı popup diye engelledi).
+  assert.ok(!body.includes('window.open'), 'window.open geri gelmiş — mobilde uygulama açılmaz');
+  assert.ok(!body.includes('preventDefault'), 'preventDefault varsayılan link gezinmesini öldürür');
+  assert.ok(body.includes('el.href = INSTAGRAM_DM_URL;'), 'DM adresi <a href> olarak verilmiyor');
+  assert.ok(body.includes('copyText(url, urlInput).then('), 'bağlantı kopyalanmıyor (ya da await ediliyor)');
+  assert.ok(body.includes('showInstagramHint('), 'yapıştırma ipucu gösterilmiyor');
   assert.ok(!body.includes('navigator.share'), 'DM yerine sistem paylaşım sayfası açılıyor');
   assert.ok(src.includes("const INSTAGRAM_DM_URL = 'https://www.instagram.com/direct/inbox/';"),
     'DM adresi /direct/inbox/ değil');
   // Özel dal, href’siz hedefi jenerik dala DÜŞÜRMEMELİ.
   assert.ok(src.includes('if (!target || !target.href) return;'), 'href’siz hedef jenerik dalda korunmuyor');
+});
+
+test('yapıştırma ipucu satırı var ve [hidden] ile gizleniyor (display tuzağına düşmüyor)', () => {
+  const src = read('js/components/share-button.js');
+  assert.ok(src.includes('<p class="share-popover-note" hidden></p>'), 'ipucu satırı markup’ta yok');
+  const rule = src.split('\n').find(l => l.trim().startsWith('.share-popover-note{'));
+  assert.ok(rule, 'ipucu satırının stili yok');
+  assert.ok(!/display\s*:/.test(rule), '.share-popover-note display veriyor — [hidden] çalışmaz');
+  // Yeni açılışta önceki ipucu kalmamalı.
+  assert.ok(src.includes('if (note) { note.hidden = true; note.textContent = \'\'; }'),
+    'popover yeniden açılınca ipucu sıfırlanmıyor');
 });
 
 test('telegram kanalı geçmiş kayıtlar için sunucuda/etiketlerde KALIYOR', () => {
