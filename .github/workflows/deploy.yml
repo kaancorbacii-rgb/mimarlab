@@ -1,0 +1,121 @@
+name: Deploy (production)
+
+# TELEFONDAN/UZAK OTURUMDAN DEPLOY (kullanıcı isteği, 2026-09-12: "Senin deploy edebilmeni
+# istiyorum").
+#
+# SORUN: Claude Code'un uzak (web/telefon) oturumu izole bir konteynerde çalışır — Cloudflare
+# kimlik bilgisi YOKTUR ve ağ politikası `api.cloudflare.com` ile `mimarlab.com` çıkışını reddeder
+# (ölçüldü: CONNECT'e 403). Yani o oturumdan `./deploy.sh` kimlik doğrulama adımında durur;
+# kimlik bilgisi verilse bile ağ kapalı olduğu için deploy tamamlanamaz. Yerel (masaüstü)
+# oturumlarda deploy çalışıyordu çünkü orada wrangler oturumu ve açık ağ vardı.
+#
+# ÇÖZÜM: deploy'u ağı ve kimlik bilgisi açık olan TEK bir yere, GitHub Actions runner'ına al.
+# Token Cloudflare'den alınır ama depo SIRLARINDA (GitHub Secrets) durur; hiçbir oturuma,
+# hiçbir konteynere kopyalanmaz. Tetikleme `workflow_dispatch` olduğundan hem GitHub mobil
+# uygulamasından/web'den "Run workflow" ile hem de bir Claude oturumundan API ile çalıştırılabilir.
+#
+# BU YOL DEPLOY DİSİPLİNİNİ BOZMAZ (bkz. CLAUDE.md): runner çıplak `wrangler deploy` DEĞİL,
+# aynı `./deploy.sh`'i çalıştırır — eşzamanlı deploy kilidi, üç veri-güvenliği kapısı
+# (scripts/deploy-guard.sh), preflight testleri, deploy sonrası health-check ve smoke-test
+# zincirinin tamamı aynen işler.
+#
+# NEDEN CI'DA GÜVENLİ: miras/ (2887 dosya) ve projects/ ARTIK git'te İZLENİYOR, yani runner'ın
+# checkout'u onları eksiksiz taşır ve deploy-guard'ın "miras/ dolu mu" kapısı (>= 2500) geçer.
+# CLAUDE.md'deki "miras/ gitignored" gerekçesi tarihsel — kapı yine de yerinde duruyor, çünkü
+# eksik/sparse bir checkout ya da kazara silinme aynı sonucu (canlı asset manifest'inden tüm
+# miras görsellerinin düşmesi) doğurur.
+#
+# ÖNEMLİ FARK — CI, COMMİT EDİLENİ YAYINLAR: yerel `./deploy.sh` working tree'yi deploy eder
+# (commit edilmemiş dosyalar dahil); bu workflow yalnızca git'te olanı deploy eder. Yerelde
+# duran ama commit edilMEMİŞ bir asset varsa canlı manifest'ten DÜŞER. Bu, deploy-guard'ın
+# working-tree kapısının zaten savunduğu ilkenin ta kendisi: yayınlanan sürüm bir git commit'ine
+# karşılık gelmeli. Yeni asset eklerken commit edin.
+
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: 'Deploy notu (log için, opsiyonel)'
+        required: false
+        default: ''
+
+# İki deploy'un birbirinin kodunu canlıdan silmesini önler (deploy.sh'in kendi kilidi worktree'nin
+# .git dizinindedir, yani AYRI runner'ları göremez — serileştirme burada yapılır).
+# cancel-in-progress: false — yarıda kesilen bir deploy, yarım yayınlanmış bir sürüm demektir.
+concurrency:
+  group: mimarlab-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Checkout ~3,4 GB (projects/ + miras/) + preflight (~4 dk) + asset yükleme: bol pay.
+    timeout-minutes: 60
+    env:
+      # Token YALNIZCA bu iki değişkenle wrangler'a geçer; log'a hiç yazılmaz.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # `npx wrangler` TTY olmayan ortamda "Ok to proceed?" diye sorup askıda kalabiliyor.
+      NPM_CONFIG_YES: 'true'
+    steps:
+      # Sırf "çalıştır" demenin kazara production'a başka bir dalı çıkarmasını engeller.
+      # Detached HEAD (tag/SHA ile tetikleme) ayrıca deploy-guard tarafından da durdurulur.
+      - name: Yalnızca main deploy edilebilir
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "DEPLOY DURDURULDU: bu workflow yalnızca 'main' dalından çalıştırılabilir." >&2
+          echo "  Seçilen ref: ${{ github.ref }}" >&2
+          exit 1
+
+      # Sır kontrolü EN BAŞTA: eksikse 3,4 GB checkout ve 4 dakikalık preflight'ı boşa harcamadan,
+      # ne yapılacağını söyleyen bir hatayla dur.
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1
+          fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1
+          fi
+          if [ "$missing" -eq 1 ]; then
+            echo "" >&2
+            echo "Kurulum (tek seferlik):" >&2
+            echo "  1) Cloudflare: My Profile > API Tokens > Create Token > 'Edit Cloudflare Workers'" >&2
+            echo "     şablonu. İzinler (hepsi Account kapsamlı): Workers Scripts:Edit," >&2
+            echo "     Account Settings:Read, Workers KV Storage:Edit, D1:Edit," >&2
+            echo "     Workers R2 Storage:Edit, Workers AI:Edit. Zone izni gerekmiyor" >&2
+            echo "     (wrangler.jsonc'da route yok)." >&2
+            echo "  2) Account ID: Cloudflare > Workers & Pages sağ kolonda yazıyor." >&2
+            echo "  3) GitHub: Settings > Secrets and variables > Actions > New repository secret" >&2
+            echo "     ile CLOUDFLARE_API_TOKEN ve CLOUDFLARE_ACCOUNT_ID ekleyin." >&2
+            exit 1
+          fi
+          echo "Cloudflare sırları yerinde."
+
+      - uses: actions/checkout@v4
+        with:
+          # Deploy edilecek ağaç için tek commit yeterli; deploy-guard'ın dal kontrolü de
+          # (tek worktree olduğundan) sığ checkout'ta sorunsuz çalışır.
+          fetch-depth: 1
+
+      # node:sqlite (DatabaseSync) kullanan preflight testleri Node 22+ ister — runner'ın
+      # varsayılanına güvenilmez, açıkça sabitlenir (yerelde de Node 22).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Token'ı deploy'dan ÖNCE doğrular: yanlış/süresi geçmiş bir token'da hata burada,
+      # asset yüklemesi başlamadan çıkar. Çıktıda hesap adı/ID görünür, token görünmez.
+      - name: Wrangler kimlik doğrulaması
+        run: npx wrangler whoami
+
+      # TEK YAYIN YOLU (bkz. CLAUDE.md): kapılar + preflight + deploy + health-check + smoke-test.
+      - name: ./deploy.sh
+        # Not, kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak geçer: kullanıcı girdisini
+        # doğrudan `run:` içine interpolate etmek bir script-injection yoluydu.
+        env:
+          DEPLOY_NOTE: ${{ inputs.note }}
+        run: |
+          echo "Deploy notu: ${DEPLOY_NOTE:-(yok)}"
+          ./deploy.sh
