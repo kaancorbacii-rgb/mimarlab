@@ -550,6 +550,8 @@ async function createSubmission(request, env, user, typeKey) {
     // gönderileri 'pending' kalır, bildirim admin onayladığında src/routes/admin.js'te gönderilir.
     // keepPreview: önizlemede (blurlu) eklenen içerik henüz yayında değil — bülten bildirimi gitmez.
     if (!keepPreview && CANONICAL_TYPES.has(typeKey) && !isOwnerProfileEdit && !(typeKey === 'projects' && body.claimed_slug)) {
+      // Tür kapsamı çağrılanda kararlaştırılır (bkz. newsletterNotify.js#TYPE_LABEL): kişi/firma/
+      // marka için bu çağrı sessiz bir no-op'tur (kullanıcı isteği, 2026-09-12 madde 2).
       await notifyNewsletterOfNewContent(env, typeKey, syncedRow || { ...row, id });
     }
   }

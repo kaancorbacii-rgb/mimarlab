@@ -17,8 +17,10 @@ a{color:#5B7A9B;font-weight:600;text-decoration:none;}</style></head>
 // wireFooterNewsletter, kullanıcı isteği: "Sitede bültene abonel ol özelliği getirelim"). Tek adımlı
 // opt-in — çift onay maili YOK, form gönderilince direkt kaydolur. auth gerektirmez.
 //
-// Yeni proje/ürün/mimar/firma yayına girdiğinde src/lib/newsletterNotify.js abone listesine mail
-// gönderir (bkz. o dosya + src/routes/submissions.js/admin.js'teki çağrı noktaları).
+// Yeni proje/ürün yayına girdiğinde ve yeni bir gündem gönderisi yayımlandığında
+// src/lib/newsletterNotify.js abone listesine mail gönderir (bkz. o dosya + src/routes/
+// submissions.js/admin.js + src/lib/gundemIngest.js/src/routes/gundemAdmin.js'teki çağrı
+// noktaları). Kişi/firma/marka BİLEREK kapsam dışı (kullanıcı isteği, 2026-09-12 madde 2).
 export async function handleNewsletterRoute(request, env, url) {
   if (url.pathname === '/api/newsletter/subscribe' && request.method === 'POST') {
     if (!(await checkRateLimit(env, 'newsletter_subscribe', clientIp(request), 8, 60 * 60 * 1000))) {

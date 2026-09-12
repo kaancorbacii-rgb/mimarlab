@@ -39,6 +39,10 @@ import { getSiteSettings } from './siteSettings.js';
 import { newId } from './crypto.js';
 import { slugify } from './slugify.js';
 import { purgeGundemCache } from './gundemCache.js';
+// Bülten bildirimi (kullanıcı isteği, 2026-09-12 madde 2: "Her 5 gündem gönderisinden 1'i e-posta
+// olarak gitsin") — sayaç/gönderim kararı tamamen o dosyada; burada yalnızca "yayınlandı" olayı
+// bildirilir. Kullanıcı gönderilerinin karşılığı src/routes/gundemAdmin.js#moderateGundemItem'da.
+import { notifyNewsletterOfNewGundem } from './newsletterNotify.js';
 import { persistGundemRun } from './gundemRuns.js';
 import {
   gundemEmbedText, embedGundemText, quantizeEmbedding, findSemanticDuplicate,
@@ -668,6 +672,15 @@ async function mergeSourceIntoItem(env, row, source, sourceUrl) {
   stats.published += 1;
   stats.entitiesLinked += entities.length;
   srcStat(stats, source.id).published += 1;
+
+  // Bülten: yayın SAYILDIKTAN sonra, turun sonucunu etkilemeyen son adım. notifyNewsletterOfNewGundem
+  // kendi içinde hem "5'te 1" sayacını hem de try/catch'i taşıyor (hiç fırlatmaz) — yani bir mail
+  // hatası ne bu içeriği ne turun kalanını düşürebilir. Beş yayından dördünde tek bir D1 UPDATE'i
+  // kadar sürer, bu yüzden tur bütçesine ölçülebilir bir yük getirmez.
+  await notifyNewsletterOfNewGundem(env, {
+    slug, title: validated.title, summary: validated.summary, image_url: resolved.image,
+  });
+
   return { id, slug };
 }
 

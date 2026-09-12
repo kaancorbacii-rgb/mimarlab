@@ -85,6 +85,24 @@ const ModalShell = (function () {
         opacity:1; visibility:visible; pointer-events:auto;
         transition:opacity var(--motion-normal) var(--ease-standard);
       }
+      /* GERÇEK BULGU (kullanıcı bildirimi, 2026-09-12 madde 3: "popup açılırken önce normal
+         sayfaymış gibi çok kısa süreliğine görülüp kayboluyor, sonra popup olarak karşımıza
+         çıkıyor" — özellikle ana sayfadaki carousel'lerden). Ana sayfa varlık modallerini
+         yüklemediğinden oradaki bir kart tıklaması GERÇEK bir gezinmedir: /kisi/:slug açılır,
+         sayfa kendi "boot veil"ini (bkz. kisi.html#pm-boot-loading) kurar ve modalı hidrasyonla
+         açar. Veil, Modal.open()'ın promise'i çözülünce (renderItem bitince) kaldırılıyordu — o
+         satırın yorumu "GERÇEK modal tam opak açılana kadar veil kaldırılmaz" diyor ama overlay o
+         anda hâlâ 300 ms'lik opacity GEÇİŞİNİN ortasındaydı: veri <head>'e gömülü ön-yüklemeden
+         (bkz. kisi.html#mlPre) neredeyse anında geldiğinde render 300 ms'den çok önce bitiyor,
+         veil kalkıyor ve yarı saydam overlay'in ardındaki ÇIPLAK SSR sayfası (o an
+         visibility:hidden'dan da çıkar) bir anlık görünüp sonra popup'a dönüşüyordu.
+         ÇÖZÜM: veil ayaktayken açılış animasyonu OYNAMAZ — kullanıcı zaten bir gezinme bekliyor,
+         animasyon perdenin ARDINDA görülmeden akıp gidiyordu. Overlay/panel tek karede tam opak
+         hale gelir, böylece veil kalktığında ekranda BİTMİŞ bir popup vardır; arada sayfanın
+         görünebileceği bir kare kalmaz. Sınıf yalnızca o ilk karede durur (bkz. open()), kapanış
+         ve sonraki tüm açılışlar eskisi gibi animasyonlu. */
+      .modal-shell-overlay.boot-instant,
+      .modal-shell-overlay.boot-instant .modal-shell-panel{transition:none;}
       /* gerçek bulgu: height:92vh TEK BAŞINA mobil/tablette bazı tarayıcılarda (adres çubuğunun
          100vh hesabına dahil olup olmamasına göre) panelin üst/alt kenara neredeyse yapışmış
          görünmesine yol açıyordu — max-height burada height'ın ÜZERİNE ek bir güvenlik tavanı
@@ -623,7 +641,18 @@ const ModalShell = (function () {
       // hiç işlememesine (animasyonun atlanmasına) yol açar. offsetHeight okuması zorla bir reflow
       // tetikleyip kapalı stili taahhüt eder, böylece ilk açılışta da geçiş oynar.
       void overlayEl.offsetHeight;
+      // bkz. yukarıdaki .boot-instant kuralının gerçek bulgusu — sayfa hidrasyon açılışında (boot
+      // veil ayakta) geçişi hiç oynatmadan tek karede tam opak açılır. İkinci offsetHeight okuması
+      // opacity:1/scale(1) değerlerini transition:none ile TAAHHÜT eder; sınıf ondan sonra
+      // kaldırıldığında animatlanabilir hiçbir değer değişmediği için geçiş yeniden başlamaz
+      // (kapanış animasyonu bu yüzden korunur).
+      const bootVeilUp = document.documentElement.classList.contains('pm-boot-loading');
+      if (bootVeilUp) overlayEl.classList.add('boot-instant');
       overlayEl.classList.add('open');
+      if (bootVeilUp) {
+        void overlayEl.offsetHeight;
+        overlayEl.classList.remove('boot-instant');
+      }
       opened = true;
       // denetim bulgusu: proje/mimar/firma/urun.html'in altta kalan .page-head h1'i (artık SSR'da
       // gerçek kayıt adını taşıyor, bkz. src/index.js#injectMeta) modal içindeki .detail-title h1 ile

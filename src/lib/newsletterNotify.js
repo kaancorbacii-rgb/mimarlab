@@ -1,18 +1,23 @@
-import { slugify } from './slugify.js';
-
-// Yeni proje/ürün/mimar/firma yayına girdiğinde bülten abonelerine mail (bkz. kullanıcı isteği:
-// "Paylaşılan her içerik kullanıcılara mail olarak gitsin", migrations/0044_newsletter_subscribers.sql).
+// Yeni proje/ürün yayına girdiğinde ve yeni gündem gönderisi yayımlandığında bülten abonelerine
+// mail (bkz. kullanıcı isteği: "Paylaşılan her içerik kullanıcılara mail olarak gitsin",
+// migrations/0044_newsletter_subscribers.sql).
 // Yalnızca GERÇEKTEN yeni içerik için çağrılmalı — çağıran taraflar (src/routes/submissions.js#
 // createSubmission, src/routes/admin.js#handleSubmissionsAdmin PATCH) zaten claimed_profile_key/
 // claimed_slug'lı (mevcut statik bir kaydın üzerine bindirilen) düzenlemeleri hariç tutuyor, burada
 // tekrar kontrol edilmiyor.
 
+// KAPSAM (kullanıcı isteği, 2026-09-12 madde 2: "Bundan sonra yeni kişi, firma ve markalar e-posta
+// bildirimi olarak gitmesin"): architects (kişi) ve offices (firma VE marka — ikisi de AYNI
+// office_submissions/offices kaydı, bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES.offices)
+// BİLEREK bu tabloda YOK. Tablo, notifyNewsletterOfNewContent'in tek kapısıdır: label bulunamayan
+// bir tür sessizce (mail göndermeden, sayacı da ARTIRMADAN) döner, bu yüzden çağıran taraflara
+// (submissions.js / admin.js) dokunmak gerekmiyor — o türlerin gönderi/onay akışları aynen sürer,
+// yalnızca bülten maili çıkmaz. Footer'daki bülten metni de bu kapsamı yansıtır (bkz.
+// js/components/site-chrome.js#footerHtml: "Yeni proje, ürün ve gündem içerikleri").
 const TYPE_LABEL = {
   projects: 'Yeni proje',
   products: 'Yeni ürün',
   materials: 'Yeni ürün',
-  architects: 'Yeni mimar profili',
-  offices: 'Yeni firma profili',
 };
 
 function escapeHtml(s) {
@@ -35,36 +40,30 @@ function safeAbsoluteUrl(path) {
   }
 }
 
-function buildCoverImage(typeKey, row) {
-  if (typeKey === 'projects' || typeKey === 'products' || typeKey === 'materials') {
-    try {
-      const arr = row.images ? JSON.parse(row.images) : [];
-      return safeAbsoluteUrl(arr[0] || null);
-    } catch {
-      return null;
-    }
+// Aşağıdaki üç üretici yalnızca TYPE_LABEL'da KARŞILIĞI OLAN türler için çağrılır (bkz.
+// notifyNewsletterOfNewContent'in label kapısı) — kişi/firma/marka dalları, o türler kapsamdan
+// çıkarıldığında (bkz. TYPE_LABEL yorumu) ulaşılamaz hale geldiğinden kaldırıldı; kapsam yeniden
+// genişletilirse onlarla birlikte geri gelmeleri gerekir.
+function buildCoverImage(row) {
+  try {
+    const arr = row.images ? JSON.parse(row.images) : [];
+    return safeAbsoluteUrl(arr[0] || null);
+  } catch {
+    return null;
   }
-  if (typeKey === 'architects') return safeAbsoluteUrl(row.photo_url);
-  if (typeKey === 'offices') return safeAbsoluteUrl(row.logo_url);
-  return null;
 }
 
 function buildLink(typeKey, row) {
-  if (typeKey === 'projects') return row.slug ? `https://mimarlab.com/proje/${encodeURIComponent(row.slug)}` : null;
-  if (typeKey === 'products' || typeKey === 'materials') return row.slug ? `https://mimarlab.com/urun/${encodeURIComponent(row.slug)}` : null;
-  if (typeKey === 'architects') return row.name ? `https://mimarlab.com/kisi/${encodeURIComponent(slugify(row.name))}` : null;
-  if (typeKey === 'offices') return row.name ? `https://mimarlab.com/firma/${encodeURIComponent(slugify(row.name))}` : null;
+  if (!row.slug) return null;
+  if (typeKey === 'projects') return `${SITE_ORIGIN}/proje/${encodeURIComponent(row.slug)}`;
+  if (typeKey === 'products' || typeKey === 'materials') return `${SITE_ORIGIN}/urun/${encodeURIComponent(row.slug)}`;
   return null;
 }
 
-function buildTitle(typeKey, row) {
-  return (typeKey === 'projects' || typeKey === 'products' || typeKey === 'materials') ? row.title : row.name;
-}
-
-function buildSummary(typeKey, row) {
-  const text = (typeKey === 'architects' || typeKey === 'offices') ? row.about : row.description;
+function truncateSummary(text) {
   if (!text) return null;
   const trimmed = String(text).trim();
+  if (!trimmed) return null;
   return trimmed.length > 160 ? trimmed.slice(0, 160).trimEnd() + '…' : trimmed;
 }
 
@@ -76,20 +75,28 @@ function buildSummary(typeKey, row) {
 const BATCH_SIZE = 100;
 
 // Bültenin abonelere HER paylaşımda değil, ~5 paylaşımdan 1'inde gitmesi için (bkz. kullanıcı
-// isteği: "5 proje, mimar, firma ve ürün paylaşımından 1'ini gönder") — proje/mimar/firma/ürün
-// TÜRLERİ birlikte, tek paylaşılan sayaçla sayılır (ayrı ayrı tür başına değil, kullanıcının
+// isteği: "5 proje, mimar, firma ve ürün paylaşımından 1'ini gönder") — proje/ürün TÜRLERİ
+// birlikte, tek paylaşılan sayaçla sayılır (ayrı ayrı tür başına değil, kullanıcının
 // örneğindeki gibi). rate_limits#checkRateLimit İLE AYNI atomik INSERT...ON CONFLICT DO
 // UPDATE...RETURNING deseni (bkz. migrations/0060_newsletter_notify_counter.sql) — sayaç hiç
 // sıfırlanmaz, yalnızca 5'in katına ulaştığında (o anki içerik için) gerçek bir mail gönderilir,
 // aradaki 4 paylaşım sessizce atlanır.
+//
+// GÜNDEM AYRI SAYILIR (kullanıcı isteği, 2026-09-12 madde 2: "Her 5 gündem gönderisinden 1'i
+// e-posta olarak gitsin"): gündem hattı otomatik ve çok daha yoğun aktığından tek bir ortak sayaç,
+// paylaşılan proje/ürünlerin sırasını yiyip onları neredeyse hiç göndermezdi. Sayaç tablosu zaten
+// `key` ile anahtarlı (bkz. migrations/0060) — 'gundem' satırı ilk çağrıda kendiliğinden oluşur,
+// yeni bir migration GEREKMEZ.
 const NOTIFY_EVERY_N = 5;
-async function shouldSendThisTime(env) {
+const COUNTER_CONTENT = 'global';
+const COUNTER_GUNDEM = 'gundem';
+async function shouldSendThisTime(env, counterKey) {
   try {
     const row = await env.DB.prepare(
-      `INSERT INTO newsletter_notify_counter (key, count) VALUES ('global', 1)
+      `INSERT INTO newsletter_notify_counter (key, count) VALUES (?, 1)
        ON CONFLICT(key) DO UPDATE SET count = count + 1
        RETURNING count`
-    ).first();
+    ).bind(counterKey).first();
     return !!row && row.count % NOTIFY_EVERY_N === 0;
   } catch (err) {
     console.error('newsletter notify counter failed', err);
@@ -97,14 +104,10 @@ async function shouldSendThisTime(env) {
   }
 }
 
-export async function notifyNewsletterOfNewContent(env, typeKey, row) {
-  if (!env.RESEND_API_KEY || !row) return;
-  const label = TYPE_LABEL[typeKey];
-  const link = buildLink(typeKey, row);
-  const title = buildTitle(typeKey, row);
-  if (!label || !link || !title) return;
-  if (!(await shouldSendThisTime(env))) return;
-
+// Tek bir içerik için TÜM abonelere mail — aşağıdaki iki giriş noktasının (paylaşılan içerik ve
+// gündem) PAYLAŞTIĞI gövde. "5'te 1" kapısı çağıranda kalır: bu fonksiyon çağrıldığında gönderim
+// kararı ZATEN verilmiştir.
+async function sendToSubscribers(env, { label, title, summary, coverImage, link }) {
   try {
     const { results } = await env.DB.prepare(
       `SELECT email, unsubscribe_token FROM newsletter_subscribers WHERE unsubscribed_at IS NULL`
@@ -114,9 +117,7 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
     const from = env.RESEND_FROM || 'MİMARLAB <no-reply@mimarlab.com>';
     const subject = `${label}: ${title}`;
     const safeTitle = escapeHtml(title);
-    const summary = buildSummary(typeKey, row);
     const safeSummary = summary ? escapeHtml(summary) : null;
-    const coverImage = buildCoverImage(typeKey, row);
     // gerçek bulgu (denetim raporu, 2026-08-16): coverImage/link daha önce escapeHtml'den GEÇMEDEN
     // doğrudan src=""/href="" attribute'larına gömülüyordu — bugün safeAbsoluteUrl()'un URL() ile
     // parse edip yeniden serialize etmesi (tırnak karakterleri otomatik percent-encode edilir) ve
@@ -156,6 +157,47 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
       });
     }
   } catch (err) {
-    console.error('notifyNewsletterOfNewContent failed', err);
+    console.error('newsletter send failed', err);
   }
+}
+
+export async function notifyNewsletterOfNewContent(env, typeKey, row) {
+  if (!env.RESEND_API_KEY || !row) return;
+  // TYPE_LABEL kapsam kapısı (bkz. o tablonun yorumu): kişi/firma/marka burada sessizce döner ve
+  // sayaç da ARTMAZ — o türler bültenin "5'te 1" sırasını yemesin.
+  const label = TYPE_LABEL[typeKey];
+  const link = buildLink(typeKey, row);
+  const title = row.title;
+  if (!label || !link || !title) return;
+  if (!(await shouldSendThisTime(env, COUNTER_CONTENT))) return;
+
+  await sendToSubscribers(env, {
+    label,
+    title,
+    summary: truncateSummary(row.description),
+    coverImage: buildCoverImage(row),
+    link,
+  });
+}
+
+// Yeni gündem gönderisi yayına girdiğinde (kullanıcı isteği, 2026-09-12 madde 2: "Her 5 gündem
+// gönderisinden 1'i e-posta olarak gitsin"). İKİ yayın kapısından da çağrılır — otomatik hat
+// (src/lib/gundemIngest.js, hacmin neredeyse tamamı) ve kullanıcı gönderisinin admin onayı
+// (src/routes/gundemAdmin.js#moderateGundemItem) — ikisi AYNI 'gundem' sayacını paylaşır, yani
+// "5'te 1" oranı yayının hangi yoldan geldiğine bakmaz.
+//
+// row: gundem_items satırı ya da onunla AYNI alan adlarını taşıyan bir nesne (slug/title/summary/
+// image_url). Mail hiç fırlatmaz (bkz. sendToSubscribers'ın kendi try/catch'i) — bülten, bir yayını
+// asla geri almamalı.
+export async function notifyNewsletterOfNewGundem(env, row) {
+  if (!env.RESEND_API_KEY || !row || !row.slug || !row.title) return;
+  if (!(await shouldSendThisTime(env, COUNTER_GUNDEM))) return;
+
+  await sendToSubscribers(env, {
+    label: 'Yeni gündem içeriği',
+    title: row.title,
+    summary: truncateSummary(row.summary),
+    coverImage: safeAbsoluteUrl(row.image_url),
+    link: `${SITE_ORIGIN}/gundem/${encodeURIComponent(row.slug)}`,
+  });
 }

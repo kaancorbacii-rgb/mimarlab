@@ -875,7 +875,7 @@ const AuthModal = (function () {
     return `
     <div class="auth-wrap">
       <div class="auth-eyebrow">Hesap</div>
-      <h1 class="auth-title">MİMARLAB'a katıl</h1>
+      <h1 class="auth-title">MİMARLAB'a Ücretsiz Katıl</h1>
       <p class="auth-sub">Profilini oluşturmak için birkaç bilgi gir.</p>
       <div class="auth-card">
         <div class="auth-oauth">

@@ -580,6 +580,19 @@ else
 fi
 rm -f /tmp/preflight_hcar
 
+# Bülten kapsamı (kişi/firma/marka mail ALMAZ), gündem bildirimi (5'te 1, AYRI sayaç) ve popup
+# açılış karesi — kullanıcı isteği, 2026-09-12 madde 2 ve 3. Üçü de sözdizimi kontrolünden geçen
+# SESSİZ regresyonlar: TYPE_LABEL'a bir satır, tek bir sayaç anahtarı ya da kaldırılan bir CSS
+# kuralı kimseye hata vermeden davranışı geri alır.
+# Bkz. scripts/test-2026-09-12-newsletter-scope-and-gundem.mjs.
+if node scripts/test-2026-09-12-newsletter-scope-and-gundem.mjs >/tmp/preflight_nlscope 2>&1; then
+  ok "bülten kapsamı + gündem bildirimi + popup açılış karesi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_nlscope) test)"
+else
+  bad "bülten kapsamı + gündem bildirimi + popup açılış karesi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_nlscope >&2
+fi
+rm -f /tmp/preflight_nlscope
+
 # Boşluksuz yazım araması ("perse" -> "Per Se Mimarlık", kullanıcı isteği 2026-09-11) — bkz.
 # src/lib/classicSearch.js#collapsedToken/likeCondition. Bkz. scripts/test-search-word-merge.mjs.
 if node scripts/test-search-word-merge.mjs >/tmp/preflight_wmerge 2>&1; then

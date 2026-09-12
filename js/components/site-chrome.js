@@ -456,10 +456,10 @@
         <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
         <p class="footer-subscribe-join-desc">Kişi, firma veya marka bilgilerini hemen doldur.</p>
         <div class="footer-subscribe-join-action">
-          <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
+          <a class="footer-subscribe-btn" href="/uye-ol">Ücretsiz Üye Ol</a>
         </div>
         <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
-        <p class="footer-newsletter-desc">Yeni proje, ürün, firma ve markalar e-postana gelsin.</p>
+        <p class="footer-newsletter-desc">Yeni proje, ürün ve gündem içerikleri e-postana gelsin.</p>
         <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
@@ -480,7 +480,7 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a><a href="/gundem">Gündem</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Ücretsiz Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/hakkinda">Hakkında</a><a href="/iletisim">İletişim</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
@@ -620,7 +620,7 @@
       [data-theme="dark"] .footer-theme-toggle .theme-icon-sun{display:flex;}
       [data-theme="dark"] .footer-theme-toggle .theme-icon-moon{display:none;}
       /* max-width YOK (kullanıcı isteği, 2026-09-01: "açıklama metnini tek satırda topladım") —
-         340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün, firma ve markalar e-postana
+         340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün ve gündem içerikleri e-postana
          gelsin.") iki satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek
          satırda kalır, dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
       .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:16px; color:rgba(237,240,243,0.6); margin:0 0 16px;}

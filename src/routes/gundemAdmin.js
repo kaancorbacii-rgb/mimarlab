@@ -20,6 +20,10 @@ import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { GUNDEM_SORT } from './gundem.js';
 import { normalizeOwnMediaPath } from './gundemSubmit.js';
 import { parseGundemImages } from '../lib/gundemSsr.js';
+// Bülten bildirimi (bkz. src/lib/newsletterNotify.js#notifyNewsletterOfNewGundem) — kullanıcı
+// gönderisinin YAYIN kapısı burası olduğundan mail de buradan çıkar; otomatik hattın karşılığı
+// src/lib/gundemIngest.js'te, ikisi AYNI 'gundem' sayacını paylaşır ("5 gönderiden 1'i").
+import { notifyNewsletterOfNewGundem } from '../lib/newsletterNotify.js';
 
 // Admin'in değiştirebileceği alanlar — BİLEREK dar. Kategori de düzenlenebilir çünkü otomatik
 // sınıflandırma en çok orada yanılır; slug/source_url/content_hash gibi KİMLİK ve MÜKERRER
@@ -141,7 +145,8 @@ async function moderateGundemItem(request, env, id) {
   const action = body.action;
   if (action !== 'approve' && action !== 'reject') return errorJson('Geçersiz işlem.');
   const row = await env.DB.prepare(
-    `SELECT slug, status, submitter_type, submitter_key, submitter_name FROM gundem_items WHERE id = ? AND source_id = 'user'`
+    `SELECT slug, status, title, summary, image_url, submitter_type, submitter_key, submitter_name
+       FROM gundem_items WHERE id = ? AND source_id = 'user'`
   ).bind(id).first();
   if (!row) return errorJson('Bulunamadı', 404);
   const now = Date.now();
@@ -159,6 +164,12 @@ async function moderateGundemItem(request, env, id) {
       ).bind(id, row.submitter_type, row.submitter_key, row.submitter_name || row.submitter_key, now));
     }
     await env.DB.batch(stmts);
+    // Bülten: YALNIZCA bu onayla İLK KEZ yayına giren gönderi için (aksi halde admin'in arşivden
+    // geri alması/ikinci bir onayı aynı içerik için tekrar mail gönderirdi). Sayaç yalnızca
+    // gerçekten yeni bir yayında artmalı ki "5'te 1" oranı doğru kalsın.
+    if (row.status !== 'published') {
+      await notifyNewsletterOfNewGundem(env, { slug: row.slug, title: row.title, summary: row.summary, image_url: row.image_url });
+    }
   }
   await purgeItem(env, row.slug);
   return json({ ok: true, status: action === 'approve' ? 'published' : 'rejected' });

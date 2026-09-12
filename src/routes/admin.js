@@ -762,6 +762,9 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
             if (existing.status !== 'approved') {
               const claimedColumn = typeKey === 'projects' ? 'claimed_slug' : (typeKey === 'architects' || typeKey === 'offices') ? 'claimed_profile_key' : null;
               const isClaimEdit = claimedColumn && freshRow[claimedColumn];
+              // Tür kapsamı çağrılanda kararlaştırılır (bkz. newsletterNotify.js#TYPE_LABEL):
+              // kişi/firma/marka için bu çağrı sessiz bir no-op'tur (kullanıcı isteği,
+              // 2026-09-12 madde 2).
               if (!isClaimEdit) await notifyNewsletterOfNewContent(env, typeKey, syncedRow || parseSubmissionRow(typeKey, freshRow));
             }
           } else if (existing.status === 'approved') {
