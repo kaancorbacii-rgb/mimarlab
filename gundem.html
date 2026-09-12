@@ -510,6 +510,13 @@ if(p==='/gundem'&&!location.search){var u='/api/gundem?page=1&limit=12';(window.
     .gundem-head{grid-template-columns:1fr; align-items:start; gap:16px;}
     .gundem-head-text, .gundem-toolbar{grid-column:1;}
     .gundem-toolbar, .gundem-chips{justify-content:flex-start;}
+    /* Çip bloğu dar ekranda SARMALI (kullanıcı bildirimi, 2026-09-12: "İş / Staj İlanı" butonu
+       ekranın dışına taşıyor). .gundem-chips'in kendi flex-wrap:wrap'i tek başına yetmiyordu:
+       flex-shrink:0 + min-width:auto, bloğun genişliğini max-content'te kilitliyor, satır hiç
+       dolmadığı için de sarma tetiklenmiyordu (375px'te ölçüldü: çip bloğu 433px, toolbar 347px —
+       taşan çip ekranın dışında kalıyordu). Masaüstündeki flex-shrink:0, üç kolonlu ızgarada
+       çiplerin sıkışmaması için konmuştu; burada toolbar zaten tam genişlik olduğundan gereksiz. */
+    .gundem-chips{flex-shrink:1; min-width:0; width:100%;}
   }
 
   /* MOBİL — tek kolon: görsel üstte, metin altta (madde 3/23). */

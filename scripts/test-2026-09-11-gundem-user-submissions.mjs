@@ -82,14 +82,17 @@ await test('/mine: kendi adıyla eşleşen kişi + onaylı firma claim profiller
   assert.ok(keys.includes('architect:ayse-kaya'), keys.join());
   assert.ok(keys.includes('office:atolye-x'), keys.join());
   assert.ok(!keys.includes('office:baska-firma'));
-  // 'ilan' 2026-09-12'de eklendi ("İçerik Ekle sayfasında da İş veya Staj İlanı seçeneği de olsun").
+  // 'ilan' 2026-09-12'de eklendi ("İçerik Ekle sayfasında da İş veya Staj İlanı seçeneği de olsun");
+  // etiketi aynı gün 'İş / Staj İlanı' olarak kısaltıldı (bkz. gundemCategories.js#ilan).
   assert.deepEqual(data.categories.map(c => c.key), ['haber', 'etkinlik', 'yarisma', 'ilan']);
-  assert.equal(data.categories.find(c => c.key === 'ilan').label, 'İş veya Staj İlanı');
+  assert.equal(data.categories.find(c => c.key === 'ilan').label, 'İş / Staj İlanı');
 });
 for (const [name, over, code] of [
   ['4 görsel → 400', { images: [1, 2, 3, 4].map(n => img('u-uye', n)) }, 400],
   ['görselsiz → 400', { images: [] }, 400],
   ['1001 karakter metin → 400', { text: 'a'.repeat(1001) }, 400],
+  ['metinsiz haber → 400 (yalnızca ilanda metin isteğe bağlı)', { text: '' }, 400],
+  ['metin tavanı ilanda da geçerli → 400', { category: 'ilan', text: 'a'.repeat(1001) }, 400],
   ['başkasının yüklemesi → 400', { images: [img('u-diger', 1)] }, 400],
   ['dış görsel adresi → 400', { images: ['https://evil.example/x.jpg'] }, 400],
   ["kategori 'gorus' (kullanıcıya kapalı) → 400", { category: 'gorus' }, 400],
@@ -104,6 +107,23 @@ await test('tam 1000 karakter (Türkçe harflerle) kabul edilir', async () => {
   const row = db.prepare('SELECT submitter_type, submitter_name FROM gundem_items WHERE id = ?').get(id);
   assert.equal(row.submitter_type, 'user');
   assert.equal(row.submitter_name, 'Ayşe Kaya');
+});
+
+// Saatlik gönderi tavanı (10/saat) doğrulamadan ÖNCE sayılır — 400 ile reddedilen denemeler de
+// hakkı yakar. Yukarıdaki doğrulama senaryoları tavanı doldurduğundan, buradan sonrası 429 yerine
+// gerçek sonucu görsün diye sayaç sıfırlanır (tavanın KENDİSİ ayrı bir testin konusu değil).
+db.exec('DELETE FROM rate_limits');
+
+// KULLANICI İSTEĞİ, 2026-09-12: "İş / Staj İlanı ekleme ekranındaki metin kutucuğunu kaldır. Sadece
+// ilan başlığı ve ilan görseli seçimi olsun." Form metni artık hiç göndermiyor; summary NOT NULL
+// olduğundan sunucu özeti kendisi üretir (firma popup'ından yayınlanan ilanla AYNI cümle).
+await test("metinsiz 'ilan' → 201, özet gönderen adından üretilir", async () => {
+  const res = await submit('u-uye', '/api/gundem-submissions', { method: 'POST', body: valid({ category: 'ilan', title: 'Stajyer Mimar aranıyor', text: '' }) });
+  assert.equal(res.status, 201);
+  const { id } = await res.json();
+  const row = db.prepare('SELECT category, summary FROM gundem_items WHERE id = ?').get(id);
+  assert.equal(row.category, 'ilan');
+  assert.equal(row.summary, 'Atölye X tarafından yayınlanan iş / staj ilanı.');
 });
 
 let itemId, slug;

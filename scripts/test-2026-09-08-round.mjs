@@ -216,6 +216,21 @@ await test('Yönetici hesabı Kurucular/Ekip listelerinde GÖRÜNMEZ', async () 
   assert.ok(p.team.map(x => x.name).includes('Ayşe Demir'), JSON.stringify(names));
 });
 
+// KULLANICI BİLDİRİMİ, 2026-09-12: "MİMARLAB Robotu ekip üyesinin kişi profili olmasına rağmen
+// üzerine tıklanmıyor." Hesap üyeliğinden (profile_claims) gelen ekip üyesinin adı bir architects
+// satırıyla eşleşiyorsa kart o kişi profiline gitmeli — payload `slug` taşımazsa popup onu kişi
+// profili olmayan biriyle aynı, tıklanamaz kart olarak çizer (js/components/office-modal.js#teamCardHtml).
+await test('ekip üyesi: eşleşen kişi profili varsa slug taşır, yoksa taşımaz', async () => {
+  const db = freshDb(); seed(db);
+  db.prepare(`INSERT INTO architects (slug, name, position, source) VALUES ('ayse-demir', 'Ayşe Demir', 'Ekip Üyesi', 'legacy_static')`).run();
+  const { buildOfficePayload } = await import('../src/routes/office.js');
+  const withProfile = await buildOfficePayload({ DB: d1(db), IMG_KV: null }, 'ds-mimarlik');
+  assert.equal(withProfile.team.find(x => x.name === 'Ayşe Demir').slug, 'ayse-demir');
+  // Kişi profili olmayan aynı üye slug taşımaz — tıklanamaz kart korunur.
+  const withoutProfile = await officePayload('ds-mimarlik');
+  assert.equal(withoutProfile.team.find(x => x.name === 'Ayşe Demir').slug, null);
+});
+
 await test('aynı kişi hem Kurucular hem Ekip listesinde çıkmaz (aksan katlamalı)', async () => {
   const p = await officePayload('ind');
   assert.ok(p.founders.map(x => x.name).includes('Arman Akdoğan'));

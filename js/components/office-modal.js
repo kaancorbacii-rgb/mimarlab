@@ -592,10 +592,10 @@ const OfficeModal = (function () {
   }
 
   // Ekip kartları — bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı".
-  // Yapısal bağla (office_founders) gelen Ekip Lideri/Ekip Üyesi gerçek bir kişi profiline sahiptir
-  // (`slug`, bkz. src/routes/office.js#structuredTeam) — tıklanabilir kart. Yalnızca hesaptan gelen
-  // üyelerin (bkz. src/routes/office.js#buildOfficePayload `team`) profil sayfası yok: aynı kare kart,
-  // tıklanamaz; hesap fotoğrafı yoksa baş harfler.
+  // `slug` = kişi profili VAR demektir ve artık dört kaynağın hepsinde doldurulur (yapısal bağ,
+  // hesap üyeliği, Kurucular/Ekip kutusundaki serbest metin ad eşleşmesi — bkz. src/routes/
+  // office.js#buildOfficePeople). Slug'sız üye (hiçbir kişi profiliyle eşleşmeyen ad) aynı kare
+  // kartı alır ama tıklanamaz; hesap fotoğrafı yoksa baş harfler.
   function teamCardHtml(person) {
     return cardHtml(person.slug ? `/kisi/${encodeURIComponent(person.slug)}` : null, person.name, person.photo, person.role);
   }
@@ -922,9 +922,12 @@ const OfficeModal = (function () {
     // renderFoundersGrid ayrı bir fonksiyon olarak tutulur — aşağıdaki renderVerifiedBadges ile AYNI
     // /api/public/badges gecikmesi burada da var, rozetler geldiğinde tekrar çizilir.
     function renderFoundersGrid() {
+      // a.slug — eşleşen architects satırının GERÇEK slug'ı (bkz. src/routes/office.js#
+      // buildOfficePeople). slugify(a.name) yalnızca yedek: eski, şehir ekli slug'lar adla
+      // türetilenle uyuşmuyor (bkz. src/lib/seo.js'teki AYNI audit bulgusu).
       RelatedStrip.render(document.getElementById('om-founders-grid'), founders, a => a.unregistered
         ? unregisteredCardHtml(a.name)
-        : cardHtml(`/kisi/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
+        : cardHtml(`/kisi/${encodeURIComponent(a.slug || slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
       );
     }
     renderFoundersGrid();

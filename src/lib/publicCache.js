@@ -492,8 +492,14 @@ async function withSingleFlight(key, fn) {
 //     halde önbellekten dönmeye devam ederdi.
 // v38 -> v39 (kullanıcı isteği, 2026-09-12): /api/gundem `categories` 'ilan' (İş ve Staj İlanları)
 //     taşıyor — önbellekteki eski gövde çipi göstermezdi.
+// v39 -> v40 (kullanıcı isteği, 2026-09-12): 'ilan' kategorisinin etiketi 'İş ve Staj İlanları' ->
+//     'İş / Staj İlanı'. Şekil değişmedi ama /api/gundem `categories` ve kart `categoryLabel`
+//     METNİ değişti; bump edilmezse çipler ve kart etiketleri eski adı göstermeye devam ederdi.
+//     AYNI sürümde: /api/office/:key `founders`/`team` artık eşleşen kişi profilinin `slug`'ını
+//     taşıyor (ve `unregistered` "kişi profili YOK" anlamına geldi) — firma/kişi popup'ında ekip
+//     üyesi/ortak kartları tıklanabilir oldu. Satırların updated_at'i değişmediğinden bump şart.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v39';
+const API_PAYLOAD_VERSION = 'v40';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

@@ -68,7 +68,27 @@
     catsEl.innerHTML = categories.map((c, i) =>
       `<label class="ge-cat"><input type="radio" name="ge-category" value="${escapeAttr(c.key)}"${(selected ? selected === c.key : i === 0) ? ' checked' : ''}><span>${escapeHtml(c.label)}</span></label>`
     ).join('');
+    syncCategoryFields();
   }
+
+  function currentCategory(){
+    const cat = form.querySelector('input[name="ge-category"]:checked');
+    return cat ? cat.value : '';
+  }
+
+  // 'ilan' = İş / Staj İlanı: metin kutusu YOK (kullanıcı isteği, 2026-09-12) — yalnızca başlık +
+  // görsel. Alan gizlenir, DOM'dan SİLİNMEZ: diğer kategoriler aynı formu kullanıyor ve kullanıcı
+  // kategoriyi değiştirince yazdığı metin kaybolmamalı. Gönderide de yok sayılır (bkz. submit);
+  // sunucu bu kategoride metni isteğe bağlı sayar ve özeti kendisi üretir (gundemSubmit.js).
+  function syncCategoryFields(){
+    const isJob = currentCategory() === 'ilan';
+    const field = $('ge-text-field');
+    if(field) field.hidden = isJob;
+    // required KALKMALI: gizli ama required bir alan form gönderimini sessizce kilitleyebilir ve
+    // sayaç/doğrulama mesajları görünmeyen bir kutuyu işaret ederdi.
+    textEl.required = !isJob;
+  }
+  catsEl.addEventListener('change', syncCategoryFields);
 
   function renderProfiles(profiles, userName, current){
     const opts = [];
@@ -159,17 +179,20 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(images.some(i => i.loading)){ setMsg('Görseller yüklenirken bekle.', 'error'); return; }
-    const cat = form.querySelector('input[name="ge-category"]:checked');
+    const category = currentCategory();
+    const isJob = category === 'ilan';
     const payload = {
-      category: cat ? cat.value : '',
+      category,
       title: headlineEl.value.trim(),
-      text: textEl.value.trim(),
+      // İlanda metin kutusu yok — kullanıcının başka bir kategoride yazıp kalmış metni de
+      // gönderilmez (sunucu özeti kendisi üretir).
+      text: isJob ? '' : textEl.value.trim(),
       images: images.map(i => i.url).filter(Boolean),
       profile: selectedProfile(),
     };
     if(!payload.category){ setMsg('Kategori seç.', 'error'); return; }
     if(chars(payload.title) < 3){ setMsg('Başlık yaz.', 'error'); headlineEl.focus(); return; }
-    if(chars(payload.text) < 20){ setMsg('Metin en az 20 karakter olmalı.', 'error'); textEl.focus(); return; }
+    if(!isJob && chars(payload.text) < 20){ setMsg('Metin en az 20 karakter olmalı.', 'error'); textEl.focus(); return; }
     if(chars(payload.text) > TEXT_MAX){ setMsg(`Metin en fazla ${TEXT_MAX} karakter olabilir.`, 'error'); textEl.focus(); return; }
     if(!payload.images.length){ setMsg('En az bir görsel ekle.', 'error'); return; }
     // Admin başkasının gönderisini düzenlerken gönderen korunur (sunucu da aynı kuralı uygular).
@@ -282,7 +305,7 @@
     }
     categories = (mine && mine.categories) || [
       { key: 'haber', label: 'Haber' }, { key: 'etkinlik', label: 'Etkinlik' }, { key: 'yarisma', label: 'Yarışma' },
-      { key: 'ilan', label: 'İş veya Staj İlanı' },
+      { key: 'ilan', label: 'İş / Staj İlanı' },
     ];
 
     if(editId){

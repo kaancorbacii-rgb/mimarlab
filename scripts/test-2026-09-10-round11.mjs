@@ -414,7 +414,10 @@ await test('liste yükleri ilk 6 görseli taşıyor; kartlar data-images basıyo
   const cc = readFileSync(new URL('../js/components/card-carousel.js', import.meta.url), 'utf8');
   assert.ok(cc.includes("document.addEventListener('click', function (e) {") && cc.includes('}, true);'), 'oklar capture fazında durdurulmalı');
   const pcv = readFileSync(new URL('../src/lib/publicCache.js', import.meta.url), 'utf8');
-  assert.ok(/const API_PAYLOAD_VERSION = 'v3[1-9]';/.test(pcv), 'liste şekli değişti — sürüm bump');
+  // Sürüm SAYI olarak karşılaştırılır: eski /v3[1-9]/ deseni v40'ta sessizce başarısız oluyordu
+  // (2026-09-12'de gerçekten oldu) — kastedilen "en az v31", "v31..v39" değil.
+  const apiVersion = Number((pcv.match(/const API_PAYLOAD_VERSION = 'v(\d+)';/) || [])[1]);
+  assert.ok(apiVersion >= 31, `liste şekli değişti — sürüm bump (şu an v${apiVersion})`);
 });
 
 section('madde 4 — lightbox sağ altında fotoğrafçı adı');

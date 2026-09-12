@@ -103,14 +103,18 @@ async function purgeItem(env, slug) {
 // sahibin düzenlemesinde kaybolmasın), yeni eklenen her görsel kullanıcının KENDİ yüklemesi olmalı.
 function validateBody(body, user, existingImages = []) {
   const category = typeof body.category === 'string' ? body.category : '';
-  if (!GUNDEM_USER_CATEGORIES.some(c => c.key === category)) return { error: 'Kategori seç: Haber, Etkinlik, Yarışma ya da İş veya Staj İlanı.' };
+  if (!GUNDEM_USER_CATEGORIES.some(c => c.key === category)) return { error: 'Kategori seç: Haber, Etkinlik, Yarışma ya da İş / Staj İlanı.' };
 
   const title = cleanText(body.title).replace(/\s+/g, ' ');
   if (charCount(title) < 3) return { error: 'Başlık en az 3 karakter olmalı.' };
   if (charCount(title) > GUNDEM_TITLE_MAX) return { error: `Başlık en fazla ${GUNDEM_TITLE_MAX} karakter olabilir.` };
 
+  // 'ilan' (İş / Staj İlanı) — formda metin kutusu YOK (kullanıcı isteği, 2026-09-12: "sadece ilan
+  // başlığı ve ilan görseli seçimi olsun"), bu yüzden metin bu kategoride İSTEĞE BAĞLI. Boş gelirse
+  // özet jobSummary() ile üretilir; gönderi öncesinde yazılmış eski bir metin varsa (kategori
+  // değiştirilerek düzenlenen kayıt) olduğu gibi korunur, tavan yine uygulanır.
   const text = cleanText(body.text).replace(/\n{3,}/g, '\n\n');
-  if (charCount(text) < 20) return { error: 'Metin en az 20 karakter olmalı.' };
+  if (category !== 'ilan' && charCount(text) < 20) return { error: 'Metin en az 20 karakter olmalı.' };
   if (charCount(text) > GUNDEM_TEXT_MAX) return { error: `Metin en fazla ${GUNDEM_TEXT_MAX} karakter olabilir.` };
 
   const rawImages = Array.isArray(body.images) ? body.images : [];
@@ -130,6 +134,13 @@ function validateBody(body, user, existingImages = []) {
   if (images.length > GUNDEM_MAX_IMAGES) return { error: `En fazla ${GUNDEM_MAX_IMAGES} görsel ekleyebilirsin.` };
 
   return { category, title, text, images };
+}
+
+// gundem_items.summary NOT NULL'dır; metinsiz ilanın özeti, firma/marka popup'ından yayınlanan
+// ilanlarla BİREBİR aynı cümleden üretilir (bkz. src/routes/officeJobs.js) — iki yoldan gelen ilan
+// kartları Gündem listesinde aynı görünsün.
+function jobSummary(submitterName) {
+  return `${(submitterName || '').trim() || 'MİMARLAB üyesi'} tarafından yayınlanan iş / staj ilanı.`;
 }
 
 // İstemciye dönen şekil — düzenleme formu ve "Gönderilerim" listesi.
@@ -207,6 +218,7 @@ export async function handleGundemSubmitRoute(request, env, url) {
     const now = Date.now();
     const id = newId();
     const slug = await allocateSlug(env, v.title);
+    const summary = v.text || jobSummary(submitter.name);
     await env.DB.prepare(
       `INSERT INTO gundem_items (
          id, slug, title, summary, image_url, image_host, source_id, source_name, source_domain,
@@ -214,7 +226,7 @@ export async function handleGundemSubmitRoute(request, env, url) {
          images, submitted_by, submitter_type, submitter_key, submitter_name, created_at, updated_at
        ) VALUES (?, ?, ?, ?, ?, 'mimarlab.com', 'user', ?, 'mimarlab.com', ?, ?, ?, 'tr', ?, ?, 'pending', 'user', ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
-      id, slug, v.title, v.text, v.images[0], submitter.name, `${SITE_ORIGIN}/gundem/${slug}`, now,
+      id, slug, v.title, summary, v.images[0], submitter.name, `${SITE_ORIGIN}/gundem/${slug}`, now,
       v.category, `user:${id}`, `user:${id}`, JSON.stringify(v.images), user.id,
       submitter.type, submitter.key, submitter.name, now, now,
     ).run();
@@ -258,7 +270,7 @@ export async function handleGundemSubmitRoute(request, env, url) {
         `UPDATE gundem_items SET title = ?, summary = ?, category = ?, image_url = ?, images = ?,
            source_name = ?, submitter_type = ?, submitter_key = ?, submitter_name = ?, status = ?, updated_at = ?
          WHERE id = ?`
-      ).bind(v.title, v.text, v.category, v.images[0], JSON.stringify(v.images), submitter.name,
+      ).bind(v.title, v.text || jobSummary(submitter.name), v.category, v.images[0], JSON.stringify(v.images), submitter.name,
         submitter.type, submitter.key, submitter.name, nextStatus, now, id),
     ];
     // Gönderen değiştiyse eski profilin Gündem şeridindeki kenar kalkar; yeni kenar onayda yazılır

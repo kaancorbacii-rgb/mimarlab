@@ -248,7 +248,11 @@
         <span class="ge-count" id="ge-headline-count">0 / 140</span>
       </div>
 
-      <div class="ge-field">
+      <!-- Metin kutusu 'İş / Staj İlanı' kategorisinde GİZLENİR (kullanıcı isteği, 2026-09-12:
+           "sadece ilan başlığı ve ilan görseli seçimi olsun") — bkz. js/pages/gundem-ekle.js#
+           syncCategoryFields. Sunucu tarafında da metin bu kategoride isteğe bağlıdır ve özet
+           firma/marka popup'ından yayınlanan ilanlarla AYNI cümleden üretilir. -->
+      <div class="ge-field" id="ge-text-field">
         <label class="ge-label" for="ge-text">Metin <small>(en fazla 1000 karakter)</small></label>
         <textarea class="ge-textarea" id="ge-text" maxlength="1000" required></textarea>
         <span class="ge-count" id="ge-text-count">0 / 1000</span>

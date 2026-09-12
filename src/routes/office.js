@@ -581,9 +581,9 @@ export async function buildOfficePeople(env, o) {
     // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
     // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
     // bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı". Pozisyonu
-    // Kurucu/Kurucu Ortak olanlar aşağıda foundersFromClaims'e (Kurucular/Ortaklar'a karışır, isim
-    // eşleşmesi office_founders'daki gibi bir architects kaydına dayanmadığından hep `unregistered`
-    // rozet olarak render edilir), diğerleri Ekip'e (team) düşer.
+    // Kurucu/Kurucu Ortak olanlar aşağıda foundersFromClaims'e (Kurucular/Ortaklar'a karışır),
+    // diğerleri Ekip'e (team) düşer. Hesap adı bir architects satırıyla eşleşiyorsa o satırın slug'ı
+    // taşınır ve kart tıklanabilir olur; eşleşmiyorsa `unregistered` (tıklanamaz kare kart).
     // GÖREV KAYNAĞI (kullanıcı isteği, 2026-09-08 madde 2): admin'in atama/onay anında DONDURDUĞU
     // c.office_position ASILDIR (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN); yalnızca o boşsa
     // — eski, pozisyonsuz onaylarda — kullanıcının kendi profilindeki u.position'a düşülür. Eskiden
@@ -633,7 +633,7 @@ export async function buildOfficePeople(env, o) {
     .map(x => ({ name: x.name, role: x.position || null, photo: x.photo_url, slug: x.slug }));
   const founders = foundersRes.results
     .filter(x => FOUNDER_POSITIONS.has(x.position))
-    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
+    .map(x => ({ name: x.name, role: x.position, photo: x.photo_url, slug: x.slug, badges: [] }));
   const knownFounderNames = new Set(founders.map(f => foldTr(f.name)));
   // Yapısal Ekip üyesi, Kurucular metnine de yazılmış olsa Kurucular'a geri eklenmesin.
   for (const t of structuredTeam) knownFounderNames.add(foldTr(t.name));
@@ -644,12 +644,19 @@ export async function buildOfficePeople(env, o) {
     if (!position) return box;
     return FOUNDER_POSITIONS.has(position) ? 'founders' : 'team';
   };
+  // KİŞİ PROFİLİ VARSA KART TIKLANABİLİR (kullanıcı bildirimi, 2026-09-12: "MİMARLAB Robotu ekip
+  // üyesinin kişi profili olmasına rağmen üzerine tıklanmıyor"). matchFor() serbest metin/hesap
+  // adını canonical `architects` satırıyla eşleştirir ve o satırın slug'ını taşır; eskiden bu
+  // eşleşmenin YALNIZCA fotoğrafı ve görevi okunuyor, slug atılıyordu — kart da kişi profili
+  // olmayan biriyle aynı, tıklanamaz kart olarak çiziliyordu. `unregistered` artık "eşleşen bir
+  // kişi profili YOK" demektir (önceden "yapısal bağ yok" demekti; ikisi aynı şey değil, bkz.
+  // fetchArchitectsByRawNames'teki not: canonicalSync eşleştirmeyi yalnızca ONAY anında dener).
   for (const name of rawFounderNames) {
     if (!name || knownFounderNames.has(foldTr(name))) continue;
     knownFounderNames.add(foldTr(name));
     const m = matchFor(name) || {};
-    if (sectionFor(name, 'founders') === 'team') team.push({ name, role: m.position, photo: m.photo || null });
-    else founders.push({ name, role: m.position || null, photo: m.photo || null, badges: [], unregistered: true });
+    if (sectionFor(name, 'founders') === 'team') team.push({ name, role: m.position, photo: m.photo || null, slug: m.slug || null });
+    else founders.push({ name, role: m.position || null, photo: m.photo || null, slug: m.slug || null, badges: [], unregistered: !m.slug });
   }
   for (const row of teamClaimRows.results || []) {
     if (!row.name || knownFounderNames.has(foldTr(row.name))) continue;
@@ -661,12 +668,13 @@ export async function buildOfficePeople(env, o) {
     if (row.position === MANAGER_POSITION) continue;
     // photo: hesabın kendi profil fotoğrafı (users.photo_url) yoksa, aynı isimli kişi profilinin
     // fotoğrafına düşülür — iki kayıt aynı kişiyi temsil ediyor (bkz. matchFor).
-    const photo = row.photo_url || (matchFor(row.name) || {}).photo || null;
+    const m = matchFor(row.name) || {};
+    const photo = row.photo_url || m.photo || null;
     if (FOUNDER_POSITIONS.has(row.position)) {
       knownFounderNames.add(foldTr(row.name));
-      founders.push({ name: row.name, role: row.position, photo, badges: [], unregistered: true });
+      founders.push({ name: row.name, role: row.position, photo, slug: m.slug || null, badges: [], unregistered: !m.slug });
     } else {
-      team.push({ name: row.name, role: row.position || null, photo });
+      team.push({ name: row.name, role: row.position || null, photo, slug: m.slug || null });
     }
   }
   // firma-ekle.html'deki opsiyonel "Ekip" kutusuna serbest metin girilen isimler — foundersFromClaims
@@ -677,11 +685,11 @@ export async function buildOfficePeople(env, o) {
     const m = matchFor(name) || {};
     if (sectionFor(name, 'team') === 'founders') {
       knownFounderNames.add(foldTr(name));
-      founders.push({ name, role: m.position, photo: m.photo || null, badges: [], unregistered: true });
+      founders.push({ name, role: m.position, photo: m.photo || null, slug: m.slug || null, badges: [], unregistered: !m.slug });
       continue;
     }
     knownTeamNames.add(foldTr(name));
-    team.push({ name, role: m.position || null, photo: m.photo || null });
+    team.push({ name, role: m.position || null, photo: m.photo || null, slug: m.slug || null });
   }
   // claimed — firmanın en az bir onaylı profile_claims satırı var mı (Kurucular'a/Ekip'e düşenler VE
   // listelenmeyen 'Yönetici' hesabı dahil). buildOfficePayload kaynak ibaresi için okur.

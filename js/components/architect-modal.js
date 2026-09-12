@@ -966,7 +966,7 @@ const ArchitectModal = (function () {
       // ayrım, kullanıcı isteği 2026-09-11).
       RelatedStrip.render(document.getElementById('am-colleagues-grid'), colleagues, c => c.unregistered
         ? cardHtml(null, c.name, null, null)
-        : cardHtml(`/kisi/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
+        : cardHtml(`/kisi/${encodeURIComponent(c.slug || slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
       );
     }
     renderColleaguesGrid();

@@ -41,7 +41,8 @@ export function gundemCategoryLabel(key) {
 // KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11; bkz. migrations/0113 ve
 // src/routes/gundemSubmit.js). Kullanıcı yalnızca bu dört kategoriden birini seçebilir — whitelist'in
 // geri kalanı (gorus/kariyer) otomatik hatta özgü kalır. 'ilan' 2026-09-12'de eklendi ("İçerik Ekle
-// sayfasında da İş veya Staj İlanı seçeneği de olsun"); formda tekil formLabel'ı görünür.
+// sayfasında da İş veya Staj İlanı seçeneği de olsun"); etiketi 2026-09-12'de 'İş / Staj İlanı'
+// olarak kısaltıldı ve formLabel kaldırıldı — fallback zinciri ileride yine ayrışabilsin diye durur.
 export const GUNDEM_USER_CATEGORIES = GUNDEM_CATEGORIES.filter(c => ['haber', 'etkinlik', 'yarisma', 'ilan'].includes(c.key))
   .map(c => ({ key: c.key, label: c.formLabel || c.label }));
 

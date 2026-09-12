@@ -147,7 +147,10 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // "Mimar Sinan Üniversitesi" "Mimar Sinan Güzel Sanatlar Üniversitesi"ne taşındı (D1 verisi).
 // v133 (2026-09-12): Gündem'e "İş ve Staj İlanları" kategorisi/çipi, Hesabım > Profili Düzenle'ye
 // Portfolyo, çekmece alt sayfası transform:none (site-chrome.js/auth-modal.js değişti).
-export const SSR_CACHE_VERSION = 'v133';
+// v134 (2026-09-12): 'ilan' etiketi 'İş / Staj İlanı' oldu (SSR kart etiketi), gundem.html'de çip
+// satırı mobilde sarıyor, /gundem-ekle'de İş / Staj İlanı seçilince metin kutusu gizleniyor; ayrıca
+// kişi profili olan ekip üyeleri/ortaklar tıklanabilir (office-modal.js/architect-modal.js değişti).
+export const SSR_CACHE_VERSION = 'v134';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

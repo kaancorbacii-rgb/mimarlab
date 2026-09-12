@@ -19,16 +19,19 @@ export const GUNDEM_CATEGORIES = [
   { key: 'gorus', label: 'Görüş', chip: false },
   { key: 'yarisma', label: 'Yarışma' },
   { key: 'kariyer', label: 'Kariyer', chip: false },
-  // İş ve Staj İlanları (kullanıcı isteği, 2026-09-12: "Gündem sayfasında Yarışma butonuyla İçerik
+  // İş / Staj İlanı (kullanıcı isteği, 2026-09-12: "Gündem sayfasında Yarışma butonuyla İçerik
   // ekle butonunun arasına İş ve Staj İlanları butonu ekle. Firma ve marka popuplarında yayınlanan
   // ilanlar burada da yayınlansın"). Kaynaklar: firma/marka popup'ındaki "İlan Yayınla" (src/routes/
-  // officeJobs.js — ilanı burada da yayınlanmış bir satır olarak yazar) ve İçerik Ekle'deki "İş veya
-  // Staj İlanı" seçeneği (admin onayından geçer). Dizideki sıra = çip sırası: Yarışma'dan hemen sonra,
+  // officeJobs.js — ilanı burada da yayınlanmış bir satır olarak yazar) ve İçerik Ekle'deki aynı
+  // adlı seçenek (admin onayından geçer). Dizideki sıra = çip sırası: Yarışma'dan hemen sonra,
   // "İçerik Ekle"nin hemen önünde.
-  // ai:false — otomatik haber hattı bu kategoriyi SEÇEMEZ (gundemAi.js enum'u GUNDEM_AI_CATEGORY_KEYS'ten
-  // gelir); aksi halde "X ofisi mimar arıyor" tipi bir haber kullanıcı ilanlarının arasına düşerdi.
-  // formLabel — İçerik Ekle formundaki tekil etiket (bkz. gundemSsr.js#GUNDEM_USER_CATEGORIES).
-  { key: 'ilan', label: 'İş ve Staj İlanları', formLabel: 'İş veya Staj İlanı', ai: false },
+  // ETİKET 'İş ve Staj İlanları' -> 'İş / Staj İlanı' (kullanıcı isteği, 2026-09-12): uzun etiket
+  // 375px'lik ekranda çip satırını taşırıyordu (ölçüldü: çip bloğu 433px, toolbar 347px). Kısaltma
+  // TEK BAŞINA yetmez, gundem.html'deki .gundem-chips{flex-shrink:0} kuralı da mobilde gevşetildi —
+  // aksi halde blok yine max-content genişlikte kalır ve sarmazdı.
+  // formLabel KALDIRILDI: çip etiketi ile form etiketi artık AYNI (gundemSsr.js#GUNDEM_USER_CATEGORIES
+  // hâlâ `c.formLabel || c.label` okur, ileride yine ayrışabilirler).
+  { key: 'ilan', label: 'İş / Staj İlanı', ai: false },
 ];
 
 export const GUNDEM_CATEGORY_KEYS = GUNDEM_CATEGORIES.map(c => c.key);
