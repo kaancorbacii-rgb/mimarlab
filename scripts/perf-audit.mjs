@@ -501,7 +501,16 @@ async function authFlows(browser, width) {
     const t0 = performance.now();
     try {
       await page.goto(BASE + p, { waitUntil: 'load', timeout: 60000 });
-      await page.waitForSelector('.modal-shell-overlay.open', { timeout: 30000 }).catch(() => {});
+      // SEÇİCİ DÜZELTMESİ (2026-09-12 ölçümü): burada yalnızca '.modal-shell-overlay.open'
+      // bekleniyordu, ama Giriş/Üye Ol/Hesabım modalları ModalShell'i KULLANMAZ — kendi hafif
+      // host'larını kurarlar (bkz. js/components/auth-modal.js#activateHost: .auth-title / #am-panel).
+      // Sonuç: üç yolun altısında da (2 genişlik × 3 yol) 30 sn'lik zaman aşımına düşülüyor,
+      // modalAt ~30000 ms olarak raporlanıyor ve satırın diğer metrikleri de o 30 saniyelik arka
+      // plan etkinliğini içeriyordu. Aynı dosyadaki ÇALIŞAN auth akışı (bkz. authFlow) zaten
+      // '.auth-title' yedeğini kullanıyor; burada da aynı küme beklenir.
+      // Yerelde doğrulandı: /giris'e doğrudan gidildiğinde '.auth-title' geliyor ("Hoş geldin"),
+      // '.modal-shell-overlay.open' hiç gelmiyor.
+      await page.waitForSelector('.modal-shell-overlay.open, .auth-title, #am-panel', { timeout: 30000 }).catch(() => {});
       const modalAt = ms(performance.now() - t0);
       await settle(page, 2000);
       const m = await collectPageMetrics(page, requests, t0);
