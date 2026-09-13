@@ -32,6 +32,9 @@ import {
   looksLikeProjectPublication, findCrossSourceDuplicate,
 } from './gundemQuality.js';
 import { isValidGundemCategory } from './gundemCategories.js';
+// Modele giden kaynak metnin temizlenmesi (kullanıcı isteği 2026-09-13 madde 8) — boilerplate,
+// tekrar eden parça ve markup artığı buradan geçmeden modele gitmez.
+import { buildSourceText } from './gundemSourceText.js';
 import { generateGundemSummary, isGundemAiAvailable, AiProviderError } from './gundemAi.js';
 import { buildGundemEntityIndex, resolveGundemEntitiesWithScan } from './gundemEntities.js';
 import { AI_MODEL } from './aiConfig.js';
@@ -464,12 +467,23 @@ async function publishCandidate(env, candidate, ctx) {
 
   // --- AI (kategori ipucu varsa yine de AI çağrılır: başlık+özet zaten gerekli) ------------------
   const hintCategory = categoryFromHints(source, candidate.categories, candidate.listCategory, candidate.title);
-  const excerptForAi = [candidate.excerpt, resolved.extraExcerpt]
-    .filter(Boolean).join(' ').slice(0, EXCERPT_MAX_CHARS);
+  // KAYNAK METNİN HAZIRLANMASI (kullanıcı isteği 2026-09-13 madde 8). Eskiden iki parça düz
+  // birleştiriliyordu (`[a, b].join(' ')`); bu, yayıncı boilerplate'ini ve AYNI metnin iki
+  // kopyasını modele gönderiyordu. buildSourceText boilerplate'i atar, örtüşen parçayı hiç
+  // eklemez, cümle sınırında kırpar ve metnin YETERLİLİĞİNİ ölçer — o ölçü hem promptun özet
+  // uzunluk hedefini hem kalite kapısının kabul tabanını belirler (kısa kaynakta uzun özet
+  // istemek modeli uydurmaya zorluyordu).
+  const sourceText = buildSourceText([candidate.excerpt, resolved.extraExcerpt], { maxChars: EXCERPT_MAX_CHARS });
+  const excerptForAi = sourceText.text;
+  const sourcePublishedAt = candidate.publishedAt || resolved.sourcePublishedAt || null;
+  // Yayın yılı, çıktıda geçmesi MEŞRU bir sayıdır (fact-check sayı kapısı aksi halde kaynağın
+  // gövdesinde yazmayan ama tarihinden bilinen yılı "uydurma" sayardı).
+  const publishedYears = sourcePublishedAt ? [new Date(sourcePublishedAt).getUTCFullYear()] : [];
 
   let validated = null;
   let lastReason = 'ai_no_attempt';
   for (let attempt = 0; attempt < GUNDEM_LIMITS.aiMaxAttempts && !validated; attempt++) {
+    const lastAttempt = attempt === GUNDEM_LIMITS.aiMaxAttempts - 1;
     let raw;
     try {
       stats.aiCalls += 1;
@@ -478,6 +492,9 @@ async function publishCandidate(env, candidate, ctx) {
         sourceTitle: candidate.title,
         sourceExcerpt: excerptForAi,
         sourceLanguage: source.language,
+        sourceUrl: candidate.normalizedUrl,
+        publishedAt: sourcePublishedAt,
+        sourceAdequacy: sourceText.adequacy,
         // İkinci denemede modele NE YANLIŞ YAPTIĞI söylenir (bkz. gundemAi.js#RETRY_HINT_BY_REASON)
         // — aynı promptu tekrarlamak ilk canlı turda aynı hatayı tekrar üretiyordu.
         retryReason: attempt > 0 ? lastReason : null,
@@ -504,9 +521,25 @@ async function publishCandidate(env, candidate, ctx) {
       lastReason = 'ai_not_confident';
       break;
     }
+    // ÖZ-DENETİM (gundemAi.js#quality_ok, kullanıcı isteği 2026-09-13 madde 5/6): model kendi
+    // çıktısından kuşkuluysa BİR KEZ yeniden üretilir. Ama bu bir YAYIN VETOSU DEĞİLDİR: son
+    // denemede kod kapılarının tamamından geçen bir çıktı yayınlanır ve yalnızca loglanır.
+    // Gerekçe — yetkili merci kod kapılarıdır (ölçülebilir, tekrarlanabilir); modelin kendi
+    // kuşkusunu veto saymak, kusursuz çıktıları da eleyip yayın hacmini sessizce düşürürdü.
+    if (raw && raw.quality_ok === false && !lastAttempt) {
+      lastReason = 'ai_quality_self_reject';
+      continue;
+    }
+    if (raw && raw.quality_ok === false) {
+      console.warn(JSON.stringify({ event: 'gundem_ai_self_doubt', source: source.id, title: String(raw.title || '').slice(0, 120) }));
+    }
     const result = validateAiOutput(raw, {
       sourceTitle: candidate.title,
       sourceExcerpt: excerptForAi,
+      sourceName: source.name,
+      sourceLanguage: source.language,
+      sourceAdequacy: sourceText.adequacy,
+      publishedYears,
       fallbackCategory: hintCategory || source.defaultCategory,
     });
     if (result.ok) {
@@ -517,6 +550,12 @@ async function publishCandidate(env, candidate, ctx) {
       validated.entities = Array.isArray(raw.entities) ? raw.entities : [];
     } else {
       lastReason = result.reason;
+      // Reddetme AYRINTISI (hangi sayı/ad kaynakta bulunamadı) yalnızca log'a gider — sayaçlar
+      // reason kırılımını zaten tutuyor, ayrıntı ise canlıda "bu kapı haklı mı?" sorusunu
+      // cevaplayabilmek için gerekli.
+      if (result.detail) {
+        console.warn(JSON.stringify({ event: 'gundem_quality_reject', source: source.id, reason: result.reason, detail: String(result.detail).slice(0, 200) }));
+      }
     }
   }
 
@@ -639,7 +678,7 @@ async function mergeSourceIntoItem(env, row, source, sourceUrl) {
       id, slug, validated.title, candidate.title.slice(0, 400), validated.summary,
       resolved.image, imageHost,
       source.id, source.name, source.domain, sourceUrl, candidate.canonicalKey,
-      candidate.publishedAt || resolved.sourcePublishedAt || null, now,
+      sourcePublishedAt, now,
       validated.category, source.language, candidate.author,
       candidate.contentHash, candidate.titleKey,
       AI_MODEL, now, now, now,

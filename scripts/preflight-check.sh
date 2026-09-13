@@ -769,6 +769,16 @@ else
   tail -20 /tmp/preflight_gundem >&2
 fi
 
+# İçerik KALİTESİ birim testleri (kullanıcı isteği 2026-09-13 madde 11) — kaynak metnin
+# hazırlanması, prompt değişmezleri, fact-consistency kapıları, 20 örneklik korpus ve uçtan uca
+# publish flow. Ağ/D1 gerektirmez (sahte env), bkz. scripts/test-gundem-quality.mjs dosya başı.
+if node scripts/test-gundem-quality.mjs >/tmp/preflight_gundem_q 2>&1; then
+  ok "gundem içerik kalitesi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_gundem_q) test)"
+else
+  bad "gundem içerik kalitesi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_gundem_q >&2
+fi
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve
