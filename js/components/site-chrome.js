@@ -10,47 +10,6 @@
 // mount edilir — hiçbir script footer elemanlarına erken erişmiyor.
 (function(){
   // ---------------------------------------------------------------------------------------------
-  // DİL KATMANI ÖNYÜKLEYİCİSİ (kullanıcı isteği, 2026-09-13 madde 1)
-  // ---------------------------------------------------------------------------------------------
-  // Asıl çevirici js/translate.js'te; burada YALNIZCA iki şey var: dili okumak ve çeviriciyi
-  // gerektiğinde indirmek.
-  //
-  // NEDEN BU DOSYADA (site-chrome.js): sitedeki 32 HTML sayfasının HEPSİNDE SENKRON yükleniyor
-  // (bkz. dosya başındaki aynı gerekçe). Dil tercihi 'en' ise çeviriciyi burada, ayrıştırma
-  // sırasında kuyruğa almak, onu deferred auth-nav.js'te beklemekten belirgin biçimde erken
-  // başlatır — yani kullanıcının gördüğü "önce Türkçe, sonra İngilizce" titremesi kısalır.
-  // (Titreme tamamen yok edilemez: çeviri sunucuya gidip gelen bir işlem, SSR'da yapılmıyor.)
-  //
-  // TÜRKÇE ZİYARETÇİ HİÇBİR ŞEY ÖDEMEZ: aşağıdaki koşul false ise ne istek atılır ne bayt indirilir.
-  var LANG_KEY = 'mimarlab-lang';
-  function currentLang(){
-    var v = null;
-    try { v = localStorage.getItem(LANG_KEY); } catch(_){}
-    if(!v){
-      var m = document.cookie.match(/(?:^|;\s*)ml_lang=([^;]+)/);
-      if(m) v = decodeURIComponent(m[1]);
-    }
-    return (v === 'en' || v === 'tr') ? v : 'tr';
-  }
-  var translatorPromise = null;
-  function ensureTranslator(){
-    if(window.MLTranslate) return Promise.resolve(window.MLTranslate);
-    if(translatorPromise) return translatorPromise;
-    translatorPromise = new Promise(function(resolve, reject){
-      var s = document.createElement('script');
-      s.src = '/js/translate.js';
-      s.defer = true;
-      s.onload = function(){ window.MLTranslate ? resolve(window.MLTranslate) : reject(new Error('translate_missing')); };
-      s.onerror = function(){ translatorPromise = null; reject(new Error('translate_load_failed')); };
-      (document.head || document.documentElement).appendChild(s);
-    });
-    return translatorPromise;
-  }
-  window.mlCurrentLang = currentLang;
-  window.mlEnsureTranslator = ensureTranslator;
-  if(currentLang() === 'en') ensureTranslator().catch(function(){});
-
-  // ---------------------------------------------------------------------------------------------
   // UNICODE NFC NORMALİZASYONU — SİTE GENELİ METİN GİRİŞİ (kullanıcı isteği, 2026-09-10:
   // "doçem yazınca çıkmıyor ama docem yazınca çıkıyor ... kökten çöz").
   //
@@ -494,11 +453,10 @@
     return `<footer class="site-footer">
     <div class="footer-subscribe">
       <div class="footer-subscribe-inner">
-        <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
-        <p class="footer-subscribe-join-desc">Kişi, firma veya marka bilgilerini hemen doldur.</p>
-        <div class="footer-subscribe-join-action">
-          <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
-        </div>
+        <!-- "MİMARLAB'da yok musun?" başlığı, açıklaması ve Üye Ol butonu KALDIRILDI (kullanıcı
+             isteği, 2026-09-13: "Bültene Abone Ol ve altındaki kısımlar kalsın"). Üye Ol çağrısı
+             sitede başka iki yerde duruyor: üst menünün sağ ucu ve mobil menünün alt bloğu
+             (bkz. headerHtml) — yani kayıt yolu footer'dan kalkmakla kaybolmuyor. -->
         <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
         <p class="footer-newsletter-desc">Yeni proje, ürün ve gündem içerikleri e-postana gelsin.</p>
         <div class="footer-subscribe-news-action">
@@ -597,21 +555,19 @@
       }
       .add-content-list a:hover{background:var(--ink); color:var(--paper-card);}
       .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
-      /* kullanıcı isteği (2026-09-01): açık mavi üst bant artık İKİ SÜTUN değil, sayfaya ortalanmış
-         TEK bir dikey akış — sırasıyla "MİMARLAB'da yok musun?" başlığı, açıklaması, Üye Ol butonu,
-         ardından "Bültene Abone Ol" başlığı, açıklaması ve e-posta kutucuğu. (Önceki tur iki sütunu
-         satır satır hizalamak için 6 öğeyi doğrudan grid'in çocuğu yapıyordu; tek sütunda o hizalama
-         sorunu ortadan kalktığı için düz flex yeterli — DOM sırası da artık görsel sırayla birebir,
-         bkz. footerHtml().) */
+      /* Açık mavi üst bant: sayfaya ortalanmış TEK bir dikey akış (kullanıcı isteği, 2026-09-01 —
+         o turda İKİ SÜTUNluk yerleşim terk edilmişti; tek sütunda satır hizalama sorunu ortadan
+         kalktığı için düz flex yeterli ve DOM sırası görsel sırayla birebir, bkz. footerHtml()).
+         2026-09-13'te bandın ilk yarısı ("MİMARLAB'da yok musun?" başlığı, açıklaması ve Üye Ol
+         butonu) kullanıcı isteğiyle kaldırıldı; bant artık yalnızca bülten aboneliğini taşıyor. */
       .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:flex; flex-direction:column; align-items:center; text-align:center;}
-      .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:20px; font-weight:700; color:var(--paper); margin:0 0 8px;}
-      .footer-subscribe-news-title{margin-top:30px;}
-      /* kullanıcı isteği (2026-09-01): "Üye Ol" butonu ve e-posta kutusu aynı GENİŞ ölçüde
-         (masaüstünde 390px) — buton artık metnine göre daralmıyor, altındaki input ile birebir
-         aynı kutuyu doldurur. Açıklama metinleri ise bilerek DAHA GENİŞ (max-width yok, bkz.
-         .footer-subscribe-join-desc kuralı) ki tek satırda kalsınlar. */
-      .footer-subscribe-join-action{width:100%; max-width:390px;}
-      .footer-subscribe-join-action .footer-subscribe-btn{width:100%;}
+      .footer-subscribe-news-title{font-size:20px; font-weight:700; color:var(--paper); margin:0 0 8px;}
+      /* margin-top:30px KALDIRILDI: bu boşluk, üstteki "Üye Ol" bloğundan ayırmak içindi;
+         o blok kalkınca başlık kutunun ilk öğesi oldu ve boşluk üstte asılı kalıyordu. */
+      /* E-posta kutusu masaüstünde 390px'lik sabit bir ölçüde durur (kullanıcı isteği,
+         2026-09-01). Açıklama metni ise bilerek DAHA GENİŞ (max-width yok, bkz.
+         .footer-newsletter-desc kuralı) ki tek satırda kalsın. Bu kural eskiden "Üye Ol"
+         butonuyla ortak ölçüyü de tanımlıyordu; o buton 2026-09-13'te footer'dan kaldırıldı. */
       .footer-subscribe-news-action{width:100%; max-width:390px;}
       .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
       .footer-subscribe-btn:hover{opacity:0.9;}
@@ -685,7 +641,7 @@
          340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün ve gündem içerikleri e-postana
          gelsin.") iki satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek
          satırda kalır, dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
-      .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:16px; color:rgba(237,240,243,0.6); margin:0 0 16px;}
+      .footer-newsletter-desc{font-size:16px; color:rgba(237,240,243,0.6); margin:0 0 16px;}
       /* kullanıcı isteği (2026-08-30): abone ol gönder butonu artık TÜM görünümlerde (masaüstü/
          tablet/mobil) input'un sağ ucuna gömülü dairesel bir ikon — eskiden yalnızca mobilde
          (≤560px) böyleydi, masaüstünde ayrı metin butonu vardı; artık üç görünüm de aynı deseni
@@ -707,12 +663,12 @@
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
         .footer-subscribe-inner{padding:26px 32px;}
-        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:18px;}
-        .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:14.5px;}
+        .footer-subscribe-news-title{font-size:18px;}
+        .footer-newsletter-desc{font-size:14.5px;}
       }
       @media (max-width: 560px){
-        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:16px;}
-        .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:13px;}
+        .footer-subscribe-news-title{font-size:16px;}
+        .footer-newsletter-desc{font-size:13px;}
         .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
         .footer-newsletter-input{height:34px; padding:0 40px 0 12px;}
         /* padding:0 BURADA TEKRAR EDİLİR (kullanıcı bulgusu, 2026-09-12: "mobilde e-posta

@@ -25,7 +25,6 @@ import { handleSharesRoute } from './routes/shares.js';
 import { handleCollectionsRoute } from './routes/collections.js';
 import { handleFollowRoute } from './routes/follows.js';
 import { handleAnalyticsRoute } from './routes/analytics.js';
-import { handleTranslateRoute } from './routes/translate.js';
 import { handleForYouRoute } from './routes/forYou.js';
 import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
@@ -2269,10 +2268,6 @@ async function routeApi(request, env, url, ctx) {
   // görüntülenmeleri de sayılmalı, IP başına rate-limit ile korunur), /summary ise oturum + AKTİF
   // ROZET ister ve yalnızca isteği yapan kullanıcının kendi verisini döner.
   if (path.startsWith('/api/analytics')) return handleAnalyticsRoute(request, env, url);
-  // Site çevirisi (bkz. src/routes/translate.js) — üst çubuktaki EN/TR düğmesi buraya konuşur.
-  // OTURUM GEREKTİRMEZ: giriş yapmamış ziyaretçi de siteyi İngilizce okuyabilmeli; kapılar IP
-  // başına pencere ve küresel günlük AI tavanı (bkz. src/lib/aiConfig.js).
-  if (path === '/api/translate') return handleTranslateRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
   // Arşivim (bkz. src/routes/archive.js, kullanıcı isteği 2026-09-10 madde 2/3) — tamamen oturum

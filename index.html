@@ -516,6 +516,10 @@
      yaratırdı; iskelet kartlar aynı yüksekliği baştan ayırır (js/components/site-chrome.js'teki
      .ml-skel deseninin AYNISI).
      ============================================================================================ */
+  /* HİZA: .bento-grid İLE BİREBİR AYNI KUTU MODELİ (kullanıcı isteği, 2026-09-13: "caroselle aynı
+     hizada bitsin, sayfa dışına mesafeleri eşit olsun"). Aynı max-width, aynı yan padding ve aynı
+     kırılma noktaları (860/720/560) — kendi kırılma noktalarımı (960/640) kullanmak, dar ekranda
+     iki bloğun yan boşluklarının farklı anlarda değişmesine ve hizanın kaymasına yol açıyordu. */
   .foryou{max-width:1000px; margin:0 auto; padding:0 32px 64px;}
   .foryou-head{margin-bottom:18px;}
   .foryou-head h2{
@@ -523,9 +527,17 @@
     font-size:22px; font-weight:800; letter-spacing:-0.01em; color:var(--ink);
   }
   .foryou-sub{margin:5px 0 0; font-size:13.5px; color:var(--ink-soft);}
-  .foryou-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:16px;}
+  .foryou-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; align-items:start;}
+  /* TAŞMANIN KÖK NEDENİ (kullanıcı isteği: "şu an sayfa dışına taşıyor") — .bento-grid > *{min-width:0}
+     kuralının BİREBİR aynısı, aynı gerekçeyle. Grid öğelerinin varsayılan min-width'i `auto`'dur:
+     öğe, İÇERİĞİNDEN daha dar olamaz. Karttaki gerekçe/alt satırları white-space:nowrap taşıdığı
+     için uzun bir metin ("Kaydettiklerine benzer Emre Arolat Architecture") sütunun taban genişliğini
+     kendi uzunluğuna çekiyor, dört sütun 1fr'i aşıyor ve ızgara 1000px'lik kapsayıcıyı yararak
+     sayfanın dışına taşıyordu. min-width:0, öğeye "1fr kadar daralabilirsin, metni kırp" der —
+     ellipsis ancak bundan sonra devreye girer. */
+  .foryou-grid > *{min-width:0;}
   .foryou-card{
-    display:flex; flex-direction:column; gap:9px;
+    display:flex; flex-direction:column; gap:9px; min-width:0;
     text-decoration:none; color:inherit; border-radius:14px;
   }
   .foryou-card:focus-visible{outline:2px solid var(--brass); outline-offset:3px;}
@@ -534,16 +546,26 @@
     background:var(--paper-alt);
   }
   .foryou-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  /* EŞİT KART BOYU (kullanıcı isteği: "buradaki tüm gönderi önizlemelerinin boyutları aynı olsun").
+     Görsel kutusu zaten aspect-ratio ile sabit; değişkenlik METİN bloğundan geliyordu — başlık bir
+     ya da iki satır, gerekçe/alt satır kimi kartta hiç yok. Bu yüzden üç satırın da yüksekliği
+     min-height DEĞİL height ile SABİTLENDİ ve üçü de (boş olsalar bile) her zaman basılıyor
+     (bkz. foryouCardHtml): böylece her kart tam olarak aynı yüksekliği kaplar, ızgara satırları
+     birbirine göre kaymaz. */
   .foryou-reason{
-    align-self:flex-start; max-width:100%; font-size:10.5px; font-weight:700;
+    height:14px; line-height:14px; font-size:10.5px; font-weight:700;
     letter-spacing:0.06em; text-transform:uppercase; color:var(--brass);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
   }
   .foryou-title{
     margin:0; font-size:14.5px; font-weight:700; line-height:1.3; color:var(--ink);
+    height:2.6em; /* tam iki satır */
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   }
-  .foryou-meta{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .foryou-meta{
+    height:17px; line-height:17px; font-size:12px; color:var(--ink-soft);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
+  }
   .foryou-card:hover .foryou-title{text-decoration:underline;}
 
   /* Giriş yapmamış ziyaretçinin gördüğü tek kutu. Karusellerin hemen altında durduğu için kart
@@ -566,20 +588,25 @@
   .foryou-cta-btn.secondary{background:transparent; color:var(--ink); border-color:var(--line);}
   .foryou-cta-btn.secondary:hover{background:var(--paper-alt); color:var(--ink);}
 
-  .foryou-skel{display:block; border-radius:14px; aspect-ratio:4/3;
+  .foryou-skel{display:block; border-radius:14px; aspect-ratio:4/3; min-width:0;
     background:linear-gradient(100deg, rgba(0,0,0,.05) 30%, rgba(0,0,0,.09) 50%, rgba(0,0,0,.05) 70%);
     background-size:200% 100%; animation:foryou-skel 1.2s ease-in-out infinite;}
   @keyframes foryou-skel{0%{background-position:120% 0} 100%{background-position:-80% 0}}
   @media (prefers-reduced-motion:reduce){.foryou-skel{animation:none;}}
 
-  @media (max-width:960px){
-    .foryou{padding:0 18px 48px;}
-    .foryou-grid{grid-template-columns:repeat(3, 1fr); gap:14px;}
+  /* Kırılma noktaları .bento-grid ile AYNI (860/720/560) — yan boşluklar iki blokta tam olarak
+     aynı anda ve aynı değere değişsin diye. */
+  @media (max-width:860px){
+    .foryou-grid{gap:10px;}
   }
-  @media (max-width:640px){
-    .foryou-grid{grid-template-columns:repeat(2, 1fr); gap:12px;}
+  @media (max-width:720px){
+    .foryou{padding:0 14px 50px;}
+    .foryou-grid{grid-template-columns:repeat(3, 1fr); gap:8px;}
     .foryou-head h2{font-size:19px;}
     .foryou-cta{padding:18px;}
+  }
+  @media (max-width:560px){
+    .foryou-grid{grid-template-columns:repeat(2, 1fr); gap:6px;}
   }
 
   </style>
@@ -1400,14 +1427,19 @@ const FORYOU_LIMIT = 12;
 let foryouStarted = false;
 
 function foryouCardHtml(item, i){
+  const srcset = item.image ? cdnSrcset(item.image, [400, 600, 800]) : '';
   const img = item.image
-    ? `<img src="${escapeAttr(cdnImg(item.image, 600))}"${cdnSrcset(item.image, [400, 600, 800]) ? ` srcset="${escapeAttr(cdnSrcset(item.image, [400, 600, 800]))}" sizes="(max-width: 640px) 45vw, (max-width: 960px) 30vw, 230px"` : ''} alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">`
+    ? `<img src="${escapeAttr(cdnImg(item.image, 600))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="(max-width: 560px) 45vw, (max-width: 720px) 30vw, 230px"` : ''} alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">`
     : '';
+  // ÜÇ METİN SATIRI DA HER ZAMAN BASILIR — verisi olmasa bile boş olarak. Eskiden eksik alanlar
+  // hiç render edilmiyordu ve kartlar birbirinden farklı yükseklikte çıkıyordu (kullanıcı isteği,
+  // 2026-09-13: "buradaki tüm gönderi önizlemelerinin boyutları aynı olsun"). Yükseklikler CSS'te
+  // sabit (bkz. .foryou-reason/.foryou-title/.foryou-meta), yani boş satır da yerini korur.
   return `<a class="foryou-card" href="${escapeAttr(item.href)}">
     <span class="foryou-thumb">${img}</span>
-    ${item.reason ? `<span class="foryou-reason">${escapeHtml(item.reason)}</span>` : ''}
+    <span class="foryou-reason">${escapeHtml(item.reason || '')}</span>
     <h3 class="foryou-title">${escapeHtml(item.title)}</h3>
-    ${item.subtitle ? `<span class="foryou-meta">${escapeHtml(item.subtitle)}</span>` : ''}
+    <span class="foryou-meta">${escapeHtml(item.subtitle || '')}</span>
   </a>`;
 }
 

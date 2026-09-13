@@ -72,8 +72,17 @@ const adminHtml = read('admin.html');
 
 console.log('\nmadde 1 — footer: "Üye Ol"');
 
-await test('footer bülten bandı ve Topluluk sütunu "Üye Ol" diyor ("Ücretsiz" kalmadı)', () => {
-  assert.match(chrome, /footer-subscribe-btn" href="\/uye-ol">Üye Ol</);
+await test('footer Topluluk sütunu "Üye Ol" diyor ("Ücretsiz" kalmadı) ve bülten bandında CTA yok', () => {
+  // KAPSAM DARALDI (kullanıcı isteği, 2026-09-13: "Footer menüsündeki 'MİMARLAB'da yok musun?'
+  // başlığını altındaki açıklamayı ve üye ol butonunu kaldır. Bültene Abone Ol ve altındaki
+  // kısımlar kalsın."). Bu iddia eskiden metnin İKİ yerde de "Üye Ol" olmasını arıyordu; bülten
+  // bandındaki buton artık YOK, dolayısıyla oradaki eşleşmeyi beklemek testi, kaldırılması
+  // İSTENEN bir öğeyi geri koymaya zorlardı. Yerine bandın gerçekten temiz olduğu doğrulanıyor.
+  assert.ok(!/footer-subscribe-btn" href="\/uye-ol"/.test(chrome),
+    'bülten bandındaki "Üye Ol" butonu kaldırılmalıydı');
+  assert.ok(!/MİMARLAB'da yok musun\?<\/h4>/.test(chrome),
+    '"MİMARLAB\'da yok musun?" başlığı kaldırılmalıydı');
+  // Topluluk sütunundaki bağlantı KALIYOR — kaldırma isteği yalnızca bülten bandını kapsıyordu.
   assert.match(chrome, /<a href="\/uye-ol">Üye Ol<\/a>/, 'Topluluk sütunundaki bağlantı güncellenmemiş');
   assert.ok(!/Ücretsiz Üye Ol/.test(chrome), 'footer\'da hâlâ "Ücretsiz Üye Ol" geçiyor');
 });

@@ -267,94 +267,38 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // ÜST BİLGİ ÇUBUĞU — duyuru metni + DİL DEĞİŞTİRİCİ (EN/TR)
+  // ÜST BİLGİ ÇUBUĞU — duyuru banner'ı
   // ---------------------------------------------------------------------------------------------
   // Admin panelin Site Ayarları sekmesinden (bkz. src/routes/admin.js#handleSiteSettingsAdmin,
   // src/routes/public.js#handlePublicSiteSettings) açılıp kapatılan duyuru banner'ı — auth-nav.js
   // hemen her sayfada zaten yüklü olduğundan (bkz. dosya başı yorumu) ayrı bir <script> eklemeye
   // gerek kalmadan buraya eklendi.
   //
-  // DEĞİŞİKLİK (kullanıcı isteği, 2026-09-13 madde 1): "En üst bilgi çubuğundaki X işaretini
-  // kaldır. Bunun yerine ... EN yazsın". Kapatma (×) düğmesi ve onun localStorage'daki "bu duyuru
-  // kapatıldı" durumu TAMAMEN kaldırıldı; yerine dil değiştirici geldi.
+  // İKİ AYRI KULLANICI İSTEĞİNİN BİRLEŞİK SONUCU (2026-09-13):
+  //   1. "En üst bilgi çubuğundaki X işaretini kaldır." -> kapatma (×) düğmesi ve onun
+  //      localStorage'daki "bu duyuru kapatıldı" durumu KALDIRILDI. Duyuru artık kapatılamaz;
+  //      görünürlüğünün tek anahtarı admin panelindeki "Banner'ı göster" seçeneğidir.
+  //   2. "İngilizce Türkçe butonunu kaldır." -> X'in yerine konan EN/TR dil değiştirici de
+  //      kaldırıldı ve onunla birlikte tüm çeviri katmanı geri alındı (js/translate.js,
+  //      src/routes/translate.js, src/lib/translateStore.js, migrations/0117_translations.sql).
   //
-  // ÇUBUK ARTIK HER ZAMAN GÖRÜNÜR — duyuru kapalıyken bile. Gerekçe: dil değiştirici artık bir
-  // DUYURUNUN eklentisi değil, sitenin kalıcı bir işlevi. Eskisi gibi yalnızca duyuru varken
-  // çizilseydi, admin duyuruyu kapattığı anda kullanıcının İngilizce'ye geçme (ve İngilizce'den
-  // dönme) yolu sessizce kaybolurdu. Duyuru yokken çubuk yalnızca sağdaki EN/TR düğmesini taşır.
+  // Bu ikisinin birleşik sonucu: çubuk, YALNIZCA duyuru açıkken çizilen ve içinde tek bir metin
+  // (opsiyonel "Detaylar" bağlantısıyla) taşıyan sade bir banda döndü. Dil değiştirici kalıcı bir
+  // işlev olduğu için çubuğu "her zaman görünür" yapmıştık; o gerekçe ortadan kalktığı için
+  // görünürlük de eski koşuluna geri alındı — aksi halde duyuru kapalıyken sayfanın tepesinde
+  // boş bir renk bandı kalırdı.
   function injectAnnouncementStyleOnce() {
     if (document.getElementById('announcement-banner-style')) return;
     const style = document.createElement('style');
     style.id = 'announcement-banner-style';
     style.textContent = `
-      .announcement-banner{display:flex; align-items:center; justify-content:center; gap:12px; background:var(--walnut); color:var(--paper-card); font-size:13px; font-weight:600; padding:10px 56px 10px 16px; text-align:center; position:relative; min-height:38px;}
+      .announcement-banner{display:flex; align-items:center; justify-content:center; gap:12px; background:var(--walnut); color:var(--paper-card); font-size:13px; font-weight:600; padding:10px 16px; text-align:center; position:relative;}
       .announcement-banner a{color:inherit; text-decoration:underline;}
-      /* Duyuru metni yokken çubuk yalnızca düğmeyi taşır — ortalanacak bir metin olmadığından
-         yüksekliği min-height verir, içerik kutusu boş kalır. */
-      .announcement-banner-lang{position:absolute; right:10px; top:50%; transform:translateY(-50%); background:transparent; border:1px solid currentColor; border-radius:100px; color:inherit; font:inherit; font-size:11px; font-weight:700; letter-spacing:0.08em; line-height:1; cursor:pointer; padding:5px 10px; opacity:0.85;}
-      .announcement-banner-lang:hover{opacity:1;}
-      .announcement-banner-lang[aria-busy="true"]{opacity:0.5; cursor:progress;}
-      .announcement-banner-lang:focus-visible{outline:2px solid currentColor; outline-offset:2px;}
     `;
     document.head.appendChild(style);
   }
 
-  // Düğmenin ÜZERİNDE yazan şey, tıklandığında GEÇİLECEK dildir (kullanıcı isteği: "EN'e tıklayınca
-  // site İngilizce'ye dönsün ve EN yerine burada TR yazsın"). Yani Türkçedeyken 'EN', İngilizcedeyken
-  // 'TR' yazar.
-  function langButtonLabel(current) { return current === 'en' ? 'TR' : 'EN'; }
-  function langButtonTitle(current) {
-    return current === 'en' ? 'Türkçe\'ye dön' : 'Switch the site to English';
-  }
-
-  function syncLangButton(btn) {
-    const current = (window.MLTranslate && window.MLTranslate.current())
-      || (window.mlCurrentLang ? window.mlCurrentLang() : 'tr');
-    btn.textContent = langButtonLabel(current);
-    btn.title = langButtonTitle(current);
-    btn.setAttribute('aria-label', langButtonTitle(current));
-  }
-
   async function initAnnouncementBanner() {
-    if (document.getElementById('announcement-banner')) return;
-    injectAnnouncementStyleOnce();
-
-    const banner = document.createElement('div');
-    banner.className = 'announcement-banner';
-    banner.id = 'announcement-banner';
-    // data-no-translate: düğmenin kendisi ("EN"/"TR") çeviri katmanının dışında kalmalı — aksi
-    // halde İngilizce moddayken çevirici "TR" etiketini de çevirmeye çalışırdı (bkz.
-    // js/translate.js#walk'taki atlama kuralı).
-    banner.innerHTML = '<span class="announcement-banner-text"></span>'
-      + '<button type="button" class="announcement-banner-lang" id="ml-lang-toggle"'
-      + ' data-no-translate translate="no">EN</button>';
-    document.body.prepend(banner);
-
-    const btn = banner.querySelector('#ml-lang-toggle');
-    syncLangButton(btn);
-    // Çevirici dili değiştirdiğinde (başka bir yerden de tetiklenebilir) etiket kendini düzeltsin.
-    document.addEventListener('mimarlab:langchange', () => syncLangButton(btn));
-
-    btn.addEventListener('click', async () => {
-      if (btn.getAttribute('aria-busy') === 'true') return;
-      btn.setAttribute('aria-busy', 'true');
-      try {
-        // js/translate.js yalnızca gerçekten gerektiğinde indirilir — Türkçe kalan ziyaretçi bu
-        // baytları hiç almaz (bkz. o dosyanın başındaki "maliyet: sıfır" notu).
-        await window.mlEnsureTranslator();
-        const current = window.MLTranslate.current();
-        window.MLTranslate.set(current === 'en' ? 'tr' : 'en');
-      } catch (_) {
-        // Çevirici yüklenemediyse (ağ) dil değişmez; düğme eski hâlinde kalır.
-      } finally {
-        btn.removeAttribute('aria-busy');
-        syncLangButton(btn);
-      }
-    });
-
-    // Duyuru metni AYRI ve GECİKMELİ: çubuk (ve dil düğmesi) site ayarları isteğini beklemeden
-    // çizilir, metin geldiğinde içine yerleşir. Eskiden tam tersiydi ve ayar isteği yavaşsa çubuk
-    // hiç görünmüyordu.
     let settings;
     try {
       // window.__siteSettingsPromise: index.html'in featured-project inline script'i (defer'sız,
@@ -364,11 +308,14 @@
       settings = await (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null)));
     } catch { settings = null; }
     if (!settings || !settings.announcementEnabled || !settings.announcementText) return;
+    if (document.getElementById('announcement-banner')) return;
+    injectAnnouncementStyleOnce();
     const link = safeUrl(settings.announcementLink);
-    const textEl = banner.querySelector('.announcement-banner-text');
-    if (textEl) {
-      textEl.innerHTML = `${escapeHtml(settings.announcementText)}${link ? ` <a href="${escapeAttr(link)}">Detaylar</a>` : ''}`;
-    }
+    const banner = document.createElement('div');
+    banner.className = 'announcement-banner';
+    banner.id = 'announcement-banner';
+    banner.innerHTML = `<span>${escapeHtml(settings.announcementText)}${link ? ` <a href="${escapeAttr(link)}">Detaylar</a>` : ''}</span>`;
+    document.body.prepend(banner);
   }
 
   if (document.readyState === 'loading') {
