@@ -604,7 +604,13 @@ await test('index.js oturum ipucu metası; auth-nav/badge-shared ipucu 0 iken is
   assert.ok(idx.includes('<meta name="ml-auth" content="${hasSessionCookie ? \'1\' : \'0\'}">'));
   assert.ok(/mimarlab_session=/.test(idx));
   const an = readFileSync(new URL('../auth-nav.js', import.meta.url), 'utf8');
-  assert.ok(an.includes("if (!hasSessionHint()) return Promise.resolve({ user: null });"));
+  // İlk yüklemede (force YOK) ipucu "0" ise istek hâlâ hiç atılmaz — anonim 401 temizliğinin
+  // korunan garantisi budur. force parametresi 2026-09-13'te eklendi: giriş/üye ol sayfa
+  // yenilenmeden tamamlandığında meta BAYAT "0" taşıdığı için header "Giriş Yap"ta kalıyordu
+  // (bkz. auth-nav.js#fetchMe yorumu), taze çağrı bu kapıyı bilerek atlar.
+  assert.ok(an.includes("if (!force && !hasSessionHint()) return Promise.resolve({ user: null });"));
+  assert.ok(an.includes('window.__authMeFetch = fetchMe(true)'), 'login sonrası taze istek ipucu kapısını atlar');
+  assert.ok(/function setSessionHint\(/.test(an), 'oturum durumu öğrenilince meta güncellenir');
   const bs = readFileSync(new URL('../badge-shared.js', import.meta.url), 'utf8');
   assert.ok(bs.includes("meta[name=\"ml-auth\"]"));
 });
