@@ -32,14 +32,61 @@ const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 // bırakmamak için (bkz. kullanıcı isteği: "Worker execution limitlerini dikkate al").
 const FETCH_TIMEOUT_MS = 12000;
 
-export const MEET_REQUIRED_SECRETS = ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY', 'GOOGLE_CALENDAR_ID'];
+// İKİ KİMLİK MODU (kullanıcı kararı, 2026-09-13). Hangisinin kullanılacağını SIRLARIN VARLIĞI
+// belirler; kod tarafında bir bayrak/ayar YOKTUR.
+//
+//   'oauth'  — GOOGLE_REFRESH_TOKEN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET.
+//              Google Meet konferansını GERÇEK BİR KULLANICI adına açar. KİŞİSEL GMAIL
+//              HESAPLARI İÇİN TEK ÇALIŞAN YOLDUR: çıplak bir servis hesabı
+//              conferenceData.createRequest gönderdiğinde Google "Invalid conference type value"
+//              döner ve bunu aşmak için gereken domain-wide delegation YALNIZCA Workspace'te
+//              vardır. Ayrıca yan faydası büyük: oda, hesabın sahibi adına açıldığı için o kişi
+//              TOPLANTI SAHİBİ olur ve karşı tarafı içeri alabilir.
+//   'service_account' — GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY + GOOGLE_CALENDAR_ID.
+//              Workspace + domain-wide delegation kurulumları için korunur (bkz.
+//              GOOGLE_IMPERSONATE_USER). DAVRANIŞI DEĞİŞMEDİ.
+//
+// OAuth modu ÖNCELİKLİDİR: ikisi de tanımlıysa kullanıcı yetkisi kullanılır, çünkü Meet
+// konferansı üretmesi garanti olan yol odur.
+export const MEET_OAUTH_SECRETS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'];
+export const MEET_SERVICE_ACCOUNT_SECRETS = ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY', 'GOOGLE_CALENDAR_ID'];
+// Geriye dönük ad — eski çağıranlar/dokümanlar servis hesabı listesini bu adla arıyordu.
+export const MEET_REQUIRED_SECRETS = MEET_SERVICE_ACCOUNT_SECRETS;
 
+function hasSecret(env, key) {
+  return !!(env && typeof env[key] === 'string' && env[key].trim());
+}
+
+export function meetAuthMode(env) {
+  if (MEET_OAUTH_SECRETS.every((k) => hasSecret(env, k))) return 'oauth';
+  if (MEET_SERVICE_ACCOUNT_SECRETS.every((k) => hasSecret(env, k))) return 'service_account';
+  return null;
+}
+
+// Teşhis mesajı için: HANGİ modun eksikleri bildirilmeli? Kullanıcının hangi yolu kurmaya
+// çalıştığını, o yoldan KAÇ sırrın zaten tanımlı olduğuna bakarak tahmin ederiz — yarısı girilmiş
+// bir kurulumun eksiklerini söylemek, hiç dokunulmamış diğer modun listesini saymaktan yararlıdır.
+// Hiçbiri başlanmamışsa (ikisi de tamamen boş) OAuth listesi döner: kişisel Gmail kurulumlarında
+// önerilen yol odur (bkz. yukarıdaki mod notu).
 export function missingMeetSecrets(env) {
-  return MEET_REQUIRED_SECRETS.filter((k) => !(env && typeof env[k] === 'string' && env[k].trim()));
+  if (meetAuthMode(env)) return [];
+  const oauthMissing = MEET_OAUTH_SECRETS.filter((k) => !hasSecret(env, k));
+  const saMissing = MEET_SERVICE_ACCOUNT_SECRETS.filter((k) => !hasSecret(env, k));
+  return oauthMissing.length <= saMissing.length ? oauthMissing : saMissing;
 }
 
 export function isGoogleMeetConfigured(env) {
-  return missingMeetSecrets(env).length === 0;
+  return meetAuthMode(env) !== null;
+}
+
+// Etkinliğin yazılacağı takvim. OAuth modunda KULLANICI ADINA hareket ettiğimiz için
+// GOOGLE_CALENDAR_ID verilmemişse 'primary' anlamlıdır (ve doğru varsayılandır) — servis hesabı
+// modunda ise 'primary' servis hesabının kendi boş takvimi olurdu, bu yüzden orada ŞARTTIR
+// (MEET_SERVICE_ACCOUNT_SECRETS onu zorunlu tutar).
+export function meetCalendarId(env) {
+  const explicit = String((env && env.GOOGLE_CALENDAR_ID) || '').trim();
+  if (explicit) return explicit;
+  return meetAuthMode(env) === 'oauth' ? 'primary' : '';
 }
 
 // ---- yardımcılar --------------------------------------------------------------------------------
@@ -97,14 +144,59 @@ async function fetchWithTimeout(fetchImpl, url, init) {
 // Isolate-içi kısa ömürlü önbellek: aynı Worker isolate'i içinde art arda gelen çağrılar (ör. cron
 // yeniden deneme turu) her seferinde JWT imzalayıp token ucuna gitmesin. Belirtecin kendisi
 // asla D1/KV'ye yazılmaz.
-let cachedToken = null; // { value, expiresAt }
+let cachedToken = null; // { value, expiresAt, key }
+
+// Çağıranların TEK giriş noktası: moda göre doğru belirteci döner (bkz. meetAuthMode).
+export async function getAccessToken(env, opts = {}) {
+  const mode = meetAuthMode(env);
+  if (!mode) throw new Error(`config_missing: ${missingMeetSecrets(env).join(', ')}`);
+  return mode === 'oauth' ? getOAuthAccessToken(env, opts) : getServiceAccountToken(env, opts);
+}
+
+// OAuth kullanıcı yetkisi: refresh_token -> access_token. Refresh token SÜRESİZDİR (kullanıcı
+// iptal etmedikçe ve OAuth onay ekranı "Testing" değil "In production" olduğu sürece — Testing
+// modunda Google refresh token'ı 7 GÜNDE geçersiz kılar, bkz. wrangler.jsonc'daki not).
+// client_secret ve refresh_token hiçbir log'a/hata mesajına girmez (safeErrorMessage temizler).
+async function getOAuthAccessToken(env, { fetchImpl = fetch, now = Date.now } = {}) {
+  const nowMs = now();
+  const key = `oauth:${env.GOOGLE_CLIENT_ID}`;
+  if (cachedToken && cachedToken.expiresAt - 60_000 > nowMs && cachedToken.key === key) {
+    return cachedToken.value;
+  }
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: env.GOOGLE_REFRESH_TOKEN.trim(),
+    client_id: env.GOOGLE_CLIENT_ID.trim(),
+    client_secret: env.GOOGLE_CLIENT_SECRET.trim(),
+  });
+  const res = await fetchWithTimeout(fetchImpl, TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.access_token) {
+    const detail = data.error_description || data.error || `HTTP ${res.status}`;
+    // 'invalid_grant' = refresh token iptal edilmiş ya da (Testing modunda) 7 günü dolmuş.
+    throw new Error(`google_token_error: ${detail}`);
+  }
+  cachedToken = {
+    value: data.access_token,
+    key,
+    expiresAt: nowMs + (Number(data.expires_in) || 3600) * 1000,
+  };
+  return data.access_token;
+}
 
 export async function getServiceAccountToken(env, { fetchImpl = fetch, now = Date.now } = {}) {
-  const missing = missingMeetSecrets(env);
+  const missing = MEET_SERVICE_ACCOUNT_SECRETS.filter((k) => !hasSecret(env, k));
   if (missing.length) throw new Error(`config_missing: ${missing.join(', ')}`);
 
   const nowMs = now();
-  if (cachedToken && cachedToken.expiresAt - 60_000 > nowMs && cachedToken.email === env.GOOGLE_CLIENT_EMAIL) {
+  // `key` adı bu fonksiyonun aşağısında içe aktarılan imza anahtarı için kullanılıyor — önbellek
+  // anahtarı bu yüzden ayrı adla tutulur.
+  const cacheKey = `sa:${env.GOOGLE_CLIENT_EMAIL}`;
+  if (cachedToken && cachedToken.expiresAt - 60_000 > nowMs && cachedToken.key === cacheKey) {
     return cachedToken.value;
   }
 
@@ -146,7 +238,7 @@ export async function getServiceAccountToken(env, { fetchImpl = fetch, now = Dat
   }
   cachedToken = {
     value: data.access_token,
-    email: env.GOOGLE_CLIENT_EMAIL,
+    key: cacheKey,
     expiresAt: nowMs + (Number(data.expires_in) || 3600) * 1000,
   };
   return cachedToken.value;
@@ -187,8 +279,8 @@ async function googleJson(fetchImpl, token, url, init) {
 export async function createMeetEvent(env, {
   summary, description, startIso, endIso, timeZone, requestId, privateProps,
 }, { fetchImpl = fetch, now = Date.now, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
-  const token = await getServiceAccountToken(env, { fetchImpl, now });
-  const calendarId = encodeURIComponent(env.GOOGLE_CALENDAR_ID.trim());
+  const token = await getAccessToken(env, { fetchImpl, now });
+  const calendarId = encodeURIComponent(meetCalendarId(env));
   const base = `${CALENDAR_API}/calendars/${calendarId}/events`;
 
   const payload = {
@@ -233,8 +325,8 @@ export async function createMeetEvent(env, {
 // bağlantı geçersizleşmez. conferenceDataVersion GÖNDERİLMEZ (1 gönderilirse Google gövdedeki
 // conferenceData'yı yetkili sayar ve alan yokken konferansı SİLEBİLİR).
 export async function patchEventTime(env, { eventId, startIso, endIso, timeZone }, { fetchImpl = fetch, now = Date.now } = {}) {
-  const token = await getServiceAccountToken(env, { fetchImpl, now });
-  const calendarId = encodeURIComponent(env.GOOGLE_CALENDAR_ID.trim());
+  const token = await getAccessToken(env, { fetchImpl, now });
+  const calendarId = encodeURIComponent(meetCalendarId(env));
   const url = `${CALENDAR_API}/calendars/${calendarId}/events/${encodeURIComponent(eventId)}?sendUpdates=none`;
   const event = await googleJson(fetchImpl, token, url, {
     method: 'PATCH',

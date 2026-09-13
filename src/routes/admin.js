@@ -9,6 +9,7 @@ import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidP
 import { createNotification, notifySubmissionApproved, notifySubmissionRejected } from '../lib/notify.js';
 // Google Meet gateway'i (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import { createMeetForConsultation } from '../lib/consultationMeet.js';
+import { handleGoogleMeetAuthAdmin } from './googleMeetAuth.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { handleUnassignedArchiveAdmin } from './unassignedArchive.js';
 // bkz. src/routes/submissions.js'teki AYNI CJS-interop içe aktarma — firma/marka ayrımının tek kaynağı.
@@ -160,6 +161,10 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'badges') return await handleBadgesAdmin(request, env, url, segments);
     if (sub === 'consultations') return await handleConsultationsAdmin(request, env, url, segments);
     if (sub === 'consultation-actions') return await handleConsultationActionsAdmin(request, env, url, segments);
+    // Google Meet OAuth kurulumu (kullanıcı kararı, 2026-09-13) — kişisel Gmail hesapları servis
+    // hesabıyla Meet konferansı ÜRETEMEDİĞİ için yenileme belirteci üreten tek seferlik akış.
+    // Belirteç SAKLANMAZ, yalnızca admin'e gösterilir (bkz. src/routes/googleMeetAuth.js).
+    if (sub === 'google-meet') return await handleGoogleMeetAuthAdmin(request, env, url, segments);
     if (sub === 'profile-badge') return await handleProfileBadgeAdmin(request, env, url);
     if (sub === 'contact') return await handleContactAdmin(request, env, segments);
     if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);

@@ -26,7 +26,10 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import { meetingWindow, createMeetForConsultation, retryPendingMeets, maybeRetryMeetOnAccess, ensureRoomUuid, resolveConsultationAccess, rescheduleMeetForConsultation, consultationStartMs, ROOM_UUID_RE } from '../src/lib/consultationMeet.js';
-import { safeErrorMessage, getServiceAccountToken, _resetTokenCacheForTests, missingMeetSecrets } from '../src/lib/googleMeet.js';
+import {
+  safeErrorMessage, getServiceAccountToken, _resetTokenCacheForTests, missingMeetSecrets,
+  getAccessToken, meetAuthMode, meetCalendarId, isGoogleMeetConfigured,
+} from '../src/lib/googleMeet.js';
 import { handleConsultationsRoute, buildRoomState } from '../src/routes/consultations.js';
 import { handleAdminRoute } from '../src/routes/admin.js';
 import worker from '../src/index.js';
@@ -368,8 +371,88 @@ await test('5.e) credential eksik -> uygulama bozulmaz: failed + "config_missing
   const res = await createMeetForConsultation({ DB: d1(db), GOOGLE_CLIENT_EMAIL: 'x@y.iam.gserviceaccount.com' }, 'c1', { fetchImpl: g.fetchImpl });
   assert.equal(res.status, 'failed'); assert.equal(res.error, 'config_missing: GOOGLE_PRIVATE_KEY, GOOGLE_CALENDAR_ID');
   assert.equal(g.calls.token + g.calls.insert, 0); assert.equal(row(db).status, 'approved'); assert.equal(row(db).meet_status, 'failed');
-  assert.deepEqual(missingMeetSecrets({}), ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY', 'GOOGLE_CALENDAR_ID']);
+  // SÖZLEŞME DEĞİŞTİ (2026-09-13): artık İKİ kimlik modu var (bkz. googleMeet.js#meetAuthMode).
+  // Hiçbir moda başlanmamışsa OAuth listesi bildirilir — kişisel Gmail kurulumlarında önerilen
+  // yol odur. Yarısı girilmiş bir modun eksikleri ise (yukarıdaki assert) o modun listesidir.
+  assert.deepEqual(missingMeetSecrets({}), ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN']);
 });
+// ---- OAuth kullanıcı yetkisi modu (kullanıcı kararı, 2026-09-13) ------------------------------
+// Kişisel Gmail hesapları servis hesabıyla Meet konferansı ÜRETEMEZ (Google "Invalid conference
+// type value" döner) ve domain-wide delegation yalnızca Workspace'te vardır. Bu blok, ikinci
+// kimlik modunun gerçekten devreye girdiğini ve servis hesabı yolunu BOZMADIĞINI kelepçeler.
+const OAUTH_ENV = {
+  GOOGLE_CLIENT_ID: 'cid.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'csecret',
+  GOOGLE_REFRESH_TOKEN: '1//refresh-token-value',
+};
+function fakeOAuthFetch({ fails = false } = {}) {
+  const calls = { token: 0, bodies: [] };
+  const fetchImpl = async (url, init) => {
+    calls.token++;
+    calls.bodies.push(Object.fromEntries(new URLSearchParams(init.body)));
+    if (fails) return new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }), { status: 400 });
+    return new Response(JSON.stringify({ access_token: 'ya29.oauth-access', expires_in: 3600 }), { status: 200 });
+  };
+  return { calls, fetchImpl };
+}
+
+await test('5.g) OAuth sırları varsa mod "oauth" olur ve servis hesabı sırları GEREKMEZ', () => {
+  assert.equal(meetAuthMode(OAUTH_ENV), 'oauth');
+  assert.equal(isGoogleMeetConfigured(OAUTH_ENV), true);
+  assert.deepEqual(missingMeetSecrets(OAUTH_ENV), []);
+});
+
+await test('5.h) OAuth modu refresh_token grant kullanır; JWT imzalanmaz, client_secret gövdede kalır', async () => {
+  _resetTokenCacheForTests();
+  const g = fakeOAuthFetch();
+  const token = await getAccessToken(OAUTH_ENV, { fetchImpl: g.fetchImpl, now: () => START });
+  assert.equal(token, 'ya29.oauth-access');
+  assert.equal(g.calls.token, 1);
+  const body = g.calls.bodies[0];
+  assert.equal(body.grant_type, 'refresh_token');
+  assert.equal(body.refresh_token, '1//refresh-token-value');
+  assert.equal(body.client_id, 'cid.apps.googleusercontent.com');
+  // JWT bearer akışına HİÇ girilmemeli (servis hesabı yolu bu modda çalışmaz).
+  assert.equal('assertion' in body, false);
+});
+
+await test('5.i) OAuth belirteci de isolate içinde önbellenir', async () => {
+  _resetTokenCacheForTests();
+  const g = fakeOAuthFetch();
+  await getAccessToken(OAUTH_ENV, { fetchImpl: g.fetchImpl, now: () => START });
+  await getAccessToken(OAUTH_ENV, { fetchImpl: g.fetchImpl, now: () => START + 10 * MIN });
+  assert.equal(g.calls.token, 1);
+});
+
+await test('5.j) iptal edilmiş/süresi dolmuş refresh token -> google_token_error, belirteç metne SIZMAZ', async () => {
+  _resetTokenCacheForTests();
+  const g = fakeOAuthFetch({ fails: true });
+  await assert.rejects(
+    () => getAccessToken(OAUTH_ENV, { fetchImpl: g.fetchImpl, now: () => START }),
+    (err) => {
+      assert.match(err.message, /google_token_error: Token has been expired or revoked\./);
+      const safe = safeErrorMessage(err);
+      assert.equal(safe.includes('1//refresh-token-value'), false, 'refresh token hata metnine sızdı');
+      assert.equal(safe.includes('csecret'), false, 'client_secret hata metnine sızdı');
+      return true;
+    },
+  );
+});
+
+await test('5.k) takvim kimliği: OAuth modunda varsayılan "primary", servis hesabında ŞART', () => {
+  // OAuth modunda kullanıcı ADINA hareket edildiği için primary anlamlıdır.
+  assert.equal(meetCalendarId(OAUTH_ENV), 'primary');
+  // Açıkça verilmişse o kullanılır (iki modda da).
+  assert.equal(meetCalendarId({ ...OAUTH_ENV, GOOGLE_CALENDAR_ID: 'takvim@group.calendar.google.com' }), 'takvim@group.calendar.google.com');
+  // Servis hesabı modunda primary servis hesabının kendi BOŞ takvimi olurdu — bu yüzden
+  // GOOGLE_CALENDAR_ID zorunludur ve yokluğunda mod hiç kurulmaz.
+  assert.equal(meetAuthMode({ GOOGLE_CLIENT_EMAIL: 'a@b.iam.gserviceaccount.com', GOOGLE_PRIVATE_KEY: 'k' }), null);
+});
+
+await test('5.l) iki mod da tanımlıysa OAuth ÖNCELİKLİDİR (Meet üretmesi garanti olan yol)', () => {
+  assert.equal(meetAuthMode({ ...OAUTH_ENV, ...googleEnv() }), 'oauth');
+});
+
 await test('5.f) bozuk private key -> config_invalid, anahtar içeriği hata metnine girmez', async () => {
   _resetTokenCacheForTests();
   const db = freshDb(); await seed(db);

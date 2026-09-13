@@ -135,6 +135,21 @@
     // tanımlanır; burada ASLA yer almaz. Tanımlı değilse rezervasyon/onay akışı BOZULMAZ:
     // consultation_requests.meet_status='failed', meet_error='config_missing: …' yazılır, secret'lar
     // eklenince cron/admin düğmesi Meet'i oluşturur.
+    // GOOGLE MEET — KİMLİK MODU DEĞİŞTİ (kullanıcı kararı, 2026-09-13). mimarlab kişisel bir Gmail
+    // hesabıyla yönetiliyor; çıplak bir servis hesabı Meet konferansı ÜRETEMEZ ("Invalid conference
+    // type value") ve bunu aşan domain-wide delegation YALNIZCA Workspace'te vardır. Bu yüzden
+    // artık ikinci bir mod var (bkz. src/lib/googleMeet.js#meetAuthMode):
+    //   GOOGLE_REFRESH_TOKEN — GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET ile birlikte "oauth" modunu
+    //     açar ve odalar GERÇEK KULLANICI adına oluşur (yan fayda: o kişi toplantı SAHİBİ olur,
+    //     karşı tarafı içeri alabilir). Belirteç admin panelindeki tek seferlik yetkilendirme
+    //     akışıyla üretilir (bkz. src/routes/googleMeetAuth.js) ve `wrangler secret put` ile
+    //     tanımlanır — D1'e ASLA yazılmaz.
+    //   GOOGLE_CALENDAR_ID bu modda OPSİYONELDİR; verilmezse 'primary' kullanılır.
+    //
+    // DİKKAT — 7 GÜN TUZAĞI: OAuth onay ekranı "Testing" durumundayken Google refresh token'ı
+    // 7 GÜNDE geçersiz kılar ve Meet sessizce çalışmayı bırakır (meet_error: "google_token_error:
+    // ... invalid_grant"). Kalıcı olması için onay ekranı "In production" durumuna alınmalıdır.
+    //
     // Havale/EFT hesap bilgisi (kullanıcı isteği, 2026-09-13: danışmanlık ödeme seçenekleri geri
     // geldi, bkz. src/lib/bankTransfer.js): PAYMENT_IBAN, PAYMENT_IBAN_NAME (+ opsiyonel
     // PAYMENT_BANK_NAME) de `wrangler secret put` ile tanımlanır; burada ASLA yer almaz —

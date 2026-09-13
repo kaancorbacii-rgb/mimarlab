@@ -437,6 +437,11 @@
       </div>
 
       <div class="admin-section" id="section-consultations">
+        <!-- Google Meet kurulum durumu (kullanıcı kararı, 2026-09-13). Meet odaları kişisel Gmail
+             hesabında ancak OAuth kullanıcı yetkisiyle açılabildiği için, yenileme belirtecini
+             üreten tek seferlik akışın girişi buradadır. Kutu yalnızca kurulum EKSİKSE görünür —
+             her şey yolundaysa admin'in gözünü kalıcı olarak meşgul etmez. -->
+        <div id="meet-setup" style="display:none;"></div>
         <div class="admin-subtabs" id="consultations-subtabs"></div>
         <div id="consultations-list"></div>
       </div>
@@ -1415,6 +1420,7 @@ async function loadBadgeRequests(){
 // Havale ile ödenen danışmanlık taleplerinin onay ekranı (kullanıcı isteği, 2026-09-06) —
 // loadBadgeRequests İLE AYNI desen (bkz. src/routes/admin.js#handleConsultationsAdmin).
 async function loadConsultationRequests(){
+  loadMeetSetupStatus();
   renderStatusSubtabs(document.getElementById('consultations-subtabs'), CONSULTATION_STATUS_LABELS_ADMIN, consultationsStatus, (s)=>{ consultationsStatus = s; loadConsultationRequests(); }, true);
   const list = document.getElementById('consultations-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
@@ -1466,6 +1472,32 @@ async function loadConsultationRequests(){
     });
   });
 }
+// GOOGLE MEET KURULUM DURUMU (kullanıcı kararı, 2026-09-13).
+// Sunucu hangi kimlik modunun kurulu olduğunu söyler (bkz. src/routes/googleMeetAuth.js):
+//   'oauth'           -> kullanıcı yetkisi; kişisel Gmail hesaplarında Meet üreten TEK yol
+//   'service_account' -> Workspace + domain-wide delegation kurulumu
+//   null              -> hiçbiri kurulu değil; Meet odaları oluşturulamaz
+// Kutu yalnızca mod null iken görünür. Yenileme belirteci HİÇBİR ZAMAN burada saklanmaz —
+// yetkilendirme akışı onu bir kez gösterir, admin `wrangler secret put` ile tanımlar.
+async function loadMeetSetupStatus(){
+  const box = document.getElementById('meet-setup');
+  if(!box) return;
+  let d;
+  try { d = await api('/api/admin/google-meet'); } catch { return; }
+  if(!d || d.mode){ box.style.display = 'none'; return; }
+  const missing = (d.missing || []).join(', ');
+  box.style.display = '';
+  box.innerHTML = `
+    <div class="admin-card">
+      <div class="admin-card-title">Google Meet kurulumu tamamlanmamış <span class="admin-badge badge-rejected">Odalar oluşturulamıyor</span></div>
+      <div class="admin-card-meta" style="margin-top:6px;">Eksik sırlar: ${escapeHtml(missing || '—')}</div>
+      <div class="admin-card-note" style="margin-top:10px;"><strong>Google Console\'a eklenecek yönlendirme adresi</strong>${escapeHtml(d.redirectUri || '')}</div>
+      ${d.canStart
+        ? `<div class="admin-actions" style="margin-top:10px;"><a class="admin-btn primary" href="${escapeHtml(d.authorizeUrl)}">Google ile yetkilendir</a></div>`
+        : `<div class="admin-card-meta" style="margin-top:10px;">Yetkilendirme başlatılamıyor: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET tanımlı değil.</div>`}
+    </div>`;
+}
+
 // Ödeme durumu rozeti (kullanıcı isteği, 2026-09-13) — sözleşme migrations/0117_consultation_payment.sql
 // ve src/routes/consultations.js#PAYMENT_STATUS ile AYNI.
 //

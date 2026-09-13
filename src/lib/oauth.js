@@ -28,14 +28,16 @@ function b64urlDecode(str) {
   return decodeURIComponent(escape(atob(padded)));
 }
 
-async function signState(secret, provider, next) {
+// Google Meet OAuth kurulum akışı (src/routes/googleMeetAuth.js) AYNI imzalama şemasını kullanır —
+// ikinci bir kopya yazmak, iki state formatının sessizce ayrışacağı yer olurdu.
+export async function signState(secret, provider, next) {
   const payload = JSON.stringify({ ts: Date.now(), next: next || '', nonce: crypto.randomUUID() });
   const encoded = b64urlEncode(payload);
   const sig = await hmacSha256Hex(secret, `${provider}.${encoded}`);
   return `${encoded}.${sig}`;
 }
 
-async function verifyState(secret, provider, state) {
+export async function verifyState(secret, provider, state) {
   if (!state || !state.includes('.')) return null;
   const [encoded, sig] = state.split('.');
   const expectedSig = await hmacSha256Hex(secret, `${provider}.${encoded}`);
