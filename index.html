@@ -577,7 +577,6 @@
     border-radius:16px; padding:22px 24px;
   }
   .foryou-cta-text{font-size:14.5px; font-weight:600; color:var(--ink); max-width:60ch;}
-  .foryou-cta-text span{display:block; margin-top:4px; font-size:13px; font-weight:500; color:var(--ink-soft);}
   .foryou-cta-actions{display:flex; gap:10px; flex-wrap:wrap;}
   .foryou-cta-btn{
     display:inline-block; padding:10px 20px; border-radius:100px; text-decoration:none;
@@ -741,7 +740,7 @@
   <section class="foryou" id="foryou-section" aria-labelledby="foryou-title">
     <div class="foryou-head">
       <h2 id="foryou-title">Senin İçin</h2>
-      <p class="foryou-sub" id="foryou-sub">Hazırlanıyor…</p>
+      <p class="foryou-sub" id="foryou-sub">Takip ettiğin, kaydettiğin, beğendiğin, paylaştığın içeriklere benzer bir akış sana özel olarak buraya gelir.</p>
     </div>
     <div id="foryou-body">
       <div class="foryou-grid">
@@ -1424,6 +1423,11 @@ if(HOME_SSR){
 // altında. Bu yüzden yükleme 'load' olayından SONRA başlar ve karusel isteklerinin bant genişliğiyle
 // yarışmaz. İskelet kartlar o ana kadar aynı yüksekliği tutar, yani sıçrama olmaz.
 const FORYOU_LIMIT = 12;
+// Alt yazı metinleri TEK KAYNAK (kullanıcı isteği, 2026-09-13 madde 1 ve 5). PENDING iki durumda
+// da geçerlidir — giriş yapılmamışken ve giriş yapılmış ama henüz hiç sinyal yokken — çünkü ikisi
+// de "bu akış oluşacak" der; READY ise akışın gerçekten derlendiği durumdur.
+const FORYOU_SUB_PENDING = 'Takip ettiğin, kaydettiğin, beğendiğin, paylaştığın içeriklere benzer bir akış sana özel olarak buraya gelir.';
+const FORYOU_SUB_READY = 'Takip ettiğin, kaydettiğin, beğendiğin, paylaştığın içeriklerden yola çıkarak sana özel içerikler derledik.';
 let foryouStarted = false;
 
 function foryouCardHtml(item, i){
@@ -1447,11 +1451,12 @@ function renderForYouCta(){
   const sub = document.getElementById('foryou-sub');
   const body = document.getElementById('foryou-body');
   if(!body) return;
-  if(sub) sub.textContent = 'Takip ettiklerin ve kaydettiklerin buraya bir akış olarak gelir.';
+  // Alt yazı, giriş yapılmamış durumda da başlıktaki vaadi anlatır (kullanıcı isteği, 2026-09-13).
+  if(sub) sub.textContent = FORYOU_SUB_PENDING;
+  // İkinci açıklama satırı (<span>) KALDIRILDI (kullanıcı isteği, 2026-09-13 madde 3) — aynı şeyi
+  // başlığın altındaki alt yazı zaten söylüyordu, kutuda iki kez tekrarlanıyordu.
   body.innerHTML = `<div class="foryou-cta">
-    <div class="foryou-cta-text">Kişiselleştirilmiş bir Ana Sayfa görünümü için Giriş Yap.
-      <span>Takip ettiğin kişi ve firmaların yeni projeleri, kaydettiklerine benzer içerikler burada toplanır.</span>
-    </div>
+    <div class="foryou-cta-text">Kişiselleştirilmiş bir ana sayfa deneyimi için hesabını oluştur ya da giriş yap.</div>
     <div class="foryou-cta-actions">
       <a class="foryou-cta-btn" href="/giris">Giriş Yap</a>
       <a class="foryou-cta-btn secondary" href="/uye-ol">Üye Ol</a>
@@ -1487,9 +1492,10 @@ async function loadForYou(){
   // `personalized` bayrağı). Henüz hiç takip/kaydetme yapmamış bir üyeye "senin için seçtik"
   // demek dürüst olmazdı — ona ne yapması gerektiği söylenir.
   if(sub){
-    sub.textContent = data.personalized
-      ? 'Takip ettiklerin ve kaydettiklerinden yola çıkarak derledik.'
-      : 'Takip etmeye ve kaydetmeye başladıkça bu liste sana göre şekillenir.';
+    // personalized=false: üyenin henüz hiç takip/kaydetme/beğeni/paylaşım/yorumu yok, kutu
+    // doldurucuyla dolmuş demektir (bkz. src/routes/forYou.js'teki `personalized` bayrağı).
+    // Ona "derledik" demek dürüst olmazdı; bekleyen durumun metni aynen kullanılır.
+    sub.textContent = data.personalized ? FORYOU_SUB_READY : FORYOU_SUB_PENDING;
   }
   body.innerHTML = `<div class="foryou-grid">${items.map(foryouCardHtml).join('')}</div>`;
 }

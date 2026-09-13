@@ -1,30 +1,44 @@
-// SENİN İÇİN — GET /api/foryou (kullanıcı isteği, 2026-09-13 madde 2: "Ana sayfada carosellerden
-// sonra 'Senin İçin' — kişiselleştirilmiş ana sayfa özelliğini ekleyebiliriz ama SADECE GİRİŞ YAPAN
-// kullanıcılar için").
+// SENİN İÇİN — GET /api/foryou (kullanıcı isteği, 2026-09-13: "Ana sayfada carosellerden sonra
+// 'Senin İçin' … ama SADECE GİRİŞ YAPAN kullanıcılar için").
 //
 // ===============================================================================================
-// NEDEN AYRI BİR UÇ, src/routes/follows.js#followFeed DEĞİL
+// ALGORİTMA (kullanıcı isteği, 2026-09-13 ikinci tur)
 // ===============================================================================================
-// followFeed ("Aktivitelerim > Takip Ettiklerim") bilerek DAR: yalnızca takip ETTİKTEN SONRA
-// yayınlanmış içeriği döner (bkz. o dosyadaki kullanıcı isteği: "takip etmeden önceki gönderilerin
-// bu alana gelmesine gerek yok"). Bu kural bir aktivite akışı için doğru, ana sayfa için YANLIŞ
-// olurdu: dün EAA'yı takip etmiş bir üye ana sayfada BOŞ bir "Senin İçin" görürdü. Buradaki uç
-// arşivin tamamına bakar ve takip dışında kaydetme sinyalini de kullanır.
+// "Kullanıcıların TAKİP ETTİKLERİ, KAYDETTİKLERİ, BEĞENDİKLERİ, PAYLAŞTIKLARI, YORUM YAPTIKLARI
+//  içeriklere BENZER ama BUNLARIN AYNISI OLMAYAN içerikler."
 //
-// ===============================================================================================
-// SİNYALLER — hepsi ID JOIN'i, hiçbiri tahmin değil
-// ===============================================================================================
-//   A. Takip ettiğin kişi/firmaların projeleri          (follows -> project_designers)
-//   B. Takip ettiğin firmaların/markaların ürünleri     (follows -> products.brand_office_id)
-//   C. Kaydettiğin projelerin ofislerinden diğerleri    (saved_items -> project_designers)
-//   D. Kaydettiğin ürünlerin markasından diğerleri      (saved_items -> products.brand_office_id)
-//   E. Doldurucu: MİMARLAB'da yeni                      (sinyal yoksa da kutu boş kalmasın)
+// Beş sinyalin tamamı okunur ve iki ayrı işe yarar:
+//   (a) TOHUM — "bu kullanıcı kimlerle/nelerle ilgileniyor?" sorusunun cevabı,
+//   (b) DIŞLAMA — etkileşim kurulmuş İÇERİĞİN KENDİSİ sonuçtan çıkarılır. Bu, isteğin "bunların
+//       aynısı olmayan" kısmıdır ve tek bir yerde değil, HER rafta uygulanır (bkz. notInteracted()).
 //
-// JSON ALAN EŞLEŞTİRMESİ BİLEREK YOK: projects.type / projects.category JSON metin olarak tutuluyor
-// ve json_each() geçersiz JSON'da HATA fırlatır (tablo-değerli fonksiyon, AND kısa devresi onu
-// kurtarmaz). Tek bir bozuk satır ana sayfayı 500'e düşürürdü. Bu yüzden her raf yalnızca tamsayı
-// FK'ler üzerinden kurulu — "aynı ofisten" sinyali "aynı tipte"den zaten daha güçlü ve
-// kullanıcıya AÇIKLANABİLİR ("Kaydettiğin X projesinin ofisinden").
+//   Sinyal              Tablo            Tohum olarak                    Dışlama olarak
+//   ─────────────────── ──────────────── ─────────────────────────────── ────────────────────────
+//   Takip ettikleri     follows          mimar/firma id (ref_id)         —
+//   Kaydettikleri       saved_items      proje/ürün + mimar/firma        o proje/ürün
+//   Beğendikleri        ratings          proje/ürün + mimar/firma        o proje/ürün
+//   Paylaştıkları       shared_items     proje/ürün + mimar/firma        o proje/ürün
+//   Yorum yaptıkları    comments         proje + mimar/firma             o proje
+//
+// Beş raf üretilir ve HARMANLANIR (bkz. aşağıdaki interleave); rafları arka arkaya eklemek ilk
+// rafın kutunun tamamını doldurmasına ve diğer sinyallerin hiç görünmemesine yol açardı:
+//   A. Tohum profillerin (takip + diğer etkileşimler) projeleri
+//   B. Tohum firmaların/markaların ürünleri
+//   C. Etkileşim kurulan projelerin tasarımcılarından DİĞER projeler
+//   D. Etkileşim kurulan ürünlerin markasından DİĞER ürünler
+//   E. Doldurucu: MİMARLAB'da yeni (hiç sinyali olmayan üyede kutu boş kalmasın)
+//
+// DOĞAL ANAHTAR EŞLEŞTİRMESİ: ratings/comments/shared_items/saved_items hedefi bir SLUG değil,
+// "doğal anahtar" ile tutar — mimar/firmada ham ad, slug ya da legacy_key olabilir; projede slug
+// ya da legacy_key (bkz. src/lib/canonicalSync.js#findCanonicalRowByNaturalKey). Bu yüzden her
+// eşleştirme o fonksiyonun baktığı KOLONLARIN AYNISINA bakar. Yalnızca `slug`e bakmak, kaydetme
+// widget'larının slugify(name) yazdığı satırları sessizce ıskalardı (o dosyadaki 2026-08-28
+// gerçek bulgusunun aynısı).
+//
+// JSON ALAN EŞLEŞTİRMESİ BİLEREK YOK: projects.type/category JSON metin olarak tutuluyor ve
+// json_each() geçersiz JSON'da HATA fırlatır (tablo-değerli fonksiyon; AND kısa devresi kurtarmaz).
+// Tek bir bozuk satır ana sayfayı 500'e düşürürdü. Her raf yalnızca tamsayı FK'ler üzerinden kurulu
+// — "aynı ofisten" sinyali "aynı tipte"den zaten daha güçlü ve kullanıcıya AÇIKLANABİLİR.
 //
 // ÖNBELLEK: yanıt kullanıcıya özeldir — private, no-store, Vary: Cookie (bkz. analytics.js'teki
 // AYNI karar: "kullanıcılar arasında veri sızıntısı kesinlikle olmasın").
@@ -34,86 +48,167 @@ import { getSessionUser } from '../lib/auth.js';
 const PRIVATE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0', 'Vary': 'Cookie' };
 
 // Ana sayfadaki kutunun taşıdığı kart sayısı. İstemci de aynı varsayılanı kullanır (bkz.
-// index.html#FORYOU_LIMIT) — ayrışırlarsa sunucu fazladan satır üretir, zararsız ama israf.
+// index.html#FORYOU_LIMIT).
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 24;
-// Her raftan çekilen en fazla aday. Harmanlama (interleave) sonrası fazlası atılır; raf başına
-// tavan koymak, tek bir rafın (ör. 200 projesi olan bir ofisi takip eden üye) kutunun tamamını
-// doldurmasını engeller.
+// Her raftan çekilen en fazla aday. Raf başına tavan, tek bir rafın (ör. 200 projesi olan bir ofisi
+// takip eden üye) kutunun tamamını doldurmasını engeller.
 const PER_RAIL = 8;
+// Sinyal tablolarından okunan en fazla satır. Çok aktif bir üyenin binlerce satırını JSON bind
+// parametresine çevirmek hem sorguyu hem belleği şişirirdi; en yeni N etkileşim zaten güncel
+// ilgiyi temsil eder.
+const SIGNAL_LIMIT = 200;
+
+// Sinyal tablolarındaki tür adları tek tip değil: saved/shared 'material'ı ayrı bir tür olarak
+// yazar, ratings da öyle; ama ikisi de products tablosunda yaşar (products.kind).
+const PROJECT_TYPES = new Set(['project']);
+const PRODUCT_TYPES = new Set(['product', 'material']);
+const PROFILE_TYPES = new Set(['architect', 'office']);
 
 export async function handleForYouRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404, PRIVATE_HEADERS);
 
   // GİRİŞ ŞARTI — kullanıcı isteğinin kendisi ("sadece giriş yapan kullanıcılar için"). İstemci
-  // 401'i "giriş çağrısı kutusunu göster" diye okur (bkz. index.html#renderForYou), hata olarak
+  // 401'i "giriş çağrısı kutusunu göster" diye okur (bkz. index.html#renderForYouCta), hata olarak
   // DEĞİL; bu yüzden 401 burada normal bir akış sonucudur.
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Giriş gerekli.', 401, PRIVATE_HEADERS);
 
   const limit = clampLimit(url.searchParams.get('limit'));
+  const J = arr => JSON.stringify(arr);
 
-  // 1. TUR — sinyaller.
-  const [followRows, savedRows] = await env.DB.batch([
+  // -------------------------------------------------------------------------------------------
+  // 1. TUR — beş sinyal, tek batch.
+  // -------------------------------------------------------------------------------------------
+  const [followRows, savedRows, ratingRows, shareRows, commentRows] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT followed_type, followed_key, followed_title, followed_ref_id
+      `SELECT followed_type, followed_key, followed_ref_id
        FROM follows WHERE user_id = ? AND followed_ref_id IS NOT NULL`
     ).bind(user.id),
-    // Kaydedilenler İKİ işe yarar: (a) C/D raflarının kaynağı, (b) zaten kaydedilmiş bir içeriği
-    // "sana önerdik" diye geri göstermemek için dışlama listesi.
     env.DB.prepare(
-      `SELECT item_type, item_key FROM saved_items
-       WHERE user_id = ? ORDER BY created_at DESC LIMIT 200`
+      `SELECT item_type AS t, item_key AS k FROM saved_items
+       WHERE user_id = ? ORDER BY created_at DESC LIMIT ${SIGNAL_LIMIT}`
+    ).bind(user.id),
+    env.DB.prepare(
+      `SELECT target_type AS t, target_id AS k FROM ratings
+       WHERE user_id = ? ORDER BY updated_at DESC LIMIT ${SIGNAL_LIMIT}`
+    ).bind(user.id),
+    env.DB.prepare(
+      `SELECT item_type AS t, item_key AS k FROM shared_items
+       WHERE user_id = ? ORDER BY created_at DESC LIMIT ${SIGNAL_LIMIT}`
+    ).bind(user.id),
+    env.DB.prepare(
+      `SELECT target_type AS t, target_id AS k FROM comments
+       WHERE user_id = ? ORDER BY created_at DESC LIMIT ${SIGNAL_LIMIT}`
     ).bind(user.id),
   ]);
 
-  const architectIds = uniq((followRows.results || [])
-    .filter(f => f.followed_type === 'architect').map(f => f.followed_ref_id));
-  const officeIds = uniq((followRows.results || [])
-    .filter(f => f.followed_type === 'office').map(f => f.followed_ref_id));
+  // Dört sinyalin satır şekli AYNI ({t, k}) olduğu için tek bir döngüde toplanabiliyor.
+  const projectKeys = new Set();
+  const productKeys = new Set();
+  const profileKeys = new Set();
+  for (const rows of [savedRows, ratingRows, shareRows, commentRows]) {
+    for (const r of rows.results || []) {
+      const t = r.t, k = r.k;
+      if (!k) continue;
+      if (PROJECT_TYPES.has(t)) projectKeys.add(k);
+      else if (PRODUCT_TYPES.has(t)) productKeys.add(k);
+      else if (PROFILE_TYPES.has(t)) profileKeys.add(k);
+    }
+  }
+  // Takip edilenler tohuma hem id'siyle (kesin) hem anahtarıyla katılır.
+  const followedArchitectIds = new Set();
+  const followedOfficeIds = new Set();
+  for (const f of followRows.results || []) {
+    if (f.followed_key) profileKeys.add(f.followed_key);
+    if (f.followed_type === 'architect') followedArchitectIds.add(f.followed_ref_id);
+    else if (f.followed_type === 'office') followedOfficeIds.add(f.followed_ref_id);
+  }
 
-  const saved = savedRows.results || [];
-  const savedProjectSlugs = saved.filter(s => s.item_type === 'project').map(s => s.item_key);
-  // 'material' de products tablosunda yaşar (products.kind), bu yüzden ürün dışlamasına dahil.
-  const savedProductSlugs = saved.filter(s => s.item_type === 'product' || s.item_type === 'material').map(s => s.item_key);
+  const profileKeyList = [...profileKeys];
+  const projectKeyList = [...projectKeys];
+  const productKeyList = [...productKeys];
 
-  const hasSignal = architectIds.length || officeIds.length || savedProjectSlugs.length || savedProductSlugs.length;
+  // -------------------------------------------------------------------------------------------
+  // 2. TUR — profil anahtarlarını canonical id'lere çöz.
+  // -------------------------------------------------------------------------------------------
+  // findCanonicalRowByNaturalKey'in mimar/firma için baktığı ÜÇ kolonun aynısı (name/slug/
+  // legacy_key). Anahtar listesi boşsa json_each('[]') hiçbir satır döndürmez, yani ayrı bir "if"
+  // dalı gerekmez.
+  const [architectIdRows, officeIdRows] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT id FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL
+         AND (name IN (SELECT value FROM json_each(?1))
+           OR slug IN (SELECT value FROM json_each(?1))
+           OR legacy_key IN (SELECT value FROM json_each(?1)))`
+    ).bind(J(profileKeyList)),
+    env.DB.prepare(
+      `SELECT id FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL
+         AND (name IN (SELECT value FROM json_each(?1))
+           OR slug IN (SELECT value FROM json_each(?1))
+           OR legacy_key IN (SELECT value FROM json_each(?1)))`
+    ).bind(J(profileKeyList)),
+  ]);
 
-  const J = arr => JSON.stringify(arr);
+  const seedArchitectIds = [...new Set([
+    ...followedArchitectIds,
+    ...(architectIdRows.results || []).map(r => r.id),
+  ])].filter(v => v !== null && v !== undefined);
+  const seedOfficeIds = [...new Set([
+    ...followedOfficeIds,
+    ...(officeIdRows.results || []).map(r => r.id),
+  ])].filter(v => v !== null && v !== undefined);
 
-  // 2. TUR — beş raf, TEK batch. Sinyali olmayan raflar boş json_each('[]') ile doğal olarak hiç
-  // satır döndürmez (bkz. analyticsAccess.js#ownedSlugs'taki aynı not), ayrı bir "if" dalı gerekmez.
-  const [railFollowProjects, railFollowProducts, railSavedProjects, railSavedProducts, railFresh] =
+  const hasSignal = !!(seedArchitectIds.length || seedOfficeIds.length
+    || projectKeyList.length || productKeyList.length);
+
+  // "Bunların aynısı olmayan" kuralının SQL karşılığı. Doğal anahtar slug ya da legacy_key
+  // olabildiğinden İKİSİ de dışlanır; legacy_key NULL olan satırlar NOT IN ile sessizce elenmesin
+  // diye ayrıca IS NULL kontrolü var (SQL'de NULL NOT IN (...) sonucu UNKNOWN'dır, yani satır düşer).
+  const notInteractedProject = (alias, bind) =>
+    `${alias}.slug NOT IN (SELECT value FROM json_each(${bind}))
+     AND (${alias}.legacy_key IS NULL OR ${alias}.legacy_key NOT IN (SELECT value FROM json_each(${bind})))`;
+  const notInteractedProduct = notInteractedProject; // aynı iki kolon, aynı kural
+
+  // -------------------------------------------------------------------------------------------
+  // 3. TUR — beş raf, tek batch.
+  // -------------------------------------------------------------------------------------------
+  const [railSeedProjects, railSeedProducts, railSimilarProjects, railSimilarProducts, railFresh] =
     await env.DB.batch([
-      // A — takip edilen kişi/firmaların projeleri.
+      // A — tohum profillerin projeleri. seed_id/seed_type, kartın gerekçesini "Takip ettiğin X" mi
+      //     yoksa "İlgilendiğin X" mi yazacağımızı belirler (bkz. aşağıdaki followedKey seti).
       env.DB.prepare(
-        `SELECT DISTINCT p.id, p.slug, p.title, p.images, p.location,
-                COALESCE(o.name, a.name) AS by_name
+        `SELECT p.id, p.slug, p.title, p.images, p.location,
+                COALESCE(o.name, a.name) AS by_name,
+                COALESCE(pd.office_id, pd.architect_id) AS seed_id,
+                CASE WHEN pd.office_id IS NOT NULL THEN 'office' ELSE 'architect' END AS seed_type
          FROM projects p
          JOIN project_designers pd ON pd.project_id = p.id
          LEFT JOIN offices o ON o.id = pd.office_id
          LEFT JOIN architects a ON a.id = pd.architect_id
          WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
-           AND p.slug NOT IN (SELECT value FROM json_each(?3))
+           AND ${notInteractedProject('p', '?3')}
            AND (pd.architect_id IN (SELECT value FROM json_each(?1))
                 OR pd.office_id IN (SELECT value FROM json_each(?2)))
          ORDER BY p.id DESC LIMIT ?4`
-      ).bind(J(architectIds), J(officeIds), J(savedProjectSlugs), PER_RAIL),
+      ).bind(J(seedArchitectIds), J(seedOfficeIds), J(projectKeyList), PER_RAIL),
 
-      // B — takip edilen firmaların/markaların ürünleri. Ürün tarafında mimar sinyali yok:
-      // products.designer serbest metindir ve follows.js'in kendi denetim notu (bkz. o dosyadaki
-      // "LIKE yalnızca bir ÖN-filtre" bulgusu) bu eşleşmenin güvenilmez olduğunu zaten saptamış.
+      // B — tohum firmaların/markaların ürünleri. Ürün tarafında mimar sinyali yok:
+      //     products.designer serbest metindir ve src/routes/follows.js'in kendi denetim notu
+      //     (o dosyadaki "LIKE yalnızca bir ÖN-filtre" bulgusu) bu eşleşmenin güvenilmez olduğunu
+      //     zaten saptamış.
       env.DB.prepare(
-        `SELECT pr.id, pr.slug, pr.title, pr.images, pr.kind, o.name AS brand
+        `SELECT pr.id, pr.slug, pr.title, pr.images, pr.kind, o.name AS brand,
+                pr.brand_office_id AS seed_id
          FROM products pr
          JOIN offices o ON o.id = pr.brand_office_id
          WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-           AND pr.slug NOT IN (SELECT value FROM json_each(?2))
+           AND ${notInteractedProduct('pr', '?2')}
            AND pr.brand_office_id IN (SELECT value FROM json_each(?1))
          ORDER BY pr.id DESC LIMIT ?3`
-      ).bind(J(officeIds), J(savedProductSlugs), PER_RAIL),
+      ).bind(J(seedOfficeIds), J(productKeyList), PER_RAIL),
 
-      // C — kaydedilen projelerin tasarımcılarından DİĞER projeler.
+      // C — etkileşim kurulan projelerin tasarımcılarından DİĞER projeler.
       env.DB.prepare(
         `SELECT DISTINCT p.id, p.slug, p.title, p.images, p.location,
                 COALESCE(o.name, a.name) AS by_name
@@ -122,38 +217,44 @@ export async function handleForYouRoute(request, env, url) {
          LEFT JOIN offices o ON o.id = pd.office_id
          LEFT JOIN architects a ON a.id = pd.architect_id
          WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
-           AND p.slug NOT IN (SELECT value FROM json_each(?1))
+           AND ${notInteractedProject('p', '?1')}
            AND (
              pd.office_id IN (
                SELECT pd2.office_id FROM projects p2
                JOIN project_designers pd2 ON pd2.project_id = p2.id
-               WHERE p2.slug IN (SELECT value FROM json_each(?1)) AND pd2.office_id IS NOT NULL
+               WHERE (p2.slug IN (SELECT value FROM json_each(?1))
+                      OR p2.legacy_key IN (SELECT value FROM json_each(?1)))
+                 AND pd2.office_id IS NOT NULL
              )
              OR pd.architect_id IN (
                SELECT pd2.architect_id FROM projects p2
                JOIN project_designers pd2 ON pd2.project_id = p2.id
-               WHERE p2.slug IN (SELECT value FROM json_each(?1)) AND pd2.architect_id IS NOT NULL
+               WHERE (p2.slug IN (SELECT value FROM json_each(?1))
+                      OR p2.legacy_key IN (SELECT value FROM json_each(?1)))
+                 AND pd2.architect_id IS NOT NULL
              )
            )
          ORDER BY p.id DESC LIMIT ?2`
-      ).bind(J(savedProjectSlugs), PER_RAIL),
+      ).bind(J(projectKeyList), PER_RAIL),
 
-      // D — kaydedilen ürünlerin markasından DİĞER ürünler.
+      // D — etkileşim kurulan ürünlerin markasından DİĞER ürünler.
       env.DB.prepare(
         `SELECT pr.id, pr.slug, pr.title, pr.images, pr.kind, o.name AS brand
          FROM products pr
          JOIN offices o ON o.id = pr.brand_office_id
          WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-           AND pr.slug NOT IN (SELECT value FROM json_each(?1))
+           AND ${notInteractedProduct('pr', '?1')}
            AND pr.brand_office_id IN (
              SELECT pr2.brand_office_id FROM products pr2
-             WHERE pr2.slug IN (SELECT value FROM json_each(?1)) AND pr2.brand_office_id IS NOT NULL
+             WHERE (pr2.slug IN (SELECT value FROM json_each(?1))
+                    OR pr2.legacy_key IN (SELECT value FROM json_each(?1)))
+               AND pr2.brand_office_id IS NOT NULL
            )
          ORDER BY pr.id DESC LIMIT ?2`
-      ).bind(J(savedProductSlugs), PER_RAIL),
+      ).bind(J(productKeyList), PER_RAIL),
 
       // E — doldurucu. HER ZAMAN çalışır: hiç sinyali olmayan yeni üyenin kutusu boş kalmasın,
-      // sinyali olan üyede de raflar limiti dolduramazsa kuyruğu tamamlasın.
+      //     sinyali olan üyede de raflar limiti dolduramazsa kuyruğu tamamlasın.
       env.DB.prepare(
         `SELECT DISTINCT p.id, p.slug, p.title, p.images, p.location,
                 COALESCE(o.name, a.name) AS by_name
@@ -162,20 +263,33 @@ export async function handleForYouRoute(request, env, url) {
          LEFT JOIN offices o ON o.id = pd.office_id
          LEFT JOIN architects a ON a.id = pd.architect_id
          WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
-           AND p.slug NOT IN (SELECT value FROM json_each(?1))
+           AND ${notInteractedProject('p', '?1')}
          ORDER BY p.id DESC LIMIT ?2`
-      ).bind(J(savedProjectSlugs), MAX_LIMIT),
+      ).bind(J(projectKeyList), MAX_LIMIT),
     ]);
 
+  // Takip edilen tohumlar ile "sadece etkileşim kurulmuş" tohumları ayırt etmek için — gerekçe
+  // metni bu ikisi için farklı yazılır (takip açık bir niyet beyanıdır, bir puan/paylaşım değil).
+  const followedKey = new Set([
+    ...[...followedArchitectIds].map(id => `architect:${id}`),
+    ...[...followedOfficeIds].map(id => `office:${id}`),
+  ]);
+  const seedReason = (seedType, seedId, name) => {
+    if (!name) return followedKey.has(`${seedType}:${seedId}`) ? 'Takip ettiklerinden' : 'İlgilendiklerinden';
+    return followedKey.has(`${seedType}:${seedId}`) ? `Takip ettiğin ${name}` : `İlgilendiğin ${name}`;
+  };
+
   const rails = [
-    (railFollowProjects.results || []).map(r => projectCard(r, 'Takip ettiğin', r.by_name)),
-    (railFollowProducts.results || []).map(r => productCard(r, 'Takip ettiğin', r.brand)),
-    (railSavedProjects.results || []).map(r => projectCard(r, 'Kaydettiklerine benzer', r.by_name)),
-    (railSavedProducts.results || []).map(r => productCard(r, 'Kaydettiklerine benzer', r.brand)),
+    (railSeedProjects.results || []).map(r =>
+      projectCard(r, seedReason(r.seed_type, r.seed_id, r.by_name))),
+    (railSeedProducts.results || []).map(r =>
+      productCard(r, seedReason('office', r.seed_id, r.brand))),
+    (railSimilarProjects.results || []).map(r =>
+      projectCard(r, r.by_name ? `Benzer: ${r.by_name}` : 'Benzer içerik')),
+    (railSimilarProducts.results || []).map(r =>
+      productCard(r, r.brand ? `Benzer: ${r.brand}` : 'Benzer içerik')),
   ];
 
-  // HARMANLAMA: raflardan sırayla birer kart al (A1, B1, C1, D1, A2, B2, ...). Rafları arka arkaya
-  // eklemek, ilk rafın tüm kutuyu doldurmasına ve diğer sinyallerin hiç görünmemesine yol açardı.
   const items = [];
   const seen = new Set();
   const push = card => {
@@ -183,21 +297,22 @@ export async function handleForYouRoute(request, env, url) {
     seen.add(card.href);
     items.push(card);
   };
+  // HARMANLAMA: raflardan sırayla birer kart (A1, B1, C1, D1, A2, ...).
   for (let i = 0; i < PER_RAIL && items.length < limit; i++) {
     for (const rail of rails) push(rail[i]);
   }
 
   // Kişiselleştirme GERÇEKTEN oldu mu: yalnızca sinyal tabanlı raflardan en az bir kart girdiyse.
-  // Doldurucu ile dolmuş bir kutuyu "senin için seçtik" diye sunmak dürüst olmazdı — istemci bu
-  // bayrağı alt yazıyı değiştirmek için okur (bkz. index.html#renderForYou).
+  // Doldurucu ile dolmuş bir kutuyu "senin için derledik" diye sunmak dürüst olmazdı — istemci bu
+  // bayrağı alt yazıyı değiştirmek için okur (bkz. index.html#loadForYou).
   const personalized = items.length > 0;
 
   for (const row of railFresh.results || []) {
     if (items.length >= limit) break;
-    push(projectCard(row, 'MİMARLAB\'da yeni', row.by_name));
+    push(projectCard(row, 'MİMARLAB\'da yeni'));
   }
 
-  return json({ personalized, hasSignal: !!hasSignal, items }, 200, PRIVATE_HEADERS);
+  return json({ personalized, hasSignal, items }, 200, PRIVATE_HEADERS);
 }
 
 function clampLimit(raw) {
@@ -205,8 +320,6 @@ function clampLimit(raw) {
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT;
   return Math.min(n, MAX_LIMIT);
 }
-
-function uniq(arr) { return [...new Set(arr.filter(v => v !== null && v !== undefined))]; }
 
 // images sütunu JSON metin; bozuk satırlar SESSİZCE görselsiz kart üretir (follows.js#followFeed
 // ile AYNI tolerans) — tek bir bozuk JSON ana sayfayı düşürmemeli.
@@ -217,27 +330,27 @@ function firstImage(rawJson) {
   } catch { return null; }
 }
 
-function projectCard(row, reasonPrefix, byName) {
-  const subtitle = [byName, row.location].filter(Boolean).join(' · ');
+function projectCard(row, reason) {
+  const subtitle = [row.by_name, row.location].filter(Boolean).join(' · ');
   return {
     kind: 'project',
     title: row.title,
     subtitle: subtitle || null,
     image: firstImage(row.images),
     href: `/proje/${encodeURIComponent(row.slug)}`,
-    reason: byName ? `${reasonPrefix} ${byName}` : reasonPrefix,
+    reason,
   };
 }
 
-function productCard(row, reasonPrefix, brand) {
+function productCard(row, reason) {
   return {
     kind: row.kind === 'material' ? 'material' : 'product',
     title: row.title,
-    subtitle: brand || null,
+    subtitle: row.brand || null,
     image: firstImage(row.images),
     // Malzemeler de ürün yolundan servis edilir (products.kind ayrımı yalnızca listelemede) —
-    // bkz. src/index.js'teki /urun ve /malzeme yönlendirmeleri.
+    // bkz. src/index.js'teki '/malzeme' -> '/urun' yönlendirmesi.
     href: `/urun/${encodeURIComponent(row.slug)}`,
-    reason: brand ? `${reasonPrefix} ${brand}` : reasonPrefix,
+    reason,
   };
 }
