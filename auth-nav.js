@@ -100,9 +100,30 @@
     var m = document.querySelector('meta[name="ml-auth"]');
     return !m || m.getAttribute('content') !== '0';
   }
-  function fetchMe() {
-    if (!hasSessionHint()) return Promise.resolve({ user: null });
-    return fetch('/api/auth/me').then(res => (res.ok ? res.json() : { user: null })).catch(() => ({ user: null }));
+  // gerçek bulgu (kullanıcı isteği, 2026-09-13: "giriş yaptığım halde sayfayı yenileyene kadar
+  // giriş yapmamışım gibi gözüküyor"): meta'yı sunucu SAYFA YANITINDA bir kez yazar (bkz.
+  // src/index.js#ml-auth) — anonim açılan sayfada content="0"dır ve sayfa yenilenene kadar öyle
+  // KALIR. Giriş/üye ol modal içinde tamamlanıp refreshAuthNav() çağrıldığında fetchMe() bu BAYAT
+  // "0"ı görüp isteği hiç atmıyor, {user:null} dönüyor ve initAuthNav erkenden çıkıyordu: header
+  // ile mobil çekmece "Giriş Yap"ta kalıyordu. İki yönlü düzeltme: (a) taze çağrıda ipucu kapısı
+  // atlanır (aşağıdaki force), (b) oturum durumu öğrenilir öğrenilmez meta GÜNCELLENİR ki aynı
+  // ipucunu okuyan diğer tüketiciler (badge-shared.js, ileride eklenecekler) de doğru değeri görsün.
+  function setSessionHint(loggedIn) {
+    var m = document.querySelector('meta[name="ml-auth"]');
+    if (!m) {
+      m = document.createElement('meta');
+      m.setAttribute('name', 'ml-auth');
+      document.head.appendChild(m);
+    }
+    m.setAttribute('content', loggedIn ? '1' : '0');
+  }
+  function fetchMe(force) {
+    if (!force && !hasSessionHint()) return Promise.resolve({ user: null });
+    // force: oturum az önce değişti — ara önbellekten (bfcache/HTTP) eski bir yanıt dönmesin.
+    return fetch('/api/auth/me', force ? { cache: 'no-store' } : undefined)
+      .then(res => (res.ok ? res.json() : { user: null }))
+      .then(data => { setSessionHint(!!(data && data.user)); return data; })
+      .catch(() => ({ user: null }));
   }
   // audit bulgusu: auth-nav.js (hemen hemen her sayfada) ve save-widget.js (kart ızgaralı
   // sayfalarda, bkz. o dosyadaki initSavedWidget) AYNI sayfada birbirinden habersiz iki ayrı
@@ -141,7 +162,7 @@
   async function initAuthNav(opts) {
     const navRight = document.querySelector('.nav-right');
     if (!navRight) return;
-    const data = opts && opts.fresh ? await (window.__authMeFetch = fetchMe()) : await window.__authMeFetch;
+    const data = opts && opts.fresh ? await (window.__authMeFetch = fetchMe(true)) : await window.__authMeFetch;
     const user = data.user;
 
     if (!user) return;
