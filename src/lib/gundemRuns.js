@@ -148,6 +148,21 @@ export async function gundemCronHealthFields(env, now = Date.now()) {
     gundemLastCronRunAge: row ? Math.round(h.ageMs / 1000) : null,
     gundemLastCronPublished: row ? h.published : null,
     gundemLastCronPublishFailed: row ? h.publishFailed : null,
+    // TURUN KIRILIMI (kullanıcı isteği, 2026-09-13: "otomatik veri çekişinde problem mi var").
+    // Sütunlar 2026-09-07'den beri gundem_runs'ta DURUYORDU ama hiçbir yere yansımıyordu: dışarıdan
+    // görünen tek sayı "published" olduğu için "0 yayınlandı" ile "hiçbir kaynağa ulaşılamadı"
+    // ayırt edilemiyordu. Bu alanlar o ayrımı yapar — kaç kaynak denendi/kaçı hata verdi, kaç
+    // içerik bulundu, kaçı tazelik penceresine girdi, kaçı mükerrer, kaçı kalite/AI ile elendi.
+    // Hepsi SAYI; içerik/URL taşımaz, yani public /api/_health için bilgi sızıntısı riski yok.
+    gundemLastCronSourcesTried: row ? Number(row.sources_tried) || 0 : null,
+    gundemLastCronSourcesFailed: row ? Number(row.sources_failed) || 0 : null,
+    gundemLastCronFetched: row ? Number(row.fetched) || 0 : null,
+    gundemLastCronFresh: row ? Number(row.within_freshness) || 0 : null,
+    gundemLastCronCandidates: row ? Number(row.candidates) || 0 : null,
+    gundemLastCronDuplicate: row ? Number(row.duplicate) || 0 : null,
+    gundemLastCronAiRejected: row ? Number(row.ai_rejected) || 0 : null,
+    gundemLastCronQualityRejected: row ? Number(row.quality_rejected) || 0 : null,
+    gundemLastCronDurationMs: row ? Number(row.duration_ms) || 0 : null,
     gundemLastCronAnomalies: h.anomalies,
     gundemCronStatus: readError ? 'read_error' : h.status,
     gundemCronHealthy: readError ? false : h.healthy,

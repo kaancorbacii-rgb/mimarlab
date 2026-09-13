@@ -964,6 +964,10 @@
 <!-- Varlık popup stilleri — tek kaynak (bkz. css/product-detail.css dosya başı). Bu sayfa ilgili modal
      modülünü kendi <script> etiketiyle yüklüyor; stil de bu yüzden burada <link>'lenir ki
      popup açıldığı anda stilli çizilsin (modülün ensureStylesheet güvenlik ağı son çaredir). -->
+<!-- Varlık popup'larının ORTAK kuralları — modalin kendi dosyasından ÖNCE (bkz.
+     css/entity-detail.css dosya başı: sıra, modalin kendi kurallarının üzerine
+     yazabilmesi için önemli). -->
+<link rel="stylesheet" href="/css/entity-detail.css">
 <link rel="stylesheet" href="/css/product-detail.css">
 <!-- Proje popup (detay) stilleri — proje.html ile AYNI tek kaynak (bkz. css/project-detail.css).
      Bu sayfa da proje popup'ını açar; kendi satır içi kuralları bu dosyanınkilerle çakışmaz,

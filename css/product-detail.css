@@ -19,6 +19,10 @@
  *   3. modülün kendi ensureStylesheet()'i, ikisi de olmamışsa mount anında <link>'i ekler.
  * Üçüncüsü son çare ağıdır: proje popup'ı 2026-09-12'de tam bu boşluk yüzünden stilsiz açıldı.
  */
+/* NOT: 16 ORTAK kural bu dosyada ARTIK YOK — css/entity-detail.css'e taşındı (bkz. o
+ * dosyanın başı). Ortak dosya bundan ÖNCE yüklenir; buradaki kurallar gerektiğinde
+ * onların üzerine yazar. */
+
 .detail-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
       /* margin-bottom 18px (14px değil) — Düzenle/Arşivle/Sil satırı (eski .pr-actions) buradan
          kaldırılıp X'in yanına taşındığından (bkz. kullanıcı isteği) bu artık künye bloğuna en yakın
@@ -45,7 +49,6 @@
       .designer-label{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
       /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
          isteği), hepsi AYNI büyüklükte. */
-      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
       .meta-icon svg{display:block; width:100%; height:100%;}
       .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
       .detail-meta .meta-row .meta-icon{margin-top:3px;}
@@ -95,7 +98,6 @@
          versiyona baktığını hap'lara bakıp zihninde birleştirmek zorunda kalmasın. */
       .pr-variant-current{margin:10px 0 0; font-size:12.5px; color:var(--ink-soft);}
       .pr-variant-current strong{color:var(--ink); font-weight:600;}
-      .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
       .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
@@ -198,16 +200,11 @@
         .lightbox-grid{padding:60px 14px 24px;}
         .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
       }
-      .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
-      .related-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
       /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
          görünümlerde gönderi başlıkları görselin altında olsun). */
-      .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
       /* background: yükleme sırasında (yavaş bağlantı) veya görsel 404/hata verirse kutu şeffaf/beyaz
          kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
-      .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
       .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700;}
       /* [data-owner="product"] — bkz. yukarıdaki #pr-desc gerçek bulgusu: proje.html'in kendi
          .related-card-title padding'i (10px 14px 12px) farklı, bu kural oraya sızmamalı. */
       .modal-shell-overlay[data-owner="product"] .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700;}
@@ -215,9 +212,6 @@
          js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
          satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
          sonuna ellipsis eklenir. */
-      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
-      .related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
-      .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
       /* Kullanan Firmalar | Kullanan Mimarlar ikili satırı — js/components/architect-modal.js#
@@ -243,21 +237,15 @@
         .pr-two-col-row{grid-template-columns:1fr; gap:28px;}
         .pr-two-col-row.pr-two-col-row-both::after{display:none;}
       }
-      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
       .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
       .prevnext a:hover{border-color:var(--walnut);}
       .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
-      .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
-      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14px;}
-      .prevnext-text{min-width:0; flex:1;}
-      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
       /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
          inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
          dışına taşıyordu (bkz. kullanıcı isteği). */
       /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
          butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
          sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
-      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
       /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
          #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
          kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */

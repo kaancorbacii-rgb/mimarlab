@@ -171,8 +171,47 @@ await test('modülü kendi <script>\'iyle yükleyen HER sayfa stil dosyasını d
 
 await test('lazy-modals dört modalın da CSS\'ini açmadan önce yükleyip bekliyor', () => {
   const lm = read('js/components/lazy-modals.js');
+  // Dizinin İÇERİĞİ aranır, tam metni değil: ortak dosya eklenince diziler iki elemanlı oldu
+  // (bkz. aşağıdaki sıra testi).
   for (const f of ['css/architect-detail.css', 'css/office-detail.css', 'css/product-detail.css', 'css/project-detail.css']) {
-    assert.ok(lm.includes(`cssDeps: ['${f}']`), `${f} cssDeps olarak bildirilmeli`);
+    assert.match(lm, new RegExp(`cssDeps: \\[[^\\]]*'${f.replace('/', '\\/')}'`), `${f} cssDeps olarak bildirilmeli`);
+  }
+});
+
+section('ortak kurallar tek dosyada ve modal dosyalarından ÖNCE yükleniyor');
+
+await test('ortak dosya var; kuralları üç modal dosyasında TEKRARLANMIYOR', () => {
+  const shared = read('css/entity-detail.css');
+  const sharedSelectors = [...shared.matchAll(/^(\.[a-z][a-z0-9-]*)\s*\{/gm)].map(m => m[1]);
+  assert.ok(sharedSelectors.length >= 10, `ortak dosyada beklenenden az kural: ${sharedSelectors.length}`);
+  // @media BLOKLARI ÇIKARILIR: oradaki aynı seçici bir KOPYA değil, dar ekrana özel bilinçli bir
+  // override'dır ve ortak dosyadan SONRA geldiği için doğru şekilde kazanmaya devam eder. Aranan
+  // şey üst seviyede duran ikinci bir tanım — yani gerçek ayrışma riski.
+  const stripMedia = (css) => css.replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '');
+  for (const f of ['css/architect-detail.css', 'css/office-detail.css', 'css/product-detail.css']) {
+    const body = stripMedia(read(f));
+    for (const sel of sharedSelectors) {
+      const re = new RegExp('^[ \\t]*' + sel.replace('.', '\\.') + '\\s*\\{', 'm');
+      assert.ok(!re.test(body), `${f} ortak kuralı hâlâ ÜST SEVİYEDE taşıyor: ${sel} (iki kopya = ayrışma)`);
+    }
+  }
+});
+
+await test('yükleme sırası: ortak dosya HER ZAMAN modalin kendi dosyasından önce', () => {
+  const lm = read('js/components/lazy-modals.js');
+  for (const key of ['architect', 'office', 'product']) {
+    assert.ok(lm.includes(`cssDeps: ['css/entity-detail.css', 'css/${key}-detail.css']`),
+      `${key}: cssDeps sırası ortak dosyayı önce yüklemeli`);
+  }
+  for (const [page, own] of [['kisi.html', 'architect'], ['firma.html', 'office'], ['marka.html', 'office'],
+    ['urun.html', 'product'], ['proje.html', 'product'], ['en-iyi-100.html', 'product'],
+    ['kisi-ekle.html', 'architect'], ['firma-ekle.html', 'office'], ['marka-ekle.html', 'office'],
+    ['urun-ekle.html', 'product'], ['neden-mimarlab.html', 'office']]) {
+    const html = read(page);
+    const iShared = html.indexOf('href="/css/entity-detail.css"');
+    const iOwn = html.indexOf(`href="/css/${own}-detail.css"`);
+    assert.ok(iShared !== -1, `${page} ortak CSS'i <link>'lemeli`);
+    assert.ok(iShared < iOwn, `${page}: ortak CSS, ${own}-detail.css'ten ÖNCE gelmeli`);
   }
 });
 

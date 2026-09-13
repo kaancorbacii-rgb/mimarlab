@@ -288,6 +288,10 @@
 <!-- Varlık popup stilleri — tek kaynak (bkz. css/office-detail.css dosya başı). Bu sayfa ilgili modal
      modülünü kendi <script> etiketiyle yüklüyor; stil de bu yüzden burada <link>'lenir ki
      popup açıldığı anda stilli çizilsin (modülün ensureStylesheet güvenlik ağı son çaredir). -->
+<!-- Varlık popup'larının ORTAK kuralları — modalin kendi dosyasından ÖNCE (bkz.
+     css/entity-detail.css dosya başı: sıra, modalin kendi kurallarının üzerine
+     yazabilmesi için önemli). -->
+<link rel="stylesheet" href="/css/entity-detail.css">
 <link rel="stylesheet" href="/css/office-detail.css">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>

@@ -1,0 +1,37 @@
+/* VARLIK POPUP'LARININ ORTAK KURALLARI — TEK KAYNAK.
+ *
+ * Kullanıcı isteği (2026-09-13): kişi/firma/ürün popup'larının paylaştığı kurallar tek dosyada
+ * toplansın. Buradaki 16 kural üç modal dosyasında da BİREBİR AYNI yazılmıştı.
+ *
+ * SEÇİM ÖLÇÜTÜ — cascade'i değiştirmeyecek kadar dar tutuldu (mekanik olarak ölçülerek):
+ *   (a) üç dosyada da karakter karakter aynı,
+ *   (b) kendi dosyasında yalnızca BİR kez geçiyor (sıraya bağımlı ezme yok),
+ *   (c) tek sınıflı seçici ve o sınıfa DEĞEN daha önce gelen bir kural yok — yani kuralı öne
+ *       almak hiçbir eşit-özgüllük yarışının sonucunu çeviremez.
+ * Ölçütleri geçmeyenler BİLEREK dosyalarında kaldı: üç blokta tekrar eden seçiciler
+ * (.detail-info-divider, .related-section:first-child, *-two-col-row-both::after) ve @media
+ * içindeki karşılıkları sıraya bağımlı ezmeler taşıyor; taşımak görünümü sessizce değiştirebilirdi.
+ *
+ * YÜKLEME SIRASI ÖNEMLİ: bu dosya modalin KENDİ dosyasından ÖNCE gelir (sayfalarda <link> sırası,
+ * tembel yolda lazy-modals.js#cssDeps dizisinin sırası) — böylece modalin kendi kuralları
+ * gerektiğinde ortak kuralların üzerine yazabilir.
+ *
+ * DÜRÜST ÖLÇÜ: bu birleştirme ~2 KB tekrarı kaldırır ve karşılığında sayfa başına bir istek ekler.
+ * Kazanç bayt değil, TEK KAYNAK: bir kural değiştiğinde üç dosyayı birden güncellemek gerekmiyor.
+ */
+.detail-info{margin-top:8px;}
+.meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+.related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+.related-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+.related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+.related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
+.related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700;}
+.related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
+.related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
+.related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+.prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+.prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+.prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14px;}
+.prevnext-text{min-width:0; flex:1;}
+.prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+.prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}

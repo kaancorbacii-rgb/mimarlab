@@ -219,6 +219,30 @@ case "$cron_status" in
   *)
     echo "  UYARI: /api/_health cron alanlarını döndürmedi (gundemCronStatus='$cron_status') — eski worker sürümü?" >&2 ;;
 esac
+
+# TURUN KIRILIMI (kullanıcı isteği, 2026-09-13). "0 içerik yayınladı" tek başına teşhis değildi:
+# hiçbir kaynağa ulaşılamamış da olabilir, her şey mükerrer de çıkmış olabilir. Bu satır ikisini
+# ayırır ve her deploy'un logunda kalıcı bir kayıt bırakır.
+cron_tried=$(echo "$health_json" | jq -r '.gundemLastCronSourcesTried // empty')
+if [ -n "$cron_tried" ]; then
+  cron_srcfail=$(echo "$health_json" | jq -r '.gundemLastCronSourcesFailed // 0')
+  cron_fetched=$(echo "$health_json" | jq -r '.gundemLastCronFetched // 0')
+  cron_fresh=$(echo "$health_json" | jq -r '.gundemLastCronFresh // 0')
+  cron_cand=$(echo "$health_json" | jq -r '.gundemLastCronCandidates // 0')
+  cron_dup=$(echo "$health_json" | jq -r '.gundemLastCronDuplicate // 0')
+  cron_airej=$(echo "$health_json" | jq -r '.gundemLastCronAiRejected // 0')
+  cron_qrej=$(echo "$health_json" | jq -r '.gundemLastCronQualityRejected // 0')
+  cron_dur=$(echo "$health_json" | jq -r '.gundemLastCronDurationMs // 0')
+  echo "  BİLGİ: son turun kırılımı — kaynak ${cron_tried} denendi/${cron_srcfail} hata · bulunan ${cron_fetched} · taze ${cron_fresh} · aday ${cron_cand} · mükerrer ${cron_dup} · AI reddi ${cron_airej} · kalite reddi ${cron_qrej} · süre ${cron_dur}ms"
+  # GERÇEK ARIZA İMZALARI — bunlar "normal olabilir" değildir:
+  if [ "${cron_srcfail:-0}" -gt 0 ] && [ "${cron_srcfail:-0}" -eq "${cron_tried:-0}" ]; then
+    echo "  UYARI: TÜM kaynaklar hata verdi (${cron_srcfail}/${cron_tried}) — besleme adresleri ya da dış erişim bozulmuş olabilir." >&2
+    echo "         Teşhis: \`npx wrangler tail --status=error\` -> gundem_source_failed satırları." >&2
+  elif [ "${cron_fetched:-0}" -eq 0 ] && [ "${cron_tried:-0}" -gt 0 ]; then
+    echo "  UYARI: hiçbir kaynaktan İÇERİK GELMEDİ (denenen ${cron_tried}, hata ${cron_srcfail}) — besleme biçimi değişmiş olabilir." >&2
+  fi
+fi
+
 # Bilgi satırı — SAĞLIK SİNYALİ DEĞİL (backfill dahil): yalnızca yayın tazeliğini gösterir.
 gundem_published_at=$(curl -s "$BASE_URL/api/gundem?limit=1" | jq -r '.items[0].publishedAt // empty')
 if [ -n "$gundem_published_at" ]; then
