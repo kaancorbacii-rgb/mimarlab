@@ -1425,7 +1425,7 @@ async function loadConsultationRequests(){
     <div class="admin-card" data-id="${c.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${escapeHtml(c.contact_name || c.user_name)} <span class="admin-badge badge-pending">${Number(c.price_try).toFixed(2)} TL</span> <span class="admin-badge badge-approved">${escapeHtml(c.requested_date)} ${escapeHtml(c.requested_time)}</span> <span class="admin-badge badge-neutral">${c.payment_provider === 'havale' ? 'Havale/EFT' : 'Elle'}</span>${meetBadgeHtml(c)}</div>
+          <div class="admin-card-title">${escapeHtml(c.contact_name || c.user_name)} <span class="admin-badge badge-pending">${Number(c.price_try).toFixed(2)} TL</span> <span class="admin-badge badge-approved">${escapeHtml(c.requested_date)} ${escapeHtml(c.requested_time)}</span> <span class="admin-badge badge-neutral">${c.payment_provider === 'iyzico' ? 'Kart (iyzico)' : 'Havale/EFT'}</span>${paymentBadgeHtml(c)}${meetBadgeHtml(c)}</div>
           <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)}${c.contact_phone ? ` · ${escapeHtml(c.contact_phone)}` : ''} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
         ${c.status === 'pending' ? `
@@ -1466,6 +1466,21 @@ async function loadConsultationRequests(){
     });
   });
 }
+// Ödeme durumu rozeti (kullanıcı isteği, 2026-09-13) — sözleşme migrations/0117_consultation_payment.sql
+// ve src/routes/consultations.js#PAYMENT_STATUS ile AYNI.
+//
+// ONAY KARARI İÇİN KRİTİK AYRIM: 'declared' KULLANICI BEYANIDIR, doğrulanmış bir ödeme DEĞİLDİR —
+// rozeti bu yüzden "Ödendi" değil "Havale beyanı" der ve bekleyen (sarı) renkte durur. Yalnızca
+// 'paid' (iyzico sunucu-sunucu doğrulaması) yeşildir. Ödemesi 'paid' olan bir talep bile OTOMATİK
+// onaylanmaz; onay kapısı buradaki "Onayla" düğmesindedir (bkz. src/lib/consultationMeet.js akışı).
+function paymentBadgeHtml(c){
+  if (c.payment_status === 'paid') return ' <span class="admin-badge badge-approved">Ödendi</span>';
+  if (c.payment_status === 'declared') return ' <span class="admin-badge badge-pending">Havale beyanı — ekstreden doğrula</span>';
+  if (c.payment_status === 'pending') return ' <span class="admin-badge badge-pending">Kart ödemesi sürüyor</span>';
+  if (c.payment_status === 'failed') return ' <span class="admin-badge badge-rejected">Ödeme başarısız</span>';
+  return ' <span class="admin-badge badge-neutral">Ödeme yok</span>';
+}
+
 // Google Meet gateway durumu rozeti (2026-09-08) — bkz. migrations/0104_consultation_meet.sql.
 // Meet ADRESİ admin listesinde gösterilmez (yalnızca hazır/hazırlanıyor/hata).
 function meetBadgeHtml(c){

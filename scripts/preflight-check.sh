@@ -839,6 +839,19 @@ else
 fi
 rm -f /tmp/preflight_checklist
 
+# DANIŞMANLIK ÖDEME SEÇENEKLERİ (kullanıcı isteği, 2026-09-13): iyzico kart + havale/EFT geri geldi.
+# EN SESSİZ İKİ REGRESYON: (a) IBAN'ın kolaylık olsun diye tekrar kaynak koda yapıştırılması —
+# 2026-09-08'de "siteden sil" denmişti, hesap bilgisi artık YALNIZCA PAYMENT_IBAN sırrındadır;
+# (b) ödemenin talebi kendiliğinden 'approved' yapması — Meet odasının kurulduğu kapı admin
+# onayıdır, ödeme onun YERİNE geçmez. Bkz. scripts/test-2026-09-13-consultation-payment.mjs.
+if node scripts/test-2026-09-13-consultation-payment.mjs >/tmp/preflight_cnspay 2>&1; then
+  ok "danışmanlık ödeme testleri geçti ($(grep -c '^  ok ' /tmp/preflight_cnspay) test)"
+else
+  bad "danışmanlık ödeme testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_cnspay >&2
+fi
+rm -f /tmp/preflight_cnspay
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve

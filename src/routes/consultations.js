@@ -4,6 +4,11 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { sendConsultationMessage } from './messages.js';
+// Ödeme (kullanıcı isteği, 2026-09-13) — kart tarafı rozet satışıyla AYNI altyapıyı kullanır
+// (src/lib/iyzico.js); havale/EFT hesap bilgisi yalnızca sırlardan okunur (src/lib/bankTransfer.js).
+import { initializeCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
+import { getBankTransferAccount, isBankTransferConfigured } from '../lib/bankTransfer.js';
+import { isValidTcKimlik, normalizeGsm } from '../lib/iyzicoBuyer.js';
 // Güvenli Görüşme Gateway'i / Google Meet (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import {
   ROOM_UUID_RE, roomPath, meetingWindow, resolveConsultationAccess, ensureRoomUuid, maybeRetryMeetOnAccess,
@@ -12,11 +17,31 @@ import {
 } from '../lib/consultationMeet.js';
 
 // "Danışmanlık Al" — kişi popup'ında tek bir profile (kaan-corbaci) özel birebir görüşme randevusu
-// talebi. Ödeme yöntemi badges.js#createBadgeRequest İLE AYNI desen: havale/EFT, admin banka
-// ekstresinden doğrulayıp D1'de status'u elle 'approved' yapar (henüz ayrı bir admin ekranı yok).
-// Fiyat sunucu tarafında sabittir (istemciden asla alınmaz/güvenilmez — bkz. badges.js#getBadgePrice
-// AYNI gerekçe).
+// talebi. Fiyat sunucu tarafında sabittir (istemciden asla alınmaz/güvenilmez — bkz.
+// badges.js#getBadgePrice AYNI gerekçe).
+//
+// ÖDEME (kullanıcı isteği, 2026-09-13: "ödeme seçeneklerini geri getir"). İKİ yöntem sunulur ve
+// seçilen AKIŞ "önce talep, sonra ödeme"dir (kullanıcı kararı):
+//   1. Talep 'pending' olarak açılır ve SLOT O ANDA TUTULUR (hasBookingClash bunu 'pending'
+//      satırlar üzerinden okur) — ödeme akışı çökse/yarıda kalsa bile kullanıcı saatini kaybetmez.
+//   2. Kullanıcı ödeme yöntemini seçer: 'iyzico' (kart, hosted Checkout Form) ya da 'havale'
+//      (IBAN + "Ödemeyi Yaptım" beyanı).
+//   3. Admin talebi onaylar -> Google Meet odası kurulur (bkz. src/lib/consultationMeet.js).
+//
+// KRİTİK: iyzico ödemesinin BAŞARILI dönmesi talebi OTOMATİK 'approved' YAPMAZ, yalnızca
+// payment_status'u 'paid' yapar. Onay kapısı (ve dolayısıyla Meet odasının kurulması) admin'de
+// kalır — ödeme doğrulaması o kapının YERİNE geçmez, ÖNÜNE eklenir. Aksi halde ödemesi geçmiş ama
+// admin'in henüz bakmadığı bir talep kendiliğinden takvime/Meet'e düşerdi.
 const CONSULTATION_PRICE_TRY = 1500;
+// payment_status sözleşmesi — bkz. migrations/0117_consultation_payment.sql (AYNI liste).
+const PAYMENT_STATUS = new Set(['pending', 'declared', 'paid', 'failed']);
+// iyzico callback'i (src/routes/payments.js#handleCallback) rozet ve danışmanlık taleplerini AYNI
+// uçtan alır; hangi tabloya bakacağını conversationId'nin bu önekinden anlar. newId() çıplak bir
+// UUID ürettiğinden (bkz. src/lib/crypto.js) önek belirsizlik YARATMAZ — rozet conversationId'si
+// hiçbir zaman '_' içermez.
+export const CONSULTATION_CONVERSATION_PREFIX = 'cns_';
+// TC Kimlik No/adres/şehir SADECE iyzico'ya iletilir, D1'e YAZILMAZ (veri minimizasyonu) —
+// src/routes/payments.js#startCheckout'taki AYNI kural.
 const ALLOWED_HOST_SLUGS = new Set(['kaan-corbaci']);
 // Uygun günler/saatler (kullanıcı isteği, 2026-09-05): Pazartesi/Çarşamba/Cuma, 18:00/19:00/20:00.
 // getUTCDay() ile kontrol edilir (0=Pazar…6=Cumartesi) — bir takvim gününün haftanın hangi gününe
@@ -54,6 +79,11 @@ export async function handleConsultationsRoute(request, env, url) {
   if (segments.length === 3 && request.method === 'GET') return getConsultationDetail(env, user, segments[2]);
   if (segments.length === 4 && segments[3] === 'actions' && request.method === 'POST') {
     return createConsultationAction(request, env, user, segments[2]);
+  }
+  // Ödeme adımı (kullanıcı isteği, 2026-09-13). Talep ZATEN açılmış olmalıdır — bu uç bir
+  // rezervasyon OLUŞTURMAZ, yalnızca var olan bir talebe ödeme yöntemi bağlar.
+  if (segments.length === 4 && segments[3] === 'payment' && request.method === 'POST') {
+    return startConsultationPayment(request, env, user, segments[2]);
   }
   return errorJson('Bulunamadı', 404);
 }
@@ -213,6 +243,16 @@ async function getConsultationDetail(env, user, id) {
     roomUrl,
     roomUuid: row.status === 'approved' ? (row.room_uuid || null) : null,
     meetStatus,
+    // Ödeme bilgisi (kullanıcı isteği, 2026-09-13). paymentProvider/paymentStatus İKİ tarafa da
+    // döner (alıcı kendi durumunu görsün, danışman "ödendi mi" bilsin); havale HESAP BİLGİSİ ise
+    // YALNIZCA alıcıya ve YALNIZCA ödeme hâlâ alınabilirken döner — danışmanın ekranında IBAN'ın
+    // hiç işi yok ve ödenmiş bir talepte gösterilmesi ikinci bir ödemeye davet olurdu.
+    paymentProvider: row.payment_provider || null,
+    paymentStatus: row.payment_status || null,
+    canPay: isBuyer && isPayableStatus(row),
+    payment: isBuyer && isPayableStatus(row)
+      ? { ...paymentOptions(env), account: getBankTransferAccount(env), status: row.payment_status || null }
+      : null,
   });
 }
 
@@ -348,7 +388,16 @@ async function createConsultationRequest(request, env, user) {
     `consultation:${id}`,
   );
 
-  return json({ id, status: 'pending', priceTry: CONSULTATION_PRICE_TRY }, 201);
+  // Ödeme adımı (kullanıcı isteği, 2026-09-13) istemcide talep AÇILDIKTAN SONRA gösterilir, bu
+  // yüzden hangi yöntemlerin GERÇEKTEN açık olduğu ve havale hesabı bu yanıtla birlikte döner —
+  // istemci ayrı bir istek atmak zorunda kalmasın. Hesap bilgisi yalnızca talebi AZ ÖNCE açan,
+  // giriş yapmış kullanıcıya gider (bkz. src/lib/bankTransfer.js dosya başı gerekçe).
+  return json({
+    id,
+    status: 'pending',
+    priceTry: CONSULTATION_PRICE_TRY,
+    payment: { ...paymentOptions(env), account: getBankTransferAccount(env), status: null },
+  }, 201);
 }
 
 // PATCH /api/consultations/:id — "Görüşme Tarihini Değiştir" (kullanıcı isteği, 2026-09-05, limit
@@ -459,4 +508,203 @@ async function createConsultationAction(request, env, user, consultationId) {
   ).bind(id, consultationId, user.id, isBuyer ? 'buyer' : 'host', actionType, note, now, now).run();
 
   return json({ id, status: 'pending' }, 201);
+}
+
+// =================================================================================================
+// ÖDEME (kullanıcı isteği, 2026-09-13: "Danışmanlık Al ekranı için ödeme seçeneklerini geri getir")
+// =================================================================================================
+
+// Hangi ödeme yöntemleri GERÇEKTEN sunulabilir — sırlar tanımlı değilse yöntem HİÇ görünmez ve
+// sunucu da reddeder (yarı yapılandırılmış "IBAN yok ama Ödemeyi Yaptım var" durumu oluşamaz).
+// bankTransfer.account YALNIZCA talebin sahibine, yalnızca kendi talebinin ödeme adımında döner —
+// IBAN kaynak kodda ya da anonim bir uçta DURMAZ (bkz. src/lib/bankTransfer.js dosya başı gerekçe).
+function paymentOptions(env) {
+  return {
+    priceTry: CONSULTATION_PRICE_TRY,
+    iyzico: isIyzicoConfigured(env),
+    bankTransfer: isBankTransferConfigured(env),
+  };
+}
+
+// Ödeme hâlâ alınabilir mi? Kapalı/bitmiş bir talebe ödeme bağlanmaz ve ZATEN ödenmiş bir talep
+// ikinci kez ödetilmez (kullanıcı çift ödeme yapamasın — iyzico tarafında iade süreci gerektirirdi).
+function isPayableStatus(row) {
+  return (row.status === 'pending' || row.status === 'approved') && row.payment_status !== 'paid';
+}
+
+// POST /api/consultations/:id/payment — { method: 'iyzico' | 'havale', ...iyzico alıcı alanları }
+//
+// Bu uç REZERVASYON OLUŞTURMAZ: talep zaten createConsultationRequest ile açılmış ve slot tutulmuş
+// olmalıdır ("önce talep, sonra ödeme" — kullanıcı kararı, bkz. dosya başı akış notu). Yetki her
+// istekte yeniden kurulur: yalnızca talebin SAHİBİ ödeyebilir (host bile ödeyemez).
+async function startConsultationPayment(request, env, user, consultationId) {
+  if (!(await checkRateLimit(env, 'consultation-payment', user.id, 10, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
+  const row = await env.DB.prepare(
+    `SELECT id, user_id, host_slug, status, price_try, payment_status, requested_date, requested_time, contact_name, contact_phone
+     FROM consultation_requests WHERE id = ?`
+  ).bind(consultationId).first();
+  // Var olmayan ve "bana ait olmayan" talep AYNI yanıtı döner — başkasının talep kimliğinin geçerli
+  // olup olmadığı sızdırılmaz (getConsultationDetail'deki AYNI kural).
+  if (!row || row.user_id !== user.id) return errorJson('Görüşme talebi bulunamadı.', 404);
+  if (row.payment_status === 'paid') return errorJson('Bu görüşmenin ödemesi zaten alınmış.');
+  if (!isPayableStatus(row)) return errorJson('Bu talep için ödeme alınamaz.');
+
+  const body = await readJson(request);
+  const method = typeof body.method === 'string' ? body.method.trim() : '';
+  const now = Date.now();
+
+  // ---- Havale/EFT: kullanıcı BEYANI -------------------------------------------------------------
+  // "Ödemeyi Yaptım" bir DOĞRULAMA DEĞİLDİR, yalnızca admin'e "ekstreye bak" sinyalidir — bu yüzden
+  // payment_status 'declared' olur, ASLA 'paid'. Tek otomatik 'paid' yolu iyzico'nun sunucu-sunucu
+  // doğrulamasıdır (bkz. settleConsultationPayment).
+  if (method === 'havale') {
+    if (!isBankTransferConfigured(env)) return errorJson('Havale/EFT şu anda kullanılamıyor.', 503);
+    await env.DB.prepare(
+      `UPDATE consultation_requests SET payment_provider = 'havale', payment_status = 'declared', updated_at = ? WHERE id = ?`
+    ).bind(now, row.id).run();
+    // Host'a bilgi: ekstreden doğrulanacak bir beyan var. createNotification kendi try/catch'ini
+    // taşır (bkz. src/lib/notify.js) — beyanın KAYDI bu adıma bağlı değildir.
+    const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+    if (host && host.claimed_by_user_id) {
+      await createNotification(
+        env, host.claimed_by_user_id, 'consultation_payment_declared',
+        'Danışmanlık ödemesi beyan edildi',
+        `${row.contact_name || 'Bir kullanıcı'}, ${row.requested_date} ${row.requested_time} randevusu için havale/EFT yaptığını bildirdi. Banka ekstresinden doğrulayıp talebi onaylayabilirsin.`,
+        `consultation:${row.id}`,
+      );
+    }
+    return json({ method: 'havale', paymentStatus: 'declared' });
+  }
+
+  // ---- iyzico: hosted Checkout Form -------------------------------------------------------------
+  if (method !== 'iyzico') return errorJson('Geçersiz ödeme yöntemi.');
+  if (!isIyzicoConfigured(env)) {
+    return errorJson('Kart ile ödeme şu anda kullanılamıyor. Lütfen havale/EFT seçeneğini kullan ya da daha sonra tekrar dene.', 503);
+  }
+
+  // Alıcı alanları iyzico'nun ZORUNLU alanlarıdır; D1'e YAZILMAZ, yalnızca iyzico'ya iletilir
+  // (src/routes/payments.js#startCheckout ile AYNI veri minimizasyonu kuralı).
+  const name = String(body.name || '').trim().slice(0, 100);
+  const surname = String(body.surname || '').trim().slice(0, 100);
+  const identityNumber = String(body.identityNumber || '').trim();
+  const address = String(body.address || '').trim().slice(0, 300);
+  const city = String(body.city || '').trim().slice(0, 80);
+  // Telefon: ödeme formunda boş bırakılırsa talebin kendi iletişim telefonuna düşülür — kullanıcı
+  // aynı numarayı iki kez yazmak zorunda kalmasın.
+  const gsmNumber = normalizeGsm(body.phone || row.contact_phone);
+
+  if (!name || !surname) return errorJson('Ad ve soyad gerekli.');
+  if (!isValidTcKimlik(identityNumber)) return errorJson('Geçerli bir T.C. Kimlik Numarası gir.');
+  if (!gsmNumber) return errorJson('Geçerli bir cep telefonu numarası gir.');
+  if (!address || address.length < 8) return errorJson('Geçerli bir adres gir.');
+  if (!city) return errorJson('Şehir gerekli.');
+
+  // Tutar İSTEMCİDEN asla alınmaz: talebin D1'deki price_try'ı esastır (rezervasyon anında sunucu
+  // yazdı). Böylece fiyat sabiti sonradan değişse bile kullanıcı, talebi açtığı andaki fiyatı öder.
+  const price = Number(row.price_try || CONSULTATION_PRICE_TRY);
+  const priceStr = price.toFixed(2);
+  const origin = new URL(request.url).origin;
+  const fullName = `${name} ${surname}`;
+  const payload = {
+    locale: 'tr',
+    conversationId: `${CONSULTATION_CONVERSATION_PREFIX}${row.id}`,
+    price: priceStr,
+    paidPrice: priceStr,
+    currency: 'TRY',
+    paymentGroup: 'PRODUCT',
+    enabledInstallments: [1],
+    callbackUrl: `${origin}/api/payments/callback`,
+    buyer: {
+      id: user.id,
+      name, surname,
+      identityNumber,
+      email: user.email,
+      gsmNumber,
+      registrationAddress: address,
+      city,
+      country: 'Turkey',
+      ip: clientIp(request),
+    },
+    billingAddress: { address, contactName: fullName, city, country: 'Turkey' },
+    shippingAddress: { address, contactName: fullName, city, country: 'Turkey' },
+    basketItems: [
+      { id: 'consultation', price: priceStr, name: 'MİMARLAB birebir danışmanlık görüşmesi (45 dk)', category1: 'Danışmanlık', itemType: 'VIRTUAL' },
+    ],
+  };
+
+  let result;
+  try {
+    result = await initializeCheckoutForm(env, payload);
+  } catch (err) {
+    console.error('iyzico consultation initialize failed', err);
+    return errorJson('Ödeme başlatılamadı, lütfen tekrar dene.', 502);
+  }
+  if (result.status !== 'success' || !result.paymentPageUrl) {
+    return errorJson(result.errorMessage || 'Ödeme başlatılamadı, lütfen tekrar dene.', 502);
+  }
+
+  // gerçek bulgu / rozet akışından FARK: burada talep 'rejected' YAPILMAZ. Rozet akışında
+  // badge_requests satırı ödemenin KENDİSİ için açılır, danışmanlıkta satır RANDEVUDUR — başarısız
+  // bir kart denemesi randevuyu iptal etmemeli, yalnızca ödeme durumunu işaretlemeli.
+  await env.DB.prepare(
+    `UPDATE consultation_requests SET payment_provider = 'iyzico', payment_status = 'pending', payment_token = ?, updated_at = ? WHERE id = ?`
+  ).bind(result.token || null, now, row.id).run();
+
+  return json({ method: 'iyzico', paymentPageUrl: result.paymentPageUrl });
+}
+
+// iyzico callback'inin danışmanlık dalı (src/routes/payments.js#handleCallback çağırır). Ödemenin
+// başarılı olup olmadığı ORADA, token ile sunucu-sunucu doğrulanmıştır; burada yalnızca D1 yazımı
+// ve bildirim var. Dönüş: satır bulunup güncellendiyse true.
+//
+// İDEMPOTENCY: koşullu UPDATE (payment_status != 'paid') — callback iki kez gelirse ikinci çağrı
+// satırı ZATEN 'paid' bulur, tekrar yazmaz ve İKİNCİ bildirim gitmez (consultationMeet.js'in
+// "onay/ödeme geri çağrısı iki kez gelirse" kuralıyla AYNI gerekçe).
+export async function settleConsultationPayment(env, consultationId, paid, paymentId) {
+  const row = await env.DB.prepare(
+    `SELECT id, user_id, host_slug, requested_date, requested_time, contact_name, payment_status
+     FROM consultation_requests WHERE id = ?`
+  ).bind(consultationId).first();
+  if (!row) return false;
+  if (row.payment_status === 'paid') return true; // çift callback — sessizce başarı
+
+  const now = Date.now();
+  if (!paid) {
+    await env.DB.prepare(
+      `UPDATE consultation_requests SET payment_status = 'failed', updated_at = ? WHERE id = ? AND payment_status != 'paid'`
+    ).bind(now, row.id).run();
+    return true;
+  }
+
+  const res = await env.DB.prepare(
+    `UPDATE consultation_requests SET payment_status = 'paid', payment_id = ?, paid_at = ?, updated_at = ?
+     WHERE id = ? AND payment_status != 'paid'`
+  ).bind(paymentId, now, now, row.id).run();
+  if (!res.meta || res.meta.changes !== 1) return true; // eşzamanlı ikinci callback yazdı
+
+  // Bildirimler best-effort: ödeme ZATEN doğrulanıp yazıldıktan sonra çalışır, atarsa kullanıcı
+  // parası çekilmiş olmasına rağmen çıplak bir hataya düşmemeli (payments.js'teki AYNI gerekçe).
+  try {
+    await createNotification(
+      env, row.user_id, 'consultation_payment_received',
+      'Danışmanlık ödemen alındı',
+      `${row.requested_date} ${row.requested_time} randevun için ödemen alındı. Talebin onaylandığında görüşme odan Hesabım > Bildirimler'e düşecek.`,
+      `consultation:${row.id}`,
+    );
+    const host = await env.DB.prepare(`SELECT claimed_by_user_id FROM architects WHERE slug = ?`).bind(row.host_slug).first();
+    if (host && host.claimed_by_user_id) {
+      await createNotification(
+        env, host.claimed_by_user_id, 'consultation_payment_received',
+        'Danışmanlık ödemesi alındı',
+        `${row.contact_name || 'Bir kullanıcı'}, ${row.requested_date} ${row.requested_time} randevusunun ödemesini kartla tamamladı.`,
+        `consultation:${row.id}`,
+      );
+    }
+  } catch (err) {
+    console.error('consultation payment notification failed', err);
+  }
+  return true;
 }

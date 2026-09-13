@@ -27,11 +27,26 @@
 // ilk 24 saat noktasız/tıklanamaz. Doluluk src/routes/consultations.js#getAvailability'den (herkese
 // açık, kişisel veri İÇERMEZ) ay bazında çekilir — bkz. calendarState.availability.
 const ConsultationModal = (function () {
-  // ÖDEME ADIMI KALDIRILDI (kullanıcı isteği, 2026-09-08: "şimdilik ödeme almıyoruz; IBAN bilgilerini
-  // siteden sil"). Eskiden burada havale/EFT + IBAN kutusu ve "Ödemeyi Yaptım" vardı; talep artık
-  // ücretsiz alınır, admin onayıyla (src/routes/admin.js#handleConsultationsAdmin) Meet odası
-  // kurulur. Sunucu price_try'ı hâlâ kayıt için yazıyor (src/routes/consultations.js) — burada
-  // kullanıcıya tutar GÖSTERİLMEZ.
+  // ÖDEME ADIMI GERİ GELDİ (kullanıcı isteği, 2026-09-13: "Danışmanlık Al ekranı için ödeme
+  // seçeneklerini geri getir"). 2026-09-08'de ("şimdilik ödeme almıyoruz; IBAN bilgilerini siteden
+  // sil") kaldırılmıştı; artık DÖRT ekran var: takvim (book) -> iletişim (pay) -> ödeme (payment)
+  // -> onay (success).
+  //
+  // AKIŞ SIRASI KULLANICI KARARIDIR ("önce talep, sonra ödeme"): "Talebi Gönder" talebi GERÇEKTEN
+  // açar ve slot'u tutar; ödeme ekranı ondan SONRA gelir. Yani ödeme yarıda kalsa bile randevu
+  // kaybolmaz — ödeme daha sonra ConsultationDetailModal'daki "Ödeme Yap" düğmesinden tamamlanır
+  // (bkz. consultation-detail-modal.js#paymentHtml, AYNI iki seçenek).
+  //
+  // İKİ SEÇENEK, İKİSİ DE SUNUCUDAN GELEN BAYRAĞA BAĞLI: kart (iyzico hosted Checkout Form) ve
+  // havale/EFT. Hangisinin görüneceğini İSTEMCİ KARAR VERMEZ — sunucu, ilgili sırlar tanımlıysa
+  // data.payment.iyzico / data.payment.bankTransfer bayrağını true döner (bkz. src/routes/
+  // consultations.js#paymentOptions). IBAN da bu yanıtla gelir, KAYNAK KODDA SABİT DEĞİLDİR
+  // (2026-09-08'deki "IBAN'ı siteden sil" isteğinin tekrar etmemesi için — bkz. src/lib/
+  // bankTransfer.js dosya başı gerekçe).
+  //
+  // "Ödemeyi Yaptım" bir BEYANDIR, doğrulama değil: sunucu payment_status'u 'declared' yapar,
+  // 'paid' YAPMAZ. Kart ödemesinde bile talep otomatik onaylanmaz — Meet odası yalnızca admin
+  // onayında kurulur (bkz. src/lib/consultationMeet.js).
   // Uygun günler (Pzt/Çar/Cum) ve saatler (kullanıcı isteği, 2026-09-05) — src/routes/
   // consultations.js#ALLOWED_WEEKDAYS/ALLOWED_TIMES İLE AYNI, sunucu bağımsız olarak yeniden
   // doğrular (istemciye güvenilmez).
@@ -135,6 +150,25 @@ const ConsultationModal = (function () {
         .cns-success-text{font-size:13.5px; line-height:1.6; color:var(--ink); margin:0 0 20px;}
         .cns-btn-outline{width:100%; background:none; color:var(--ink); border:1.5px solid var(--ink); padding:12px; border-radius:100px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:10px;}
         .cns-btn-outline:hover{border-color:var(--walnut); color:var(--walnut);}
+        /* Ödeme ekranı (kullanıcı isteği, 2026-09-13) — yöntem kartları, IBAN kutusu, fatura alanları. */
+        .cns-method{display:flex; align-items:flex-start; gap:10px; width:100%; text-align:left; padding:13px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); font-family:inherit; cursor:pointer; margin-bottom:8px;}
+        .cns-method:hover{border-color:var(--walnut);}
+        .cns-method.active{border-color:var(--ink); background:var(--paper-alt);}
+        .cns-method-radio{flex-shrink:0; width:16px; height:16px; margin-top:1px; border-radius:50%; border:1.5px solid var(--ink-soft); position:relative;}
+        .cns-method.active .cns-method-radio{border-color:var(--ink);}
+        .cns-method.active .cns-method-radio::after{content:''; position:absolute; inset:3px; border-radius:50%; background:var(--ink);}
+        .cns-method-name{font-size:13.5px; font-weight:700;}
+        .cns-method-desc{font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:2px;}
+        .cns-method-panel{display:none; padding:2px 0 4px;}
+        .cns-method-panel.open{display:block;}
+        .cns-iban-box{border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--paper-alt); margin-bottom:4px;}
+        .cns-iban-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 0; font-size:12.5px;}
+        .cns-iban-label{color:var(--ink-soft); flex-shrink:0;}
+        .cns-iban-value{font-weight:700; text-align:right; word-break:break-all;}
+        .cns-iban-copy{background:none; border:1px solid var(--line); border-radius:100px; padding:5px 12px; font-family:inherit; font-size:11.5px; font-weight:600; color:var(--ink); cursor:pointer; margin-top:6px;}
+        .cns-iban-copy:hover{background:var(--paper);}
+        .cns-pay-later{display:block; width:100%; background:none; border:none; color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; text-decoration:underline; cursor:pointer; padding:10px 0 0;}
+        .cns-pay-later:hover{color:var(--ink);}
       `;
       document.head.appendChild(style);
     }
@@ -189,10 +223,50 @@ const ConsultationModal = (function () {
             <textarea id="cns-note" maxlength="2000" placeholder="Opsiyonel — konuşmak istediğin konuyu ya da eklemek istediklerini yaz…"></textarea>
           </div>
 
-          <p class="cns-pay-section-hint" style="margin-top:14px;">Şu anda görüşme için ödeme alınmıyor. Talebin ekibimize iletilir; onaylandığında görüşme odan Hesabım &gt; Bildirimler'e düşer.</p>
+          <p class="cns-pay-section-hint" style="margin-top:14px;">Talebini gönderdikten sonra ödeme adımına geçeceksin. Randevu saatin talebi gönderdiğin anda senin için tutulur.</p>
 
           <button class="cns-submit" type="button" id="cns-pay-confirm-btn">Talebi Gönder</button>
           <div class="cns-pay-notice" id="cns-pay-notice"></div>
+        </div>
+
+        <!-- ÖDEME EKRANI (kullanıcı isteği, 2026-09-13). Talep ZATEN açılmış durumdadır (bkz. dosya
+             başındaki akış notu) — bu ekranda hiçbir şey yapmadan çıkmak randevuyu İPTAL ETMEZ.
+             Yöntem kartları ve IBAN kutusu sunucudan gelen bayraklara göre çizilir (renderPayment);
+             burada hiçbir hesap bilgisi SABİT DEĞİLDİR. -->
+        <div id="cns-screen-payment" style="display:none;">
+          <div class="cns-pay-summary-row"><span>Tarih</span><span id="cns-pm-date">—</span></div>
+          <div class="cns-pay-summary-row"><span>Saat</span><span id="cns-pm-time">—</span></div>
+          <div class="cns-pay-summary-row"><span>Toplam</span><span class="cns-pay-summary-total" id="cns-pm-total">—</span></div>
+
+          <div class="cns-pay-section-title">Ödeme Yöntemi</div>
+          <div id="cns-pm-methods"></div>
+
+          <!-- Kart: iyzico'nun ZORUNLU fatura alanları. Kart bilgisi buraya GİRİLMEZ; "Ödemeye Geç"
+               iyzico'nun kendi hosted sayfasına üst seviye yönlendirmedir (bkz. src/index.js
+               CSP notu — top-level navigation CSP'ye takılmaz). -->
+          <div class="cns-method-panel" id="cns-pm-panel-iyzico">
+            <p class="cns-pay-section-hint">Kart bilgilerin bu sayfada değil, iyzico'nun güvenli ödeme sayfasında girilir.</p>
+            <div class="cns-field-label">Ad</div>
+            <div class="cns-contact-field"><input type="text" id="cns-pm-name" autocomplete="given-name" maxlength="100"></div>
+            <div class="cns-field-label">Soyad</div>
+            <div class="cns-contact-field"><input type="text" id="cns-pm-surname" autocomplete="family-name" maxlength="100"></div>
+            <div class="cns-field-label">T.C. Kimlik No</div>
+            <div class="cns-contact-field"><input type="text" id="cns-pm-tc" inputmode="numeric" maxlength="11" autocomplete="off"></div>
+            <div class="cns-field-label">Fatura Adresi</div>
+            <div class="cns-contact-field"><input type="text" id="cns-pm-address" autocomplete="street-address" maxlength="300"></div>
+            <div class="cns-field-label">Şehir</div>
+            <div class="cns-contact-field"><input type="text" id="cns-pm-city" autocomplete="address-level2" maxlength="80"></div>
+          </div>
+
+          <!-- Havale/EFT: IBAN sunucudan gelir (renderPayment), kaynak kodda yoktur. -->
+          <div class="cns-method-panel" id="cns-pm-panel-havale">
+            <div class="cns-iban-box" id="cns-pm-iban-box"></div>
+            <p class="cns-pay-hint">Açıklama alanına <strong id="cns-pm-ref">—</strong> yazmayı unutma. Havaleni aldıktan sonra talebini onaylayıp görüşme odanı hazırlıyoruz.</p>
+          </div>
+
+          <button class="cns-submit" type="button" id="cns-pm-submit">Ödemeye Geç</button>
+          <button type="button" class="cns-pay-later" id="cns-pm-later">Daha sonra ödeyeceğim</button>
+          <div class="cns-pay-notice" id="cns-pm-notice"></div>
         </div>
 
         <div id="cns-screen-success" style="display:none;">
@@ -230,6 +304,23 @@ const ConsultationModal = (function () {
     const successTextEl = overlay.querySelector('#cns-success-text');
     const rescheduleBtn = overlay.querySelector('#cns-reschedule-btn');
     const successCloseBtn = overlay.querySelector('#cns-success-close-btn');
+    // Ödeme ekranı (kullanıcı isteği, 2026-09-13)
+    const paymentScreen = overlay.querySelector('#cns-screen-payment');
+    const pmDateEl = overlay.querySelector('#cns-pm-date');
+    const pmTimeEl = overlay.querySelector('#cns-pm-time');
+    const pmTotalEl = overlay.querySelector('#cns-pm-total');
+    const pmMethodsEl = overlay.querySelector('#cns-pm-methods');
+    const pmPanels = { iyzico: overlay.querySelector('#cns-pm-panel-iyzico'), havale: overlay.querySelector('#cns-pm-panel-havale') };
+    const pmIbanBox = overlay.querySelector('#cns-pm-iban-box');
+    const pmRefEl = overlay.querySelector('#cns-pm-ref');
+    const pmSubmitBtn = overlay.querySelector('#cns-pm-submit');
+    const pmLaterBtn = overlay.querySelector('#cns-pm-later');
+    const pmNotice = overlay.querySelector('#cns-pm-notice');
+    const pmNameInput = overlay.querySelector('#cns-pm-name');
+    const pmSurnameInput = overlay.querySelector('#cns-pm-surname');
+    const pmTcInput = overlay.querySelector('#cns-pm-tc');
+    const pmAddressInput = overlay.querySelector('#cns-pm-address');
+    const pmCityInput = overlay.querySelector('#cns-pm-city');
     const CONFIRM_BTN_LABEL = 'Talebi Gönder';
 
     // ---------------------------------------------------------------------------------------
@@ -295,7 +386,9 @@ const ConsultationModal = (function () {
     }
     wirePhoneMask(phoneInput);
 
-    const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null, hasRescheduled: false };
+    // payment: sunucudan gelen ödeme seçenekleri (bkz. src/routes/consultations.js#paymentOptions);
+    // paymentDeclared: bu oturumda havale beyanı verildi mi (yalnızca onay metnini değiştirir).
+    const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null, hasRescheduled: false, payment: null, paymentDeclared: false };
     const calendarState = { year: 0, month: 0, availability: {} };
     let availReqSeq = 0;
     let prefill = { name: '', email: '' };
@@ -409,6 +502,7 @@ const ConsultationModal = (function () {
     function showScreen(name) {
       bookScreen.style.display = name === 'book' ? '' : 'none';
       payScreen.style.display = name === 'pay' ? '' : 'none';
+      paymentScreen.style.display = name === 'payment' ? '' : 'none';
       successScreen.style.display = name === 'success' ? '' : 'none';
     }
 
@@ -424,6 +518,167 @@ const ConsultationModal = (function () {
       showScreen('pay');
     }
 
+    // ---------------------------------------------------------------------------------------
+    // ÖDEME EKRANI (kullanıcı isteği, 2026-09-13)
+    // ---------------------------------------------------------------------------------------
+    // state.payment sunucudan gelir (POST /api/consultations yanıtı) ve HANGİ YÖNTEMLERİN
+    // sunulabileceğini o söyler — istemci bir yöntemi kendi başına "açık" sayamaz. Hiçbir yöntem
+    // yapılandırılmamışsa ödeme ekranı HİÇ gösterilmez ve akış doğrudan onaya geçer (2026-09-08
+    // sonrası hâliyle AYNI davranış), yani sırlar tanımlanana kadar özellik BOZULMAZ.
+
+    let pmMethod = null;
+
+    function formatTry(n) {
+      return `${Number(n).toLocaleString('tr-TR')} ₺`;
+    }
+
+    const PM_LABELS = {
+      iyzico: { name: 'Kredi / Banka Kartı', desc: 'iyzico güvenli ödeme sayfasında tek çekim.' },
+      havale: { name: 'Havale / EFT', desc: 'IBAN\'a transfer et, ardından "Ödemeyi Yaptım"a bas.' },
+    };
+
+    function availableMethods() {
+      const p = state.payment || {};
+      const list = [];
+      if (p.iyzico) list.push('iyzico');
+      if (p.bankTransfer) list.push('havale');
+      return list;
+    }
+
+    function selectMethod(method) {
+      pmMethod = method;
+      pmMethodsEl.querySelectorAll('.cns-method').forEach((el) => {
+        el.classList.toggle('active', el.dataset.method === method);
+      });
+      Object.entries(pmPanels).forEach(([k, el]) => el.classList.toggle('open', k === method));
+      // Buton metni yönteme göre değişir: kartta bir SONRAKİ adım (iyzico sayfası) vardır, havalede
+      // ise basılan şey bir BEYANDIR — metin bunu gizlememeli.
+      pmSubmitBtn.textContent = method === 'havale' ? 'Ödemeyi Yaptım' : 'Ödemeye Geç';
+      pmSubmitBtn.disabled = false;
+      pmNotice.classList.remove('show', 'success');
+      pmNotice.textContent = '';
+    }
+
+    function renderPayment() {
+      const methods = availableMethods();
+      pmMethodsEl.innerHTML = methods.map((m) => `
+        <button type="button" class="cns-method" data-method="${m}">
+          <span class="cns-method-radio"></span>
+          <span><span class="cns-method-name">${PM_LABELS[m].name}</span><span class="cns-method-desc">${PM_LABELS[m].desc}</span></span>
+        </button>`).join('');
+
+      const account = (state.payment && state.payment.account) || null;
+      if (account) {
+        // textContent değil innerHTML kullanılıyor ama içerik SUNUCUDAN, sabit alanlardan gelir;
+        // yine de kaçış yapılır — hesap adı bir gün panelden düzenlenebilir hâle gelirse burası
+        // sessizce bir XSS yüzeyi olmasın.
+        const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        pmIbanBox.innerHTML = `
+          <div class="cns-iban-row"><span class="cns-iban-label">Alıcı</span><span class="cns-iban-value">${esc(account.accountName)}</span></div>
+          ${account.bankName ? `<div class="cns-iban-row"><span class="cns-iban-label">Banka</span><span class="cns-iban-value">${esc(account.bankName)}</span></div>` : ''}
+          <div class="cns-iban-row"><span class="cns-iban-label">IBAN</span><span class="cns-iban-value" id="cns-pm-iban">${esc(account.iban)}</span></div>
+          <button type="button" class="cns-iban-copy" id="cns-pm-iban-copy">IBAN'ı Kopyala</button>`;
+        const copyBtn = pmIbanBox.querySelector('#cns-pm-iban-copy');
+        copyBtn.addEventListener('click', () => {
+          // navigator.clipboard güvenli olmayan bağlamda/izin reddinde yoktur ya da atar — IBAN
+          // zaten ekranda YAZILI olduğundan kopyalama başarısız olsa bile kullanıcı elle alabilir;
+          // bu yüzden hata akışı kesmez, buton yalnızca metnini değiştirmez.
+          const write = navigator.clipboard && navigator.clipboard.writeText
+            ? navigator.clipboard.writeText(account.iban) : Promise.reject();
+          write.then(() => {
+            copyBtn.textContent = 'Kopyalandı';
+            setTimeout(() => { copyBtn.textContent = "IBAN'ı Kopyala"; }, 2000);
+          }).catch(() => { copyBtn.textContent = 'Kopyalanamadı — elle seç'; });
+        });
+      }
+      // Havale açıklamasına yazılacak referans: talep kimliğinin ilk 8 hanesi (UUID). Admin bunu
+      // ekstrede görüp doğru talebi eşleştirir; tam kimlik gerekmez ve kısası yazım hatasına daha
+      // kapalıdır.
+      pmRefEl.textContent = state.requestId ? String(state.requestId).slice(0, 8).toUpperCase() : '—';
+
+      pmMethodsEl.querySelectorAll('.cns-method').forEach((el) => {
+        el.addEventListener('click', () => selectMethod(el.dataset.method));
+      });
+      // Tek yöntem varsa seçim diye bir şey yoktur — kullanıcıyı gereksiz bir tıklamaya zorlamadan
+      // doğrudan seçili gelir.
+      if (methods.length) selectMethod(methods[0]);
+    }
+
+    function showPaymentScreen() {
+      pmDateEl.textContent = formatDateTr(state.date);
+      pmTimeEl.textContent = state.time;
+      pmTotalEl.textContent = formatTry((state.payment && state.payment.priceTry) || 0);
+      // Kart alanları: iletişim adımında girilen ad soyad ikiye bölünerek ön doldurulur (son kelime
+      // soyad) — kullanıcı düzeltebilir, sunucu zaten kendi doğrulamasını yapar.
+      if (!pmNameInput.value && !pmSurnameInput.value) {
+        const parts = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length > 1) {
+          pmSurnameInput.value = parts.pop();
+          pmNameInput.value = parts.join(' ');
+        } else if (parts.length === 1) {
+          pmNameInput.value = parts[0];
+        }
+      }
+      renderPayment();
+      showScreen('payment');
+    }
+
+    // "Daha sonra ödeyeceğim" — talep ZATEN açık olduğu için bu bir iptal DEĞİLDİR; ödeme, bildirim
+    // kutusundan açılan görüşme detayındaki "Ödeme Yap" düğmesinden tamamlanır (bkz.
+    // consultation-detail-modal.js). Onay ekranının metni de bu duruma göre değişir.
+    pmLaterBtn.addEventListener('click', () => showSuccessScreen());
+
+    pmSubmitBtn.addEventListener('click', async () => {
+      if (!pmMethod || !state.requestId) return;
+      pmNotice.classList.remove('show', 'success');
+      const payload = { method: pmMethod === 'havale' ? 'havale' : 'iyzico' };
+      if (pmMethod === 'iyzico') {
+        payload.name = pmNameInput.value.trim();
+        payload.surname = pmSurnameInput.value.trim();
+        payload.identityNumber = pmTcInput.value.trim();
+        payload.address = pmAddressInput.value.trim();
+        payload.city = pmCityInput.value.trim();
+        payload.phone = phoneInput.value.trim();
+        if (!payload.name || !payload.surname || !payload.identityNumber || !payload.address || !payload.city) {
+          pmNotice.textContent = 'Kart ile ödeme için ad, soyad, T.C. kimlik no, adres ve şehir gerekli.';
+          pmNotice.classList.add('show');
+          return;
+        }
+      }
+      const label = pmSubmitBtn.textContent;
+      pmSubmitBtn.disabled = true;
+      pmSubmitBtn.textContent = 'Gönderiliyor…';
+      try {
+        const res = await fetch(`/api/consultations/${encodeURIComponent(state.requestId)}/payment`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.status === 401) { window.location.href = '/giris'; return; }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          pmNotice.textContent = data.error || 'Ödeme başlatılamadı, tekrar dene.';
+          pmNotice.classList.add('show');
+          pmSubmitBtn.disabled = false;
+          pmSubmitBtn.textContent = label;
+          return;
+        }
+        if (data.paymentPageUrl) {
+          // iyzico'nun hosted sayfasına ÜST SEVİYE yönlendirme (satin-al.html ile AYNI desen) —
+          // kart bilgisi bu siteye hiç girilmez. Dönüşte kullanıcı /hesabim?consultation_payment=…
+          // adresine düşer (bkz. src/routes/payments.js#handleCallback).
+          window.location.href = data.paymentPageUrl;
+          return;
+        }
+        state.paymentDeclared = true;
+        showSuccessScreen();
+      } catch {
+        pmNotice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+        pmNotice.classList.add('show');
+        pmSubmitBtn.disabled = false;
+        pmSubmitBtn.textContent = label;
+      }
+    });
+
     function showSuccessScreen() {
       successSummaryEl.textContent = `Randevu: ${formatDateTr(state.date)} · ${state.time}`;
       // Kullanıcı isteği, 2026-09-06 — metin BİREBİR bu kalıpla eşleşmeli.
@@ -431,7 +686,17 @@ const ConsultationModal = (function () {
       // onaylandığında Google Meet odası otomatik oluşturulur ve bildirimle gelen güvenli görüşme
       // odasından (/gorusme/:room_uuid) katılınır (bkz. src/lib/consultationMeet.js). Eski metin
       // hiç gerçekleşmeyen bir e-posta vaat ediyordu.
-      successTextEl.textContent = `${state.hostName} ile ${formatDateTr(state.date)} saat ${state.time}'te görüşmeniz onaylanmıştır. Görüşme odanız hazır olduğunda bildirim alacaksınız; görüşmeye Hesabım > Bildirimler'deki görüşme odasından katılabilirsiniz.`;
+      // ÖDEME GERİ GELDİĞİNDEN (kullanıcı isteği, 2026-09-13) metin ARTIK "onaylanmıştır" DEMEZ:
+      // talep bu noktada 'pending'dir ve onay admin'dedir. Ödeme beyan edildiyse/ertelendiyse
+      // kullanıcıya SIRADAKİ adımın ne olduğu söylenir — hiç gerçekleşmeyecek bir onayı vaat eden
+      // eski metin, ödemesiz akış için yazılmıştı.
+      const base = `${state.hostName} ile ${formatDateTr(state.date)} saat ${state.time} randevu talebin alındı.`;
+      const tail = state.paymentDeclared
+        ? ' Havaleni aldığımızda talebin onaylanacak ve görüşme odan hazır olduğunda bildirim alacaksın.'
+        : (state.payment && (state.payment.iyzico || state.payment.bankTransfer))
+          ? " Ödemeni Hesabım > Bildirimler'deki görüşme detayından istediğin zaman tamamlayabilirsin; ödemen alındıktan sonra talebin onaylanır."
+          : " Talebin onaylandığında görüşme odan Hesabım > Bildirimler'e düşer.";
+      successTextEl.textContent = base + tail;
       // "yalnızca 1 kez" limiti (kullanıcı isteği, 2026-09-06) — sunucu zaten reddeder, burası
       // yalnızca UI'da butonu gizler ki kullanıcı boşuna denemesin.
       rescheduleBtn.style.display = state.hasRescheduled ? 'none' : '';
@@ -510,7 +775,16 @@ const ConsultationModal = (function () {
           return;
         }
         state.requestId = data.id;
-        showSuccessScreen();
+        // Talep açıldı ve slot tutuldu. Ödeme adımı SUNUCU en az bir yöntem sunuyorsa gelir;
+        // hiçbiri yapılandırılmamışsa (sırlar yok) doğrudan onaya geçilir — özellik bu durumda
+        // 2026-09-08 sonrası hâliyle AYNI şekilde, ücretsiz talep olarak çalışmaya devam eder.
+        state.payment = data.payment || null;
+        state.paymentDeclared = false;
+        if (state.payment && (state.payment.iyzico || state.payment.bankTransfer)) {
+          showPaymentScreen();
+        } else {
+          showSuccessScreen();
+        }
       } catch {
         notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
         notice.classList.add('show');
@@ -546,6 +820,8 @@ const ConsultationModal = (function () {
         state.date = null;
         state.time = null;
         state.hasRescheduled = false;
+        state.payment = null;
+        state.paymentDeclared = false;
         const now = new Date();
         calendarState.year = now.getFullYear();
         calendarState.month = now.getMonth();
@@ -574,6 +850,24 @@ const ConsultationModal = (function () {
       // 2026-09-06) — bildirime tıklayınca açılan detay ekranından DOĞRUDAN yeniden planlama
       // takvimine girer, "Danışmanlık Al"ı baştan açmaz. state.requestId dolu olduğundan
       // continueBtn'in click handler'ı zaten PATCH /api/consultations/:id dalına gider.
+      // ConsultationDetailModal'ın "Ödeme Yap" düğmesinden çağrılır (kullanıcı isteği, 2026-09-13):
+      // talep zaten açık, takvim/iletişim adımları geçilmiş — DOĞRUDAN ödeme ekranına girilir.
+      // Seçenekler ve havale hesabı ÇAĞIRANDAN gelir, çünkü onları sunucudan okuyan GET
+      // /api/consultations/:id yanıtını zaten detay ekranı elinde tutar (ikinci bir istek atmaya
+      // gerek yok ve IBAN yine yalnızca sunucudan, yalnızca talebin sahibine gelmiş olur).
+      openPayment({ requestId, hostSlug, hostName, date, time, payment }) {
+        state.hostSlug = hostSlug;
+        state.hostName = hostName;
+        state.requestId = requestId;
+        state.date = date || null;
+        state.time = time || null;
+        state.payment = payment || null;
+        state.paymentDeclared = false;
+        titleEl.textContent = `${hostName} ile Görüşme`;
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        showPaymentScreen();
+      },
       openReschedule({ requestId, hostSlug, hostName, date, time, hasRescheduled }) {
         state.hostSlug = hostSlug;
         state.hostName = hostName;
@@ -594,5 +888,6 @@ const ConsultationModal = (function () {
   return {
     open(opts) { ensurePopup().open(opts); },
     openReschedule(opts) { ensurePopup().openReschedule(opts); },
+    openPayment(opts) { ensurePopup().openPayment(opts); },
   };
 })();

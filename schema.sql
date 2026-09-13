@@ -926,7 +926,14 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
   meet_event_id TEXT,
   meet_status TEXT,
   meet_error TEXT,
-  meet_created_at TEXT
+  meet_created_at TEXT,
+  -- Ödeme durumu/referansları (0117) — bkz. migrations/0117_consultation_payment.sql.
+  -- payment_status: NULL | 'pending' | 'declared' | 'paid' | 'failed'. 'paid' olmak talebi
+  -- OTOMATİK onaylamaz; Meet odası yalnızca admin onayında kurulur.
+  payment_status TEXT,
+  payment_token TEXT,
+  payment_id TEXT,
+  paid_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_host_status ON consultation_requests(host_slug, status, requested_date);

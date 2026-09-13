@@ -26,6 +26,15 @@ const ConsultationDetailModal = (function () {
   }
 
   const STATUS_LABELS = { pending: 'Ödeme onayı bekleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', cancelled: 'İptal edildi', completed: 'Görüşme Gerçekleşti' };
+  // Ödeme durumu (kullanıcı isteği, 2026-09-13) — sözleşme src/routes/consultations.js#PAYMENT_STATUS
+  // ve migrations/0117_consultation_payment.sql ile AYNI. 'declared' bir BEYANDIR, doğrulama değil;
+  // metin bunu gizlememeli, aksi halde kullanıcı ödemesinin onaylandığını sanır.
+  const PAYMENT_STATUS_LABELS = {
+    pending: 'Kart ödemesi başlatıldı, sonuç bekleniyor',
+    declared: 'Havale bildirildi, doğrulanıyor',
+    paid: 'Ödendi',
+    failed: 'Ödeme tamamlanamadı',
+  };
   // "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" (kullanıcı isteği, 2026-09-06) — hem alıcı HEM
   // danışman aynı üç aksiyona erişir, tıklayınca bir sebep kutusu açılır ve admin değerlendirmesine
   // gider (bkz. src/routes/consultations.js#createConsultationAction).
@@ -191,6 +200,22 @@ const ConsultationDetailModal = (function () {
     // KALDIRILMAZ, diğer üçüyle AYNI şekilde pasifleştirilir ve sebebi title'da görünür (sunucudan
     // gelen rescheduleReason; yoksa genel kural metni). Kapı: yalnızca 1 kez + görüşmeden en az
     // 3 GÜN önce + alıcı + talep açık (pending ya da approved).
+    // Ödeme kutusu (kullanıcı isteği, 2026-09-13): ödeme hâlâ alınabiliyorsa ALICIYA bir "Ödeme Yap"
+    // düğmesi gösterilir — "Daha sonra ödeyeceğim" diyen ya da kart akışı yarıda kalan kullanıcının
+    // ödemeyi tamamlayabileceği TEK yer burasıdır (bkz. consultation-modal.js#openPayment).
+    // Danışmana (isHost) düğme gösterilmez: sunucu canPay'i yalnızca alıcı için true döndürür.
+    function paymentHtml(data) {
+      if (!data.canPay || !data.payment) return '';
+      if (!data.payment.iyzico && !data.payment.bankTransfer) return '';
+      const price = Number(data.payment.priceTry || 0).toLocaleString('tr-TR');
+      return `
+        <div class="cnd-room">
+          <div class="cnd-room-title">Ödeme</div>
+          <div class="cnd-room-text">Görüşme ücreti ${esc(price)} ₺. Ödemen alındıktan sonra talebin onaylanır ve görüşme odan hazırlanır.</div>
+          <button type="button" class="cnd-room-btn" id="cnd-pay-btn">Ödeme Yap</button>
+        </div>`;
+    }
+
     function actionsHtml(data) {
       const gated = Object.entries(ACTION_LABELS).map(([type, label]) => {
         const gate = ACTION_GATES[type];
@@ -286,12 +311,16 @@ const ConsultationDetailModal = (function () {
           row('Tarih', formatDateTr(data.date)),
           row('Saat', data.time),
           row('Durum', STATUS_LABELS[data.status] || data.status),
+          // Ödeme satırı yalnızca bir ödeme HAREKETİ olduysa görünür (payment_status NULL iken
+          // "—" yazan boş bir satır eklemez — row() zaten boş değeri atlar).
+          row('Ödeme', PAYMENT_STATUS_LABELS[data.paymentStatus] || null),
           row('Ad Soyad', data.contactName),
           row('E-posta', data.contactEmail),
           row('Telefon', data.contactPhone),
           row('Görüşme İsteği Hakkında Not', data.note, 'cnd-note-value'),
         ].join('')
           + roomHtml(data)
+          + paymentHtml(data)
           // "Tarihi Değiştir" HER ZAMAN ızgaranın ilk hücresindedir; tıklanabilirliği sunucunun
           // canReschedule bayrağına bağlıdır (bkz. getConsultationDetail: alıcı + açık talep +
           // değiştirilmemiş + görüşmeye en az 3 gün kalmış).
@@ -306,6 +335,30 @@ const ConsultationDetailModal = (function () {
             ensureMeetingRoomLoaded()
               .then(() => { close(); MeetingRoom.open(uuid); })
               .catch(() => { window.location.href = url; });
+          });
+        }
+
+        const payBtn = bodyEl.querySelector('#cnd-pay-btn');
+        if (payBtn) {
+          payBtn.addEventListener('click', async () => {
+            payBtn.disabled = true;
+            payBtn.textContent = 'Yükleniyor…';
+            // "Tarihi Değiştir" ile AYNI tembel yükleme deseni. gerçek bulgu:
+            // ensureConsultationModalLoaded'ın promise'i script.onerror BAĞLAMADIĞINDAN hata
+            // durumunda REDDETMEZ (yalnızca çözülmez ya da tanımsız bir global bırakır) — bu
+            // yüzden bekleme SONRASI globalin gerçekten var olduğu ayrıca doğrulanır, aksi halde
+            // ConsultationModal.openPayment çıplak bir ReferenceError'a düşerdi.
+            await ensureConsultationModalLoaded();
+            if (typeof ConsultationModal === 'undefined') {
+              payBtn.disabled = false;
+              payBtn.textContent = 'Ödeme Yap';
+              return;
+            }
+            close();
+            ConsultationModal.openPayment({
+              requestId: data.id, hostSlug: data.hostSlug, hostName: data.hostName,
+              date: data.date, time: data.time, payment: data.payment,
+            });
           });
         }
 

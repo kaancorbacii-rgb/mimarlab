@@ -7,6 +7,11 @@ import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from
 import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership, getBlockingRank } from './badges.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+// Alıcı alanı doğrulamaları rozet ve danışmanlık ödemelerinde ORTAK — bkz. src/lib/iyzicoBuyer.js.
+import { isValidTcKimlik, normalizeGsm } from '../lib/iyzicoBuyer.js';
+// Danışmanlık ödemeleri AYNI callback'ten döner; hangi tabloya bakılacağı conversationId önekinden
+// anlaşılır (bkz. src/routes/consultations.js#CONSULTATION_CONVERSATION_PREFIX).
+import { CONSULTATION_CONVERSATION_PREFIX, settleConsultationPayment } from './consultations.js';
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır (bkz. src/routes/badges.js)
 
@@ -15,25 +20,6 @@ export async function handlePaymentsRoute(request, env, url) {
   if (path === '/api/payments/checkout' && request.method === 'POST') return startCheckout(request, env, url);
   if (path === '/api/payments/callback' && request.method === 'POST') return handleCallback(request, env, url);
   return errorJson('Bulunamadı', 404);
-}
-
-// TC Kimlik No resmi (11 haneli) checksum algoritması — kamuya açık, standart bir doğrulamadır.
-function isValidTcKimlik(v) {
-  if (!/^[1-9][0-9]{10}$/.test(v)) return false;
-  const d = v.split('').map(Number);
-  const oddSum = d[0] + d[2] + d[4] + d[6] + d[8];
-  const evenSum = d[1] + d[3] + d[5] + d[7];
-  const check10 = (((oddSum * 7) - evenSum) % 10 + 10) % 10;
-  if (check10 !== d[9]) return false;
-  const sumFirst10 = d.slice(0, 10).reduce((a, b) => a + b, 0);
-  return (sumFirst10 % 10) === d[10];
-}
-
-function normalizeGsm(raw) {
-  let digits = (raw || '').replace(/\D/g, '');
-  if (digits.startsWith('90')) digits = digits.slice(2);
-  if (digits.startsWith('0')) digits = digits.slice(1);
-  return /^5\d{9}$/.test(digits) ? `+90${digits}` : null;
 }
 
 // Ödeme başlatma: kart bilgisi hiç bu uçtan geçmez — yalnızca iyzico'nun Checkout Form'unu
@@ -186,9 +172,26 @@ async function handleCallback(request, env, url) {
   }
 
   const conversationId = result.conversationId;
-  const row = conversationId
-    ? await env.DB.prepare(`SELECT id, user_id, target_type, target_key FROM badge_requests WHERE id = ? AND status = 'pending'`).bind(conversationId).first()
-    : null;
+  if (!conversationId) return fail();
+
+  // DANIŞMANLIK ÖDEMESİ (kullanıcı isteği, 2026-09-13) — aynı callback, farklı tablo. Ayrım
+  // conversationId önekiyle yapılır; rozet conversationId'si çıplak bir UUID olduğundan (bkz.
+  // src/lib/crypto.js#newId) iki uzay ÇAKIŞMAZ. Başarı/başarısızlık yönlendirmesi de farklıdır:
+  // danışmanlıkta rozet sayfası değil, kullanıcının kendi hesabı hedeftir.
+  if (conversationId.startsWith(CONSULTATION_CONVERSATION_PREFIX)) {
+    const consultationId = conversationId.slice(CONSULTATION_CONVERSATION_PREFIX.length);
+    const paid = result.status === 'success' && result.paymentStatus === 'SUCCESS';
+    const settled = await settleConsultationPayment(env, consultationId, paid, result.paymentId || null);
+    if (!settled) return fail();
+    return Response.redirect(
+      `${origin}/hesabim?consultation_payment=${paid ? 'success' : 'failed'}`,
+      302,
+    );
+  }
+
+  const row = await env.DB.prepare(
+    `SELECT id, user_id, target_type, target_key FROM badge_requests WHERE id = ? AND status = 'pending'`
+  ).bind(conversationId).first();
   if (!row) return fail();
 
   if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
