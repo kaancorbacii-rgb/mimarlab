@@ -594,6 +594,20 @@
          CSS'inden daha yüksek özgüllükle (.site-footer .footer-brand p = 0,2,1) yazıldığında
          kural yükleme sırasından bağımsız olarak her sayfada kazanır. */
       .site-footer .footer-brand p{color:#fff;}
+      /* SÜTUN BAĞLANTILARI BEYAZ (kullanıcı isteği, 2026-09-13: "Ana Menü, Topluluk, Kurumsal
+         başlıkları altındaki menü isimlerini de beyaz renk yap"). Başlıkların (h4) kendi soluk
+         tonu korunur — istenen yalnızca altlarındaki isimler.
+         Bir üstteki .footer-brand p ile AYNI gerekçe: .footer-col a kuralı 32 ayrı HTML
+         dosyasında rgba(237,240,243,0.85) olarak yazılı, tek tek düzenlemek bir sayfayı unutma
+         riski demek. Footer'ı tek yerden basan bu bileşen stilini de sonradan enjekte eder ve
+         .site-footer .footer-col a (0,3,1) sayfa CSS'inden (0,1,1) yüksek özgüllükte kazanır.
+         "Sen de Ekle" <a> değil <button> olduğu için ayrıca eşlenir (bkz. .footer-add-content). */
+      .site-footer .footer-col a,
+      .site-footer .footer-col .footer-add-content{color:#fff;}
+      /* :hover yine sayfa CSS'indeki --brass-soft'a gider; buradaki tek istisna butondu
+         (kendi kuralı #EDF0F3 diyordu), o da kardeşleriyle aynı davranışa çekilir. */
+      .site-footer .footer-col a:hover,
+      .site-footer .footer-col .footer-add-content:hover{color:var(--brass-soft);}
       /* "Sen de Ekle" sütundaki <a> kardeşleriyle birebir aynı görünmeli (bkz. .footer-add-content
          kuralı) — o kural text-align:left yazdığı için burada ortaya çekilir. */
       .footer-top .footer-add-content{text-align:center;}
