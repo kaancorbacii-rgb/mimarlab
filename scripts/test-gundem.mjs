@@ -46,13 +46,31 @@ async function test(name, fn) {
 
 function section(title) { console.log(`\n${title}`); }
 
-// 40-80 kelime aralığında geçerli bir Türkçe özet üretir (testlerde tekrar tekrar lazım).
+// Kalite kapısından GEÇEN bir Türkçe özet üretir (testlerde tekrar tekrar lazım).
+//
+// NEDEN TEKRARSIZ BİR KELİME HAVUZU: eski yardımcı tek bir cümleyi döngüyle tekrar ediyordu
+// ("...ahşap malzemeyi bir arada kullandı Proje kentin merkezinde..."). 2026-09-13'te eklenen
+// tekrar kapısı (gundemFactCheck.js#repeatedNgram) bunu HAKLI OLARAK reddetti — yani yardımcının
+// ürettiği metin gerçek bir özet gibi davranmıyordu. Havuz tek tek FARKLI kelimelerden oluşur:
+// hiçbir 5 kelimelik dizi iki kez geçmez ve üretilen metin uzunluk kapısını sınamaya devam eder.
+const FILLER_WORDS = (
+  'proje kentin merkezinde tarihi dokuyla ilişki kuran yapı olarak tasarlandı mimarlar cephede yerel ' +
+  'taş ahşap malzemeyi bir arada kullandı zemin katta dükkânlar üst katlarda konut birimleri yer alıyor ' +
+  'avlu çevresinde kurgulanan plan şemasında ortak kullanım alanları toplandı çatıda güneş panelleri ' +
+  'yağmur suyu toplama sistemi bulunuyor yapının taşıyıcı sistemi betonarme dış kabuk tuğla kaplamayla ' +
+  'tamamlandı kütle sokak ölçeğine uyum sağlayacak biçimde kademelendi giriş holü çift yükseklikte ' +
+  'çözüldü doğal aydınlatma tepe pencereleriyle sağlandı peyzaj düzenlemesinde bölgeye özgü bitki ' +
+  'türleri seçildi otopark bodrum seviyesinde konumlandı yapım süreci etaplara bölündü kullanıcı ' +
+  'yoğunluğu gözetilerek sirkülasyon şeması yeniden ele alındı komşu parseldeki tescilli köşk ile ' +
+  'görsel süreklilik korundu cephedeki düşey elemanlar gölgeleme işlevi görüyor iç mekânda mobilyalar ' +
+  'aynı atölyede üretildi malzeme paleti sınırlı tutuldu renk seçiminde nötr tonlar tercih edildi ' +
+  'akustik çözümler salon hacminde özel olarak geliştirildi yönetmelik gereklilikleri erişilebilirlik ' +
+  'standartları uyarınca karşılandı teras seviyesinde kamusal kullanıma açık kafe programa eklendi'
+).split(/\s+/);
+
 function validSummary(words = 55) {
-  const base = 'Proje kentin merkezinde yer alan tarihi dokuyla ilişki kuran bir yapı olarak tasarlandı ve mimarlar cephede yerel taş ile ahşap malzemeyi bir arada kullandı';
-  const tokens = base.split(' ');
-  const out = [];
-  while (out.length < words) out.push(tokens[out.length % tokens.length]);
-  return out.slice(0, words).join(' ');
+  if (words > FILLER_WORDS.length) throw new Error(`FILLER_WORDS havuzu ${words} kelimeye yetmiyor`);
+  return FILLER_WORDS.slice(0, words).join(' ');
 }
 
 // =================================================================================================
@@ -262,7 +280,7 @@ const ctx = {
   fallbackCategory: 'haber',
 };
 
-await test('TEST 3: geçerli çıktı kabul edilir (Türkçe, tek paragraf, 40-80 kelime)', () => {
+await test('TEST 3: geçerli çıktı kabul edilir (Türkçe, tek paragraf, 50-90 kelime)', () => {
   const r = validateAiOutput({
     confident: true,
     title: 'OMA imzalı kültür merkezi Seul’de açıldı',
@@ -274,13 +292,13 @@ await test('TEST 3: geçerli çıktı kabul edilir (Türkçe, tek paragraf, 40-8
   assert.equal(r.category, 'haber');
 });
 
-await test('TEST 3a: 40 kelimenin ALTINDAKİ özet reddedilir', () => {
+await test('TEST 3a: kabul tabanının ALTINDAKİ özet reddedilir', () => {
   const r = validateAiOutput({ title: 'OMA kültür merkezi Seul', summary: validSummary(20), category: 'haber' }, ctx);
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'summary_too_short');
 });
 
-await test('TEST 3b: 80 kelimenin ÜSTÜNDEKİ özet reddedilir', () => {
+await test('TEST 3b: kabul tavanının ÜSTÜNDEKİ özet reddedilir', () => {
   const r = validateAiOutput({ title: 'OMA kültür merkezi Seul', summary: validSummary(120), category: 'haber' }, ctx);
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'summary_too_long');
@@ -326,25 +344,45 @@ await test('TEST 3f: clickbait başlık reddedilir', () => {
 // İLK CANLI TUR REGRESYONU (2026-09-06 20:30): 8 içeriğin 3'ü `title_not_turkish` ile elendi,
 // çünkü başlık kapısı özet kapısıyla AYNI looksTurkish() kontrolünü kullanıyordu ve yalnızca özel
 // adlardan oluşan geçerli Türkçe başlıkları da reddediyordu.
-// TOLERANS BANDI (ölçüm, 2026-09-06): model düzeltmeli denemeden sonra 37-39 kelimelik KUSURSUZ
-// özetler üretiyordu; sert 40 tabanı bunları eliyordu. İstek "YAKLAŞIK 40-80" diyor.
-await test('TOLERANS: 37 kelimelik özet kabul edilir (hedef 40, taban 36)', () => {
+// TOLERANS BANDI. Hedef 2026-09-13'te 40-80'den 50-90'a çıktı (kullanıcı isteği: "50-90 Türkçe
+// kelime hedeflenecek"); KABUL bandı hedeften geniştir (44-110) çünkü hedef modele söylenen şey,
+// kapı ise yayın engelidir — birkaç kelimelik sapmayı yayın engeline çevirmek iyi içeriği eler.
+await test('TOLERANS: 46 kelimelik özet kabul edilir (hedef 50, taban 44)', () => {
   const r = validateAiOutput({
     title: 'OMA imzalı kültür merkezi Seul’de açıldı',
-    summary: validSummary(37), category: 'haber',
+    summary: validSummary(46), category: 'haber',
   }, ctx);
   assert.equal(r.ok, true, r.reason);
 });
 
-await test('TOLERANS: 35 kelime hâlâ REDDEDİLİR (bant sınırsız değil)', () => {
-  const r = validateAiOutput({ title: 'OMA kültür merkezi Seul', summary: validSummary(35), category: 'haber' }, ctx);
+await test('TOLERANS: 40 kelime REDDEDİLİR (zengin kaynakta bant sınırsız değil)', () => {
+  const r = validateAiOutput({ title: 'OMA kültür merkezi Seul', summary: validSummary(40), category: 'haber' }, ctx);
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'summary_too_short');
 });
 
-await test('TOLERANS: 85 kelime kabul, 95 kelime reddedilir', () => {
-  assert.equal(validateAiOutput({ title: 'OMA kültür merkezi Seul açıldı', summary: validSummary(85), category: 'haber' }, ctx).ok, true);
-  assert.equal(validateAiOutput({ title: 'OMA kültür merkezi Seul açıldı', summary: validSummary(95), category: 'haber' }, ctx).reason, 'summary_too_long');
+// KAYNAĞA GÖRE DEĞİŞEN TABAN (kullanıcı isteği 2026-09-13 madde 7: "Çok kısa kaynaklarda gereksiz
+// bilgi uydurularak uzatılmayacak"). 20 kelimelik bir excerpt'ten 50 kelimelik özet istemek modeli
+// doldurmaya — yani uydurmaya — zorlar; o yüzden kısa kaynakta taban 32'ye iner.
+await test('TABAN: kısa kaynakta (thin) 36 kelimelik özet KABUL edilir', () => {
+  const r = validateAiOutput(
+    { title: 'OMA imzalı kültür merkezi Seul’de açıldı', summary: validSummary(36), category: 'haber' },
+    { ...ctx, sourceAdequacy: 'thin' }
+  );
+  assert.equal(r.ok, true, r.reason);
+});
+
+await test('TABAN: kısa kaynakta bile 28 kelime REDDEDİLİR', () => {
+  const r = validateAiOutput(
+    { title: 'OMA imzalı kültür merkezi Seul’de açıldı', summary: validSummary(28), category: 'haber' },
+    { ...ctx, sourceAdequacy: 'thin' }
+  );
+  assert.equal(r.reason, 'summary_too_short');
+});
+
+await test('TOLERANS: 105 kelime kabul, 115 kelime reddedilir', () => {
+  assert.equal(validateAiOutput({ title: 'OMA kültür merkezi Seul açıldı', summary: validSummary(105), category: 'haber' }, ctx).ok, true);
+  assert.equal(validateAiOutput({ title: 'OMA kültür merkezi Seul açıldı', summary: validSummary(115), category: 'haber' }, ctx).reason, 'summary_too_long');
 });
 
 await test('TEST 3g: özel adlardan oluşan Türkçe başlık REDDEDİLMEZ (canlı tur regresyonu)', () => {

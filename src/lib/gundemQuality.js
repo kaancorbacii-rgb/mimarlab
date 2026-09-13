@@ -7,24 +7,49 @@
 import { foldTr } from './textMatch.js';
 import { GUNDEM_IMAGE_HOSTS } from './gundemSources.js';
 import { isValidGundemCategory } from './gundemCategories.js';
+import { runFactConsistency, sourceAnchors, outputCoversAnchors } from './gundemFactCheck.js';
 
-// Özet uzunluğu — kullanıcı isteği madde 9: "YAKLAŞIK 40-80 kelime".
+// Özet uzunluğu — kullanıcı isteği 2026-09-13 madde 2: "50-90 Türkçe kelime hedeflenecek. Kaynak
+// metin yeterince uzunsa 70-100 kelimeye çıkabilir. Çok kısa kaynaklarda gereksiz bilgi
+// uydurularak uzatılmayacak."
 //
-// İKİ AYRI SAYI, bilerek:
-//   * SUMMARY_MIN/MAX_WORDS  → modele VERİLEN hedef (prompt bu aralığı söyler).
-//   * SUMMARY_MIN/MAX_ACCEPT → KABUL eşiği; hedefin %10 dışına kadar tolere eder.
+// ÜÇ AYRI SAYI, bilerek:
+//   * SUMMARY_MIN/MAX_WORDS   → modele VERİLEN hedef (prompt bu aralığı söyler).
+//   * SUMMARY_RICH_MAX_WORDS  → kaynak metin zengin olduğunda hedefin üst sınırı 100'e çıkar.
+//   * SUMMARY_MIN/MAX_ACCEPT  → KABUL eşiği; hedefin dışına bir miktar tolerans tanır.
 //
-// NEDEN (ölçüm, 2026-09-06 — gerçek modelle 6 içerik üzerinde iki turlu deneme): düzeltmeli
-// yeniden deneme sonrası model 37 ve 39 kelimelik, içerik olarak KUSURSUZ özetler üretti ve sert
-// 40 tabanı bunları eledi. İsteğin kendi ifadesi "yaklaşık" olduğundan, tek kelimelik sapmayı
-// yayın engeline çevirmek isteği daha iyi karşılamıyor — aksine iyi içeriği kaybettiriyordu
-// (madde 26'nın "eksik yayınlamak yeğdir" ilkesi ŞÜPHELİ içerik içindir, doğru ama 3 kelime kısa
-// içerik için değil). Gerçekten kısa olan (22-27 kelime) çıktılar bu bandın de dışında kalır ve
-// elenmeye devam eder.
-export const SUMMARY_MIN_WORDS = 40;
-export const SUMMARY_MAX_WORDS = 80;
-export const SUMMARY_MIN_ACCEPT = 36;
-export const SUMMARY_MAX_ACCEPT = 88;
+// NEDEN TOLERANS (ölçüm, 2026-09-06 — gerçek modelle 6 içerik üzerinde iki turlu deneme): düzeltmeli
+// yeniden deneme sonrası model hedefin birkaç kelime altında, içerik olarak KUSURSUZ özetler
+// üretiyor ve sert bir taban bunları eliyordu. Tek kelimelik sapmayı yayın engeline çevirmek iyi
+// içeriği kaybettirir; gerçekten kısa olan (22-27 kelime) çıktılar bu bandın de dışında kalır.
+//
+// NEDEN KAYNAĞA GÖRE DEĞİŞEN TABAN (SUMMARY_MIN_ACCEPT_THIN): aynı ölçümün gösterdiği ikinci şey,
+// modelin KISA excerpt'lerde kısa yazmasının bir KUSUR DEĞİL, doğru davranış olmasıydı. 20 kelimelik
+// bir excerpt'ten 50 kelimelik özet istemek modeli doldurmaya — yani uydurmaya — zorlar (madde 7:
+// "bilgi uydurma, özeti yapay şekilde uzatma"). Bu yüzden taban, kaynak metnin yeterliliğine göre
+// (bkz. gundemSourceText.js#sourceAdequacy) iki kademeli uygulanır.
+export const SUMMARY_MIN_WORDS = 50;
+export const SUMMARY_MAX_WORDS = 90;
+export const SUMMARY_RICH_MAX_WORDS = 100;
+export const SUMMARY_MIN_ACCEPT = 44;
+export const SUMMARY_MIN_ACCEPT_THIN = 32;
+export const SUMMARY_MAX_ACCEPT = 110;
+
+// BAŞLIK uzunluğu — kullanıcı isteği 2026-09-13 madde 1: "Mümkün olduğunca 8-15 kelime. Gerekiyorsa
+// 18 kelimeye çıkabilir."
+//
+// Karakter sınırları (TITLE_MIN/MAX_CHARS) KALDIRILMADI: veritabanı/kart düzeni için hâlâ gerekli.
+// Kelime sınırları onların YERİNE değil, YANINA gelir — 8 kelimelik bir başlık 40 karakter de
+// olabilir 90 karakter de, ikisi farklı şeyi ölçer.
+//
+// KABUL bandı hedeften GENİŞ (5-20): hedef modele söylenen şeydir, kapı ise yayın engelidir.
+// "Serpentine Pavilion 2026 Tasarımcısı Açıklandı" beş kelimedir, kusursuzdur ve yayınlanmalıdır.
+export const TITLE_TARGET_MIN_WORDS = 8;
+export const TITLE_TARGET_MAX_WORDS = 15;
+export const TITLE_HARD_MAX_WORDS = 18;
+export const TITLE_MIN_ACCEPT_WORDS = 4;
+export const TITLE_MAX_ACCEPT_WORDS = 20;
+
 export const TITLE_MIN_CHARS = 12;
 export const TITLE_MAX_CHARS = 140;
 
@@ -267,16 +292,38 @@ function distinctOverlapCount(text, haystack) {
   return hits;
 }
 
+//
+// ÜÇÜNCÜ KADEME (2026-09-13) — ÇAPA ÖLÇÜSÜ. Yukarıdaki iki kademe ÖRTÜŞME arar ve bu, İNGİLİZCE
+// kaynaklı bir GÖRÜŞ/DERLEME yazısında sistematik olarak yanlış pozitif üretiyordu: kaynakta hiç
+// özel ad ya da sayı geçmiyorsa ("Why adaptive reuse is becoming the default for European
+// housing") kusursuz bir Türkçe çeviri kaynakla tek kelime paylaşmaz ve içerik `title_unrelated`
+// ile elenirdi. Ölçü tersine çevrilir: kaynakta çeviriden sağ çıkması BEKLENEN öğeler (özel ad,
+// kısaltma, sayı) varsa en az biri çıktıda görünmeli; kaynakta hiç çapa yoksa bu kapı bir şey
+// söyleyemez ve içeriği ENGELLEMEZ (yukarıdaki "kaynak hiç metin vermemişse" ilkesinin aynısı).
+// Gerekçe ve çapa tanımı: gundemFactCheck.js#sourceAnchors.
 export function titleOverlapsSource(aiTitle, sourceTitle, sourceExcerpt, aiSummary) {
   const haystack = foldTr(`${sourceTitle || ''} ${sourceExcerpt || ''}`);
   if (!haystack.trim()) return true; // kaynak hiç metin vermemişse bu kapı bir şey söyleyemez
   if (distinctOverlapCount(aiTitle, haystack) >= 1) return true;
-  return distinctOverlapCount(aiSummary, haystack) >= 2;
+  if (distinctOverlapCount(aiSummary, haystack) >= 2) return true;
+  const anchors = sourceAnchors(sourceTitle, sourceExcerpt);
+  if (!anchors.length) return true;
+  return outputCoversAnchors(`${aiTitle} ${aiSummary}`, anchors);
 }
 
 // Tam doğrulama. Dönen `ok:false` her zaman bir `reason` taşır — bu değer cron loglarındaki
 // skipped sayacının kırılımına girer (bkz. gundemIngest.js), yani hangi kapının kaç içeriği
 // elediği canlıda ölçülebilir kalır.
+//
+// ctx alanları:
+//   sourceTitle      kaynağın kendi başlığı
+//   sourceExcerpt    modele verilen TEMİZLENMİŞ kaynak metni (bkz. gundemSourceText.js).
+//                    Alan adı geriye dönük uyumluluk için korundu; artık ham excerpt değil.
+//   sourceName       yayıncı adı — çıktıda geçmesi meşrudur, fact-check haystack'ine katılır
+//   sourceLanguage   'tr' | 'en'
+//   sourceAdequacy   'empty' | 'thin' | 'normal' | 'rich' — özet uzunluk TABANINI belirler
+//   publishedYears   kaynağın yayın yılı/yılları — çıktıda geçmesi meşru sayılır
+//   fallbackCategory kategori whitelist dışındaysa kullanılacak değer
 export function validateAiOutput(ai, ctx) {
   if (!ai || typeof ai !== 'object') return { ok: false, reason: 'ai_not_object' };
 
@@ -286,6 +333,11 @@ export function validateAiOutput(ai, ctx) {
   if (!title) return { ok: false, reason: 'title_empty' };
   if (title.length < TITLE_MIN_CHARS) return { ok: false, reason: 'title_too_short' };
   if (title.length > TITLE_MAX_CHARS) return { ok: false, reason: 'title_too_long' };
+  // KELİME sayısı kapısı (2026-09-13 madde 1). Karakter kapısından AYRI: 20 kelimelik bir başlık
+  // 140 karakterin altında kalabilir ama kart üstünde de, okurun gözünde de bir başlık değildir.
+  const titleWords = wordCount(title);
+  if (titleWords < TITLE_MIN_ACCEPT_WORDS) return { ok: false, reason: 'title_too_few_words' };
+  if (titleWords > TITLE_MAX_ACCEPT_WORDS) return { ok: false, reason: 'title_too_many_words' };
   if (!titleLanguageOk(title)) return { ok: false, reason: 'title_not_turkish' };
   // NOT: kaynakla ilgililik kapısı BİLEREK aşağıda, özet doğrulandıktan SONRA çalışır — ölçü artık
   // başlık + özetin BİRLİKTE değerlendirilmesine dayanıyor (bkz. titleOverlapsSource'un iki kademeli
@@ -298,7 +350,11 @@ export function validateAiOutput(ai, ctx) {
   if (!summary) return { ok: false, reason: 'summary_empty' };
   if (!isSingleParagraph(ai.summary)) return { ok: false, reason: 'summary_not_single_paragraph' };
   const words = wordCount(summary);
-  if (words < SUMMARY_MIN_ACCEPT) return { ok: false, reason: 'summary_too_short' };
+  // KAYNAĞA GÖRE DEĞİŞEN TABAN (bkz. dosya başındaki SUMMARY_MIN_ACCEPT_THIN gerekçesi): kaynak
+  // metin kısaysa özetin de kısa olması doğru davranıştır, kusur değil.
+  const thinSource = ctx.sourceAdequacy === 'thin' || ctx.sourceAdequacy === 'empty';
+  const minAccept = thinSource ? SUMMARY_MIN_ACCEPT_THIN : SUMMARY_MIN_ACCEPT;
+  if (words < minAccept) return { ok: false, reason: 'summary_too_short' };
   if (words > SUMMARY_MAX_ACCEPT) return { ok: false, reason: 'summary_too_long' };
   if (!looksTurkish(summary)) return { ok: false, reason: 'summary_not_turkish' };
   // Modelin "özetleyemedim/bilgi yok" gibi meta yanıtları — içerik değil, hata sinyalidir.
@@ -313,10 +369,24 @@ export function validateAiOutput(ai, ctx) {
     return { ok: false, reason: 'title_unrelated' };
   }
 
+  // FACT-CONSISTENCY CHECK (kullanıcı isteği 2026-09-13 madde 5). "Aynı haber mi?" sorusundan
+  // FARKLI bir soru sorar: "bu haberde GERÇEKTEN bunlar mı yazıyor?". Sayı/özel ad tutarlılığı,
+  // çevrilmeden kalmış İngilizce terimler, mekanik tekrar, başlık-özet uyumu ve (Türkçe
+  // kaynaklarda) özetin kaynağın yalnızca başını görüp görmediği burada denetlenir.
+  // Gerekçeler ve her kapının EŞİĞİ: src/lib/gundemFactCheck.js.
+  const facts = runFactConsistency({ title, summary }, {
+    sourceTitle: ctx.sourceTitle,
+    sourceText: ctx.sourceExcerpt,
+    sourceName: ctx.sourceName,
+    sourceLanguage: ctx.sourceLanguage,
+    publishedYears: ctx.publishedYears,
+  });
+  if (!facts.ok) return { ok: false, reason: facts.reason, detail: facts.detail };
+
   // Kategori: AI önerisi YALNIZCA whitelist'ten kabul edilir; dışındaysa sessizce kaynağın
   // varsayılanına düşülür (içerik reddedilmez — kategori kurtarılabilir bir alandır).
   const category = isValidGundemCategory(ai.category) ? ai.category : ctx.fallbackCategory;
   if (!isValidGundemCategory(category)) return { ok: false, reason: 'category_invalid' };
 
-  return { ok: true, title, summary, category };
+  return { ok: true, title, summary, category, softNames: facts.softNames || [] };
 }
