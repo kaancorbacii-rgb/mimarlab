@@ -274,6 +274,8 @@ const RETRY_HINT_BY_REASON = {
   fact_name_not_in_source: 'Önceki denemende kaynakta BULUNMAYAN özel adlar (kişi/ofis/şehir/yapı) yazdın. Bu kez yalnızca kaynakta açıkça geçen adları kullan.',
   title_leftover_english: 'Önceki denemende başlıkta çevrilmemiş İngilizce kelime kaldı. Bu kez cins isimlerin tamamını Türkçe yaz; yalnızca özel adları özgün bırak.',
   summary_leftover_english: 'Önceki denemende özette çevrilmemiş İngilizce kelime kaldı. Bu kez cins isimlerin tamamını Türkçe yaz; yalnızca özel adları özgün bırak.',
+  title_foreign_leftover: 'Önceki denemende başlıkta Türkçe OLMAYAN bir kelime/karakter kaldı. Başlığın TAMAMINI Türkçe yaz; yalnızca özel adlar özgün kalabilir ve onlar da Latin harfleriyle yazılır.',
+  summary_foreign_leftover: 'Önceki denemende özette Türkçe OLMAYAN bir kelime ya da karakter kaldı (İngilizce/Almanca kelime, Çince/Kiril karakter). Özetin TAMAMINI Türkçe yaz; her cümleyi bitirdikten sonra Türkçe olup olmadığını denetle. Yalnızca özel adlar özgün kalabilir.',
   summary_mechanical_repetition: 'Önceki denemende birden fazla cümle aynı kalıpla başlıyordu ("Bu proje...", "Bu yapı..."). Bu kez cümle yapılarını çeşitlendir.',
   summary_repetitive: 'Önceki denemende aynı ifadeyi tekrar ettin. Bu kez her cümle yeni bir bilgi taşısın.',
   title_summary_mismatch: 'Önceki denemende başlık ile özet birbirini tutmuyordu. Bu kez başlıktaki konu özetin de ana konusu olsun.',

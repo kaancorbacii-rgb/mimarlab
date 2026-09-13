@@ -56,10 +56,10 @@ import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
 import { GUNDEM_SOURCES } from '../src/lib/gundemSources.js';
-import { fetchPageMeta } from '../src/lib/gundemFeed.js';
+import { fetchPageMeta, fetchFeed } from '../src/lib/gundemFeed.js';
 import { buildSourceText } from '../src/lib/gundemSourceText.js';
 import { generateGundemSummary, AiProviderError } from '../src/lib/gundemAi.js';
-import { validateAiOutput, SOURCE_TEXT_MAX_CHARS, wordCount } from '../src/lib/gundemQuality.js';
+import { validateAiOutput, SOURCE_TEXT_MAX_CHARS, wordCount, normalizeSourceUrl } from '../src/lib/gundemQuality.js';
 import { gundemEmbedText, embedGundemText, quantizeEmbedding } from '../src/lib/gundemEmbedding.js';
 import { AI_MODEL } from '../src/lib/aiConfig.js';
 
@@ -253,6 +253,38 @@ async function* rowsToProcess() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// FEED YEDEĞİ — makale sayfası metin vermediğinde
+// ---------------------------------------------------------------------------------------------
+// ÖLÇÜLDÜ (12 kayıtlık dry-run turları, 2026-09-13): bazı yayıncıların MAKALE SAYFASI bu betiğe
+// hiç metin vermiyor (sayfa isteği düşüyor ya da <head> dışında okunabilir gövde yok) — o
+// satırlarda kaynak metin 0 kelimeye iniyor ve kayıt kalite kapısında eleniyor, yani ESKİ (kötü)
+// metniyle kalıyor. Oysa AYNI yayıncının RSS FEED'i kaynağın yapılandırmasında zaten tanımlı ve
+// sorunsuz okunuyor; canlı hat da özeti ORADAN üretiyor.
+//
+// ANTI-BOT AŞILMIYOR (bkz. src/lib/gundemSources.js, "UYULAN SINIRLAR" madde 3): erişilmeyen bir
+// sayfayı zorlamak yerine, yayıncının ÜÇÜNCÜ TARAFLAR İÇİN yayımladığı feed'e düşülüyor. Yeni bir
+// User-Agent, proxy ya da yeniden deneme hilesi YOK.
+//
+// Feed kaynak başına BİR KEZ indirilir ve URL -> excerpt olarak belleğe alınır. Feed penceresinin
+// dışında kalan eski kayıtlar burada bulunmaz; o satırlar yine dokunulmadan kalır (doğru davranış).
+const feedIndexCache = new Map();
+async function feedExcerptFor(source, sourceUrl) {
+  if (!source || !source.feedUrl) return '';
+  if (!feedIndexCache.has(source.id)) {
+    const index = new Map();
+    try {
+      for (const item of await fetchFeed(source.feedUrl, source)) {
+        if (item.link && item.excerpt) index.set(normalizeSourceUrl(item.link), item.excerpt);
+      }
+    } catch (err) {
+      console.log(`  [feed] ${source.id} okunamadı: ${(err && err.message) || err}`);
+    }
+    feedIndexCache.set(source.id, index);
+  }
+  return feedIndexCache.get(source.id).get(normalizeSourceUrl(sourceUrl)) || '';
+}
+
+// ---------------------------------------------------------------------------------------------
 // TEK BİR KAYIT İÇİN YENİDEN ÜRETİM — canlı hattın AYNI adımları, aynı dosyalardan
 // ---------------------------------------------------------------------------------------------
 async function regenerate(row) {
@@ -264,11 +296,26 @@ async function regenerate(row) {
   // TEK bir indirmeden çıkar. Gövde metni, adequacy'yi 'thin'den 'rich'e taşıyan ve özetin
   // gerçekten sentez olmasını sağlayan malzemedir (bkz. dosya başı, "KAYNAK METİN NEREDEN GELİR").
   let meta = null;
-  try { meta = await fetchPageMeta(row.source_url, { withArticleText: true }); } catch (err) { meta = null; }
-  const built = buildSourceText(
+  let pageError = null;
+  try { meta = await fetchPageMeta(row.source_url, { withArticleText: true }); }
+  catch (err) { meta = null; pageError = (err && err.message) || String(err); }
+
+  let built = buildSourceText(
     [meta && meta.description, meta && meta.articleText],
     { maxChars: SOURCE_TEXT_MAX_CHARS }
   );
+  // Sayfa yeterli metin vermediyse feed'e düş (bkz. yukarıdaki "FEED YEDEĞİ").
+  let usedFeed = false;
+  if (built.adequacy === 'empty' || built.adequacy === 'thin') {
+    const feedExcerpt = await feedExcerptFor(source, row.source_url);
+    if (feedExcerpt) {
+      const merged = buildSourceText(
+        [meta && meta.description, meta && meta.articleText, feedExcerpt],
+        { maxChars: SOURCE_TEXT_MAX_CHARS }
+      );
+      if (merged.words > built.words) { built = merged; usedFeed = true; }
+    }
+  }
   if (built.adequacy === 'empty' && !sourceTitle) return { status: 'source_unavailable' };
 
   const publishedAt = row.source_published_at || row.published_at || null;
@@ -309,14 +356,14 @@ async function regenerate(row) {
     if (result.ok) {
       return {
         status: 'ok', title: result.title, summary: result.summary,
-        sourceWords: built.words, adequacy: built.adequacy, attempts: attempt + 1,
+        sourceWords: built.words, adequacy: built.adequacy, attempts: attempt + 1, pageError, usedFeed,
         selfDoubt: raw.quality_ok === false,
         sourceFacts: Array.isArray(raw.source_facts) ? raw.source_facts : [],
       };
     }
     lastReason = result.reason;
   }
-  return { status: 'quality_failed', reason: lastReason, adequacy: built.adequacy, sourceWords: built.words };
+  return { status: 'quality_failed', reason: lastReason, adequacy: built.adequacy, sourceWords: built.words, pageError, usedFeed };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -349,7 +396,7 @@ for await (const row of rowsToProcess()) {
     if (res.adequacy === 'thin' || res.adequacy === 'empty') counters.sourceThin += 1;
     if (res.adequacy === 'rich') counters.sourceRich += 1;
     entry.after = { title: res.title, summary: res.summary, summaryWords: wordCount(res.summary) };
-    entry.meta = { attempts: res.attempts, sourceWords: res.sourceWords, adequacy: res.adequacy, selfDoubt: res.selfDoubt };
+    entry.meta = { attempts: res.attempts, sourceWords: res.sourceWords, adequacy: res.adequacy, selfDoubt: res.selfDoubt, usedFeed: res.usedFeed, pageError: res.pageError };
     entry.sourceFacts = res.sourceFacts;
     if (res.title !== row.title) counters.titleChanged += 1;
     if (res.summary !== row.summary) counters.summaryChanged += 1;
@@ -358,6 +405,10 @@ for await (const row of rowsToProcess()) {
   } else {
     counters.aiFailed += 1;
     entry.reason = res.reason;
+    // Başarısız satırlarda da kaynak teşhisi yazılır: "neden başarısız" sorusunun cevabı çoğu kez
+    // modelde değil, KAYNAK METNİN boyutundadır (ilk turlarda bu bilgi raporda YOKTU ve eleme
+    // nedenleri yanlış yorumlanabiliyordu).
+    entry.meta = { sourceWords: res.sourceWords, adequacy: res.adequacy, usedFeed: res.usedFeed, pageError: res.pageError };
   }
   report.push(entry);
 
@@ -394,9 +445,10 @@ for (const e of report) {
     console.log(`   YENİ başlık    : ${e.after.title}`);
     console.log(`   ESKİ özet (${String(e.before.summaryWords).padStart(3)}w): ${e.before.summary}`);
     console.log(`   YENİ özet (${String(e.after.summaryWords).padStart(3)}w): ${e.after.summary}`);
-    console.log(`   [deneme ${e.meta.attempts} · kaynak ${e.meta.sourceWords}w/${e.meta.adequacy}${e.meta.selfDoubt ? ' · öz-denetim kuşkulu' : ''}]`);
+    console.log(`   [deneme ${e.meta.attempts} · kaynak ${e.meta.sourceWords}w/${e.meta.adequacy}${e.meta.usedFeed ? ' · feed yedeği' : ''}${e.meta.selfDoubt ? ' · öz-denetim kuşkulu' : ''}${e.meta.pageError ? ` · sayfa: ${e.meta.pageError}` : ''}]`);
   } else {
     console.log(`   YENİ           : ÜRETİLEMEDİ (${e.status}${e.reason ? `: ${e.reason}` : ''})`);
+    if (e.meta) console.log(`   [kaynak ${e.meta.sourceWords ?? '?'}w/${e.meta.adequacy ?? '?'}${e.meta.usedFeed ? ' · feed yedeği' : ''}${e.meta.pageError ? ` · sayfa: ${e.meta.pageError}` : ''}]`);
   }
   console.log('');
 }

@@ -146,5 +146,44 @@ await test('kaynak metin tavanı gövde için genişledi ama sınırsız değil'
   assert.ok(SOURCE_TEXT_MAX_CHARS <= 4000, 'tavan "tam makale" olacak kadar açılmamalı');
 });
 
+// -----------------------------------------------------------------------------------------------
+// YABANCI DİL ARTIĞI KAPISI (src/lib/gundemFactCheck.js#foreignLanguageLeftover)
+// -----------------------------------------------------------------------------------------------
+// Bu kapı, yayında GERÇEKTEN görülen kusurlar üzerine kuruldu (2026-09-13 yeniden üretim turu):
+// Türkçe cümlenin ortasında Çince karakter ("önemli bir 章 olan") ya da Almanca kelime ("İnşaat
+// nächsten yıl başlayacak"). Aşağıdaki ikinci grup en az birincisi kadar önemli: kapının GERÇEK
+// ofis adlarını elememesi gerekiyor — ilk sürümü tam da bunu yapıyordu.
+const { foreignLanguageLeftover } = await import('../src/lib/gundemFactCheck.js');
+
+await test('Latin dışı karakter (Çince/Kiril/Yunan) reddedilir', () => {
+  assert.ok(foreignLanguageLeftover('Mimari tarihinde önemli bir 章 olan kubbe.'));
+  assert.ok(foreignLanguageLeftover('Yapı artık 主要 olarak sergi mekânı.'));
+  assert.ok(foreignLanguageLeftover('Проект Москвада tamamlandı.'));
+});
+
+await test('Almanca/Fransızca işlev kelimesi reddedilir', () => {
+  assert.equal(foreignLanguageLeftover('İnşaat nächsten yıl başlayacak.'), 'nächsten');
+  assert.ok(foreignLanguageLeftover('Yapı avec bir avlu çevresinde kurgulandı.'));
+  assert.ok(foreignLanguageLeftover('Ofis self-yönetim modeliyle çalışıyor.'));
+});
+
+await test('GERÇEK ofis/proje adları reddedilMEZ (kapının en kritik yanı)', () => {
+  for (const ok of [
+    'Kengo Kuma and Associates, Kyoto’daki müzenin ek yapısını tamamladı.',
+    'Allies and Morrison liderliğindeki ekip onay aldı.',
+    'Cattle koltuğu Gibson Karlo tarafından Design By Them için tasarlandı.',
+    'Snøhetta’nın Trondheim’daki kütüphanesi açıldı.',
+    'Herzog & de Meuron’un Basel’deki yapısı yenilendi.',
+    'Studio Ossidiana, Hollanda pavyonunu tasarlamak üzere seçildi.',
+  ]) {
+    assert.equal(foreignLanguageLeftover(ok), null, `yanlış red: ${ok}`);
+  }
+});
+
+await test('temiz Türkçe metin temiz geçer', () => {
+  assert.equal(foreignLanguageLeftover('Yapı, tuğla cepheli bir kütüphaneye dönüştürüldü.'), null);
+  assert.equal(foreignLanguageLeftover(''), null);
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`- ${f.name}: ${f.message}`); process.exit(1); }

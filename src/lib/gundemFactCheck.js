@@ -260,6 +260,60 @@ export function leftoverEnglishTerm(text) {
 }
 
 // -----------------------------------------------------------------------------------------------
+// 3b. TÜRKÇE OLMAYAN YAZI SİSTEMİ / YABANCI DİL ARTIĞI
+// -----------------------------------------------------------------------------------------------
+// CANLI BULGU (yeniden üretim turu, 2026-09-13 — yayındaki metinlerde ölçüldü): model, Türkçe bir
+// cümlenin ORTASINA başka bir dilden tek bir kelime/karakter bırakabiliyor. Gerçek örnekler:
+//   • "1436'da Floransa'da completed Santa Maria del Fiore kubbesi" (yayında duruyordu)
+//   • "Mimari tarihinde önemli bir 章 olan..." ve "artık 主要 olarak..." (Çince karakter)
+//   • "İnşaat nächsten yıl başlayacak." (Almanca)
+// Bunlar okuyucuya doğrudan "makine çevirisi" olarak görünür — kullanıcının "daha doğru bir
+// Türkçe" isteğinin tam olarak şikâyet ettiği kusur. LEFTOVER_EN_TERMS bunları yakalamıyordu:
+// o liste İngilizce MİMARLIK terimlerine göre kurulu.
+//
+// İKİ AYRI KURAL:
+//   (a) YAZI SİSTEMİ — Çince/Japonca/Korece/Kiril/Yunan/İbrani/Arap harfleri. Türkçe bir mimarlık
+//       özetinde bunlar HİÇBİR koşulda meşru değildir (özel adlar da Latin harfleriyle yazılır:
+//       kaynak metinler İngilizce/Türkçe). Tartışmasız hata.
+//   (b) YABANCI İŞLEV KELİMESİ — Almanca/Fransızca/İtalyanca/İspanyolca bağlaç ve yardımcı
+//       fiiller. İngilizce kelimeler bu listede YOKTUR; onları LEFTOVER_EN_TERMS zaten kapsıyor.
+//
+// (b) LİSTESİ NEDEN BU KADAR DAR — GERÇEK BULGU (bu değişikliğin ilk hâli, kalite korpusunda
+// yakalandı): listeye İngilizce işlev kelimeleri de konmuştu ve "Kengo Kuma and Associates"
+// KUSURSUZ bir özeti reddettirdi; aynı desen "Allies and Morrison" ve "Design By Them" gibi
+// gerçek ofis adlarını da eleyecekti. Yani bir ÖZEL ADIN İÇİNDE geçebilen hiçbir kelime bu
+// listeye giremez. Kural: yalnızca bir mimarlık ofisi/proje adının parçası olması pratikte
+// imkânsız olan bağlaç/yardımcı fiiller.
+const FOREIGN_SCRIPT_RE = /[\u0370-\u03ff\u0400-\u04ff\u0590-\u05ff\u0600-\u06ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
+
+const FOREIGN_WORD_RE = new RegExp(
+  '(?<![A-Za-zÇĞİÖŞÜçğıöşü])(?:' + [
+    // Almanca
+    'nächste', 'nächsten', 'wurde', 'werden', 'nicht', 'dass', 'jedoch', 'zwischen',
+    // Fransızca
+    'avec', 'pour', 'dans', 'être', 'sont', 'mais', 'cette', 'ainsi',
+    // İspanyolca / İtalyanca
+    'como', 'pero', 'della', 'nella', 'sono', 'anche',
+  ].join('|') + ')(?![A-Za-zÇĞİÖŞÜçğıöşü-])'
+);
+
+// MELEZ ÖNEK — "self-yönetim", "multi-fonksiyonlu": İngilizce önek + Türkçe gövde. Ayrı bir desen,
+// çünkü yukarıdaki kelime deseninin sonundaki "harf gelmesin" koşulu tam da bu birleşimi kaçırır
+// (önekten SONRA zaten harf gelir).
+const HYBRID_PREFIX_RE = /(?<![A-Za-zÇĞİÖŞÜçğıöşü])(?:self|multi|cross|non|pre|post|sub)-(?=[a-zçğıöşü])/;
+
+// Dönen değer: bulunan yabancı parça (hata detayı için) ya da null.
+export function foreignLanguageLeftover(text) {
+  const s = String(text || '');
+  const script = FOREIGN_SCRIPT_RE.exec(s);
+  if (script) return script[0];
+  const word = FOREIGN_WORD_RE.exec(s);
+  if (word) return word[0];
+  const hybrid = HYBRID_PREFIX_RE.exec(s);
+  return hybrid ? hybrid[0] : null;
+}
+
+// -----------------------------------------------------------------------------------------------
 // 4. MEKANİK TEKRAR (madde 2: "'Bu proje...', 'Bu yapı...' gibi art arda başlayan mekanik
 //    cümlelerden kaçınacak"; madde 6: "tekrar eden ifadeler")
 // -----------------------------------------------------------------------------------------------
@@ -438,6 +492,11 @@ export function runFactConsistency({ title, summary }, ctx = {}) {
   if (leftoverTitle) return { ok: false, reason: 'title_leftover_english', detail: leftoverTitle };
   const leftoverSummary = leftoverEnglishTerm(summary);
   if (leftoverSummary) return { ok: false, reason: 'summary_leftover_english', detail: leftoverSummary };
+
+  const foreignTitle = foreignLanguageLeftover(title);
+  if (foreignTitle) return { ok: false, reason: 'title_foreign_leftover', detail: foreignTitle };
+  const foreignSummary = foreignLanguageLeftover(summary);
+  if (foreignSummary) return { ok: false, reason: 'summary_foreign_leftover', detail: foreignSummary };
 
   const mechanical = mechanicalRepetition(summary);
   if (mechanical) return { ok: false, reason: 'summary_mechanical_repetition', detail: mechanical };
