@@ -116,7 +116,15 @@
   // "23 */6 * * *" ifadesi src/index.js#VISUAL_INDEX_CRON ile birebir aynı kalmalıdır.
   "triggers": { "crons": ["23 */6 * * *", "0 1,5,9,13,17,21 * * *"] },
   "vars": {
-    // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
+    // iyzico CANLI ortamı (kullanıcı isteği, 2026-09-13: "iyzico base url'i canlıya çevir").
+    // Buradan itibaren kart ödemeleri GERÇEK PARA çeker. Test ortamına dönmek için değer yeniden
+    // "https://sandbox-api.iyzipay.com" yapılır.
+    //
+    // DİKKAT: iyzico'nun sandbox ve canlı ortamları AYRI anahtar çiftleri kullanır. IYZICO_API_KEY/
+    // IYZICO_SECRET_KEY sırları hâlâ sandbox anahtarlarıysa bu adres değişikliğinden sonra ödeme
+    // başlatma iyzico tarafında kimlik hatasıyla reddedilir (kullanıcıya "Ödeme başlatılamadı"
+    // döner, kart bilgisi hiç girilmeden). Canlı anahtarlar `wrangler secret put` ile ayrıca
+    // tanımlanmalıdır.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler
     // secret put` ile ayrı ayrı tanımlanır.
     //
@@ -161,7 +169,7 @@
     //
     // Faz 4D — yapılandırılmış loglardaki "environment" alanı için (bkz. src/lib/logger.js).
     "ENVIRONMENT": "production",
-    "IYZICO_BASE_URL": "https://sandbox-api.iyzipay.com",
+    "IYZICO_BASE_URL": "https://api.iyzipay.com",
     "GOOGLE_CLIENT_ID": "199792276072-t5n6va38ulc9q62f594vfcjknnsrrmj7.apps.googleusercontent.com",
     "LINKEDIN_CLIENT_ID": "77kuxochovm0xt"
   }
