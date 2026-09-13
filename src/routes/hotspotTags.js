@@ -7,7 +7,7 @@ import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { MAX_HOTSPOTS_PER_IMAGE } from '../lib/submissionTypes.js';
 import { foldTr } from '../lib/textMatch.js';
 import { likePattern } from '../lib/searchFold.js';
-import { hasAnyActiveBadge } from '../lib/badgeAccess.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 // ============================================================================================
 // MARKA SAHİBİ ÜRÜN ETİKETLEME + ONAY AKIŞI (kullanıcı isteği, 2026-09-05 madde 5)
@@ -19,21 +19,31 @@ import { hasAnyActiveBadge } from '../lib/badgeAccess.js';
 //
 // TASARIM KARARLARI (ve NEDEN):
 //
-// 1) KİM ETİKETLEYEBİLİR — **ROZETLİ ÜYELER VE ADMİN** (kullanıcı isteği, 2026-09-05 takip:
-//    "Ürün Etiketle butonu ve özelliği sadece rozeti olan kullanıcılara has olsun. Rozeti olan tüm
-//    kullanıcılar tüm ürünleri etiketleme yetkisine sahip olsunlar ... Rozeti olmayanlar lightbox'ta
-//    Ürün Etiketle butonunu görmesinler.").
+// 1) KİM ETİKETLEYEBİLİR — **GİRİŞ YAPMIŞ HER KULLANICI** (kullanıcı isteği, 2026-09-13:
+//    "Her kullanıcı ürün etiketlemesi yapabilsin ama etiketlemenin onaylanması için firma, marka
+//    sahibine ve admine onay bildirimi gitsin.").
 //
-//    İLK SÜRÜMDEN FARK: kapı önce "kendi ürünün" idi (ürünü ya da markasını sahiplenmiş olmak) ve
-//    ürün araması buna göre daraltılıyordu. Artık kapı ROZET; rozetli bir üye SİTEDEKİ HER ürünü
-//    etiketleyebilir. Yetkinin genişlemesi onay kuyruğunu ZAYIFLATMAZ, tam tersine onun varlık
-//    sebebini güçlendirir: etiketleyen kişi artık ürünle ilgisiz biri olabileceğinden, bildirim ve
-//    onay hâlâ ÜRÜNÜN/MARKANIN SAHİBİNE + adminlere gider (bkz. canDecide — orası DEĞİŞMEDİ).
+//    KAPININ TARİHÇESİ — ÜÇ SÜRÜM, HER BİRİ BİR ÖNCEKİNİ GENİŞLETTİ:
+//      (a) 2026-09-05: yalnızca KENDİ ürünün (ürünü ya da markasını sahiplenmiş olmak),
+//      (b) 2026-09-05 takip: ROZETLİ üyeler (rozet kademesi ayırt edilmeden),
+//      (c) 2026-09-13 (bu sürüm): giriş yapmış HERKES.
 //
-//    Rozet kademesi (verified/gold) AYIRT EDİLMEZ — istek "rozeti olan tüm kullanıcılar" diyor.
-//    Kapı: badgeAccess.js#hasAnyActiveBadge (üç rozet kaynağını da kabul eder). İstemci tarafı
-//    (js/components/gallery.js butonu gizler) yalnızca UI'dır; GERÇEK kapı buradaki
-//    requireTaggingAccess'tir — /api/hotspot-tags/access yalnızca butonun gösterilip
+//    YETKİNİN GENİŞLEMESİ ONAY KUYRUĞUNU ZAYIFLATMAZ — tam tersine onun varlık sebebidir:
+//    etiketleyen kişi artık ürünle tamamen ilgisiz biri olabilir, bu yüzden hiçbir öneri
+//    KENDİLİĞİNDEN yayına girmez; bildirim ve karar hâlâ ÜRÜNÜN/MARKANIN SAHİBİNE + adminlere
+//    gider (bkz. canDecide — orası DEĞİŞMEDİ) ve işaretçi ancak onaydan sonra uygulanır.
+//
+//    ANONİM ZİYARETÇİ HARİÇ: öneri bir HESABA bağlanamazsa ne karar bildirimi gönderilebilir ne de
+//    kötüye kullanım izlenebilir; bu yüzden oturum şartı korunur (401).
+//
+//    KUYRUK SPAM'İNE KARŞI HIZ SINIRI: her bekleyen öneri TÜM adminlere birer bildirim üretir
+//    (aşağıdaki recipients kümesi). Kapı rozetliyken bu fan-out doğal olarak sınırlıydı; herkese
+//    açılınca tek bir hesap yüzlerce admin bildirimi doğurabilirdi. Bu yüzden createTag'de
+//    kullanıcı başına saatlik bir tavan var (bkz. TAG_HOURLY_LIMIT) — yetkiyi daraltmaz, yalnızca
+//    hızını sınırlar.
+//
+//    İstemci tarafı (js/components/gallery.js butonu gizler) yalnızca UI'dır; GERÇEK kapı
+//    buradaki hasTaggingAccess'tir — /api/hotspot-tags/access yalnızca butonun gösterilip
 //    gösterilmeyeceğini söyler, hiçbir yetki VERMEZ.
 //
 // 2) ÜRÜN SAHİPLİĞİ artık ETİKETLEME yetkisini değil yalnızca ONAY yetkisini ve bildirim
@@ -57,10 +67,17 @@ import { hasAnyActiveBadge } from '../lib/badgeAccess.js';
 
 const PENDING = 'pending';
 
+// Kullanıcı başına SAATLİK bekleyen-öneri tavanı (bkz. tasarım notu 1, "KUYRUK SPAM'İNE KARŞI").
+// 20: gerçek bir kullanıcının tek oturumda bir projenin görsellerini etiketlemesine fazlasıyla
+// yeter (görsel başına tavan MAX_HOTSPOTS_PER_IMAGE zaten var), ama tek hesabın admin bildirim
+// kutusunu doldurmasını engeller.
+const TAG_HOURLY_LIMIT = 20;
+
 function isAdmin(user) { return !!user && user.role === 'admin'; }
 
-// Kullanıcının sahiplendiği ofis/marka id'leri. ETİKETLEME yetkisiyle ilgisi YOK (o artık rozete
-// bağlı, bkz. tasarım notu 1) — yalnızca ONAY tarafında kullanılır: "bana düşen bekleyen öneriler"
+// Kullanıcının sahiplendiği ofis/marka id'leri. ETİKETLEME yetkisiyle ilgisi YOK (o artık yalnızca
+// oturuma bağlı, bkz. tasarım notu 1) — yalnızca ONAY tarafında kullanılır: "bana düşen bekleyen
+// öneriler"
 // (listPending) sorgusu, kullanıcının markası altındaki ürünlere gelen önerileri bulmak için.
 async function ownedOfficeIds(env, userId) {
   const { results } = await env.DB.prepare(
@@ -69,13 +86,14 @@ async function ownedOfficeIds(env, userId) {
   return results.map(r => r.id);
 }
 
-// ETİKETLEME KAPISI (bkz. tasarım notu 1): admin ya da HERHANGİ bir aktif rozet.
+// ETİKETLEME KAPISI (bkz. tasarım notu 1): GİRİŞ YAPMIŞ HERKES. Rozet koşulu 2026-09-13'te
+// kaldırıldı; fonksiyon yine de duruyor çünkü kapının TEK yeri olmalı — çağıranlar (createTag,
+// listTaggableProducts, /access) değişmedi ve ileride bir koşul eklenirse yine tek satır.
 async function hasTaggingAccess(env, user) {
-  if (isAdmin(user)) return true;
-  return hasAnyActiveBadge(env, user.id);
+  return !!user;
 }
 
-// Etiketlenecek ürünü yükler. ARTIK SAHİPLİK KONTROLÜ YOK (bkz. tasarım notu 1) — rozetli üye her
+// Etiketlenecek ürünü yükler. ARTIK SAHİPLİK KONTROLÜ YOK (bkz. tasarım notu 1) — her üye her
 // ürünü etiketleyebilir; buradaki tek koşul ürünün YAYINDA olmasıdır (silinmiş/gizlenmiş bir ürün,
 // tıklanınca 404'e götüren bir işaretçi üretirdi). Dönen satır ayrıca onay/bildirim tarafının
 // ihtiyaç duyduğu sahiplik alanlarını da taşır, ayrı bir SELECT atılmasın diye.
@@ -231,7 +249,7 @@ export async function handleHotspotTagsRoute(request, env, url) {
 
 // GET /api/hotspot-tags/my-products?q=... — etiketleme formunun ürün araması.
 // Yol adı ('my-products') tarihsel: ilk sürümde liste kullanıcının KENDİ ürünleriyle sınırlıydı.
-// Artık kapı rozettir ve rozetli üye SİTEDEKİ TÜM yayında ürünleri görür (bkz. tasarım notu 1);
+// Artık giriş yapmış her kullanıcı SİTEDEKİ TÜM yayında ürünleri görür (bkz. tasarım notu 1);
 // isim, dışarıdaki tek çağıranı (hotspot-tagger.js) kırmamak için korundu.
 // /api/products/search'ün YETKİYE DUYARLI karşılığı: o uç herkese açık ve önbelleklidir, bu uç
 // oturuma bağlıdır ve ASLA önbelleklenmez.
@@ -268,10 +286,15 @@ async function listTaggableProducts(env, user, url) {
 // POST /api/hotspot-tags — yeni etiketleme önerisi. Admin'de anında uygulanır (kullanıcı isteği).
 async function createTag(request, env, user) {
   // GERÇEK KAPI (bkz. tasarım notu 1) — istemcideki buton gizleme yalnızca UI'dır, yetki burada
-  // verilir. Doğrulama, gövde ayrıştırmasından ÖNCE: rozetsiz bir hesabın gönderdiği istek hiçbir
-  // sorgu/yazma tetiklemeden reddedilsin.
+  // verilir. Doğrulama, gövde ayrıştırmasından ÖNCE: yetkisiz istek hiçbir sorgu/yazma
+  // tetiklemeden reddedilsin.
   if (!(await hasTaggingAccess(env, user))) {
-    return errorJson('Ürün etiketleme rozetli üyelere özel bir ayrıcalıktır.', 403);
+    return errorJson('Ürün etiketlemek için giriş yapmalısın.', 401);
+  }
+  // KUYRUK SPAM'İ KAPISI (bkz. tasarım notu 1). Adminler muaf: onların önerisi kuyruğa hiç
+  // düşmez, doğrudan uygulanır — sınır, bildirim fan-out'unu koruyor, düzenlemeyi değil.
+  if (!isAdmin(user) && !(await checkRateLimit(env, 'hotspot-tag', user.id, TAG_HOURLY_LIMIT, 60 * 60 * 1000))) {
+    return errorJson(`Saatte en fazla ${TAG_HOURLY_LIMIT} ürün etiketlemesi gönderebilirsin. Biraz sonra tekrar dene.`, 429);
   }
   const body = await readJson(request);
   const projectSlug = String(body.projectSlug || '').trim();
@@ -291,7 +314,7 @@ async function createTag(request, env, user) {
   try { images = JSON.parse(project.images || '[]'); } catch { images = []; }
   if (!Array.isArray(images) || !images.includes(imageUrl)) return errorJson('Bu görsel bu projeye ait değil.');
 
-  // Sahiplik ARANMAZ (bkz. tasarım notu 1) — rozetli üye her yayında ürünü etiketleyebilir; satırın
+  // Sahiplik ARANMAZ (bkz. tasarım notu 1) — her üye her yayında ürünü etiketleyebilir; satırın
   // sahiplik alanları yalnızca aşağıdaki bildirim alıcılarını belirlemek için okunur.
   const productRow = await loadPublishedProduct(env, productSlug);
   if (!productRow) return errorJson('Ürün bulunamadı.', 404);

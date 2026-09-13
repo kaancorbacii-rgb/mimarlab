@@ -815,6 +815,18 @@ else
 fi
 rm -f /tmp/preflight_foryou
 
+# ÜRÜN ETİKETLEME kapısı + onay kuyruğu (kullanıcı isteği, 2026-09-13: "Her kullanıcı ürün
+# etiketlemesi yapabilsin ama ... onay bildirimi gitsin"). Kapı rozetten oturuma genişletildi;
+# asıl risk, genişlerken YANINDAKİ korumanın sessizce düşmesidir: onaysız işaretçinin projeye
+# yazılması ya da yetkisiz birinin karar verebilmesi. Test üçünü birlikte tutar.
+if node scripts/test-2026-09-13-hotspot-tag-open-to-all.mjs >/tmp/preflight_hotspot 2>&1; then
+  ok "ürün etiketleme onay akışı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_hotspot) test)"
+else
+  bad "ürün etiketleme onay akışı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_hotspot >&2
+fi
+rm -f /tmp/preflight_hotspot
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve

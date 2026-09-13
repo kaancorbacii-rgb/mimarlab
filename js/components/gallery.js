@@ -162,11 +162,13 @@ function initDetailGallery(opts){
     tagBtn.type = 'button';
     tagBtn.className = 'lightbox-tag-btn';
     tagBtn.textContent = 'Ürün Etiketle';
-    // ROZET KAPISI (kullanıcı isteği, 2026-09-05 takip: "Ürün Etiketle butonu ve özelliği sadece
-    // rozeti olan kullanıcılara has olsun ... Rozeti olmayanlar lightbox'ta Ürün Etiketle butonunu
-    // görmesinler."). Buton GİZLİ doğar ve yalnızca sunucu "evet" derse açılır — varsayılanın
-    // "gizli" olması şart: aksi halde yanıt gecikirse rozetsiz/oturumsuz ziyaretçiler butonu bir
-    // an için görürdü. Cevap oturum başına bir kez alınır (bkz. HotspotTagger.hasAccess).
+    // OTURUM KAPISI (kullanıcı isteği, 2026-09-13: "Her kullanıcı ürün etiketlemesi yapabilsin").
+    // ESKİ KURAL ROZETTİ (2026-09-05 takip); 2026-09-13'te kaldırıldı — artık giriş yapmış her
+    // kullanıcı etiketleyebiliyor, ama etiketleme YAYINA girmiyor: firma/marka sahibi ya da admin
+    // onaylayana kadar bekliyor (bkz. src/routes/hotspotTags.js tasarım notu 1).
+    // Buton yine de GİZLİ doğar ve yalnızca sunucu "evet" derse açılır — varsayılanın "gizli"
+    // olması şart: aksi halde yanıt gecikirse OTURUMSUZ ziyaretçiler butonu bir an için görürdü.
+    // Cevap oturum başına bir kez alınır (bkz. HotspotTagger.hasAccess).
     // Bu YALNIZCA arayüz kararıdır; gerçek kapı sunucudadır (src/routes/hotspotTags.js#createTag).
     tagBtn.style.display = 'none';
     lightboxBar.appendChild(tagBtn);

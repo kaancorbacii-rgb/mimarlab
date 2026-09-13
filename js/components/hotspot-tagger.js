@@ -89,10 +89,11 @@ const HotspotTagger = (function () {
 
   // "Bu ziyaretçiye 'Ürün Etiketle' butonu gösterilsin mi" — oturum başına TEK istek, sonuç
   // modül düzeyinde önbelleklenir (auth-modal.js#fetchBadgeAccess ile AYNI desen). gallery.js
-  // butonu bunun sonucuna göre açar. Yalnızca ARAYÜZ kararıdır: rozetsiz bir hesap butonu
-  // görmediği hâlde isteği elle gönderse bile sunucu 403 döner
-  // (src/routes/hotspotTags.js#createTag). Hata/oturumsuz durumda `false` — butonu göstermemek,
-  // basıldığında "yetkin yok" demekten iyidir.
+  // butonu bunun sonucuna göre açar. 2026-09-13'ten beri yanıt "giriş yapmış her kullanıcı için
+  // evet"tir (rozet koşulu kalktı, bkz. src/routes/hotspotTags.js tasarım notu 1); uç yine de
+  // duruyor çünkü OTURUMSUZ ziyaretçiye buton gösterilmemeli. Yalnızca ARAYÜZ kararıdır: gerçek
+  // kapı sunucudadır. Hata/oturumsuz durumda `false` — butonu göstermemek, basıldığında
+  // "giriş yapmalısın" demekten iyidir.
   let accessPromise = null;
   function hasAccess() {
     if (!accessPromise) {
@@ -198,10 +199,10 @@ const HotspotTagger = (function () {
         if (!res.ok) return;
         data = await res.json();
       } catch { return; }
-      // canTag:false = rozetsiz hesap (bkz. src/routes/hotspotTags.js#listTaggableProducts).
-      // Normalde bu forma hiç ulaşılamaz (buton gizli) ama rozet form açıkken sona ermiş olabilir.
+      // canTag:false = oturum yok/sona ermiş (bkz. src/routes/hotspotTags.js#listTaggableProducts).
+      // Normalde bu forma hiç ulaşılamaz (buton gizli) ama oturum form açıkken düşmüş olabilir.
       if (data.canTag === false) {
-        showMsg('Ürün etiketleme rozetli üyelere özel bir ayrıcalıktır.', 'err');
+        showMsg('Ürün etiketlemek için giriş yapmalısın.', 'err');
         return;
       }
       const items = data.items || [];
