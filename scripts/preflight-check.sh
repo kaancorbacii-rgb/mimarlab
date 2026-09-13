@@ -852,6 +852,18 @@ else
 fi
 rm -f /tmp/preflight_cnspay
 
+# 'mimarlab:authchange' OLAY HEDEFİ (kullanıcı bildirimi, 2026-09-13: giriş sonrası "Senin İçin"
+# otomatik gelmiyordu). Olay auth-nav.js'te WINDOW üzerinde yayınlanır; bir dinleyici DOCUMENT
+# üzerinde beklerse olayı HİÇ ALMAZ ve hiçbir hata vermez — giriş sonrası o blok sessizce eski
+# hâlinde kalır. Bkz. scripts/test-2026-09-13-authchange-target.mjs.
+if node scripts/test-2026-09-13-authchange-target.mjs >/tmp/preflight_authchange 2>&1; then
+  ok "authchange olay hedefi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_authchange) test)"
+else
+  bad "authchange olay hedefi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_authchange >&2
+fi
+rm -f /tmp/preflight_authchange
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve

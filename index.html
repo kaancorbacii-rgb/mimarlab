@@ -1597,7 +1597,20 @@ else window.addEventListener('load', startForYou, { once: true });
 
 // Modal içinden giriş yapıldığında sayfa YENİLENMİYOR (bkz. auth-nav.js'in dosya sonundaki not) —
 // o yüzden giriş çağrısı kutusunun yerini gerçek akışın alması için bu olayı dinliyoruz.
-document.addEventListener('mimarlab:authchange', () => {
+//
+// gerçek bulgu (kullanıcı bildirimi, 2026-09-13: "giriş yaptığımda Senin İçin otomatik gelmiyor,
+// sayfayı yenileyince düzeliyor"): bu dinleyici DOCUMENT üzerindeydi, oysa olay auth-nav.js'te
+// WINDOW üzerinde yayınlanıyor (bkz. window.refreshAuthNav). window'a dispatch edilen bir olay
+// document dinleyicilerine HİÇBİR ZAMAN ulaşmaz — window, document'in ÜSTÜNDEDİR, dolayısıyla
+// yakalama/köpürme yollarının hiçbiri document'i geçmez. Sonuç: header güncelleniyordu (onu
+// initAuthNav doğrudan yapıyor) ama bu blok sinyali hiç almadığı için giriş çağrısı kutusu
+// olduğu gibi kalıyordu; yalnızca sayfa yenilenince düzeliyordu.
+//
+// Olayın TEK doğru hedefi window'dur: diğer BEŞ tüketicinin (save-widget.js, rating-widget.js,
+// js/pages/proje.js, js/components/claim-correction-box.js, en-iyi-100.html) hepsi zaten
+// window.addEventListener kullanıyor — burası tek istisnaydı. Bu hizalanma
+// scripts/test-2026-09-13-authchange-target.mjs ile kelepçelendi.
+window.addEventListener('mimarlab:authchange', () => {
   foryouStarted = false;
   startForYou();
 });
