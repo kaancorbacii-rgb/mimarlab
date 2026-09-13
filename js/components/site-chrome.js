@@ -1868,9 +1868,9 @@
     bar.setAttribute('role', 'region');
     bar.setAttribute('aria-label', 'Çerez tercihi');
     bar.innerHTML =
-      '<p class="cc-text">Sitenin çalışması için zorunlu çerezleri kullanıyoruz. İsteğe bağlı olarak, ' +
-      'siteyi nasıl kullandığınızı anlamak için <strong>analitik çerezleri</strong> de kullanmak istiyoruz. ' +
-      'Ayrıntılar için <a href="/cerez-politikasi">Çerez Politikası</a>.</p>' +
+      '<p class="cc-text">Zorunlu çerezleri kullanıyoruz. İsteğe bağlı <strong>analitik çerezlerle</strong> ' +
+      'siteyi nasıl kullandığınızı anlamak istiyoruz. ' +
+      '<a href="/cerez-politikasi">Çerez Politikası</a>.</p>' +
       '<div class="cc-actions">' +
         '<button type="button" class="cc-btn cc-reject">Reddet</button>' +
         '<button type="button" class="cc-btn cc-accept">Kabul Et</button>' +
