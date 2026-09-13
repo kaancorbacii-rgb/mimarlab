@@ -432,8 +432,13 @@ export async function runProjectAction(env, user, { action, id, slug, skipFacets
     const now = Date.now();
     const targetSlug = row.claimed_slug || row.slug;
     if (action === 'delete') {
-      await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
+      // R2 temizliği satır D1'den SİLİNDİKTEN sonra (bkz. src/lib/canonicalSync.js#deleteR2MediaKeys
+      // ÇAĞIRAN SÖZLEŞMESİ) — satır dururken kendi anahtarlarına "referans" sayılırdı. Canonical
+      // satır aşağıda ayrıca siliniyor; ortak anahtarlar bu çağrıda KORUNUR, hardDeleteCanonicalRow
+      // kendi turunda (taslak artık yokken) siler.
+      const draftKeys = collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE.projects);
       await env.DB.prepare(`DELETE FROM project_submissions WHERE id = ?`).bind(id).run();
+      await deleteR2MediaKeys(env, draftKeys);
       // Bu içeriği CANLIDAN kaldırmak — hem bağımsız üye projesi hem (arşivlenmiş) claimed_slug'lı
       // bir taslak için de canonical satırı KALICI olarak (hard delete) siler + statik data.js
       // karşılığının bir daha görünmemesi için blacklist'e damgalar. deleteCanonicalRowFully bunu
@@ -468,8 +473,12 @@ export async function runProjectAction(env, user, { action, id, slug, skipFacets
     const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
     await deleteCanonicalRowFully(env, user.id, 'projects', canonRow, slug, () => cascadeDeleteProject(env, slug));
     const { results: draftRows } = await env.DB.prepare(`SELECT * FROM project_submissions WHERE claimed_slug = ?`).bind(slug).all();
-    for (const draft of draftRows) await deleteR2MediaKeys(env, collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
+    // Anahtarlar ÖNCE toplanır, satırlar silinir, temizlik EN SONA kalır (bkz. src/lib/canonicalSync.js#
+    // deleteR2MediaKeys ÇAĞIRAN SÖZLEŞMESİ): taslak başına tek tek silmek, aynı görseli paylaşan
+    // ikinci bir taslak hâlâ D1'de dururken hiçbirini silememek demekti.
+    const draftKeys = draftRows.flatMap(draft => collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
+    await deleteR2MediaKeys(env, draftKeys);
     await bumpFacetCounts(env, 'projects');
     await invalidatePublicCache(env);
     await purgeSsrDetailCache('project', slug, env);
@@ -678,8 +687,10 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     const claimedSlugKey = (type === 'products' || type === 'materials') ? (row.claimed_slug || null) : null;
     const targetKey = (config.claimedColumn && row[config.claimedColumn]) || claimedSlugKey || key || legacyKeyFallback;
     if (action === 'delete') {
-      await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
+      // bkz. yukarıdaki proje dalındaki AYNI sıra gerekçesi (deleteR2MediaKeys ÇAĞIRAN SÖZLEŞMESİ).
+      const draftKeys = collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {});
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      await deleteR2MediaKeys(env, draftKeys);
       // deleteCanonicalRowFully, runContentCascadeDelete (yorum/puan/kaydetme + *_submissions
       // temizliği) ile hard-delete/blacklist'i HER ZAMAN birlikte çalıştırır (bkz.
       // src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
@@ -719,8 +730,10 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     await deleteCanonicalRowFully(env, user.id, type, canonRow, key, () => runContentCascadeDelete(env, user, type, { key }));
     if (config.claimedColumn) {
       const { results: draftRows } = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).all();
-      for (const draft of draftRows) await deleteR2MediaKeys(env, collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
+      // bkz. yukarıdaki proje dalındaki AYNI sıra gerekçesi (deleteR2MediaKeys ÇAĞIRAN SÖZLEŞMESİ).
+      const draftKeys = draftRows.flatMap(draft => collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
+      await deleteR2MediaKeys(env, draftKeys);
     }
     if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     await invalidatePublicCache(env);

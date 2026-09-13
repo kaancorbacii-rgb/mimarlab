@@ -27,6 +27,7 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { findR2Orphans, confirmStillOrphaned } from '../lib/r2Reconcile.js';
+import { scanBrokenImageRefs, repairBrokenImageRefs } from '../lib/brokenMedia.js';
 import { fillUserFromArchitectProfile } from '../lib/claimedProfiles.js';
 import { buildMeta } from '../lib/seo.js';
 import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSettings.js';
@@ -164,6 +165,10 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);
     if (sub === 'migration-conflicts') return await handleMigrationConflictsAdmin(request, env, url, segments, user);
     if (sub === 'r2-orphans') return await handleR2OrphansAdmin(request, env);
+    // KIRIK GÖRSELLER (kullanıcı isteği, 2026-09-13: "Başka böyle görseli kırılan örnek var mı
+    // bak") — r2-orphans'ın TERS YÖNÜ: D1'de yolu duran ama R2'de nesnesi olmayan referanslar.
+    // bkz. src/lib/brokenMedia.js dosya başı (kök neden + neden parçalı çalışır).
+    if (sub === 'broken-images') return await handleBrokenImagesAdmin(request, env, url);
     if (sub === 'seo') return await handleSeoAdmin(request, env, url, segments);
     if (sub === 'settings') return await handleSiteSettingsAdmin(request, env);
     // Gündem içerik yönetimi (kullanıcı isteği, 2026-09-07 madde 5) — düzenle/arşivle/sil.
@@ -192,8 +197,28 @@ async function handleR2OrphansAdmin(request, env) {
     const keys = Array.isArray(body.keys) ? body.keys.filter(k => typeof k === 'string' && k.startsWith('u/')) : [];
     if (!keys.length) return errorJson('Silinecek anahtar listesi (keys) gerekli.');
     const stillOrphaned = await confirmStillOrphaned(env, keys);
-    if (stillOrphaned.length) await deleteR2MediaKeys(env, stillOrphaned);
+    // confirmStillOrphaned ZATEN tüm tabloları tarayıp bu anahtarların hiçbir satırdan referans
+    // edilmediğini doğruladı (bkz. r2Reconcile.js) — deleteR2MediaKeys'in kendi kapısı burada
+    // yalnızca aynı işi yüzlerce anahtar için ikinci kez yapardı.
+    if (stillOrphaned.length) await deleteR2MediaKeys(env, stillOrphaned, { skipReferenceCheck: true });
     return json({ deleted: stillOrphaned, skipped: keys.filter(k => !stillOrphaned.includes(k)) });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/admin/broken-images?cursor=<i>:<n> — bir parti tarar, SALT-OKUNUR (bkz. src/lib/
+// brokenMedia.js). POST — body: { table, id, keys[] } — admin'in gördüğü ölü referansları o
+// kayıttan düşürür; yazmadan hemen önce her anahtar R2'de yeniden kontrol edilir.
+async function handleBrokenImagesAdmin(request, env, url) {
+  if (request.method === 'GET') return json(await scanBrokenImageRefs(env, url.searchParams.get('cursor')));
+  if (request.method === 'POST') {
+    const body = await readJson(request);
+    const result = await repairBrokenImageRefs(env, { table: body.table, id: body.id, keys: body.keys });
+    if (result.error) return errorJson(result.error, result.status || 400);
+    // Kayıt değişti: liste/detay önbellekleri düşürülür, aksi halde temizlenen kart eski (ölü
+    // yollu) hâliyle görünmeye devam ederdi.
+    await invalidatePublicCache(env);
+    return json(result);
   }
   return errorJson('Bulunamadı', 404);
 }
@@ -829,8 +854,15 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       const target = existing ? ssrPurgeTargetFor(typeKey, existing) : null;
       // Taslak satırın kendi R2 görselleri — onaylanmış olsun olmasın, satır kalıcı silindiğinde
       // bunlar hiçbir yerden erişilemez hale gelir (bkz. src/lib/canonicalSync.js dosya başı notu).
-      if (existing) await deleteR2MediaKeys(env, collectR2MediaKeys(existing, MEDIA_IMAGE_FIELDS_BY_TYPE[typeKey] || {}));
+      // KIRIK GÖRSEL KÖK NEDENİ (kullanıcı bildirimi, 2026-09-13 — bkz. src/lib/r2References.js):
+      // arşiv taslağı canonical satırın `images` alanının BİREBİR kopyasıdır; bu satır silinince
+      // paylaşılan R2 nesneleri de gidiyor ve claimed_slug'lı canonical satır (aşağıdaki
+      // markCanonicalDeletedForSubmission onda BİLEREK no-op'tur) ölü yollarla hayatta kalıyordu.
+      // deleteR2MediaKeys artık "başka bir satır kullanıyor mu" kapısından geçiyor; kapının
+      // çalışması için satırın D1'den ÖNCE silinmesi gerekir (ÇAĞIRAN SÖZLEŞMESİ).
+      const draftKeys = existing ? collectR2MediaKeys(existing, MEDIA_IMAGE_FIELDS_BY_TYPE[typeKey] || {}) : [];
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      if (draftKeys.length) await deleteR2MediaKeys(env, draftKeys);
       await runCascadeDelete(env, user, typeKey, existing);
       // Bu senkron mekanizmasının (bkz. src/lib/canonicalSync.js) bağımsız bir gönderi için
       // ÖNCEDEN oluşturmuş olabileceği canonical satırı da hard-delete eder — claimed'lı kayıtlarda

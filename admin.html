@@ -392,6 +392,7 @@
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler<span class="admin-tab-dot dot-new" data-dot="users"></span></button>
         <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
+        <button class="admin-tab" data-tab="brokenimages">Kırık Görseller</button>
         <button class="admin-tab" data-tab="conflicts">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="conflicts"></span></button>
         <button class="admin-tab" data-tab="seo">SEO</button>
         <button class="admin-tab" data-tab="home">Ana Sayfa</button>
@@ -495,6 +496,25 @@
           <button class="admin-btn danger" id="r2orphans-delete-selected" disabled>Seçilenleri Sil (0)</button>
         </div>
         <div id="r2orphans-list"></div>
+      </div>
+
+      <!-- KIRIK GÖRSELLER (kullanıcı isteği, 2026-09-13: "Ertegün Evi projesinin görselleri
+           kırılmış ... Başka böyle görseli kırılan örnek var mı bak") — R2 Yetim Dosyalar'ın TERS
+           yönü: D1'de yolu duran ama R2'de karşılığı OLMAYAN görsel referansları. Tarama parça
+           parça ilerler (bkz. src/lib/brokenMedia.js: tek istek ~30.000 head() çağıramaz). -->
+      <div class="admin-section" id="section-brokenimages">
+        <div id="brokenimages-summary" style="margin-bottom:14px; font-size:13px; color:var(--ink-soft);">
+          Bu tarama, kayıtlarda yolu duran ama dosyası artık var olmayan görselleri bulur. Salt okunurdur;
+          temizleme yalnızca senin onayınla, kayıt bazında yapılır (dosya geri getirilemez, ölü yol
+          kayıttan düşürülür ve kart normal yer tutucuyu gösterir).
+        </div>
+        <div class="admin-actions" style="margin-bottom:14px;">
+          <button class="admin-btn" id="brokenimages-scan">Taramayı Başlat</button>
+          <button class="admin-btn" id="brokenimages-stop" disabled>Durdur</button>
+          <button class="admin-btn danger" id="brokenimages-clean-all" disabled>Tüm Ölü Referansları Temizle (0)</button>
+        </div>
+        <div id="brokenimages-progress" style="margin-bottom:10px; font-size:13px; color:var(--ink-soft);"></div>
+        <div id="brokenimages-list"></div>
       </div>
 
       <!-- denetim bulgusu (2026-08-22): src/routes/migrationConflicts.js GET/PATCH
@@ -2674,6 +2694,116 @@ document.getElementById('r2orphans-delete-selected').addEventListener('click', a
   await deleteR2OrphanKeys(keys);
 });
 
+// ---------- Kırık Görseller sekmesi (bkz. src/lib/brokenMedia.js) ----------
+// GET /api/admin/broken-images bir PARTİ tarar ve bir sonraki imleci döner; burada bitene kadar
+// (ya da "Durdur"a basılana kadar) döngüye sokulur. Bulgular geldikçe listeye eklenir — tarama
+// dakikalar sürebildiğinden sonuçları sona saklamak yanlış olurdu.
+let brokenScanAbort = false;
+let brokenItems = [];
+
+function brokenRowKey(item){ return `${item.table}#${item.id}`; }
+
+function brokenItemHtml(item){
+  const link = item.path && item.slug ? `<a href="${escapeAttr(item.path + item.slug)}" target="_blank" rel="noopener">${escapeHtml(item.label)}</a>` : escapeHtml(item.label);
+  return `
+    <div class="admin-card" data-rowkey="${escapeAttr(brokenRowKey(item))}">
+      <div class="admin-card-head">
+        <div class="admin-card-body">
+          <div>
+            <div class="admin-card-title">${link}</div>
+            <div class="admin-card-meta">${escapeHtml(item.kind)} · ${item.missing.length}/${item.totalKeys} görsel kayıp</div>
+            <div class="admin-card-meta" style="font-family:monospace; font-size:11.5px; word-break:break-all;">${item.missing.map(k => escapeHtml(k)).join('<br>')}</div>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn danger" data-action="broken-clean">Ölü Referansları Temizle</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function cleanBrokenItem(item, btn){
+  if(btn){ btn.disabled = true; btn.textContent = 'Temizleniyor…'; }
+  const res = await api('/api/admin/broken-images', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ table: item.table, id: item.id, keys: item.missing }),
+  });
+  brokenItems = brokenItems.filter(i => brokenRowKey(i) !== brokenRowKey(item));
+  const card = document.querySelector(`#brokenimages-list .admin-card[data-rowkey="${CSS.escape(brokenRowKey(item))}"]`);
+  if(card) card.remove();
+  updateBrokenCleanAllBtn();
+  if(res && res.skipped && res.skipped.length){
+    alert(`${res.skipped.length} görsel arada yeniden yüklenmiş olduğundan kayıttan düşürülmedi.`);
+  }
+}
+
+function updateBrokenCleanAllBtn(){
+  const btn = document.getElementById('brokenimages-clean-all');
+  btn.disabled = brokenItems.length === 0;
+  btn.textContent = `Tüm Ölü Referansları Temizle (${brokenItems.length})`;
+}
+
+function renderBrokenItems(newItems){
+  const list = document.getElementById('brokenimages-list');
+  if(!brokenItems.length && !newItems.length) return;
+  if(list.querySelector('.admin-empty')) list.innerHTML = '';
+  list.insertAdjacentHTML('beforeend', newItems.map(brokenItemHtml).join(''));
+  newItems.forEach(item => {
+    const card = list.querySelector(`.admin-card[data-rowkey="${CSS.escape(brokenRowKey(item))}"]`);
+    const btn = card && card.querySelector('[data-action="broken-clean"]');
+    if(btn) btn.addEventListener('click', ()=>{
+      if(!confirm('Bu kaydın kayıp görsel referansları kayıttan düşürülecek. Dosyalar zaten silinmiş durumda ve geri getirilemez. Devam edilsin mi?')) return;
+      cleanBrokenItem(item, btn);
+    });
+  });
+  updateBrokenCleanAllBtn();
+}
+
+function resetBrokenImages(){
+  brokenScanAbort = true;
+  brokenItems = [];
+  document.getElementById('brokenimages-list').innerHTML = '<div class="admin-empty">Tarama başlatılmadı.</div>';
+  document.getElementById('brokenimages-progress').textContent = '';
+  updateBrokenCleanAllBtn();
+}
+
+async function runBrokenImageScan(){
+  const scanBtn = document.getElementById('brokenimages-scan');
+  const stopBtn = document.getElementById('brokenimages-stop');
+  const progress = document.getElementById('brokenimages-progress');
+  brokenScanAbort = false;
+  brokenItems = [];
+  scanBtn.disabled = true;
+  stopBtn.disabled = false;
+  document.getElementById('brokenimages-list').innerHTML = '<div class="admin-empty">Taranıyor…</div>';
+  let cursor = null, rows = 0, keys = 0;
+  try {
+    do {
+      const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+      const data = await api(`/api/admin/broken-images${qs}`);
+      rows += data.scannedRows || 0;
+      keys += data.checkedKeys || 0;
+      if(data.items && data.items.length) renderBrokenItems(data.items.filter(i => { brokenItems.push(i); return true; }));
+      progress.textContent = `${rows} kayıt, ${keys} görsel kontrol edildi — ${brokenItems.length} kırık kayıt bulundu${data.done ? ' (tarama bitti).' : `… (${data.progress && data.progress.source ? data.progress.source : ''})`}`;
+      cursor = data.cursor;
+      if(data.done) break;
+    } while(cursor && !brokenScanAbort);
+  } finally {
+    scanBtn.disabled = false;
+    stopBtn.disabled = true;
+    if(!brokenItems.length) document.getElementById('brokenimages-list').innerHTML = '<div class="admin-empty">Kırık görsel bulunamadı.</div>';
+  }
+}
+
+document.getElementById('brokenimages-scan').addEventListener('click', runBrokenImageScan);
+document.getElementById('brokenimages-stop').addEventListener('click', ()=>{ brokenScanAbort = true; });
+document.getElementById('brokenimages-clean-all').addEventListener('click', async ()=>{
+  if(!brokenItems.length) return;
+  if(!confirm(`${brokenItems.length} kaydın kayıp görsel referansları kayıttan düşürülecek. Dosyalar zaten silinmiş durumda ve geri getirilemez. Devam edilsin mi?`)) return;
+  for(const item of [...brokenItems]) await cleanBrokenItem(item, null);
+});
+
 // ---------- Migrasyon Çakışmaları sekmesi (bkz. src/routes/migrationConflicts.js) ----------
 // Yalnızca RAPORLAR/işaretler — hiçbir kaydı otomatik resolve etmez, "adayları" (varsa) salt bilgi
 // amaçlı gösterir. Gerçek disambiguation admin'in mevcut mimar/ofis düzenleme ekranlarında elle
@@ -2764,6 +2894,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
       api('/api/admin/users/seen', { method:'POST' }).catch(()=>{});
     }
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
+    if(tab.dataset.tab === 'brokenimages') resetBrokenImages();
     if(tab.dataset.tab === 'conflicts') loadMigrationConflicts();
     if(tab.dataset.tab === 'seo') loadSeo();
     if(tab.dataset.tab === 'home') loadHomeCarousels();

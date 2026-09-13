@@ -470,6 +470,18 @@ else
   tail -25 /tmp/preflight_preview_related >&2
 fi
 
+# PAYLAŞILAN R2 GÖRSELİ KAPISI (kullanıcı bildirimi, 2026-09-13: "Ertegün Evi'nin görselleri
+# kırılmış, KÖKTEN düzelt"). Bir R2 nesnesini birden çok D1 satırı gösterebiliyor; silme artık
+# "başka bir satır hâlâ kullanıyor mu" kapısından geçiyor (bkz. src/lib/r2References.js). Kapı
+# kazara kaldırılırsa ya da silme yolları eski "önce R2, sonra D1" sırasına dönerse KIRIK GÖRSEL
+# geri gelir ve R2 silmesinin geri dönüşü YOKTUR — bu yüzden deploy'dan önce durdurur.
+if node scripts/test-2026-09-13-shared-r2-image-guard.mjs >/tmp/preflight_r2ref 2>&1; then
+  ok "paylaşılan R2 görseli kapısı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_r2ref) test)"
+else
+  bad "paylaşılan R2 görseli kapısı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_r2ref >&2
+fi
+
 # Hub sayfalarının ilk çizim bağımlılıkları SENKRON olmalı (kullanıcı isteği, 2026-09-10: "mobilde
 # kişiler sayfası takılı kaldı"). İlk liste çizimi artık DOMContentLoaded'ı beklemiyor; bu yüzden
 # çizimin dokunduğu image-cdn.js (tüm hub'lar) ve catalog-taxonomy.js (urun) defer OLMADAN yüklenmeli,

@@ -16,7 +16,8 @@
 // yükleme olursa (aynı anahtar artık referanslı hale gelmiş olabilir) DELETE handler'ı silmeden hemen
 // önce referans durumunu YENİDEN kontrol eder (aşağıdaki confirmStillOrphaned), gerçek bir race'i
 // (yeni referanslı bir nesnenin yanlışlıkla silinmesini) engeller.
-import { collectR2MediaKeys } from './canonicalSync.js';
+import { collectR2MediaKeysFromColumns } from './canonicalSync.js';
+import { MEDIA_REFERENCE_SOURCES } from './r2References.js';
 
 const PREFIX = 'u/';
 // Yükleme ANINDA D1 satırı henüz yazılmamış olabilir (form akışı: önce görsel yüklenir, SONRA form
@@ -29,31 +30,16 @@ const GRACE_HOURS = 24;
 // context'i yazdığı HER kolonu kapsar (bkz. schema.sql/migrations/0022_id_first_entities.sql).
 // Soft-delete/hidden durumuna bakılmaksızın (WHERE yok) taranır — arşivlenmiş/gizli bir kayıt hâlâ
 // kurtarılabilir olduğundan görseli "hâlâ referanslı" sayılır, orphan adayı olmamalı.
-const SOURCES = [
-  { table: 'architects', fields: { stringFields: ['photo_url'] } },
-  { table: 'offices', fields: { stringFields: ['logo_url', 'cover_url'] } },
-  { table: 'projects', fields: { arrayFields: ['images'] } },
-  { table: 'products', fields: { arrayFields: ['images'] } },
-  { table: 'architect_submissions', fields: { stringFields: ['photo_url'] } },
-  { table: 'office_submissions', fields: { stringFields: ['logo_url', 'cover_url'] } },
-  { table: 'project_submissions', fields: { arrayFields: ['images'], stringFields: ['photoCreditUrl'] } },
-  { table: 'product_submissions', fields: { arrayFields: ['images'] } },
-  { table: 'material_submissions', fields: { arrayFields: ['images'] } },
-  // job_submissions / news_submissions / news KALDIRILDI (2026-09-05): İş İlanı ve Haber
-  // özellikleri yayından çekilmişti, üç tablo da BOŞTU ve migrations/0090_drop_dead_feature_
-  // tables.sql ile düşürüldü. Burada bırakılsalardı loadReferencedKeys() "no such table" ile
-  // fırlar ve R2 orphan taramasının TAMAMI çalışmaz hâle gelirdi — orphan görsel tespiti sessizce
-  // ölürdü, ki bu tam da bu dosyanın var oluş sebebi.
-  { table: 'users', fields: { stringFields: ['photo_url'] } },
-  // Gündem kullanıcı gönderileri (migrations/0113) — görseller /api/uploads'tan `u/` önekiyle gelir.
-  // Otomatik içeriğin image_url'i dış bir CDN'dir; collectR2MediaKeys onu zaten yok sayar.
-  { table: 'gundem_items', fields: { arrayFields: ['images'], stringFields: ['image_url'] } },
-  // Firma/marka İş / Staj İlanları (migrations/0115) — ilan görseli /api/uploads'tan `u/` önekiyle.
-  { table: 'office_jobs', fields: { stringFields: ['image_url'] } },
-];
+// TEK KAYNAK (2026-09-13): tablo/kolon listesi artık src/lib/r2References.js#MEDIA_REFERENCE_SOURCES.
+// Bu dosya "hiç referans edilmeyen nesneler"i (yetimler), o dosya ise "hâlâ referans edilen
+// anahtarlar"ı (silme kapısı) arar — İKİ YÖN AYNI LİSTEDEN beslenmeli, aksi halde biri fazladan
+// siler ya da fazladan korur. Kolon adları oradaki yorumda gerekçelendirilmiştir; ayrıca
+// products/product_submissions/material_submissions `variants` kolonu da kapsanır (versiyon
+// galerileri; bkz. collectR2MediaKeysFromColumns'taki gerçek bulgu).
+const SOURCES = MEDIA_REFERENCE_SOURCES;
 
-function columnList(fields) {
-  return ['id', ...(fields.arrayFields || []), ...(fields.stringFields || [])];
+function columnList(columns) {
+  return ['id', ...columns];
 }
 
 // Yukarıdaki SOURCES listesindeki TÜM tablo/kolonları tarayıp referans edilen R2 anahtarlarının
@@ -61,8 +47,8 @@ function columnList(fields) {
 // "/media/..." URL'lerini aynı biçimde çözüyor, burada yeniden uygulanmıyor.
 async function loadReferencedKeys(env) {
   const referenced = new Set();
-  for (const { table, fields } of SOURCES) {
-    const cols = columnList(fields);
+  for (const { table, columns } of SOURCES) {
+    const cols = columnList(columns);
     let rows;
     try {
       ({ results: rows } = await env.DB.prepare(`SELECT ${cols.join(', ')} FROM ${table}`).all());
@@ -70,7 +56,7 @@ async function loadReferencedKeys(env) {
       continue; // tablo yerel dev'de henüz migrate edilmemiş olabilir — atla, tarama durmasın
     }
     for (const row of rows) {
-      for (const key of collectR2MediaKeys(row, fields)) referenced.add(key);
+      for (const key of collectR2MediaKeysFromColumns(row, columns)) referenced.add(key);
     }
   }
   return referenced;

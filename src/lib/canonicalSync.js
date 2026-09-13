@@ -17,6 +17,7 @@
 // gerekiyor).
 
 import { newId } from './crypto.js';
+import { filterUnreferencedKeys } from './r2References.js';
 import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
@@ -204,7 +205,14 @@ function collectMediaKeysFromValue(val, into) {
   // olarak düz URL string DEĞİL {url,filename,format,size} nesnesi taşır (bkz. migrations/
   // 0071_product_files.sql) — bu fonksiyon önceden yalnızca string bekliyordu, obje geldiğinde
   // sessizce atlıyor, silinen bir dosyanın R2 nesnesi asla temizlenmiyordu (gerçek bulgu).
-  if (val && typeof val === 'object' && typeof val.url === 'string') { collectMediaKeysFromValue(val.url, into); return; }
+  if (Array.isArray(val)) { for (const v of val) collectMediaKeysFromValue(v, into); return; }
+  if (val && typeof val === 'object') {
+    // {url,...} (files) VE iç içe yapılar (products.variants -> [{images:[...], files:[...]}])
+    // — bkz. collectR2MediaKeysFromColumns'ın kullandığı kolon bazlı tarama. İç içe inmek yalnızca
+    // DAHA ÇOK anahtar bulur; "hâlâ kullanımda" tarafında bu güvenli yöndür (nesne KORUNUR).
+    for (const v of Object.values(val)) collectMediaKeysFromValue(v, into);
+    return;
+  }
   if (typeof val !== 'string') return;
   const idx = val.indexOf(MEDIA_URL_MARKER);
   if (idx === -1) return; // statik/legacy dosya yolu (ör. "miras/..webp") — R2'de değil, dokunma
@@ -227,6 +235,29 @@ export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } 
     } catch { /* bozuk JSON — atla */ }
   }
   for (const field of stringFields) collectMediaKeysFromValue(row[field], keys);
+  return keys;
+}
+
+// Kolon bazlı (şekil bilmeyen) sürüm — bir kolonun JSON mu düz URL mi taşıdığını bilmeden tarar:
+// JSON ise dizilere/nesnelere İÇ İÇE iner (products.variants gibi versiyon galerileri buradan
+// kapsanır), değilse düz string olarak okur. src/lib/r2Reconcile.js'in "hiç referans edilmeyen
+// nesne" taraması bunu kullanır: eskiden versiyon-özel görseller (yalnızca variants içinde geçen
+// `u/` anahtarları) hiçbir kolondan görünmüyor ve YETİM sanılıyordu — admin o listeden silerse
+// versiyon galerisi kırılırdı (bkz. canonicalSync.js#variantReferencedKeys'teki AYNI gerçek bulgu:
+// ithaca-casa/1.webp).
+export function collectR2MediaKeysFromColumns(row, columns = []) {
+  if (!row) return [];
+  const keys = [];
+  for (const col of columns) {
+    const raw = row[col];
+    if (raw == null || raw === '') continue;
+    let parsed = null;
+    if (typeof raw === 'string') {
+      const t = raw.trim();
+      if (t.startsWith('[') || t.startsWith('{')) { try { parsed = JSON.parse(t); } catch { parsed = null; } }
+    }
+    collectMediaKeysFromValue(parsed != null ? parsed : raw, keys);
+  }
   return keys;
 }
 
@@ -274,7 +305,23 @@ function withDerivativeKeys(keys) {
   return out;
 }
 
-export async function deleteR2MediaKeys(env, originalKeys) {
+// PAYLAŞILAN NESNE KAPISI (kullanıcı bildirimi, 2026-09-13 — "Ertegün Evi'nin görselleri kırılmış,
+// KÖKTEN düzelt"): bir R2 anahtarına birden çok D1 satırı referans verebiliyor (arşiv taslağı
+// canonical satırın `images` alanını OLDUĞU GİBİ kopyalar), bu yüzden silme HER ZAMAN "başka bir
+// satır hâlâ kullanıyor mu" kapısından geçer — bkz. src/lib/r2References.js dosya başı kök neden
+// notu. Kapı TEK bir yerde, bu fonksiyonun içinde durur: sekiz çağrı noktası (+ ileride eklenecek
+// her yeni yol) otomatik olarak korunur, hiçbirinde kural kopyalanmaz.
+//
+// ÇAĞIRAN SÖZLEŞMESİ: silinmekte olan satır D1'den ÖNCE kaldırılmış olmalıdır, aksi halde satır
+// kendi anahtarlarına "referans" sayılır ve hiçbir şey silinemez (bkz. hardDeleteCanonicalRow ve
+// legacyContent.js/admin.js'teki silme dalları — hepsi bu sıraya çekildi).
+// skipReferenceCheck: YALNIZCA çağıran, referans kontrolünü KENDİSİ ve DAHA GÜÇLÜ biçimde yapmışsa
+// (bkz. src/routes/admin.js#handleR2OrphansAdmin -> r2Reconcile.js#confirmStillOrphaned: tüm
+// tabloları satır satır okur) — orada yüzlerce anahtar için taramayı İKİNCİ kez çalıştırmak
+// gereksiz ve pahalıdır. Başka hiçbir çağrı noktası bu bayrağı kullanmamalıdır.
+export async function deleteR2MediaKeys(env, originalKeys, { skipReferenceCheck = false } = {}) {
+  if (!originalKeys.length) return;
+  if (!skipReferenceCheck) originalKeys = await filterUnreferencedKeys(env, originalKeys);
   if (!originalKeys.length) return;
   const keys = withDerivativeKeys(originalKeys);
   // head() YALNIZCA orijinaller için çağrılır, genişletilmiş liste için DEĞİL — bu fonksiyon
@@ -450,14 +497,18 @@ export async function cleanupReplacedR2Media(env, type, oldRow, newRow) {
 // silmelerinden ÖNCE gelmesi KORUNUR — architects.office_id/products.brand_office_id CASCADE'siz
 // olduğundan, offices satırı NULL'lanmadan silinirse (D1'in FK enforcement açık olduğu senaryoda)
 // bu sıra bozulursa DELETE hata verir. R2 temizliği (1) D1 dışı olduğundan batch'in DIŞINDA, öncesinde
-// kalır (mevcut davranış — kısmi hata durumunda en kötü ihtimalle bir R2 orphan'ı, ki
-// r2Reconcile.js bunu zaten ayrıca tarıyor).
+// kalır — ama artık batch'in ÖNCESİNDE değil SONRASINDA (bkz. deleteR2MediaKeys'teki ÇAĞIRAN
+// SÖZLEŞMESİ; satır D1'de dururken kendi anahtarları "hâlâ referanslı" görünür). Kısmi hata
+// durumunda en kötü ihtimalle bir R2 orphan'ı kalır, ki r2Reconcile.js bunu zaten ayrıca tarıyor.
 export async function hardDeleteCanonicalRow(env, type, row, userId) {
   if (!row) return;
   const table = CANONICAL_TABLE_BY_TYPE[type];
   if (!table) return;
 
-  await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
+  // R2 anahtarları satır SİLİNMEDEN ÖNCE okunur (satır gidince alanlar okunamaz) ama temizlik
+  // batch'ten SONRA yapılır — bkz. deleteR2MediaKeys'teki ÇAĞIRAN SÖZLEŞMESİ: satır hâlâ D1'de
+  // dururken kendi anahtarlarına referans sayılır ve hiçbiri silinemezdi.
+  const r2Keys = collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {});
 
   const statements = [];
   if (type === 'offices') {
@@ -500,6 +551,7 @@ export async function hardDeleteCanonicalRow(env, type, row, userId) {
   if (blacklistStmt) statements.push(blacklistStmt);
 
   await env.DB.batch(statements);
+  await deleteR2MediaKeys(env, r2Keys);
   if (type === 'architects' || type === 'offices') await pruneConflictsReferencingId(env, row.id);
 }
 
