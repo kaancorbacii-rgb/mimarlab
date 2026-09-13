@@ -217,8 +217,10 @@ await test('onarım yalnızca ölü referansı düşürür, sağlamları korur',
   db.prepare(`UPDATE projects SET images = ? WHERE id = 2`).run(JSON.stringify(['/media/u/u-owner/kayip.webp', SHARED_URL]));
   const res = await repairBrokenImageRefs(env, { table: 'projects', id: 2, keys: ['u/u-owner/kayip.webp'] });
   assert.equal(res.removed, 1);
-  const images = JSON.parse(db.prepare(`SELECT images FROM projects WHERE id = 2`).get().images);
-  assert.deepEqual(images, [SHARED_URL], 'sağlam görsel kalmalı, ölü yol düşmeli');
+  const after = db.prepare(`SELECT images, updated_at FROM projects WHERE id = 2`).get();
+  assert.deepEqual(JSON.parse(after.images), [SHARED_URL], 'sağlam görsel kalmalı, ölü yol düşmeli');
+  assert.notEqual(after.updated_at, '2026-01-01', 'updated_at damgalanmalı — liste parmak izi tazelensin');
+  assert.deepEqual(res.ssr, { type: 'project', key: 'ertegun-evi-2' }, 'detay önbelleği için hedef dönmeli');
 });
 
 await test('onarım, arada yeniden yüklenmiş görseli kayıttan DÜŞÜRMEZ', async () => {

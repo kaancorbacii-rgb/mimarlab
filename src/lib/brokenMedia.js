@@ -27,17 +27,22 @@ import { MEDIA_REFERENCE_SOURCES } from './r2References.js';
 
 // Tarama sırası: önce ziyaretçinin GÖRDÜĞÜ canonical tablolar (kırık görsel oradaysa acildir),
 // sonra taslak/ikincil tablolar. `label`/`slug` yalnızca raporun okunabilirliği içindir.
+// `touch`: onarım yazısında updated_at'in hangi BİÇİMDE damgalanacağı. Damgalanmazsa liste
+// uçlarının "değişti mi" parmak izi (COUNT(*) + MAX(updated_at), bkz. migrations/0077) aynı kalır
+// ve temizlenen kart ziyaretçiye ESKİ (ölü yollu) hâliyle servis edilmeye devam ederdi.
+// canonical tablolar TEXT datetime('now'), *_submissions ise INTEGER milisaniye kullanır
+// (bkz. schema.sql) — biçimi karıştırmak sıralamayı bozar, bu yüzden tablo başına yazılır.
 const SCAN_SOURCES = [
-  { table: 'projects', kind: 'Proje', label: 'title', slug: 'slug', path: '/proje/' },
-  { table: 'products', kind: 'Ürün', label: 'title', slug: 'slug', path: '/urun/' },
-  { table: 'architects', kind: 'Kişi', label: 'name', slug: 'slug', path: '/kisi/' },
-  { table: 'offices', kind: 'Firma', label: 'name', slug: 'slug', path: '/firma/' },
+  { table: 'projects', kind: 'Proje', label: 'title', slug: 'slug', path: '/proje/', touch: 'datetime', ssrType: 'project', ssrKey: 'slug' },
+  { table: 'products', kind: 'Ürün', label: 'title', slug: 'slug', path: '/urun/', touch: 'datetime', ssrType: 'product', ssrKey: 'slug' },
+  { table: 'architects', kind: 'Kişi', label: 'name', slug: 'slug', path: '/kisi/', touch: 'datetime', ssrType: 'architect', ssrKey: 'name' },
+  { table: 'offices', kind: 'Firma', label: 'name', slug: 'slug', path: '/firma/', touch: 'datetime', ssrType: 'office', ssrKey: 'name' },
   { table: 'gundem_items', kind: 'Gündem', label: 'title', slug: 'slug', path: '/gundem/' },
-  { table: 'project_submissions', kind: 'Proje gönderisi', label: 'title', slug: 'claimed_slug' },
-  { table: 'product_submissions', kind: 'Ürün gönderisi', label: 'title', slug: 'claimed_slug' },
-  { table: 'material_submissions', kind: 'Malzeme gönderisi', label: 'title', slug: 'claimed_slug' },
-  { table: 'architect_submissions', kind: 'Kişi gönderisi', label: 'name', slug: 'claimed_profile_key' },
-  { table: 'office_submissions', kind: 'Firma gönderisi', label: 'name', slug: 'claimed_profile_key' },
+  { table: 'project_submissions', kind: 'Proje gönderisi', label: 'title', slug: 'claimed_slug', touch: 'ms' },
+  { table: 'product_submissions', kind: 'Ürün gönderisi', label: 'title', slug: 'claimed_slug', touch: 'ms' },
+  { table: 'material_submissions', kind: 'Malzeme gönderisi', label: 'title', slug: 'claimed_slug', touch: 'ms' },
+  { table: 'architect_submissions', kind: 'Kişi gönderisi', label: 'name', slug: 'claimed_profile_key', touch: 'ms' },
+  { table: 'office_submissions', kind: 'Firma gönderisi', label: 'name', slug: 'claimed_profile_key', touch: 'ms' },
   { table: 'office_jobs', kind: 'İlan', label: 'title' },
   { table: 'users', kind: 'Üye', label: 'name' },
 ];
@@ -194,7 +199,11 @@ export async function repairBrokenImageRefs(env, { table, id, keys }) {
   const skipped = wanted.filter(k => !stillMissing.has(k));
   if (!stillMissing.size) return { updatedColumns: [], removed: 0, skipped };
 
-  const row = await env.DB.prepare(`SELECT ${['id', ...columns].join(', ')} FROM ${table} WHERE id = ?`).bind(id).first();
+  const rowSelect = ['id', ...columns];
+  for (const extra of [source.ssrKey, source.slug, source.label]) {
+    if (extra && !rowSelect.includes(extra)) rowSelect.push(extra);
+  }
+  const row = await env.DB.prepare(`SELECT ${rowSelect.join(', ')} FROM ${table} WHERE id = ?`).bind(id).first();
   if (!row) return { error: 'Kayıt bulunamadı.', status: 404 };
 
   const isDead = (text) => [...stillMissing].some(k => referencesKey(text, k));
@@ -228,6 +237,11 @@ export async function repairBrokenImageRefs(env, { table, id, keys }) {
   }
 
   if (!updates.length) return { updatedColumns: [], removed: 0, skipped };
+  if (source.touch === 'datetime') updates.push(`updated_at = datetime('now')`);
+  else if (source.touch === 'ms') { updates.push('updated_at = ?'); binds.push(Date.now()); }
   await env.DB.prepare(`UPDATE ${table} SET ${updates.join(', ')} WHERE id = ?`).bind(...binds, id).run();
-  return { updatedColumns, removed, skipped, cleaned: [...stillMissing] };
+  // Kaydın kendi SSR/detay önbelleği de düşsün — liste önbelleği çağıran tarafta (admin rotası)
+  // invalidatePublicCache ile zaten düşürülüyor, ama detay sayfası ayrı bir anahtarda yaşıyor.
+  const ssrKey = source.ssrType && source.ssrKey ? row[source.ssrKey] : null;
+  return { updatedColumns, removed, skipped, cleaned: [...stillMissing], ssr: ssrKey ? { type: source.ssrType, key: ssrKey } : null };
 }

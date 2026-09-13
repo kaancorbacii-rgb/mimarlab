@@ -218,6 +218,7 @@ async function handleBrokenImagesAdmin(request, env, url) {
     // Kayıt değişti: liste/detay önbellekleri düşürülür, aksi halde temizlenen kart eski (ölü
     // yollu) hâliyle görünmeye devam ederdi.
     await invalidatePublicCache(env);
+    if (result.ssr) await purgeSsrDetailCache(result.ssr.type, result.ssr.key, env);
     return json(result);
   }
   return errorJson('Bulunamadı', 404);
