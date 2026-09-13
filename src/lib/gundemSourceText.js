@@ -20,10 +20,12 @@
 // uzunsa anlamlı içerik kaybına yol açacak şekilde rastgele truncate etme"). Yarım kalan bir cümle
 // modelin o cümleyi tahminle tamamlamasına — yani uydurmaya — davetiyedir.
 //
-// KAPSAM SINIRI (bilinçli): bu modül YENİ veri ÇEKMEZ. Kullanıcı isteği "RSS/HTML veri çekme
-// sistemini değiştirme" diyor ve mevcut tasarımda makale GÖVDESİ hiç indirilmez (bkz.
-// gundemFeed.js#fetchPageMeta — yalnızca <head>). Yani buradaki iş, VAR OLAN metni daha temiz ve
-// daha yoğun biçimde modele vermektir; kaynak sayfadan daha fazla metin çekmek değil.
+// KAPSAM (2026-09-13 tarihinde GENİŞLETİLDİ): bu modül hâlâ kendisi veri ÇEKMEZ — parçaları
+// çağıran verir. Ama artık üçüncü bir parça daha geliyor: makalenin İLK PARAGRAFLARI (bkz.
+// src/lib/gundemArticleText.js). Kullanıcı isteği "içerikleri yeniden KAYNAKLARDAN çek" dediği
+// için, önceki turdaki "gövde hiç indirilmez" sınırı kalktı. Buradaki temizlik mantığı aynen
+// geçerlidir ve gövde metni için daha da gereklidir: yayıncı boilerplate'i, tekrar eden cümleler
+// ve markup artıkları aynı kapılardan geçer.
 
 import { EXCERPT_MAX_CHARS } from './gundemQuality.js';
 import { foldTr } from './textMatch.js';

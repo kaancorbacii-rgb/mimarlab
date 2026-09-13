@@ -17,11 +17,17 @@
 // gerektirmez; slug olduğu gibi kalır.
 //
 // KAYNAK METİN NEREDEN GELİR: D1'de makale metni SAKLANMIYOR (tasarım gereği — "tam makale
-// kopyalama" yasağı). Bu yüzden yeniden üretim, hattın canlıda kullandığı AYNI iki kaynaktan
-// beslenir: (a) `original_title` (kaynağın kendi dilindeki başlığı, satırda duruyor) ve (b)
-// makalenin <head>'indeki og:description — mevcut gundemFeed.js#fetchPageMeta ile, yani YENİ bir
-// veri çekme yolu açılmadan. Sayfa gövdesi okunmaz. Sayfa artık erişilemiyorsa (404/kaldırılmış)
-// satır "kaynak metin yetersiz" olarak RAPORLANIR ve DOKUNULMAZ.
+// kopyalama" yasağı). Bu yüzden yeniden üretim her satır için kaynağa GERİ GİDER ve hattın
+// canlıda kullandığı AYNI üç malzemeyi toplar:
+//   (a) `original_title` — kaynağın kendi dilindeki başlığı, satırda duruyor,
+//   (b) makalenin <head>'indeki og:description,
+//   (c) makalenin GÖVDESİNDEN İLK PARAGRAFLAR (2026-09-13'te eklendi, bkz.
+//       src/lib/gundemArticleText.js — o dosyanın başında neden gerekli olduğu ve "tam makale
+//       kopyalama" yasağının neden ihlal edilmediği ayrıntılı yazılı).
+// (b) ve (c) TEK bir indirmeden çıkar (gundemFeed.js#fetchPageMeta, withArticleText:true).
+// (c) olmadan modelin elinde tipik olarak 20-35 kelime bulunuyordu ve özetler yapısal olarak
+// yüzeysel kalıyordu; asıl kalite sıçraması buradan gelir. Sayfa artık erişilemiyorsa
+// (404/kaldırılmış) satır "kaynak metin yetersiz" olarak RAPORLANIR ve DOKUNULMAZ.
 //
 // KULLANIM:
 //   node scripts/gundem-retitle-backfill.mjs                     # dry-run, son 20 kayıt
@@ -37,6 +43,12 @@
 //   --keep-embedding embedding'i yeniden hesaplama (varsayılan: hesapla — başlık/özet değişince
 //                    anlamsal mükerrer kapısı bayat vektörle karşılaştırma yapmasın)
 //   --json=dosya     önce/sonra karşılaştırmasını JSON olarak da yaz
+//   --all            YAYINDAKİ TÜM kayıtlar (--limit yok sayılır; sayfalayarak ilerler)
+//   --offset=N       en yeniden geriye doğru ilk N kaydı atla (yarıda kalan turu sürdürmek için)
+//
+// KİMLİK BİLGİSİ: yerelde wrangler OAuth token'ı kullanılır (aşağıya bakın). CI'da (bkz.
+// .github/workflows/gundem-retitle.yml) böyle bir oturum YOKTUR; o yüzden CLOUDFLARE_API_TOKEN
+// ortam değişkeni tanımlıysa doğrudan o kullanılır ve wrangler'a hiç dokunulmaz.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -46,12 +58,12 @@ import { GUNDEM_SOURCES } from '../src/lib/gundemSources.js';
 import { fetchPageMeta } from '../src/lib/gundemFeed.js';
 import { buildSourceText } from '../src/lib/gundemSourceText.js';
 import { generateGundemSummary, AiProviderError } from '../src/lib/gundemAi.js';
-import { validateAiOutput, EXCERPT_MAX_CHARS, wordCount } from '../src/lib/gundemQuality.js';
+import { validateAiOutput, SOURCE_TEXT_MAX_CHARS, wordCount } from '../src/lib/gundemQuality.js';
 import { gundemEmbedText, embedGundemText, quantizeEmbedding } from '../src/lib/gundemEmbedding.js';
 import { AI_MODEL } from '../src/lib/aiConfig.js';
 import { GUNDEM_LIMITS } from '../src/lib/gundemIngest.js';
 
-const ACCOUNT_ID = '2e3cd3c1a471552e19436913b2368c4f';
+const ACCOUNT_ID = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim() || '2e3cd3c1a471552e19436913b2368c4f';
 const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -64,6 +76,13 @@ const KEEP_EMBEDDING = !!args['keep-embedding'];
 const ONLY_SOURCES = typeof args.source === 'string' ? args.source.split(',').map(s => s.trim()).filter(Boolean) : null;
 const ONLY_SLUGS = typeof args.slug === 'string' ? args.slug.split(',').map(s => s.trim()).filter(Boolean) : null;
 const JSON_OUT = typeof args.json === 'string' ? args.json : null;
+const ALL = !!args.all;
+const OFFSET = Number(args.offset ?? 0);
+// --all: yayındaki her kayıt işlenir. Havuz tek seferde okunmaz (D1 sorgu boyutu ve bellek),
+// PAGE_SIZE'lık sayfalar hâlinde ilerlenir. Round-robin --all'da UYGULANMAZ: örneklem değil,
+// tam tarama yapılıyor; sıralama en yeniden eskiye doğrudur ki tur yarıda kesilse bile en
+// görünür kayıtlar düzelmiş olsun.
+const PAGE_SIZE = 50;
 
 // ---------------------------------------------------------------------------------------------
 // wrangler OAuth token'ı (depodaki diğer ~100 toplu betikle AYNI desen — yeni bir secret yok).
@@ -91,8 +110,13 @@ function tokenExpiresAt() {
   const ms = m ? Date.parse(m[1]) : NaN;
   return Number.isFinite(ms) ? ms : null;
 }
-let TOKEN = oauthToken();
+// CI YOLU: GitHub Actions runner'ında wrangler oturumu yok, sır olarak API token var. Varsa
+// wrangler dosyasına HİÇ bakılmaz (bakılsaydı betik CI'da daha ilk satırda düşerdi).
+const ENV_TOKEN = (process.env.CLOUDFLARE_API_TOKEN || '').trim();
+let TOKEN = ENV_TOKEN || oauthToken();
 function refreshToken(reason) {
+  // API token'ın süresi dolmaz ve yenilenemez — CI'da yenileme denemek anlamsız.
+  if (ENV_TOKEN) return false;
   try { execFileSync('npx', ['wrangler', 'whoami'], { stdio: 'ignore', timeout: 90000 }); } catch { /* yoksay */ }
   const before = TOKEN;
   TOKEN = oauthToken();
@@ -174,22 +198,48 @@ const params = [];
 if (ONLY_SOURCES) { where.push(`source_id IN (${ONLY_SOURCES.map(() => '?').join(',')})`); params.push(...ONLY_SOURCES); }
 if (ONLY_SLUGS) { where.push(`slug IN (${ONLY_SLUGS.map(() => '?').join(',')})`); params.push(...ONLY_SLUGS); }
 
-console.log(`GÜNDEM başlık/özet yeniden üretimi — örneklem ${LIMIT}${APPLY ? '  [APPLY: D1 GÜNCELLENECEK]' : '  [DRY-RUN: yazma YOK]'}`);
-const expiry = tokenExpiresAt();
-if (expiry === null || expiry - Date.now() < 25 * 60000) {
+console.log(`GÜNDEM başlık/özet yeniden üretimi — ${ALL ? 'TÜM yayındaki kayıtlar' : `örneklem ${LIMIT}`}${APPLY ? '  [APPLY: D1 GÜNCELLENECEK]' : '  [DRY-RUN: yazma YOK]'}`);
+const expiry = ENV_TOKEN ? Number.POSITIVE_INFINITY : tokenExpiresAt();
+if (!ENV_TOKEN && (expiry === null || expiry - Date.now() < 25 * 60000)) {
   refreshToken(expiry === null ? 'geçerlilik okunamadı' : `token ${Math.round((expiry - Date.now()) / 60000)} dk sonra doluyor`);
 }
 
-// Havuz, LIMIT'in birkaç katı okunur — round-robin seçimi için kaynak çeşitliliği gerekiyor.
-const pool = await d1(
-  `SELECT id, slug, title, summary, original_title, source_id, source_name, source_url, language,
-          published_at, source_published_at
-     FROM gundem_items WHERE ${where.join(' AND ')}
-     ORDER BY published_at DESC LIMIT ?`,
-  [...params, Math.max(LIMIT * 4, 60)]
+const SELECT_COLS = `id, slug, title, summary, original_title, source_id, source_name, source_url, language,
+          published_at, source_published_at`;
+
+// Kaç kayıt var (yalnızca --all'da anlamlı; rapor başlığı ve ilerleme yüzdesi için).
+const [{ n: TOTAL_PUBLISHED } = { n: 0 }] = await d1(
+  `SELECT COUNT(*) AS n FROM gundem_items WHERE ${where.join(' AND ')}`, params
 );
-const rows = roundRobin(pool, LIMIT);
-console.log(`Havuz ${pool.length} kayıt, örneklem ${rows.length} kayıt (${new Set(rows.map(r => r.source_id)).size} kaynak)\n`);
+
+// Satırları veren üretici. --all: en yeniden eskiye, PAGE_SIZE'lık sayfalar. Aksi halde:
+// LIMIT'in birkaç katı okunup kaynaklar arasında round-robin ile örneklem alınır.
+async function* rowsToProcess() {
+  if (!ALL) {
+    const pool = await d1(
+      `SELECT ${SELECT_COLS} FROM gundem_items WHERE ${where.join(' AND ')}
+         ORDER BY published_at DESC LIMIT ?`,
+      [...params, Math.max(LIMIT * 4, 60)]
+    );
+    const sample = roundRobin(pool, LIMIT);
+    console.log(`Havuz ${pool.length} kayıt, örneklem ${sample.length} kayıt (${new Set(sample.map(r => r.source_id)).size} kaynak)\n`);
+    yield* sample;
+    return;
+  }
+  console.log(`Yayındaki kayıt: ${TOTAL_PUBLISHED}${OFFSET ? ` (ilk ${OFFSET} atlanıyor)` : ''}\n`);
+  let offset = OFFSET;
+  for (;;) {
+    const page = await d1(
+      `SELECT ${SELECT_COLS} FROM gundem_items WHERE ${where.join(' AND ')}
+         ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+      [...params, PAGE_SIZE, offset]
+    );
+    if (!page.length) return;
+    yield* page;
+    offset += page.length;
+    if (page.length < PAGE_SIZE) return;
+  }
+}
 
 // ---------------------------------------------------------------------------------------------
 // TEK BİR KAYIT İÇİN YENİDEN ÜRETİM — canlı hattın AYNI adımları, aynı dosyalardan
@@ -199,10 +249,15 @@ async function regenerate(row) {
   const sourceTitle = row.original_title || row.title;
   if (!source) return { status: 'no_source_config' };
 
-  // Kaynak metin: makalenin kendi <head> önizleme açıklaması (gövde DEĞİL).
+  // Kaynak metin: makalenin <head> önizleme açıklaması + GÖVDESİNDEN İLK PARAGRAFLAR. İkisi de
+  // TEK bir indirmeden çıkar. Gövde metni, adequacy'yi 'thin'den 'rich'e taşıyan ve özetin
+  // gerçekten sentez olmasını sağlayan malzemedir (bkz. dosya başı, "KAYNAK METİN NEREDEN GELİR").
   let meta = null;
-  try { meta = await fetchPageMeta(row.source_url); } catch (err) { meta = null; }
-  const built = buildSourceText([meta && meta.description], { maxChars: EXCERPT_MAX_CHARS });
+  try { meta = await fetchPageMeta(row.source_url, { withArticleText: true }); } catch (err) { meta = null; }
+  const built = buildSourceText(
+    [meta && meta.description, meta && meta.articleText],
+    { maxChars: SOURCE_TEXT_MAX_CHARS }
+  );
   if (built.adequacy === 'empty' && !sourceTitle) return { status: 'source_unavailable' };
 
   const publishedAt = row.source_published_at || row.published_at || null;
@@ -256,12 +311,19 @@ async function regenerate(row) {
 // ---------------------------------------------------------------------------------------------
 const report = [];
 const counters = {
-  total: rows.length, ok: 0, titleChanged: 0, summaryChanged: 0,
-  sourceThin: 0, sourceUnavailable: 0, aiFailed: 0, applied: 0,
+  total: 0, ok: 0, titleChanged: 0, summaryChanged: 0,
+  sourceThin: 0, sourceRich: 0, sourceUnavailable: 0, aiFailed: 0, applied: 0,
 };
 let aborted = null;
 
-for (const row of rows) {
+for await (const row of rowsToProcess()) {
+  counters.total += 1;
+  // Uzun turlarda (--all) token'ın ortada dolması TÜM yazmaları 7403 ile düşürüyordu — 40
+  // kayıtta bir kontrol edilir. CI'da ENV_TOKEN kullanıldığında refreshToken zaten no-op'tur.
+  if (!ENV_TOKEN && counters.total % 40 === 0) {
+    const left = tokenExpiresAt();
+    if (left === null || left - Date.now() < 15 * 60000) refreshToken('uzun tur, token tazeleniyor');
+  }
   const res = await regenerate(row);
   if (res.status === 'ai_quota_exceeded') { aborted = 'ai_quota_exceeded'; break; }
 
@@ -274,6 +336,7 @@ for (const row of rows) {
   if (res.status === 'ok') {
     counters.ok += 1;
     if (res.adequacy === 'thin' || res.adequacy === 'empty') counters.sourceThin += 1;
+    if (res.adequacy === 'rich') counters.sourceRich += 1;
     entry.after = { title: res.title, summary: res.summary, summaryWords: wordCount(res.summary) };
     entry.meta = { attempts: res.attempts, sourceWords: res.sourceWords, adequacy: res.adequacy, selfDoubt: res.selfDoubt };
     entry.sourceFacts = res.sourceFacts;
@@ -333,6 +396,7 @@ console.log(`  yeniden üretilebilen   : ${counters.ok}`);
 console.log(`  başlığı DEĞİŞECEK      : ${counters.titleChanged}`);
 console.log(`  özeti DEĞİŞECEK        : ${counters.summaryChanged}`);
 console.log(`  kaynak metni yetersiz  : ${counters.sourceThin} (thin/empty — özet kısa kalır, bu DOĞRU davranış)`);
+console.log(`  kaynak metni ZENGİN    : ${counters.sourceRich} (gövde çekilebildi — sentezlenmiş uzun özet)`);
 console.log(`  kaynak sayfası yok     : ${counters.sourceUnavailable}`);
 console.log(`  AI/kalite başarısız    : ${counters.aiFailed}`);
 console.log(`  AI çağrısı             : ${aiCalls}`);

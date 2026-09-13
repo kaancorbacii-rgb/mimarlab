@@ -254,8 +254,16 @@ export async function fetchFeed(feedUrl, source = null) {
   return parseFeed(body);
 }
 
-// Makale sayfasının önizleme metadata'sı (yalnızca imageStrategy:'og' olan kaynaklar için).
-export async function fetchPageMeta(pageUrl) {
+// Makale sayfasının önizleme metadata'sı.
+//
+// withArticleText:true verilirse dönen nesneye `articleText` de eklenir — makalenin İLK
+// PARAGRAFLARI, düz metin olarak (bkz. src/lib/gundemArticleText.js: neden gerekli, "tam makale
+// kopyalama" yasağının neden ihlal edilmediği). Bu, EK BİR AĞ İSTEĞİ DEĞİLDİR: sayfanın HTML'i
+// zaten indirilmiş durumda, yalnızca <head> yerine gövdesi de ayrıştırılır.
+//
+// Ayrıştırıcı DİNAMİK import ile yüklenir: gundemArticleText.js bu dosyadan decodeEntities'i
+// alıyor, statik import iki yönlü bir bağımlılık kurardı (aynı desen: gundemHtmlList.js).
+export async function fetchPageMeta(pageUrl, { withArticleText = false } = {}) {
   const { response, finalUrl } = await safeFetch(pageUrl, { timeoutMs: PAGE_TIMEOUT_MS, maxRedirects: 4, headers: {
     Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1',
   } });
@@ -263,5 +271,15 @@ export async function fetchPageMeta(pageUrl) {
   const contentType = response.headers.get('Content-Type') || '';
   if (!/text\/html|application\/xhtml/i.test(contentType)) throw new Error('page_not_html');
   const html = await limitResponseSize(response, PAGE_MAX_BYTES).text();
-  return { ...extractPageMeta(html, finalUrl), finalUrl };
+  const meta = { ...extractPageMeta(html, finalUrl), finalUrl };
+  if (withArticleText) {
+    try {
+      const { extractArticleText } = await import('./gundemArticleText.js');
+      meta.articleText = extractArticleText(html);
+    } catch (err) {
+      // Gövde çıkarımı bir EK'tir; başarısız olursa hat og:description ile eskisi gibi çalışır.
+      meta.articleText = '';
+    }
+  }
+  return meta;
 }

@@ -61,7 +61,7 @@ import { stripInjectionAttempts } from './injectionFilter.js';
 // bkz. gundemCategories.js#ai:false).
 import { GUNDEM_AI_CATEGORY_KEYS as GUNDEM_CATEGORY_KEYS } from './gundemCategories.js';
 import {
-  EXCERPT_MAX_CHARS, SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS, SUMMARY_RICH_MAX_WORDS,
+  SOURCE_TEXT_MAX_CHARS, SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS, SUMMARY_RICH_MAX_WORDS,
   TITLE_TARGET_MIN_WORDS, TITLE_TARGET_MAX_WORDS, TITLE_HARD_MAX_WORDS,
 } from './gundemQuality.js';
 
@@ -112,8 +112,11 @@ function summaryTargetFor(adequacy) {
   yorumlama; verilmeyen bilgiyi tahmin etme, özeti doldurmak için bilgi UYDURMA.`;
   }
   if (adequacy === 'rich') {
-    return `Kaynak metin yeterince uzun. Hedef ${SUMMARY_MIN_WORDS + 20}-${SUMMARY_RICH_MAX_WORDS} kelime.
-  Metnin FARKLI BÖLÜMLERİNDEKİ bilgileri sentezle; yalnızca ilk paragrafı yeniden yazma.`;
+    return `Kaynak metin makalenin kendi gövdesinden geliyor ve yeterince uzun. Hedef
+  ${SUMMARY_MIN_WORDS + 20}-${SUMMARY_RICH_MAX_WORDS} kelime. Metnin FARKLI BÖLÜMLERİNDEKİ bilgileri sentezle;
+  yalnızca ilk paragrafı yeniden yazma. İlk paragraf çoğu kez yalnızca girişi verir — yapının/olayın
+  kim tarafından, nerede, hangi amaçla ve hangi mimari yaklaşımla ortaya konduğu genellikle SONRAKİ
+  paragraflardadır ve özette bunlara da yer olmalı.`;
   }
   return `Hedef ${SUMMARY_MIN_WORDS}-${SUMMARY_MAX_WORDS} kelime.`;
 }
@@ -278,7 +281,10 @@ export { RETRY_HINT_BY_REASON as _retryHintsForTests };
 // buraya ZATEN TEMİZ metin gelir.
 function buildUserText({ sourceName, sourceTitle, sourceExcerpt, sourceLanguage, sourceUrl, publishedAt, sourceAdequacy, retryReason }) {
   const cleanTitle = stripInjectionAttempts(sourceTitle || '');
-  const cleanExcerpt = stripInjectionAttempts((sourceExcerpt || '').slice(0, EXCERPT_MAX_CHARS));
+  // Tavan EXCERPT_MAX_CHARS'tan SOURCE_TEXT_MAX_CHARS'a çıktı: kaynak metin artık makalenin ilk
+  // paragraflarını da taşıyor (bkz. gundemArticleText.js). Eski tavan burada kalsaydı, gövde
+  // metni buildSourceText'te toplanıp BURADA yeniden kesilir ve iş boşa giderdi.
+  const cleanExcerpt = stripInjectionAttempts((sourceExcerpt || '').slice(0, SOURCE_TEXT_MAX_CHARS));
   const hint = retryReason && RETRY_HINT_BY_REASON[retryReason];
   const published = publishedAt ? new Date(publishedAt).toISOString().slice(0, 10) : null;
   return {

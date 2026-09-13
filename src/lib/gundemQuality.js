@@ -54,8 +54,18 @@ export const TITLE_MIN_CHARS = 12;
 export const TITLE_MAX_CHARS = 140;
 
 // AI'ye giden kaynak metnin üst sınırı. "Tam makale kopyalama" yasağının (madde 6) teknik
-// karşılığı: gövde zaten hiç çekilmiyor, feed'in kendi kısa açıklaması bile bu sınırla kırpılıyor.
+// karşılığı: feed'in kendi kısa açıklaması bile bu sınırla kırpılıyor.
 export const EXCERPT_MAX_CHARS = 1200;
+
+// GÖVDE METNİ DE ALINDIĞINDA geçerli olan tavan (kullanıcı isteği 2026-09-13: "yeniden
+// kaynaklardan çek"). 1200 karakter, yalnızca feed açıklaması modele giderken doğru bir
+// bütçeydi; makalenin ilk paragrafları da alındığında aynı tavan metnin çoğunu keserdi ve
+// "farklı bölümleri sentezle" talimatı yine karşılıksız kalırdı.
+//
+// 3600 KARAKTER NEDEN: gövde çıkarıcısının kendi tavanı 2600 (bkz. gundemArticleText.js#
+// ARTICLE_MAX_CHARS), üstüne feed açıklaması ve og:description binebiliyor. Tavan hâlâ makalenin
+// TAMAMINI almaya yetmez — kasıtlı: yayınlanan şey üretilen Türkçe özettir, kaynağın metni değil.
+export const SOURCE_TEXT_MAX_CHARS = 3600;
 
 // -----------------------------------------------------------------------------------------------
 // MÜKERRER ANAHTARLARI

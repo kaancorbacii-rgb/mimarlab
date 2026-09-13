@@ -791,6 +791,18 @@ else
   tail -25 /tmp/preflight_gundem_q >&2
 fi
 
+# MAKALE GÖVDESİ ÇIKARIMI (kullanıcı isteği 2026-09-13: "içerikleri yeniden kaynaklardan çek").
+# Üçüncü taraf HTML'ini regex ile ayrıştıran EN KIRILGAN modül: bir desen bozulduğunda hat
+# çalışmaya devam eder, yalnızca modele çerez uyarısı/fotoğraf kredisi/ilgili haber teaser'ı
+# gider ya da gövde hiç çıkmaz. Bkz. scripts/test-2026-09-13-gundem-article-text.mjs.
+if node scripts/test-2026-09-13-gundem-article-text.mjs >/tmp/preflight_gundem_body 2>&1; then
+  ok "gundem makale gövdesi çıkarımı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_gundem_body) test)"
+else
+  bad "gundem makale gövdesi çıkarımı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_gundem_body >&2
+fi
+rm -f /tmp/preflight_gundem_body
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve

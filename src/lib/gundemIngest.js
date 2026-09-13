@@ -28,7 +28,7 @@ import { activeGundemSources } from './gundemSources.js';
 import { fetchFeed, fetchPageMeta, normalizeImageUrl } from './gundemFeed.js';
 import {
   normalizeSourceUrl, titleKey, contentHash, isAllowedImageHost,
-  validateAiOutput, EXCERPT_MAX_CHARS,
+  validateAiOutput, EXCERPT_MAX_CHARS, SOURCE_TEXT_MAX_CHARS,
   looksLikeProjectPublication, findCrossSourceDuplicate,
 } from './gundemQuality.js';
 import { isValidGundemCategory } from './gundemCategories.js';
@@ -350,20 +350,45 @@ function categoryFromHints(source, categories, listCategory, title) {
 // Görsel çözümleme (feed → gerekiyorsa makale önizleme metadata'sı)
 // ---------------------------------------------------------------------------------------------
 
-async function resolveImage(candidate) {
+// wantArticleText: makalenin İLK PARAGRAFLARI da alınsın mı (bkz. gundemArticleText.js). Feed
+// açıklaması tek başına yeterliyse (adequacy 'rich') istenmez — ek bir ayrıştırma maliyeti
+// ödemenin anlamı yok.
+async function resolveImage(candidate, { wantArticleText = false } = {}) {
   const source = candidate.source;
   const fromFeed = normalizeImageUrl(candidate.image, candidate.link);
   if (fromFeed && isAllowedImageHost(fromFeed, source)) {
-    return { image: fromFeed, canonical: null, extraExcerpt: '', finalUrl: null };
+    // GÖRSEL FEED'DEN GELDİ — eskiden sayfa HİÇ açılmıyordu ve modele yalnızca feed'in bir-iki
+    // cümlelik açıklaması gidiyordu. Kullanıcı isteği (2026-09-13) tam olarak bunu değiştiriyor:
+    // "içeriklerin başlıklarını ve metinlerini ... YENİDEN KAYNAKLARDAN ÇEK". Sayfa yalnızca
+    // METİN için ve yalnızca feed açıklaması yetersizse açılır; başarısız olursa (404, zaman
+    // aşımı, HTML değil) aday ELENMEZ, eski davranışla devam eder.
+    if (!wantArticleText) {
+      return { image: fromFeed, canonical: null, extraExcerpt: '', articleText: '', finalUrl: null };
+    }
+    try {
+      const meta = await fetchPageMeta(candidate.link, { withArticleText: true });
+      return {
+        image: fromFeed,
+        canonical: meta.canonical ? normalizeSourceUrl(meta.canonical) : null,
+        extraExcerpt: meta.description || '',
+        articleText: meta.articleText || '',
+        finalUrl: meta.finalUrl || null,
+        sourcePublishedAt: meta.publishedAt || null,
+      };
+    } catch {
+      return { image: fromFeed, canonical: null, extraExcerpt: '', articleText: '', finalUrl: null };
+    }
   }
   if (source.imageStrategy !== 'og') return { image: null };
-  // Yalnızca <head> önizleme metadata'sı okunur — gövde değil (bkz. gundemFeed.js#extractPageMeta).
-  const meta = await fetchPageMeta(candidate.link);
+  // Sayfa görsel için ZATEN indiriliyor; gövde metnini de aynı indirmeden çıkarmak EK BİR AĞ
+  // İSTEĞİ DEĞİLDİR (bkz. gundemFeed.js#fetchPageMeta).
+  const meta = await fetchPageMeta(candidate.link, { withArticleText: wantArticleText });
   const image = meta.image && isAllowedImageHost(meta.image, source) ? meta.image : null;
   return {
     image,
     canonical: meta.canonical ? normalizeSourceUrl(meta.canonical) : null,
     extraExcerpt: meta.description || '',
+    articleText: meta.articleText || '',
     finalUrl: meta.finalUrl || null,
     sourcePublishedAt: meta.publishedAt || null,
   };
@@ -437,9 +462,19 @@ async function publishCandidate(env, candidate, ctx) {
   const stats = ctx.stats;
 
   // --- GÖRSEL DOĞRULAMA (AI'den ÖNCE — elenecek içerik için AI harcanmaz) -----------------------
+  // Feed'in kendi açıklaması TEK BAŞINA yeterli mi? Değilse (tipik durum) makalenin gövdesi de
+  // istenir. Ölçüm yapılmadan istemek gereksiz iş olurdu: bazı Türkçe kaynaklar feed'de tam metni
+  // veriyor.
+  const feedOnly = buildSourceText([candidate.excerpt], { maxChars: SOURCE_TEXT_MAX_CHARS });
+  // Tur bütçesinin son çeyreğinde gövde çekilmez: 120sn'lik bütçenin sonunda bir sayfa daha
+  // indirmek, o adayın AI çağrısına yer kalmamasına — yani içeriğin HİÇ yayınlanmamasına — yol
+  // açabilir (bkz. GUNDEM_LIMITS.runBudgetMs).
+  const timeLeftOk = typeof ctx.timeLeftMs !== 'function' || ctx.timeLeftMs() > 30000;
+  const wantArticleText = feedOnly.adequacy !== 'rich' && timeLeftOk;
+
   let resolved;
   try {
-    resolved = await resolveImage(candidate);
+    resolved = await resolveImage(candidate, { wantArticleText });
   } catch (err) {
     stats.skipped.image_fetch_failed = (stats.skipped.image_fetch_failed || 0) + 1;
     noteSkip(stats, source.id, 'image_fetch_failed');
@@ -473,7 +508,14 @@ async function publishCandidate(env, candidate, ctx) {
   // eklemez, cümle sınırında kırpar ve metnin YETERLİLİĞİNİ ölçer — o ölçü hem promptun özet
   // uzunluk hedefini hem kalite kapısının kabul tabanını belirler (kısa kaynakta uzun özet
   // istemek modeli uydurmaya zorluyordu).
-  const sourceText = buildSourceText([candidate.excerpt, resolved.extraExcerpt], { maxChars: EXCERPT_MAX_CHARS });
+  //
+  // ÜÇÜNCÜ PARÇA (2026-09-13): makalenin kendi gövdesinden alınan ilk paragraflar. Parçalar ÖNEM
+  // SIRASINDA verilir; gövde metni en SONA konur, çünkü buildSourceText örtüşen parçayı atarken
+  // ilk gelen parçayı korur ve feed açıklaması genellikle makalenin giriş cümlesidir — sıralama
+  // ters olsaydı o giriş iki kez yazılmış olurdu. Gövde metni sayesinde adequacy artık gerçekten
+  // 'rich' olabiliyor; bu da hem promptun özet hedefini (50-100 kelime) hem kalite kapısının
+  // kabul tabanını yukarı taşır.
+  const sourceText = buildSourceText([candidate.excerpt, resolved.extraExcerpt, resolved.articleText], { maxChars: SOURCE_TEXT_MAX_CHARS });
   const excerptForAi = sourceText.text;
   const sourcePublishedAt = candidate.publishedAt || resolved.sourcePublishedAt || null;
   // Yayın yılı, çıktıda geçmesi MEŞRU bir sayıdır (fact-check sayı kapısı aksi halde kaynağın
@@ -921,6 +963,9 @@ async function runGundemIngestionInner(env, deps, options = {}) {
     // kaynak sağlığı 13/13 "başarılı" göründüğü için sessiz bir bozulmaydı. Değer, kapsamı olan
     // TEK yerden (burası) ctx ile taşınır.
     ingestMode: options.ingestMode || 'cron',
+    // Turun kalan duvar-saati. publishCandidate, makale gövdesini çekip çekmeyeceğine buna
+    // bakarak karar verir (bütçenin sonunda ek indirme yapılmaz).
+    timeLeftMs: () => runBudgetMs - (Date.now() - startedAt),
   };
 
   const perSourcePublished = new Map();
