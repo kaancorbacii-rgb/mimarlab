@@ -10,6 +10,47 @@
 // mount edilir — hiçbir script footer elemanlarına erken erişmiyor.
 (function(){
   // ---------------------------------------------------------------------------------------------
+  // DİL KATMANI ÖNYÜKLEYİCİSİ (kullanıcı isteği, 2026-09-13 madde 1)
+  // ---------------------------------------------------------------------------------------------
+  // Asıl çevirici js/translate.js'te; burada YALNIZCA iki şey var: dili okumak ve çeviriciyi
+  // gerektiğinde indirmek.
+  //
+  // NEDEN BU DOSYADA (site-chrome.js): sitedeki 32 HTML sayfasının HEPSİNDE SENKRON yükleniyor
+  // (bkz. dosya başındaki aynı gerekçe). Dil tercihi 'en' ise çeviriciyi burada, ayrıştırma
+  // sırasında kuyruğa almak, onu deferred auth-nav.js'te beklemekten belirgin biçimde erken
+  // başlatır — yani kullanıcının gördüğü "önce Türkçe, sonra İngilizce" titremesi kısalır.
+  // (Titreme tamamen yok edilemez: çeviri sunucuya gidip gelen bir işlem, SSR'da yapılmıyor.)
+  //
+  // TÜRKÇE ZİYARETÇİ HİÇBİR ŞEY ÖDEMEZ: aşağıdaki koşul false ise ne istek atılır ne bayt indirilir.
+  var LANG_KEY = 'mimarlab-lang';
+  function currentLang(){
+    var v = null;
+    try { v = localStorage.getItem(LANG_KEY); } catch(_){}
+    if(!v){
+      var m = document.cookie.match(/(?:^|;\s*)ml_lang=([^;]+)/);
+      if(m) v = decodeURIComponent(m[1]);
+    }
+    return (v === 'en' || v === 'tr') ? v : 'tr';
+  }
+  var translatorPromise = null;
+  function ensureTranslator(){
+    if(window.MLTranslate) return Promise.resolve(window.MLTranslate);
+    if(translatorPromise) return translatorPromise;
+    translatorPromise = new Promise(function(resolve, reject){
+      var s = document.createElement('script');
+      s.src = '/js/translate.js';
+      s.defer = true;
+      s.onload = function(){ window.MLTranslate ? resolve(window.MLTranslate) : reject(new Error('translate_missing')); };
+      s.onerror = function(){ translatorPromise = null; reject(new Error('translate_load_failed')); };
+      (document.head || document.documentElement).appendChild(s);
+    });
+    return translatorPromise;
+  }
+  window.mlCurrentLang = currentLang;
+  window.mlEnsureTranslator = ensureTranslator;
+  if(currentLang() === 'en') ensureTranslator().catch(function(){});
+
+  // ---------------------------------------------------------------------------------------------
   // UNICODE NFC NORMALİZASYONU — SİTE GENELİ METİN GİRİŞİ (kullanıcı isteği, 2026-09-10:
   // "doçem yazınca çıkmıyor ama docem yazınca çıkıyor ... kökten çöz").
   //

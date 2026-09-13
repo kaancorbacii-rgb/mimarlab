@@ -502,7 +502,87 @@
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important; scroll-behavior:auto !important;}
   }
-</style>
+
+  /* ============================================================================================
+     SENİN İÇİN (kullanıcı isteği, 2026-09-13 madde 2: "Ana sayfada carosellerden sonra 'Senin İçin'
+     … ama sadece giriş yapan kullanıcılar için. Giriş yapmayanlar için … 'Kişiselleştirilmiş bir Ana
+     Sayfa görünümü için Giriş Yap.' gibi bir uyarı").
+
+     GENİŞLİK .bento-grid İLE AYNI (1000px + 32px yan padding) — karusel sisteminin sağ/sol kenarıyla
+     hizalanması için. Ayrı bir genişlik seçmek iki bloğun kenarını görünür biçimde ayrıştırırdı.
+
+     KUTU BAŞLANGIÇTA GİZLİ DEĞİL, İSKELETLİ: giriş durumunu ancak /api/foryou 401 mi 200 mü
+     döndürdüğünde biliyoruz. Bölümü gizleyip sonradan açmak sayfanın altında görünür bir sıçrama
+     yaratırdı; iskelet kartlar aynı yüksekliği baştan ayırır (js/components/site-chrome.js'teki
+     .ml-skel deseninin AYNISI).
+     ============================================================================================ */
+  .foryou{max-width:1000px; margin:0 auto; padding:0 32px 64px;}
+  .foryou-head{margin-bottom:18px;}
+  .foryou-head h2{
+    margin:0; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size:22px; font-weight:800; letter-spacing:-0.01em; color:var(--ink);
+  }
+  .foryou-sub{margin:5px 0 0; font-size:13.5px; color:var(--ink-soft);}
+  .foryou-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:16px;}
+  .foryou-card{
+    display:flex; flex-direction:column; gap:9px;
+    text-decoration:none; color:inherit; border-radius:14px;
+  }
+  .foryou-card:focus-visible{outline:2px solid var(--brass); outline-offset:3px;}
+  .foryou-thumb{
+    position:relative; width:100%; aspect-ratio:4/3; border-radius:14px; overflow:hidden;
+    background:var(--paper-alt);
+  }
+  .foryou-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .foryou-reason{
+    align-self:flex-start; max-width:100%; font-size:10.5px; font-weight:700;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--brass);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .foryou-title{
+    margin:0; font-size:14.5px; font-weight:700; line-height:1.3; color:var(--ink);
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .foryou-meta{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .foryou-card:hover .foryou-title{text-decoration:underline;}
+
+  /* Giriş yapmamış ziyaretçinin gördüğü tek kutu. Karusellerin hemen altında durduğu için kart
+     ızgarasıyla AYNI köşe yarıçapı ve yüzey rengi — ayrı bir görsel dil kullanmak burayı reklam
+     bandı gibi gösterirdi. */
+  .foryou-cta{
+    display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:16px; padding:22px 24px;
+  }
+  .foryou-cta-text{font-size:14.5px; font-weight:600; color:var(--ink); max-width:60ch;}
+  .foryou-cta-text span{display:block; margin-top:4px; font-size:13px; font-weight:500; color:var(--ink-soft);}
+  .foryou-cta-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .foryou-cta-btn{
+    display:inline-block; padding:10px 20px; border-radius:100px; text-decoration:none;
+    font-size:13.5px; font-weight:700; background:var(--ink); color:var(--paper-card);
+    border:1px solid var(--ink);
+  }
+  .foryou-cta-btn:hover{background:var(--walnut); border-color:var(--walnut);}
+  .foryou-cta-btn.secondary{background:transparent; color:var(--ink); border-color:var(--line);}
+  .foryou-cta-btn.secondary:hover{background:var(--paper-alt); color:var(--ink);}
+
+  .foryou-skel{display:block; border-radius:14px; aspect-ratio:4/3;
+    background:linear-gradient(100deg, rgba(0,0,0,.05) 30%, rgba(0,0,0,.09) 50%, rgba(0,0,0,.05) 70%);
+    background-size:200% 100%; animation:foryou-skel 1.2s ease-in-out infinite;}
+  @keyframes foryou-skel{0%{background-position:120% 0} 100%{background-position:-80% 0}}
+  @media (prefers-reduced-motion:reduce){.foryou-skel{animation:none;}}
+
+  @media (max-width:960px){
+    .foryou{padding:0 18px 48px;}
+    .foryou-grid{grid-template-columns:repeat(3, 1fr); gap:14px;}
+  }
+  @media (max-width:640px){
+    .foryou-grid{grid-template-columns:repeat(2, 1fr); gap:12px;}
+    .foryou-head h2{font-size:19px;}
+    .foryou-cta{padding:18px;}
+  }
+
+  </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -623,6 +703,23 @@
         <button class="slider-arrow next" id="gundem-next" type="button" aria-label="Sonraki gündem içeriği">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SENİN İÇİN — karusellerin hemen ardından, footer'dan önce (kullanıcı isteği, 2026-09-13
+       madde 2). İçeriği TAMAMEN JS'ten gelir (bkz. loadForYou): giriş yapan üye kişiselleştirilmiş
+       kartları, giriş yapmayan ziyaretçi tek bir giriş çağrısı kutusunu görür. Sunucu tarafı karar
+       /api/foryou'nun 200/401'idir — istemcide ayrı bir oturum kontrolü kopyalanmaz. -->
+  <section class="foryou" id="foryou-section" aria-labelledby="foryou-title">
+    <div class="foryou-head">
+      <h2 id="foryou-title">Senin İçin</h2>
+      <p class="foryou-sub" id="foryou-sub">Hazırlanıyor…</p>
+    </div>
+    <div id="foryou-body">
+      <div class="foryou-grid">
+        <span class="foryou-skel"></span><span class="foryou-skel"></span>
+        <span class="foryou-skel"></span><span class="foryou-skel"></span>
       </div>
     </div>
   </section>
@@ -1286,6 +1383,99 @@ if(HOME_SSR){
     else window.addEventListener('load', refresh, { once: true });
   }
 }
+
+// ===============================================================================================
+// SENİN İÇİN (kullanıcı isteği, 2026-09-13 madde 2)
+// ===============================================================================================
+// Uç: GET /api/foryou (bkz. src/routes/forYou.js). Oturum kararı TAMAMEN SUNUCUDA:
+//   200 -> kişiselleştirilmiş kartlar
+//   401 -> giriş çağrısı kutusu
+// İstemcide ayrı bir "giriş yapmış mı?" kontrolü KOPYALANMAZ — auth-modal.js/auth-nav.js'in
+// oturum durumu ile bu bloğun gördüğü durum böylece hiçbir zaman ayrışamaz.
+//
+// KRİTİK YOLUN DIŞINDA: karuseller (loadHomeSections) sayfanın görünen kısmı; bu blok ekranın
+// altında. Bu yüzden yükleme 'load' olayından SONRA başlar ve karusel isteklerinin bant genişliğiyle
+// yarışmaz. İskelet kartlar o ana kadar aynı yüksekliği tutar, yani sıçrama olmaz.
+const FORYOU_LIMIT = 12;
+let foryouStarted = false;
+
+function foryouCardHtml(item, i){
+  const img = item.image
+    ? `<img src="${escapeAttr(cdnImg(item.image, 600))}"${cdnSrcset(item.image, [400, 600, 800]) ? ` srcset="${escapeAttr(cdnSrcset(item.image, [400, 600, 800]))}" sizes="(max-width: 640px) 45vw, (max-width: 960px) 30vw, 230px"` : ''} alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">`
+    : '';
+  return `<a class="foryou-card" href="${escapeAttr(item.href)}">
+    <span class="foryou-thumb">${img}</span>
+    ${item.reason ? `<span class="foryou-reason">${escapeHtml(item.reason)}</span>` : ''}
+    <h3 class="foryou-title">${escapeHtml(item.title)}</h3>
+    ${item.subtitle ? `<span class="foryou-meta">${escapeHtml(item.subtitle)}</span>` : ''}
+  </a>`;
+}
+
+function renderForYouCta(){
+  const sub = document.getElementById('foryou-sub');
+  const body = document.getElementById('foryou-body');
+  if(!body) return;
+  if(sub) sub.textContent = 'Takip ettiklerin ve kaydettiklerin buraya bir akış olarak gelir.';
+  body.innerHTML = `<div class="foryou-cta">
+    <div class="foryou-cta-text">Kişiselleştirilmiş bir Ana Sayfa görünümü için Giriş Yap.
+      <span>Takip ettiğin kişi ve firmaların yeni projeleri, kaydettiklerine benzer içerikler burada toplanır.</span>
+    </div>
+    <div class="foryou-cta-actions">
+      <a class="foryou-cta-btn" href="/giris">Giriş Yap</a>
+      <a class="foryou-cta-btn secondary" href="/uye-ol">Üye Ol</a>
+    </div>
+  </div>`;
+}
+
+async function loadForYou(){
+  const section = document.getElementById('foryou-section');
+  const body = document.getElementById('foryou-body');
+  const sub = document.getElementById('foryou-sub');
+  if(!section || !body) return;
+
+  let res;
+  try {
+    res = await fetch('/api/foryou?limit=' + FORYOU_LIMIT, { cache: 'no-store' });
+  } catch {
+    // Ağ hatası: yarım bir kutu göstermektense bölümü tamamen kaldır. Ana sayfanın geri kalanı
+    // (karuseller) bundan etkilenmez.
+    section.remove();
+    return;
+  }
+
+  if(res.status === 401){ renderForYouCta(); return; }
+  if(!res.ok){ section.remove(); return; }
+
+  let data = null;
+  try { data = await res.json(); } catch { section.remove(); return; }
+  const items = (data && Array.isArray(data.items)) ? data.items : [];
+  if(!items.length){ section.remove(); return; }
+
+  // Alt yazı, kutunun GERÇEKTEN kişiselleştirilmiş olup olmadığını söyler (bkz. forYou.js'teki
+  // `personalized` bayrağı). Henüz hiç takip/kaydetme yapmamış bir üyeye "senin için seçtik"
+  // demek dürüst olmazdı — ona ne yapması gerektiği söylenir.
+  if(sub){
+    sub.textContent = data.personalized
+      ? 'Takip ettiklerin ve kaydettiklerinden yola çıkarak derledik.'
+      : 'Takip etmeye ve kaydetmeye başladıkça bu liste sana göre şekillenir.';
+  }
+  body.innerHTML = `<div class="foryou-grid">${items.map(foryouCardHtml).join('')}</div>`;
+}
+
+function startForYou(){
+  if(foryouStarted) return;
+  foryouStarted = true;
+  loadForYou().catch(() => {});
+}
+if(document.readyState === 'complete') startForYou();
+else window.addEventListener('load', startForYou, { once: true });
+
+// Modal içinden giriş yapıldığında sayfa YENİLENMİYOR (bkz. auth-nav.js'in dosya sonundaki not) —
+// o yüzden giriş çağrısı kutusunun yerini gerçek akışın alması için bu olayı dinliyoruz.
+document.addEventListener('mimarlab:authchange', () => {
+  foryouStarted = false;
+  startForYou();
+});
 </script>
 
 </body>

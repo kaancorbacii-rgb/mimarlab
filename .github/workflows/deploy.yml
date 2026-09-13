@@ -125,6 +125,27 @@ jobs:
       - name: Wrangler kimlik doğrulaması
         run: npx wrangler whoami
 
+      # D1 ŞEMASI — ÇEVİRİ ÖNBELLEĞİ TABLOSU (kullanıcı isteği, 2026-09-13 madde 1).
+      #
+      # NEDEN BU ADIM VAR: bu depoda migration'lar otomatik uygulanmıyor, elle
+      # `wrangler d1 execute --remote --file=...` ile atılıyor (bkz. docs/architecture-roadmap.md).
+      # Ama `translations` tablosunu oluşturan 0117, KODLA BİRLİKTE canlıya çıkmak zorunda: tablo
+      # yoksa /api/translate önbelleğe yazamaz, bu yüzden hiçbir çeviri yapmaz (bkz.
+      # src/lib/translateStore.js#lookupTranslations'ın null dalı) ve üst çubuktaki EN düğmesi
+      # görünür ama işlevsiz olurdu. Uzak (web/telefon) oturumun Cloudflare'e ağ erişimi olmadığı
+      # için bu komut oradan çalıştırılamıyor — çalıştırılabildiği tek yer bu runner.
+      #
+      # HER DEPLOY'DA ÇALIŞIR VE BU GÜVENLİDİR: dosyadaki iki ifade de CREATE ... IF NOT EXISTS,
+      # yani tablo/indeks varsa hiçbir şey yapmaz, veri SİLMEZ, şema DEĞİŞTİRMEZ. Kendi kendini
+      # onarır: tablo herhangi bir sebeple kaybolursa bir sonraki deploy geri getirir.
+      #
+      # KAPSAM BİLEREK TEK DOSYA: "migrations/ altındaki her şeyi uygula" demek, hangi
+      # migration'ların canlıda uygulandığı KAYITLI OLMADIĞI için (bu depoda bir migration tablosu
+      # yok) yıkıcı olabilirdi — 0025 gibi DROP içeren ya da varsayımları artık geçersiz dosyalar
+      # var. Yeni bir migration eklendiğinde bu adım OTOMATİK kapsamaz; bilinçli olarak eklenmeli.
+      - name: D1 şeması — çeviri önbelleği tablosu (idempotent)
+        run: npx wrangler d1 execute mimarlab-db --remote --yes --file=migrations/0117_translations.sql
+
       # TEK YAYIN YOLU (bkz. CLAUDE.md): kapılar + preflight + deploy + health-check + smoke-test.
       - name: ./deploy.sh
         # Not, kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak geçer: kullanıcı girdisini

@@ -129,7 +129,18 @@ test('HİÇBİR breakpoint şablonu yeniden dizmiyor (tablet/mobil de aynı sist
     assert.ok(!new RegExp(`\\.${cls}\\{aspect-ratio`).test(indexHtml), `.${cls} kendi aspect-ratio'sunu taşıyor`);
   }
   // .proje-slider'ın oranı da tek yerde (taban kural) durmalı.
-  assert.equal((indexHtml.match(/aspect-ratio:4\/3;/g) || []).length, 1, '.proje-slider oranı birden fazla yerde tanımlı');
+  //
+  // KAPSAM DÜZELTMESİ (2026-09-13): bu iddia eskiden index.html'in TAMAMINDA `aspect-ratio:4/3;`
+  // dizesini sayıyordu ve "tam 1" bekliyordu. O kestirme yalnızca sayfada başka hiçbir 4/3 kutu
+  // YOKKEN doğru sonucu veriyordu; "Senin İçin" bloğunun kart görselleri de 4/3 olunca (bkz.
+  // index.html#.foryou-thumb / .foryou-skel) iddia, .proje-slider'da HİÇBİR ŞEY değişmemiş olmasına
+  // rağmen kırıldı — yani testin ölçtüğü şey ile söylediği şey ayrışmıştı. Artık sayım gerçekten
+  // .proje-slider kurallarıyla sınırlı: bu bloğun üstündeki .bento-grid kuralları için kullanılan
+  // desenin AYNISI.
+  const sliderRules = [...indexHtml.matchAll(/\.proje-slider\{([\s\S]*?)\}/g)].map(m => m[1]);
+  assert.ok(sliderRules.length >= 1, '.proje-slider kuralı bulunamadı');
+  const ratioRules = sliderRules.filter(r => r.includes('aspect-ratio')).length;
+  assert.equal(ratioRules, 1, `.proje-slider oranı ${ratioRules} kuralda tanımlı — tek yerde durmalı`);
   assert.ok(!indexHtml.includes('aspect-ratio:16/11'), 'eski mobil proje oranı (16/11) hâlâ duruyor');
 });
 

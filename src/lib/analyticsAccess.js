@@ -43,17 +43,40 @@ export async function hasAnalyticsAccess(env, userId) {
 //
 // SORGU SAYISI: sabit 4 (claims, profiller, projeler, ürünler) — sahiplenilen profil/proje sayısı ne
 // olursa olsun N+1'e dönüşmez.
-export async function resolveOwnedSubjects(env, userId) {
+// KAPSAM (kullanıcı isteği, 2026-09-13 madde 3: "İstatistikler kısmına 1- Profilim için
+// 2- Firmam / Markam için şeklinde iki seçenek koy").
+//
+//   'self'   — YALNIZCA kişi (architect) profili: o profilin görüntülenmeleri, o kişiye doğrudan
+//              bağlı (claimed_by_user_id) ya da künyesinde o mimar geçen içerikler.
+//   'office' — YALNIZCA firma/marka (office) profili: firmanın görüntülenmeleri, künyesinde o firma
+//              geçen projeler ve markası o firma olan ürünler.
+//   'all'    — eski birleşik davranış. Artık UI'dan ÇAĞRILMIYOR; imza uyumluluğu ve olası
+//              admin/denetim kullanımları için korunuyor.
+//
+// NEDEN claimed_by_user_id KAPSAMA BAĞLI: bir üyenin KENDİ hesabına bağladığı proje kişisel
+// içeriğidir. 'office' kapsamında da sayılsaydı, firma raporu kurucunun kişisel projelerini de
+// içerir ve iki sekme aynı sayıyı gösterirdi — yani ayrım anlamsızlaşırdı. Aşağıda userId,
+// kapsam 'office' iken SQL'e null geçilir: `p.claimed_by_user_id = NULL` hiçbir satırla eşleşmez
+// (SQL'de NULL karşılaştırması UNKNOWN'dır), yani o dal doğal olarak kapanır.
+export const ANALYTICS_SCOPES = new Set(['self', 'office', 'all']);
+
+export async function resolveOwnedSubjects(env, userId, scope = 'all') {
   const claims = await env.DB.prepare(
     `SELECT profile_type, profile_key FROM profile_claims WHERE user_id = ? AND status = 'approved'`
   ).bind(userId).all();
 
-  const architectNames = [];
-  const officeNames = [];
+  const allArchitectNames = [];
+  const allOfficeNames = [];
   for (const c of claims.results || []) {
-    if (c.profile_type === 'architect') architectNames.push(c.profile_key);
-    else if (c.profile_type === 'office') officeNames.push(c.profile_key);
+    if (c.profile_type === 'architect') allArchitectNames.push(c.profile_key);
+    else if (c.profile_type === 'office') allOfficeNames.push(c.profile_key);
   }
+
+  const wantSelf = scope === 'self' || scope === 'all';
+  const wantOffice = scope === 'office' || scope === 'all';
+  const architectNames = wantSelf ? allArchitectNames : [];
+  const officeNames = wantOffice ? allOfficeNames : [];
+  const scopedUserId = wantSelf ? userId : null;
 
   const architects = await rowsByName(env, 'architects', architectNames);
   const offices = await rowsByName(env, 'offices', officeNames);
@@ -63,7 +86,7 @@ export async function resolveOwnedSubjects(env, userId) {
   // Projeler: (a) doğrudan bu hesaba bağlı (claimed_by_user_id) VEYA (b) künyesinde sahiplenilen
   // mimar/firma profili geçen projeler — kişi/firma pop-up'ındaki "Projeler" bölümüyle AYNI kenar
   // (project_designers), yani kullanıcının sitede "benim projem" olarak gördüğü kümeyle birebir.
-  const projectSlugs = await ownedSlugs(env, 'projects', userId, architectIds, officeIds, `
+  const projectSlugs = await ownedSlugs(env, 'projects', scopedUserId, architectIds, officeIds, `
     SELECT DISTINCT p.slug FROM projects p
     LEFT JOIN project_designers pd ON pd.project_id = p.id
     WHERE p.deleted_at IS NULL AND (
@@ -76,7 +99,7 @@ export async function resolveOwnedSubjects(env, userId) {
   // (brand_office_id, ya da toplu/legacy kayıtlarda marka ADI eşleşmesi — src/routes/office.js#
   // relatedProducts ile AYNI iki dallı kural).
   const officeNamesJson = JSON.stringify(offices.map(r => r.name));
-  const productSlugs = await ownedSlugs(env, 'products', userId, architectIds, officeIds, `
+  const productSlugs = await ownedSlugs(env, 'products', scopedUserId, architectIds, officeIds, `
     SELECT DISTINCT pr.slug FROM products pr
     WHERE pr.deleted_at IS NULL AND (
       pr.claimed_by_user_id = ?1
@@ -90,9 +113,18 @@ export async function resolveOwnedSubjects(env, userId) {
     projectSlugs,
     productSlugs,
     // Mesaj metrikleri profile_claims üzerinden çözülür (message_threads profile_type+profile_key
-    // ile yazılır, slug ile değil) — bu yüzden HAM isimler de döner.
+    // ile yazılır, slug ile değil) — bu yüzden HAM isimler de döner. KAPSAMA GÖRE filtrelenmiş
+    // hâlleridir: 'office' kapsamında architectNames boştur, yani kişisel mesajlar firma raporuna
+    // sızmaz.
     architectNames,
     officeNames,
+    // Kapsam SEÇİCİSİ için: kullanıcının hangi sekmelere gerçekten verisi var? Kapsamdan BAĞIMSIZ,
+    // her zaman tüm claim'lere bakar — UI olmayan sekmeyi gizleyebilsin (bkz. auth-modal.js
+    // #renderStatsScope). Tek bir profili olan üyeye iki sekme göstermek boş bir sekme demekti.
+    available: {
+      self: allArchitectNames.length > 0,
+      office: allOfficeNames.length > 0,
+    },
   };
 }
 

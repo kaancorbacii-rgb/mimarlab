@@ -9,7 +9,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { slugify } from '../lib/slugify.js';
-import { hasAnalyticsAccess, resolveOwnedSubjects } from '../lib/analyticsAccess.js';
+import { hasAnalyticsAccess, resolveOwnedSubjects, ANALYTICS_SCOPES } from '../lib/analyticsAccess.js';
 // bkz. src/routes/follows.js/office.js'teki AYNI CJS-interop deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
 
@@ -123,7 +123,13 @@ async function summary(request, env, url) {
   const since = range.days ? utcDay(now - (range.days - 1) * 86_400_000) : '1970-01-01';
   const sinceMs = range.days ? Date.parse(since + 'T00:00:00Z') : 0;
 
-  const owned = await resolveOwnedSubjects(env, user.id);
+  // KAPSAM (kullanıcı isteği, 2026-09-13 madde 3) — 'self' (Profilim) | 'office' (Firmam / Markam).
+  // Varsayılan 'self': seçicide ilk sıradaki sekme. Bilinmeyen/eksik değer sessizce 'self'e düşer;
+  // 'all' (eski birleşik davranış) UI'dan gelmez ama API'de geçerli kalır.
+  const scopeRaw = url.searchParams.get('scope') || 'self';
+  const scope = ANALYTICS_SCOPES.has(scopeRaw) ? scopeRaw : 'self';
+
+  const owned = await resolveOwnedSubjects(env, user.id, scope);
   // Profil anahtarları İKİ biçimde aranır: canonical `slug` (analytics_daily ve URL'ler bunu
   // kullanır) ve slugify(name) (saved_items/follows tarihsel olarak bunu yazmış — canlıda
   // doğrulandı: item_key 'emre-arolat'). İkisi çoğu profilde aynıdır; farklı olduğu satırlar
@@ -205,8 +211,11 @@ async function summary(request, env, url) {
         `SELECT COUNT(*) AS total, COUNT(DISTINCT m.sender_user_id) AS senders
          FROM messages m
          JOIN message_thread_recipients r ON r.thread_id = m.thread_id
-         WHERE r.user_id = ?1 AND m.sender_user_id != ?1 AND m.created_at >= ?2`
-      ).bind(user.id, sinceMs),
+         JOIN message_threads th ON th.id = m.thread_id
+         WHERE r.user_id = ?1 AND m.sender_user_id != ?1 AND m.created_at >= ?2
+           AND ((th.profile_type = 'architect' AND th.profile_key IN (SELECT value FROM json_each(?3)))
+             OR (th.profile_type = 'office'    AND th.profile_key IN (SELECT value FROM json_each(?4))))`
+      ).bind(user.id, sinceMs, J(owned.architectNames), J(owned.officeNames)),
       // 8) Gönderenlerin ANONİM meslek/kurum dağılımı — kimlik döndürülmez, yalnızca kova sayıları.
       //    profession users tablosundan, kurum türü ise gönderenin ONAYLI firma talebindeki firmanın
       //    `cats` alanından çözülür (bkz. aşağıdaki isPureBrandOffice sınıflandırması).
@@ -214,9 +223,12 @@ async function summary(request, env, url) {
         `SELECT DISTINCT m.sender_user_id AS uid, u.profession AS profession
          FROM messages m
          JOIN message_thread_recipients r ON r.thread_id = m.thread_id
+         JOIN message_threads th ON th.id = m.thread_id
          JOIN users u ON u.id = m.sender_user_id
-         WHERE r.user_id = ?1 AND m.sender_user_id != ?1 AND m.created_at >= ?2`
-      ).bind(user.id, sinceMs),
+         WHERE r.user_id = ?1 AND m.sender_user_id != ?1 AND m.created_at >= ?2
+           AND ((th.profile_type = 'architect' AND th.profile_key IN (SELECT value FROM json_each(?3)))
+             OR (th.profile_type = 'office'    AND th.profile_key IN (SELECT value FROM json_each(?4))))`
+      ).bind(user.id, sinceMs, J(owned.architectNames), J(owned.officeNames)),
       // 9) Görüntülenme sayacının GERÇEKTEN ne zaman başladığı — UI "bu tarihten beri toplanıyor"
       //    notunu bundan yazar (özellik yeni açıldığı için eski dönemlerde view verisi YOKTUR ve
       //    bunu gizlemek yanıltıcı olurdu).
@@ -257,6 +269,10 @@ async function summary(request, env, url) {
 
   return json({
     range: rangeKey,
+    // Hangi kapsamın raporu bu, ve kullanıcının hangi kapsamlara gerçekten verisi var. İstemci
+    // seçiciyi buradan çizer — sahiplenmediği bir profil için boş sekme göstermez.
+    scope,
+    availableScopes: owned.available,
     since: range.days ? since : null,
     granularity: range.granularity,
     hasOwnedContent: !!hasAnything,

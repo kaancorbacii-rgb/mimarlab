@@ -283,6 +283,18 @@ const AuthModal = (function () {
     }
     #am-panel .stat-range-btn:hover{border-color:var(--brass); color:var(--ink);}
     #am-panel .stat-range-btn.active{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+    /* KAPSAM SEÇİCİ (kullanıcı isteği, 2026-09-13 madde 3: "1- Profilim için 2- Firmam / Markam
+       için"). Dönem seçiciden GÖRSEL OLARAK AYRI tutuldu: dönem bir filtre (aynı verinin dilimi),
+       kapsam ise HANGİ VERİ olduğunu değiştirir — ikisi aynı görünseydi kullanıcı bunları eşdeğer
+       iki filtre sanardı. Bu yüzden kapsam bir sekme şeridi (alt çizgili), dönem ise hap düğme. */
+    #am-panel .stat-scope{display:flex; flex-wrap:wrap; gap:18px; border-bottom:1px solid var(--line); margin:2px 0 14px;}
+    #am-panel .stat-scope-btn{
+      background:none; border:none; border-bottom:2px solid transparent; border-radius:0;
+      padding:0 0 9px; margin-bottom:-1px; font-family:inherit; font-size:13px; font-weight:600;
+      color:var(--ink-soft); cursor:pointer; transition:color .15s, border-color .15s;
+    }
+    #am-panel .stat-scope-btn:hover{color:var(--ink);}
+    #am-panel .stat-scope-btn.active{color:var(--ink); border-bottom-color:var(--ink);}
     #am-panel .stat-group{margin-top:18px;}
     #am-panel .stat-group:first-child{margin-top:4px;}
     #am-panel .stat-group-title{font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--sage); margin:0 0 10px;}
@@ -1491,6 +1503,14 @@ const AuthModal = (function () {
             </div>
           </div>
           <div class="dash-collapse-body" id="am-stats-collapse" hidden>
+            <!-- KAPSAM SEÇİCİ (kullanıcı isteği, 2026-09-13 madde 3). Kutunun İÇİNDE durur (dönem
+                 seçici gibi başlık satırında DEĞİL): başlık satırı mobilde zaten dönem hapları ile
+                 doluyor, ikinci bir şerit oraya sığmıyordu. Hangi sekmelerin görüneceğine SUNUCU
+                 karar verir (availableScopes) — sahiplenilmemiş bir profilin sekmesi hiç çizilmez. -->
+            <div class="stat-scope" id="am-stats-scope" role="tablist" aria-label="İstatistik kapsamı" hidden>
+              <button type="button" class="stat-scope-btn active" data-scope="self" role="tab" aria-selected="true">Profilim için</button>
+              <button type="button" class="stat-scope-btn" data-scope="office" role="tab" aria-selected="false">Firmam / Markam için</button>
+            </div>
             <p class="section-hint" id="am-stats-hint">Profilinin ve içeriklerinin performansı.</p>
             <div id="am-stats-body"><div class="dash-empty">Yükleniyor…</div></div>
           </div>
@@ -4789,6 +4809,12 @@ const AuthModal = (function () {
     // gösterimi analytics_daily sayaçlarından, kaydetme/takip/mesaj metrikleri ise zaten var olan
     // saved_items/follows/messages tablolarından gelir.
     let statsRange = '30d';
+    // KAPSAM (kullanıcı isteği, 2026-09-13 madde 3) — 'self' (Profilim) | 'office' (Firmam / Markam).
+    // Varsayılan 'self'; kullanıcının YALNIZCA firma profili varsa ilk yanıttan sonra bir kez
+    // otomatik olarak 'office'e geçilir (bkz. autoScopeSwitched) — aksi halde yalnızca firması olan
+    // bir marka yöneticisi, açılışta kalıcı olarak BOŞ bir "Profilim" sekmesi görürdü.
+    let statsScope = 'self';
+    let autoScopeSwitched = false;
     let statsSeq = 0;
     async function loadStats() {
       const body = document.getElementById('am-stats-body');
@@ -4797,12 +4823,45 @@ const AuthModal = (function () {
       body.innerHTML = '<div class="dash-empty">Yükleniyor…</div>';
       let data = null;
       try {
-        const res = await fetch('/api/analytics/summary?range=' + encodeURIComponent(statsRange));
+        const res = await fetch('/api/analytics/summary?range=' + encodeURIComponent(statsRange)
+          + '&scope=' + encodeURIComponent(statsScope));
         if (res.ok) data = await res.json();
         else { renderStatsLocked(); return; } // 401/403: Altın Rozet yok
       } catch { renderStatsLocked(); return; }
-      if (mySeq !== statsSeq) return; // daha yeni bir dönem seçimi zaten başladı
+      if (mySeq !== statsSeq) return; // daha yeni bir dönem/kapsam seçimi zaten başladı
+
+      const available = (data && data.availableScopes) || {};
+      // Tek seferlik otomatik geçiş: yalnızca firma/marka profili olan üye.
+      if (!autoScopeSwitched && statsScope === 'self' && !available.self && available.office) {
+        autoScopeSwitched = true;
+        statsScope = 'office';
+        syncScopeButtons(available);
+        return loadStats();
+      }
+      autoScopeSwitched = true;
+      syncScopeButtons(available);
       renderStats(data);
+    }
+
+    // Kapsam şeridi: hangi sekmeler çizilecek ve hangisi etkin. Kullanıcının TEK kapsamı varsa
+    // şerit HİÇ gösterilmez — tek seçenekli bir sekme şeridi kullanıcıya hiçbir şey sunmaz, yalnızca
+    // yer kaplar.
+    function syncScopeButtons(available) {
+      const wrap = document.getElementById('am-stats-scope');
+      const hint = document.getElementById('am-stats-hint');
+      if (!wrap) return;
+      const both = !!(available && available.self && available.office);
+      wrap.hidden = !both;
+      wrap.querySelectorAll('.stat-scope-btn').forEach(btn => {
+        const on = btn.dataset.scope === statsScope;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      if (hint) {
+        hint.textContent = statsScope === 'office'
+          ? 'Firmanın / markanın ve ona bağlı içeriklerin performansı.'
+          : 'Profilinin ve içeriklerinin performansı.';
+      }
     }
 
     // Kilitli (Altın Rozet'i olmayan) üyenin gördüğü içerik. Dönem seçici burada ANLAMSIZ olduğu
@@ -4814,9 +4873,12 @@ const AuthModal = (function () {
       const hint = document.getElementById('am-stats-hint');
       const range = document.getElementById('am-stats-range');
       const toggle = document.querySelector('#am-panel .dash-collapse-toggle[aria-controls="am-stats-collapse"]');
+      const scope = document.getElementById('am-stats-scope');
       if (toggle) toggle.dataset.collapse = 'am-stats-collapse';
       if (range) range.hidden = true;
       if (hint) hint.hidden = true;
+      // Kapsam şeridi de anlamsız: kilitli üyeye gösterilecek hiçbir kapsamın verisi yok.
+      if (scope) scope.hidden = true;
       if (!body) return;
       body.innerHTML = '<div class="dash-empty">Bu özellik Altın Rozeti olan kullanıcılara özeldir, '
         + '<a href="/rozet-al" style="text-decoration:underline;">rozet al sayfasından</a> '
@@ -4950,6 +5012,24 @@ const AuthModal = (function () {
             if (!btn) return;
             statsRange = btn.dataset.range;
             rangeWrap.querySelectorAll('.stat-range-btn').forEach(b => b.classList.toggle('active', b === btn));
+            loadStats();
+          });
+        }
+        const scopeWrap = document.getElementById('am-stats-scope');
+        if (scopeWrap && !scopeWrap.dataset.wired) {
+          scopeWrap.dataset.wired = '1';
+          scopeWrap.addEventListener('click', (e) => {
+            const btn = e.target.closest('.stat-scope-btn');
+            if (!btn || btn.dataset.scope === statsScope) return;
+            statsScope = btn.dataset.scope;
+            // Elle seçim yapıldıysa otomatik geçiş bir daha devreye girmemeli — kullanıcının
+            // seçimi, sunucunun "bu kapsamda verin yok" önerisini ezer.
+            autoScopeSwitched = true;
+            scopeWrap.querySelectorAll('.stat-scope-btn').forEach(b => {
+              const on = b === btn;
+              b.classList.toggle('active', on);
+              b.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
             loadStats();
           });
         }
