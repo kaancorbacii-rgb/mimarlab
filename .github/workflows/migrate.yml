@@ -1,0 +1,130 @@
+name: D1 migration uygula
+
+# TEK BİR D1 MIGRATION DOSYASINI CANLI VERİTABANINA UYGULAR
+# (kullanıcı isteği, 2026-09-13: "migration çalıştırmayı bilmiyorum sen benim yerime yap".)
+#
+# NEDEN WORKFLOW: Claude Code'un uzak (web/telefon) oturumu izole bir konteynerde çalışır ve ağ
+# politikası `api.cloudflare.com` çıkışını reddeder (ölçüldü: CONNECT'e 403), yani o oturumdan
+# `wrangler d1 execute --remote` çalıştırılamaz. Runner'da hem ağ hem kimlik bilgisi var. Aynı
+# gerekçe deploy.yml ve gundem-retitle.yml dosya başlarında da yazılı; bu workflow onların
+# kardeşidir.
+#
+# DEPLOY ZİNCİRİ MIGRATION UYGULAMAZ: `./deploy.sh` yalnızca Worker'ı yayınlar. Şema değişiklikleri
+# bu depoda her zaman AYRI ve BİLİNÇLİ bir adım olmuştur (bkz. docs/architecture-roadmap.md) —
+# bu workflow o adımı otomatikleştirir, deploy'a GİZLİCE EKLEMEZ. Kodun şemadan önce yayınlanması
+# mümkündür ve migration'ın kendi zamanlaması kasıtlı olarak insan kararına bırakılmıştır.
+#
+# GÜVENLİK KAPILARI:
+#   1. Yalnızca `migrations/` altındaki ÇIPLAK bir dosya adı kabul edilir — `/` ya da `..` içeren
+#      girdi reddedilir. Böylece bu workflow "depodaki herhangi bir SQL'i çalıştıran" bir uç
+#      hâline gelmez.
+#   2. VARSAYILAN DRY-RUN: `apply` açıkça `evet` yapılmadıkça D1'e HİÇBİR ŞEY yazılmaz; yalnızca
+#      uygulanacak SQL ve tablonun ŞU ANKİ kolonları raporlanır.
+#   3. Uygulama öncesi ve sonrası kolon listesi log'a basılır — değişikliğin gerçekten ne yaptığı
+#      run kaydından doğrulanabilir.
+#
+# DİKKAT — TEKRAR ÇALIŞTIRMA: `ALTER TABLE ... ADD COLUMN` idempotent DEĞİLDİR; kolon zaten varsa
+# SQLite "duplicate column name" hatası verir ve adım kırmızıya döner. Bu bir VERİ KAYBI DEĞİLDİR,
+# yalnızca "bu migration zaten uygulanmış" demektir — önceki adımın bastığı kolon listesiyle
+# doğrulanır.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'migrations/ altındaki dosya adı (ör. 0117_consultation_payment.sql)'
+        required: true
+      apply:
+        description: "D1'e UYGULA (evet = gerçekten çalıştır, hayir = yalnızca önizleme)"
+        required: true
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+      table:
+        description: 'Öncesi/sonrası kolonları gösterilecek tablo (boş = atla)'
+        required: false
+        default: ''
+
+# İki migration'ın aynı anda çalışmasını önler. cancel-in-progress: false — yarıda kesilen bir
+# migration, yarım uygulanmış bir şema demektir.
+concurrency:
+  group: mimarlab-d1-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NPM_CONFIG_YES: 'true'
+      DB_NAME: mimarlab-db
+
+    steps:
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1; fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1; fi
+          if [ "$missing" = "1" ]; then
+            echo "Token'ın D1:Edit iznine sahip olması gerekir (gundem-retitle.yml ile aynı izin)." >&2
+            exit 1
+          fi
+
+      # Sparse checkout: bu iş yalnızca migrations/ + kök yapılandırma dosyalarına ihtiyaç duyar.
+      # Depo git içinde ~3,3 GB görsel taşıyor (projects/ + miras/); tam checkout deploy'da
+      # ölçüldüğü gibi dakikalar sürüyor ve burada tamamen gereksiz. Cone modunda kök dosyalar
+      # (wrangler.jsonc dahil) her zaman dahildir.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: migrations
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Girdiyi doğrula
+        run: |
+          f='${{ inputs.file }}'
+          case "$f" in
+            */*|*..*|'') echo "GEÇERSİZ dosya adı: '$f' — yalnızca migrations/ altındaki çıplak bir dosya adı verilebilir." >&2; exit 1 ;;
+          esac
+          if [ ! -f "migrations/$f" ]; then
+            echo "Dosya yok: migrations/$f" >&2
+            echo "Mevcut migration'lardan son 10 tanesi:" >&2
+            ls migrations | tail -10 >&2
+            exit 1
+          fi
+          echo "MIGRATION_PATH=migrations/$f" >> "$GITHUB_ENV"
+
+      - name: Uygulanacak SQL
+        run: |
+          echo "--- $MIGRATION_PATH ---"
+          cat "$MIGRATION_PATH"
+
+      - name: Tablonun ŞU ANKİ kolonları
+        if: inputs.table != ''
+        run: |
+          npx wrangler d1 execute "$DB_NAME" --remote \
+            --command "PRAGMA table_info(${{ inputs.table }});" || true
+
+      - name: Uygula
+        if: inputs.apply == 'evet'
+        run: npx wrangler d1 execute "$DB_NAME" --remote --file="$MIGRATION_PATH"
+
+      - name: Tablonun SONRAKİ kolonları
+        if: inputs.apply == 'evet' && inputs.table != ''
+        run: |
+          npx wrangler d1 execute "$DB_NAME" --remote \
+            --command "PRAGMA table_info(${{ inputs.table }});"
+
+      - name: Özet
+        run: |
+          if [ "${{ inputs.apply }}" = "evet" ]; then
+            echo "UYGULANDI: $MIGRATION_PATH"
+          else
+            echo "ÖNİZLEME (D1'e yazılmadı): $MIGRATION_PATH"
+            echo "Gerçekten uygulamak için workflow'u apply=evet ile tekrar çalıştır."
+          fi
