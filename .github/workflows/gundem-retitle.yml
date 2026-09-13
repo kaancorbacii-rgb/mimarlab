@@ -51,6 +51,10 @@ on:
         description: 'scope=tumu iken: en yeniden geriye ilk N kaydı atla (yarıda kalan turu sürdürmek için)'
         required: false
         default: '0'
+      attempts:
+        description: 'Kayıt başına AI denemesi (varsayılan 3)'
+        required: false
+        default: '3'
 
 # İki turun aynı satırları aynı anda yazmasını önler. Gündem cron'u ayrı bir yol (yeni satır
 # ekler, mevcut satırları güncellemez), yani onunla yarışmaz.
@@ -99,6 +103,7 @@ jobs:
           IN_LIMIT: ${{ inputs.limit }}
           IN_SOURCE: ${{ inputs.source }}
           IN_OFFSET: ${{ inputs.offset }}
+          IN_ATTEMPTS: ${{ inputs.attempts }}
         run: |
           set -o pipefail
           # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak okunur
@@ -116,6 +121,10 @@ jobs:
           if [ -n "${IN_SOURCE}" ]; then
             case "${IN_SOURCE}" in *[!a-zA-Z0-9,_-]*) echo "kaynak id'si geçersiz karakter içeriyor" >&2; exit 1 ;; esac
             argv+=("--source=${IN_SOURCE}")
+          fi
+          if [ -n "${IN_ATTEMPTS}" ]; then
+            case "${IN_ATTEMPTS}" in *[!0-9]*) echo "attempts sayı olmalı" >&2; exit 1 ;; esac
+            argv+=("--attempts=${IN_ATTEMPTS}")
           fi
           argv+=("--json=gundem-retitle-rapor.json")
           echo "Çalıştırılıyor: node scripts/gundem-retitle-backfill.mjs ${argv[*]}"

@@ -45,6 +45,7 @@
 //   --json=dosya     önce/sonra karşılaştırmasını JSON olarak da yaz
 //   --all            YAYINDAKİ TÜM kayıtlar (--limit yok sayılır; sayfalayarak ilerler)
 //   --offset=N       en yeniden geriye doğru ilk N kaydı atla (yarıda kalan turu sürdürmek için)
+//   --attempts=N     kayıt başına AI denemesi (varsayılan 3; canlı hattın tavanı 2'dir, gerekçe aşağıda)
 //
 // KİMLİK BİLGİSİ: yerelde wrangler OAuth token'ı kullanılır (aşağıya bakın). CI'da (bkz.
 // .github/workflows/gundem-retitle.yml) böyle bir oturum YOKTUR; o yüzden CLOUDFLARE_API_TOKEN
@@ -61,7 +62,6 @@ import { generateGundemSummary, AiProviderError } from '../src/lib/gundemAi.js';
 import { validateAiOutput, SOURCE_TEXT_MAX_CHARS, wordCount } from '../src/lib/gundemQuality.js';
 import { gundemEmbedText, embedGundemText, quantizeEmbedding } from '../src/lib/gundemEmbedding.js';
 import { AI_MODEL } from '../src/lib/aiConfig.js';
-import { GUNDEM_LIMITS } from '../src/lib/gundemIngest.js';
 
 const ACCOUNT_ID = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim() || '2e3cd3c1a471552e19436913b2368c4f';
 const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
@@ -83,6 +83,17 @@ const OFFSET = Number(args.offset ?? 0);
 // tam tarama yapılıyor; sıralama en yeniden eskiye doğrudur ki tur yarıda kesilse bile en
 // görünür kayıtlar düzelmiş olsun.
 const PAGE_SIZE = 50;
+
+// KAÇ AI DENEMESİ. Canlı hattın tavanı 2'dir (GUNDEM_LIMITS.aiMaxAttempts) çünkü cron turunun
+// 120 saniyelik duvar-saati bütçesi var ve 3. deneme o bütçeyi başka içeriklerden çalar. BU
+// BETİKTE öyle bir bütçe YOK: burada bir denemeyi daha harcamak yalnızca birkaç saniyedir,
+// karşılığında ise kaydın eski (kötü) metniyle kalması engellenir.
+//
+// ÖLÇÜLDÜ (12 kayıtlık ilk gerçek tur, 2026-09-13): iki denemeyle 12 kaydın 9'u
+// `summary_too_short` ile elendi; eleme nedeninin modele söylendiği düzeltmeli deneme bir tane
+// daha olsaydı bunların bir bölümü geçecekti. Prompt tarafındaki düzeltmeyle (bkz.
+// gundemAi.js#summaryTargetFor) birlikte uygulanır.
+const ATTEMPTS = Math.max(1, Number(args.attempts ?? 3));
 
 // ---------------------------------------------------------------------------------------------
 // wrangler OAuth token'ı (depodaki diğer ~100 toplu betikle AYNI desen — yeni bir secret yok).
@@ -264,8 +275,8 @@ async function regenerate(row) {
   const publishedYears = publishedAt ? [new Date(publishedAt).getUTCFullYear()] : [];
 
   let lastReason = 'ai_no_attempt';
-  for (let attempt = 0; attempt < GUNDEM_LIMITS.aiMaxAttempts; attempt++) {
-    const lastAttempt = attempt === GUNDEM_LIMITS.aiMaxAttempts - 1;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    const lastAttempt = attempt === ATTEMPTS - 1;
     let raw;
     try {
       raw = await generateGundemSummary(env, {

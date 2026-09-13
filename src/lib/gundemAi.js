@@ -101,24 +101,33 @@ const TERM_GUIDE = [
 
 // Özet uzunluk hedefi KAYNAĞIN YETERLİLİĞİNE göre değişir (kullanıcı isteği madde 2 + madde 7).
 // Sabit tek bir hedef, kısa excerpt'lerde modeli doldurmaya — yani uydurmaya — zorluyordu.
+// CÜMLE SAYISI DA SÖYLENİR — ÖLÇÜLEN DAVRANIŞ (ilk gerçek tur, 2026-09-13, 12 kayıt):
+// makalenin gövdesi eklenince kaynak 'rich' oldu ve kabul tabanı 44 kelimeye çıktı, ama model
+// yine 35-43 kelimede kalıyordu; 12 kaydın 9'u `summary_too_short` ile elendi. Yani sorun
+// kaynakta değil, modelin KELİME hedefini takip etmemesindeydi — dil modelleri kelime saymaz.
+// Cümle sayısı takip edilebilir bir ölçüdür: "5-7 cümle" talimatı kelime hedefini kendiliğinden
+// tutturur. Kelime aralığı da bırakıldı (kalite kapısının ölçüsü o).
 function summaryTargetFor(adequacy) {
   if (adequacy === 'empty') {
-    return `Kaynak metin ÇOK AZ bilgi veriyor. Yalnızca KESİN olanı yaz (yaklaşık 30-45 kelime) ve
-  eksik bilgileri ASLA tahminle tamamlama. Kısa ama doğru bir özet, uzun ama uydurma bir özetten
-  her koşulda iyidir.`;
+    return `Kaynak metin ÇOK AZ bilgi veriyor. Yalnızca KESİN olanı yaz (yaklaşık 30-45 kelime,
+  2-3 cümle) ve eksik bilgileri ASLA tahminle tamamlama. Kısa ama doğru bir özet, uzun ama
+  uydurma bir özetten her koşulda iyidir.`;
   }
   if (adequacy === 'thin') {
-    return `Kaynak metin kısa bir excerpt. Hedef yaklaşık 35-55 kelime. Metni tam makale gibi
-  yorumlama; verilmeyen bilgiyi tahmin etme, özeti doldurmak için bilgi UYDURMA.`;
+    return `Kaynak metin kısa bir excerpt. Hedef yaklaşık 35-55 kelime (3-4 cümle). Metni tam
+  makale gibi yorumlama; verilmeyen bilgiyi tahmin etme, özeti doldurmak için bilgi UYDURMA.`;
   }
   if (adequacy === 'rich') {
     return `Kaynak metin makalenin kendi gövdesinden geliyor ve yeterince uzun. Hedef
-  ${SUMMARY_MIN_WORDS + 20}-${SUMMARY_RICH_MAX_WORDS} kelime. Metnin FARKLI BÖLÜMLERİNDEKİ bilgileri sentezle;
+  ${SUMMARY_MIN_WORDS + 20}-${SUMMARY_RICH_MAX_WORDS} kelime; bunu tutturmanın yolu 5-7 TAM CÜMLE yazmaktır — daha azı
+  kaynağı eksik aktarır ve özet YAYINLANMAZ. Metnin FARKLI BÖLÜMLERİNDEKİ bilgileri sentezle;
   yalnızca ilk paragrafı yeniden yazma. İlk paragraf çoğu kez yalnızca girişi verir — yapının/olayın
   kim tarafından, nerede, hangi amaçla ve hangi mimari yaklaşımla ortaya konduğu genellikle SONRAKİ
-  paragraflardadır ve özette bunlara da yer olmalı.`;
+  paragraflardadır ve özette bunlara da yer olmalı. Kaynakta varsa şunları özete MUTLAKA taşı:
+  yer (şehir/ülke), tasarımcı/ofis/kurum, işlev ve program, ölçek (kat, metrekare, birim sayısı),
+  malzeme ve yapım yaklaşımı, tarih/aşama (yarışma, onay, tamamlanma).`;
   }
-  return `Hedef ${SUMMARY_MIN_WORDS}-${SUMMARY_MAX_WORDS} kelime.`;
+  return `Hedef ${SUMMARY_MIN_WORDS}-${SUMMARY_MAX_WORDS} kelime, 4-6 tam cümle.`;
 }
 
 const SYSTEM_PROMPT = [
@@ -246,7 +255,9 @@ const GUNDEM_SCHEMA = {
 // aynı promptu tekrar göndermek (ilk sürümün yaptığı) modelin aynı hatayı tekrarlamasına yol
 // açıyordu; ne yanlış yaptığını söylemek tek etkili düzeltme yolu.
 const RETRY_HINT_BY_REASON = {
-  summary_too_short: `Önceki denemende özet ÇOK KISAYDI. Bu kez hedef uzunluğa ulaş, ama yeni bilgi UYDURMA — kaynakta yazan bilgileri daha açık ve daha eksiksiz anlat.`,
+  // Somut ve SAYILABİLİR bir talimat: ilk sürüm ("hedef uzunluğa ulaş") ölçülen turda işe
+  // yaramadı, model ikinci denemede de kısa yazdı (bkz. summaryTargetFor başındaki not).
+  summary_too_short: `Önceki denemende özet ÇOK KISAYDI ve bu yüzden YAYINLANAMADI. Bu kez EN AZ ${SUMMARY_MIN_WORDS} kelime ve EN AZ 5 TAM CÜMLE yaz. Yeni bilgi UYDURMA — bunun yerine kaynak metinde ZATEN YAZAN ama önceki özetine almadığın ayrıntıları ekle: yer, tasarımcı/ofis, işlev, ölçek (kat/metrekare/birim), malzeme, yapım yaklaşımı, tarih ve aşama. Kaynağın SON paragraflarındaki bilgiler büyük olasılıkla dışarıda kalmıştır; önce oraya bak.`,
   summary_too_long: `Önceki denemende özet ÇOK UZUNDU. Bu kez en fazla ${SUMMARY_MAX_WORDS} kelime yaz; en önemsiz bilgileri çıkar.`,
   summary_not_turkish: 'Önceki denemende özet Türkçe DEĞİLDİ. Bu kez özeti tamamen Türkçe yaz.',
   title_not_turkish: 'Önceki denemende başlık Türkçe DEĞİLDİ. Bu kez başlığı Türkçeye çevir (özel adlar hariç).',
