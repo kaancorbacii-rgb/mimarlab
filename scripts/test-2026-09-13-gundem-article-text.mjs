@@ -185,5 +185,38 @@ await test('temiz Türkçe metin temiz geçer', () => {
   assert.equal(foreignLanguageLeftover(''), null);
 });
 
+// -----------------------------------------------------------------------------------------------
+// ÖZET UZUNLUK TABANI — KAYNAĞA GÖRE ÜÇ KADEME
+// -----------------------------------------------------------------------------------------------
+const { SUMMARY_MIN_ACCEPT, SUMMARY_MIN_ACCEPT_THIN, SUMMARY_MIN_ACCEPT_NORMAL, validateAiOutput } =
+  await import('../src/lib/gundemQuality.js');
+
+await test('taban üç kademeli ve sıralı (thin < normal < rich)', () => {
+  assert.ok(SUMMARY_MIN_ACCEPT_THIN < SUMMARY_MIN_ACCEPT_NORMAL, 'thin tabanı normal\'den düşük olmalı');
+  assert.ok(SUMMARY_MIN_ACCEPT_NORMAL < SUMMARY_MIN_ACCEPT, 'normal tabanı zengin tabanından düşük olmalı');
+});
+
+await test("'normal' kaynakta 40 kelimelik sadık özet KABUL edilir, 30 kelimelik edilmez", () => {
+  // 55 kelimelik bir kaynaktan (sayfası 403 dönen yayıncılarda tipik durum) 44 kelime istemek,
+  // kaynağın neredeyse tamamını yeniden yazmasını istemektir — o uçurum bu testle kapalı tutuluyor.
+  const kirk = 'Yapı, İstanbul Beyoğlu\'nda yer alan eski bir su deposunun sergi mekânına dönüştürülmesiyle ortaya çıktı ve üç ay boyunca ziyarete açık kalacak. Tasarım ekibi mevcut betonarme kabuğa dokunmadan içeriye taşınabilir bir çelik iskele yerleştirdi. Aydınlatma kurgusu deponun tonozlu üst örtüsünü öne çıkaracak biçimde çözüldü.';
+  const base = {
+    confident: true, isProject: false, category: 'haber', entities: [], quality_ok: true,
+    title: 'Beyoğlu\'ndaki Su Deposu Geçici Sergi Mekânına Dönüştürüldü',
+  };
+  const ctx = {
+    sourceTitle: 'Beyoğlu\'ndaki su deposu sergi mekânı oldu',
+    sourceExcerpt: 'İstanbul Beyoğlu\'ndaki kullanım dışı su deposu, üç ay boyunca ziyarete açık kalacak geçici bir sergi mekânına dönüştürüldü. Tasarım ekibi mevcut betonarme kabuğa dokunmadan iç hacme taşınabilir bir çelik iskele yerleştirdi ve aydınlatma deponun tonozlu üst örtüsünü öne çıkaracak biçimde kurgulandı.',
+    sourceName: 'Arkitera', sourceLanguage: 'tr', sourceAdequacy: 'normal',
+    publishedYears: [], fallbackCategory: 'haber',
+  };
+  const ok = validateAiOutput({ ...base, summary: kirk }, ctx);
+  assert.ok(ok.ok, `40 kelimelik özet reddedildi: ${ok.reason}`);
+
+  const kisa = 'Beyoğlu\'ndaki su deposu sergi mekânına dönüştürüldü ve üç ay açık kalacak.';
+  const short = validateAiOutput({ ...base, summary: kisa }, ctx);
+  assert.equal(short.ok, false, 'gerçekten kısa özet yine de elenmeli');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(`- ${f.name}: ${f.message}`); process.exit(1); }

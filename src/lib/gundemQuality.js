@@ -33,6 +33,14 @@ export const SUMMARY_MAX_WORDS = 90;
 export const SUMMARY_RICH_MAX_WORDS = 100;
 export const SUMMARY_MIN_ACCEPT = 44;
 export const SUMMARY_MIN_ACCEPT_THIN = 32;
+// ARADAKİ KADEME — ÖLÇÜLEN UÇURUM (yeniden üretim turları, 2026-09-13). Taban iki kademeliydi ve
+// 'normal' kaynaklar üst kademeye düşüyordu: kaynak 45 kelimede taban 32, 46 kelimede birden 44
+// oluyordu. Yayıncısı sayfa isteğine 403 dönen kaynaklarda (Dezeen, Mimdap, Arkitera — gövde
+// alınamıyor, feed yedeğiyle ~55 kelime kalıyor) model sadık ve doğru ama 35-43 kelimelik özetler
+// yazıyor ve HEPSİ bu uçuruma takılıp eleniyordu; o kayıtlar da ESKİ (kötü) metinleriyle kalıyordu.
+// 55 kelimelik bir kaynaktan 44 kelime istemek, kaynağın %80'ini yeniden yazmasını istemektir —
+// bu dosyanın kendi ilkesiyle ("kısa ama doğru, uzun ama uydurmadan iyidir") çelişir.
+export const SUMMARY_MIN_ACCEPT_NORMAL = 38;
 export const SUMMARY_MAX_ACCEPT = 110;
 
 // BAŞLIK uzunluğu — kullanıcı isteği 2026-09-13 madde 1: "Mümkün olduğunca 8-15 kelime. Gerekiyorsa
@@ -363,7 +371,9 @@ export function validateAiOutput(ai, ctx) {
   // KAYNAĞA GÖRE DEĞİŞEN TABAN (bkz. dosya başındaki SUMMARY_MIN_ACCEPT_THIN gerekçesi): kaynak
   // metin kısaysa özetin de kısa olması doğru davranıştır, kusur değil.
   const thinSource = ctx.sourceAdequacy === 'thin' || ctx.sourceAdequacy === 'empty';
-  const minAccept = thinSource ? SUMMARY_MIN_ACCEPT_THIN : SUMMARY_MIN_ACCEPT;
+  const minAccept = thinSource
+    ? SUMMARY_MIN_ACCEPT_THIN
+    : (ctx.sourceAdequacy === 'normal' ? SUMMARY_MIN_ACCEPT_NORMAL : SUMMARY_MIN_ACCEPT);
   if (words < minAccept) return { ok: false, reason: 'summary_too_short' };
   if (words > SUMMARY_MAX_ACCEPT) return { ok: false, reason: 'summary_too_long' };
   if (!looksTurkish(summary)) return { ok: false, reason: 'summary_not_turkish' };
