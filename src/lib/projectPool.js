@@ -85,12 +85,16 @@ function parseHotspots(raw) {
 // çağırmaya devam ediyor — varsayılan (opts yok) davranış ESKİSİYLE BİREBİR AYNI (tam images dizisi).
 // Kart karuselinin taşıdığı en fazla görsel — bkz. shapeProjectItem#images (coverOnly).
 // 6 -> 4 (kullanıcı isteği, 2026-09-12 madde 2: "Proje sayfasındaki proje önizlemelerinde ard arda
-// 4 tane görsel görülebilsin 6 değil"). Kapak dahil sayılır: kartta ileri okuna basarak en fazla 4
-// görsel gezilir. Değer YALNIZCA PROJE kartlarını bağlar — ürün kartları kendi sınırını
-// src/routes/product.js#fetchProductPool'da taşır (istek yalnızca proje sayfasını sayıyordu).
+// 4 tane görsel görülebilsin 6 değil"). Kapak dahil sayılır: kartta ileri okuna basarak en fazla
+// bu kadar görsel gezilir.
+//
+// 4 -> 3 (kullanıcı isteği, 2026-09-13 madde 3: "Proje ve ürün sayfasında da gönderi
+// önizlemelerinde 3 görsel görebilelim"). Değer ARTIK ÜRÜN KARTLARINI DA bağlıyor: eskiden ürün
+// tarafı kendi sınırını (6) ayrı yazıyordu ve iki sayı ayrışabiliyordu; artık ikisi de buradan
+// okur (bkz. src/routes/product.js#fetchProductPool ve urun.html#render).
 // js/pages/proje.js#renderCards istemci tarafında AYNI sayıyla ikinci bir kırpma yapar (eski bir
-// edge gövdesi daha fazlasını taşısa bile kart 4'ü aşmasın).
-export const CARD_CAROUSEL_IMAGES = 4;
+// edge gövdesi daha fazlasını taşısa bile kart bu sayıyı aşmasın).
+export const CARD_CAROUSEL_IMAGES = 3;
 
 export function shapeProjectItem(row, opts) {
   const p = parseCanonicalRow('projects', row);

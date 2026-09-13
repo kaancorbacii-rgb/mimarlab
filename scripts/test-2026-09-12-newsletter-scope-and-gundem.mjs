@@ -219,10 +219,17 @@ console.log('\nFooter + Üye Ol metinleri (madde 1 ve 2)');
 // NOT (2026-09-12 ikinci tur): footer metni kullanıcı isteğiyle "Ücretsiz Üye Ol"dan tekrar
 // "Üye Ol"a döndü — bu testin footer beklentisi artık orada, tek yerde yaşıyor (bkz.
 // scripts/test-2026-09-12-home-rails.mjs#madde 1). Burada yalnızca bülten AÇIKLAMASI kalır.
-await test('footer: yeni bülten açıklaması', () => {
+await test('footer: yeni bülten açıklaması (metin + BEYAZ renk)', () => {
   const chrome = readFileSync(new URL('../js/components/site-chrome.js', import.meta.url), 'utf8');
-  assert.match(chrome, /Yeni proje, ürün ve gündem içerikleri e-postana gelsin\./);
+  // Metin 2026-09-13'te bir kez daha güncellendi (kullanıcı isteği madde 4): baştaki "Yeni" düştü.
+  assert.match(chrome, /Proje, ürün ve gündem içerikleri e-postana gelsin\./);
   assert.ok(!/Yeni proje, ürün, firma ve markalar e-postana gelsin\./.test(chrome), 'eski bülten metni hâlâ duruyor');
+  assert.ok(!/Yeni proje, ürün ve gündem içerikleri e-postana gelsin\./.test(chrome), 'bir önceki bülten metni hâlâ duruyor');
+  // Aynı maddede rengi de beyaza çekildi — soluk gri (%60) koyu zeminde sönük kalıyordu.
+  assert.match(chrome, /\.footer-newsletter-desc\{font-size:16px; color:#fff;/, 'bülten açıklaması beyaz değil');
+  // Madde 5: logonun altındaki tanıtım yazısı da beyaz. Kural 32 HTML dosyasındaki kopyaları
+  // ezebilmek için yüksek özgüllükle burada yazılı.
+  assert.match(chrome, /\.site-footer \.footer-brand p\{color:#fff;\}/, 'footer logo altı yazı beyaz değil');
 });
 
 await test('Üye Ol başlığı: "MİMARLAB\'a Ücretsiz Katıl" (sayfa + popup AYNI metin)', () => {

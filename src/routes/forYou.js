@@ -44,6 +44,10 @@
 // AYNI karar: "kullanıcılar arasında veri sızıntısı kesinlikle olmasın").
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
+// Kart karuselindeki görsel sayısı ve ürün kaydetme anahtarı proje/ürün liste kartlarıyla ORTAK
+// tek kaynaktan gelir — ikinci bir kopya sessizce ayrışır (bkz. o dosyalardaki gerekçeler).
+import { CARD_CAROUSEL_IMAGES } from '../lib/projectPool.js';
+import { ratingKeyFor } from './product.js';
 
 const PRIVATE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0', 'Vary': 'Cookie' };
 
@@ -199,6 +203,7 @@ export async function handleForYouRoute(request, env, url) {
       //     zaten saptamış.
       env.DB.prepare(
         `SELECT pr.id, pr.slug, pr.title, pr.images, pr.kind, o.name AS brand,
+                pr.brand_name_raw, pr.legacy_key,
                 pr.brand_office_id AS seed_id
          FROM products pr
          JOIN offices o ON o.id = pr.brand_office_id
@@ -239,7 +244,8 @@ export async function handleForYouRoute(request, env, url) {
 
       // D — etkileşim kurulan ürünlerin markasından DİĞER ürünler.
       env.DB.prepare(
-        `SELECT pr.id, pr.slug, pr.title, pr.images, pr.kind, o.name AS brand
+        `SELECT pr.id, pr.slug, pr.title, pr.images, pr.kind, o.name AS brand,
+                pr.brand_name_raw, pr.legacy_key
          FROM products pr
          JOIN offices o ON o.id = pr.brand_office_id
          WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
@@ -323,31 +329,63 @@ function clampLimit(raw) {
 
 // images sütunu JSON metin; bozuk satırlar SESSİZCE görselsiz kart üretir (follows.js#followFeed
 // ile AYNI tolerans) — tek bir bozuk JSON ana sayfayı düşürmemeli.
-function firstImage(rawJson) {
+//
+// Kart karuseli için ilk CARD_CAROUSEL_IMAGES görsel (kullanıcı isteği, 2026-09-13 madde 2:
+// "Senin için bölümünde de gönderilerde ... ilk üç görseli önizlemede görebileceğimiz ileri geri
+// butonları olsun"). Sayı proje/ürün liste kartlarıyla ORTAK tek sabitten gelir — üç yerde ayrı
+// yazılsaydı biri güncellenmeyip sessizce ayrışırdı.
+function cardImages(rawJson) {
   try {
     const arr = JSON.parse(rawJson || '[]');
-    return Array.isArray(arr) && arr.length ? arr[0] : null;
-  } catch { return null; }
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(u => typeof u === 'string' && u).slice(0, CARD_CAROUSEL_IMAGES);
+  } catch { return []; }
 }
 
 function projectCard(row, reason) {
   const subtitle = [row.by_name, row.location].filter(Boolean).join(' · ');
+  const images = cardImages(row.images);
   return {
     kind: 'project',
     title: row.title,
     subtitle: subtitle || null,
-    image: firstImage(row.images),
+    image: images[0] || null,
+    // images: kart karuseli; saveType/saveKey: Kaydet butonu (save-widget.js#wireSaveButtons
+    // bu iki alanı data-type/data-key olarak bekler). Proje kartının kaydetme anahtarı SLUG'dır
+    // — js/pages/proje.js#renderCards ile birebir aynı (data-key="${p.slug}", tip 'project').
+    images,
+    saveType: 'project',
+    saveKey: row.slug,
     href: `/proje/${encodeURIComponent(row.slug)}`,
     reason,
   };
 }
 
+// Ürünün kaydetme anahtarı: src/routes/product.js#fetchProductPool'un ürettiği `ratingKey` ile
+// BİREBİR AYNI olmalı — urun.html'deki kart da onu data-key olarak basıyor. Bu yüzden hem
+// submission işaretçisi (legacy_key) hem de MARKA ADI oradaki ile aynı kolondan (brand_name_raw)
+// okunur; kartta gösterilen `brand` ise ofis tablosundan gelen addır ve bu ikisi ayrışabilir.
+function productSaveKey(row) {
+  const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
+  const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
+  return ratingKeyFor(row.title, row.brand_name_raw, submissionId);
+}
+
 function productCard(row, reason) {
+  const images = cardImages(row.images);
+  const kind = row.kind === 'material' ? 'material' : 'product';
   return {
-    kind: row.kind === 'material' ? 'material' : 'product',
+    kind,
     title: row.title,
     subtitle: row.brand || null,
-    image: firstImage(row.images),
+    image: images[0] || null,
+    images,
+    // ÜRÜN kartının kaydetme anahtarı SLUG DEĞİL, urun.html'in kullandığı `ratingKey`'dir; o da
+    // slugify(title) üzerinden üretilir (bkz. src/routes/product.js#fetchProductPool ve
+    // save-widget.js#slugify). Burada slug yazsaydık, aynı ürün ürün sayfasında "kaydedildi"
+    // görünürken ana sayfada boş görünürdü — iki ayrı anahtara yazılmış olurdu.
+    saveType: kind,
+    saveKey: productSaveKey(row),
     // Malzemeler de ürün yolundan servis edilir (products.kind ayrımı yalnızca listelemede) —
     // bkz. src/index.js'teki '/malzeme' -> '/urun' yönlendirmesi.
     href: `/urun/${encodeURIComponent(row.slug)}`,

@@ -14,12 +14,12 @@
 // il-ilce-data.js'i (parseLocation için, küçük statik referans tablosu) yükler.
 const PAGE_SIZE = 24;
 let currentPage = 1;
-// Bir proje kartının karuselinde gezilebilecek EN FAZLA görsel (kapak dahil) — kullanıcı isteği
-// (2026-09-12 madde 2): "Proje sayfasındaki proje önizlemelerinde ard arda 4 tane görsel
-// görülebilsin 6 değil". Sunucu tarafındaki ikizi src/lib/projectPool.js#CARD_CAROUSEL_IMAGES;
+// Bir proje kartının karuselinde gezilebilecek EN FAZLA görsel (kapak dahil). 4 -> 3 (kullanıcı
+// isteği, 2026-09-13 madde 3: "Proje ve ürün sayfasında da gönderi önizlemelerinde 3 görsel
+// görebilelim"). Sunucu tarafındaki ikizi src/lib/projectPool.js#CARD_CAROUSEL_IMAGES;
 // ikisi AYNI değerde olmalı (scripts/test-2026-09-10-round11.mjs bunu denetler). Sunucu zaten
 // kırpıyor, buradaki ikinci kırpma deploy anında edge'de duran ESKİ bir liste gövdesini de kapsar.
-const CARD_CAROUSEL_IMAGES = 4;
+const CARD_CAROUSEL_IMAGES = 3;
 
 // ---------- HARİTA GÖRÜNÜMÜ (bkz. kullanıcı isteği: "Projeler sayfasındaki haritada tüm projelerin
 // gözükmesi gerekiyor... filtreler haritaya da işlemeli") ----------

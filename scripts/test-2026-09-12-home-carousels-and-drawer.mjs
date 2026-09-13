@@ -173,12 +173,17 @@ test('admin paneli: Ana Sayfa sekmesi + dört karusel + açılır menü', () => 
   assert.ok(!src.includes("getElementById('settings-featured-projects')"), 'eski slug metin kutusu hâlâ kayıtlı');
 });
 
-section('madde 2 — proje kartı karuselinde 4 görsel');
+section('madde 2 — proje/ürün kartı karuselinde 3 görsel');
 
-test('sunucu ve istemci sabitleri 4 ve BİRBİRİYLE AYNI', () => {
-  assert.ok(read('src/lib/projectPool.js').includes('export const CARD_CAROUSEL_IMAGES = 4;'));
-  assert.ok(read('js/pages/proje.js').includes('const CARD_CAROUSEL_IMAGES = 4;'));
+// 4 -> 3 (kullanıcı isteği, 2026-09-13 madde 3). Sabit artık ÜÇ yerde birlikte yaşıyor: sunucu
+// (projectPool), proje sayfası ve ürün sayfası — üçü ayrışırsa kart, sunucunun gönderdiğinden
+// farklı sayıda görsel gezdirir.
+test('sunucu ve istemci sabitleri 3 ve BİRBİRİYLE AYNI', () => {
+  assert.ok(read('src/lib/projectPool.js').includes('export const CARD_CAROUSEL_IMAGES = 3;'));
+  assert.ok(read('js/pages/proje.js').includes('const CARD_CAROUSEL_IMAGES = 3;'));
   assert.ok(read('js/pages/proje.js').includes('p.images.slice(0, CARD_CAROUSEL_IMAGES)'));
+  assert.ok(read('urun.html').includes('const CARD_CAROUSEL_IMAGES = 3;'));
+  assert.ok(read('src/routes/product.js').includes('slice(0, CARD_CAROUSEL_IMAGES)'));
 });
 
 test('liste gövdesi değiştiği için API_PAYLOAD_VERSION bump edildi (>= v41)', () => {

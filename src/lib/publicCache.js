@@ -528,7 +528,8 @@ async function withSingleFlight(key, fn) {
 //     taşıyor (ve `unregistered` "kişi profili YOK" anlamına geldi) — firma/kişi popup'ında ekip
 //     üyesi/ortak kartları tıklanabilir oldu. Satırların updated_at'i değişmediğinden bump şart.
 // v40 -> v41 (kullanıcı isteği, 2026-09-12): (a) /api/projects kart yükündeki `images` dizisi artık
-//     en fazla 4 görsel taşıyor (6 değil — bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES);
+//     en fazla 4 görsel taşıyor (6 değil — bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES;
+//     bu sayı v43'te 3'e indi);
 //     (b) dört liste ucu `pin=` parametresini tanıyor ve ana sayfa karusellerinde admin'in seçtiği
 //     kayıtları başa alıyor (bkz. src/lib/homeCarousels.js). (a) satırların updated_at'ini
 //     değiştirmeden GÖVDEYİ değiştirdiğinden bump ŞART — aksi halde önbellekteki eski gövde 6
@@ -538,8 +539,15 @@ async function withSingleFlight(key, fn) {
 //     mutlak http(s) adresine normalize ediliyor (bkz. src/routes/project.js#handleProjectDetailRoute
 //     ve src/lib/externalUrl.js). Satırların updated_at'i DEĞİŞMEDEN gövde değiştiğinden bump şart —
 //     aksi halde önbellekteki eski gövde fotoğrafçı etiketini bağlantısız göstermeye devam ederdi.
+// v42 -> v43 (kullanıcı isteği, 2026-09-13 madde 3): /api/projects ve /api/products kart
+//     yüklerindeki `images` dizisi artık en fazla 3 görsel taşıyor (proje 4, ürün 6 idi — iki
+//     sayı tek bir sabitte birleşti, bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES). AYNI
+//     sürümde /api/foryou kartları `images` (ilk 3) ve `saveKey`/`saveType` alanlarını taşıyor —
+//     ana sayfadaki "Senin İçin" kartlarına kaydet butonu ve görsel karuseli eklendi. Satırların
+//     updated_at'i DEĞİŞMEDEN gövde değiştiğinden bump ŞART: aksi halde önbellekteki eski gövde
+//     4/6 görsel taşımaya ve Senin İçin kartları görselsiz/kaydetsiz kalmaya devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v42';
+const API_PAYLOAD_VERSION = 'v43';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

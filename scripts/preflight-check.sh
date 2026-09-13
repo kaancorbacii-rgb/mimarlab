@@ -803,6 +803,18 @@ else
 fi
 rm -f /tmp/preflight_gundem_body
 
+# "SENİN İÇİN" kartlarındaki Kaydet düğmesi + görsel karuseli + metin hizası (kullanıcı isteği,
+# 2026-09-13 madde 1-2). Üç riskin üçü de sözdizimi kontrolünden geçer: yanlış kaydetme anahtarı
+# (ürün ayrı anahtara yazar), eksik <script> etiketi (ölü düğme/karusel), sabit yüksekliğin
+# başlığa geri taşınması (üçüncü satır yine alt karta yapışır).
+if node scripts/test-2026-09-13-foryou-card-actions.mjs >/tmp/preflight_foryou 2>&1; then
+  ok "Senin İçin kart aksiyonları testleri geçti ($(grep -c '^  ok ' /tmp/preflight_foryou) test)"
+else
+  bad "Senin İçin kart aksiyonları testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_foryou >&2
+fi
+rm -f /tmp/preflight_foryou
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve

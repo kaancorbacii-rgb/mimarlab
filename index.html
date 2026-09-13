@@ -545,7 +545,7 @@
      ellipsis ancak bundan sonra devreye girer. */
   .foryou-grid > *{min-width:0;}
   .foryou-card{
-    display:flex; flex-direction:column; gap:9px; min-width:0;
+    display:flex; flex-direction:column; gap:8px; min-width:0;
     text-decoration:none; color:inherit; border-radius:14px;
   }
   .foryou-card:focus-visible{outline:2px solid var(--brass); outline-offset:3px;}
@@ -554,6 +554,23 @@
     background:var(--paper-alt);
   }
   .foryou-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  /* Kaydet butonu — proje/ürün liste kartlarındakiyle AYNI ölçü ve renkler (bkz. proje.html
+     #.card-save-btn). Kart bir <a> olduğu için buton onun İÇİNDE duruyor; tıklamayı
+     save-widget.js#wireSaveButtons durduruyor (proje kartında da aynı desen). */
+  .foryou-thumb .card-save-btn{
+    position:absolute; top:8px; right:8px; z-index:4;
+    width:30px; height:30px; border-radius:50%;
+    background:rgba(27,42,61,0.55); border:none; color:#fff; padding:0;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .foryou-thumb .card-save-btn:hover{background:rgba(27,42,61,0.75);}
+  .foryou-thumb .card-save-btn.saved{background:var(--brass-soft, #C9A227); color:var(--ink);}
+  /* METİN BLOĞU — sabit yükseklik ARTIK BURADA (başlıkta değil). Gerekçe foryouCardHtml'in
+     içindeki yorumda: başlığa verilen iki satırlık sabit yükseklik, tek satırlık başlıklarda
+     boşluğu başlık ile alt satır ARASINDA bırakıyor ve üçüncü satırı bir sonraki karta
+     yaklaştırıyordu. Blok sabit, içerik yukarıdan akar; artan boşluk aşağıda toplanır.
+     Yükseklik = gerekçe (14) + boşluk (4) + başlık iki satır (2.6em) + boşluk (4) + alt satır (17). */
+  .foryou-text{display:flex; flex-direction:column; gap:4px; height:calc(39px + 2.6em); min-width:0;}
   /* EŞİT KART BOYU (kullanıcı isteği: "buradaki tüm gönderi önizlemelerinin boyutları aynı olsun").
      Görsel kutusu zaten aspect-ratio ile sabit; değişkenlik METİN bloğundan geliyordu — başlık bir
      ya da iki satır, gerekçe/alt satır kimi kartta hiç yok. Bu yüzden üç satırın da yüksekliği
@@ -565,9 +582,12 @@
     letter-spacing:0.06em; text-transform:uppercase; color:var(--brass);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
   }
+  /* height -> max-height: başlık artık BİR satırlık içerikte bir satır yer kaplar (sabit iki satır
+     değil) ve alt satır hemen altına gelir. Kartın toplam yüksekliği .foryou-text'in sabit
+     yüksekliğiyle korunur, yani "tüm önizlemeler aynı boyutta" kuralı bozulmaz. */
   .foryou-title{
     margin:0; font-size:14.5px; font-weight:700; line-height:1.3; color:var(--ink);
-    height:2.6em; /* tam iki satır */
+    max-height:2.6em; /* en fazla iki satır */
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   }
   .foryou-meta{
@@ -770,6 +790,18 @@
      çözümü). -->
 <script src="image-cdn.js"></script>
 <script src="il-ilce-data.js"></script>
+<!-- "Senin İçin" kartlarındaki Kaydet düğmesi ve görsel karuseli (kullanıcı isteği, 2026-09-13
+     madde 2). İkisi de proje/ürün liste sayfalarının kullandığı AYNI dosyalar:
+       * save-widget.js — .card-save-btn'leri /api/saved'e bağlar. Eskiden bu sayfaya yalnızca
+         entity popup'ı açılırken DİNAMİK yükleniyordu (bkz. js/components/lazy-modals.js
+         #ENTITY_UI_DEPS); artık sayfa açılışında gerekiyor. İsim çakışması YOK: bu dosyanın kendi
+         slugify'ı IDX_ önekiyle ayrılmıştı (bkz. aşağıdaki IDX_SLUGIFY_TR_MAP notu) ve
+         lazy-modals.js aynı dosyayı ikinci kez enjekte etmez (no-op).
+       * card-carousel.js — .content-card-photo[data-images] taşıyan her kartı delege dinleyici +
+         MutationObserver ile karusele çevirir; "Senin İçin" ızgarası fetch sonrası basıldığı için
+         bu gözlemci deseni burada da doğru çalışır (proje/ürün sayfalarındaki ile aynı). -->
+<script src="save-widget.js" defer></script>
+<script src="js/components/card-carousel.js" defer></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -1443,20 +1475,49 @@ const FORYOU_SUB_PENDING = 'Takip ettiğin, kaydettiğin, beğendiğin, paylaşt
 const FORYOU_SUB_READY = 'Takip ettiğin, kaydettiğin, beğendiğin, paylaştığın içeriklerden yola çıkarak sana özel içerikler derledik.';
 let foryouStarted = false;
 
+// KAYDET ikonu — proje/ürün liste kartlarındakiyle BİREBİR aynı çizim (js/pages/proje.js#renderCards,
+// urun.html#render). Aynı ikonu üçüncü kez elle çizmek yerine buraya tek satır olarak alındı.
+const FORYOU_SAVE_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
+
 function foryouCardHtml(item, i){
   const srcset = item.image ? cdnSrcset(item.image, [400, 600, 800]) : '';
   const img = item.image
     ? `<img src="${escapeAttr(cdnImg(item.image, 600))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="(max-width: 560px) 45vw, (max-width: 720px) 30vw, 230px"` : ''} alt="${escapeAttr(item.title)}" loading="lazy" decoding="async">`
     : '';
+  // GÖRSEL KARUSELİ (kullanıcı isteği, 2026-09-13 madde 2: "ilk üç görseli önizlemede
+  // görebileceğimiz ileri geri butonları olsun"). Kart, proje/ürün liste kartlarıyla AYNI
+  // sözleşmeyi kullanır: .content-card-photo[data-images] — js/components/card-carousel.js o
+  // seçiciye bakar ve okları/noktaları kendisi ekler, yani burada ok çizmeye gerek yok ve
+  // davranış üç sayfada da birebir aynı olur. Sunucu diziyi zaten 3'te kırpıyor
+  // (src/routes/forYou.js#cardImages -> CARD_CAROUSEL_IMAGES).
+  const images = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+  const dataImages = images.length > 1 ? ` data-images="${escapeAttr(JSON.stringify(images))}"` : '';
+  // KAYDET BUTONU (aynı madde). data-* alanları save-widget.js#wireSaveButtons'ın beklediği
+  // sözleşmedir; saveType/saveKey'i SUNUCU üretir (src/routes/forYou.js) — anahtarı burada
+  // türetmek, ürün sayfasında kaydedilmiş bir ürünün burada "kaydedilmemiş" görünmesine yol
+  // açardı (ürün anahtarı slug DEĞİL, ratingKey'dir).
+  const save = item.saveKey
+    ? `<button class="card-save-btn" type="button" data-type="${escapeAttr(item.saveType || 'project')}" data-key="${escapeAttr(item.saveKey)}" data-title="${escapeAttr(item.title)}" data-meta="${escapeAttr(item.subtitle || '')}" data-image="${escapeAttr(item.image || '')}" data-href="${escapeAttr(item.href)}" aria-label="Kaydet">${FORYOU_SAVE_ICON}</button>`
+    : '';
   // ÜÇ METİN SATIRI DA HER ZAMAN BASILIR — verisi olmasa bile boş olarak. Eskiden eksik alanlar
   // hiç render edilmiyordu ve kartlar birbirinden farklı yükseklikte çıkıyordu (kullanıcı isteği,
-  // 2026-09-13: "buradaki tüm gönderi önizlemelerinin boyutları aynı olsun"). Yükseklikler CSS'te
-  // sabit (bkz. .foryou-reason/.foryou-title/.foryou-meta), yani boş satır da yerini korur.
+  // 2026-09-13: "buradaki tüm gönderi önizlemelerinin boyutları aynı olsun").
+  //
+  // ÜÇÜ ARTIK BİR SARMALAYICIDA (.foryou-text) — kullanıcı bildirimi, 2026-09-13: "3. satırdaki
+  // firma ve marka bilgisi alt gönderiye daha yakın oluyor. Bunu üste yakın yap." KÖK NEDEN:
+  // .foryou-title'ın yüksekliği İKİ SATIRA sabitlenmişti; tek satırlık bir başlıkta boşluk
+  // başlığın İÇİNDE, yani başlıkla alt satır ARASINDA kalıyordu — alt satır aşağı itiliyor ve
+  // (ızgara boşluğu 6px olduğundan) kendi başlığından çok BİR SONRAKİ karta yakın duruyordu.
+  // Çözüm: başlık kendi doğal yüksekliğinde (en fazla iki satır) akar, sabit yükseklik metin
+  // BLOĞUNA verilir — böylece artan boşluk bloğun ALTINDA toplanır, kart yükseklikleri yine
+  // birbirinin aynısı kalır ve üç satır bir arada durur.
   return `<a class="foryou-card" href="${escapeAttr(item.href)}">
-    <span class="foryou-thumb">${img}</span>
-    <span class="foryou-reason">${escapeHtml(item.reason || '')}</span>
-    <h3 class="foryou-title">${escapeHtml(item.title)}</h3>
-    <span class="foryou-meta">${escapeHtml(item.subtitle || '')}</span>
+    <span class="foryou-thumb content-card-photo"${dataImages}>${img}${save}</span>
+    <span class="foryou-text">
+      <span class="foryou-reason">${escapeHtml(item.reason || '')}</span>
+      <span class="foryou-title">${escapeHtml(item.title)}</span>
+      <span class="foryou-meta">${escapeHtml(item.subtitle || '')}</span>
+    </span>
   </a>`;
 }
 
@@ -1511,7 +1572,22 @@ async function loadForYou(){
     sub.textContent = data.personalized ? FORYOU_SUB_READY : FORYOU_SUB_PENDING;
   }
   body.innerHTML = `<div class="foryou-grid">${items.map(foryouCardHtml).join('')}</div>`;
+  // KAYDET DÜĞMELERİNİ BAĞLA. save-widget.js bu sayfaya <script defer> ile yüklü, ama bu render
+  // fetch sonrası (yani defer'dan sonra da olabilir, önce de) çalışıyor; proje.html#renderCards
+  // ile AYNI desen: fonksiyon hazırsa hemen bağla, değilse bayrak bırak ve 'load'da bağla.
+  // Tip kartın kendi data-type'ından okunur (proje/ürün karışık geldiği için varsayılan tip
+  // verilemez), bu yüzden wireSaveButtons argümansız çağrılır.
+  if (typeof wireSaveButtons === 'function') wireSaveButtons();
+  else foryouPendingSaveWire = true;
 }
+
+let foryouPendingSaveWire = false;
+window.addEventListener('load', () => {
+  if (foryouPendingSaveWire && typeof wireSaveButtons === 'function') {
+    foryouPendingSaveWire = false;
+    wireSaveButtons();
+  }
+});
 
 function startForYou(){
   if(foryouStarted) return;

@@ -524,6 +524,13 @@ if(p.replace(/\/+$/,'')==='/urun'&&!location.search){var u='/api/products?page=1
 // (bkz. src/routes/product.js#handleProductListRoute) eski client-side `products.push(...materials)`
 // birleştirmesi gerekmiyor.
 const PAGE_SIZE = 24;
+// Bir ürün kartının karuselinde gezilebilecek EN FAZLA görsel (kapak dahil) — kullanıcı isteği,
+// 2026-09-13 madde 3: "Proje ve ürün sayfasında da gönderi önizlemelerinde 3 görsel görebilelim".
+// Sunucu tarafındaki ikizi src/lib/projectPool.js#CARD_CAROUSEL_IMAGES (ürün yükünü kırpan yer
+// src/routes/product.js#fetchProductPool) ve js/pages/proje.js'teki proje karşılığı; ÜÇÜ DE AYNI
+// değerde olmalı — scripts/test-2026-09-10-round11.mjs bunu denetler. Sunucu zaten kırpıyor;
+// buradaki ikinci kırpma, deploy anında edge'de duran ESKİ bir liste gövdesini de kapsar.
+const CARD_CAROUSEL_IMAGES = 3;
 let currentPage = 1;
 let localSearchQuery = '';
 
@@ -842,7 +849,7 @@ async function render(){
   const cols = window.innerWidth <= 720 ? 2 : 3;
   grid.innerHTML = pageItems.map((p, i) => `
     <div class="content-card">
-      <div class="content-card-photo"${(p.images && p.images.length > 1) ? ` data-images="${escapeAttr(JSON.stringify(p.images.slice(0, 6)))}"` : ''}>
+      <div class="content-card-photo"${(p.images && p.images.length > 1) ? ` data-images="${escapeAttr(JSON.stringify(p.images.slice(0, CARD_CAROUSEL_IMAGES)))}"` : ''}>
         ${catalogCardMediaHtml(p, escapeHtml, escapeAttr, i < cols)}
         <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="/urun/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>

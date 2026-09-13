@@ -405,19 +405,23 @@ await test('architect/office modal: rozet YOK ama claimed ise buton kalır', () 
 });
 
 section('madde 5 — kart karuseli: liste yükü çoklu görsel, kart data-images, modül');
-await test('proje liste yükü ilk 4, ürün ilk 6 görseli taşıyor; kartlar data-images basıyor; modül iki sayfada da yüklü', () => {
-  // 6 -> 4 YALNIZCA proje kartlarında (kullanıcı isteği, 2026-09-12 madde 2); ürün kartı 6'da kaldı.
+await test('proje ve ürün liste yükü ilk 3 görseli taşıyor; kartlar data-images basıyor; modül iki sayfada da yüklü', () => {
+  // 6 -> 4 (2026-09-12 madde 2) -> 3 (2026-09-13 madde 3: "Proje ve ürün sayfasında da gönderi
+  // önizlemelerinde 3 görsel görebilelim"). Ürün tarafı artık kendi 6'sını yazmıyor, AYNI sabiti
+  // içe aktarıyor — iki sayının ayrışması bu turda kaldırıldı.
   const pool = readFileSync(new URL('../src/lib/projectPool.js', import.meta.url), 'utf8');
-  assert.ok(pool.includes('export const CARD_CAROUSEL_IMAGES = 4;'));
+  assert.ok(pool.includes('export const CARD_CAROUSEL_IMAGES = 3;'));
   assert.ok(pool.includes('p.images.slice(0, CARD_CAROUSEL_IMAGES)'));
   const prod = readFileSync(new URL('../src/routes/product.js', import.meta.url), 'utf8');
-  assert.ok(prod.includes('images: (p.images || []).slice(0, 6),'));
+  assert.ok(prod.includes('images: (p.images || []).slice(0, CARD_CAROUSEL_IMAGES),'));
+  assert.ok(!/slice\(0, 6\)/.test(prod), 'ürün tarafında ikinci bir sabit (6) kalmamalı');
   const pj = readFileSync(new URL('../js/pages/proje.js', import.meta.url), 'utf8');
   assert.ok(pj.includes('data-images='));
   // İstemci sabiti sunucununkiyle AYNI olmalı — yoksa kart, sunucunun gönderdiğinden farklı sayıda
   // görsel gezdirir (sessiz sapma).
-  assert.ok(pj.includes('const CARD_CAROUSEL_IMAGES = 4;'));
+  assert.ok(pj.includes('const CARD_CAROUSEL_IMAGES = 3;'));
   assert.ok(pj.includes('p.images.slice(0, CARD_CAROUSEL_IMAGES)'));
+  assert.ok(readFileSync(new URL('../urun.html', import.meta.url), 'utf8').includes('const CARD_CAROUSEL_IMAGES = 3;'));
   const uh = readFileSync(new URL('../urun.html', import.meta.url), 'utf8');
   assert.ok(uh.includes('data-images=') && uh.includes('js/components/card-carousel.js'));
   assert.ok(readFileSync(new URL('../proje.html', import.meta.url), 'utf8').includes('js/components/card-carousel.js'));

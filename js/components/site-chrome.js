@@ -458,7 +458,7 @@
              sitede başka iki yerde duruyor: üst menünün sağ ucu ve mobil menünün alt bloğu
              (bkz. headerHtml) — yani kayıt yolu footer'dan kalkmakla kaybolmuyor. -->
         <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
-        <p class="footer-newsletter-desc">Yeni proje, ürün ve gündem içerikleri e-postana gelsin.</p>
+        <p class="footer-newsletter-desc">Proje, ürün ve gündem içerikleri e-postana gelsin.</p>
         <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
@@ -585,6 +585,15 @@
          etkilenmez, kendi ortalamalarını ister. */
       .footer-top .footer-logo{justify-content:center;}
       .footer-top .footer-brand p{margin-left:auto; margin-right:auto;}
+      /* LOGO ALTINDAKİ TANITIM YAZISI BEYAZ (kullanıcı isteği, 2026-09-13: "Footer menüsünde
+         logonun altındaki yazı da beyaz renk olsun").
+         NEDEN BURADA VE NEDEN BU SEÇİCİ: .footer-brand p kuralının kendisi 32 AYRI HTML
+         dosyasında ayrı ayrı yazılı (rgba(237,240,243,0.6)) — 32 kopyayı tek tek düzenlemek bu
+         depodaki bilinen tuzağın ta kendisi: biri unutulur ve o sayfada yazı gri kalır. Footer'ı
+         zaten TEK yerden basan bu bileşen, stilini de <head>'e SONRADAN enjekte eder; sayfa
+         CSS'inden daha yüksek özgüllükle (.site-footer .footer-brand p = 0,2,1) yazıldığında
+         kural yükleme sırasından bağımsız olarak her sayfada kazanır. */
+      .site-footer .footer-brand p{color:#fff;}
       /* "Sen de Ekle" sütundaki <a> kardeşleriyle birebir aynı görünmeli (bkz. .footer-add-content
          kuralı) — o kural text-align:left yazdığı için burada ortaya çekilir. */
       .footer-top .footer-add-content{text-align:center;}
@@ -641,7 +650,9 @@
          340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün ve gündem içerikleri e-postana
          gelsin.") iki satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek
          satırda kalır, dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
-      .footer-newsletter-desc{font-size:16px; color:rgba(237,240,243,0.6); margin:0 0 16px;}
+      /* BEYAZ (kullanıcı isteği, 2026-09-13: "bu yazi beyaz renk olsun"). Eskiden %60 opaklıkta
+         soluk gri idi; koyu mavi (#4E6478) zemin üzerinde başlığın yanında sönük kalıyordu. */
+      .footer-newsletter-desc{font-size:16px; color:#fff; margin:0 0 16px;}
       /* kullanıcı isteği (2026-08-30): abone ol gönder butonu artık TÜM görünümlerde (masaüstü/
          tablet/mobil) input'un sağ ucuna gömülü dairesel bir ikon — eskiden yalnızca mobilde
          (≤560px) böyleydi, masaüstünde ayrı metin butonu vardı; artık üç görünüm de aynı deseni

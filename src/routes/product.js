@@ -5,6 +5,8 @@ import { applyPinnedOrder, pinnedSlugsFromUrl } from '../lib/homeCarousels.js';
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring, likePattern } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+// Kart karuselindeki görsel sayısı proje ve ürün kartlarında ORTAK (bkz. o dosyadaki yorum).
+import { CARD_CAROUSEL_IMAGES } from '../lib/projectPool.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
@@ -105,9 +107,11 @@ export async function fetchProductPool(env) {
       return {
         slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
         image: (p.images && p.images[0]) || null, group, groups, categories, ratingKey, submissionId, rating,
-        // images: kart karuseli için ilk 6 görsel (bkz. src/lib/projectPool.js#CARD_CAROUSEL_IMAGES
-        // ve js/components/card-carousel.js). `image` (kapak) geriye dönük uyumluluk için kalır.
-        images: (p.images || []).slice(0, 6),
+        // images: kart karuseli için ilk CARD_CAROUSEL_IMAGES görsel. Sayı ARTIK proje tarafıyla
+        // ORTAK tek bir sabitten gelir (6 yazan ikinci kopya kaldırıldı — kullanıcı isteği,
+        // 2026-09-13 madde 3: proje ve ürün önizlemelerinde 3 görsel). `image` (kapak) geriye
+        // dönük uyumluluk için kalır. Bkz. js/components/card-carousel.js.
+        images: (p.images || []).slice(0, CARD_CAROUSEL_IMAGES),
         year: p.year || null, designers,
         // preview: bkz. src/lib/projectPool.js#shapeProjectItem'daki AYNI alan/gerekçe.
         ...(row.preview_at ? { preview: true } : {}),
@@ -470,7 +474,11 @@ function ratingBuckets(average) {
 // aksi halde bu turdan önce verilmiş puan/kaydetme kayıtları (target_id bu eski anahtarla yazıldı)
 // yetim kalırdı. `submissionId` yalnızca bu satır bir üye gönderisinden geldiyse (bkz.
 // src/routes/office.js#buildOfficePayload'daki AYNI "submission:" marker kontrolü) dolu olur.
-function ratingKeyFor(title, brand, submissionId) {
+// EXPORT (2026-09-13): ana sayfadaki "Senin İçin" kartlarının Kaydet butonu da AYNI anahtarı
+// üretmek zorunda (bkz. src/routes/forYou.js#productCard). İkinci bir kopya yazmak, ürün sayfasında
+// kaydedilen bir ürünün ana sayfada "kaydedilmemiş" görünmesi demekti — iki ayrı anahtara yazılmış
+// olurdu. Anahtar üretimi TEK yerde kalır.
+export function ratingKeyFor(title, brand, submissionId) {
   if (submissionId) return `m-${submissionId}`;
   return slugify(`${title}-${brand || ''}`);
 }
