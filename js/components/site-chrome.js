@@ -1746,6 +1746,188 @@
     if(typeof OverlayManager !== 'undefined') OverlayManager.register('add-content', close);
   }
 
+
+  // ===========================================================================================
+  // ÇEREZ ONAY BANDI + ANALİTİĞİN ONAYA BAĞLANMASI
+  // (kullanıcı isteği, 2026-09-13 denetim listesi: "Cookie banner")
+  // ===========================================================================================
+  // ÖNCEKİ DURUM — ASIL SORUN BANNER'IN YOKLUĞU DEĞİLDİ: Google Analytics (gtag) 30 sayfanın her
+  // birinde <head> içinde KOŞULSUZ yükleniyordu. Yani ziyaretçi daha hiçbir şey seçmeden üçüncü
+  // taraf analitik çerezleri yazılıyordu. Sadece bir bant eklemek bunu düzeltmezdi; bant "kabul
+  // et"e basılana kadar analitiğin HİÇ YÜKLENMEMESİ gerekiyordu. Bu yüzden gtag parçacığı 30
+  // sayfadan KALDIRILDI ve yükleme buraya, tek yere alındı.
+  //
+  // NEDEN BURADA (ayrı bir dosya + 32 <script> etiketi yerine): site-chrome.js sitedeki 32 HTML
+  // sayfasının HEPSİNDE zaten yüklü. Yeni bir dosyayı 32 sayfaya tek tek eklemek bu depodaki
+  // bilinen tuzak: biri unutulur ve o sayfada bant hiç çıkmaz (bkz. .footer-brand p kuralının 32
+  // kopyası). Bant, footer ile AYNI tek kaynaktan basılır.
+  //
+  // ZORUNLU ÇEREZLER ONAYA TABİ DEĞİL: oturum çerezi (__Host-mimarlab_session) ve tema tercihi
+  // hizmetin çalışması için gerekli; KVKK m.5/2 ve GDPR m.6/1-f kapsamında açık rıza aranmaz.
+  // Onaya bağlanan tek şey ANALİTİKTİR (Google Analytics). Bu ayrım bilerek yapıldı: oturumu da
+  // onaya bağlamak, "reddet" diyen kullanıcının siteye giriş yapamaması demek olurdu.
+  //
+  // "REDDET" GERÇEKTEN REDDEDER: kabul edilmediği sürece googletagmanager.com'a HİÇBİR istek
+  // gitmez (script etiketi hiç oluşturulmaz). Google'ın "consent mode" deseni tercih edilmedi;
+  // o desende script yine yüklenir ve çerezsiz de olsa ping gönderir.
+  var CONSENT_KEY = 'mimarlab-cookie-consent';
+  var GA_ID = 'G-L4902Z57B8';
+  var gaLoaded = false;
+
+  function readConsent(){
+    try {
+      var raw = localStorage.getItem(CONSENT_KEY);
+      if(!raw) return null;
+      var parsed = JSON.parse(raw);
+      if(!parsed || typeof parsed !== 'object') return null;
+      return { analytics: parsed.analytics === true, ts: parsed.ts || 0 };
+    } catch(e){ return null; }   // gizli mod / engellenmiş depolama: karar YOK sayılır
+  }
+
+  function writeConsent(analytics){
+    try { localStorage.setItem(CONSENT_KEY, JSON.stringify({ v: 1, analytics: !!analytics, ts: Date.now() })); } catch(e){}
+    if(analytics) loadAnalytics();
+    try { document.dispatchEvent(new CustomEvent('mimarlab:consent-change', { detail: { analytics: !!analytics } })); } catch(e){}
+  }
+
+  // Analitiği YALNIZCA onay varsa yükler. İki kez çağrılsa bile tek kez yükler (gaLoaded).
+  function loadAnalytics(){
+    if(gaLoaded || !GA_ID) return;
+    gaLoaded = true;
+    window.dataLayer = window.dataLayer || [];
+    // gtag GLOBAL olmalı: neden-mimarlab.html gibi sayfalar `typeof gtag === 'function'` kontrolüyle
+    // olay gönderiyor (onay yoksa o kontrol false kalır ve olay sessizce atlanır — doğru davranış).
+    window.gtag = function(){ window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', GA_ID);
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA_ID);
+    document.head.appendChild(s);
+  }
+
+  function injectConsentStyle(){
+    if(document.getElementById('cookie-consent-style')) return;
+    var st = document.createElement('style');
+    st.id = 'cookie-consent-style';
+    st.textContent = [
+      '.cc-bar{position:fixed; left:0; right:0; bottom:0; z-index:2147483000; display:flex; gap:16px;',
+      '  align-items:center; justify-content:center; flex-wrap:wrap;',
+      '  padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px));',
+      '  background:#1B2A3D; color:#EDF0F3; box-shadow:0 -6px 24px rgba(0,0,0,0.22);}',
+      '.cc-text{font-size:13.5px; line-height:1.6; margin:0; max-width:70ch;}',
+      '.cc-text a{color:#AFC5D8; text-decoration:underline;}',
+      '.cc-actions{display:flex; gap:8px; flex-wrap:wrap;}',
+      '.cc-btn{border:none; cursor:pointer; border-radius:100px; padding:9px 20px; font-size:13px;',
+      '  font-weight:700; font-family:inherit; white-space:nowrap;}',
+      '.cc-accept{background:#EDF0F3; color:#1B2A3D;}',
+      '.cc-accept:hover{background:#fff;}',
+      '.cc-reject{background:transparent; color:#EDF0F3; border:1px solid rgba(237,240,243,0.45);}',
+      '.cc-reject:hover{background:rgba(237,240,243,0.12);}',
+      '@media (max-width:640px){',
+      '  .cc-bar{flex-direction:column; align-items:stretch; gap:12px; text-align:left;}',
+      '  .cc-actions{justify-content:stretch;}',
+      '  .cc-btn{flex:1 1 auto;}',
+      '}',
+      /* "Çerez tercihimi değiştir" kutusu. Kural BURADA (sayfa CSS'inde değil) çünkü kutu iki
+         yerde basılıyor ve bunlardan biri POPUP (info-modal.js#cerezTemplate) — popup, Çerez
+         Politikası sayfasının değil, o an açık olan SAYFANIN CSS'i altında render edilir; kuralı
+         cerez-politikasi.html'de bırakmak, popup kopyasının stilsiz çıkması demekti. */
+      '.cookie-pref{margin-top:18px; padding:16px 18px; background:var(--paper-card, #F8FAFB);',
+      '  border:1px solid var(--line, rgba(27,42,61,0.14)); border-radius:12px;}',
+      '.cookie-pref-state{margin:0 0 12px; font-size:13.5px; color:var(--ink-soft, #4E6478);}',
+      '.cookie-pref-btn{border:none; background:var(--ink, #1B2A3D); color:var(--paper, #EDF0F3);',
+      '  border-radius:100px; padding:9px 20px; font-size:13px; font-weight:700; cursor:pointer;',
+      '  font-family:inherit;}',
+      '.cookie-pref-btn:hover{background:var(--walnut, #2B425F);}',
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+
+  function showConsentBar(){
+    if(document.querySelector('.cc-bar')) return;
+    injectConsentStyle();
+    var bar = document.createElement('div');
+    bar.className = 'cc-bar';
+    // role="region" + aria-label: bant bir DIALOG DEĞİL — odağı hapsetmez ve sayfayı bloke etmez.
+    // role="dialog" verilseydi ekran okuyucu kullanıcısı, karar verene kadar sayfada gezinemezdi.
+    bar.setAttribute('role', 'region');
+    bar.setAttribute('aria-label', 'Çerez tercihi');
+    bar.innerHTML =
+      '<p class="cc-text">Sitenin çalışması için zorunlu çerezleri kullanıyoruz. İsteğe bağlı olarak, ' +
+      'siteyi nasıl kullandığınızı anlamak için <strong>analitik çerezleri</strong> de kullanmak istiyoruz. ' +
+      'Ayrıntılar için <a href="/cerez-politikasi">Çerez Politikası</a>.</p>' +
+      '<div class="cc-actions">' +
+        '<button type="button" class="cc-btn cc-reject">Reddet</button>' +
+        '<button type="button" class="cc-btn cc-accept">Kabul Et</button>' +
+      '</div>';
+    document.body.appendChild(bar);
+    var decide = function(analytics){ writeConsent(analytics); bar.remove(); };
+    bar.querySelector('.cc-accept').addEventListener('click', function(){ decide(true); });
+    bar.querySelector('.cc-reject').addEventListener('click', function(){ decide(false); });
+  }
+
+  function initConsent(){
+    var stored = readConsent();
+    if(stored){ if(stored.analytics) loadAnalytics(); return; }
+    showConsentBar();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // "ÇEREZ TERCİHİMİ DEĞİŞTİR" KUTUSU — İKİ AYRI YERDE BASILIR, MANTIK BURADA TEKTİR
+  // -------------------------------------------------------------------------------------------
+  // GERÇEK BULGU (bu değişiklik tarayıcıda doğrulanırken yakalandı): /cerez-politikasi adresi
+  // kullanıcıya statik cerez-politikasi.html DOSYASINI GÖSTERMİYOR — içerik
+  // js/components/info-modal.js#cerezTemplate() içinden POPUP olarak basılıyor; statik dosya
+  // yalnızca SEO/JS'siz ziyaretçi kabuğu. Yani kutuyu sadece statik dosyaya koymak, kullanıcıların
+  // BÜYÜK ÇOĞUNLUĞUNUN onu hiç görmemesi demekti.
+  //
+  // Bu yüzden iki kopyada YALNIZCA İŞARETLEME duruyor; durum metnini yazan ve butonu bağlayan kod
+  // burada, tek yerde. Bağlama DELEGE dinleyiciyle yapılır (popup içeriği sonradan basılıyor) ve
+  // etiket, içerik DOM'a girdiğinde MutationObserver ile boyanır — bu depodaki aynı desen
+  // (bkz. js/components/card-carousel.js, preview-cards.js).
+  function paintConsentLabels(){
+    var nodes = document.querySelectorAll('[data-cookie-pref-state]');
+    if(!nodes.length) return;
+    var c = readConsent();
+    var text = !c
+      ? 'Analitik çerezler için henüz bir tercih belirtmediniz.'
+      : (c.analytics
+          ? 'Analitik çerezlere izin verdiniz.'
+          : 'Analitik çerezleri reddettiniz; Google Analytics yüklenmiyor.');
+    for(var i = 0; i < nodes.length; i++) nodes[i].textContent = text;
+  }
+
+  function wireConsentPrefBox(){
+    document.addEventListener('click', function(e){
+      var btn = e.target && e.target.closest ? e.target.closest('[data-cookie-pref-btn]') : null;
+      if(!btn) return;
+      e.preventDefault();
+      window.MimarlabConsent.reopen();
+    });
+    document.addEventListener('mimarlab:consent-change', paintConsentLabels);
+    paintConsentLabels();
+    if('MutationObserver' in window){
+      var pending = false;
+      new MutationObserver(function(){
+        if(pending) return;
+        pending = true;
+        setTimeout(function(){ pending = false; paintConsentLabels(); }, 0);
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  // Çerez Politikası sayfasının (ve ileride Hesabım'ın) tercihi yeniden sorabilmesi için küçük bir
+  // genel arayüz. Kararı DEĞİŞTİRMEK, onay bandını yeniden açmakla aynı şeydir.
+  window.MimarlabConsent = {
+    get: readConsent,
+    set: writeConsent,
+    reopen: function(){
+      try { localStorage.removeItem(CONSENT_KEY); } catch(e){}
+      showConsentBar();
+    },
+  };
+
   function mountFooter(){
     const footerMount = document.getElementById('site-footer-mount');
     if(footerMount) footerMount.outerHTML = footerHtml();
@@ -1753,6 +1935,8 @@
     wireFooterTheme();
     wireFooterNewsletter();
     wireAddContent();
+    initConsent();
+    wireConsentPrefBox();
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', mountFooter);

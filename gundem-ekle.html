@@ -10,6 +10,21 @@
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>Gündem İçeriği Ekle — MİMARLAB</title>
 <meta name="description" content="MİMARLAB Gündem'e haber, etkinlik, yarışma ya da iş/staj ilanı ekle. Gönderin onaylandıktan sonra Gündem'de ve profilinde yayınlanır.">
+<!-- OG/Twitter kartı (kullanıcı isteği, 2026-09-13 denetim listesi: "Open Graph image").
+     Bu sayfa BİLEREK noindex — ama paylaşım önizlemesi ile arama indeksi AYNI ŞEY DEĞİLDİR:
+     sayfa arama motoruna girmese de bağlantısı WhatsApp/Slack/X üzerinden paylaşılabiliyor ve
+     görselsiz kart, adresi çıplak bir bağlantı gibi gösteriyordu. og:url YOK: bu sayfaların
+     kanonik/paylaşılabilir adresi token ya da uuid taşır, sabit bir adres yazmak yanlış olurdu. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Gündem İçeriği Ekle — MİMARLAB">
+<meta property="og:description" content="MİMARLAB Gündem'e haber, etkinlik, yarışma ya da iş/staj ilanı ekle.">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gündem İçeriği Ekle — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB Gündem'e haber, etkinlik, yarışma ya da iş/staj ilanı ekle.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <!-- GÜNDEM İÇERİĞİ EKLE / DÜZENLE (kullanıcı isteği, 2026-09-11). Veri sözleşmesi
      src/routes/gundemSubmit.js'te; sayfa betiği js/pages/gundem-ekle.js. Kabuk (nav/breadcrumb/
      footer) gundem.html'den birebir alındı — site-chrome.js işaretlemeyi basar, stil sayfada durur. -->
@@ -189,13 +204,11 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-L4902Z57B8');
-</script>
+<!-- Google Analytics BURADA YÜKLENMEZ (kullanıcı isteği, 2026-09-13 denetim listesi: "Cookie
+     banner"). Parçacık bu sayfadan ve diğer 29 sayfadan kaldırıldı; analitik artık YALNIZCA
+     ziyaretçi çerez bandında "Kabul Et" dedikten sonra yüklenir. Tek yükleme noktası:
+     js/components/site-chrome.js#loadAnalytics (o dosyadaki "ÇEREZ ONAY BANDI" başlıklı blok).
+     Bu sayfaya yeniden bir gtag/analytics betiği eklemek onayı BYPASS eder. -->
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>

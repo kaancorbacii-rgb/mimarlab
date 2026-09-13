@@ -971,6 +971,13 @@ const InfoModal = (function () {
         <h2>6. Çerezleri nasıl kontrol edebilirsiniz?</h2>
         <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz; bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. Oturum çerezini engellemeniz durumunda giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar çalışmaz; yerel depolamayı temizlediğinizde tema tercihiniz sıfırlanır.</p>
         <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilir ya da tarayıcınızın üçüncü taraf çerezlerini engelleyebilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
+        <!-- ÇEREZ TERCİHİ KUTUSU — cerez-politikasi.html'deki İKİZİYLE aynı işaretleme. Durum metni
+             ve buton bağlaması js/components/site-chrome.js'te TEK yerde (orada "İKİ AYRI YERDE
+             BASILIR" başlıklı nota bakın); burada yalnızca kutunun kendisi durur. -->
+        <div class="cookie-pref" id="im-cerez-tercihi">
+          <p class="cookie-pref-state" data-cookie-pref-state>Mevcut tercihiniz yükleniyor…</p>
+          <button type="button" class="cookie-pref-btn" data-cookie-pref-btn>Çerez tercihimi değiştir</button>
+        </div>
       </div>
 
       <div class="content-section" id="im-cz-degisiklikler">

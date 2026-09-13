@@ -827,6 +827,18 @@ else
 fi
 rm -f /tmp/preflight_hotspot
 
+# YAYIN DENETİM LİSTESİ (kullanıcı isteği, 2026-09-13 — 20 maddelik kontrol listesi): özel 404,
+# çerez onayı + analitiğin onaya bağlanması, her sayfada meta/favicon/OG. EN SESSİZ REGRESYON:
+# bir sayfaya yeniden gtag parçacığı yapıştırmak — bant görünmeye devam eder ama analitik onaydan
+# ÖNCE yüklenir. Bkz. scripts/test-2026-09-13-site-checklist.mjs.
+if node scripts/test-2026-09-13-site-checklist.mjs >/tmp/preflight_checklist 2>&1; then
+  ok "yayın denetim listesi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_checklist) test)"
+else
+  bad "yayın denetim listesi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_checklist >&2
+fi
+rm -f /tmp/preflight_checklist
+
 # PAGE_SIZE üç yerde tekrarlanıyor ve ÜÇÜ de aynı olmak zorunda: (a) gundem.html <head>'indeki
 # erken fetch URL'si, (b) js/pages/gundem.js#PAGE_SIZE, (c) src/routes/gundem.js#GUNDEM_PAGE_SIZE
 # (SSR gövdesinin kaç kart basacağı). Ayrışırlarsa hiçbir şey KIRILMAZ ama prefetch boşa gider ve

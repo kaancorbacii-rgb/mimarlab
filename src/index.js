@@ -930,7 +930,7 @@ async function routeAsset(request, env, url, ctx) {
     return Response.redirect(dest.href, 301);
   }
 
-  if (isDisabledPagePath(url.pathname)) return notFoundPageResponse();
+  if (isDisabledPagePath(url.pathname)) return notFoundPageResponse(request, env);
 
   // /favicon.ico — denetim bulgusu (2026-09-05): canlıda 404 dönüyordu. Site sayfaları ikonu
   // <link rel="icon" href="/logos/site/favicon-32.png"> ile bildiriyor, ama o etiketi HİÇ
@@ -1016,7 +1016,7 @@ async function routeAsset(request, env, url, ctx) {
   if (url.pathname.startsWith('/gorusme/') && url.pathname.length > '/gorusme/'.length) {
     return serveMeetingRoomPage(request, env, url);
   }
-  if (url.pathname === '/gorusme') return notFoundPageResponse();
+  if (url.pathname === '/gorusme') return notFoundPageResponse(request, env);
 
   // TEMİZ SAYFALAMA ADRESLERİ — /proje/sayfa-7, /kisi/sayfa-2, /firma/sayfa-3, /marka/sayfa-2,
   // /urun/sayfa-4 (kullanıcı isteği, 2026-09-10 madde 5: "/proje?buildStatus=built&page=7 gibi
@@ -1145,7 +1145,7 @@ async function routeAsset(request, env, url, ctx) {
   // gerçek sayfa/navigasyon istekleri (Accept: text/html) için markalı 404'e çevrilir — eksik statik
   // dosyalar (görsel/CSS/JS/favicon vb.) hâlâ sade bir 404 alır, HTML gövdesiyle "onarılmaz".
   if (response.status === 404 && request.method === 'GET' && (request.headers.get('Accept') || '').includes('text/html')) {
-    return notFoundPageResponse();
+    return notFoundPageResponse(request, env);
   }
   return withStaticAssetCacheHeaders(url, response);
 }
@@ -1202,7 +1202,7 @@ async function serveInfoModalPage(request, env, url, meta) {
 const MEETING_ROOM_PAGE_HEADERS = { 'Cache-Control': 'private, no-store, must-revalidate' };
 async function serveMeetingRoomPage(request, env, url) {
   const roomUuid = decodeURIComponent(url.pathname.slice('/gorusme/'.length).replace(/\/$/, ''));
-  if (!ROOM_UUID_RE.test(roomUuid)) return notFoundPageResponse();
+  if (!ROOM_UUID_RE.test(roomUuid)) return notFoundPageResponse(request, env);
 
   const user = await getSessionUser(request, env);
   if (!user) {
@@ -1227,16 +1227,48 @@ async function serveMeetingRoomPage(request, env, url) {
   assetUrl.pathname = '/gorusme';
   assetUrl.search = '';
   const shell = await env.ASSETS.fetch(new Request(assetUrl, request));
-  if (shell.status !== 200) return notFoundPageResponse();
+  if (shell.status !== 200) return notFoundPageResponse(request, env);
   const headers = new Headers(shell.headers);
   for (const [k, v] of Object.entries(MEETING_ROOM_PAGE_HEADERS)) headers.set(k, v);
   return new Response(shell.body, { status, headers });
 }
 
-// DISABLED_PAGE_PATHS/PREFIXES için basit, markalı bir 404 — site genelinde ayrı bir statik
-// 404.html dosyası olmadığından (Cloudflare Assets varsayılanı kullanılıyordu) burada minimal
-// bir sayfa döndürülür.
-function notFoundPageResponse() {
+// MARKALI 404. Artık kök dizindeki GERÇEK /404.html sayfasını servis eder (kullanıcı isteği,
+// 2026-09-13 denetim listesi madde 1: "Custom 404 page").
+//
+// ÖNCEKİ DURUM VE NEDEN YETERSİZDİ: bu fonksiyon, sitenin geri kalanıyla hiçbir ortak yanı olmayan
+// ~10 satırlık gömülü bir HTML döndürüyordu — üst menü yok, footer yok, arama yok, tema değişkeni
+// yok. Kullanıcı 404'e düştüğünde siteden KOPUYORDU; tek çıkış "Ana Sayfaya Dön" bağlantısıydı.
+// /404.html ise diğer içerik sayfalarıyla AYNI <head>'i, AYNI header/footer bileşenini ve bir
+// arama kutusu + bölüm bağlantıları taşır.
+//
+// GÖMÜLÜ HTML YEDEK OLARAK KALIYOR (silinmedi): asset okuması herhangi bir sebeple düşerse
+// (deploy sırasında dosya yok, ASSETS hatası) 404 yanıtı yine de markalı ve anlamlı olsun.
+// Bir "bulunamadı" yolunun kendisi hiçbir koşulda 500'e dönüşmemeli.
+//
+// NEDEN wrangler'ın `not_found_handling: "404-page"` AYARI KULLANILMADI: o ayar bulunamayan HER
+// asset'e (eksik görsel/CSS/JS/favicon dahil) 14 KB'lık HTML gövdesi döndürürdü. Aşağıdaki çağıran
+// taraf (routeAsset) bilerek yalnızca `Accept: text/html` taşıyan GERÇEK sayfa isteklerini buraya
+// yönlendiriyor; eksik statik dosyalar sade 404 almaya devam ediyor.
+async function notFoundPageResponse(request, env) {
+  if (env && env.ASSETS) {
+    try {
+      const assetUrl = new URL('/404.html', (request && request.url) || 'https://mimarlab.com/');
+      const page = await env.ASSETS.fetch(new Request(assetUrl, { method: 'GET' }));
+      if (page.status === 200) {
+        const headers = new Headers(page.headers);
+        headers.set('Content-Type', 'text/html; charset=utf-8');
+        // 404 gövdesi önbelleğe alınmaz: yarın o adres GEÇERLİ bir sayfa olabilir (yeni proje/
+        // ürün slug'ı) ve edge'de duran bir 404 onu günlerce gizlerdi.
+        headers.set('Cache-Control', 'no-store');
+        return new Response(page.body, { status: 404, statusText: 'Not Found', headers });
+      }
+    } catch { /* yedeğe düş */ }
+  }
+  return notFoundFallbackResponse();
+}
+
+function notFoundFallbackResponse() {
   const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, follow">

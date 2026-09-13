@@ -7,38 +7,25 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
-<title>Paylaşılan Pano — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'da paylaşılan bir pano.">
-<!-- OG/Twitter kartı (kullanıcı isteği, 2026-09-13 denetim listesi: "Open Graph image").
-     Bu sayfa BİLEREK noindex — ama paylaşım önizlemesi ile arama indeksi AYNI ŞEY DEĞİLDİR:
-     sayfa arama motoruna girmese de bağlantısı WhatsApp/Slack/X üzerinden paylaşılabiliyor ve
-     görselsiz kart, adresi çıplak bir bağlantı gibi gösteriyordu. og:url YOK: bu sayfaların
-     kanonik/paylaşılabilir adresi token ya da uuid taşır, sabit bir adres yazmak yanlış olurdu. -->
+<meta name="robots" content="noindex, follow">
+<title>Sayfa Bulunamadı (404) — MİMARLAB</title>
+<meta name="description" content="Aradığınız sayfa bulunamadı. MİMARLAB'da projeleri, kişileri, firmaları, markaları ve ürünleri keşfetmeye buradan devam edebilirsiniz.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Paylaşılan Pano — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'da paylaşılan bir pano.">
+<meta property="og:title" content="Sayfa Bulunamadı (404) — MİMARLAB">
+<meta property="og:description" content="Aradığınız sayfa bulunamadı. MİMARLAB'da projeleri, kişileri, firmaları, markaları ve ürünleri keşfetmeye buradan devam edebilirsiniz.">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Paylaşılan Pano — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'da paylaşılan bir pano.">
+<meta name="twitter:title" content="Sayfa Bulunamadı (404) — MİMARLAB">
+<meta name="twitter:description" content="Aradığınız sayfa bulunamadı. MİMARLAB'da projeleri, kişileri, firmaları, markaları ve ürünleri keşfetmeye buradan devam edebilirsiniz.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
-<!-- noindex: panolar KİŞİSEL içeriktir; sahibi bağlantıyı kiminle paylaşacağına kendisi karar
-     verir, arama motorlarına girmemeli (bkz. src/routes/collections.js#getSharedCollection —
-     bağlantı tahmin edilemez bir token taşır ve sahibi paylaşımı geri alabilir). -->
-<meta name="robots" content="noindex, nofollow">
-<!-- Bu sayfa /pano/:token altında, BİR SEVİYE İÇERİDE servis edilir; <base> olmadan göreli kaynak
-     yolları o iç içe yola göre çözümlenir ve nav logosu (site-chrome.js'in göreli
-     'logos/site/mimarlab-logo.png' yolu) /pano/logos/... olarak istenip kırık görünürdü — 2026-09-08'de
-     /gorusme/:room_uuid'de doğrulanan AYNI hata (bkz. proje.html'deki aynı çözüm). -->
-<base href="/">
 <link rel="stylesheet" href="/fonts/inter.css">
 <style>
   :root{
     color-scheme: light;
     --ink:#1B2A3D; --ink-soft:#4E6478; --paper:#EDF0F3; --paper-card:#F8FAFB; --paper-alt:#E0E6EC;
-    --walnut:#2B425F; --brass:#5B7A9B; --brass-soft:#AFC5D8; --sage:#4F6478; --accent:#E08A3E;
+    --walnut:#2B425F; --brass:#5B7A9B; --brass-soft:#AFC5D8; --sage:#4F6478; --rust:#7C4B4B; --accent:#E08A3E;
     --line: rgba(27,42,61,0.14); --line-soft: rgba(27,42,61,0.08);
   }
 
@@ -107,14 +94,29 @@
   /* ---------- CONTENT ---------- */
   .content-wrap{max-width:760px; margin:0 auto; padding:56px 32px 90px;}
   .content-eyebrow{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
-  .content-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
+  .content-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 10px; letter-spacing:-0.01em;}
+  .content-updated{font-size:12.5px; color:var(--ink-soft); margin:0 0 24px;}
   .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px;}
   .content-section{margin-bottom:32px;}
   .content-section h2{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:20px; font-weight:700; margin:0 0 12px;}
+  .content-section h3{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15.5px; font-weight:700; margin:20px 0 8px;}
   .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
   .content-section a{color:var(--walnut); font-weight:600;}
   .content-section a:hover{text-decoration:underline;}
-  .content-section ul{margin:0; padding-left:20px; font-size:14.5px; line-height:1.8; color:var(--ink-soft);}
+  .content-section ul{margin:0 0 12px; padding-left:20px; font-size:14.5px; line-height:1.8; color:var(--ink-soft);}
+  .content-section li{margin-bottom:4px;}
+  .content-toc{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:0 0 36px;}
+  .content-toc h2{font-size:14px; margin:0 0 10px;}
+  .content-toc ol{margin:0; padding-left:20px; font-size:13.5px; line-height:1.9; color:var(--ink-soft); columns:2; column-gap:24px;}
+  .content-toc a{color:var(--ink-soft); font-weight:500;}
+  .content-toc a:hover{color:var(--walnut); text-decoration:underline;}
+  .cookie-table-wrap{overflow-x:auto; margin:0 0 16px; border:1px solid var(--line); border-radius:12px;}
+  .cookie-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .cookie-table th, .cookie-table td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); vertical-align:top;}
+  .cookie-table th{background:var(--paper-card); color:var(--ink); font-weight:700; white-space:nowrap;}
+  .cookie-table td{color:var(--ink-soft);}
+  .cookie-table tr:last-child td{border-bottom:none;}
+  .cookie-badge{display:inline-block; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em; background:var(--paper-alt); color:var(--ink); border-radius:100px; padding:3px 9px; white-space:nowrap;}
 
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
@@ -141,35 +143,56 @@
   @media (max-width:720px){
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .content-wrap{padding:36px 18px 70px;}
+    .content-toc ol{columns:1;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
-</style>
 
-<style>
-  /* Paylaşılan pano (kullanıcı isteği, 2026-09-02) — Koleksiyonum'daki .col-item-grid ile AYNI
-     kart ölçüsü/oranı (bkz. js/components/auth-modal.js#injectStyles), böylece sahibinin gördüğü
-     düzenle paylaşılan görünüm birebir aynı hissettirir. */
-  .pano-wrap{max-width:1260px; margin:0 auto; padding:28px 32px 60px;}
-  .pano-head{margin:0 0 6px; font-size:26px; font-weight:700; letter-spacing:-0.01em;}
-  .pano-sub{color:var(--ink-soft); font-size:13.5px; margin:0 0 24px;}
-  .pano-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px;}
-  .pano-item{position:relative; border:1px solid var(--line-soft); border-radius:12px; overflow:hidden; background:var(--paper-card);}
-  .pano-media{display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--paper-alt); cursor:zoom-in;}
-  .pano-note{padding:16px; font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
-  .pano-body{padding:10px 12px;}
-  .pano-title{font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .pano-title a{color:inherit; text-decoration:none;}
-  .pano-title a:hover{text-decoration:underline;}
-  .pano-meta{font-size:11px; color:var(--ink-soft); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .pano-state{padding:60px 0; text-align:center; color:var(--ink-soft);}
-  @media (max-width: 720px){ .pano-wrap{padding:20px 16px 44px;} .pano-head{font-size:21px;} }
+  /* ---------- 404 SAYFASI ----------
+     Sayfa, sitenin DİĞER içerik sayfalarıyla aynı <head>/tema/renk değişkenlerini ve aynı
+     header/footer bileşenini (site-chrome.js) kullanır — "bulunamadı" ekranı da sitenin bir
+     parçası gibi görünsün diye. Buradaki kurallar yalnızca bu sayfaya özgü yerleşimdir. */
+  .nf-wrap{max-width:720px; margin:0 auto; padding:72px 20px 96px; text-align:center;}
+  .nf-code{font-size:64px; line-height:1; font-weight:800; margin:0 0 12px; color:var(--brass-soft); letter-spacing:0.02em;}
+  .nf-title{font-size:26px; font-weight:700; margin:0 0 12px; color:var(--ink);}
+  .nf-lead{font-size:15px; line-height:1.65; color:var(--ink-soft); margin:0 auto 28px; max-width:52ch;}
+  /* Arama kutusu bir <form action="/arama"> — JS ÇALIŞMASA DA çalışır (bulunamadı sayfasında
+     kullanıcıyı ikinci bir JS bağımlılığına mahkûm etmek doğru olmaz). */
+  .nf-search{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:0 0 26px;}
+  .nf-search input{
+    flex:1 1 320px; max-width:420px; height:44px; padding:0 16px; font-size:14.5px;
+    color:var(--ink); background:var(--paper-card);
+    border:1px solid var(--line); border-radius:100px; outline:none;
+  }
+  .nf-search input:focus{border-color:var(--brass);}
+  .nf-search button{
+    height:44px; padding:0 24px; border:none; border-radius:100px; cursor:pointer;
+    background:var(--ink); color:var(--paper); font-size:14px; font-weight:700;
+  }
+  .nf-search button:hover{background:var(--walnut);}
+  .nf-sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;}
+  .nf-links{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:0 0 26px;}
+  .nf-links a{
+    padding:8px 16px; border-radius:100px; text-decoration:none; font-size:13.5px; font-weight:600;
+    color:var(--ink); background:var(--paper-card); border:1px solid var(--line);
+  }
+  .nf-links a:hover{background:var(--paper-alt);}
+  .nf-home a{font-size:14px; font-weight:700; color:var(--brass); text-decoration:none;}
+  .nf-home a:hover{text-decoration:underline;}
+  @media (max-width:560px){
+    .nf-wrap{padding:48px 16px 64px;}
+    .nf-code{font-size:52px;}
+    .nf-title{font-size:22px;}
+  }
 </style>
-
+<!-- Google Analytics BURADA YÜKLENMEZ (kullanıcı isteği, 2026-09-13 denetim listesi: "Cookie
+     banner"). Parçacık bu sayfadan ve diğer 29 sayfadan kaldırıldı; analitik artık YALNIZCA
+     ziyaretçi çerez bandında "Kabul Et" dedikten sonra yüklenir. Tek yükleme noktası:
+     js/components/site-chrome.js#loadAnalytics (o dosyadaki "ÇEREZ ONAY BANDI" başlıklı blok).
+     Bu sayfaya yeniden bir gtag/analytics betiği eklemek onayı BYPASS eder. -->
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
-<script src="image-cdn.js" defer></script>
 <script src="auth-nav.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -177,67 +200,34 @@
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
-<script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active=""></div>
   <script src="js/components/site-chrome.js"></script>
-  <script src="js/components/preview-cards.js" defer></script>
-  <script src="js/components/broken-image-fallback.js" defer></script>
 
-  <div class="pano-wrap">
-    <h1 class="pano-head" id="pano-title">Pano</h1>
-    <p class="pano-sub" id="pano-sub"></p>
-    <div id="pano-content"><div class="pano-state">Yükleniyor…</div></div>
-  </div>
+  <main class="nf-wrap">
+    <p class="nf-code" aria-hidden="true">404</p>
+    <h1 class="nf-title">Bu sayfayı bulamadık</h1>
+    <p class="nf-lead">Adres yanlış yazılmış, içerik kaldırılmış ya da bağlantı eskimiş olabilir.
+      Aşağıdan aramayı deneyebilir veya bölümlere göz atabilirsiniz.</p>
+
+    <form class="nf-search" action="/arama" method="get" role="search">
+      <label class="nf-sr" for="nf-q">Sitede ara</label>
+      <input id="nf-q" name="q" type="search" placeholder="Proje, kişi, firma, marka ya da ürün ara" autocomplete="off">
+      <button type="submit">Ara</button>
+    </form>
+
+    <nav class="nf-links" aria-label="Bölümler">
+      <a href="/proje">Projeler</a>
+      <a href="/kisi">Kişiler</a>
+      <a href="/firma">Firmalar</a>
+      <a href="/marka">Markalar</a>
+      <a href="/urun">Ürünler</a>
+      <a href="/gundem">Gündem</a>
+    </nav>
+
+    <p class="nf-home"><a href="/">Ana sayfaya dön</a></p>
+  </main>
 
   <footer id="site-footer-mount"></footer>
-
-<script>
-// Paylaşılan pano görüntüleyici — TEK veri kaynağı GET /api/collections/shared/:token (oturum
-// GEREKTİRMEZ, yalnızca sahibi paylaşımı açtıysa 200 döner, bkz. src/routes/collections.js).
-function escapeHtml(s){ const d=document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-// auth-modal.js#safeUrl ile AYNI gerekçe: yalnızca http/https'e izin ver (javascript: engellensin).
-function safeUrl(u){
-  try { const p = new URL(u, document.baseURI); if (p.protocol==='http:'||p.protocol==='https:') return p.href; } catch(e) {}
-  return '';
-}
-const cdn = (u,w) => (typeof cdnImg==='function' ? cdnImg(u,w) : u);
-
-document.addEventListener('DOMContentLoaded', async () => {
-  const m = location.pathname.match(/^\/pano\/([^/]+)\/?$/);
-  const content = document.getElementById('pano-content');
-  if (!m) { content.innerHTML = '<div class="pano-state">Pano bulunamadı.</div>'; return; }
-  let data = null;
-  try {
-    const res = await fetch('/api/collections/shared/' + encodeURIComponent(m[1]));
-    if (res.ok) data = await res.json();
-  } catch(e) {}
-  if (!data || !data.item) {
-    content.innerHTML = '<div class="pano-state">Bu pano bulunamadı ya da paylaşımı kaldırılmış.</div>';
-    return;
-  }
-  document.getElementById('pano-title').textContent = data.item.title || 'Pano';
-  document.title = (data.item.title || 'Pano') + ' — MİMARLAB';
-  const items = data.items || [];
-  document.getElementById('pano-sub').textContent = items.length + ' öğe · MİMARLAB\'da paylaşılan pano';
-  if (!items.length) { content.innerHTML = '<div class="pano-state">Bu pano henüz boş.</div>'; return; }
-  content.innerHTML = '<div class="pano-grid">' + items.map(it => {
-    const image = safeUrl(it.image);
-    const href = safeUrl(it.href);
-    // Koleksiyonum'daki kart şablonuyla AYNI yapı; görsele tıklayınca büyür (image-lightbox.js).
-    const media = image
-      ? '<img class="pano-media img-zoomable" src="' + escapeAttr(cdn(image,400)) + '" data-lightbox-src="' + escapeAttr(image) + '" data-lightbox-alt="' + escapeAttr(it.title||'') + '" alt="" loading="lazy" decoding="async">'
-      : (it.kind === 'note' ? '<div class="pano-note">' + escapeHtml(it.note) + '</div>' : '');
-    const titleText = it.title || (it.kind === 'note' ? '' : '—');
-    const titleHtml = titleText
-      ? '<div class="pano-title">' + (href ? '<a href="' + escapeAttr(href) + '">' + escapeHtml(titleText) + '</a>' : escapeHtml(titleText)) + '</div>'
-      : '';
-    const metaHtml = it.meta ? '<div class="pano-meta">' + escapeHtml(it.meta) + '</div>' : '';
-    const body = (titleHtml || metaHtml) ? '<div class="pano-body">' + titleHtml + metaHtml + '</div>' : '';
-    return '<div class="pano-item">' + media + body + '</div>';
-  }).join('') + '</div>';
-});
-</script>
 </body>
 </html>

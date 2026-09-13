@@ -9,6 +9,21 @@
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>Görüşme Odası — MİMARLAB</title>
 <meta name="description" content="MİMARLAB danışmanlık görüşmesi için güvenli görüşme odası.">
+<!-- OG/Twitter kartı (kullanıcı isteği, 2026-09-13 denetim listesi: "Open Graph image").
+     Bu sayfa BİLEREK noindex — ama paylaşım önizlemesi ile arama indeksi AYNI ŞEY DEĞİLDİR:
+     sayfa arama motoruna girmese de bağlantısı WhatsApp/Slack/X üzerinden paylaşılabiliyor ve
+     görselsiz kart, adresi çıplak bir bağlantı gibi gösteriyordu. og:url YOK: bu sayfaların
+     kanonik/paylaşılabilir adresi token ya da uuid taşır, sabit bir adres yazmak yanlış olurdu. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Görüşme Odası — MİMARLAB">
+<meta property="og:description" content="MİMARLAB danışmanlık görüşmesi için güvenli görüşme odası.">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Görüşme Odası — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB danışmanlık görüşmesi için güvenli görüşme odası.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <!-- noindex: kişiye özel, oturum gerektiren bir sayfa. Kabuk HİÇBİR kişisel veri ya da Google Meet
      adresi taşımaz — her şey GET /api/consultations/room/:uuid ile, sunucu yetkiyi her istekte
      yeniden kurarak gelir (bkz. src/index.js#serveMeetingRoomPage, src/routes/consultations.js#

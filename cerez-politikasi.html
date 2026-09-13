@@ -149,13 +149,11 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-L4902Z57B8');
-</script>
+<!-- Google Analytics BURADA YÜKLENMEZ (kullanıcı isteği, 2026-09-13 denetim listesi: "Cookie
+     banner"). Parçacık bu sayfadan ve diğer 29 sayfadan kaldırıldı; analitik artık YALNIZCA
+     ziyaretçi çerez bandında "Kabul Et" dedikten sonra yüklenir. Tek yükleme noktası:
+     js/components/site-chrome.js#loadAnalytics (o dosyadaki "ÇEREZ ONAY BANDI" başlıklı blok).
+     Bu sayfaya yeniden bir gtag/analytics betiği eklemek onayı BYPASS eder. -->
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
@@ -266,6 +264,15 @@
       <h2>6. Çerezleri nasıl kontrol edebilirsiniz?</h2>
       <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz; bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. Oturum çerezini engellemeniz durumunda giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar çalışmaz; yerel depolamayı temizlediğinizde tema tercihiniz sıfırlanır.</p>
       <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilir ya da tarayıcınızın üçüncü taraf çerezlerini engelleyebilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
+
+      <!-- ÇEREZ TERCİHİ KUTUSU (2026-09-13). Onayın GERİ ALINABİLİR olması KVKK'nın aradığı bir
+           koşuldur: "kabul et" demek tek yönlü olamaz. Buton, site genelindeki onay bandını
+           yeniden açar (bkz. js/components/site-chrome.js#MimarlabConsent.reopen) — tercih orada
+           yeniden verilir, yani karar arayüzü sitede TEK yerde durur. -->
+      <div class="cookie-pref" id="cerez-tercihi">
+        <p class="cookie-pref-state" data-cookie-pref-state>Mevcut tercihiniz yükleniyor…</p>
+        <button type="button" class="cookie-pref-btn" data-cookie-pref-btn>Çerez tercihimi değiştir</button>
+      </div>
     </div>
 
     <div class="content-section" id="degisiklikler">
@@ -280,6 +287,7 @@
   </div>
 
   <footer id="site-footer-mount"></footer>
+
 
 </body>
 </html>
