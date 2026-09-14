@@ -925,23 +925,37 @@
         @media (max-width: 480px){ .nav-search-modal-row-meta{max-width:80px;} .nav-search-modal-row-thumb{width:34px; height:34px;} }
         .nav-search-modal-more{display:block; margin-top:6px; padding:10px 12px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
         .nav-search-modal-empty{padding:14px 12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+        /* Kutu, temanın kendi mavi yüzey token'ından türetilmiş AÇIK MAVİ bir zemin taşır
+           (kullanıcı isteği, 2026-09-14: "Görsel ile ürün yükleme kutucuğunun arka planını
+           temadaki en açık mavi renklerden biri yap"). Doğrudan --brass-soft KULLANILMADI: açık
+           temada #AFC5D8 üzerinde kutunun 12,5 px'lik --ink-soft ipucu metni 3,4:1'e düşüyordu
+           (WCAG AA küçük metin için 4,5:1 ister). --paper-card ile karıştırılmış hâli (#D7E2EB)
+           hem gözle görülür mavi hem 4,7:1. color-mix, koyu temada da doğru yönde çalışır
+           (--brass-soft orada #2E3F52, yani kart zemininin bir ton üstü mavi). İlk background
+           satırı color-mix desteklemeyen tarayıcılar için yedektir. */
         .nav-search-modal-image-box{
           display:flex; align-items:center; gap:18px; border:1.5px dashed var(--line); border-radius:14px;
           padding:20px;
+          background:var(--paper-alt);
+          background:color-mix(in srgb, var(--brass-soft) 45%, var(--paper-card));
         }
         .nav-search-modal-image-drop{
           flex:1; min-width:0; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.6;
           cursor:pointer; border-radius:10px; padding:6px; transition:background .15s ease, box-shadow .15s ease;
           display:flex; align-items:center; justify-content:center;
         }
-        .nav-search-modal-image-drop.dragover{background:var(--paper-alt); box-shadow:0 0 0 1.5px var(--walnut) inset;}
+        /* Kutunun zemini artık açık mavi (bkz. .nav-search-modal-image-box) — dragover/hover geri
+           bildirimi --paper-alt kalsaydı o mavinin üstünde neredeyse aynı tona düşer, yani
+           "görsel buraya bırakılabilir" vurgusu gözden kaybolurdu. --paper-card mavinin üstünde
+           açık bir kare olarak okunur. */
+        .nav-search-modal-image-drop.dragover{background:var(--paper-card); box-shadow:0 0 0 1.5px var(--walnut) inset;}
         .nav-search-modal-image-drop strong{color:var(--walnut); font-weight:600;}
         .nav-search-modal-image-preview{display:flex; align-items:center; gap:10px; text-align:left; width:100%;}
         .nav-search-modal-image-preview[hidden]{display:none;}
         .nav-search-modal-image-preview img{width:44px; height:44px; object-fit:cover; border-radius:8px; flex-shrink:0; background:var(--paper-alt);}
         .nav-search-modal-image-preview-name{flex:1; min-width:0; font-size:12.5px; color:var(--ink); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
         .nav-search-modal-image-remove{flex-shrink:0; background:none; border:none; color:var(--ink-soft); padding:5px; border-radius:50%; display:flex;}
-        .nav-search-modal-image-remove:hover{background:var(--paper-alt); color:var(--ink);}
+        .nav-search-modal-image-remove:hover{background:var(--paper-card); color:var(--ink);}
         .nav-vs-status{margin-top:12px; font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:8px; justify-content:center;}
         .nav-vs-status[hidden]{display:none;}
         .nav-vs-spin{width:13px; height:13px; border:2px solid var(--line); border-top-color:var(--walnut); border-radius:50%; animation:nav-vs-rot .7s linear infinite; flex-shrink:0;}
@@ -977,6 +991,19 @@
           .nav-search-modal-overlay{padding:60px 12px 12px;}
           .nav-search-modal{padding:22px;}
           .nav-search-modal-image-box{flex-direction:column;}
+          /* Önerilen aramalar mobilde TEK SATIR + yatay kaydırma (kullanıcı isteği, 2026-09-14).
+             Beş chip sarmalandığında ("Ofis / İş Merkezi", "Turizm / Otel"... uzun etiketler) üç
+             satıra kadar çıkıp popup'ın yarısını yiyordu. Negatif margin + eşit padding, satırın
+             modalın 22 px'lik iç boşluğunu AŞIP ekran kenarına kadar uzanmasını sağlar: son chip
+             kenarda yarım görünür, yani "sağa kaydırılabilir" olduğu okumadan anlaşılır.
+             scroll-padding aynı değerde, klavye/odak ile gelen chip kenara yapışmasın diye. */
+          .nav-search-modal-chips{
+            flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain;
+            -webkit-overflow-scrolling:touch; scrollbar-width:none;
+            margin-inline:-22px; padding-inline:22px; scroll-padding-inline:22px;
+          }
+          .nav-search-modal-chips::-webkit-scrollbar{display:none;}
+          .nav-search-modal-chip{flex:0 0 auto; white-space:nowrap;}
           /* kullanıcı isteği (2026-08-30): "Aradığını yaz, bulmana yardımcı olalım" placeholder'ı
              mobilde kutunun genişliğine sığmadığından kırpılıyordu — yalnızca mobilde punto küçültüldü. */
           .nav-search-modal-input-row input{font-size:13px;}
