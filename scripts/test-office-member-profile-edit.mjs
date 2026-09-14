@@ -375,6 +375,118 @@ await test('...ama KENDİ SAHİBİ OLAN profili ARŞİVLEYEMEZ/SİLEMEZ (SINIR y
   assert.equal(row.deleted_at, null, 'sahipli profil silinmiş');
 });
 
+// =================================================================================================
+section('FİRMA YÖNETİCİSİNİN TAM YETKİ MATRİSİ — firma · kişiler · projeler');
+// (kullanıcı isteği, 2026-09-14: "Bir firma yöneticisi olan kullanıcının firma, firmaya ait kişiler
+// ve projeler için yetkilerini test et".)
+//
+// Yukarıdaki bölümler DÜZENLEME yetkisini kapsıyordu; burada üç varlık için ÜÇ eylem birden
+// (düzenle / arşivle / sil) uçtan uca sürülüyor — gerçek HTTP yolları, mock yok:
+//   firma    : POST /api/offices/<ad>/moderate   ve  DELETE /api/offices/<ad>
+//   kişiler  : POST /api/architects/<ad>/moderate ve  DELETE /api/architects/<ad>
+//   projeler : POST /api/project/<slug>/moderate  ve  DELETE /api/project/<slug>
+// Aktör: u-ds — DS Mimarlık'ın kurumsal hesabı, görevi MANAGER_POSITION ('Yönetici').
+// Karşı örnek: u-ekip — AYNI firmada 'Ekip Üyesi', hiçbir kapıdan geçmemeli.
+
+const { handleSelfContentModerate } = await import('../src/routes/submissions.js');
+const { handleSelfProjectModerate, handleSelfProjectDelete } = await import('../src/routes/legacyContent.js');
+
+// index.js'in yönlendirmesiyle AYNI çağrı biçimi (bkz. src/index.js: DELETE -> 'delete',
+// POST .../moderate -> body.action). Testin kendi URL'i ayrıştırması gerekmiyor.
+const moderateContent = (env, uid, type, key, action) =>
+  handleSelfContentModerate(req(uid, `/api/${type}/${encodeURIComponent(key)}/moderate`, {
+    method: 'POST', body: JSON.stringify({ action }),
+  }), env, type, key, action);
+const moderateProject = (env, uid, slug) =>
+  handleSelfProjectModerate(req(uid, `/api/project/${slug}/moderate`, {
+    method: 'POST', body: JSON.stringify({ action: 'archive' }),
+  }), env, slug);
+const deleteProject = (env, uid, slug) =>
+  handleSelfProjectDelete(req(uid, `/api/project/${slug}`, { method: 'DELETE' }), env, slug);
+
+const isArchived = (db, table, key, col = 'name') => {
+  const r = db.prepare(`SELECT hidden_at, preview_at FROM ${table} WHERE ${col} = ?`).get(key);
+  return !!r && !!r.hidden_at && !r.preview_at;
+};
+const rowGone = (db, table, key, col = 'name') => !db.prepare(`SELECT id FROM ${table} WHERE ${col} = ?`).get(key);
+
+// --- FİRMANIN KENDİSİ ----------------------------------------------------------------------------
+await test('yönetici FİRMAYI arşivleyebilir', async () => {
+  const db = freshDb(); seed(db); await withSessions(db);
+  const env = { DB: d1(db) };
+  const res = await moderateContent(env, 'u-ds', 'offices', 'DS Mimarlık', 'archive');
+  assert.ok(res.status < 400, `arşivleme reddedildi: ${res.status}`);
+  assert.equal(isArchived(db, 'offices', 'DS Mimarlık'), true, 'firma arşivlenmedi');
+});
+
+await test('yönetici FİRMAYI silebilir', async () => {
+  const db = freshDb(); seed(db); await withSessions(db);
+  const env = { DB: d1(db) };
+  const res = await moderateContent(env, 'u-ds', 'offices', 'DS Mimarlık', 'delete');
+  assert.ok(res.status < 400, `silme reddedildi: ${res.status}`);
+  assert.equal(rowGone(db, 'offices', 'DS Mimarlık'), true, 'firma satırı duruyor');
+});
+
+await test("aynı firmadaki 'Ekip Üyesi' firmayı NE arşivleyebilir NE silebilir", async () => {
+  for (const action of ['archive', 'delete']) {
+    const db = freshDb(); seed(db); await withSessions(db);
+    const env = { DB: d1(db) };
+    const res = await moderateContent(env, 'u-ekip', 'offices', 'DS Mimarlık', action);
+    assert.ok(res.status >= 400, `${action}: 'Ekip Üyesi' geçti (${res.status})`);
+    assert.equal(isArchived(db, 'offices', 'DS Mimarlık'), false, `${action}: firma etkilendi`);
+    assert.equal(rowGone(db, 'offices', 'DS Mimarlık'), false, `${action}: firma silindi`);
+  }
+});
+
+// --- FİRMAYA AİT KİŞİLER -------------------------------------------------------------------------
+// Deniz Aslan: DS Mimarlık'ın office_founders bağlı ortağı, KİMSE tarafından sahiplenilmemiş.
+await test('yönetici, firmanın (sahiplenilmemiş) KİŞİSİNİ arşivleyebilir ve silebilir', async () => {
+  for (const action of ['archive', 'delete']) {
+    const db = freshDb(); seed(db); await withSessions(db);
+    const env = { DB: d1(db) };
+    const res = await moderateContent(env, 'u-ds', 'architects', 'Deniz Aslan', action);
+    assert.ok(res.status < 400, `${action} reddedildi: ${res.status}`);
+    if (action === 'archive') assert.equal(isArchived(db, 'architects', 'Deniz Aslan'), true, 'kişi arşivlenmedi');
+    else assert.equal(rowGone(db, 'architects', 'Deniz Aslan'), true, 'kişi satırı duruyor');
+  }
+});
+
+await test('yönetici, BAŞKA firmanın kişisine dokunamaz', async () => {
+  const db = freshDb(); seed(db); await withSessions(db);
+  const env = { DB: d1(db) };
+  const res = await moderateContent(env, 'u-ds', 'architects', 'Yabancı Mimar', 'delete');
+  assert.ok(res.status >= 400, `başka firmanın kişisi silindi (${res.status})`);
+  assert.equal(rowGone(db, 'architects', 'Yabancı Mimar'), false);
+});
+
+// --- FİRMANIN PROJELERİ --------------------------------------------------------------------------
+await test('yönetici, firmanın künyeli PROJESİNİ arşivleyebilir', async () => {
+  const db = freshDb(); seed(db); seedProjectAndProduct(db); await withSessions(db);
+  const env = { DB: d1(db) };
+  const res = await moderateProject(env, 'u-ds', 'ds-proje');
+  assert.ok(res.status < 400, `proje arşivleme reddedildi: ${res.status}`);
+  assert.equal(isArchived(db, 'projects', 'ds-proje', 'slug'), true, 'proje arşivlenmedi');
+});
+
+await test('yönetici, firmanın künyeli PROJESİNİ silebilir', async () => {
+  const db = freshDb(); seed(db); seedProjectAndProduct(db); await withSessions(db);
+  const env = { DB: d1(db) };
+  const res = await deleteProject(env, 'u-ds', 'ds-proje');
+  assert.ok(res.status < 400, `proje silme reddedildi: ${res.status}`);
+  assert.equal(rowGone(db, 'projects', 'ds-proje', 'slug'), true, 'proje satırı duruyor');
+});
+
+await test("'Ekip Üyesi' firmanın projesine NE arşiv NE silme uygulayabilir", async () => {
+  const db = freshDb(); seed(db); seedProjectAndProduct(db); await withSessions(db);
+  const env = { DB: d1(db) };
+  const a = await moderateProject(env, 'u-ekip', 'ds-proje');
+  assert.ok(a.status >= 400, `'Ekip Üyesi' projeyi arşivledi (${a.status})`);
+  const d = await deleteProject(env, 'u-ekip', 'ds-proje');
+  assert.ok(d.status >= 400, `'Ekip Üyesi' projeyi sildi (${d.status})`);
+  assert.equal(rowGone(db, 'projects', 'ds-proje', 'slug'), false, 'proje silinmiş');
+  assert.equal(isArchived(db, 'projects', 'ds-proje', 'slug'), false, 'proje arşivlenmiş');
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {
   console.error('\nBaşarısız testler:');

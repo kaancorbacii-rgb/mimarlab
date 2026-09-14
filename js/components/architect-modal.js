@@ -76,11 +76,13 @@ const ArchitectModal = (function () {
          çizgi .am-two-col-row::after ile, yatay çizgilerle AYNI 1px var(--line) değerinden. -->
     <div class="related-section am-two-col-row" id="am-office-pair" style="display:none;">
       <div class="am-two-col-cell" id="am-office-section" style="display:none;">
-        <!-- Başlıklar "Firma / Marka" (kullanıcı isteği, 2026-09-06 madde 3): bu iki ızgara ofis
-             kayıtlarını türüne bakmadan listeler (bkz. office-kind.js — bir offices satırı hem firma
-             hem marka olabilir), bu yüzden salt "Firmalar" demek bir markanın orada görünmesini
-             açıklamıyordu. -->
-        <h2 class="related-title">Firma / Marka</h2>
+        <!-- Başlık "Firma" (kullanıcı isteği, 2026-09-14: "Kişi sayfasından marka kelimelerini sil").
+             2026-09-06 madde 3'te "Firma / Marka" yapılmıştı çünkü bu ızgara ofis kayıtlarını türüne
+             bakmadan listeliyor (bkz. office-kind.js — bir offices satırı hem firma hem marka
+             olabilir) ve salt "Firmalar" bir markanın orada görünmesini açıklamıyordu. O gerekçe
+             ARTIK GEÇERSİZ: markalar 2026-09-14'te toplu olarak arşive alındı, yani bu ızgarada
+             yalnızca firmalar kalıyor. Izgaranın KENDİSİ değişmedi (hâlâ tür ayrımı yapmaz). -->
+        <h2 class="related-title">Firma</h2>
         <div class="related-grid-scroll" id="am-office-grid"></div>
       </div>
       <!-- "Ortaklar" / "Ekip Arkadaşları" (kullanıcı isteği, 2026-09-11): firma popup'ının Kurucular /
@@ -163,7 +165,7 @@ const ArchitectModal = (function () {
          am-two-col-row-stacked modifiyesini taşır. -->
     <div class="related-section am-two-col-row am-two-col-row-stacked" id="am-brands-products-pair" style="display:none;">
       <div class="am-two-col-cell" id="am-preferred-brands-section" style="display:none;">
-        <h2 class="related-title">Tercih Ettiği Markalar<span id="am-preferred-brands-count"></span></h2>
+        <h2 class="related-title">Tercih Ettiği Firmalar<span id="am-preferred-brands-count"></span></h2>
         <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>
       </div>
       <div class="am-two-col-cell" id="am-used-products-section" style="display:none;">
@@ -749,7 +751,10 @@ const ArchitectModal = (function () {
     // ilk düğümü düz metin (ardından sayaç <span>'ı ve filtre çentiği gelir), yalnızca o değişir.
     const projectsTitleEl = document.getElementById('am-related-projects-title');
     if (projectsTitleEl && projectsTitleEl.firstChild && projectsTitleEl.firstChild.nodeType === 3) {
-      projectsTitleEl.firstChild.nodeValue = payload.relatedProjectsFromBrand ? 'Markanın Kullanıldığı Projeler' : 'Projeler';
+      // Başlık her iki durumda da düz "Projeler" (kullanıcı isteği, 2026-09-14: kişi sayfasında
+      // marka kelimesi kalmasın). relatedProjectsFromBrand dalının KENDİSİ duruyor — hangi projelerin
+      // listeleneceğini o belirliyor, değişen yalnızca başlığın metni.
+      projectsTitleEl.firstChild.nodeValue = 'Projeler';
     }
     // Izgara + sayaç + harita TEK yerden çizilir; grup filtresi (bkz. aşağıdaki ProjectGroupFilter)
     // seçim değiştikçe bu fonksiyonu süzülmüş listeyle yeniden çağırır (kullanıcı isteği,
