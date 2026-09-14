@@ -546,8 +546,11 @@ else
 fi
 rm -f /tmp/preflight_actv
 
-# Firmaya kullanıcı atanınca ZATEN CANLI en son yayınlanan projesinin proje sayfasında 1. sıraya
-# geçmesi (kullanıcı isteği, 2026-09-11 — örnek: Per Se Mimarlık'a yönetici/kurucu atanınca).
+# Firmaya kullanıcı atanınca ZATEN CANLI projelerinden YILA GÖRE EN YENİSİNİN proje sayfasında
+# 1. sıraya geçmesi (kullanıcı isteği, 2026-09-11 — örnek: Per Se Mimarlık'a yönetici/kurucu
+# atanınca; ölçüt 2026-09-14'te "en son yayınlanan"dan "yıla göre en yeni"ye çevrildi, bkz.
+# admin.js#compareByProjectYearDesc — iki ölçüt AYRIŞIR, projelerin çoğu toplu import'la geldiği
+# için yayın tarihi "MİMARLAB'a ne zaman eklendi"yi gösterir).
 # Kural tek yerde (admin.js#promoteOfficeProjectsOnAssignment), yukarıdaki önizleme cascade'inden
 # (RELIST_TOP_PER_TYPE) BİLEREK ayrı — activated.projects kümesi buraya dışlanarak geçilmezse iki
 # kural birbirinin relisted_at'ini üzerine yazar. Bkz. scripts/test-office-project-promotion.mjs.

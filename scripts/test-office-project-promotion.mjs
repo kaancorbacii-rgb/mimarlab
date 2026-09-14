@@ -321,5 +321,80 @@ await test('promosyon atlansa da bu partide ÖNİZLEMEDEN ÇIKAN yeni proje damg
   assert.ok(yeni.relisted_at, 'yeni yayınlanan proje damgalanmalı (bkz. migrations/0108 sözleşmesi)');
 });
 
+section('"EN YENİ" = PROJE YILI, yayın tarihi DEĞİL (kullanıcı isteği, 2026-09-14)');
+
+// "Bundan sonra yönetici hesabı atanan firmaların en yeni projelerini (en son yayınlanan değil yıla
+// göre en yeni) proje sayfasında 1. sıraya koy." — örnek: FREA.
+// Kural TEK yerde: src/routes/admin.js#compareByProjectYearDesc (promoteOfficeProjectsOnAssignment).
+//
+// Seed BİLEREK iki ölçütü ÇATIŞTIRIR — eski kural (en son yayınlanan) ile yeni kural (yıla göre en
+// yeni) FARKLI projeyi seçmeli, aksi halde test hiçbir şey kanıtlamaz:
+//   · frea-yeni-yil   : project_date 2025, EN ESKİ yayın tarihi (2019)  -> YENİ kuralın 1. sırası
+//   · frea-son-yayin  : project_date 2016, EN YENİ yayın tarihi (2024)  -> ESKİ kuralın 1. sırası
+//   · frea-yilsiz     : project_date YOK, yayın tarihi ortada           -> yılı çözülemeyen, SONA
+// display_order'lar gerçek canlı veriyi taklit eder (toplu import backfill'i, bkz. yukarıdaki
+// perse seed'i) — 1. sıraya çıkan satırın display_order'ının temizlendiği burada da doğrulanır.
+function seedFrea(db) {
+  db.exec(`
+    INSERT INTO offices (slug, name, loc, cats, source) VALUES
+      ('frea', 'FREA', 'İstanbul', '["Mimarlık"]', 'legacy_static');
+    INSERT INTO projects (slug, title, source, project_date, publish_date, created_at, display_order) VALUES
+      ('frea-son-yayin', 'FREA Son Yayınlanan', 'legacy_static', '2016', '2024-01-01T00:00:00.000Z', '2024-01-01T00:00:00.000Z', 300),
+      ('frea-yilsiz', 'FREA Yılsız', 'legacy_static', NULL, '2022-01-01T00:00:00.000Z', '2022-01-01T00:00:00.000Z', 400),
+      ('frea-orta', 'FREA Orta', 'legacy_static', '2021', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', 500),
+      ('frea-yeni-yil', 'FREA Yılı En Yeni', 'legacy_static', '2025', '2019-01-01T00:00:00.000Z', '2019-01-01T00:00:00.000Z', 898);
+    INSERT INTO project_designers (project_id, office_id) VALUES (1, 1), (2, 1), (3, 1), (4, 1);
+  `);
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-yeni', 'yeni@example.com', 'x', 'Yeni Yönetici', 'user', ?)`).run(Date.now());
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-admin', 'admin@example.com', 'x', 'Admin', 'admin', ?)`).run(Date.now());
+}
+
+await test('YILI en yeni proje 1. sıraya geçer — en son YAYINLANAN değil', async () => {
+  const db = freshDb(); seedFrea(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  const res = await assignOffice(env, 'FREA');
+  assert.equal(res.status, 200, await res.text());
+  const { fetchActiveProjectPool } = await import('../src/lib/projectPool.js');
+  const pool = await fetchActiveProjectPool(env, 'built');
+  assert.equal(pool[0].slug, 'frea-yeni-yil', `beklenen 1. sıra frea-yeni-yil (2025), sıra: ${pool.map(p => p.slug).join(', ')}`);
+  assert.ok(relistedAt(db, 'frea-yeni-yil') > relistedAt(db, 'frea-son-yayin'),
+    'yılı en yeni proje, en son yayınlanandan daha yeni bir relisted_at almalı');
+  assert.equal(db.prepare(`SELECT display_order FROM projects WHERE slug = 'frea-yeni-yil'`).get().display_order, null,
+    'display_order temizlenmeli, aksi halde relisted_at hiç işe yaramaz');
+});
+
+await test('DİĞERLERİ de YIL sırasıyla (yeniden eskiye) dağıtılır', async () => {
+  const db = freshDb(); seedFrea(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env, 'FREA');
+  const top = relistedAt(db, 'frea-yeni-yil');   // 2025
+  const orta = relistedAt(db, 'frea-orta');      // 2021
+  const eski = relistedAt(db, 'frea-son-yayin'); // 2016 (ama en son yayınlanan)
+  assert.ok(top > orta, `2025 (${top}) > 2021 (${orta}) olmalı`);
+  assert.ok(orta > eski, `2021 (${orta}) > 2016 (${eski}) olmalı — dağıtım da yıla göre`);
+});
+
+await test('YILI ÇÖZÜLEMEYEN proje SONA düşer (proje.html "En Yeni" sıralamasıyla AYNI davranış)', async () => {
+  const db = freshDb(); seedFrea(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env, 'FREA');
+  const yilsiz = relistedAt(db, 'frea-yilsiz');
+  assert.ok(yilsiz, 'yılsız proje de dağıtıma girer (arka sayfalarda kaybolmasın)');
+  assert.ok(relistedAt(db, 'frea-son-yayin') > yilsiz,
+    'yılı BİLİNEN en eski proje bile, yılı çözülemeyenin ÖNÜNDE olmalı');
+});
+
+await test('serbest metin yıl formatları ("16. yy / 2026" gibi) proje.html ile AYNI ayrıştırıcıdan geçer', async () => {
+  const db = freshDb(); seedFrea(db); await withSession(db, 'u-admin');
+  // parseProjectDateYear bir parçadaki EN ERKEN yılı döndürür — "16. yy / 2026" 16. yüzyıl (1501)
+  // demektir, 2026 DEĞİL (bkz. src/routes/project.js#parseProjectDateYear). Bu satır 2025'i GEÇMEMELİ.
+  db.exec(`UPDATE projects SET project_date = '16. yy / 2026' WHERE slug = 'frea-son-yayin'`);
+  const env = { DB: d1(db) };
+  await assignOffice(env, 'FREA');
+  const { fetchActiveProjectPool } = await import('../src/lib/projectPool.js');
+  const pool = await fetchActiveProjectPool(env, 'built');
+  assert.equal(pool[0].slug, 'frea-yeni-yil', `beklenen 1. sıra frea-yeni-yil (2025), sıra: ${pool.map(p => p.slug).join(', ')}`);
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 if (failed) { for (const f of failures) console.error(` - ${f.name}: ${f.message}`); process.exit(1); }

@@ -38,6 +38,11 @@ import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
 import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
 import { removeEntityImages } from '../lib/imageEmbedStore.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
+// Proje YILI (künyedeki serbest metin `project_date`) — promosyonun "en yeni proje" tanımı budur
+// (bkz. promoteOfficeProjectsOnAssignment). src/routes/ai.js'teki AYNI içe aktarma deseni: ayrıştırıcı
+// TEK yerde (src/routes/project.js) durur, burada ikinci bir kopya açılmaz — proje.html'in tarih
+// sıralaması ve firma pop-up'ındaki "en yeniden en eskiye" proje kartlarıyla TUTARLI kalmalı.
+import { parseProjectDateYear } from './project.js';
 import { foldTr } from '../lib/textMatch.js';
 import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { notArchivedIfCanonicalLiveSql, markSubmissionsPublished } from '../lib/archiveSync.js';
@@ -1132,8 +1137,9 @@ async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [], re
 // KULLANICI İSTEĞİ (2026-09-11): "Bir firmanın profiline bir kullanıcı atandığı zaman en son
 // yayınlanan projelerini proje sayfasında 1. sıraya koy sanki yeni yayınlanmış gibi... Diğerlerini
 // diğer sayfalara dağıt ama çok arka sayfalarda olmasınlar." — örnek: Per Se Mimarlık'a bir
-// yönetici/kurucu atandığında, Per Se'nin ZATEN CANLI (önizlemede değil) en son yayınlanan projesi
-// proje sayfasında ilk sıraya otursun.
+// yönetici/kurucu atandığında, Per Se'nin ZATEN CANLI (önizlemede değil) projesi proje sayfasında
+// ilk sıraya otursun. 2026-09-14'te "en son yayınlanan" ölçütü "YILA GÖRE EN YENİ" ile değiştirildi
+// (bkz. aşağıdaki "1. SIRA" notu + compareByProjectYearDesc).
 //
 // unpreviewByIds'teki RELIST_TOP_PER_TYPE kuralından KASITLI OLARAK AYRI bir fonksiyon: o kural
 // yalnızca preview_at DOLU satırları (yeni yayına alınanları) kapsıyor, burası ZATEN CANLI olan
@@ -1144,14 +1150,42 @@ async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [], re
 // created_at) DESC` — yani relisted_at damgalamak satırı SÜRESİZ değil, yalnızca daha YENİ bir
 // relisted_at/created_at'e sahip başka bir satır çıkana kadar öne taşır.
 //
-// "1. SIRA" — en son yayınlanan (COALESCE(publish_date, created_at) DESC) TEK proje relisted_at=now
-// alır (doğrudan ilk sıra, RELIST_TOP_PER_TYPE=1 ile AYNI mantık). "DİĞERLERİ ÇOK ARKADA KALMASIN" —
-// firmanın diğer canlı projelerinden en fazla PROMOTE_SPREAD_MAX tanesi, her biri bir öncekinden
-// PROMOTE_SPREAD_STEP_MS kadar geride kalacak şekilde relisted_at alır (hepsi AYNI anda damgalanırsa
-// unpreviewByIds'in önlediği kümelenmeye geri dönülür — hepsi proje sayfasının 1. sayfasına yığılır);
-// böylece sayfalara YAYILIRLAR ama en eski/doğal sıralarında kalıp çok arkada kaybolmazlar.
+// "1. SIRA" — "EN YENİ" = PROJE YILI, YAYIN TARİHİ DEĞİL (kullanıcı isteği, 2026-09-14: "Bundan
+// sonra yönetici hesabı atanan firmaların en yeni projelerini (en son yayınlanan değil yıla göre en
+// yeni) proje sayfasında 1. sıraya koy."). Kural ÖNCEDEN `COALESCE(publish_date, created_at) DESC`
+// idi — yani firmanın kataloğa EN SON GİRİLEN projesi. İkisi sık sık AYRIŞIR: bu depodaki projeler
+// toplu import'la geldiğinden yayın tarihi çoğu zaman "MİMARLAB'a ne zaman eklendi"yi gösterir,
+// firmanın gerçekten EN YENİ işini değil (2015 tarihli bir proje 2023 tarihli olandan sonra
+// yayınlanmış olabilir). Artık ölçüt künyedeki YIL (`projects.project_date`), tıpkı firma
+// pop-up'ındaki proje kartlarının "en son tasarlanandan en eskiye" sırası gibi
+// (bkz. src/routes/office.js#relatedProjects — AYNI parseProjectDateYear, AYNI "yılı çözülemeyen
+// sona düşer" davranışı).
+//
+// "DİĞERLERİ ÇOK ARKADA KALMASIN" — firmanın diğer canlı projelerinden en fazla PROMOTE_SPREAD_MAX
+// tanesi, AYNI yıl sırasıyla (yeniden eskiye), her biri bir öncekinden PROMOTE_SPREAD_STEP_MS kadar
+// geride kalacak şekilde relisted_at alır (hepsi AYNI anda damgalanırsa unpreviewByIds'in önlediği
+// kümelenmeye geri dönülür — hepsi proje sayfasının 1. sayfasına yığılır); böylece sayfalara
+// YAYILIRLAR ama çok arkada kaybolmazlar.
 const PROMOTE_SPREAD_MAX = 10;
 const PROMOTE_SPREAD_STEP_MS = 24 * 60 * 60 * 1000; // bir gün
+
+// Promosyon sırası: YIL DESC -> yayın tarihi DESC -> id DESC.
+//   · Yılı ÇÖZÜLEMEYEN proje (project_date boş ya da içinde hiç sayı yok) listenin SONUNA düşer —
+//     proje.html'in "En Yeni" sıralamasındaki ve firma pop-up'ındaki AYNI davranış. Aksi halde
+//     künyesi eksik bir kayıt, yılı bilinen gerçek bir projeyi 1. sıradan edebilirdi.
+//   · Aynı yıla sahip iki proje arasında ESKİ ölçüt (en son yayınlanan) tie-break olarak kalır —
+//     "yıla göre en yeni" bir sıra dayatmadığı yerde davranış değişmez.
+// exportlanır: scripts/promote-office-newest-project.mjs bu sıralamayı YENİDEN ÜRETMEZ, buradan
+// içe aktarır (kural TEK yerde).
+export function compareByProjectYearDesc(a, b) {
+  if (a.year !== b.year) {
+    if (a.year == null) return 1;
+    if (b.year == null) return -1;
+    return b.year - a.year;
+  }
+  if (a.published !== b.published) return a.published < b.published ? 1 : -1;
+  return b.id - a.id;
+}
 
 // GERÇEK BULGU (kullanıcı isteği, 2026-09-11 ikinci tur: "Bir firmaya bir kullanıcıyı yönetici
 // atadığımda da o firmanın en son yayınlanan projesi proje sayfasında 1. sıraya yerleşsin."): canlı
@@ -1167,16 +1201,23 @@ const PROMOTE_SPREAD_STEP_MS = 24 * 60 * 60 * 1000; // bir gün
 // Döndürdüğü değer, promosyonun GERÇEKTEN çalışıp çalışmadığıdır — çağıran `projects_promoted_at`
 // damgasını yalnızca çalıştıysa düşer (bkz. markProjectsPromoted): projesi olmayan bir profil
 // damgalanırsa, projeleri sonradan eklendiğinde hak ettiği İLK promosyonu hiç alamazdı.
-async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso, { noSpreadIds = new Set() } = {}) {
+export async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso, { noSpreadIds = new Set() } = {}) {
   if (!projectIds.length) return false;
   const capped = projectIds.slice(0, ACTIVATE_ID_LIMIT);
   const ph = capped.map(() => '?').join(', ');
   // Atamadan SONRA canlı olan satırlar (preview_at NULL) — önizlemeden bu çağrıda çıkanlar dahil.
+  // SIRALAMA JS'TE, SQL'DE DEĞİL: "en yeni" ölçütü artık `project_date` YILI ve bu alan SERBEST
+  // METİN ("1506-1513", "19. Yüzyıl", "MÖ 360", "16. yy / 2026" — bkz. parseProjectDateYear'ın
+  // gerekçesi); SQL'de güvenle yıla çevrilemez. Aday küme tek bir firmanın künyeli projeleri ve
+  // ACTIVATE_ID_LIMIT (60) ile sınırlı, yani sıralama maliyeti önemsizdir.
   const { results } = await env.DB.prepare(
-    `SELECT id FROM projects WHERE id IN (${ph}) AND deleted_at IS NULL AND hidden_at IS NULL AND preview_at IS NULL
-      ORDER BY COALESCE(publish_date, created_at) DESC, id DESC`
+    `SELECT id, project_date, COALESCE(publish_date, created_at) AS published_at FROM projects
+      WHERE id IN (${ph}) AND deleted_at IS NULL AND hidden_at IS NULL AND preview_at IS NULL`
   ).bind(...capped).all();
-  const liveIds = (results || []).map(r => r.id);
+  const liveIds = (results || [])
+    .map(r => ({ id: r.id, year: parseProjectDateYear(r.project_date), published: r.published_at || '' }))
+    .sort(compareByProjectYearDesc)
+    .map(r => r.id);
   if (!liveIds.length) return false;
 
   // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-11 — "Per Se'nin son projesini elle 1. sıraya al"):
@@ -1238,7 +1279,7 @@ async function profilesPromotedBefore(env, profileType, seedIds) {
 
 // `projects_promoted_at IS NULL` koşulu bilinçli: damga İLK promosyonun anını tutar, sonrakiler
 // (zaten çalışmayacak olsa da) onu ileri kaydırmaz — denetim izinde "ne zaman öne çıktı" okunabilsin.
-async function markProjectsPromoted(env, officeIds, architectIds, nowIso) {
+export async function markProjectsPromoted(env, officeIds, architectIds, nowIso) {
   for (const [table, ids] of [['offices', officeIds], ['architects', architectIds]]) {
     if (!ids.length) continue;
     const ph = ids.map(() => '?').join(', ');
@@ -1442,7 +1483,8 @@ async function activateProfileGraph(env, profileType, seedIds, userId) {
     products: await unpreviewByIds(env, 'products', [...new Set(productIds)], nowIso),
   };
 
-  // "En son yayınlanan proje 1. sıraya" — firma önizlemede de olsa canlıda da olsa, görev ne olursa
+  // "YILA GÖRE EN YENİ proje 1. sıraya" (kullanıcı isteği, 2026-09-14 — eskiden "en son yayınlanan",
+  // bkz. compareByProjectYearDesc) — firma önizlemede de olsa canlıda da olsa, görev ne olursa
   // olsun (Kurucu/Yönetici/...) AYNI kural (bkz. promoteOfficeProjectsOnAssignment'ın 2026-09-11
   // ikinci tur notu). Bu çağrıda önizlemeden çıkanlar 1. sıraya ADAY olur ama yayılmaya girmez —
   // unpreviewByIds'in "diğerleri doğal sırasına düşsün" kuralı bozulmasın (gerçek regresyon: bkz.

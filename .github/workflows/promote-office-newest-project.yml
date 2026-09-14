@@ -1,0 +1,120 @@
+name: Firmanın yıla göre en yeni projesini 1. sıraya al
+
+# BİR FİRMANIN "YILA GÖRE EN YENİ" PROJESİNİ PROJE SAYFASININ 1. SIRASINA TAŞIR
+# (kullanıcı isteği, 2026-09-14: "Bundan sonra yönetici hesabı atanan firmaların en yeni
+# projelerini (en son yayınlanan değil yıla göre en yeni) proje sayfasında 1. sıraya koy. Örnek
+# olarak en son yönetici yetkisi verdiğim FREA firması için bunu yap.")
+#
+# KURALIN KENDİSİ KODDA: src/routes/admin.js#promoteOfficeProjectsOnAssignment — BUNDAN SONRAKİ her
+# yönetici ataması zaten yıla göre en yeni projeyi 1. sıraya koyar. Bu workflow yalnızca ZATEN
+# atanmış firmalar içindir: FREA'ya yetki kural değişmeden ÖNCE verildiği için promosyonunu eski
+# ölçütle ("en son yayınlanan") aldı ve profiles_promoted_at damgası yüzünden yeni bir atama da onu
+# tekrarlamaz (bkz. profilesPromotedBefore + migrations/0118_projects_promoted_at.sql).
+#
+# NEDEN WORKFLOW — UZAK OTURUMDAN ÇALIŞTIRILAMIYOR: Claude Code'un uzak (web/telefon) oturumu izole
+# bir konteynerde çalışır ve ağ politikası `api.cloudflare.com` çıkışını reddeder (ölçüldü,
+# 2026-09-12: CONNECT'e 403), yani o oturumdan D1'e HİÇ yazılamaz. Runner'da hem ağ hem kimlik
+# bilgisi var. Aynı gerekçe deploy.yml, migrate.yml, gundem-retitle.yml ve archive-ofist.yml dosya
+# başlarında da yazılı; bu workflow onların kardeşidir.
+#
+# NE YAPAR / NE YAPMAZ (betiğin kendi sözleşmesi, bkz. scripts/promote-office-newest-project.mjs):
+#   YAPAR   : firmanın künyeli + canlı projelerini yıla göre sıralar, yılı en yeni olana
+#             relisted_at=now + display_order=NULL verir, kalan en fazla 10 projeyi günlük
+#             adımlarla geriye yayar (proje sayfasının 1. sayfasına yığılmasınlar diye).
+#   YAPMAZ  : hiçbir kaydı yayına almaz/arşivlemez/silmez, önizlemeden çıkarmaz, slug/künye/görsel
+#             DEĞİŞMEZ, yeni bir yönetici ataması YAPMAZ.
+#
+# VARSAYILAN DRY-RUN: `apply` açıkça `evet` yapılmadıkça D1'e HİÇBİR ŞEY yazılmaz; yalnızca
+# öncesi/sonrası sıra ve gönderilecek UPDATE ifadeleri raporlanır. Önce dry-run ile okuyun.
+#
+# GERİ ALMA: yalnızca sıralama alanları (relisted_at, display_order) değişir; eski değerleri
+# artifact'taki dry-run/uygulama log'unda kayıtlıdır ve admin panelinden geri yazılabilir.
+
+on:
+  workflow_dispatch:
+    inputs:
+      office:
+        description: 'Firma adı (offices.name ile birebir; boş = FREA)'
+        required: false
+        default: 'FREA'
+      apply:
+        description: "D1'e YAZ (evet = gerçekten taşı, hayir = yalnızca rapor)"
+        required: true
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+
+# İki turun aynı satırları aynı anda yazmasını önler. cancel-in-progress: false — yarıda kesilen
+# bir tur, yarısı damgalanmış bir proje listesi demektir.
+concurrency:
+  group: mimarlab-promote-office-newest-project
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NPM_CONFIG_YES: 'true'
+
+    steps:
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1; fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1; fi
+          if [ "$missing" -eq 1 ]; then
+            echo "Kurulum adımları deploy.yml'in aynı adımında listeli." >&2
+            echo "Bu iş için gereken izin: D1:Edit (Account kapsamlı)." >&2
+            exit 1
+          fi
+          echo "Cloudflare sırları yerinde."
+
+      # Betik yalnızca src/ altındaki modülleri ve D1'i kullanıyor; depo git içinde ~3,3 GB görsel
+      # taşıyor (projects/ + miras/) ve bu iş için tamamen gereksiz (archive-ofist.yml'deki AYNI
+      # sparse checkout gerekçesi).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            src
+            scripts
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 1. sıraya al
+        env:
+          IN_OFFICE: ${{ inputs.office }}
+          IN_APPLY: ${{ inputs.apply }}
+        run: |
+          set -o pipefail
+          # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak okunur
+          # (deploy.yml / archive-ofist.yml'deki aynı script-injection savunması).
+          # NOT: GitHub'ın varsayılan kabuğu `bash -e` — `[ x ] && cmd` kalıbı koşul YANLIŞ
+          # olduğunda 1 döndürüp ADIMI DÜŞÜRÜR. Bu yüzden her yerde açık `if` kullanılıyor.
+          argv=()
+          if [ -n "${IN_OFFICE}" ]; then argv+=("--office=${IN_OFFICE}"); fi
+          if [ "${IN_APPLY}" = "evet" ]; then argv+=("--apply"); fi
+          node scripts/promote-office-newest-project.mjs "${argv[@]}" 2>&1 | tee promote-office-log.txt
+
+      - name: Rapor (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promote-office-log
+          path: promote-office-log.txt
+          if-no-files-found: warn
+
+      - name: Özet
+        if: always()
+        run: |
+          if [ "${{ inputs.apply }}" = "evet" ]; then
+            echo "UYGULANDI (log'a bakın): firmanın yıla göre en yeni projesi proje sayfasının 1. sırasında."
+          else
+            echo "ÖNİZLEME (D1'e yazılmadı). Gerçekten uygulamak için apply=evet ile tekrar çalıştırın."
+          fi
