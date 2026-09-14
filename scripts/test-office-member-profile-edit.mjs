@@ -327,10 +327,32 @@ await test('delegasyon ARTIK arşivleme/silme yetkisi de verir', async () => {
   assert.equal(row.deleted_at, null);
 });
 
-await test('KENDİ SAHİBİ OLAN profile moderasyon kapısı da KAPALI (SINIR korunuyor)', async () => {
+// KURAL DEĞİŞTİ (kullanıcı kararı, 2026-09-14): "yetkili kullanıcı hem firma hem de firmaya kayıtlı
+// kişilerin ... hem de projelerin tüm görsellerini değiştirme yetkisine sahip olsun." Açık soruya
+// "tam düzenleme yetkisi" yanıtı verildi, yani SINIR artık DÜZENLEME yolunda açık.
+//
+// AMA YALNIZCA DÜZENLEME: yıkıcı yolda (arşivle/sil) SINIR aynen duruyor — bkz. submissions.js#
+// EDIT_ACCESS ve moderateOwnSubmission'ın o nesneyi BİLEREK geçirmemesi. Aşağıdaki İKİ test bu
+// ayrımı birlikte kilitler; biri geçip diğeri düşerse kural sessizce kaymış demektir.
+await test('KENDİ SAHİBİ OLAN profili firma yetkilisi artık DÜZENLEYEBİLİR (2026-09-14 kararı)', async () => {
   const db = freshDb(); seed(db); await withSessions(db);
-  // Fatma kendi profilini sahiplenmiş -> Tuna (Rasa Studio kurucusu) artık ne düzenleyebilir ne de
-  // arşivleyebilir. Bu, madde 2'nin tek güvenlik ağı (bkz. claimedProfiles.js#SINIR).
+  // Fatma kendi profilini sahiplenmiş; Tuna Rasa Studio'nun kurucusu. Tuna artık künyesindeki bu
+  // kişinin profilini (görselleri dahil) düzenleyebilir.
+  const now = Date.now();
+  db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES ('c-fatma-arch', 'u-fatma', 'architect', 'Fatma Zeynep Altınbaşlı', 'approved', ?, ?)`).run(now, now);
+  const env = { DB: d1(db) };
+  const created = await handleSubmissionRoute(
+    req('u-tuna', '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı', photo_url: 'https://mimarlab.com/media/u/yeni-foto.webp', rightsAccepted: true }) }),
+    env, new URL('https://mimarlab.com/api/architects'),
+  );
+  assert.equal(created.status, 201);
+  // İSTEĞİN ÖZÜ: değişen GÖRSEL canonical satıra gerçekten yazılmalı.
+  const row = db.prepare(`SELECT photo_url FROM architects WHERE name = 'Fatma Zeynep Altınbaşlı'`).get();
+  assert.equal(row.photo_url, 'https://mimarlab.com/media/u/yeni-foto.webp', 'yeni fotoğraf canonical satıra yazılmadı');
+});
+
+await test('...ama KENDİ SAHİBİ OLAN profili ARŞİVLEYEMEZ/SİLEMEZ (SINIR yıkıcı yolda duruyor)', async () => {
+  const db = freshDb(); seed(db); await withSessions(db);
   const now = Date.now();
   db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES ('c-fatma-arch', 'u-fatma', 'architect', 'Fatma Zeynep Altınbaşlı', 'approved', ?, ?)`).run(now, now);
   const env = { DB: d1(db) };
@@ -338,7 +360,19 @@ await test('KENDİ SAHİBİ OLAN profile moderasyon kapısı da KAPALI (SINIR ko
     req('u-tuna', '/api/architects', { method: 'POST', body: JSON.stringify({ name: 'Fatma Zeynep Altınbaşlı', claimed_profile_key: 'Fatma Zeynep Altınbaşlı', rightsAccepted: true }) }),
     env, new URL('https://mimarlab.com/api/architects'),
   );
-  assert.equal(created.status, 403);
+  assert.equal(created.status, 201, 'düzenleme açık olmalı (bir üstteki test)');
+  const id = (await created.json()).id;
+  for (const action of ['archive', 'delete']) {
+    const res = await handleSubmissionRoute(
+      req('u-tuna', `/api/architects/${id}/moderate`, { method: 'POST', body: JSON.stringify({ action }) }),
+      env, new URL(`https://mimarlab.com/api/architects/${id}/moderate`),
+    );
+    assert.equal(res.status, 404, `${action}: sahipli profile yıkıcı işlem açılmış`);
+  }
+  // Canonical satır DOKUNULMAMIŞ olmalı — ne gizlenmiş ne silinmiş.
+  const row = db.prepare(`SELECT hidden_at, deleted_at FROM architects WHERE name = 'Fatma Zeynep Altınbaşlı'`).get();
+  assert.equal(row.hidden_at, null, 'sahipli profil arşivlenmiş');
+  assert.equal(row.deleted_at, null, 'sahipli profil silinmiş');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

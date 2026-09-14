@@ -6,7 +6,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, cascadeRemovedOfficesFromArchitect, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditArchitectViaOfficeMembership } from '../lib/claimedProfiles.js';
+import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditArchitectViaOfficeMembership, isArchitectOwnedByAnotherUser } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { projectEditGraceState } from '../lib/projectEditGrace.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
@@ -120,7 +120,22 @@ const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' }
 // 'Yönetici' — firmanın kendi kurumsal hesabı (bkz. src/lib/projectClaimAccess.js#MANAGER_POSITION).
 const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
 
-async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
+// DÜZENLEME NİYETİ (kullanıcı kararı, 2026-09-14). Bir firma/marka yetkilisi, künyesindeki kişinin
+// profilini o kişi profili KENDİ adına sahiplenmiş olsa bile DÜZENLEYEBİLİR — istek buydu: "yetkili
+// kullanıcı hem firma hem de firmaya kayıtlı kişilerin ... hem de projelerin tüm görsellerini
+// değiştirme yetkisine sahip olsun."
+//
+// YIKICI YOLLAR BU NESNEYİ GEÇMEZ (moderateOwnSubmission / handleSelfContentModerate): orada
+// varsayılan `{}` ile çalışılır, yani SINIR aynen durur ve yetkili, sahipli bir profili
+// arşivleyemez/SİLEMEZ. Silme geri alınamaz; "değiştirme" yetkisi "yok etme" yetkisi değildir.
+// Bkz. src/lib/claimedProfiles.js#canEditArchitectViaOfficeMembership'in aynı adlı bayrağı.
+const EDIT_ACCESS = Object.freeze({ includeOwnedByOthers: true });
+
+// opts.includeOwnedByOthers — yalnızca DÜZENLEME yollarından geçirilir; bkz.
+// src/lib/claimedProfiles.js#canEditArchitectViaOfficeMembership'in aynı adlı bayrağı
+// (kullanıcı kararı, 2026-09-14: firma yetkilisi künyesindeki kişinin profilini, o kişi profili
+// kendi adına sahiplenmiş olsa da düzenleyebilsin — ama SİLEMESİN/ARŞİVLEMESİN).
+async function verifyClaimedProfileKey(env, user, typeKey, profileKey, opts = {}) {
   // claimed_profile_key canonical architects/offices satırının adı/slug'ı/legacy_key'iyle birebir
   // eşleşmeli — aksi halde (ör. bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da
   // elle uydurulmuş bir URL ile) hiçbir gerçek profile bağlı olmayan "hayalet" bir gönderi
@@ -155,7 +170,7 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
     // Kural ve "kendi sahibi olan profil dokunulmaz" sınırı için bkz. src/lib/claimedProfiles.js#
     // canEditArchitectViaOfficeMembership. İstemcideki Düzenle butonu AYNI kararı sunucudan okur
     // (GET /api/claims/status -> delegatedEdit), ikisi ayrışamaz.
-    if (typeKey === 'architects' && await canEditArchitectViaOfficeMembership(env, user, currentName, OFFICE_EDIT_POSITIONS)) return null;
+    if (typeKey === 'architects' && await canEditArchitectViaOfficeMembership(env, user, currentName, OFFICE_EDIT_POSITIONS, opts)) return null;
     return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
   }
   // P1 güvenlik düzeltmesi (bkz. migrations/0068): canlı user.position YERİNE, admin bu claim'i
@@ -376,7 +391,7 @@ async function createSubmission(request, env, user, typeKey) {
     && !!(body.name || '').trim() && foldTr((body.name || '').trim()) === foldTr(user.name || '');
 
   if (body.claimed_profile_key) {
-    const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
+    const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key, EDIT_ACCESS);
     if (err) return err;
     // bkz. updateOwnSubmission'daki AYNI istisna — yalnızca admin, bir firmanın/mimarın GÖRÜNEN adını
     // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm firma
@@ -682,10 +697,13 @@ async function enrichSubmissionCrossLinks(env, typeKey, row, item) {
 // proje künyesi / ürün markası). YENİ bir yetki yolu AÇILMAZ: burada geçen bir kullanıcı aynı
 // içeriği zaten ?claim= akışıyla da düzenleyebiliyordu.
 //
-// SİLME/ARŞİVLEME BU KAPIYI KULLANMAZ: moderateOwnSubmission bilerek owner_user_id'ye bağlı kalır
-// (bkz. o fonksiyondaki "DELEGASYON YALNIZCA DÜZENLEME YETKİSİDİR" notu ve
-// scripts/test-office-member-profile-edit.mjs'teki testi).
-async function canAccessSubmissionRow(env, user, typeKey, row) {
+// SİLME/ARŞİVLEME DE BU KAPIYI KULLANIR (2026-09-10 madde 2) ama AYNI GENİŞLİKTE DEĞİL: düzenleme
+// yolları `EDIT_ACCESS` geçer, moderasyon yolları geçmez. Aradaki tek fark, sahiplenilmiş bir kişi
+// profiline erişimdir — düzenlenebilir, ama arşivlenemez/silinemez (bkz. EDIT_ACCESS'in yanındaki
+// gerekçe ve scripts/test-office-member-profile-edit.mjs'teki iki ayrı test).
+// opts.includeOwnedByOthers — çağıranın niyeti: DÜZENLEME mi (true), yıkıcı moderasyon mu (false,
+// varsayılan). Aşağıdaki verifyClaimedProfileKey'e olduğu gibi geçer.
+async function canAccessSubmissionRow(env, user, typeKey, row, opts = {}) {
   if (user.role === 'admin') return true;
   // KÜNYEDEN ÇIKARILMA (kullanıcı isteği, 2026-09-10 madde 2): owner_user_id dalı, projeyi bir kez
   // düzenlemiş kullanıcıya SÜRESİZ erişim bırakıyordu — künyedeki firmasını kendi eliyle silmiş
@@ -695,7 +713,7 @@ async function canAccessSubmissionRow(env, user, typeKey, row) {
   if (typeKey === 'projects' && await projectEditRevokedForSubmission(env, user, row)) return false;
   if (row.owner_user_id && row.owner_user_id === user.id) return true;
   if (row.claimed_profile_key && CLAIM_PROFILE_TYPE[typeKey]) {
-    if (!(await verifyClaimedProfileKey(env, user, typeKey, row.claimed_profile_key))) return true;
+    if (!(await verifyClaimedProfileKey(env, user, typeKey, row.claimed_profile_key, opts))) return true;
   }
   if (CLAIMED_SLUG_TYPES.has(typeKey) && row.claimed_slug) {
     if (!(await claimedSlugVerifierFor(typeKey)(env, user, row.claimed_slug))) return true;
@@ -718,7 +736,9 @@ async function projectEditRevokedForSubmission(env, user, row) {
 
 async function getOwnSubmission(env, user, typeKey, id) {
   const row = await findOrHealSubmissionDraft(env, typeKey, id);
-  if (!row || !(await canAccessSubmissionRow(env, user, typeKey, row))) return errorJson('Bulunamadı', 404);
+  // EDIT_ACCESS: bu uç düzenleme formunu DOLDURUR — yazma kapısıyla (updateOwnSubmission) aynı
+  // genişlikte olmalı, aksi halde kullanıcı formu hiç açamadan 404 alırdı.
+  if (!row || !(await canAccessSubmissionRow(env, user, typeKey, row, EDIT_ACCESS))) return errorJson('Bulunamadı', 404);
   const item = parseSubmissionRow(typeKey, row);
   await enrichSubmissionCrossLinks(env, typeKey, row, item);
   return json({ item });
@@ -729,7 +749,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   const existing = await findOrHealSubmissionDraft(env, typeKey, id);
   // bkz. canAccessSubmissionRow — okuma (getOwnSubmission) ile yazma AYNI kuralı kullanmalı,
   // aksi halde kullanıcı formu doldurup kaydederken 404 alırdı.
-  if (!existing || !(await canAccessSubmissionRow(env, user, typeKey, existing))) return errorJson('Bulunamadı', 404);
+  if (!existing || !(await canAccessSubmissionRow(env, user, typeKey, existing, EDIT_ACCESS))) return errorJson('Bulunamadı', 404);
 
   const body = await readJson(request);
   // Kişi adının baş harfleri (kullanıcı isteği, 2026-09-10 dokuzuncu tur madde 1) — TÜM doğrulama
@@ -770,7 +790,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
 
   if (body.claimed_profile_key) {
-    const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
+    const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key, EDIT_ACCESS);
     if (err) return err;
     // bkz. createSubmission'daki AYNI istisna — yalnızca admin, bir firmanın/mimarın GÖRÜNEN adını
     // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm firma
@@ -1021,12 +1041,28 @@ const OWNER_MODERATE_TYPES = new Set(['products', 'materials', 'architects', 'of
 // yetkilisi, profilinin sahibi olan bir ortağının profilini yine silemez. Bu ağ kalkarsa madde 2
 // "herkesin kendi profilini kaybedebilmesi" anlamına gelirdi.
 //
+// 2026-09-14 GÜNCELLEMESİ: o SINIR artık DÜZENLEME yolunda açık (kullanıcı kararı — yetkili,
+// künyesindeki kişinin profilini/görsellerini o kişi sahiplenmiş olsa da değiştirebilir), ama
+// BURADA aynen duruyor: aşağıdaki canAccessSubmissionRow çağrısı EDIT_ACCESS'i BİLEREK GEÇMEZ.
+// Yani ağ zayıflamadı, yalnızca yıkıcı yola daraltıldı — ki madde 2'nin yukarıdaki gerekçesi
+// ("herkesin kendi profilini kaybedebilmesi") zaten tam olarak silme/arşivleme hakkındaydı.
+//
 // SİLME GERİ ALINAMAZ (runContentAction 'delete' -> deleteCanonicalRowFully) — arşivleme ise
 // geri alınabilir bir taslak bırakır.
 async function moderateOwnSubmission(request, env, user, typeKey, id) {
   if (!OWNER_MODERATE_TYPES.has(typeKey)) return errorJson('Bulunamadı', 404);
   const existing = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!existing || !(await canAccessSubmissionRow(env, user, typeKey, existing))) return errorJson('Bulunamadı', 404);
+  // SINIR'IN DOLAMBAÇLI YOLU KAPALI (kullanıcı kararı, 2026-09-14 — bkz. yukarıdaki güncelleme
+  // notu). canAccessSubmissionRow en başta "taslağın sahibi miyim?" diye sorar; düzenleme yolu
+  // açıldığından yetkili, sahipli bir profil için taslak OLUŞTURUP kendini o taslağın sahibi
+  // yapabiliyor — ve oradan arşivleyip silebilirdi. Bu kontrol taslak sahipliğinden BAĞIMSIZDIR:
+  // profili başka bir hesap kendi adına sahiplenmişse yıkıcı işlem hiç açılmaz. Admin muaf
+  // (canAccessSubmissionRow onu zaten ilk satırda geçiriyor, burada açıkça tekrarlanır).
+  if (typeKey === 'architects' && user.role !== 'admin'
+      && await isArchitectOwnedByAnotherUser(env, user, existing.claimed_profile_key || existing.name)) {
+    return errorJson('Bulunamadı', 404);
+  }
   const body = await readJson(request);
   if (!['delete', 'archive'].includes(body.action)) return errorJson('Geçersiz işlem.');
   const key = (typeKey === 'architects' || typeKey === 'offices') && !existing.claimed_profile_key

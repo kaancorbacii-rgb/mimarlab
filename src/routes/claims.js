@@ -385,8 +385,12 @@ async function claimStatus(env, url, user) {
   // profillerini de düzenleyebilme). Sunucudaki ASIL kapı ile (src/routes/submissions.js#
   // verifyClaimedProfileKey) AYNI yardımcıdan gelir — istemci kuralı YENİDEN HESAPLAMAZ, aksi halde
   // ikisi ayrışıp "boş yere doldurulan form, sonra 403" durumu doğardı (bkz. denetim 2026-09-04).
+  // includeOwnedByOthers: bu bayrak YALNIZCA "Düzenle" butonunu gösterir (bkz. js/components/
+  // claim-correction-box.js#renderProfileEditButton) — yani sunucudaki DÜZENLEME kapısıyla
+  // (submissions.js#EDIT_ACCESS) aynı genişlikte olmalı. Dar kalsaydı buton hiç görünmez, geniş
+  // kalsaydı arşivle/sil yetkisi ima edilirdi; ikisi de olmuyor.
   const delegatedEdit = (profileType === 'architect' && (!row || row.status !== 'approved'))
-    ? await canEditArchitectViaOfficeMembership(env, user, profileKey, OFFICE_EDIT_POSITIONS)
+    ? await canEditArchitectViaOfficeMembership(env, user, profileKey, OFFICE_EDIT_POSITIONS, { includeOwnedByOthers: true })
     : false;
 
   // officePosition — bkz. dosya sonundaki AYNI gerekçe/myClaims: istemcinin "Düzenle" butonunu

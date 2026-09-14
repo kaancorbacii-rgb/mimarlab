@@ -508,18 +508,60 @@ async function fetchUserEditableOfficeRows(env, user, officeEditPositions) {
   return [...byId.values()].slice(0, 50);
 }
 
-export async function canEditArchitectViaOfficeMembership(env, user, architectKey, officeEditPositions) {
+// "Bu KİŞİ profilini BAŞKA bir hesap kendi adına sahiplenmiş mi?" — canEditArchitectViaOfficeMembership'in
+// SINIR'ının tek başına sorulabilir hâli.
+//
+// NEDEN AYRI BİR FONKSİYON (kullanıcı kararı, 2026-09-14): düzenleme yolunda SINIR açıldığı için,
+// bir firma yetkilisi artık sahipli bir profil için de *_submissions taslağı OLUŞTURABİLİYOR — ve o
+// taslağın owner_user_id'si KENDİSİ oluyor. submissions.js#canAccessSubmissionRow ise en başta
+// "taslağın sahibi miyim?" diye sorar; yani yetkili, önce düzenleyip sonra o taslak üzerinden
+// profili ARŞİVLEYİP SİLEBİLİRDİ. SINIR böylece dolambaçlı yoldan tamamen delinmiş olurdu.
+// Yıkıcı yol (moderateOwnSubmission) bu yüzden taslak sahipliğinden BAĞIMSIZ olarak bunu sorar.
+export async function isArchitectOwnedByAnotherUser(env, user, profileKey) {
+  const key = (profileKey || '').trim();
+  if (!user || !key) return false;
+  const arch = await env.DB.prepare(
+    `SELECT name FROM architects WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ? OR slug = ?) LIMIT 1`
+  ).bind(key, key, key).first();
+  const name = arch ? arch.name : key;
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM profile_claims
+      WHERE profile_type = 'architect' AND profile_key = ? AND status = 'approved' AND user_id != ? LIMIT 1`
+  ).bind(name, user.id).first();
+  return !!row;
+}
+
+// opts.includeOwnedByOthers — "SINIR"ı (aşağıdaki ownedByOther kapısı) bilerek atlar.
+//
+// KULLANICI KARARI (2026-09-14): "yetkili kullanıcı hem firma hem de firmaya kayıtlı kişilerin
+// (kurucu, kurucu ortak, ortak, ekip lideri) hem de projelerin tüm görsellerini değiştirme
+// yetkisine sahip olsun" — açık soru üzerine TAM DÜZENLEME yetkisi seçildi. Yani bir firma
+// yetkilisi, künyesindeki bir kişinin profilini o kişi profili KENDİ adına sahiplenmiş olsa bile
+// DÜZENLEYEBİLİR (görselleri dahil).
+//
+// AMA YALNIZCA DÜZENLEME. Bayrak, YIKICI yollara (arşivle/sil) BİLEREK geçirilmez — orada SINIR
+// aynen durur (bkz. submissions.js#moderateOwnSubmission / handleSelfContentModerate: ikisi de
+// bayrağı GEÇMEZ, yani varsayılan `false` ile çalışır). Gerekçe: düzenleme geri alınabilir ve
+// sahibinin gözü önünde olur; `delete` ise geri ALINAMAZ (runContentAction -> deleteCanonicalRowFully)
+// ve bir kişinin kendi yönettiği profilini kalıcı olarak kaybetmesi demek olurdu. İstenen yetki
+// "değiştirme"ydi, "yok etme" değil.
+//
+// Varsayılan `false`: yeni bir çağıran bayrağı düşünmeden eklerse en dar davranışı alır.
+export async function canEditArchitectViaOfficeMembership(env, user, architectKey, officeEditPositions, opts = {}) {
   if (!user || !architectKey) return false;
   const arch = await env.DB.prepare(
     `SELECT id, name FROM architects WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ? OR slug = ?) LIMIT 1`
   ).bind(architectKey, architectKey, architectKey).first();
   if (!arch) return false;
-  // Kendi sahibi olan profil dokunulmaz (bkz. yukarıdaki SINIR).
-  const ownedByOther = await env.DB.prepare(
-    `SELECT 1 FROM profile_claims
-      WHERE profile_type = 'architect' AND profile_key = ? AND status = 'approved' AND user_id != ? LIMIT 1`
-  ).bind(arch.name, user.id).first();
-  if (ownedByOther) return false;
+  // Kendi sahibi olan profil dokunulmaz (bkz. yukarıdaki SINIR) — DÜZENLEME yolunda bu kapı artık
+  // açık (yukarıdaki kullanıcı kararı), arşivle/sil yolunda KAPALI kalır.
+  if (!opts.includeOwnedByOthers) {
+    const ownedByOther = await env.DB.prepare(
+      `SELECT 1 FROM profile_claims
+        WHERE profile_type = 'architect' AND profile_key = ? AND status = 'approved' AND user_id != ? LIMIT 1`
+    ).bind(arch.name, user.id).first();
+    if (ownedByOther) return false;
+  }
 
   const officeIds = await fetchUserEditableOfficeIds(env, user, officeEditPositions);
   if (!officeIds.length) return false;
