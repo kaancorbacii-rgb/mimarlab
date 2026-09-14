@@ -5,9 +5,16 @@
 //   olsunlar. Eğer bir bildirim veya mesaj gelirse buton kapalı olsa dahi başlığın sağ tarafında
 //   turuncu nokta işaretiyle belirtilsin."
 //
+//   GÜNCELLEME, 2026-09-14: "bildirimler ve mesajlar kutuları da default olarak açık
+//   gözüksünler". Kutular AÇILIR KAPANIR olmaya devam eder — değişen tek şey İLK DURUM:
+//   aria-expanded="true" ve gövdede `hidden` yok. Aşağıdaki beklentiler buna göre güncellendi;
+//   testin asıl koruduğu şey (panelin kendi deseni + gövdenin İÇERİĞİ) aynı kaldı.
+//   Aynı turda Profil Bilgileri ve Firma / Marka Bilgileri kutuları da aynı desene alındı
+//   (yine varsayılan açık) — madde 3'te kilitleniyor.
+//
 //   İki sözleşme birlikte kilitlenir:
 //   (a) AÇILIR KAPANIR KUTU, PANELİN KENDİ DESENİYLE: .dash-collapse-toggle + data-collapse +
-//       hidden gövde. Arşivim/İstatistikler/Rozetlerim de aynı deseni kullanıyor ve
+//       .dash-collapse-body. Arşivim/İstatistikler/Rozetlerim de aynı deseni kullanıyor ve
 //       wireCollapsibles #am-panel içindeki TÜM bu düğmeleri bağlıyor — ayrı bir JS kancası
 //       yazılırsa iki mekanizma aynı kutuyu açıp kapatmaya çalışır.
 //   (b) TURUNCU NOKTA BAŞLIĞIN İÇİNDE ve `hidden` ile yönetilir. Nokta chevron'un yanına değil
@@ -50,10 +57,14 @@ const BOXES = [
 test('iki kutu da panelin AÇILIR KAPANIR desenini kullanıyor (ayrı bir kanca yazılmamış)', () => {
   for (const b of BOXES) {
     assert.ok(
-      authModal.includes(`<button type="button" class="dash-collapse-toggle" data-collapse="${b.collapse}" aria-expanded="false" aria-controls="${b.collapse}">`),
-      `${b.label}: .dash-collapse-toggle düğmesi yok`,
+      authModal.includes(`<button type="button" class="dash-collapse-toggle" data-collapse="${b.collapse}" aria-expanded="true" aria-controls="${b.collapse}">`),
+      `${b.label}: .dash-collapse-toggle düğmesi yok ya da varsayılan AÇIK değil`,
     );
-    assert.ok(authModal.includes(`<div class="dash-collapse-body" id="${b.collapse}" hidden>`), `${b.label}: gövde hidden başlamıyor`);
+    // Varsayılan AÇIK (2026-09-14): gövde hidden TAŞIMAMALI. Düğmenin aria-expanded'ı ile gövdenin
+    // hidden'ı BİRBİRİYLE TUTARLI olmalı, aksi halde ilk tıklama kutuyu ters yöne çevirir
+    // (wireCollapsibles durumu düğmeden okur, gövdeden değil).
+    assert.ok(authModal.includes(`<div class="dash-collapse-body" id="${b.collapse}">`), `${b.label}: gövde açık başlamıyor`);
+    assert.ok(!authModal.includes(`<div class="dash-collapse-body" id="${b.collapse}" hidden>`), `${b.label}: gövde hâlâ hidden`);
   }
   // wireCollapsibles TÜM data-collapse düğmelerini bağlar — yeni kutular için ek kod gerekmez.
   assert.match(authModal, /document\.querySelectorAll\('#am-panel \.dash-collapse-toggle\[data-collapse\]'\)/);
@@ -64,7 +75,7 @@ test('iki kutu da panelin AÇILIR KAPANIR desenini kullanıyor (ayrı bir kanca 
 
 test('liste VE sayfalama kapanan gövdenin İÇİNDE (kapalı kutu yarım görünmez)', () => {
   for (const b of BOXES) {
-    const start = authModal.indexOf(`<div class="dash-collapse-body" id="${b.collapse}" hidden>`);
+    const start = authModal.indexOf(`<div class="dash-collapse-body" id="${b.collapse}">`);
     const body = authModal.slice(start, authModal.indexOf('</div>\n        </div>', start));
     assert.ok(body.includes(`id="${b.list}"`), `${b.label}: liste gövdenin dışında kalmış`);
     assert.ok(body.includes(`id="${b.pag}"`), `${b.label}: sayfalama gövdenin dışında kalmış`);
@@ -113,6 +124,75 @@ test('nokta HER durum değişiminde tazeleniyor: ilk çizim, okundu, boş liste'
   const click = rm.slice(rm.indexOf('.msg-conv-row'), rm.indexOf('renderDashPagination'));
   assert.match(click, /dot\.remove\(\);\s*\n\s*refreshDashAlertDots\(\);/, 'mesaj okunduğunda başlıktaki nokta tazelenmiyor');
 });
+
+console.log('\nmadde 3 — Profil Bilgileri / Firma-Marka Bilgileri: açılır kapanır, varsayılan AÇIK');
+
+// KULLANICI İSTEĞİ, 2026-09-14: "Hesabım sayfasındaki profil bilgileri ve marka / firma bilgileri de
+// açılır kapanır butonların içinde olsun ama default olarak açık gözüksünler."
+//
+// Bu iki kutuda Bildirimler/Mesajlar'da OLMAYAN bir tuzak var: başlığın yanında AYRI bir eylem
+// düğmesi duruyor ("Profili Düzenle"). Aç/kapa düğmesi onu SARARSA <button> içinde <button>
+// (ya da <button> içinde <a>) oluşur; tarayıcı bunu ayrıştırırken iç öğeyi dışarı taşır, yani
+// düzen sessizce bozulur ve tıklamalar birbirine karışır. Test tam olarak bunu kilitliyor.
+const HEAD_BOXES = [
+  { label: 'Profil Bilgileri',        collapse: 'am-profile-collapse', body: 'am-profile-tab-facts', action: 'am-dash-edit-btn' },
+  { label: 'Firma / Marka Bilgileri', collapse: 'am-firm-collapse',    body: 'am-firm-facts',        action: 'am-firm-edit-btn' },
+];
+
+test('iki kutu da AYNI açılır kapanır deseni kullanıyor ve varsayılan AÇIK', () => {
+  for (const b of HEAD_BOXES) {
+    assert.ok(
+      authModal.includes(`data-collapse="${b.collapse}" aria-expanded="true" aria-controls="${b.collapse}"`),
+      `${b.label}: aç/kapa düğmesi yok ya da varsayılan AÇIK değil`,
+    );
+    assert.ok(authModal.includes(`<div class="dash-collapse-body" id="${b.collapse}">`), `${b.label}: gövde açık başlamıyor`);
+    assert.ok(!authModal.includes(`<div class="dash-collapse-body" id="${b.collapse}" hidden>`), `${b.label}: gövde hidden başlıyor`);
+  }
+});
+
+test('kutunun İÇERİĞİ kapanan gövdenin içinde (kapalı kutu yarım görünmez)', () => {
+  for (const b of HEAD_BOXES) {
+    const start = authModal.indexOf(`<div class="dash-collapse-body" id="${b.collapse}">`);
+    assert.ok(start > -1, `${b.label}: gövde bulunamadı`);
+    const body = authModal.slice(start, authModal.indexOf('</div>\n        </div>', start));
+    assert.ok(body.includes(`id="${b.body}"`), `${b.label}: içerik gövdenin dışında kalmış`);
+  }
+});
+
+test('eylem düğmesi aç/kapa düğmesinin İÇİNDE DEĞİL (iç içe <button> geçersiz HTML)', () => {
+  for (const b of HEAD_BOXES) {
+    const tStart = authModal.indexOf(`data-collapse="${b.collapse}"`);
+    const tEnd = authModal.indexOf('</button>', tStart);
+    const toggle = authModal.slice(tStart, tEnd);
+    assert.ok(!toggle.includes(`id="${b.action}"`), `${b.label}: "Profili Düzenle" aç/kapa düğmesinin içinde kalmış`);
+    assert.ok(!/<button|<a\s/.test(toggle), `${b.label}: aç/kapa düğmesinin içinde başka bir etkileşimli öğe var`);
+    // ...ama yine de AYNI başlık satırında durmalı (kutunun sağ üstündeki yerini korusun).
+    assert.ok(authModal.slice(tStart - 400, tStart).includes('class="dash-section-head"'), `${b.label}: başlık satırı .dash-section-head değil`);
+  }
+});
+
+test('başlık satırındaki aç/kapa düğmesi tam genişlik DEĞİL (eylem düğmesini itmesin)', () => {
+  // Genel kural #am-panel .dash-collapse-toggle{width:100%} — eylem düğmesiyle aynı satırda
+  // duran düğmeler bunu .dash-collapse-toggle-inline ile ezer.
+  assert.match(authModal, /#am-panel \.dash-collapse-toggle-inline\{[^}]*width:auto/);
+  for (const b of HEAD_BOXES) {
+    const tStart = authModal.lastIndexOf('<button', authModal.indexOf(`data-collapse="${b.collapse}"`));
+    const tag = authModal.slice(tStart, authModal.indexOf('>', tStart));
+    assert.ok(tag.includes('dash-collapse-toggle-inline'), `${b.label}: düğmede dash-collapse-toggle-inline sınıfı yok`);
+  }
+});
+
+// İstatistikler başlığı da bir .dash-section-head içinde aç/kapa düğmesi taşıyor ama BU TURDA
+// değişmedi — yukarıdaki inline sınıfı ona uygulanmamalı, aksi halde istenmeyen bir görünüm
+// değişikliği sessizce sızar.
+test('İstatistikler başlığı bu turda DEĞİŞMEDİ (kapsam sızıntısı yok)', () => {
+  const i = authModal.indexOf('data-collapse="am-stats-collapse am-stats-range"');
+  assert.ok(i > -1, 'İstatistikler düğmesi bulunamadı');
+  const tag = authModal.slice(authModal.lastIndexOf('<button', i), authModal.indexOf('>', i));
+  assert.ok(!tag.includes('dash-collapse-toggle-inline'), 'İstatistikler düğmesine inline sınıfı sızmış');
+  assert.ok(tag.includes('aria-expanded="false"'), 'İstatistikler varsayılan durumu değişmiş');
+});
+
 
 console.log('\nmadde 2 — footer menüsü sütunlara ortalanıyor');
 

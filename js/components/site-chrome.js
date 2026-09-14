@@ -989,7 +989,16 @@
         .nav-search-modal-image-paste input:focus-visible{box-shadow:none;}
         @media (max-width:640px){
           .nav-search-modal-overlay{padding:60px 12px 12px;}
-          .nav-search-modal{padding:22px;}
+          /* X, arama çubuğuyla AYNI yatay bantta duruyordu (ölçüldü: kapat 76-110 px, çubuk
+             82-129 px) ve çubuk ona yer açmak için margin-right:36px ile kısaltılıyordu —
+             mobilde zaten dar olan alanın 36 px'i gidiyordu (kullanıcı isteği, 2026-09-14:
+             "X butonu arama çubuğunun üzerine geliyor ve çubuğu daraltıyor"). Artık X kutunun
+             üst şeridine çekilir (8-42 px) ve modalın üst iç boşluğu 48 px'e çıkarak ona yer
+             açar; çubuk margin'i sıfırlanıp kenardan kenara uzar. Masaüstünde düzen aynı kalır:
+             orada 720 px genişlikte 36 px'lik pay sorun değil. */
+          .nav-search-modal{padding:48px 22px 22px;}
+          .nav-search-modal-close{top:8px; right:12px;}
+          .nav-search-modal-input-row{margin-right:0;}
           .nav-search-modal-image-box{flex-direction:column;}
           /* Önerilen aramalar mobilde TEK SATIR + yatay kaydırma (kullanıcı isteği, 2026-09-14).
              Beş chip sarmalandığında ("Ofis / İş Merkezi", "Turizm / Otel"... uzun etiketler) üç
@@ -1026,7 +1035,7 @@
           <div class="nav-search-modal-section-title">Görsel ile Proje ve Ürün Arama</div>
           <div class="nav-search-modal-image-box">
             <div class="nav-search-modal-image-drop" id="nav-search-modal-image-drop" role="button" tabindex="0" aria-label="Görsel seç">
-              <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG, JPEG ya da WEBP (Maks. 10mb)</span>
+              <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görseli sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG, JPEG ya da WEBP (Maks. 10mb)</span>
               <div class="nav-search-modal-image-preview" id="nav-search-modal-image-preview" hidden>
                 <img id="nav-search-modal-image-preview-img" alt="">
                 <span class="nav-search-modal-image-preview-name" id="nav-search-modal-image-preview-name"></span>

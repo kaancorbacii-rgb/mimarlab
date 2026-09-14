@@ -239,6 +239,15 @@ const AuthModal = (function () {
     #am-panel .dash-collapse-chevron{flex-shrink:0; transition:transform .18s ease; color:var(--ink-soft);}
     #am-panel .dash-collapse-toggle[aria-expanded="true"] .dash-collapse-chevron{transform:rotate(180deg);}
     #am-panel .dash-collapse-body{padding-top:4px;}
+    /* Başlığının YANINDA ayrı bir eylem düğmesi olan kutularda (Profil Bilgileri, Firma / Marka
+       Bilgileri) aç/kapa düğmesi satırın tamamını kaplayamaz: "Profili Düzenle" onun KARDEŞİdir
+       (<button> içine <button> geçersiz HTML). Genel kuralın width:100%'ü eylem düğmesini sıkıştırır
+       ve chevron'u başlıktan koparıp satırın ta sağına atardı; bu sınıfla düğme yalnızca başlığı +
+       chevron'u kadar yer kaplar.
+       AYRI BİR SINIF, .dash-section-head > .dash-collapse-toggle seçicisi DEĞİL: İstatistikler
+       başlığı da (dönem seçicisiyle birlikte) aynı yapıyı kullanıyor ve böyle bir seçici onun
+       görünümünü de sessizce değiştirirdi — bu turda istenen bir şey değil. */
+    #am-panel .dash-collapse-toggle-inline{width:auto; flex:0 1 auto; min-width:0; justify-content:flex-start; gap:8px;}
     /* Okunmamış uyarı noktası (Bildirimler/Mesajlar başlıkları) — kutu KAPALIYKEN de görünür,
        çünkü başlık satırının içinde durur. Renk .notif-dot/.msg-conv-dot ile AYNI (--accent). */
     #am-panel .dash-alert-dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--accent); margin-left:8px; vertical-align:middle;}
@@ -1359,18 +1368,32 @@ const AuthModal = (function () {
            .dash-row'un varsayılan 860px eşiği çekmecenin 90vw'lik tablet genişliğini tek sütuna
            düşürüyordu, bu sınıf eşiği 620px'e çeker (bkz. injectStyles'taki kural). -->
       <div class="dash-row col-two-col">
+        <!-- AÇILIR KAPANIR ama VARSAYILAN AÇIK (kullanıcı isteği, 2026-09-14: "profil bilgileri ve
+             marka / firma bilgileri de açılır kapanır butonların içinde olsun ama default olarak
+             açık gözüksünler"). Bildirimler/Mesajlar/Arşivim ile AYNI sözleşme
+             (.dash-collapse-toggle + data-collapse + .dash-collapse-body), tek farkı gövdenin
+             hidden ile BAŞLAMAMASI ve aria-expanded="true" olması — wireCollapsibles durumu
+             düğmeden okuduğu için ilk tıklama doğru şekilde KAPATIR.
+             Aç/kapa düğmesi başlığı sarar ama "Profili Düzenle"yi SARMAZ: <button> içine <button>
+             koymak geçersiz HTML olurdu, o yüzden ikisi .dash-section-head'in kardeşleridir
+             (bkz. injectStyles'taki .dash-collapse-toggle-inline kuralı). -->
         <div class="dash-section">
           <div class="dash-section-head">
-            <h2>Profil Bilgileri</h2>
+            <button type="button" class="dash-collapse-toggle dash-collapse-toggle-inline" data-collapse="am-profile-collapse" aria-expanded="true" aria-controls="am-profile-collapse">
+              <h2>Profil Bilgileri</h2>
+              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <button type="button" class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn">Profili Düzenle</button>
           </div>
-          <div id="am-profile-tab-facts">
-            <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Üniversite</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
+          <div class="dash-collapse-body" id="am-profile-collapse">
+            <div id="am-profile-tab-facts">
+              <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Üniversite</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
+            </div>
           </div>
         </div>
 
@@ -1387,17 +1410,22 @@ const AuthModal = (function () {
                — yalnızca firmada YETKİLİ bir görevi olan kullanıcıya gösterilir, bkz.
                renderFirmEditBtn / OFFICE_EDIT_POSITIONS. -->
           <div class="dash-section-head">
-            <h2>Firma / Marka Bilgileri</h2>
+            <button type="button" class="dash-collapse-toggle dash-collapse-toggle-inline" data-collapse="am-firm-collapse" aria-expanded="true" aria-controls="am-firm-collapse">
+              <h2>Firma / Marka Bilgileri</h2>
+              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <a class="dash-edit-btn dash-edit-btn-sm" id="am-firm-edit-btn" href="#" style="display:none;">Profili Düzenle</a>
           </div>
-          <div id="am-firm-facts"><div class="dash-empty">Yükleniyor…</div></div>
-          <div id="am-claims-mine-list"></div>
+          <div class="dash-collapse-body" id="am-firm-collapse">
+            <div id="am-firm-facts"><div class="dash-empty">Yükleniyor…</div></div>
+            <div id="am-claims-mine-list"></div>
           <!-- Kullanıcının birden fazla firması/markası varsa kutu SAYFALANIR (kullanıcı isteği,
                2026-09-07 madde 1: "birden fazla firma veya marka varsa bunlar kutunun içinde sayfa
                sayfa ayrılsınlar ve en alt satırda bu sayfalara ait 1, 2 şeklinde butonlarla
                belirtilsinler") — Bildirimler/Mesajlar kutularıyla AYNI .dash-pagination bileşeni
                (bkz. renderDashPagination), tek fark sayfa başına bir KAYIT düşmesi. -->
-          <div class="dash-pagination" id="am-firm-pagination"></div>
+            <div class="dash-pagination" id="am-firm-pagination"></div>
+          </div>
         </div>
       </div>
 
@@ -1407,28 +1435,31 @@ const AuthModal = (function () {
            turuncu nokta işaretiyle belirtilsin."). Arşivim/İstatistikler/Rozetlerim ile AYNI
            sözleşme (.dash-collapse-toggle + data-collapse + hidden gövde) — wireCollapsibles
            #am-panel içindeki TÜM bu düğmeleri zaten bağlar, ayrı bir kanca gerekmez.
+           VARSAYILAN AÇIK (kullanıcı isteği, 2026-09-14: "bildirimler ve mesajlar kutuları da
+           default olarak açık gözüksünler") — düğme aç/kapa olmaya devam eder, yalnızca ilk
+           durum değişti: aria-expanded="true" + gövdede hidden yok.
            Turuncu nokta BAŞLIĞIN İÇİNDE durur (sağındaki chevron değil): kutu kapalıyken de
            görünen tek şey başlık satırıdır ve nokta orada okunur. Kaynağı satırların kendi
            okunmadı durumudur (bkz. refreshDashAlertDots) — yani nav'daki uyarı noktasıyla aynı
            veri, ikinci bir sayaç uydurulmaz. -->
       <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
         <div class="dash-section">
-          <button type="button" class="dash-collapse-toggle" data-collapse="am-notif-collapse" aria-expanded="false" aria-controls="am-notif-collapse">
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-notif-collapse" aria-expanded="true" aria-controls="am-notif-collapse">
             <h2>Bildirimler<span class="dash-alert-dot" id="am-notif-dot" role="img" aria-label="Okunmamış bildirim var" hidden></span></h2>
             <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="dash-collapse-body" id="am-notif-collapse" hidden>
+          <div class="dash-collapse-body" id="am-notif-collapse">
             <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
             <div class="dash-pagination" id="am-notif-pagination"></div>
           </div>
         </div>
 
         <div class="dash-section">
-          <button type="button" class="dash-collapse-toggle" data-collapse="am-msg-collapse" aria-expanded="false" aria-controls="am-msg-collapse">
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-msg-collapse" aria-expanded="true" aria-controls="am-msg-collapse">
             <h2>Mesajlar<span class="dash-alert-dot" id="am-msg-dot" role="img" aria-label="Okunmamış mesaj var" hidden></span></h2>
             <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="dash-collapse-body" id="am-msg-collapse" hidden>
+          <div class="dash-collapse-body" id="am-msg-collapse">
             <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
             <div class="dash-pagination" id="am-msg-pagination"></div>
           </div>
