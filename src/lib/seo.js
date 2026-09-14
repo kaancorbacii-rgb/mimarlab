@@ -8,6 +8,7 @@ import { parseCanonicalRow } from './canonicalRead.js';
 import { isOfficeName } from './projectPool.js';
 import { officePath, isBrandUrlOffice } from './officeUrl.js';
 import { externalHttpUrl } from './externalUrl.js';
+import { firstUsableSourceUrl } from './aggregatorSources.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
 // proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
 // products) tablolarından okunuyor, src/routes/architect.js|office.js|project.js|product.js'in
@@ -898,8 +899,10 @@ async function buildProjectMeta(slug, env) {
   // bağlantı üretir.
   const [photographers, used] = await Promise.all([
     // photo_credit_url ÖNCELİKLİ, boşsa source_url — src/routes/project.js#handleProjectDetailRoute
-    // ile AYNI kural (o dosyadaki "link alan İKİ kutu" notuna bkz.).
-    fetchProjectPhotographers(env, row.id, p.photo_credit_text, p.photo_credit_url || row.source_url),
+    // ile AYNI kural (o dosyadaki "link alan İKİ kutu" notuna bkz.) ve AYNI agregatör kapısı
+    // (kullanıcı isteği 2026-09-14, bkz. src/lib/aggregatorSources.js): SSR gövdesi ile popup aynı
+    // bağlantıyı göstermeli, yoksa Googlebot künyede hâlâ arkitera/archdaily bağlantısı görürdü.
+    fetchProjectPhotographers(env, row.id, p.photo_credit_text, firstUsableSourceUrl([p.photo_credit_url, row.source_url])),
     fetchProjectProductsAndBrands(env, row.id),
   ]);
   const disciplineLabel = (p.discipline || []).join(' / ') || null;

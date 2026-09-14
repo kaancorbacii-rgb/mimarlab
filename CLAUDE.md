@@ -89,3 +89,30 @@ fact-consistency kapılarından geçirir.
   betiği çalıştırır ve önce/sonra raporunu artifact olarak bırakır. Gereken sırlar deploy ile
   aynıdır (`CLOUDFLARE_API_TOKEN` — D1:Edit ve Workers AI:Edit izinleriyle —,
   `CLOUDFLARE_ACCOUNT_ID`).
+
+## Proje künyesindeki "Kaynak" bağlantısı: agregatör YASAK (2026-09-14)
+
+Kullanıcı isteği: "Hiçbir projenin kaynak kısmında arkitera, archello, archdaily, divisare gibi
+linkler olmasın. Bu linkler varsa bunları sil ve mimarlık firmalarının websitelerinin linklerini
+koy. Websiteleri yoksa da boş bırak. Zaten kişi veya firma kaydı olan bir fotoğrafçı varsa link
+girme."
+
+- **Tek kaynak**: `src/lib/aggregatorSources.js` — marka listesi (`AGGREGATOR_SOURCE_BRANDS`),
+  süzgeç (`isAggregatorSourceUrl`) ve temizlik kararı (`planProjectSourceUrls`) orada. Eşleşme alan
+  adı ETİKETİ üzerinden TAM yapılır, tam alan adı listesiyle değil — `archdaily.com.tr`,
+  `plataformaarquitectura.cl` gibi yerel alan adları kendiliğinden kapsanır, `divisare-mimarlik.com`
+  gibi gerçek bir firma adresi yanlışlıkla yakalanmaz.
+- **Yazma kapısı**: `src/lib/canonicalSync.js#syncProject` — böyle bir adres `projects` tablosuna
+  (`photo_credit_url` / `source_url`) HİÇ yazılmaz; hangi yoldan gelirse gelsin (üye gönderisi,
+  admin düzenlemesi, AI akışı). Gönderi satırı (`project_submissions`) denetim izi olarak korunur.
+- **Okuma kapıları**: `src/routes/project.js`, `src/lib/seo.js`, `src/lib/projectPool.js` +
+  istemci kopyası `js/components/project-meta.js#isAggregatorSourceUrl`. D1'de kalmış eski bir değer
+  künyede bağlantıya dönüşmez. İki kolondan biri agregatör, diğeri firmanın kendi sitesiyse
+  firmanınki kullanılır (`firstUsableSourceUrl` — `a || b` bunu yapamazdı).
+- **Mevcut veriyi temizleme**: `scripts/purge-aggregator-project-sources.mjs`, uzak (web/telefon)
+  oturumdan ÇALIŞTIRILAMAZ (api.cloudflare.com kapalı) — bunun için
+  `.github/workflows/purge-aggregator-project-sources.yml` var, `workflow_dispatch` ile tetiklenir.
+  **Varsayılan dry-run**; yazmak için `apply=evet`. Betiğin kendi kararı yoktur, kuralı
+  `planProjectSourceUrls`'ten okur.
+- Testler: `scripts/test-2026-09-14-aggregator-source-links.mjs` (preflight'a bağlı). İstemci ile
+  sunucudaki marka listeleri AYRIŞIRSA preflight kırmızı olur.

@@ -6,6 +6,7 @@
 // bulgusu, 2026-08-14); bu dosya paylaşılan mantığı doğru katmana (lib) taşır, routes/project.js
 // de aynı fonksiyonları artık buradan import eder (davranış değişmedi, yalnızca konum).
 import { parseCanonicalRow } from './canonicalRead.js';
+import { dropAggregatorSourceUrl } from './aggregatorSources.js';
 // bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu — il-ilce-data.js proje.html'deki
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
 // burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor.
@@ -119,7 +120,11 @@ export function shapeProjectItem(row, opts) {
     date: p.project_date, dateBucket: p.date_bucket,
     period: p.period, designer: designerNamesFrom(row.designer_names),
     officeNames: officeNamesFrom(row.office_names),
-    photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
+    // url: agregatör kapısı (kullanıcı isteği, 2026-09-14 — bkz. src/lib/aggregatorSources.js).
+    // Kart/liste yükü bu bağlantıyı bugün <a> olarak basmıyor (bkz. js/components/project-gallery.js
+    // — yalnızca .text okunuyor), ama kapı burada da durur: aynı yükü okuyan yeni bir çağıran
+    // yarın bağlantıyı basarsa arkitera/archdaily adresi sessizce geri gelmemeli.
+    photoCredit: { text: p.photo_credit_text || '', url: dropAggregatorSourceUrl(p.photo_credit_url || '') },
     // coverOnly: kart karuseli için İLK 6 görsel (kullanıcı isteği, 2026-09-10 on birinci tur madde
     // 5: "proje ve ürün önizlemelerinde fotoğraflar arasında ileri-geri yapabilelim"). Kart yalnızca
     // kapağı DOM'a basar, diğerleri oka basılınca tembel yüklenir (bkz. js/components/card-carousel.js);

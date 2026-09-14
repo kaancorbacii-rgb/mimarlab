@@ -160,7 +160,10 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // `?v=<deploy sürümü>` ile bağlanıyor: sürüm artırılmazsa edge'de duran ESKİ kabuklar s-maxage
 // boyunca ESKİ sürüm etiketleriyle servis edilir ve o ziyaretlerde düzeltme hiç görünmezdi
 // (v110–v115'teki AYNI tuzak).
-export const SSR_CACHE_VERSION = 'v137';
+// v138 (kullanıcı isteği, 2026-09-14): proje SSR gövdesindeki "Fotoğraf" satırı, kaynak adresi
+// arkitera/archello/archdaily/divisare gibi bir YAYIN sayfasıysa artık bağlantı BASMIYOR (bkz.
+// src/lib/aggregatorSources.js). Gövde satırın updated_at'i değişmeden değiştiğinden bump ŞART.
+export const SSR_CACHE_VERSION = 'v138';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

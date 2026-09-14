@@ -15,6 +15,18 @@
 //      ("ytong.com.tr/x"); istemci bunu document.baseURI'ye göre çözünce
 //      https://mimarlab.com/ytong.com.tr/x gibi KIRIK bir site-içi adres üretiyordu.
 //
+// GÜNCELLEME (kullanıcı isteği, 2026-09-14): "Hiçbir projenin kaynak kısmında arkitera, archello,
+// archdaily, divisare gibi linkler olmasın." Bu dosyadaki KURGULAR (fixture) eskiden kaynak adresi
+// olarak arkitera.com kullanıyordu; o adres artık hem yazarken hem okurken eleniyor (bkz.
+// src/lib/aggregatorSources.js), yani 2026-09-12 davranışını arkitera üzerinden sınamak mümkün
+// değil. Kurgular firmanın KENDİ sitesi gibi tarafsız bir adrese (ofis-mimarlik.com) çevrildi —
+// sınanan davranış (kaynak varsa profilsiz fotoğrafçı adı yeni sekmede açılan bir bağlantı olur)
+// AYNEN korunuyor. Agregatör elemesinin kendi testleri:
+// scripts/test-2026-09-14-aggregator-source-links.mjs.
+//
+// externalHttpUrl testlerinde arkitera.com bilerek KALDI: orası yalnızca URL normalizasyonunu
+// (şemasız değer -> https://) sınar, agregatör kapısı o katmanda değil çağıranlarındadır.
+//
 // scripts/test-2026-09-10-round11.mjs ile AYNI desen: node:sqlite üzerinde gerçek schema.sql +
 // canlı route/lib fonksiyonları. İstemci çipi node:vm içinde küçük bir sahte DOM'la GERÇEKTEN
 // render edilir — kaynak üzerinden metin araması değil, üretilen HTML doğrulanır.
@@ -90,17 +102,17 @@ function projectDb({ creditText = 'Egemen Karakaya', creditUrl = '', sourceUrl =
 }
 
 await test('yalnızca AI akışının source_url\'ü varken künye onu kullanır (bildirilen hata)', async () => {
-  const item = await payloadFor(projectDb({ sourceUrl: 'https://arkitera.com/proje/docem' }), 'docem-ice-donuk-cocuklar-okulu');
-  assert.equal(item.photoCredit.url, 'https://arkitera.com/proje/docem');
+  const item = await payloadFor(projectDb({ sourceUrl: 'https://ofis-mimarlik.com/proje/docem' }), 'docem-ice-donuk-cocuklar-okulu');
+  assert.equal(item.photoCredit.url, 'https://ofis-mimarlik.com/proje/docem');
   assert.equal(item.photoCredit.text, 'Egemen Karakaya');
 });
 await test('elle girilen Kaynak (photo_credit_url) source_url\'ü EZER', async () => {
-  const item = await payloadFor(projectDb({ creditUrl: 'https://fotografci.com/docem', sourceUrl: 'https://arkitera.com/proje/docem' }), 'docem-ice-donuk-cocuklar-okulu');
+  const item = await payloadFor(projectDb({ creditUrl: 'https://fotografci.com/docem', sourceUrl: 'https://ofis-mimarlik.com/proje/docem' }), 'docem-ice-donuk-cocuklar-okulu');
   assert.equal(item.photoCredit.url, 'https://fotografci.com/docem');
 });
 await test('şemasız saklanmış kaynak sunucuda mutlak hâle gelir', async () => {
-  const item = await payloadFor(projectDb({ creditUrl: 'arkitera.com/proje/docem' }), 'docem-ice-donuk-cocuklar-okulu');
-  assert.equal(item.photoCredit.url, 'https://arkitera.com/proje/docem');
+  const item = await payloadFor(projectDb({ creditUrl: 'ofis-mimarlik.com/proje/docem' }), 'docem-ice-donuk-cocuklar-okulu');
+  assert.equal(item.photoCredit.url, 'https://ofis-mimarlik.com/proje/docem');
 });
 await test('kaynak yoksa url boş kalır (uydurma bağlantı yok)', async () => {
   const item = await payloadFor(projectDb(), 'docem-ice-donuk-cocuklar-okulu');
@@ -156,11 +168,11 @@ function renderChips(item) {
 await test('profili OLMAYAN fotoğrafçı + kaynak: yeni sekmede açılan bağlantı', () => {
   const out = renderChips({
     title: 'DOÇEM İçe Dönük Çocuklar Okulu',
-    photoCredit: { text: 'Egemen Karakaya', url: 'https://arkitera.com/proje/docem' },
+    photoCredit: { text: 'Egemen Karakaya', url: 'https://ofis-mimarlik.com/proje/docem' },
     photographerDetails: [],
   });
   assert.match(out.chipsHtml, /<a class="designer-chip designer-chip-no-avatar designer-chip-source"/);
-  assert.match(out.chipsHtml, /href="https:\/\/arkitera\.com\/proje\/docem"/);
+  assert.match(out.chipsHtml, /href="https:\/\/ofis-mimarlik\.com\/proje\/docem"/);
   assert.match(out.chipsHtml, /target="_blank"/, 'yeni sekmede açılmalı');
   assert.match(out.chipsHtml, /rel="noopener noreferrer nofollow"/);
   assert.match(out.chipsHtml, /Egemen Karakaya/);
@@ -181,11 +193,11 @@ await test('kaynak YOKSA eski davranış: tıklanamaz düz isim', () => {
 await test('profili OLAN fotoğrafçı kaynak varken bile KENDİ popup\'ına gider', () => {
   const out = renderChips({
     title: 'X',
-    photoCredit: { text: 'Cemal Emden', url: 'https://arkitera.com/proje/docem' },
+    photoCredit: { text: 'Cemal Emden', url: 'https://ofis-mimarlik.com/proje/docem' },
     photographerDetails: [{ name: 'Cemal Emden', slug: 'cemal-emden', type: 'architect', photo: null }],
   });
   assert.match(out.chipsHtml, /href="\/kisi\/cemal-emden"/);
-  assert.ok(!out.chipsHtml.includes('arkitera.com'), 'profil varsa dış bağlantıya gidilmez');
+  assert.ok(!out.chipsHtml.includes('ofis-mimarlik.com'), 'profil varsa dış bağlantıya gidilmez');
 });
 await test('geçersiz kaynak (javascript:) bağlantıya dönüşmez', () => {
   const out = renderChips({ title: 'X', photoCredit: { text: 'Egemen Karakaya', url: 'javascript:alert(1)' }, photographerDetails: [] });
@@ -197,21 +209,21 @@ await test('geçersiz kaynak (javascript:) bağlantıya dönüşmez', () => {
 section('SSR gövdesi (no-JS / crawler) popup ile aynı davranır');
 
 await test('profilsiz fotoğrafçı adı SSR künyesinde de dış bağlantı', async () => {
-  const db = projectDb({ sourceUrl: 'https://arkitera.com/proje/docem' });
+  const db = projectDb({ sourceUrl: 'https://ofis-mimarlik.com/proje/docem' });
   const seo = await import('../src/lib/seo.js');
   const meta = await seo.buildMeta('project', 'docem-ice-donuk-cocuklar-okulu', { DB: d1(db) });
   const html = (meta && meta.bodyHtml) || '';
-  assert.match(html, /<a href="https:\/\/arkitera\.com\/proje\/docem" target="_blank" rel="noopener noreferrer nofollow">Egemen Karakaya<\/a>/);
+  assert.match(html, /<a href="https:\/\/ofis-mimarlik\.com\/proje\/docem" target="_blank" rel="noopener noreferrer nofollow">Egemen Karakaya<\/a>/);
 });
 await test('profilli fotoğrafçı SSR\'de /kisi bağlantısı olarak kalır', async () => {
-  const db = projectDb({ creditText: 'Cemal Emden', sourceUrl: 'https://arkitera.com/proje/docem' });
+  const db = projectDb({ creditText: 'Cemal Emden', sourceUrl: 'https://ofis-mimarlik.com/proje/docem' });
   db.prepare(`INSERT INTO architects (id, slug, name) VALUES (1, 'cemal-emden', 'Cemal Emden')`).run();
   db.prepare(`INSERT INTO project_photographers (project_id, architect_id) VALUES (1, 1)`).run();
   const seo = await import('../src/lib/seo.js');
   const meta = await seo.buildMeta('project', 'docem-ice-donuk-cocuklar-okulu', { DB: d1(db) });
   const html = (meta && meta.bodyHtml) || '';
   assert.ok(html.includes('/kisi/cemal-emden'), 'profil bağlantısı');
-  assert.ok(!html.includes('arkitera.com'), 'profil varsa dış bağlantı yok');
+  assert.ok(!html.includes('ofis-mimarlik.com'), 'profil varsa dış bağlantı yok');
 });
 
 // -------------------------------------------------------------------------------------------
@@ -220,7 +232,11 @@ section('canonicalSync — var olan projeye sonradan eklenen source_url yazılı
 await test('source_url dolu gelirse UPDATE eder, boş gelirse mevcut değeri KORUR', () => {
   const sync = read('../src/lib/canonicalSync.js');
   assert.ok(sync.includes("sets.splice(-1, 0, 'source_url = ?');"), 'UPDATE dalında source_url yazılmalı');
-  assert.match(sync, /if \(row\.source_url\) \{\s*\n\s*sets\.splice\(-1, 0, 'source_url = \?'\);/, 'yalnızca dolu geldiğinde (images ile aynı koruma)');
+  // `row.source_url` DEĞİL `sourceUrl`: değer artık syncProject'in başında agregatör süzgecinden
+  // geçiriliyor (bkz. src/lib/aggregatorSources.js, kullanıcı isteği 2026-09-14). Koşulun ANLAMI
+  // değişmedi — "yalnızca dolu geldiğinde yaz" koruması aynen duruyor.
+  assert.match(sync, /if \(sourceUrl\) \{\s*\n\s*sets\.splice\(-1, 0, 'source_url = \?'\);/, 'yalnızca dolu geldiğinde (images ile aynı koruma)');
+  assert.match(sync, /const sourceUrl = dropAggregatorSourceUrl\(row\.source_url\);/, 'süzgeç syncProject içinde tek yerde uygulanmalı');
 });
 // SÜRÜM SABİTLEMEZ, TABAN ARAR (düzeltme, 2026-09-12): bu test iki sürümü de TAM DEĞERLE
 // ('v42'/'v136') sabitliyordu, yani sonraki HER artırım onu kırıyordu. Nitekim kırdı: performans

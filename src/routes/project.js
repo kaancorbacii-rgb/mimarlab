@@ -33,6 +33,7 @@ import { foldTr } from '../lib/textMatch.js';
 // office-kind.js proje.html'de yüklü DEĞİL, istemci bu ayrımı yeniden hesaplayamaz).
 import { officePath } from '../lib/officeUrl.js';
 import { externalHttpUrl } from '../lib/externalUrl.js';
+import { firstUsableSourceUrl } from '../lib/aggregatorSources.js';
 
 const { isBrandOffice } = officeKindJs;
 
@@ -457,9 +458,16 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // kalır (elle girilmiş, daha spesifik), yalnızca o boşken source_url'e düşülür.
     // externalHttpUrl: şemasız saklanmış bir değer ("ytong.com.tr/x") istemcide site-içi bir yola
     // çözülmesin diye burada tek yerde mutlak hâle getirilir (bkz. src/lib/externalUrl.js).
+    //
+    // AGREGATÖR KAPISI (kullanıcı isteği, 2026-09-14): iki kolondan da arkitera/archello/archdaily/
+    // divisare gibi bir YAYIN adresi çıkarsa künyede bağlantı ÜRETİLMEZ — bkz.
+    // src/lib/aggregatorSources.js. `a || b` yerine firstUsableSourceUrl kullanılır: photo_credit_url
+    // agregatörse ve source_url firmanın kendi sitesiyse, firmanınki kullanılmalıdır. D1'deki eski
+    // değerleri temizleyen betik (scripts/purge-aggregator-project-sources.mjs) henüz çalışmamış
+    // olsa bile site bu kapı sayesinde doğru davranır.
     item.photoCredit = {
       text: item.photoCredit ? item.photoCredit.text : '',
-      url: externalHttpUrl((item.photoCredit && item.photoCredit.url) || row.source_url || ''),
+      url: externalHttpUrl(firstUsableSourceUrl([item.photoCredit && item.photoCredit.url, row.source_url])),
     };
     const [designerDetails, rawNames, owner, photographerDetails, photographerOffices] = await Promise.all([
       fetchDesignerDetails(env, row.id),
