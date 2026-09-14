@@ -163,7 +163,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // v138 (kullanıcı isteği, 2026-09-14): proje SSR gövdesindeki "Fotoğraf" satırı, kaynak adresi
 // arkitera/archello/archdaily/divisare gibi bir YAYIN sayfasıysa artık bağlantı BASMIYOR (bkz.
 // src/lib/aggregatorSources.js). Gövde satırın updated_at'i değişmeden değiştiğinden bump ŞART.
-export const SSR_CACHE_VERSION = 'v138';
+// v139 (kullanıcı isteği, 2026-09-14 madde 4): marka kavramı kaldırıldı — /marka kabuğu artık
+// servis edilmiyor, ofis SSR gövdesindeki kanonik/og:url her kayıtta /firma/:slug ve firma liste
+// kabuğu üretici firmaları da içeriyor. Gövde satırların updated_at'i değişmeden değiştiğinden
+// bump ŞART (v107'deki AYNI tuzak: edge'de duran eski kabuk /marka/ bağlantıları basmaya devam
+// ederdi). Aynı sürümde ana sayfa/404/arama kabuklarından /marka bağlantıları düştü.
+export const SSR_CACHE_VERSION = 'v139';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

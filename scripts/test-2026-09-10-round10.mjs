@@ -182,7 +182,10 @@ await test('lazy-modals.js / proje.js / src/index.js ile AYNI dışlama (sözle�
   const proje = read('../js/pages/proje.js');
   assert.match(proje, /\/sayfa-\(\\d\+\)\\\/\?\$\//);
   const index = read('../src/index.js');
-  assert.match(index, /PAGED_LIST_RE = \/\^\(\\\/\(\?:proje\|kisi\|firma\|marka\|urun\)\)\\\/sayfa-/);
+  // 'marka' ÇIKARILDI (kullanıcı isteği, 2026-09-14 madde 4): /marka listesi kaldırıldı, dolayısıyla
+  // /marka/sayfa-N diye bir temiz sayfalama adresi de yok. Sınanan SÖZLEŞME aynı: liste sayfalama
+  // yolları popup yolu sayılmamalı.
+  assert.match(index, /PAGED_LIST_RE = \/\^\(\\\/\(\?:proje\|kisi\|firma\|urun\)\)\\\/sayfa-/);
 });
 
 // ---------------------------------------------------------------------------------------------

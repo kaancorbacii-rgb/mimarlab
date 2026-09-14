@@ -535,12 +535,15 @@ await test('Aynı kayıt iki kez önerilse de tek kenar üretilir', () => {
   assert.equal(out.length, 1);
 });
 
-await test('Saf marka kaydı /marka/ önekine bağlanır (officeUrl tek kaynağı)', () => {
+// MARKA ÖNEKİ KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4): her ofis kaydı — ürün üreten
+// firmalar dahil — /firma/:slug altında yaşıyor (bkz. office-kind.js#isPureBrandOffice, artık sabit
+// false). Test tersine çevrildi: sınanan sözleşme hâlâ AYNI, önek kararı officeUrl'in TEK kaynağı.
+await test('Üretici firma kaydı da /firma/ önekine bağlanır (officeUrl tek kaynağı)', () => {
   const brandIndex = buildGundemEntityIndex({
     offices: [{ slug: 'ersa', name: 'Ersa Mobilya', cats: 'Mobilya', productCount: 40 }],
   });
   const out = resolveGundemEntities(brandIndex, [{ name: 'Ersa Mobilya', kind: 'office' }]);
-  assert.equal(out[0].href, '/marka/ersa');
+  assert.equal(out[0].href, '/firma/ersa');
 });
 
 // =================================================================================================

@@ -118,7 +118,7 @@ const OfficeModal = (function () {
          firmanın tasarladığı projelerde kullanılan başka markalar/ürünler (bkz. src/routes/
          office.js#buildOfficePayload relatedBrands/projectProducts sorguları). -->
     <div class="related-section" id="om-related-brands-section" style="display:none;">
-      <h2 class="related-title">Projelerde Kullanılan Markalar<span id="om-related-brands-count"></span></h2>
+      <h2 class="related-title">Projelerde Kullanılan Firmalar<span id="om-related-brands-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-brands-grid"></div>
     </div>
     <div class="related-section" id="om-project-products-section" style="display:none;">
@@ -131,7 +131,7 @@ const OfficeModal = (function () {
          Projeler"in marka düzeyindeki karşılığı: bu markanın TÜM ürünlerinin kullanıldığı projeler
          (bkz. src/routes/office.js#brandProductProjects). -->
     <div class="related-section" id="om-brand-product-projects-section" style="display:none;">
-      <h2 class="related-title" id="om-brand-product-projects-title">Markanın Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span><button type="button" class="pgf-toggle" id="om-brand-product-projects-filter-toggle" style="display:none;"></button></h2>
+      <h2 class="related-title" id="om-brand-product-projects-title">Ürünlerinin Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span><button type="button" class="pgf-toggle" id="om-brand-product-projects-filter-toggle" style="display:none;"></button></h2>
       <div class="pgf-chips" id="om-brand-product-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-brand-product-projects-grid"></div>
       <!-- Marka haritası (kullanıcı isteği, 2026-09-11) — marka hiç proje TASARLAMADIYSA "Projeler"
@@ -190,6 +190,10 @@ const OfficeModal = (function () {
   // replaceState ile yazılır (pushState DEĞİL — yeni bir geçmiş girdisi kapanıştaki geri sarma
   // sayısını bozardı). Sunucu tarafında da aynı düzeltme 301 ile yapılır (bkz. src/index.js#
   // serveDetailPage), yani tam sayfa gezinmelerde kanonik URL zaten gelir.
+  // TEK ÖNEK (kullanıcı isteği, 2026-09-14 madde 4 — marka kavramı kaldırıldı). '/marka/' listede
+  // BİLEREK KALDI: kullanıcı hâlâ eski bir /marka/:slug bağlantısıyla gelmiş olabilir ve popup o
+  // adreste de açılmalı; syncCanonicalBasePath adres çubuğunu /firma/'ya çeker (sunucu tarafında
+  // aynı düzeltmeyi 301 yapıyor, bkz. src/index.js#PREFIX_RENAME_REDIRECTS).
   const OFFICE_BASE_PATHS = ['/firma/', '/marka/'];
   let currentBasePath = '/firma/';
   function normalizeBasePath(p) { return OFFICE_BASE_PATHS.indexOf(p) >= 0 ? p : null; }
@@ -200,7 +204,8 @@ const OfficeModal = (function () {
   function listPath() { return currentBasePath.replace(/\/$/, ''); }
   function syncCanonicalBasePath(item) {
     if (!item || !currentSlug) return;
-    const want = item.isBrand ? '/marka/' : '/firma/';
+    // Kanonik önek artık HER kayıtta '/firma/' (kullanıcı isteği, 2026-09-14 madde 4).
+    const want = '/firma/';
     currentBasePath = want;
     // item.slug: kaydın GERÇEK canonical slug'ı. Popup bir ad/legacy anahtarla da açılabiliyor
     // (ör. Koleksiyonum kartları claimed_profile_key kullanır, bkz. hesabim.html) — adres çubuğunda
@@ -437,12 +442,11 @@ const OfficeModal = (function () {
   function renderPrevNext(payload) {
     const el = document.getElementById('om-prevnext');
     let html = '';
-    // Marka popup'ında "Önceki/Sonraki Marka" ve /marka/ adresi (kullanıcı isteği, 2026-09-11) — sunucu
-    // komşuyu da AYNI türden seçer (bkz. src/routes/office.js#fetchAdjacentOffice). Önizlemede item
-    // null olabilir; o zaman açık olan yol belirler.
-    const pnBrand = payload.item ? !!payload.item.isBrand : currentBasePath === '/marka/';
-    const pnBase = pnBrand ? '/marka/' : '/firma/';
-    const pnKind = pnBrand ? 'Marka' : 'Firma';
+    // Önceki/Sonraki her zaman FİRMA ve /firma/ (kullanıcı isteği, 2026-09-14 madde 4): marka
+    // kavramı kalktı, tek varlık türü var. /marka/ üretmeye devam etseydi her komşu bağlantısı
+    // gereksiz bir 301 hop'u olurdu (bkz. src/index.js#PREFIX_RENAME_REDIRECTS).
+    const pnBase = '/firma/';
+    const pnKind = 'Firma';
     if (payload.nextItem) html += `<a class="prev" href="${pnBase}${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki ${pnKind}</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
     if (payload.prevItem) html += `<a class="next" href="${pnBase}${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki ${pnKind} →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
     el.innerHTML = html;
@@ -461,8 +465,8 @@ const OfficeModal = (function () {
     document.title = pageTitle(o.name);
     ModalShell.setLabel(o.name);
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
-    // Kanonik URL, kaydın türüne göre /firma/ ya da /marka/ (bkz. syncCanonicalBasePath) —
-    // currentBasePath renderItem'dan hemen ÖNCE düzeltilmiş olur.
+    // Kanonik URL her zaman /firma/ (bkz. syncCanonicalBasePath) — currentBasePath renderItem'dan
+    // hemen ÖNCE düzeltilmiş olur.
     const canonicalUrl = `https://mimarlab.com${currentBasePath}${encodeURIComponent(o.slug || slugify(o.name))}`;
     const logo = logoUrl(o);
     const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
@@ -561,8 +565,9 @@ const OfficeModal = (function () {
     const infoFacts = [];
     if (o.yil) infoFacts.push(metaRow('calendar', `<strong>Kuruluş Yılı:</strong> ${escapeHtml(String(o.yil))}`));
     if (o.loc) infoFacts.push(metaRow('pin', `<strong>Konum:</strong> ${escapeHtml(formatLocationDistrictFirst(o.loc))}`));
-    // Marka profillerinde bu alan bir hizmet değil, markanın ürettiği ürün kategorisidir (bkz.
-    // marka-ekle.html'deki AYNI etiket ve office-kind.js#BRAND_CATS) — etiket de ona göre değişir.
+    // Üretici firmalarda bu alan bir hizmet değil, firmanın ürettiği ürün kategorisidir (bkz.
+    // firma-ekle.html'deki "Ürün Kategorisi" kutusu ve office-kind.js#PRODUCT_CATS) — etiket de
+    // ona göre değişir. cats HER İKİSİNİ birden taşıyabilir ("Üretim ve Satış · Mobilya").
     if (o.cats) infoFacts.push(metaRow('briefcase', `<strong>${isBrandProfile ? 'Ürün Kategorisi' : 'Hizmet Alanı'}:</strong> ${escapeHtml(o.cats)}`));
     const infoFactsEl = document.getElementById('om-info-facts');
     infoFactsEl.innerHTML = infoFacts.join('');
@@ -687,7 +692,7 @@ const OfficeModal = (function () {
       // findCanonicalRowByNaturalKey'in slug fallback'i).
       ShareWidget.wire('om-share-btn', () => ({
         title: o.name,
-        // Paylaşılan adres KANONİK olmalı — saf markalarda /marka/:slug (bkz. syncCanonicalBasePath).
+        // Paylaşılan adres KANONİK olmalı — her zaman /firma/:slug (bkz. syncCanonicalBasePath).
         url: `${window.location.origin}${currentBasePath}${encodeURIComponent(o.slug || slugify(o.name))}`,
         type: 'office', key: slugify(o.name),
         image: logoUrl(o) || '', meta: o.loc || '',
@@ -745,16 +750,15 @@ const OfficeModal = (function () {
     // altında o firmanın kendi konumu (arama.html sonuç satırlarındaki AYNI kullanım) alt bilgi
     // olarak gösterilir.
     const relatedOfficesData = payload.relatedOffices || [];
-    // Marka profillerinde başlık da, içerik de marka olur (kullanıcı isteği, 2026-08-31: "Marka
-    // popuplarındaki 'Şehirdeki Diğer Firmalar' başlığını 'Şehirdeki Diğer Markalar' yap ve bu
-    // kısımda sadece markalar gösterilsin") — listenin KENDİSİ zaten sunucuda süzülüyor (bkz.
-    // src/routes/office.js#relatedOffices), burada yalnızca başlık metni ayarlanır.
+    // Başlık artık HER profilde "Firma" (kullanıcı isteği, 2026-09-14 madde 4) — marka kavramı yok.
+    // Listenin KENDİSİ sunucuda süzülüyor (bkz. src/routes/office.js#relatedOffices), burada
+    // yalnızca başlık metni ayarlanır.
     // relatedOfficesScope === 'site': liste site genelinden tamamlandı (bkz. src/routes/office.js#
     // fetchOtherOfficesFallback, kullanıcı isteği 2026-09-11) — "Şehirdeki" artık doğru olmaz.
     const officesSiteScope = payload.relatedOfficesScope === 'site';
-    document.getElementById('om-city-title').textContent = isBrandProfile
-      ? (officesSiteScope ? 'MİMARLAB\'daki Diğer Markalar' : 'Şehirdeki Diğer Markalar')
-      : (officesSiteScope ? 'MİMARLAB\'daki Diğer Firmalar' : 'Şehirdeki Diğer Firmalar');
+    document.getElementById('om-city-title').textContent = officesSiteScope
+      ? 'MİMARLAB\'daki Diğer Firmalar'
+      : 'Şehirdeki Diğer Firmalar';
     // Gündem şeridi — profil yükünden bağımsız, kendi ucundan (bkz. loadGundemStrip).
     // o.slug eski/legacy satırlarda boş olabilir — dosyanın geri kalanındaki AYNI fallback.
     loadGundemStrip('office', o.slug || slugify(o.name));
@@ -906,13 +910,13 @@ const OfficeModal = (function () {
       // prefillForClaim slug/legacy_key/isim'in herhangi birini kabul edip gerçek `name`'e çözer).
       getClaimLinkKey: () => o.slug || o._claimKey || o.name,
       getStaticBadges: () => o.badges,
-      // Marka profillerinde Düzenle, marka-ekle.html'e gider (kullanıcı isteği, 2026-08-31: "Marka
-      // sayfasına özel marka ekle/düzenle url'si aç"). İki sayfa AYNI office_submissions kaydını
-      // yazar — yalnızca etiketler ve Hizmet Alanı seçenekleri farklıdır, bu yüzden contentType/
-      // getModerationTarget/claim akışının geri kalanı DEĞİŞMEZ.
-      editUrlBase: isBrandProfile ? '/marka-ekle' : '/firma-ekle',
+      // Düzenle HER profilde firma-ekle.html'e gider (kullanıcı isteği, 2026-09-14 madde 4:
+      // marka-ekle.html kaldırıldı). O sayfa artık üretici firmaları da tam olarak düzenleyebiliyor:
+      // "Üretim ve Satış" hizmet alanı seçiliyken marka-ekle'dekiyle AYNI "Ürün Kategorisi" kutusu
+      // beliriyor (bkz. firma-ekle.html), yani kaydın cats'i kaybolmuyor.
+      editUrlBase: '/firma-ekle',
       addProjectSlotId: 'om-add-project-slot',
-      listUrl: isBrandProfile ? '/marka' : '/firma',
+      listUrl: '/firma',
       contentType: 'offices',
       getModerationTarget: () => o.submissionId ? { id: o.submissionId } : { key: o.name },
       labels: {
@@ -1014,10 +1018,9 @@ const OfficeModal = (function () {
   // için gereken tek şey profilin ADI — kutu zaten yalnızca onu POST ediyor.
   function mountPreviewClaimBox(previewTitle, previewSlug) {
     if (!previewTitle) return;
-    // Firma mı marka mı: önizlemede `item.isBrand` YOK (item null), bu yüzden ayrım açık olan
-    // URL önekinden okunur — /marka/:slug ise marka (bkz. syncCanonicalBasePath'in AYNI eşlemesi).
-    const previewIsBrand = (basePathFromLocation() || currentBasePath) === '/marka/';
-    const previewKind = previewIsBrand ? 'marka' : 'firma';
+    // Tek varlık türü var (kullanıcı isteği, 2026-09-14 madde 4): önizleme sahiplenme kutusu da
+    // her zaman "firma" der — eski bir /marka/:slug bağlantısıyla açılmış olsa bile.
+    const previewKind = 'firma';
     // ready: save-widget.js'in global'i (const — window'a YAZILMAZ, bkz. proje notu), o dosya
     // yüklenmemişse bare referans ReferenceError atardı; kutu `ready` olmadan da çalışır.
     const ready = (typeof savedWidgetReady !== 'undefined') ? savedWidgetReady : null;
@@ -1028,8 +1031,8 @@ const OfficeModal = (function () {
       getProfileKey: () => previewTitle,
       getClaimLinkKey: () => previewSlug || previewTitle,
       getStaticBadges: () => [],
-      editUrlBase: previewIsBrand ? '/marka-ekle' : '/firma-ekle',
-      listUrl: previewIsBrand ? '/marka' : '/firma',
+      editUrlBase: '/firma-ekle',
+      listUrl: '/firma',
       contentType: 'offices',
       getModerationTarget: () => ({ key: previewTitle }),
       labels: {
@@ -1279,7 +1282,7 @@ const OfficeModal = (function () {
     panels.bodyEl.addEventListener('click', (e) => {
       // bkz. js/components/architect-modal.js#wireInternalNav — BİREBİR aynı gerekçe.
       if (ModalShell.getContentOwner() !== 'office') return;
-      // İki önek de aynı varlık türüdür (bkz. syncCanonicalBasePath) — bir marka bağlantısı da
+      // İki önek de aynı varlık türüdür (bkz. syncCanonicalBasePath) — eski bir /marka/ bağlantısı da
       // tam sayfa gezinme değil, aynı popup içinde swap ile açılmalı.
       const a = e.target.closest('a[href^="/firma/"], a[href^="/marka/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

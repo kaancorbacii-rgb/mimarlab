@@ -6,7 +6,7 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // ikinci bir sezgi yazmak yerine AYNI kaynak paylaşılır, aksi halde popup ile SSR farklı
 // sınıflandırma üretebilirdi.
 import { isOfficeName } from './projectPool.js';
-import { officePath, isBrandUrlOffice } from './officeUrl.js';
+import { officePath } from './officeUrl.js';
 import { externalHttpUrl } from './externalUrl.js';
 import { firstUsableSourceUrl } from './aggregatorSources.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
@@ -730,13 +730,10 @@ async function officeMetaFromRecord(o, slug, env) {
     fetchBrandProducts(env, o.id, o.name),
   ]);
   const isBrand = isBrandOffice(o.cats, brandProducts.total);
-  // KANONİK URL burada — Promise.all'dan SONRA — hesaplanır, çünkü önek ürün SAYISINA bağlıdır:
-  // saf markalar (office-kind.js#isPureBrandOffice: hiçbir mimarlık hizmeti sunmayan üreticiler)
-  // /marka/:slug altında yaşar (kullanıcı isteği, 2026-09-06 madde 2, bkz. src/lib/officeUrl.js).
-  // isBrand ile AYNI ŞEY DEĞİL: Autoban gibi hem mimarlık yapıp hem ürün tasarlayan kayıtlar
-  // popup'ta marka bölümlerini görür ama URL'i /firma/:slug OLARAK KALIR.
-  // src/index.js#serveDetailPage bu değeri okuyup yanlış önekle gelen istekleri 301'ler.
-  const isBrandUrl = isBrandUrlOffice(o.cats, brandProducts.total);
+  // KANONİK URL artık HER ZAMAN /firma/:slug (kullanıcı isteği, 2026-09-14 madde 4 — marka kavramı
+  // kaldırıldı, officePath'in marka dalı isPureBrandOffice sabit false olduğu için hiç çalışmıyor).
+  // officePath yine de çağrılıyor: önek kararının TEK kaynağı orası olmalı, burada sabit bir
+  // '/firma/' yazmak ikinci bir kaynak yaratırdı.
   const canonicalUrl = `${SITE_ORIGIN}${officePath(slug, o.cats, brandProducts.total)}`;
   jsonLd.url = canonicalUrl;
   const catsText = textList(o.cats, ' · ');
@@ -795,7 +792,7 @@ async function officeMetaFromRecord(o, slug, env) {
       ['Website', site ? `<a href="${escapeHtml(site)}" rel="nofollow noopener" target="_blank">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>` : null],
     ]),
   ].filter(Boolean).join('');
-  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl, isBrandUrl ? { label: 'Markalar', path: '/marka' } : null), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
+  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl, null), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
 }
 
 // slug: kaydın GERÇEK canonical o.slug'ı — bkz. findArchitectRow'daki AYNI denetim notu

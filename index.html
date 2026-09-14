@@ -8,18 +8,18 @@
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>MİMARLAB — Türkiye'nin Mimar Platformu</title>
-<meta name="description" content="Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu." id="meta-description">
+<meta name="description" content="Mimar, iç mimar, peyzaj mimarı, tasarımcı, fotoğrafçı ve üreticiler için üst düzey araştırma ve işbirliği platformu." id="meta-description">
 <link rel="canonical" href="https://mimarlab.com/" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="MİMARLAB — Türkiye'nin En Gelişmiş Mimarlık ve Ürün Rehberi" id="og-title">
-<meta property="og:description" content="Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu." id="og-description">
+<meta property="og:description" content="Mimar, iç mimar, peyzaj mimarı, tasarımcı, fotoğrafçı ve üreticiler için üst düzey araştırma ve işbirliği platformu." id="og-description">
 <meta property="og:url" content="https://mimarlab.com/" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="MİMARLAB — Türkiye'nin En Gelişmiş Mimarlık ve Ürün Rehberi" id="twitter-title">
-<meta name="twitter:description" content="Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu." id="twitter-description">
+<meta name="twitter:description" content="Mimar, iç mimar, peyzaj mimarı, tasarımcı, fotoğrafçı ve üreticiler için üst düzey araştırma ve işbirliği platformu." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <script type="application/ld+json">
 {
@@ -682,7 +682,7 @@
          /hizmet-sartlari, /cerez-politikasi) devreye girer. SEO denetimi (2026-09-05) bu 5
          indexlenebilir URL'nin ham HTML'inde ana sayfanın <h1>'ini aynen döndüğünü buldu. -->
     <h1 id="entity-h1">Türkiye'nin En Gelişmiş <em>Mimarlık</em> ve <em>Ürün</em> Rehberi</h1>
-    <p>Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu.</p>
+    <p>Mimar, iç mimar, peyzaj mimarı, tasarımcı, fotoğrafçı ve üreticiler için üst düzey araştırma ve işbirliği platformu.</p>
   </section>
 
   <!-- ANA SAYFA KARUSELLERİ — beş kutu, tek grid (kullanıcı isteği, 2026-09-12: ekli tasarım
@@ -1098,7 +1098,7 @@ function officeSlideHtml(o, i){
   // src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2). /api/offices bu bayrağı liste
   // öğelerinde döner; eski bir önbellek gövdesinde alan yoksa eski davranış (/firma/) sürer ve
   // sunucu 301 ile kanonik adrese yönlendirir.
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="${o.brand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug || idxSlugify(o.name))}" data-index="${i}">
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/firma/${encodeURIComponent(o.slug || idxSlugify(o.name))}" data-index="${i}">
     ${media}
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(o.name)}</h2>

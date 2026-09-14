@@ -55,10 +55,6 @@ const HUBS = {
     name: 'Ürünler',
     map: (it) => ({ url: `${SITE_ORIGIN}/urun/${it.slug}`, name: it.title }),
   },
-  '/marka': {
-    name: 'Markalar',
-    map: (it) => ({ url: `${SITE_ORIGIN}${officePath(it.slug, it.cats, it.productCount)}`, name: it.name }),
-  },
 };
 
 export function isHubPath(pathname) {

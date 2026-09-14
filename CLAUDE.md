@@ -116,3 +116,40 @@ girme."
   `planProjectSourceUrls`'ten okur.
 - Testler: `scripts/test-2026-09-14-aggregator-source-links.mjs` (preflight'a bağlı). İstemci ile
   sunucudaki marka listeleri AYRIŞIRSA preflight kırmızı olur.
+
+## Marka kavramı KALDIRILDI — her ofis kaydı FİRMA (2026-09-14)
+
+Kullanıcı isteği: "Marka ve marka ekle sayfasını canlıdan kaldır. Hali hazırdaki markalar artık
+firma olacak ama BİRİM Design markası hariç hepsi arşivde kalsın. Tüm markalar firmalar arasında
+Üretim ve Satış hizmet alanı içerisinde olacak."
+
+- **Tek karar noktası kapatıldı**: `office-kind.js#isPureBrandOffice` artık sabit `false` döndürüyor.
+  Bu ayrımı 25'ten fazla dosya soruyordu (liste filtreleri, kanonik URL, arama, sitemap, analytics,
+  takip, arşiv); hepsini sökmek yerine tek kaynak kapatıldı — her çağıran kendiliğinden "bu bir
+  firmadır" davranışına geçti. `isBrandOffice` KORUNDU ve hâlâ anlamlı: "bu firma üretici mi".
+- **Adresler 404 DEĞİL 301**: `/marka`, `/marka.html`, `/marka-ekle`, `/marka-ekle.html` tam
+  eşleşmeyle, `/marka/:slug` önekle firma tarafına taşınır (`src/index.js`). `marka.html` ve
+  `marka-ekle.html` silindi. `scripts/smoke-test.sh` üçünün de 301 döndüğünü deploy sonrası
+  doğruluyor.
+- **Hizmet alanı**: `OFFICE_SERVICE_CATS`'in 4. sırasında **'Üretim ve Satış'**. Bu seçilince
+  firma-ekle.html'de kaldırılan marka-ekle'dekiyle aynı **Ürün Kategorisi** kutusu belirir
+  (`office-kind.js#PRODUCT_CATS`, eski adıyla `BRAND_CATS`). Seçimler AYNI `cats` kolonuna yazılır —
+  şema değişikliği yok, kaydetme/geri yükleme yolları değişmedi. Hizmet alanı geri alınırsa ürün
+  kategorileri temizlenir (gizli veri sızmasın).
+- **Mevcut veri**: `scripts/brands-to-offices.mjs` + `.github/workflows/brands-to-offices.yml`
+  (`workflow_dispatch`, **varsayılan dry-run**, yazmak için `apply=evet`). Üretici kayıtların
+  cats'ine 'Üretim ve Satış' ekler, BİRİM Design dışındakileri arşivde tutar (arşivleme canlı
+  koddan — `runContentAction`), BİRİM Design'ı yayına alır.
+- Testler: `scripts/test-2026-09-14-brand-removal-and-account-boxes.mjs` (preflight'a bağlı).
+
+## Hesabım: Firma/Kişi kutuları dinamik (2026-09-14)
+
+- Kullanıcının hiçbir bağı yoksa **iki kutu da hiç çizilmez** (`am-firm-section` /
+  `am-person-section`, ikisi de `hidden` başlar). Firma kutusu `firmEntries`, kişi kutusu
+  `personEntries` boş olmadığında açılır — kullanıcı içerik yüklediğinde ya da admin atama
+  yaptığında kendiliğinden belirirler.
+- **Kişi Bilgileri kutusu sayfalanır** (Firma kutusuyla aynı `renderDashPagination`): 1. sayfa
+  kullanıcının kendi künyesi, sonraki sayfalar YETKİLİ olduğu firmaların kişileri (kurucu, kurucu
+  ortak, ortak, ekip lideri). Kişiler `/api/office/:key`'in AYNI yanıtından okunur (ek uç/istek
+  yok), bu yüzden firmadan çıkarılan biri kutudan da düşer. "Bilgileri Düzenle" yalnızca kendi
+  künyesi sayfasında görünür.

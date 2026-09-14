@@ -39,8 +39,9 @@
 //    Türkçe 'i'yi noktasız 'I' yapar.
 //
 // 3) MARKA KUTUSU GERİ GELMEZ (kullanıcı isteği, 2026-09-14 madde 3). Ana sayfa artık ne
-//    ?brands=1 ucunu çağırır ne de bir marka karuseli kurar; /marka LİSTE sayfası ise yerinde
-//    durur (kaldırılan şey kutu ve menü bağlantısı, sayfa değil). Sessizce geri sızmasını bu test
+//    ?brands=1 ucunu çağırır ne de bir marka karuseli kurar. AYNI TURUN DEVAMI (2026-09-14 madde 4):
+//    /marka LİSTE sayfası da kaldırıldı ve 301 ile /firma'ya taşındı — marka kavramı sitede yok,
+//    ürün üreten kayıtlar 'Üretim ve Satış' hizmet alanlı FİRMALAR. Sessizce geri sızmasını bu test
 //    durdurur.
 //
 // 4) GÖMÜLÜ VERİ SÜRÜMÜ (#ml-home-data) v:5 ve İKİ TARAFTA AYNI. Gövde artık beş bölüm taşıyor;
@@ -103,8 +104,13 @@ test('MARKA kutusu ana sayfada YOK (kullanıcı isteği, 2026-09-14 madde 3)', (
   }
   assert.ok(!serverIndex.includes('`/api/offices?brands=1&limit=${HOME_LIST_LIMIT}&noPreview=1`'), 'sunucu hâlâ marka ucunu çekiyor');
   assert.ok(!serverIndex.includes('data.brands'), 'gömülü gövdede hâlâ brands bölümü var');
-  // Liste SAYFASI duruyor: kaldırılan şey kutu, sayfa değil.
-  assert.ok(serverIndex.includes("'/marka': {"), '/marka hub sayfası da kaldırılmış — istenen bu değildi');
+  // GÜNCELLEME (kullanıcı isteği, 2026-09-14 madde 4): önceki turda yalnızca ana sayfadaki KUTU
+  // kaldırılmıştı, /marka LİSTE sayfası duruyordu ve bu test onun korunduğunu kilitliyordu. Kullanıcı
+  // bu turda sayfanın da kaldırılmasını istedi ("Marka ve marka ekle sayfasını canlıdan kaldır"),
+  // dolayısıyla beklenti TERSİNE çevrildi: hub yapılandırmasında artık '/marka' OLMAMALI. Adres
+  // 404 değil 301 döner (bkz. PATH_RENAME_REDIRECTS) — smoke-test bunu ayrıca doğruluyor.
+  assert.ok(!serverIndex.includes("'/marka': {"), '/marka hub sayfası hâlâ tanımlı (kaldırılmalıydı)');
+  assert.ok(serverIndex.includes("'/marka': '/firma'"), '/marka 301 yönlendirmesi eksik');
 });
 
 test('beş grid alanı da bir kutu sınıfına bağlı, iç içe grid (.hero-side) kalmadı', () => {
@@ -230,10 +236,13 @@ test('slaytlar GÖNDERİNİN kendisine gidiyor (görsel + başlık aynı <a> iç
     // Görsel/baş harf rozeti ve başlık AYNI <a>'nın içinde olmalı ki ikisi de gönderiyi açsın.
     assert.ok(body.includes('slide-caption') && body.includes('slide-title'), `${fn} başlığı slaytın içinde değil`);
   }
-  // Firma/Marka: kanonik önek KAYDIN kendi bayrağından gelir (Autoban gibi hem firma hem marka
-  // olan kayıtlar marka kutusunda da /firma/ adresini korur).
+  // FİRMA: kanonik önek artık HER kayıtta /firma/ (kullanıcı isteği, 2026-09-14 madde 4 — marka
+  // kavramı kaldırıldı, bkz. office-kind.js#isPureBrandOffice). Eskiden burada kaydın `brand`
+  // bayrağına göre /marka/ ya da /firma/ seçiliyordu; o dal kalsaydı her slayt bağlantısı
+  // gereksiz bir 301 hop'u olurdu.
   const o = indexHtml.slice(indexHtml.indexOf('function officeSlideHtml('));
-  assert.ok(o.includes("${o.brand ? '/marka/' : '/firma/'}"), 'officeSlideHtml kanonik öneki kayıttan okumuyor');
+  assert.ok(o.includes('href="/firma/${encodeURIComponent('), 'officeSlideHtml /firma/ önekini basmıyor');
+  assert.ok(!o.includes("'/marka/'"), 'officeSlideHtml hâlâ /marka/ öneki üretiyor');
 });
 
 console.log('\nveri — beş karusel, "varsa 6 yoksa olduğu kadar"');

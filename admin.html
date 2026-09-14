@@ -1136,7 +1136,8 @@ async function toggleFeaturedProject(slug){
 // 'offices' (Firma) simetrik olarak marka OLMAYANLARI gösterir, aksi halde her marka iki sekmede
 // birden çıkardı — Hesabım > Arşivim kutusundaki AYNI ayrım.
 const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Kişi', offices: 'Firma', brands: 'Marka', products: 'Ürün', materials: 'Malzeme' };
-const ARCHIVE_EDIT_PAGE = { projects: '/proje-ekle', architects: '/kisi-ekle', offices: '/firma-ekle', brands: '/marka-ekle', products: '/urun-ekle', materials: '/urun-ekle' };
+// brands -> /firma-ekle (kullanıcı isteği, 2026-09-14 madde 4: /marka-ekle kaldırıldı).
+const ARCHIVE_EDIT_PAGE = { projects: '/proje-ekle', architects: '/kisi-ekle', offices: '/firma-ekle', brands: '/firma-ekle', products: '/urun-ekle', materials: '/urun-ekle' };
 const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', brands: 'claimed_profile_key', products: null, materials: null };
 // Sunucuya gidilecek GERÇEK gönderi tipi (brands -> offices); moderasyon uçları da bunu bekler.
 const ARCHIVE_API_TYPE = { projects: 'projects', architects: 'architects', offices: 'offices', brands: 'offices', products: 'products', materials: 'materials' };

@@ -243,7 +243,9 @@ function shapeRow(typeKey, rawRow, owned) {
     return { ...base, kind: brand ? 'brand' : 'office', title: item.name || '—',
       subtitle: [item.loc, item.cats].filter(Boolean).join(' · '),
       image: item.logo_url || null,
-      editUrl: editUrlFor(brand ? '/marka-ekle' : '/firma-ekle', 'offices') };
+      // /marka-ekle KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4) — arşivden geri alınan bir
+      // üretici kaydı da firma-ekle'de düzenlenir; `brand` bayrağı yalnızca rozet/etiket için kaldı.
+      editUrl: editUrlFor('/firma-ekle', 'offices') };
   }
   return { ...base, kind: 'product', title: item.title || '—',
     subtitle: [item.brand, item.category].filter(Boolean).join(' · '),

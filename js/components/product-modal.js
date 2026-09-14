@@ -63,7 +63,10 @@ const ProductModal = (function () {
         <p class="pr-variant-current" id="pr-variant-current"></p>
       </div>
       <div class="designer-section" id="pr-brand-section" style="display:none;">
-        <div class="designer-label">${metaIconHtml('brand')}Marka:</div>
+        <!-- "Marka:" -> "Firma:" (kullanıcı isteği, 2026-09-14 madde 4): ürünün üreticisi artık bir
+             FİRMA kaydı. Bölüm/çip id'leri (pr-brand-*) ve yükün brand alanı KORUNDU — yeniden
+             adlandırmak sunucu sözleşmesini de değiştirmek olurdu. -->
+        <div class="designer-label">${metaIconHtml('brand')}Firma:</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
       </div>
       <div class="designer-section" id="pr-designer-section" style="display:none;">

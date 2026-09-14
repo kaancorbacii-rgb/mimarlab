@@ -571,8 +571,13 @@ async function withSingleFlight(key, fn) {
 //     BOŞ dönüyor (bkz. src/lib/aggregatorSources.js). Satırların updated_at'i DEĞİŞMEDEN gövde
 //     değiştiğinden bump ŞART — aksi halde önbellekteki eski gövde fotoğrafçı etiketini hâlâ o
 //     agregatöre giden bir bağlantı olarak göstermeye devam ederdi.
+// v44 -> v45 (kullanıcı isteği, 2026-09-14 madde 4): marka kavramı kaldırıldı — /api/office/:key
+//     ve liste yüklerindeki kanonik ofis adresi artık HER kayıtta /firma/:slug (isPureBrandOffice
+//     sabit false, bkz. office-kind.js), /firma listesi de saf markaları ARTIK ELEMİYOR. Satırların
+//     updated_at'i DEĞİŞMEDEN gövde değiştiğinden bump ŞART: aksi halde önbellekteki eski gövde
+//     üretici firmaları listeden düşürmeye ve /marka/ adreslerine bağlamaya devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v44';
+const API_PAYLOAD_VERSION = 'v45';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const sessionUser = await getSessionUser(request, env);
