@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // KULLANICI İSTEĞİ, 2026-09-12 (beşinci tur) — ana sayfa karusel YERLEŞİMİ yeniden dizildi ve
-// MARKA + GÜNDEM kutuları eklendi (kullanıcı ekli bir tasarım görseli gönderdi):
+// MARKA + GÜNDEM kutuları eklendi (kullanıcı ekli bir tasarım görseli gönderdi). 2026-09-14 madde
+// 3'te MARKA kutusu KALDIRILDI ve alt satırı ÜRÜN ile GÜNDEM yarı yarıya paylaşır oldu:
 //
 //   ┌───────────────────────────┬────────┐
 //   │                           │  KİŞİ  │
 //   │           PROJE           ├────────┤
 //   │                           │ FİRMA  │
-//   ├─────────────┬──────┬──────┴────────┤
-//   │    ÜRÜN     │MARKA │    GÜNDEM     │
-//   └─────────────┴──────┴───────────────┘
+//   ├──────────────────┬────────┴────────┤
+//   │       ÜRÜN       │     GÜNDEM      │
+//   └──────────────────┴─────────────────┘
 //
 // Ayrıca: "Kategorilerin başlıklarına tıklayınca o sayfalar açılsın" + "Gönderi görsellerine ya da
 // başlıklarına tıklanırsa ilgili gönderi açılsın" + "Her kategoride varsa 6 yoksa olduğu kadar
@@ -16,9 +17,12 @@
 //
 // BU DOSYANIN KİLİTLEDİĞİ SÖZLEŞMELER (hepsi sessizce sapabilecek türden):
 //
-// 1) YERLEŞİM TEK BİR ŞABLONDAN GELİR — HER GENİŞLİKTE. Beş eşit sütun + üç satır; oranların
-//    tamamı grid-template-areas'ta yaşıyor (proje 4 sütun × 2 satır, sağ sütun 1, alt satır
-//    2+1+2). Eski iç içe grid (.hero-side) kaldırıldı — kalırsa alt satırın sütunları üst satırla
+// 1) YERLEŞİM TEK BİR ŞABLONDAN GELİR — HER GENİŞLİKTE. On eşit sütun + üç satır; oranların
+//    tamamı grid-template-areas'ta yaşıyor (proje 8 sütun × 2 satır, sağ sütun 2, alt satır
+//    5+5 — yani ÜRÜN ve GÜNDEM tam yarı yarıya). Sütun sayısı 5 -> 10 YALNIZCA bu yarıyı ifade
+//    edebilmek içindir; üst satırların pikselleri DEĞİŞMEZ, çünkü bir kutunun genişliği yalnızca
+//    span/sütun oranına (n/N) bağlıdır, gap sayısına değil (8/10 === 4/5).
+//    Eski iç içe grid (.hero-side) kaldırıldı — kalırsa alt satırın sütunları üst satırla
 //    hizasını kaybeder. Yükseklik .proje-slider'ın aspect-ratio'sundan doğduğu için satır şablonu
 //    `1fr` kalmalı.
 //    Kullanıcı isteği (2026-09-12, altıncı tur): "Tablet ve mobilde de aynı sistem gözüksün,
@@ -34,11 +38,12 @@
 //    karışır. Etiket metni HTML'de ZATEN büyük harflidir (KİŞİ/ÜRÜN/GÜNDEM) — text-transform
 //    Türkçe 'i'yi noktasız 'I' yapar.
 //
-// 3) FİRMA ≠ MARKA. İki kutu AYNI slayt işaretlemesini paylaşır (tek kayıt türü) ama AYRI
-//    uçlardan beslenir: /api/offices saf markaları dışlar, ?brands=1 yalnızca markaları verir.
-//    brands=1 düşerse iki kutu aynı kayıtları gösterir.
+// 3) MARKA KUTUSU GERİ GELMEZ (kullanıcı isteği, 2026-09-14 madde 3). Ana sayfa artık ne
+//    ?brands=1 ucunu çağırır ne de bir marka karuseli kurar; /marka LİSTE sayfası ise yerinde
+//    durur (kaldırılan şey kutu ve menü bağlantısı, sayfa değil). Sessizce geri sızmasını bu test
+//    durdurur.
 //
-// 4) GÖMÜLÜ VERİ SÜRÜMÜ (#ml-home-data) v:4 ve İKİ TARAFTA AYNI. Gövde artık altı bölüm taşıyor;
+// 4) GÖMÜLÜ VERİ SÜRÜMÜ (#ml-home-data) v:5 ve İKİ TARAFTA AYNI. Gövde artık beş bölüm taşıyor;
 //    sürüm ayrışırsa istemci gömülü veriyi sessizce yok sayar (ya da eski bir belge yeni gövdeyi
 //    yanlış okur).
 //
@@ -59,34 +64,50 @@ const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const indexHtml = read('index.html');
 const serverIndex = read('src/index.js');
 
-// Altı kutunun tek doğruluk tablosu: grid alanı, kutu sınıfı, slider id öneki, etiket metni,
+// Beş kutunun tek doğruluk tablosu: grid alanı, kutu sınıfı, slider id öneki, etiket metni,
 // etiketin gittiği liste sayfası ve slaytın gittiği detay öneki.
 const BOXES = [
   { area: 'proje',  cls: 'card-proje',  track: 'slider-track',        label: 'PROJE',  list: '/proje',  detail: '/proje/'  },
   { area: 'kisi',   cls: 'card-kisi',   track: 'kisi-slider-track',   label: 'KİŞİ',   list: '/kisi',   detail: '/kisi/'   },
   { area: 'firma',  cls: 'card-firma',  track: 'firma-slider-track',  label: 'FİRMA',  list: '/firma',  detail: '/firma/'  },
   { area: 'urun',   cls: 'card-urun',   track: 'urun-slider-track',   label: 'ÜRÜN',   list: '/urun',   detail: '/urun/'   },
-  { area: 'marka',  cls: 'card-marka',  track: 'marka-slider-track',  label: 'MARKA',  list: '/marka',  detail: '/marka/'  },
   { area: 'gundem', cls: 'card-gundem', track: 'gundem-slider-track', label: 'GÜNDEM', list: '/gundem', detail: '/gundem/' },
 ];
 
-console.log('\nyerleşim — beş sütunlu tek grid');
+console.log('\nyerleşim — on sütunlu tek grid');
 
-test('grid şablonu tasarımdaki dizilimi harfiyen taşıyor (5 sütun, 3 satır, 2+1+2 alt satır)', () => {
+test('grid şablonu tasarımdaki dizilimi harfiyen taşıyor (10 sütun, 3 satır, 5+5 alt satır)', () => {
   const grid = indexHtml.match(/\.bento-grid\{[\s\S]*?\}/);
   assert.ok(grid, '.bento-grid kuralı yok');
   const css = grid[0];
-  assert.match(css, /grid-template-columns:repeat\(5, 1fr\);/, 'beş sütun yok');
+  assert.match(css, /grid-template-columns:repeat\(10, 1fr\);/, 'on sütun yok');
   // Satırlar `1fr` kalmalı: grid'in yüksekliği .proje-slider'ın aspect-ratio'sundan doğar ve fr
   // dağıtımı üçüncü satıra da aynı yüksekliği verir (alt satır kutuları ayrı oran taşımaz).
   assert.match(css, /grid-template-rows:repeat\(3, 1fr\);/, 'üç eşit satır yok');
-  assert.match(css, /"proje proje proje proje kisi"/);
-  assert.match(css, /"proje proje proje proje firma"/);
-  assert.match(css, /"urun urun marka gundem gundem"/);
+  assert.match(css, /"proje proje proje proje proje proje proje proje kisi kisi"/);
+  assert.match(css, /"proje proje proje proje proje proje proje proje firma firma"/);
+  // ÜRÜN ve GÜNDEM tam yarı yarıya (kullanıcı isteği, 2026-09-14 madde 3).
+  assert.match(css, /"urun urun urun urun urun gundem gundem gundem gundem gundem"/);
   assert.match(css, /grid-template-areas:/);
+  // Üst satırların ORANI değişmemiş olmalı: proje 8/10 === eski 4/5, sağ sütun 2/10 === 1/5.
+  const areas = css.match(/grid-template-areas:\s*([\s\S]*?);/)[1].match(/"[^"]+"/g).map(r => r.slice(1, -1).split(' '));
+  for (const row of areas) assert.equal(row.length, 10, 'her satır 10 hücre olmalı');
+  assert.equal(areas[0].filter(c => c === 'proje').length / 10, 4 / 5, 'PROJE genişliği değişmiş');
+  assert.equal(areas[2].filter(c => c === 'urun').length, areas[2].filter(c => c === 'gundem').length, 'ÜRÜN ve GÜNDEM yarı yarıya değil');
 });
 
-test('altı grid alanı da bir kutu sınıfına bağlı, iç içe grid (.hero-side) kalmadı', () => {
+test('MARKA kutusu ana sayfada YOK (kullanıcı isteği, 2026-09-14 madde 3)', () => {
+  for (const needle of ['card-marka', 'marka-slider-track', 'id="marka-prev"', 'id="marka-next"',
+                        'markaSlider', 'href="/marka">MARKA</a>', "pick('brands'", 'brands=1']) {
+    assert.ok(!indexHtml.includes(needle), `ana sayfada marka kalıntısı: ${needle}`);
+  }
+  assert.ok(!serverIndex.includes('`/api/offices?brands=1&limit=${HOME_LIST_LIMIT}&noPreview=1`'), 'sunucu hâlâ marka ucunu çekiyor');
+  assert.ok(!serverIndex.includes('data.brands'), 'gömülü gövdede hâlâ brands bölümü var');
+  // Liste SAYFASI duruyor: kaldırılan şey kutu, sayfa değil.
+  assert.ok(serverIndex.includes("'/marka': {"), '/marka hub sayfası da kaldırılmış — istenen bu değildi');
+});
+
+test('beş grid alanı da bir kutu sınıfına bağlı, iç içe grid (.hero-side) kalmadı', () => {
   for (const b of BOXES) {
     assert.ok(indexHtml.includes(`.${b.cls}{grid-area:${b.area};}`), `${b.cls} -> ${b.area} kuralı yok`);
   }
@@ -125,7 +146,7 @@ test('HİÇBİR breakpoint şablonu yeniden dizmiyor (tablet/mobil de aynı sist
   // İlk (taban) kural şablonu taşıyan kural olmalı; media blokları yalnızca ölçü değiştirir.
   assert.ok(rules[0].includes('grid-template-areas'), 'şablon taban kuralda değil');
   // Mobil-özel kart oranı da olmamalı: oran her genişlikte grid'in kendisinden gelir.
-  for (const cls of ['card-kisi', 'card-firma', 'card-marka', 'card-gundem', 'card-urun']) {
+  for (const cls of ['card-kisi', 'card-firma', 'card-gundem', 'card-urun']) {
     assert.ok(!new RegExp(`\\.${cls}\\{aspect-ratio`).test(indexHtml), `.${cls} kendi aspect-ratio'sunu taşıyor`);
   }
   // .proje-slider'ın oranı da tek yerde (taban kural) durmalı.
@@ -167,7 +188,7 @@ test('dar ekranda sistem ÖLÇEKLENİR: boşluk daralır, telefonda tipografi/ok
 
 console.log('\nbağlantılar — kategori etiketi liste sayfasına, slayt gönderiye');
 
-test('altı kutunun etiketi HTML\'de SABİT bir <a> ve doğru liste sayfasına gidiyor', () => {
+test('beş kutunun etiketi HTML\'de SABİT bir <a> ve doğru liste sayfasına gidiyor', () => {
   for (const b of BOXES) {
     assert.ok(
       indexHtml.includes(`<a class="slide-tag" href="${b.list}">${b.label}</a>`),
@@ -215,9 +236,9 @@ test('slaytlar GÖNDERİNİN kendisine gidiyor (görsel + başlık aynı <a> iç
   assert.ok(o.includes("${o.brand ? '/marka/' : '/firma/'}"), 'officeSlideHtml kanonik öneki kayıttan okumuyor');
 });
 
-console.log('\nveri — altı karusel, "varsa 6 yoksa olduğu kadar"');
+console.log('\nveri — beş karusel, "varsa 6 yoksa olduğu kadar"');
 
-test('altı karusel de kuruldu ve HTML\'deki track/ok id\'leriyle eşleşiyor', () => {
+test('beş karusel de kuruldu ve HTML\'deki track/ok id\'leriyle eşleşiyor', () => {
   for (const b of BOXES.slice(1)) {
     const name = b.track.replace('-slider-track', '');
     assert.ok(indexHtml.includes(`createMiniSlider('${b.track}', '${name}-prev', '${name}-next'`), `${b.track} karuseli kurulmamış`);
@@ -239,38 +260,36 @@ test('slot sayısı 6 ve ÜST sınır: eksik kayıt yer tutucuyla doldurulmaz', 
   assert.match(serverIndex, /const HOME_LIST_LIMIT = HOME_SLOTS;/);
 });
 
-test('FİRMA ve MARKA ayrı uçlardan: ?brands=1 iki tarafta da var', () => {
+test('FİRMA kutusu saf markaları dışlayan ucu kullanır, GÜNDEM kendi ucunu', () => {
   // İstemci (gömülü veri yoksa devreye giren yedek fetch yolu)
   assert.ok(indexHtml.includes("pick('offices', '/api/offices?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1')"), 'firma ucu yok');
-  assert.ok(indexHtml.includes("pick('brands', '/api/offices?brands=1&limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1')"), 'marka ucu brands=1 taşımıyor');
   assert.ok(indexHtml.includes("pick('gundem', '/api/gundem?limit=' + HOME_LIST_FETCH_LIMIT)"), 'gündem ucu yok');
   // Sunucu (gömülü veri)
-  assert.ok(serverIndex.includes('`/api/offices?brands=1&limit=${HOME_LIST_LIMIT}&noPreview=1`'), 'sunucu marka ucu brands=1 taşımıyor');
   assert.ok(serverIndex.includes('`/api/gundem?limit=${HOME_LIST_LIMIT}`'), 'sunucu gündem ucunu çekmiyor');
-  // Marka/Gündem'in admin seçimi YOK: pin= eklenmemeli (en sıcak önbellek anahtarı korunur).
-  assert.ok(!serverIndex.includes("pinFor('brands')") && !serverIndex.includes("pinFor('gundem')"), 'marka/gündem için olmayan bir seçim anahtarı okunuyor');
+  // Gündem'in admin seçimi YOK: pin= eklenmemeli (en sıcak önbellek anahtarı korunur).
+  assert.ok(!serverIndex.includes("pinFor('brands')") && !serverIndex.includes("pinFor('gundem')"), 'gündem için olmayan bir seçim anahtarı okunuyor');
   assert.match(indexHtml, /const settingKey = HOME_SETTINGS_KEY\[key\];/, 'pinQuery anahtarsız kategoriyi açıkça ele almıyor');
 });
 
-test('altı karusel de HER İKİ yolda besleniyor (gömülü veri + yedek fetch)', () => {
-  const renders = ['renderSlider(', 'kisiSlider.render(', 'firmaSlider.render(', 'urunSlider.render(', 'markaSlider.render(', 'gundemSlider.render('];
+test('beş karusel de HER İKİ yolda besleniyor (gömülü veri + yedek fetch)', () => {
+  const renders = ['renderSlider(', 'kisiSlider.render(', 'firmaSlider.render(', 'urunSlider.render(', 'gundemSlider.render('];
   for (const r of renders) assert.ok(indexHtml.includes(r), `${r} çağrısı yok`);
-  // Hata yolu: altı kutunun hiçbiri kalıcı boş gri kutu olarak kalmamalı.
-  for (const r of ['kisiSlider.renderError(', 'firmaSlider.renderError(', 'urunSlider.renderError(', 'markaSlider.renderError(', 'gundemSlider.renderError(']) {
+  // Hata yolu: beş kutunun hiçbiri kalıcı boş gri kutu olarak kalmamalı.
+  for (const r of ['kisiSlider.renderError(', 'firmaSlider.renderError(', 'urunSlider.renderError(', 'gundemSlider.renderError(']) {
     assert.ok(indexHtml.includes(r), `${r} yok — istek başarısız olursa kutu boş kalır`);
   }
 });
 
 console.log('\ngömülü veri (#ml-home-data) ve görsel adayları');
 
-test('#ml-home-data v:4 ve iki tarafta AYNI; gövde altı bölüm taşıyor', () => {
-  assert.match(serverIndex, /v: 4, t: Date\.now\(\)/);
-  assert.match(indexHtml, /return \(d && d\.v === 4\) \? d : null;/);
-  for (const key of ['projects', 'architects', 'offices', 'products', 'brands', 'gundem']) {
-    assert.ok(new RegExp(`${key}:`).test(serverIndex.slice(serverIndex.indexOf('v: 4, t: Date.now()'), serverIndex.indexOf('v: 4, t: Date.now()') + 400)), `gömülü gövdede ${key} yok`);
+test('#ml-home-data v:5 ve iki tarafta AYNI; gövde beş bölüm taşıyor', () => {
+  assert.match(serverIndex, /v: 5, t: Date\.now\(\)/);
+  assert.match(indexHtml, /return \(d && d\.v === 5\) \? d : null;/);
+  for (const key of ['projects', 'architects', 'offices', 'products', 'gundem']) {
+    assert.ok(new RegExp(`${key}:`).test(serverIndex.slice(serverIndex.indexOf('v: 5, t: Date.now()'), serverIndex.indexOf('v: 5, t: Date.now()') + 400)), `gömülü gövdede ${key} yok`);
   }
   // Bölümlerin HEPSİ null olduğunda blok hiç gömülmez (istemci eskisi gibi ağdan çeker).
-  assert.match(serverIndex, /data\.brands \|\| data\.gundem\) \? data : null;/);
+  assert.match(serverIndex, /data\.products \|\| data\.gundem\) \? data : null;/);
 });
 
 test('<img sizes> değerleri index.html ile src/index.js#HOME_IMG arasında BİREBİR aynı', () => {
@@ -289,15 +308,16 @@ test('<img sizes> değerleri index.html ile src/index.js#HOME_IMG arasında BİR
   for (const [key, needle] of client) {
     assert.ok(indexHtml.includes(needle.replace(/,(\S)/g, ', $1')), `${key}: istemci sizes/widths sunucudan farklı (${needle})`);
   }
-  // MARKA kutusu firma kutusuyla aynı genişlikte (1 sütun), o yüzden office spec'ini paylaşır.
-  assert.ok(serverIndex.includes('imagePreloadLink(b.logo, HOME_IMG.office, false)'), 'marka logosu office spec ile preload edilmiyor');
 });
 
-test('preload: marka logosu var, GÜNDEM bilerek yok (dış host + referrerpolicy eşleşmesi)', () => {
+test('preload: dört kutu var, GÜNDEM bilerek yok (dış host + referrerpolicy eşleşmesi)', () => {
   const fn = serverIndex.slice(serverIndex.indexOf('function buildHomePreloadLinks('));
   const body = fn.slice(0, fn.indexOf('\n}'));
-  assert.ok(body.includes('data.brands'), 'marka bölümü preload\'a girmemiş');
+  for (const key of ['data.projects', 'data.architects', 'data.offices', 'data.products']) {
+    assert.ok(body.includes(key), `${key} preload'a girmemiş`);
+  }
   assert.ok(!body.includes('data.gundem'), 'gündem preload edilmemeli (dış adres)');
+  assert.ok(!body.includes('data.brands'), 'marka kutusu kaldırıldı, preload\'u da kalmamalı');
 });
 
 test('gündem görseli: kendi /media/ dosyası türevden, dış adres HAM ve daima no-referrer', () => {

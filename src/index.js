@@ -455,8 +455,8 @@ const PATH_RENAME_REDIRECTS = {
 // pushState — bkz. js/components/auth-modal.js#close, bu yüzden gövde SERVİS EDİLMEYE DEVAM EDER,
 // aksi halde modalı kapatan kişi boş bir sayfada kalırdı).
 //
-// Değişen şey gövdenin VERİSİ: index.html altı karusel listesini (proje/kişi/firma/ürün/marka/
-// gündem) ağdan çekiyor ve bu yollarda da çekiyordu — bir giriş formu için altı liste isteği.
+// Değişen şey gövdenin VERİSİ: index.html beş karusel listesini (proje/kişi/firma/ürün/gündem)
+// ağdan çekiyor ve bu yollarda da çekiyordu — bir giriş formu için beş liste isteği.
 // Artık belgeye data-ml-modal-route="1" işareti konur; index.html bu işareti görünce karusel
 // yüklemesini MODAL KAPANANA kadar (ya da güvenlik ağı olarak birkaç saniye sonra) başlatmaz.
 // INFO_MODAL_META yolları (/hakkinda, /iletisim, ...) BU İŞARETİ ALMAZ: onlar indexlenen gerçek
@@ -1381,7 +1381,7 @@ async function loadHomeData(env, ctx) {
     // pencere İÇİNDE sıralıyordu ve pencereye düşmeyen bir seçim sessizce kayboluyordu).
     const settings = await getSiteSettings(env);
     const pinFor = (key) => featuredSlugsFromSettings(settings, key);
-    const [projects, architects, offices, products, brands, gundem] = await Promise.all([
+    const [projects, architects, offices, products, gundem] = await Promise.all([
       // noPreview=1 (kullanıcı isteği, 2026-09-10 madde 6: "Ana sayfadaki carosellerde blurlu
       // gönderileri gösterme") — proje karuseli bunu zaten aşağıdaki `!p.preview` süzgeciyle
       // yapıyordu ama kişi/firma/ürün karuselleri YAPMIYORDU: onlarda eleme yoktu, dolayısıyla
@@ -1392,12 +1392,11 @@ async function loadHomeData(env, ctx) {
       internalApiJson(env, ctx, withPinParam(`/api/architects?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('architects'))),
       internalApiJson(env, ctx, withPinParam(`/api/offices?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('offices'))),
       internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('products'))),
-      // MARKA ve GÜNDEM karuselleri (kullanıcı isteği, 2026-09-12 üçüncü tur). İkisinin de admin
-      // seçimi YOK (bkz. src/lib/homeCarousels.js#HOME_FEATURED_KEYS — dört anahtar), o yüzden
-      // withPinParam'dan geçmezler: URL'e dokunulmaması en sıcak önbellek anahtarını korur.
-      // ?brands=1 — marka.html'in kullandığı AYNI süzgeç; onsuz uç FİRMA listesini döndürür ve
-      // iki kutu aynı kayıtları gösterirdi.
-      internalApiJson(env, ctx, `/api/offices?brands=1&limit=${HOME_LIST_LIMIT}&noPreview=1`),
+      // GÜNDEM karuseli (kullanıcı isteği, 2026-09-12 üçüncü tur). Admin seçimi YOK (bkz.
+      // src/lib/homeCarousels.js#HOME_FEATURED_KEYS — dört anahtar), o yüzden withPinParam'dan
+      // geçmez: URL'e dokunulmaması en sıcak önbellek anahtarını korur.
+      // MARKA karuseli (?brands=1 ile çekilen altıncı kutu) KALDIRILDI — kullanıcı isteği,
+      // 2026-09-14 madde 3. Ana sayfa artık o ucu hiç çağırmaz.
       internalApiJson(env, ctx, `/api/gundem?limit=${HOME_LIST_LIMIT}`),
     ]);
     let projectItems = null;
@@ -1414,15 +1413,15 @@ async function loadHomeData(env, ctx) {
     }
     const items = (res) => (res && Array.isArray(res.items)) ? res.items.slice(0, HOME_LIST_LIMIT) : null;
     // t: üretim anı (ms) — index.html bununla gömülü verinin yaşını ölçer (bkz. oradaki arka plan yenilemesi).
-    // v: 4 — gövde şekli yeniden değişti: MARKA ve GÜNDEM bölümleri eklendi (altı bölüm).
-    // Tarayıcı önbelleğinde duran ESKİ bir belge v:3 bekler ve bu gövdeyi yok sayıp listeleri
+    // v: 5 — gövde şekli yeniden değişti: MARKA bölümü çıkarıldı (beş bölüm).
+    // Tarayıcı önbelleğinde duran ESKİ bir belge v:4 bekler ve bu gövdeyi yok sayıp listeleri
     // ağdan çeker (bkz. index.html#readHomeSsrData) — yarım dolu bir karusel çizilmez.
     const data = {
-      v: 4, t: Date.now(),
+      v: 5, t: Date.now(),
       projects: projectItems, architects: items(architects), offices: items(offices),
-      products: items(products), brands: items(brands), gundem: items(gundem),
+      products: items(products), gundem: items(gundem),
     };
-    return (data.projects || data.architects || data.offices || data.products || data.brands || data.gundem) ? data : null;
+    return (data.projects || data.architects || data.offices || data.products || data.gundem) ? data : null;
   })();
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), HOME_DATA_TIMEOUT_MS));
   try {
@@ -1447,18 +1446,17 @@ function imagePreloadLink(path, spec, high) {
 // Her karuselin İLK slaydının görselini önden indirir. GÜNDEM bilerek DIŞARIDA: o görsel çoğunlukla
 // yayıncının kendi sunucusundadır (hotlink) — yeni bir TLS el sıkışması demek, üstelik preload'un
 // kullanılabilmesi için <img>'in referrerpolicy="no-referrer"'ıyla birebir eşleşmesi gerekir ve
-// eşleşmeyen bir preload boşa indirilmiş bir dosyadır. Marka logosu ise kendi CDN'imizden gelen
-// küçük bir dosya, LCP görseliyle yarışmaz.
+// eşleşmeyen bir preload boşa indirilmiş bir dosyadır. MARKA kutusu kaldırıldığından (kullanıcı
+// isteği, 2026-09-14 madde 3) marka logosu preload'u da düştü.
 function buildHomePreloadLinks(data) {
   const first = (arr) => (Array.isArray(arr) && arr.length) ? arr[0] : null;
   const p = first(data.projects), a = first(data.architects), o = first(data.offices);
-  const u = first(data.products), b = first(data.brands);
+  const u = first(data.products);
   return [
     p ? imagePreloadLink(p.images[0], HOME_IMG.project, true) : '',
     a ? imagePreloadLink(a.photo, HOME_IMG.architect, false) : '',
     o ? imagePreloadLink(o.logo, HOME_IMG.office, false) : '',
     u ? imagePreloadLink(u.image, HOME_IMG.product, false) : '',
-    b ? imagePreloadLink(b.logo, HOME_IMG.office, false) : '',
   ].join('');
 }
 

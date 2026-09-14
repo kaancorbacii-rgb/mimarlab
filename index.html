@@ -243,10 +243,11 @@
     font-size:16px; color:var(--ink-soft); margin:0; line-height:1.5;
   }
   /* ---------- HOME BENTO GRID ----------
-     ALTI KUTU, TEK GRID (kullanıcı isteği, 2026-09-12 — ekli tasarım görseli): solda iki satır
-     yüksekliğinde PROJE, sağ sütunda KİŞİ ve FİRMA, altta ÜRÜN (geniş) · MARKA (dar) · GÜNDEM
-     (geniş). Beş eşit sütun bu oranların TAMAMINI tek bir şablonla verir: proje 4 sütun, sağ
-     sütun 1; alt satırda 2 + 1 + 2. İç içe bir grid (eski .hero-side) BİLEREK kaldırıldı —
+     BEŞ KUTU, TEK GRID (kullanıcı isteği, 2026-09-12 — ekli tasarım görseli; MARKA kutusu
+     2026-09-14'te kaldırıldı): solda iki satır yüksekliğinde PROJE, sağ sütunda KİŞİ ve FİRMA,
+     altta ÜRÜN ve GÜNDEM satırı YARI YARIYA paylaşır. On eşit sütun bu oranların TAMAMINI tek bir
+     şablonla verir: proje 8 sütun, sağ sütun 2; alt satırda 5 + 5. İç içe bir grid (eski
+     .hero-side) BİLEREK kaldırıldı —
      alt satırın sütunları üst satırın sütunlarıyla hizalı kalsın, yükseklikler de tek bir
      satır şablonundan gelsin.
 
@@ -269,12 +270,19 @@
        bu blok yeniden sayfanın SONU — footer'dan önceki nefes payı burada durur. */
     padding:0 32px 64px;
     display:grid;
-    grid-template-columns:repeat(5, 1fr);
+    /* ON SÜTUN, BEŞ SÜTUNLUK ŞABLONUN AYNISI. MARKA kutusu kaldırılınca (kullanıcı isteği,
+       2026-09-14 madde 3: "Ana sayfadaki marka caroselini kaldır. Bunun yerine ÜRÜN ve GÜNDEM
+       caroselleri bulundukları satırı yarı yarıya paylaşsınlar") alt satır ikiye bölünmeliydi;
+       beş sütunda "yarı yarıya" diye bir dizilim YOK (2+3 eşit değildir), o yüzden sütun sayısı
+       ikiye katlandı. ÜST satırlar BİREBİR aynı kalır: bir kutunun genişliği yalnızca span/sütun
+       ORANINA bağlıdır (n/N), gap'lerin sayısına değil — 8/10, 4/5 ile aynı pikseli verir.
+       Alt satır artık 5/10 + 5/10, yani tam yarı yarıya. */
+    grid-template-columns:repeat(10, 1fr);
     grid-template-rows:repeat(3, 1fr);
     grid-template-areas:
-      "proje proje proje proje kisi"
-      "proje proje proje proje firma"
-      "urun urun marka gundem gundem";
+      "proje proje proje proje proje proje proje proje kisi kisi"
+      "proje proje proje proje proje proje proje proje firma firma"
+      "urun urun urun urun urun gundem gundem gundem gundem gundem";
     gap:16px;
   }
   /* Grid track'lerinin içerik minimum genişliğine göre taşmasını önler — varsayılan
@@ -284,7 +292,6 @@
   .card-kisi{grid-area:kisi;}
   .card-firma{grid-area:firma;}
   .card-urun{grid-area:urun;}
-  .card-marka{grid-area:marka;}
   .card-gundem{grid-area:gundem;}
 
   /* project slider (left) */
@@ -347,7 +354,7 @@
     position:absolute; left:18px; bottom:18px; right:18px; z-index:2;
     /* 36px = left(18) + right(18). Bu çıkarma İNSET'LERLE BİRLİKTE ÖLÇEKLENMEK ZORUNDA: dar
        breakpoint'lerde inset küçülürken bu değer 36px'te kalırsa altyazı kutusu gereksizce
-       daralır — telefonda 68px'lik KİŞİ/FİRMA/MARKA kutularında başlık "Mimar ar…" gibi 3-4
+       daralır — telefonda 68px'lik KİŞİ/FİRMA kutularında başlık "Mimar ar…" gibi 3-4
        karaktere iniyordu (headless render'da görüldü). Her media bloğu kendi insetine karşılık
        gelen değeri yazar. */
     width:fit-content; max-width:calc(100% - 36px);
@@ -377,7 +384,7 @@
   .slider-arrow.prev{left:14px;}
   .slider-arrow.next{right:14px;}
 
-  /* Küçük karuseller (KİŞİ · FİRMA · ÜRÜN · MARKA · GÜNDEM) — proje-slider'la AYNI görsel dil,
+  /* Küçük karuseller (KİŞİ · FİRMA · ÜRÜN · GÜNDEM) — proje-slider'la AYNI görsel dil,
      crossfade + otomatik oynatma + oklar (bkz. createMiniSlider). Yerleşimleri .bento-grid'in
      grid-area'larından gelir, kutunun kendisi yalnızca kenar yuvarlaklığını ve arka planını verir. */
   .side-slider{
@@ -678,8 +685,9 @@
     <p>Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu.</p>
   </section>
 
-  <!-- ANA SAYFA KARUSELLERİ — altı kutu, tek grid (kullanıcı isteği, 2026-09-12: ekli tasarım
-       görseli). Yerleşim .bento-grid'in grid-template-areas'ından gelir (bkz. oradaki yorum).
+  <!-- ANA SAYFA KARUSELLERİ — beş kutu, tek grid (kullanıcı isteği, 2026-09-12: ekli tasarım
+       görseli; MARKA kutusu 2026-09-14'te kaldırıldı, alt satırı ÜRÜN ve GÜNDEM yarı yarıya
+       paylaşır). Yerleşim .bento-grid'in grid-template-areas'ından gelir (bkz. oradaki yorum).
        Her kutuda İKİ ayrı bağlantı türü var ve ikisi de HTML'de SABİT/JS'ten bağımsız durur:
          • .slide-tag  → kategorinin LİSTE sayfası (PROJE -> /proje, KİŞİ -> /kisi, ...)
          • slaytın kendisi (<a class="proje-slide">, JS'in yazdığı) → GÖNDERİNİN kendisi
@@ -732,19 +740,6 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <button class="slider-arrow next" id="urun-next" type="button" aria-label="Sonraki ürün">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <div class="side-card card-marka">
-      <div class="side-slider">
-        <a class="slide-tag" href="/marka">MARKA</a>
-        <div class="slider-track" id="marka-slider-track"></div>
-        <button class="slider-arrow prev" id="marka-prev" type="button" aria-label="Önceki marka">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button class="slider-arrow next" id="marka-next" type="button" aria-label="Sonraki marka">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
@@ -822,7 +817,7 @@ const PROJECT_CAROUSEL_FETCH_LIMIT = 24;
 // src/lib/homeCarousels.js#HOME_SLOT_COUNT (admin'in elle seçebileceği en fazla kayıt) —
 // bkz. scripts/test-2026-09-12-home-rails.mjs, üçünün ayrışmasını deploy'dan önce durdurur.
 const PROJECT_CAROUSEL_SLOTS = 6;
-// Kişi/Firma/Ürün/Marka/Gündem liste uçlarından TAM karusel slotu kadar kayıt çekilir. Proje ucu
+// Kişi/Firma/Ürün/Gündem liste uçlarından TAM karusel slotu kadar kayıt çekilir. Proje ucu
 // istisnadır: kapak görseli olmayan kayıtlar elendiğinden 24'lük bir tampondan
 // (PROJECT_CAROUSEL_FETCH_LIMIT) ilk 6 GÖRSELLİ proje alınır.
 const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;
@@ -1124,7 +1119,8 @@ function urunSlideHtml(p, i){
   </a>`;
 }
 
-// GÜNDEM SLAYDI (kullanıcı isteği, 2026-09-12: ana sayfaya MARKA ve GÜNDEM kutuları eklendi).
+// GÜNDEM SLAYDI (kullanıcı isteği, 2026-09-12: ana sayfaya MARKA ve GÜNDEM kutuları eklendi;
+// MARKA kutusu 2026-09-14'te kaldırıldı, GÜNDEM duruyor).
 // Görsel iki kaynaktan gelebilir ve ayrım js/pages/gundem.js#photoHtml ile BİREBİR aynıdır:
 // kendi R2'muzdaki üye görselleri (/media/...) türev/CDN yolundan geçer, dış yayıncı görselleri
 // (hotlink) ham adresle kalır. referrerpolicy="no-referrer" her iki durumda da taşınır — bazı
@@ -1164,8 +1160,8 @@ function gundemSlideHtml(g, i){
   </a>`;
 }
 
-// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını kişi, firma, ürün,
-// marka ve gündem mini-carousel'lerinde tekrar kullanmak için genelleştirilmiş fabrika (bkz.
+// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını kişi, firma, ürün
+// ve gündem mini-carousel'lerinde tekrar kullanmak için genelleştirilmiş fabrika (bkz.
 // kullanıcı isteği: "carosel tasarımını temaya uygun yeniden tasarla ... oklarla hareket
 // ettirilebilir olsun").
 function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
@@ -1218,14 +1214,13 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
   return { render, renderError };
 }
 
-// Altı karusel — HTML'deki kutu sırası (bkz. .bento-grid grid-template-areas). FİRMA ve MARKA
-// AYNI kart/slayt işaretlemesini paylaşır (tek kayıt türü, bkz. officeSlideHtml) ama AYRI
-// uçlardan beslenir: /api/offices saf markaları dışlar (firma listesi), ?brands=1 ise yalnızca
-// markaları verir — ayrım office-kind.js'te tek kaynaktan gelir.
+// Beş karusel — HTML'deki kutu sırası (bkz. .bento-grid grid-template-areas). MARKA kutusu
+// kaldırıldı (kullanıcı isteği, 2026-09-14 madde 3); FİRMA kutusunun ucu (/api/offices) saf
+// markaları ZATEN dışladığından geri kalan kutuların verisi bundan etkilenmez — marka kayıtları
+// ana sayfada artık hiç görünmez, kendi liste sayfası (/marka) yerinde durur.
 const kisiSlider = createMiniSlider('kisi-slider-track', 'kisi-prev', 'kisi-next', architectSlideHtml, a => a.name);
 const firmaSlider = createMiniSlider('firma-slider-track', 'firma-prev', 'firma-next', officeSlideHtml, o => o.name);
 const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next', urunSlideHtml, p => `${p.slug}|||${p.title}`);
-const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
 const gundemSlider = createMiniSlider('gundem-slider-track', 'gundem-prev', 'gundem-next', gundemSlideHtml, g => g.slug);
 
 // Ağ hatası/5xx durumunda {items:[]} ile "gerçekten boş" arasında ayrım yapabilmek için (bkz.
@@ -1247,7 +1242,7 @@ function fetchPublicJson(url){
     .catch(()=>({items:[], failed:true}));
 }
 
-// VERİ KAYNAĞI (performans turu, 2026-09-08). Worker, ana sayfa HTML'ini servis ederken ALTI liste
+// VERİ KAYNAĞI (performans turu, 2026-09-08). Worker, ana sayfa HTML'ini servis ederken BEŞ liste
 // ucunun sonucunu <head>'e `<script id="ml-home-data" type="application/json">` olarak gömer (bkz.
 // src/index.js#loadHomeData — AYNI handler'lar, AYNI Cache API + parmak izi tazeliği). Blok varsa
 // hiçbir /api isteği atılmadan, ayrıştırma sırasında HEMEN render edilir; bir bölüm eksikse (null —
@@ -1261,12 +1256,12 @@ function readHomeSsrData(){
     const el = document.getElementById('ml-home-data');
     if(!el) return null;
     const d = JSON.parse(el.textContent || 'null');
-    // v === 4: gövde artık ALTI bölüm taşır — MARKA ve GÜNDEM karuselleri eklendi (kullanıcı
-    // isteği, 2026-09-12 üçüncü tur), bölüm başına karusel slotu kadar (6) kayıt.
-    // Sürüm ayrışması iki yönlü de güvenli: tarayıcı önbelleğinden gelen ESKİ bir belge (v:1..3)
-    // burada yok sayılıp listeler ağdan çekilir, ESKİ bir belge de yeni (v:4) gövdeyi yok sayar —
+    // v === 5: gövde artık BEŞ bölüm taşır — MARKA bölümü çıkarıldı (kullanıcı isteği, 2026-09-14
+    // madde 3), bölüm başına karusel slotu kadar (6) kayıt.
+    // Sürüm ayrışması iki yönlü de güvenli: tarayıcı önbelleğinden gelen ESKİ bir belge (v:1..4)
+    // burada yok sayılıp listeler ağdan çekilir, ESKİ bir belge de yeni (v:5) gövdeyi yok sayar —
     // yani hiçbir durumda yarım dolu bir karusel çizilmez.
-    return (d && d.v === 4) ? d : null;
+    return (d && d.v === 5) ? d : null;
   }catch(e){ return null; }
 }
 const HOME_SSR = readHomeSsrData();
@@ -1288,7 +1283,7 @@ function siteSettingsPromise(){
     fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null));
 }
 function pinQuery(settings, key){
-  // Marka/Gündem karusellerinin admin seçimi YOK (HOME_SETTINGS_KEY'de anahtarları yok) — bu
+  // Gündem karuselinin admin seçimi YOK (HOME_SETTINGS_KEY'de anahtarı yok) — bu
   // durumda URL'e hiç dokunulmaz; en sıcak önbellek anahtarı korunur (aynı gerekçe
   // src/lib/homeCarousels.js#withPinParam'da da yazılı).
   const settingKey = HOME_SETTINGS_KEY[key];
@@ -1300,8 +1295,8 @@ function pinQuery(settings, key){
 function loadHomeSections(useSsr){
   // PIN'Lİ bölümler: admin seçimi yalnızca bu dördünde var (bkz. HOME_SETTINGS_KEY). Dördü de
   // gömülü geldiyse ayarlara hiç bakılmaz (sunucu sıralamayı zaten uyguladı); en az biri eksikse
-  // o uç için `pin=` gerekir, o yüzden ayarlar okunur. Marka/Gündem'in seçimi olmadığından
-  // eksiklikleri ayar okumayı GEREKTİRMEZ.
+  // o uç için `pin=` gerekir, o yüzden ayarlar okunur. Gündem'in seçimi olmadığından
+  // eksikliği ayar okumayı GEREKTİRMEZ.
   const ssrAll = useSsr && !!(ssrList('projects') && ssrList('architects') && ssrList('offices') && ssrList('products'));
   return (ssrAll ? Promise.resolve(null) : siteSettingsPromise()).then((siteSettings)=>{
   const pick = (key, url) => {
@@ -1327,15 +1322,10 @@ function loadHomeSections(useSsr){
     pick('offices', '/api/offices?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
     // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
     pick('products', '/api/products?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
-    // MARKA kutusu (kullanıcı isteği, 2026-09-12 üçüncü tur): ?brands=1 — marka.html'in kullandığı
-    // AYNI süzgeç (bkz. src/routes/office.js#brandsOnly), yani kataloğunda ürünü olan ya da kendini
-    // marka kategorisiyle etiketlemiş firmalar. Firma kutusuyla aynı uç olsa da AYRI bir önbellek
-    // anahtarı/sıralaması taşır, bu yüzden kendi isteğidir.
-    pick('brands', '/api/offices?brands=1&limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
     // GÜNDEM kutusu: /api/gundem varsayılan sıralaması en yeni tarihten eskiye (bkz.
     // src/routes/gundem.js#GUNDEM_SORT). Gündem kayıtlarında `preview` kavramı YOK.
     pick('gundem', '/api/gundem?limit=' + HOME_LIST_FETCH_LIMIT),
-  ]).then(([yapiRes, architectRes, officeRes, productRes, brandRes, gundemRes])=>{
+  ]).then(([yapiRes, architectRes, officeRes, productRes, gundemRes])=>{
     if(yapiRes.failed){
       renderSliderError('Projeler şu an yüklenemedi.');
     } else {
@@ -1365,9 +1355,6 @@ function loadHomeSections(useSsr){
 
     if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
     else urunSlider.render(head(productRes.items));
-
-    if(brandRes.failed) markaSlider.renderError('Markalar şu an yüklenemedi.');
-    else markaSlider.render(head(brandRes.items));
 
     if(gundemRes.failed) gundemSlider.renderError('Gündem içerikleri şu an yüklenemedi.');
     else gundemSlider.render((gundemRes.items || []).slice(0, PROJECT_CAROUSEL_SLOTS));
@@ -1418,7 +1405,7 @@ document.querySelector('.bento-grid').addEventListener('click', (e) => {
 // /giris, /uye-ol, /hesabim, /aktivitelerim, /koleksiyonum, /sifremi-unuttum bu BELGEYİ servis
 // eder (bkz. src/index.js#serveInfoModalPage) çünkü modalı kapatan kişi altından çıkan sayfada
 // kalır — kapanış bir gezinme değil, pushState'tir. Ama o ziyaretçi ana sayfayı GÖRMÜYOR: üstünde
-// giriş/hesap modalı var. Altı karusel listesini o an çekmek, bir giriş formu için altı gereksiz
+// giriş/hesap modalı var. Beş karusel listesini o an çekmek, bir giriş formu için beş gereksiz
 // istek demekti (ölçüm: / üzerinde site-settings + 6 liste + preview = 9 API isteği).
 // Artık yükleme modal KAPANINCA başlar; güvenlik ağı olarak birkaç saniye sonra da başlar, yani
 // modal herhangi bir sebeple hiç açılmazsa sayfa kalıcı olarak boş kalmaz.

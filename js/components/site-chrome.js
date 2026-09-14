@@ -158,15 +158,16 @@
   // proje.html içinde Liste/Harita'nın yanında üçüncü bir sekme (bkz. proje.html#view-toggle-top100).
   // Düello özelliği ise 2026-08-29'da tamamen kaldırıldı (bkz. kullanıcı isteği: "Takip Et"
   // özelliğine yer açmak için) — footerHtml()'in Topluluk sütunundaki link de bu yüzden gitti.
-  // Sıra kullanıcı isteğiyle sabitlendi (2026-08-31): PROJE · KİŞİ · FİRMA · ÜRÜN · MARKA.
-  // 'marka' — üretici ürün firmalarının listesi (bkz. marka.html dosya başı yorumu); firma.html'le
-  // AYNI `offices` verisini ?brands=1 ile daraltır, ayrı bir tablo/tip DEĞİL.
+  // Sıra kullanıcı isteğiyle sabitlendi (2026-08-31): PROJE · KİŞİ · FİRMA · ÜRÜN.
+  // MARKA üst menüden KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 1: "Ana menüden ve footer
+  // menüsünden marka sayfasını kaldır"). /marka SAYFASI DURUYOR — yalnızca menü bağlantısı gitti:
+  // marka.html, canlı /marka/:slug adresleri ve o sayfaya giden diğer bağlantılar (ör. Hesabım >
+  // Takip Ettiklerim) çalışmaya devam eder. Geri eklenmeden önce buraya bakın, durumu varsaymayın.
   const NAV_ITEMS = [
     { key: 'proje', href: '/proje', label: 'Proje' },
     { key: 'kisi', href: '/kisi', label: 'Kişi' },
     { key: 'firma', href: '/firma', label: 'Firma' },
     { key: 'urun', href: '/urun', label: 'Ürün', mega: true },
-    { key: 'marka', href: '/marka', label: 'Marka' },
     // 'gundem' (kullanıcı isteği, 2026-09-06) — beş İÇERİK listesinin ardından altıncı sıraya
     // eklendi. "Neden MİMARLAB?"in bilerek dışarıda bırakılmasıyla (aşağıdaki not) ÇELİŞMEZ: o bir
     // kurumsal anlatım sayfası, bu ise sitenin altıncı içerik akışıdır ve gündelik olarak değişir —
@@ -511,7 +512,7 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a><a href="/gundem">Gündem</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/gundem">Gündem</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <!-- Sıra (kullanıcı isteği, 2026-09-12): İletişim, Hakkında, Neden MİMARLAB?, sonrası aynı. -->
       <div class="footer-col"><h4>Kurumsal</h4><a href="/iletisim">İletişim</a><a href="/hakkinda">Hakkında</a><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
@@ -1805,16 +1806,18 @@
     });
   }
 
-  // "İçerik Ekle" (kullanıcı isteği, 2026-08-31): footer'ın Topluluk sütunundaki son satır, beş
-  // ekleme sayfasına (proje/mimar/firma/ürün/marka) götüren bağlantıları taşıyan küçük bir popup
-  // açar. Bağlantılar sıradan <a href> — tıklanınca tarayıcı normal şekilde o sayfaya gider, ayrı
-  // bir yönlendirme koduna gerek yok.
+  // "İçerik Ekle" (kullanıcı isteği, 2026-08-31): footer'ın Topluluk sütunundaki son satır, ekleme
+  // sayfalarına (proje/mimar/firma/ürün) götüren bağlantıları taşıyan küçük bir popup açar.
+  // Bağlantılar sıradan <a href> — tıklanınca tarayıcı normal şekilde o sayfaya gider, ayrı bir
+  // yönlendirme koduna gerek yok.
+  // "Marka Ekle" BİLEREK YOK (kullanıcı isteği, 2026-09-14 madde 1) — nav/footer'daki Marka
+  // bağlantılarıyla birlikte kaldırıldı. /marka-ekle sayfasının KENDİSİ duruyor: mevcut bir markayı
+  // düzenleme akışı (bkz. auth-modal.js#claimEditPageForOffice) oraya gitmeye devam eder.
   const ADD_CONTENT_LINKS = [
     { href: '/proje-ekle', label: 'Proje Ekle' },
     { href: '/kisi-ekle', label: 'Kişi Ekle' },
     { href: '/firma-ekle', label: 'Firma Ekle' },
     { href: '/urun-ekle', label: 'Ürün Ekle' },
-    { href: '/marka-ekle', label: 'Marka Ekle' },
     // Gündem kullanıcı gönderisi (kullanıcı isteği, 2026-09-11) — haber/etkinlik/yarışma.
     { href: '/gundem-ekle', label: 'Gündem İçeriği Ekle' },
   ];
