@@ -2677,15 +2677,22 @@ const AuthModal = (function () {
         // açılıyordu — "iki profil birbiriyle entegre" isteğinin (madde 2) tam karşıtı.
         const claimedArch = await fetchClaimedArchitect(claims);
         const arch = claimedArch || await fetchOwnSelfSubmission();
-        // ÜÇÜNCÜ KAYNAK + ORTAK KURAL (kullanıcı isteği, 2026-09-08): birleştirme artık office-picker.js#
+        // ORTAK KURAL (kullanıcı isteği, 2026-09-08): birleştirme artık office-picker.js#
         // mergeOfficeMembershipNames'te, kisi-ekle.html'in üç ön-doldurma yoluyla BİREBİR aynı fonksiyon
         // — iki sayfa aynı kaynaklardan aynı listeyi üretir. officeLinks (hesabın kişi profilinin
         // office_founders bağları; admin/firma yetkilisi Kurucular/Ekip kutusuna yazdığında oluşur, ne
         // talep ne `office` metni doğurur) eskiden yalnızca Firma Bilgileri kutusunda (loadFirmInfo)
         // okunuyordu, bu kutuda değil.
+        // `claims` ARTIK KUTUYA GİRMİYOR (2026-09-14) — profile_claims('office') bir görev değil
+        // yalnızca yetkidir; kutuya sızdığında hesabın yönetici olduğu her firma kişinin profiline
+        // yazılıyordu (bkz. office-picker.js#mergeOfficeMembershipNames'teki KALDIRILDI notu).
+        // Burada yalnızca fetchClaimedArchitect için okunmaya devam eder. Kutu boş kalmaz: kullanıcının
+        // kendi seçimi aynı Kaydet'te kişi kaydının `office` metnine de yazılıyor (bkz.
+        // submitArchitectSyncIfNeeded), yani `arch.office` üzerinden geri okunur — yedek dal da artık
+        // taleplere değil o metne düşer.
         const names = (typeof mergeOfficeMembershipNames === 'function')
-          ? mergeOfficeMembershipNames({ officeTexts: [arch && arch.office], officeLinks: myOfficeLinks, claims })
-          : claims.filter(c => c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending')).map(c => c.profile_key).filter(Boolean);
+          ? mergeOfficeMembershipNames({ officeTexts: [arch && arch.office], officeLinks: myOfficeLinks })
+          : String((arch && arch.office) || '').split(',').map(n => n.trim()).filter(Boolean);
         firmaPicker.set(names);
         // bkz. submitFirmaClaimIfChanged — kullanıcı seçimi DEĞİŞTİRMEDİYSE Kaydet'te talep
         // gönderilmemeli. Ofis talebi varken bunu zaten o fonksiyonun `existing` kontrolü sağlıyordu;

@@ -1416,6 +1416,11 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
       // döndüğü GÜNCEL slug'a güvenilir (bkz. src/routes/submissions.js#updateOwnSubmission), yeni
       // kayıtta (data.slug yoksa) isimden aynı algoritmayla türetilen slug'a düşülür.
       const finalSlug = data.slug || slugify(payload.name);
+      // Popup, bu kaydı ÖNBELLEKTEN DEĞİL tazeden okusun (kullanıcı isteği, 2026-09-14:
+      // "değişiklikler otomatik olarak popupa yansısın") — tam gerekçe ve üç önbellek katmanı:
+      // js/components/modal-shell.js#consumeFreshEntityMarker. İşaret tek kullanımlıktır, yalnızca
+      // bu yolun popup'ı tüketir.
+      if(window.ModalShell && ModalShell.markEntityFresh) ModalShell.markEntityFresh(`/api/office/${encodeURIComponent(finalSlug)}`);
       setTimeout(()=>{ window.location.replace(`/firma/${encodeURIComponent(finalSlug)}`); }, 1200);
       return;
     }

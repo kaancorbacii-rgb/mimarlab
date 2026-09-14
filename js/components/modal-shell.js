@@ -1206,10 +1206,51 @@ const ModalShell = (function () {
   //      (bkz. src/routes/*#cachedPublicJson(..., url.pathname, ...)), yani `_r` önbelleği kirletmez;
   //      aynı isolate'te süren hesaplamaya withSingleFlight üzerinden katılır, D1'i iki kez yormaz.
   const ENTITY_STALL_TIMEOUT_MS = 5000;
-  function entityRequest(path, attempt) {
-    if (attempt === 0) return fetch(path, { cache: 'no-store' });
+
+  // "DÜZENLE -> KAYDET -> POPUP" TAZELİK İŞARETİ (kullanıcı isteği, 2026-09-14: "Bir kişi veya firma
+  // popupı açıp profilde değişiklik yapıp kaydet butonuna tıkladığımızda değişiklikler otomatik
+  // olarak popupa yansısın").
+  //
+  // KÖK NEDEN: kaydetme, düzenleme formundan popup URL'ine TAM SAYFA dönüş yapıyor (bkz.
+  // kisi-ekle.html / firma-ekle.html / marka-ekle.html'deki location.replace) ve popup o URL'i ÜÇ
+  // ayrı önbellek katmanının arkasından okuyabiliyor:
+  //   1) Sayfanın <head> shim'inin __mlPrefetch'ine yazdığı #ml-list-data — Worker'ın SSR HTML'ine
+  //      gömdüğü detay yanıtı. HTML'in kendisi tarayıcıda 60 sn önbellekli (src/index.js#
+  //      SSR_PAGE_CACHE_HEADERS) olduğundan, gömülü JSON da o kadar eski olabilir;
+  //   2) Worker'ın Cache API girdisi (caches.default, s-maxage 300). Yazma noktaları bunu
+  //      purgeSsrDetailCache ile siler ama caches.default PoP-BAŞINADIR — zone geneli purge yalnızca
+  //      CF_ZONE_ID/CF_PURGE_TOKEN secret'ları tanımlıysa çalışır (bkz. src/lib/globalPurge.js);
+  //   3) tarayıcının kendi HTTP önbelleği (detay uçlarında max-age=60) — bunu entityRequest zaten
+  //      `cache:'no-store'` ile atlıyor.
+  // Yani "kaydettim, popup eskiyi gösteriyor" üçünün herhangi birinden doğabiliyordu.
+  //
+  // ÇÖZÜM: kaydeden sayfa, dönüşten HEMEN ÖNCE bu anahtara o kaydın detay uç yolunu yazar. Popup o
+  // yolu okurken işareti TÜKETİR ve (a) __mlPrefetch'teki gömülü/ön-çekilmiş yanıtı atar, (b) isteği
+  // `_fresh=1` ile atar — sunucu bunu OTURUM AÇMIŞ isteklerde "Cache API girdisini atla, taze
+  // hesapla ve girdiyi tazele" olarak yorumlar (bkz. src/lib/publicCache.js#cachedPublicJson), yani
+  // bayat girdi o PoP'ta da yerinde düzelir. İşaret TEK KULLANIMLIK ve YOLA ÖZELDİR: başka bir
+  // varlığın popup'ı onu tüketmez, normal gezinme hiç etkilenmez.
+  const FRESH_ENTITY_KEY = 'mimarlab:freshEntity';
+  function consumeFreshEntityMarker(path) {
+    try {
+      if (sessionStorage.getItem(FRESH_ENTITY_KEY) !== path) return false;
+      sessionStorage.removeItem(FRESH_ENTITY_KEY);
+      return true;
+    } catch { return false; } // private mode/kapalı storage — eski davranış, yalnızca tazelik garantisi düşer
+  }
+  // Kaydeden *-ekle sayfaları bunu ModalShell üzerinden çağırır (üçü de bu dosyayı zaten yüklüyor) —
+  // anahtar adını üç yerde birden yazmak yerine tek kaynak.
+  function markEntityFresh(path) {
+    try { sessionStorage.setItem(FRESH_ENTITY_KEY, path); } catch {}
+  }
+
+  function entityRequest(path, attempt, fresh) {
+    const params = [];
+    if (attempt > 0) params.push(`_r=${Date.now()}`);
+    if (fresh) params.push('_fresh=1');
+    if (!params.length) return fetch(path, { cache: 'no-store' });
     const sep = path.indexOf('?') === -1 ? '?' : '&';
-    return fetch(`${path}${sep}_r=${Date.now()}`, { cache: 'no-store' });
+    return fetch(`${path}${sep}${params.join('&')}`, { cache: 'no-store' });
   }
   function withStallTimeout(promise) {
     let timer = null;
@@ -1219,9 +1260,13 @@ const ModalShell = (function () {
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   }
   async function fetchEntity(path) {
+    // Tazelik işareti döngünün DIŞINDA tüketilir: yeniden denemede (attempt 1) de `_fresh=1`
+    // gitmeli, ama işaret yalnızca bir kez okunmalı.
+    const fresh = consumeFreshEntityMarker(path);
+    if (fresh && window.__mlPrefetch) delete window.__mlPrefetch[path];
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const pending = (attempt === 0 && takePrefetched(path)) || entityRequest(path, attempt);
+        const pending = (!fresh && attempt === 0 && takePrefetched(path)) || entityRequest(path, attempt, fresh);
         const res = attempt === 0 ? await withStallTimeout(pending) : await pending;
         // 404/410 = kaydın kendisi yok/kaldırılmış (bkz. src/lib/publicCache.js#statusFor) — bu
         // KESİN bir cevap, tekrar denemek anlamsız.
@@ -1368,7 +1413,7 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError, showPreviewNote, clearPreviewNote, setPreviewBlur, setSourceDisclaimer };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, popupChainRealBase, leaveToListPage, setSsrDefaults, fetchEntity, markEntityFresh, showLoadError, clearLoadError, showPreviewNote, clearPreviewNote, setPreviewBlur, setSourceDisclaimer };
 })();
 
 // KÖK NEDEN DÜZELTMESİ (kullanıcı bildirimi, 2026-09-06 madde 2: "5. sayfadan proje popup'ı açıp

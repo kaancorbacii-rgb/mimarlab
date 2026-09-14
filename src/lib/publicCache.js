@@ -11,9 +11,29 @@ import { invalidateGatedMediaCache } from './gatedMedia.js';
 // işlemi yaptığında bu önbellek topluca temizlenir (bkz. invalidatePublicCache). getSessionUser
 // çerez yoksa hiç DB'ye gitmeden null döner (bkz. src/lib/auth.js) — bu yüzden anonim istekler için
 // bu kontrolün kendisi ek bir sorgu maliyeti getirmez.
-async function isAdminRequest(request, env) {
-  const user = await getSessionUser(request, env);
-  return !!user && user.role === 'admin';
+// (isAdminRequest yardımcısı KALDIRILDI, 2026-09-14: cachedPublicJson artık getSessionUser'ı
+// KENDİSİ bir kez çağırıp hem admin kontrolünü hem `?_fresh=1` kapısını aynı sonuçtan karşılıyor —
+// aksi halde aynı oturum iki kez çözülürdü.)
+
+// `?_fresh=1` — "bu isteği Cache API girdisinden KARŞILAMA, taze hesapla ve girdiyi tazele"
+// (kullanıcı isteği, 2026-09-14: "profilde değişiklik yapıp kaydet butonuna tıkladığımızda
+// değişiklikler otomatik olarak popupa yansısın").
+//
+// NEDEN GEREKLİ: yazma noktaları purgeSsrDetailCache()/invalidatePublicCache() ile önbelleği
+// temizliyor ama caches.default PoP-BAŞINADIR — zone geneli purge yalnızca CF_ZONE_ID +
+// CF_PURGE_TOKEN secret'ları tanımlıysa devreye girer (bkz. src/lib/globalPurge.js). Yazma bir
+// PoP'ta, kaydetmenin ardından açılan popup başka bir PoP'ta işlenirse kullanıcı kendi az önceki
+// değişikliğini göremiyordu. Bu bayrak, kaydeden kullanıcının o TEK okumasında girdinin yerinde
+// tazelenmesini sağlar (aşağıdaki caches.default.put girdiyi DEĞİŞTİRİR, yani sonraki anonim
+// okuyucular da düzelmiş veriyi alır).
+//
+// KAPI — YALNIZCA OTURUM AÇMIŞ İSTEKLER. Aksi halde bu, herkese açık bir önbellek atlama kaldıracı
+// olurdu (her istek D1'e iner). Oturum kontrolü ek maliyet getirmez: getSessionUser zaten bu
+// fonksiyonun ilk satırında (admin kontrolü için) çağrılıyor ve çerezsiz isteklerde DB'ye hiç
+// gitmiyor. Parametre önbellek ANAHTARINA girmez (anahtar yalnızca pathname'dir, bkz. cacheKeyFor),
+// yani önbelleği kirletmez.
+function requestsFreshRead(request) {
+  try { return new URL(request.url).searchParams.get('_fresh') === '1'; } catch { return false; }
 }
 
 // Faz 4B — kullanıcı isteğindeki standart değer (private/no-store/must-revalidate). lib/http.js#json
@@ -550,8 +570,13 @@ async function withSingleFlight(key, fn) {
 const API_PAYLOAD_VERSION = 'v43';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
-  const admin = await isAdminRequest(request, env);
-  if (admin) { const data = await computeData(); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
+  const sessionUser = await getSessionUser(request, env);
+  if (sessionUser && sessionUser.role === 'admin') {
+    const data = await computeData();
+    return json(data, statusFor(data), ADMIN_CACHE_HEADERS);
+  }
+  // bkz. requestsFreshRead — oturum açmış kullanıcının "az önce kaydettim" okuması.
+  const forceFresh = !!sessionUser && requestsFreshRead(request);
 
   const listPath = isListPath(pathname);
   const detailPath = !listPath && isDetailPath(pathname);
@@ -606,7 +631,9 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
     // fonksiyonlarını geçirir, bkz. project.js/architect.js/office.js/product.js) bu yüzden HIT
     // yolunda da ucuz parmak izi sorgusuyla gerçek tazelik doğrulanır — fingerprint uyuşmuyorsa bu
     // girdi bayat sayılıp MISS gibi devam edilir.
-    const cached = await caches.default.match(cacheKey);
+    // forceFresh: önbellek OKUMASI (ve aşağıdaki 304 kısa devresi) bilerek atlanır — MISS yolu taze
+    // gövdeyi hesaplayıp caches.default.put ile bayat girdinin ÜZERİNE yazar (bkz. requestsFreshRead).
+    const cached = forceFresh ? null : await caches.default.match(cacheKey);
     if (cached) {
       const cachedEtag = cached.headers.get('ETag');
       const currentEtag = await computeFreshEtag();
@@ -622,7 +649,7 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev http://) kullanılamayabilir */ }
 
   const etag = await computeFreshEtag();
-  if (etag) {
+  if (etag && !forceFresh) {
     const ifNoneMatch = request.headers.get('If-None-Match');
     if (ifNoneMatch === etag) {
       return new Response(null, { status: 304, headers: { ...headers, ETag: etag } });

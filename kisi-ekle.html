@@ -436,7 +436,7 @@
       </div>
 
       <div class="form-section">
-        <h2>Firmalar / Markalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <h2>Firmalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
         <p class="section-hint">Bağlı olduğun firma veya markaları profiline ekleyebilirsin. Listeden birden fazla firma veya marka seçebilirsin.</p>
         <div class="form-row">
           <div class="form-field">
@@ -456,7 +456,7 @@
                değişmek zorunda kalmıyor. Depolama biçimi de değişmiyor (architect_submissions.office
                zaten virgüllü çoklu firma taşıyor, bkz. src/lib/canonicalSync.js#syncArchitect). -->
           <div class="form-field">
-            <label for="m-office-picker">Firma veya Marka <span class="opt">(opsiyonel, birden fazla seçebilirsin)</span></label>
+            <label for="m-office-picker">Firma <span class="opt">(opsiyonel, birden fazla seçebilirsin)</span></label>
             <input type="hidden" id="m-office" name="office">
             <div id="m-office-picker"></div>
             <!-- Kullanıcı isteği (2026-09-08 madde 1): bir firmada görev aldığını BEYAN ETMEK, o
@@ -1566,14 +1566,13 @@ async function maybeAutoFillFromAccount(){
     existingPhotoUrl = user.photoUrl;
     renderPreviews();
   }
-  // Firma — bkz. kullanıcı isteği: "firma alanında da aynı otomatik doldurmayı yap". Hesap
-  // profilinin kendisinde firma adı diye bir alan yok (bkz. js/components/auth-modal.js "Firma"
-  // kutusu), o kutudaki seçim aslında profile_claims('office') talebine dönüşüyor — bu yüzden AYNI
-  // kaynak burada da okunur: onaylı (yoksa beklemede) bir ofis talebi varsa adı buraya yazılır.
-  // Kutu çoklu seçim olduğundan (kullanıcı isteği, 2026-09-06 madde 4) artık TEK talep değil,
-  // onaylı/beklemedeki TÜM ofis taleplerinin adları yazılır.
-  // Artık yalnızca talepler değil, hesabın office_founders bağları da (officeLinks) okunur — Profili
-  // Düzenle ile AYNI birleşim, bkz. office-picker.js#mergeOfficeMembershipNames.
+  // Firma — bkz. kullanıcı isteği: "firma alanında da aynı otomatik doldurmayı yap". Kaynak,
+  // hesabın KİŞİ profilinin office_founders bağlarıdır (/api/claims/mine -> officeLinks), Profili
+  // Düzenle ile AYNI birleşim (bkz. office-picker.js#mergeOfficeMembershipNames).
+  // Hesabın profile_claims('office') satırları BİLEREK okunmaz (2026-09-14): onlar bir görev değil
+  // yalnızca "bu hesap bu firmanın içeriklerini yönetebilir" yetkisidir — bkz. o dosyadaki
+  // KALDIRILDI notu. Aksi halde yeni açılan HER kişi kaydı, kaydı açan hesabın yönetici olduğu tüm
+  // firmalarla ön-dolardı.
   const officeInput = document.getElementById('m-office');
   if(!officeInput.value){
     await applyOfficeMemberships({ officeTexts: [], offices: [], own: true });
@@ -1584,16 +1583,20 @@ async function maybeAutoFillFromAccount(){
 // sayfası ile profilini düzenle sayfası aynı bilgilere sahip olsun, dinamik ve eş zamanlı çalışsın").
 // Üç ön-doldurma yolu (prefillForClaim, prefillForEdit, maybeAutoFillFromAccount) da buradan geçer;
 // birleştirme kuralı office-picker.js#mergeOfficeMembershipNames'te, auth-modal.js#prefillFirmaSelect
-// ile BİREBİR aynı fonksiyon. Hesaba bağlı kaynaklar (/api/claims/mine: talepler + officeLinks)
-// YALNIZCA düzenlenen profil oturumdaki hesabın KENDİ profiliyse eklenir — admin ya da firma yetkilisi
-// başkasının profilini düzenlerken kendi firmaları o kişinin kutusuna sızmasın.
+// ile BİREBİR aynı fonksiyon. Hesaba bağlı kaynak (/api/claims/mine: officeLinks — hesabın KİŞİ
+// profilinin office_founders bağları) YALNIZCA düzenlenen profil oturumdaki hesabın KENDİ profiliyse
+// eklenir — admin ya da firma yetkilisi başkasının profilini düzenlerken kendi firmaları o kişinin
+// kutusuna sızmasın. Aynı yanıtın `items` (profile_claims) alanı ARTIK HİÇ OKUNMUYOR: o satırlar
+// görev değil yalnızca yetkidir ve kutuya sızdıklarında kendi kendini büyüten bir döngü kuruyorlardı
+// (bkz. office-picker.js#mergeOfficeMembershipNames'teki KALDIRILDI notu, kullanıcı bildirimi
+// 2026-09-14).
 let myMembershipPromise = null;
 function fetchMyMembershipSources(){
   if(!myMembershipPromise){
     myMembershipPromise = fetch('/api/claims/mine')
       .then(r => (r.ok ? r.json() : null))
-      .then(d => ({ claims: (d && d.items) || [], officeLinks: (d && d.officeLinks) || [], architectProfile: (d && d.architectProfile) || null }))
-      .catch(() => ({ claims: [], officeLinks: [], architectProfile: null }));
+      .then(d => ({ officeLinks: (d && d.officeLinks) || [], architectProfile: (d && d.architectProfile) || null }))
+      .catch(() => ({ officeLinks: [], architectProfile: null }));
   }
   return myMembershipPromise;
 }
@@ -1623,8 +1626,8 @@ async function isOwnAccountProfile(name){
   return !!user.name && trLower(user.name) === n;
 }
 async function applyOfficeMemberships({ officeTexts, offices, own }){
-  const account = own ? await fetchMyMembershipSources() : { claims: [], officeLinks: [] };
-  const names = mergeOfficeMembershipNames({ officeTexts, offices, officeLinks: account.officeLinks, claims: account.claims });
+  const account = own ? await fetchMyMembershipSources() : { officeLinks: [] };
+  const names = mergeOfficeMembershipNames({ officeTexts, offices, officeLinks: account.officeLinks });
   document.getElementById('m-office').value = names.join(', ');
   officePicker.syncFromInput();
 }
@@ -1763,6 +1766,11 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
       // döndüğü GÜNCEL slug'a güvenilir (bkz. src/routes/submissions.js#updateOwnSubmission), yeni
       // kayıtta (data.slug yoksa) isimden aynı algoritmayla türetilen slug'a düşülür.
       const finalSlug = data.slug || slugify(payload.name);
+      // Popup, bu kaydı ÖNBELLEKTEN DEĞİL tazeden okusun (kullanıcı isteği, 2026-09-14:
+      // "değişiklikler otomatik olarak popupa yansısın") — tam gerekçe ve üç önbellek katmanı:
+      // js/components/modal-shell.js#consumeFreshEntityMarker. İşaret tek kullanımlıktır, yalnızca
+      // bu yolun popup'ı tüketir.
+      if(window.ModalShell && ModalShell.markEntityFresh) ModalShell.markEntityFresh(`/api/architect/${encodeURIComponent(finalSlug)}`);
       setTimeout(()=>{ window.location.replace(`/kisi/${encodeURIComponent(finalSlug)}`); }, 1200);
       return;
     }

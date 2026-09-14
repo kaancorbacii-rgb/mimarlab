@@ -285,14 +285,38 @@
   //   2. office_founders bağları — admin ya da firma yetkilisi kişiyi firmanın Kurucular/Ekip kutusuna
   //      yazdığında oluşur, kişi kaydının `office` alanına HİÇ yazılmaz (/api/architect/:key yanıtının
   //      üst düzey `offices` dizisi; kişinin kendi hesabı için /api/claims/mine -> officeLinks);
-  //   3. onaylı/beklemedeki profile_claims('office') talepleri (/api/claims/mine -> items) — admin
-  //      "Deneme Firması'na Yönetici olarak ata" dediğinde de tam olarak bu satır oluşur;
-  //   4. reddedilmiş talepler — bilinçli olarak DIŞARIDA.
-  // Bu fonksiyon dördünü TEK listeye indirger; hem kisi-ekle.html'in ön-doldurma yolları hem
+  //   3. profile_claims('office') satırları — ARTIK KAYNAK DEĞİL, bkz. aşağıdaki KALDIRILDI notu.
+  // Bu fonksiyon (1) ve (2)'yi TEK listeye indirger; hem kisi-ekle.html'in ön-doldurma yolları hem
   // js/components/auth-modal.js#prefillFirmaSelect başka bir şey okumaz. Sıra: kişi kaydının kendi
   // metni önce (ilk ad canonicalSync#syncArchitect'te "birincil firma" olur, o yüzden korunur),
-  // sonra kanonik founders bağları, hesabın officeLinks'i, en son talepler. Tekilleştirme Türkçe
-  // casefold ile ("MİMARLAB" ↔ "Mimarlab" tek çip).
+  // sonra kanonik founders bağları, en son hesabın officeLinks'i. Tekilleştirme Türkçe casefold ile
+  // ("MİMARLAB" ↔ "Mimarlab" tek çip).
+  //
+  // KALDIRILDI — profile_claims('office') (kullanıcı bildirimi, 2026-09-14: "Birçok firmada Yönetici
+  // rolünde olan warchdb@gmail.com hesabıyla Kaan Çorbacı profilini düzenledim ve otomatik olarak o
+  // hesabın yönetici olduğu diğer 2 firma Kaan Çorbacı'nın profilinde gözükmeye başladı. Ben böyle
+  // bir ekleme yapmadım, bu sorunu kökten çöz").
+  //
+  // KÖK NEDEN: bu liste bir zamanlar hesabın onaylı/beklemedeki TÜM ofis taleplerini de içeriyordu.
+  // Oysa bir profile_claims('office') satırı GÖREV BEYANI DEĞİL, yalnızca YETKİDİR — atama anında
+  // dondurulan değer her zaman 'Yönetici'dir ve bu bilinçli olarak künyeye hiç yazılmaz (bkz.
+  // src/routes/admin.js#normalizeOfficePosition: "atama artık bir ünvan değil, yalnızca yetkidir ...
+  // firma pop-up'ının Kurucular/Ekip listelerinde görünmez", src/routes/office.js#buildOfficePeople).
+  // Yani "bu hesap bu firmanın içeriklerini yönetebilir" bilgisi, kutuya "bu KİŞİ bu firmada
+  // görevlidir" diye yazılıyordu. Sonuç bir DÖNGÜYDÜ: n firmanın yöneticisi olan bir hesap herhangi
+  // bir kişi profilini (kendi profili dahil) açtığında kutu o n firmayla ön-doluyor, Kaydet o metni
+  // architect_submissions.office'e yazıyor, canonicalSync#syncArchitect her adı office_founders'a
+  // bağlıyor (yönetici zaten ONAYLI talebe sahip olduğundan splitAdminApprovedOffices kapısı da
+  // açık) ve firmalar kişinin pop-up'ında "Firma" olarak beliriyordu — kullanıcı hiçbir seçim
+  // yapmadan. Kutuda kalan iki kaynak da YAPISAL bağlardır (kişinin kendi kaydındaki metin +
+  // office_founders), yani yalnızca birinin gerçekten o kişiyi firmaya bağladığı durumda dolarlar.
+  //
+  // Bu, 2026-09-08'deki "admin atamasıyla gelen firma da kutuda görünsün" isteğini BOZMAZ: admin bir
+  // kişiyi bir firmanın Kurucular/Ekip kutusuna yazdığında oluşan bağ office_founders satırıdır ve o
+  // hâlâ (2) üzerinden okunur. Kaybolan tek şey, kişiyle hiçbir yapısal bağı olmayan salt yetki
+  // satırıydı. Kullanıcının kendi seçtiği (henüz onaylanmamış) firmalar da kaybolmaz: seçim aynı
+  // Kaydet'te kişi kaydının `office` metnine yazılır (bkz. kisi-ekle.html#payload.office ve
+  // auth-modal.js#submitArchitectSyncIfNeeded), yani (1) üzerinden geri okunur.
   //
   // Kaydetme tarafında bu birleşim GÜVENLİDİR: canonicalSync#syncOfficeFounderLink form metninde
   // OLMAYAN bağları siler — yani admin'in office_founders'a eklediği bir firmanın kutuda görünmemesi
@@ -301,7 +325,8 @@
   //
   // src.officeTexts  — virgüllü metinler (kayıt alanları), src.offices — /api/architect/:key `offices`
   // (unregistered olanlar atlanır: picker yalnızca kayıtlı adları listeler), src.officeLinks —
-  // /api/claims/mine officeLinks, src.claims — /api/claims/mine items.
+  // /api/claims/mine officeLinks. src.claims KABUL EDİLMEZ (bkz. yukarıdaki KALDIRILDI notu) —
+  // verilse bile yok sayılır ki eski bir çağıran sessizce döngüyü geri getirmesin.
   function mergeOfficeMembershipNames(src) {
     const s = src || {};
     const out = [];
@@ -317,9 +342,6 @@
     (s.officeTexts || []).forEach(txt => String(txt == null ? '' : txt).split(',').forEach(push));
     (s.offices || []).forEach(o => { if (o && !o.unregistered) push(o.name); });
     (s.officeLinks || []).forEach(l => push(l && l.name));
-    (s.claims || [])
-      .filter(c => c && c.profile_type === 'office' && (c.status === 'approved' || c.status === 'pending'))
-      .forEach(c => push(c.profile_key));
     return out;
   }
 
