@@ -45,8 +45,29 @@ import { homedir } from 'node:os';
 globalThis.caches ||= { default: { match: async () => undefined, put: async () => {}, delete: async () => true } };
 
 const { runContentAction } = await import('../src/routes/legacyContent.js');
+const { normalizeOfficeCats } = await import('../src/lib/officeUrl.js');
 const officeKind = (await import('../office-kind.js')).default;
-const { isBrandOffice, officeCatList } = officeKind;
+const { isBrandOffice, officeCatList, OFFICE_SERVICE_CATS } = officeKind;
+
+// GERÇEK BULGU (dry-run #1, 2026-09-14): `offices.cats`'in HAM D1 değeri çoğu satırda JSON'a
+// SARILMIŞ bir string ('"Mimarlık · İç Mimarlık"') ya da JSON dizi ('["Ürün"]'). officeCatList
+// bu iki biçimi ÇÖZMEZ — tırnakları kategori adının parçası sayar:
+//   officeCatList('"Mimarlık · İç Mimarlık"') -> ['"Mimarlık', 'İç Mimarlık"']
+//   officeCatList('["Ürün"]')                 -> ['["Ürün"]']
+// Bu hâliyle yazsaydık 35 firmanın cats'i bozulurdu ("Üretim ve Satış · ["Ürün"]").
+// normalizeOfficeCats (src/lib/officeUrl.js) ham JSON'u çözen TEK yardımcıdır — kanonik URL kararı
+// da bu yüzden onu kullanıyor (bkz. o dosyadaki AYNI gerçek bulgu). İkisi zincirlenir.
+const catListOf = (rawCats) => officeCatList(normalizeOfficeCats(rawCats));
+
+const SERVICE_SET = new Set(OFFICE_SERVICE_CATS);
+// "Saf marka" = hiçbir MİMARLIK HİZMETİ sunmayan üretici (VitrA, Ytong, Koleksiyon...).
+// office-kind.js#isPureBrandOffice artık sabit false döndürüyor (site tarafında böyle bir kategori
+// yok) — ama ARŞİVLEME kararı için ayrım hâlâ gerekli, o yüzden burada yerinde hesaplanır.
+// isBrandOffice de AYNI ham-JSON sorunundan etkilenir (o da officeCatList'i doğrudan çağırıyor):
+// cats='"Mobilya"' + ürünü olmayan bir kayıt ÜRETİCİ SAYILMAZDI. Bu yüzden her iki yardımcıya da
+// normalize edilmiş değer verilir.
+const isProducerRow = (rawCats, n) => isBrandOffice(normalizeOfficeCats(rawCats), n);
+const isPureBrandRow = (rawCats, n) => isProducerRow(rawCats, n) && !catListOf(rawCats).some(c => SERVICE_SET.has(c));
 
 const URETIM_CAT = 'Üretim ve Satış';
 const KEEP_LIVE_NAME = 'BİRİM Design';   // canonical offices.name ile birebir
@@ -116,31 +137,45 @@ const productCount = new Map(countRows.map(r => [r.id, Number(r.n) || 0]));
 // yani arşivlenmeleri gerekir — bkz. src/lib/officeArchiveCascade.js#isAlreadyArchived.
 const isArchived = (r) => !!r.hidden_at && !r.preview_at;
 
-const producers = officeRows.filter(o => isBrandOffice(o.cats, productCount.get(o.id) || 0));
+const producers = officeRows.filter(o => isProducerRow(o.cats, productCount.get(o.id) || 0));
 console.log(`${officeRows.length} ofis kaydı — üretici (isBrandOffice) olan: ${producers.length}\n`);
 
 // ---------------------------------------------------------------------------------------------
 // PLANLA
 // ---------------------------------------------------------------------------------------------
+// BİRİM Design TÜM ofis satırları arasında aranır, yalnızca `producers` içinde değil: üretici
+// tespiti ürün sayısına da bağlı ve kayıt bir gün ürünsüz kalabilir — o durumda "bulunamadı"
+// deyip yayına alma adımını sessizce atlamak yanlış olurdu.
+const keepLiveRow = officeRows.find(o => o.name === KEEP_LIVE_NAME) || null;
+
 const catsPlan = [];   // { row, nextCats }
-const toArchive = [];  // arşivde OLMAYAN üreticiler (BİRİM Design hariç)
-let keepLiveRow = null;
+const toArchive = [];  // arşivde OLMAYAN SAF markalar (BİRİM Design hariç)
+const keptLive = [];   // üretici ama mimarlık hizmeti de veren firmalar — arşive GÖNDERİLMEZ
 
 for (const o of producers) {
-  const current = officeCatList(o.cats);
+  const current = catListOf(o.cats);
   if (!current.includes(URETIM_CAT)) {
     // 'Üretim ve Satış' EN BAŞA: firma künyesinde önce hizmet alanı, sonra ürün kategorileri
     // okunsun (firma-ekle.html'de de kutuların sırası böyle).
     catsPlan.push({ row: o, nextCats: [URETIM_CAT, ...current].join(' · ') });
   }
-  if (o.name === KEEP_LIVE_NAME) { keepLiveRow = o; continue; }
+  if (o.name === KEEP_LIVE_NAME) continue;   // yayında kalır; satırı aşağıda TÜM kayıtlar arasından bulunur
+  // ARŞİVLEME YALNIZCA SAF MARKALARA (dry-run #1 bulgusu, 2026-09-14): isBrandOffice ürün SAYISINA
+  // da baktığından Autoban / +MURAT TABANLIOĞLU STUDIO / Designnobis gibi ürün de tasarlayan
+  // MİMARLIK FİRMALARINI da "üretici" sayıyor. Kullanıcının isteği "hali hazırdaki MARKALAR ...
+  // arşivde kalsın" idi; canlı bir mimarlık firmasını yayından kaldırmak istenen şey DEĞİL.
+  // 'Üretim ve Satış' etiketi onlara yine eklenir (gerçekten ürün üretiyorlar), yalnızca arşive
+  // gönderilmezler.
+  if (!isPureBrandRow(o.cats, productCount.get(o.id) || 0)) { keptLive.push(o); continue; }
   if (!isArchived(o)) toArchive.push(o);
 }
 
 console.log(`1) 'Üretim ve Satış' eklenecek: ${catsPlan.length} kayıt`);
 for (const p of catsPlan) console.log(`   · ${p.row.name}  ["${p.row.cats ?? ''}"] -> "${p.nextCats}"`);
-console.log(`\n2) Arşivlenecek (zaten arşivde olmayan üreticiler): ${toArchive.length} kayıt`);
+console.log(`\n2) Arşivlenecek (zaten arşivde olmayan SAF markalar): ${toArchive.length} kayıt`);
 for (const o of toArchive) console.log(`   · ${o.name}${o.preview_at ? '  [önizlemede]' : ''}`);
+console.log(`\n2b) Üretici ama MİMARLIK FİRMASI — arşive gönderilmez, yalnızca etiketlenir: ${keptLive.length} kayıt`);
+for (const o of keptLive) console.log(`   · ${o.name}  [${catListOf(o.cats).join(' · ')}]`);
 console.log(`\n3) Yayında KALACAK: ${KEEP_LIVE_NAME} — ${keepLiveRow ? (isArchived(keepLiveRow) ? 'ŞU AN ARŞİVDE, yayına alınacak' : 'zaten yayında') : 'KAYIT BULUNAMADI (aşağıya bkz.)'}`);
 if (!keepLiveRow) {
   console.log(`   UYARI: "${KEEP_LIVE_NAME}" adında bir ofis kaydı yok ya da üretici sayılmıyor.`);
