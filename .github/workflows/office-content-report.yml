@@ -1,0 +1,81 @@
+name: Firma içerik raporu (salt okunur)
+
+# BİR FİRMANIN PROJELERİNİ/KİŞİLERİNİ VE DURUMLARINI (yayında / arşivde / önizleme) RAPORLAR.
+# İlk kullanım: kullanıcı sorusu, 2026-09-14 — "Yerce Mimarlık'a ait proje arşivinde hangi projeler
+# kaldı?".
+#
+# NEDEN WORKFLOW — UZAK OTURUMDAN ÇALIŞTIRILAMIYOR: Claude Code'un uzak (web/telefon) oturumu izole
+# bir konteynerde çalışır; ağ politikası hem `api.cloudflare.com` hem `mimarlab.com` çıkışını
+# reddeder (ölçüldü, 2026-09-14: CONNECT reddedildi), yani D1 oradan HİÇ okunamaz ve bu soru
+# yanıtlanamaz. Runner'da hem ağ hem kimlik bilgisi var. Aynı gerekçe deploy.yml, migrate.yml,
+# gundem-retitle.yml, archive-ofist.yml ve promote-office-newest-project.yml başlarında da yazılı;
+# bu workflow onların kardeşidir.
+#
+# NE YAPAR / NE YAPMAZ: SALT OKUNUR. Betik SELECT olmayan her ifadeyi reddeder (bkz.
+# scripts/report-office-content.mjs) ve canlı yazma yollarını içe bile aktarmaz — arşivleme,
+# yayına alma, sıralama, silme YOK. Bu yüzden `apply` girdisi de yoktur.
+#
+# ÇIKTI: log + artifact (office-content-report.txt).
+
+on:
+  workflow_dispatch:
+    inputs:
+      office:
+        description: 'Firma adı (offices.name ile birebir; bulunamazsa ilk kelimeyle aday taraması)'
+        required: false
+        default: 'Yerce Mimarlık'
+
+# İki tur aynı anda dönebilir (hiçbir şey yazılmıyor), yine de log'ları karıştırmamak için seri.
+concurrency:
+  group: mimarlab-office-content-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1; fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1; fi
+          if [ "$missing" -eq 1 ]; then
+            echo "Kurulum adımları deploy.yml'in aynı adımında listeli." >&2
+            echo "Bu iş için gereken izin: D1:Read (Account kapsamlı) yeter." >&2
+            exit 1
+          fi
+          echo "Cloudflare sırları yerinde."
+
+      # Betik yalnızca kendisini ve D1'i kullanıyor; depo git içinde ~3,3 GB görsel taşıyor
+      # (projects/ + miras/) ve bu iş için tamamen gereksiz. Sparse checkout: scripts/.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: scripts
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Raporla
+        env:
+          IN_OFFICE: ${{ inputs.office }}
+        run: |
+          set -o pipefail
+          # Kullanıcı girdisi kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak okunur
+          # (deploy.yml/archive-ofist.yml'deki aynı script-injection savunması).
+          node scripts/report-office-content.mjs --office="${IN_OFFICE}" 2>&1 | tee office-content-report.txt
+
+      - name: Rapor (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: office-content-report
+          path: office-content-report.txt
+          if-no-files-found: warn
