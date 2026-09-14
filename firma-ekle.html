@@ -359,13 +359,36 @@
                 <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div class="dd-panel">
-                <!-- Seçenekler artık office-kind.js#OFFICE_SERVICE_CATS'ten üretiliyor (aşağıya bkz.) —
-                     'Ürün' ve 'Yapı Malzemesi' KALDIRILDI, ikisi de artık marka-ekle.html'in işi
-                     (kullanıcı isteği, 2026-08-31: "Firma sayfasındaki filtrelerdeki ürün seçeneğini
-                     kaldır"). Sunucu tarafı da AYNI listeyi doğrular, bkz. src/lib/submissionTypes.js. -->
+                <!-- Seçenekler office-kind.js#OFFICE_SERVICE_CATS'ten üretiliyor (aşağıya bkz.).
+                     Sunucu tarafı da AYNI listeyi doğrular, bkz. src/lib/submissionTypes.js. -->
                 <div class="dd-options" id="dd-hizmet-options"></div>
               </div>
             </div>
+          </div>
+          <!-- ÜRÜN KATEGORİSİ — yalnızca "Üretim ve Satış" hizmet alanı seçiliyken görünür
+               (kullanıcı isteği, 2026-09-14 madde 4: "Eğer bir firma eklenirken hizmet alanı üretim
+               ve satış seçilirse bir de marka ekle sayfasındakiyle aynı şekilde ürün kategorisi
+               butonu çıksın ve kullanıcı ürün kategorisi seçsin. Ama bu buton sadece firmalar için
+               hizmet alanı seçildiğinde belirsin.") — kaldırılan marka-ekle.html'deki kutunun
+               birebir aynısı, aynı seçeneklerle (office-kind.js#PRODUCT_CATS).
+
+               NEDEN AYNI `name="cats"`: seçimler offices.cats kolonuna Hizmet Alanı ile BİRLİKTE,
+               tek bir " · " listesi olarak yazılır. Böylece (a) yeni bir kolon/migration gerekmez,
+               (b) kaydetme (form.querySelectorAll('input[name="cats"]:checked')) ve geri yükleme
+               (prefill) yolları HİÇ DEĞİŞMEZ, (c) sunucu doğrulaması zaten iki listenin
+               BİRLEŞİMİNİ kabul ediyor (src/lib/submissionTypes.js#OFFICE_CATS_ALLOWED). -->
+          <div class="form-field" id="urunkat-field" hidden>
+            <label for="dd-urunkat-btn">Ürün Kategorisi <span class="req" aria-hidden="true">*</span></label>
+            <div class="dd-field" id="dd-urunkat">
+              <button type="button" class="dd-btn" id="dd-urunkat-btn">
+                <span id="dd-urunkat-btn-label">Ürün kategorisi seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <div class="dd-options" id="dd-urunkat-options"></div>
+              </div>
+            </div>
+            <div class="form-hint">Ürettiğin ya da sattığın ürünlerin kategorisini seç.</div>
           </div>
         </div>
         <fieldset class="form-field">
@@ -739,6 +762,39 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 // doğrulanır) dinamik üretilir — Ödül kutusunun ODUL_OPTIONS deseniyle BİREBİR aynı.
 document.getElementById('dd-hizmet-options').innerHTML = OFFICE_SERVICE_CATS.map(c => `<label class="dd-option"><input type="checkbox" name="cats" value="${escapeAttr(c)}"> ${escapeAttr(c)}</label>`).join('');
 const updateHizmetLabel = wireMultiDropdown('dd-hizmet', 'dd-hizmet-btn', 'dd-hizmet-btn-label', 'Hizmet alanı seç');
+
+// ---------- ÜRÜN KATEGORİSİ: yalnızca "Üretim ve Satış" seçiliyken (kullanıcı isteği, 2026-09-14
+// madde 4) ----------
+// Kutu, kaldırılan marka-ekle.html'deki kutunun aynısıdır ve AYNI office-kind.js listesinden
+// (PRODUCT_CATS, eski adıyla BRAND_CATS) üretilir. Seçimler Hizmet Alanı ile aynı `cats` kolonuna
+// yazılır — bkz. HTML'deki uzun gerekçe.
+const URETIM_CAT = 'Üretim ve Satış';
+document.getElementById('dd-urunkat-options').innerHTML = PRODUCT_CATS.map(c => `<label class="dd-option"><input type="checkbox" name="cats" value="${escapeAttr(c)}"> ${escapeAttr(c)}</label>`).join('');
+const updateUrunKatLabel = wireMultiDropdown('dd-urunkat', 'dd-urunkat-btn', 'dd-urunkat-btn-label', 'Ürün kategorisi seç');
+
+function urunKatBoxes(){
+  return Array.from(document.querySelectorAll('#dd-urunkat-options input[name="cats"]'));
+}
+function isUretimSelected(){
+  return Array.from(document.querySelectorAll('#dd-hizmet-options input[name="cats"]'))
+    .some(cb => cb.checked && cb.value === URETIM_CAT);
+}
+// Hizmet alanı seçimi değiştikçe kutuyu aç/kapat. KAPANIRKEN İŞARETLER TEMİZLENİR: aksi halde
+// kullanıcı "Üretim ve Satış"ı işaretleyip bir kategori seçtikten sonra hizmet alanını geri
+// alsaydı, ekranda görünmeyen o kategoriler yine de `cats`e yazılır ve firma sessizce üretici
+// sayılmaya devam ederdi (isBrandOffice o değerleri okuyor).
+function syncUrunKatVisibility(){
+  const field = document.getElementById('urunkat-field');
+  const show = isUretimSelected();
+  if(!show){
+    urunKatBoxes().forEach(cb => { cb.checked = false; });
+    document.getElementById('dd-urunkat').classList.remove('open');
+    updateUrunKatLabel();
+  }
+  field.hidden = !show;
+}
+document.querySelectorAll('#dd-hizmet-options input[name="cats"]').forEach(cb => cb.addEventListener('change', syncUrunKatVisibility));
+syncUrunKatVisibility();
 // Ödül: kisi-ekle.html/proje-ekle.html ile PAYLAŞILAN ODUL_OPTIONS'tan (bkz. awards-shared.js)
 // dinamik olarak üretilir, sonra hizmet alanı ile AYNI wireMultiDropdown'a bağlanır.
 document.getElementById('dd-odul-options').innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" name="award" value="${escapeAttr(o)}"> ${escapeAttr(o)}</label>`).join('');
@@ -1101,6 +1157,9 @@ async function prefillForEdit(){
     }catch{}
     const catList = (item.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
     document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
+    // Kayıtlı bir firma "Üretim ve Satış" taşıyorsa Ürün Kategorisi kutusu AÇIK yüklenmeli ve
+    // kayıtlı kategorilerini göstermeli (yukarıdaki döngü onları da işaretledi).
+    syncUrunKatVisibility(); updateUrunKatLabel();
     updateHizmetLabel();
     document.querySelectorAll('input[name="award"]').forEach(cb => cb.checked = (item.awards || []).includes(cb.value));
     updateOdulLabel();
@@ -1223,6 +1282,9 @@ async function prefillForClaim(){
   // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.
   const catList = Array.isArray(merged.cats) ? merged.cats : (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
   document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
+  // Kayıtlı bir firma "Üretim ve Satış" taşıyorsa Ürün Kategorisi kutusu AÇIK yüklenmeli ve
+  // kayıtlı kategorilerini göstermeli (yukarıdaki döngü onları da işaretledi).
+  syncUrunKatVisibility(); updateUrunKatLabel();
   updateHizmetLabel();
   document.querySelectorAll('input[name="award"]').forEach(cb => cb.checked = (merged.awards || []).includes(cb.value));
   updateOdulLabel();
@@ -1338,11 +1400,22 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
+  // Hizmet Alanı + (varsa) Ürün Kategorisi tek bir `cats` listesinde toplanır — ikisi de
+  // name="cats" (bkz. Ürün Kategorisi kutusundaki gerekçe).
   const cats = Array.from(form.querySelectorAll('input[name="cats"]:checked')).map(el => el.value);
-  if(!cats.length){
+  if(!cats.some(c => OFFICE_SERVICE_CATS.includes(c))){
     notice.textContent = 'Lütfen en az bir hizmet alanı seç.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  // "Üretim ve Satış" seçiliyse ürün kategorisi ZORUNLU (kullanıcı isteği, 2026-09-14 madde 4:
+  // "...ürün kategorisi butonu çıksın ve kullanıcı ürün kategorisi seçsin"). Kutu yalnızca o
+  // hizmet alanı seçiliyken görünür olduğundan bu kontrol başka hiçbir firmayı etkilemez.
+  if(isUretimSelected() && !cats.some(c => PRODUCT_CATS.includes(c))){
+    notice.textContent = 'Üretim ve Satış hizmet alanı için en az bir ürün kategorisi seç.';
+    notice.classList.add('show');
+    document.getElementById('urunkat-field').scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
   const loc = selectedIlce ? `${selectedIl} / ${selectedIlce}` : selectedIl;

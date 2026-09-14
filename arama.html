@@ -318,7 +318,6 @@ const SITE_PAGES = [
   { title: 'Kişiler', href: '/kisi', meta: 'Kişi listesi', keywords: 'mimar tasarimci fotografci ogrenci' },
   { title: 'Firmalar', href: '/firma', meta: 'Firma listesi', keywords: 'ofis studyo buro' },
   { title: 'Ürünler', href: '/urun', meta: 'Ürün ve malzeme kataloğu', keywords: 'malzeme katalog mobilya' },
-  { title: 'Markalar', href: '/marka', meta: 'Marka listesi', keywords: 'uretici' },
   { title: 'En İyi 100 Mimari Eser', href: '/en-iyi-100', meta: 'Sıralama', keywords: 'top 100 siralama puan' },
   { title: 'Neden MİMARLAB?', href: '/neden-mimarlab', meta: 'Kurumsal', keywords: 'tanitim sunum platform' },
   { title: 'Hakkında', href: '/hakkinda', meta: 'Kurumsal', keywords: 'biz kimiz' },
@@ -332,7 +331,6 @@ const SITE_PAGES = [
   { title: 'Kişi Ekle', href: '/kisi-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder mimar' },
   { title: 'Firma Ekle', href: '/firma-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
   { title: 'Ürün Ekle', href: '/urun-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
-  { title: 'Marka Ekle', href: '/marka-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
   { title: 'Gündem İçeriği Ekle', href: '/gundem-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder haber etkinlik yarisma gundem' },
 ];
 
@@ -524,7 +522,7 @@ async function runSearch(){
   const officeRow = o => rowHtml({
     // Sunucu kanonik yolu (`href`) zaten veriyor (bkz. src/lib/officeUrl.js); vermeyen kaynaklar
     // (AI kanalı) için saf marka bayrağına göre üretilir, sunucu gerekirse 301 ile düzeltir.
-    href: o.href || `${o.pureBrand ? '/marka/' : '/firma/'}${encodeURIComponent(o.slug)}`,
+    href: o.href || `/firma/${encodeURIComponent(o.slug)}`,
     avatarStyle: `background:${officeColor(o.name)}`,
     avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
     title: o.name,

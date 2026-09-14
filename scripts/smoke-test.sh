@@ -342,6 +342,18 @@ for legacy in /index.html /proje.html /kisi.html /firma.html /urun.html /marka.h
   fi
 done
 
+# MARKA SAYFALARI CANLIDAN KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4) — /marka, /marka-ekle
+# ve /marka/:slug 404 DEĞİL 301 dönmeli (içerik kaybolmadı, firma tarafına taşındı). Kontrol,
+# birinin yanlışlıkla geri açılmasını ya da 404'e düşmesini deploy sonrası yakalar.
+for gone in /marka /marka-ekle /marka/autoban; do
+  gone_code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$gone")
+  if [ "$gone_code" = "301" ]; then
+    ok "$gone -> 301 (firma tarafına taşındı)"
+  else
+    bad "$gone -> $gone_code (301 bekleniyordu; PATH_RENAME_REDIRECTS/PREFIX_RENAME_REDIRECTS girdisi kaybolmuş olabilir)"
+  fi
+done
+
 echo ""
 echo "14) Güvenli Görüşme Gateway'i (/gorusme/:room_uuid, 2026-09-08) — anonim/geçersiz erişim"
 # Anonim ziyaretçi giriş akışına yönlendirilir (302 /giris?next=...), geçersiz oda 404, çıplak yol

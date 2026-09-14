@@ -1437,7 +1437,7 @@ const InfoModal = (function () {
     <section class="nm-sec nm-hero" id="nm-sec-hero">
       <div class="nm-wrap">
         <h1 class="nm-h1">Türkiye'nin yapı dünyası<br><span class="nm-accent">tek bir ağda.</span></h1>
-        <p class="nm-lead">Proje, kişi, firma, ürün ve marka — hepsi birbirine bağlı.</p>
+        <p class="nm-lead">Proje, kişi, firma ve ürün — hepsi birbirine bağlı.</p>
         <div class="nm-btn-row">
           <a class="nm-btn" href="/proje">Platformu Keşfet</a>
           <a class="nm-btn nm-btn-ghost" href="/uye-ol">Ücretsiz Katıl</a>
@@ -1472,7 +1472,6 @@ const InfoModal = (function () {
           <a class="nm-stat" href="/kisi"><span class="nm-num" data-stat="architects">—</span><span class="nm-lab">Kişi</span></a>
           <a class="nm-stat" href="/firma"><span class="nm-num" data-stat="offices">—</span><span class="nm-lab">Firma</span></a>
           <a class="nm-stat" href="/urun"><span class="nm-num" data-stat="products">—</span><span class="nm-lab">Ürün</span></a>
-          <a class="nm-stat" href="/marka"><span class="nm-num" data-stat="brands">—</span><span class="nm-lab">Marka</span></a>
         </div>
         <p class="nm-note" id="nm-stats-note" role="status" aria-live="polite">Canlı veriler yükleniyor…</p>
       </div>
@@ -1606,10 +1605,13 @@ const InfoModal = (function () {
       </div>
     </section>
 
-    <!-- MARKA DUVARI — gerçek marka adları /api/offices?brands=1'den. -->
+    <!-- ÜRETİCİ FİRMA DUVARI — marka kavramı kaldırıldı (kullanıcı isteği, 2026-09-14 madde 4);
+         aynı uç (?brands=1) artık "kataloğunda ürünü olan FİRMALAR" anlamına geliyor, bkz.
+         office-kind.js#isBrandOffice. Bölüm id'si (#nm-sec-markalar) KORUNDU: sayfa içi
+         gezinme bağlantıları ve bölüm gözlemcisi bu id'ye bağlı. -->
     <section class="nm-sec nm-brands-sec" id="nm-sec-markalar" aria-labelledby="nm-markalar-h">
       <div class="nm-wrap">
-        <h2 class="nm-h2" id="nm-markalar-h">Platformdaki markalar</h2>
+        <h2 class="nm-h2" id="nm-markalar-h">Platformdaki üretici firmalar</h2>
         <div class="nm-brandwall" id="nm-brandwall"></div>
       </div>
     </section>
@@ -1792,7 +1794,7 @@ const InfoModal = (function () {
       nextBtn.addEventListener('click', () => { hotspotIndex++; renderHotspotSections(); });
     }
 
-    /* ---------- Marka duvarı: gerçek markalar ---------- */
+    /* ---------- Üretici firma duvarı ---------- */
     (function () {
       const host = $('nm-brandwall');
       if (!host) return;

@@ -3,7 +3,7 @@
 // butonuna tıkladığımızda değişiklikler otomatik olarak popupa yansısın."
 //
 // Kaydetme, düzenleme formundan popup URL'ine TAM SAYFA dönüş yapar (kisi-ekle.html / firma-ekle.html
-// / marka-ekle.html#location.replace) ve popup o kaydı ÜÇ önbellek katmanının arkasından okuyabilir:
+// #location.replace) ve popup o kaydı ÜÇ önbellek katmanının arkasından okuyabilir:
 // SSR HTML'ine gömülü #ml-list-data (__mlPrefetch), Worker'ın PoP-başına caches.default girdisi ve
 // tarayıcının kendi HTTP önbelleği. Bkz. js/components/modal-shell.js#consumeFreshEntityMarker.
 //
@@ -132,7 +132,8 @@ await test('sessionStorage kapalıysa (private mode) hata fırlamaz, eski davran
 
 section('3) *-ekle sayfaları dönüşten önce işareti koyuyor');
 
-for (const [file, apiPrefix] of [['kisi-ekle.html', '/api/architect/'], ['firma-ekle.html', '/api/office/'], ['marka-ekle.html', '/api/office/']]) {
+// marka-ekle.html SİLİNDİ (kullanıcı isteği, 2026-09-14 madde 4) — listeden çıkarıldı.
+for (const [file, apiPrefix] of [['kisi-ekle.html', '/api/architect/'], ['firma-ekle.html', '/api/office/']]) {
   await test(`${file}: kaydet -> popup dönüşünden önce markEntityFresh('${apiPrefix}<slug>')`, () => {
     const src = readFileSync(new URL(file, root), 'utf8');
     const marker = src.indexOf(`ModalShell.markEntityFresh(\`${apiPrefix}\${encodeURIComponent(finalSlug)}\`)`);

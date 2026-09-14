@@ -210,14 +210,15 @@ await test('tam arşivli profil (hidden_at DOLU, preview_at NULL) link üretmez,
   assert.equal((await getThread(env, TOKEN_RECIPIENT)).senderProfile.href, '/kisi/gizli');
 });
 
-await test('firma profili /firma/:slug, SAF MARKA /marka/:slug döner', async () => {
+// MARKA ÖNEKİ KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4): her ofis kaydı /firma/:slug.
+// Test tersine çevrildi — yalnızca ürün kategorisi taşıyan bir kayıt da artık /firma/ döner.
+await test('firma profili /firma/:slug döner — üretici kayıtta da AYNI önek', async () => {
   const { db, env } = await freshEnv();
   db.prepare(`INSERT INTO offices (slug, name, cats, source, claimed_by_user_id) VALUES ('bir-firma', 'Bir Firma', ?, 'admin', 'u-sender')`)
     .run(JSON.stringify(['Mimarlık']));
   assert.equal((await getThread(env, TOKEN_RECIPIENT)).senderProfile.href, '/firma/bir-firma');
-  // Saf marka: yalnızca ürün kategorileri -> kanonik önek /marka/ (bkz. src/lib/officeUrl.js)
-  db.prepare(`UPDATE offices SET cats = ? WHERE slug = 'bir-firma'`).run(JSON.stringify(['Mobilya']));
-  assert.equal((await getThread(env, TOKEN_RECIPIENT)).senderProfile.href, '/marka/bir-firma');
+  db.prepare(`UPDATE offices SET cats = ? WHERE slug = 'bir-firma'`).run(JSON.stringify(['Üretim ve Satış', 'Mobilya']));
+  assert.equal((await getThread(env, TOKEN_RECIPIENT)).senderProfile.href, '/firma/bir-firma');
 });
 
 await test('kişi profili firma profiline göre ÖNCELİKLİ', async () => {

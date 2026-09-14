@@ -127,7 +127,8 @@ const ENTITY_CSS = {
   architect: { file: 'css/architect-detail.css', module: 'js/components/architect-modal.js',
     pages: ['kisi.html', 'kisi-ekle.html'], probe: ['am-identity', 'detail-title', 'detail-meta'] },
   office: { file: 'css/office-detail.css', module: 'js/components/office-modal.js',
-    pages: ['firma.html', 'firma-ekle.html', 'marka.html', 'marka-ekle.html', 'neden-mimarlab.html'],
+    // marka.html / marka-ekle.html SİLİNDİ (kullanıcı isteği, 2026-09-14 madde 4).
+    pages: ['firma.html', 'firma-ekle.html', 'neden-mimarlab.html'],
     probe: ['om-identity', 'detail-title', 'detail-meta'] },
   product: { file: 'css/product-detail.css', module: 'js/components/product-modal.js',
     pages: ['urun.html', 'urun-ekle.html', 'proje.html', 'en-iyi-100.html'],
@@ -159,8 +160,8 @@ await test('modülü kendi <script>\'iyle yükleyen HER sayfa stil dosyasını d
     }
     // Modülü <script> ile yükleyen başka bir sayfa varsa ve <link>'i yoksa yakala.
     const modRe = new RegExp(cfg.module.replace(/[/.]/g, m => '\\' + m));
-    for (const page of ['kisi.html','firma.html','marka.html','urun.html','proje.html','en-iyi-100.html',
-      'kisi-ekle.html','firma-ekle.html','marka-ekle.html','urun-ekle.html','neden-mimarlab.html','arama.html','index.html']) {
+    for (const page of ['kisi.html','firma.html','urun.html','proje.html','en-iyi-100.html',
+      'kisi-ekle.html','firma-ekle.html','urun-ekle.html','neden-mimarlab.html','arama.html','index.html']) {
       const html = read(page);
       if (!modRe.test(html)) continue;
       assert.ok(html.includes(`<link rel="stylesheet" href="/${cfg.file}">`),
@@ -203,9 +204,9 @@ await test('yükleme sırası: ortak dosya HER ZAMAN modalin kendi dosyasından 
     assert.ok(lm.includes(`cssDeps: ['css/entity-detail.css', 'css/${key}-detail.css']`),
       `${key}: cssDeps sırası ortak dosyayı önce yüklemeli`);
   }
-  for (const [page, own] of [['kisi.html', 'architect'], ['firma.html', 'office'], ['marka.html', 'office'],
+  for (const [page, own] of [['kisi.html', 'architect'], ['firma.html', 'office'],
     ['urun.html', 'product'], ['proje.html', 'product'], ['en-iyi-100.html', 'product'],
-    ['kisi-ekle.html', 'architect'], ['firma-ekle.html', 'office'], ['marka-ekle.html', 'office'],
+    ['kisi-ekle.html', 'architect'], ['firma-ekle.html', 'office'],
     ['urun-ekle.html', 'product'], ['neden-mimarlab.html', 'office']]) {
     const html = read(page);
     const iShared = html.indexOf('href="/css/entity-detail.css"');

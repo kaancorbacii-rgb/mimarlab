@@ -67,7 +67,7 @@ const ProjectModal = (function () {
          algoritmik önerilerden önce gelir. "Kullanılan Malzemeler" AYRI bir bölüm olarak KALDIRILDI:
          malzemeler de bu ızgaraya karışır (bkz. js/components/project-products.js#mount, kullanıcı
          isteği: "Malzemeler diye bir kısım olmasın, malzemeler de ürünler kısmına dahil edilsin"). -->
-    <!-- Kullanılan Ürünler ve Kullanılan Markalar AYRI SATIRLARDA, alt alta (kullanıcı isteği,
+    <!-- Kullanılan Ürünler ve Kullanılan Firmalar AYRI SATIRLARDA, alt alta (kullanıcı isteği,
          2026-09-05 madde 3 — 2026-09-01'de yan yana iki sütundu, bkz. injectStyles'taki not).
          js/components/architect-modal.js#am-two-col-row-stacked ile AYNI desen.
          Üstteki çizgiyi/boşluğu SARMALAYICI taşır (.related-section ondadır), hücreler yalnızca
@@ -79,7 +79,7 @@ const ProjectModal = (function () {
         <div class="related-grid-scroll" id="pm-products-grid"></div>
       </div>
       <div class="pm-two-col-cell" id="pm-brands-section" style="display:none;">
-        <h2 class="related-title">Kullanılan Markalar</h2>
+        <h2 class="related-title">Kullanılan Firmalar</h2>
         <div class="related-grid-scroll" id="pm-brands-grid"></div>
       </div>
     </div>

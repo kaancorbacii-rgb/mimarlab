@@ -199,21 +199,20 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/kisi/', asset: '/kisi', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
-  // /marka/:slug — AYNI `offices` kaydı, AYNI popup (marka.html firma.html'in türetilmiş kopyasıdır,
-  // bkz. o dosyanın başı), yalnızca KANONİK ÖNEK farklı: saf markalar (office-kind.js#
-  // isPureBrandOffice) /marka/:slug altında yaşar (kullanıcı isteği, 2026-09-06 madde 2). İki önek
-  // arasındaki düzeltme serveDetailPage'te 301 ile yapılır — yani /firma/:slug ile gelen eski/dış
-  // bağlantılar kırılmaz, kanonik adrese yönlendirilir.
-  { prefix: '/marka/', asset: '/marka', type: 'office' },
+  // /marka/:slug KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4) — marka kavramı sitede yok,
+  // her ofis kaydı /firma/:slug altında yaşıyor. Eski bağlantılar PREFIX_RENAME_REDIRECTS'teki
+  // '/marka/' -> '/firma/' kuralıyla 301'lenir, yani indekslenmiş/paylaşılmış hiçbir adres kırılmaz.
   // /gundem/:slug — tek bir Gündem içeriğinin kalıcı adresi (paylaşım URL'i, madde 16). Diğer beş
   // girdiyle AYNI mekanizma: statik /gundem kabuğu servis edilir, injectMeta o kaydın title/OG/
   // JSON-LD'sini ve #ssr-entity-body gövdesini enjekte eder, sayfanın kendi JS'i yolu görüp aynı
   // içeriği tek kart olarak gösterir. type:'gundem' → src/lib/seo.js#BUILDERS.gundem.
   { prefix: '/gundem/', asset: '/gundem', type: 'gundem' },
 ];
-// Bir ofis kaydının İKİ olası önekinden hangisi olduğu buildMeta'nın ürettiği canonicalUrl'den
-// okunur (bkz. src/lib/seo.js#officeMetaFromRecord) — serveDetailPage bu ikisi arasında 301 atar.
-const OFFICE_URL_PREFIXES = ['/firma/', '/marka/'];
+// Ofis kaydının TEK öneki (kullanıcı isteği, 2026-09-14 madde 4 — '/marka/' çıkarıldı).
+// serveDetailPage'teki önek düzeltmesi bu listeye bakar; tek eleman kalınca o dal etkisiz hâle
+// gelir (kanonik önek her zaman zaten istenen önektir), ama kod yerinde bırakıldı: ileride ikinci
+// bir ofis öneki gerekirse düzeltme mekanizması hazır.
+const OFFICE_URL_PREFIXES = ['/firma/'];
 
 // serveDetailPage#type ('project'/'architect'/'office') -> slug_redirects.entity_type (bkz.
 // migrations/0041_slug_redirects.sql) — src/lib/canonicalSync.js/officeFounderCascade.js'teki AYNI
@@ -367,6 +366,15 @@ const PATH_RENAME_REDIRECTS = {
   '/malzeme.html': '/urun',
   '/malzeme-ekle': '/urun-ekle',
   '/malzeme-ekle.html': '/urun-ekle',
+  // MARKA SAYFALARI CANLIDAN KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4): marka kavramı yok,
+  // ürün üreten kayıtlar 'Üretim ve Satış' hizmet alanlı FİRMALAR. 404 DEĞİL 301: /marka ve
+  // /marka-ekle indekslenmiş, paylaşılmış ve site içinden yıllarca bağlanmış adreslerdi; içerikleri
+  // kaybolmadı, firma tarafına taşındı. Slug'lı /marka/:slug adresleri aşağıdaki
+  // PREFIX_RENAME_REDIRECTS'te yakalanır (bu tablo yalnızca TAM eşleşmeyi görür).
+  '/marka': '/firma',
+  '/marka.html': '/firma',
+  '/marka-ekle': '/firma-ekle',
+  '/marka-ekle.html': '/firma-ekle',
   // Giriş Yap/Üye Ol/Hesabım artık bağımsız sayfalar değil, her sayfada açılabilen popup modallar
   // (bkz. kullanıcı isteği, js/components/auth-modal.js) — eski dosya adlarına gelen istekler/
   // yer imleri temiz yol adlarına yönlendirilir, oradan AUTH_MODAL_ROUTES devralır (bkz. aşağısı).
@@ -420,7 +428,6 @@ const PATH_RENAME_REDIRECTS = {
   '/kisi.html': '/kisi',
   '/firma.html': '/firma',
   '/urun.html': '/urun',
-  '/marka.html': '/marka',
   '/gundem.html': '/gundem',
   '/arama.html': '/arama',
   '/pano.html': '/pano',
@@ -519,6 +526,9 @@ const INFO_MODAL_META = {
 // eşleşmesinden ÖNCE çalıştığından eski linkler önce yeni öneke 301'lenir, sonra normal şekilde servis edilir.
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
+  // /marka/:slug -> /firma/:slug (kullanıcı isteği, 2026-09-14 madde 4). AYNI `offices` satırı,
+  // yalnızca önek değişti; kayıt kaybolmadığı için 410 değil 301 doğru cevap.
+  { from: '/marka/', to: '/firma/' },
   { from: '/urunler/', to: '/urun/' },
   // Proje detay URL öneki artık /proje/:slug (bkz. kullanıcı isteği: Yapı sayfası Proje adını aldı)
   // — eski /projeler/:slug ve /yapi/:slug bağlantıları/yer imleri/indexlenmiş sonuçlar kırılmasın
@@ -540,8 +550,6 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
-  // marka.html — bkz. o dosyanın başındaki yorum (firma.html'in ?brands=1 ile daraltılmış kopyası).
-  { loc: '/marka', changefreq: 'weekly', priority: '0.7' },
   // Gündem (kullanıcı isteği, 2026-09-06) — içeriği cron ile günde birkaç kez değiştiği için
   // 'daily'; tekil /gundem/:slug URL'leri buildSitemapUrlBlocks'ta ayrıca listelenir.
   { loc: '/gundem', changefreq: 'daily', priority: '0.8' },
@@ -670,15 +678,15 @@ const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
 // yerine diğer liste sayfalarıyla aynı 60sn/300sn başlığını almasıdır (performans denetimi madde 6).
 // /proje/sayfa-7 -> '/proje' (bkz. çağrı noktasındaki gerekçe). Yalnızca bu beş liste yolu ve
 // yalnızca `sayfa-<pozitif tam sayı>` biçimi kabul edilir; başka her şey normal detay yoluna düşer.
-const PAGED_LIST_BASES = ['/proje', '/kisi', '/firma', '/marka', '/urun'];
-const PAGED_LIST_RE = /^(\/(?:proje|kisi|firma|marka|urun))\/sayfa-([1-9]\d{0,4})$/;
+const PAGED_LIST_BASES = ['/proje', '/kisi', '/firma', '/urun'];
+const PAGED_LIST_RE = /^(\/(?:proje|kisi|firma|urun))\/sayfa-([1-9]\d{0,4})$/;
 function matchPagedListPath(pathname) {
   const m = PAGED_LIST_RE.exec(pathname.replace(/\/+$/, ''));
   if (!m) return null;
   return PAGED_LIST_BASES.includes(m[1]) ? m[1] : null;
 }
 
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/arama', '/en-iyi-100', '/gundem']);
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/arama', '/en-iyi-100', '/gundem']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -1495,10 +1503,6 @@ const HUB_SSR = {
     urls: ['/api/offices?page=1&limit=24'],
     images: (d) => (d.items || []).slice(0, 4).map(o => o && o.cover),
   },
-  '/marka': {
-    urls: ['/api/offices?page=1&limit=24&brands=1'],
-    images: (d) => (d.items || []).slice(0, 4).map(o => o && o.cover),
-  },
   '/urun': {
     urls: ['/api/products?page=1&limit=24', '/api/products?page=1&limit=1'],
     images: (d) => (d.items || []).slice(0, 3).map(p => p && p.image),
@@ -1925,13 +1929,10 @@ async function loadHubPool(env, pathname) {
   if (pathname === '/proje') return fetchActiveProjectPoolCached(env, 'built');
   if (pathname === '/kisi') return fetchArchitectPool(env);
   if (pathname === '/urun') return fetchProductPool(env);
-  if (pathname === '/firma' || pathname === '/marka') {
-    const offices = await fetchOfficePool(env);
-    const { isBrandOffice, isPureBrandOffice } = officeKindJs;
-    return pathname === '/marka'
-      ? offices.filter(o => isBrandOffice(o.cats, o.productCount))
-      : offices.filter(o => !isPureBrandOffice(o.cats, o.productCount));
-  }
+  // /marka KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4) — tek ofis listesi var ve HİÇBİR kayıt
+  // elenmiyor (isPureBrandOffice artık sabit false, bkz. office-kind.js): eski markalar da bu
+  // listede, 'Üretim ve Satış' hizmet alanıyla.
+  if (pathname === '/firma') return fetchOfficePool(env);
   return [];
 }
 

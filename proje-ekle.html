@@ -231,8 +231,6 @@
   .dd-option.selected{background:var(--paper-alt); font-weight:600;}
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
-  /* Ürün panelinde marka başlığı (bkz. renderProductPanel). */
-  .dd-group-label{padding:10px 10px 4px; font-size:11.5px; font-weight:700; color:var(--ink-soft);}
   /* ---------- HARİTA (Konum) — opsiyonel il/ilçe altı konum işaretleme, bkz. kullanıcı isteği ---------- */
   /* GERÇEK BULGU: margin-top eskiden legend'in ALTINDA duran İl/İlçe dropdown satırından bu arama
      kutusuna nefes payı vermek içindi (bkz. kullanıcı isteği: o satır kaldırıldı) — artık bu,
@@ -700,7 +698,7 @@
             <label for="p-office-picker" id="p-office-label">Firma <span class="opt">(opsiyonel)</span></label>
             <input type="hidden" id="p-office" name="office">
             <div id="p-office-picker"></div>
-            <div class="form-hint">Listeden birden fazla firma ya da marka seçebilirsin.</div>
+            <div class="form-hint">Listeden birden fazla firma seçebilirsin.</div>
           </div>
           <div class="form-field ac-field" id="ac-mimar-field">
             <label for="p-designer" id="p-designer-label">Mimar <span class="opt">(opsiyonel)</span></label>
@@ -747,46 +745,42 @@
                  zorlanıyor (bkz. src/lib/aggregatorSources.js — böyle bir adres canonical kayda hiç
                  yazılmaz); buradaki cümle, girdisinin neden kaybolduğunu kullanıcının ÖNCEDEN
                  bilmesi içindir. -->
-            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma ya da marka yazarsan web sitesi buraya otomatik gelir. Yayın/arşiv siteleri (arkitera, archello, archdaily, divisare gibi) kabul edilmez — mimarlık firmasının kendi web sitesini gir ya da boş bırak.</div>
+            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma yazarsan web sitesi buraya otomatik gelir. Yayın/arşiv siteleri (arkitera, archello, archdaily, divisare gibi) kabul edilmez — mimarlık firmasının kendi web sitesini gir ya da boş bırak.</div>
           </div>
         </div>
       </div>
 
       <div class="form-section">
-        <h2>Projede Kullanılan Markalar / Ürünler <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Projede kullanılan markaları ya da ürünleri eklemek için marka ya da ürün arat. Ayrıca yüklediğin görsellere tıklayarak ürünleri etiketleyebilirsin.</p>
+        <!-- Başlık ve etiketler "marka" dilinden "firma" diline geçti (kullanıcı isteği,
+             2026-09-14 madde 1): marka kavramı sitede kaldırıldı, ürün üreten kayıtlar artık
+             "Üretim ve Satış" hizmet alanlı FİRMALAR (bkz. office-kind.js). Kutunun davranışı
+             DEĞİŞMEDİ — aynı offices/products kayıtlarını seçer. -->
+        <h2>Projede Kullanılan Ürünler <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Projede kullanılan ürünleri eklemek için önce ürünün firmasını, sonra ürünü seç. Ayrıca yüklediğin görsellere tıklayarak ürünleri etiketleyebilirsin.</p>
         <div class="form-field">
-          <!-- Marka ve Ürün SERBEST METİN DEĞİL, AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
+          <!-- Ürün firması ve Ürün SERBEST METİN DEĞİL, AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
                madde 7: "sadece sitede yüklü olan firmalardan biri seçilebilsin ... bir firma
                seçince ürün kutucuğunda da yine sadece o firmaya ait ürünler seçilebilir menü
-               şeklinde çıksın"). Etiketler "Firma" -> "Marka" olarak değişti ve serbest metinli
-               "Diğer" seçeneği KALDIRILDI (kullanıcı isteği, 2026-09-04 madde 4) — kutunun tek
-               işi artık sitede KAYITLI marka/ürün seçmek; ürün seçmek zorunlu değil, yalnızca
-               marka da eklenebilir (bkz. addBrandChip). -->
+               şeklinde çıksın"). Serbest metinli "Diğer" seçeneği KALDIRILDI (kullanıcı isteği,
+               2026-09-04 madde 4) — kutunun tek işi artık sitede KAYITLI firma/ürün seçmek; ürün
+               seçmek zorunlu değil, yalnızca firma da eklenebilir (bkz. addBrandChip).
+               brandChips/brand-* isimleri KORUNDU: gönderi alanının adı hâlâ `brands` ve
+               canonicalSync o adla okuyor (bkz. src/lib/submissionTypes.js) — yeniden adlandırma
+               kaydetme yolunu da değiştirmek olurdu, istenen yalnızca EKRANDAKİ dildi. -->
           <div class="brand-add-row">
-            <select id="p-brand-select" class="brand-select" aria-label="Marka">
-              <option value="">Marka seç</option>
+            <select id="p-brand-select" class="brand-select" aria-label="Ürün firması">
+              <option value="">Ürün firması seç</option>
             </select>
             <select id="p-product-select" class="brand-select" aria-label="Ürün" disabled>
-              <option value="">Önce marka seç</option>
+              <option value="">Önce firma seç</option>
             </select>
             <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
           </div>
-          <div class="form-hint" id="brand-add-hint">Sadece marka seçimleri de yapabilirsin, ürün seçmek zorunlu değil.</div>
-          <!-- Seçilen markaların ürünleri (kullanıcı isteği, 2026-09-11): Firma kutusunda, Marka
-               menüsünde ya da aşağıdaki listede bulunan TÜM markaların ürünleri tek bir çoktan
-               seçmeli panelde, marka başlıkları altında — işaretlenen ürün listeye {marka, ürün}
-               olarak eklenir, işareti kaldırılan düşer (bkz. renderProductPanel). -->
-          <div class="dd-field" id="dd-urun" style="margin-top:12px;">
-            <button type="button" class="dd-btn" id="dd-urun-btn">
-              <span id="dd-urun-btn-label">Seçilen markaların ürünlerini seç</span>
-              <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dd-panel">
-              <input type="text" class="dd-search" id="dd-urun-search" placeholder="Ürün ara...">
-              <div class="dd-options" id="dd-urun-options"></div>
-            </div>
-          </div>
+          <div class="form-hint" id="brand-add-hint">Sadece firma seçimleri de yapabilirsin, ürün seçmek zorunlu değil.</div>
+          <!-- "Seçilen markaların ürünlerini seç" paneli KALDIRILDI (kullanıcı isteği, 2026-09-14
+               madde 1). 2026-09-11'de eklenen bu panel, yukarıdaki iki menünün yaptığı işi ikinci
+               bir yoldan yapıyordu (aynı brandChips listesine yazıyordu); kaldırılınca ürün seçmenin
+               tek yolu firma -> ürün menüsü + görsel üzerinde etiketleme kalıyor. -->
           <div class="brand-chip-list" id="brand-chip-list"></div>
         </div>
       </div>
@@ -1378,7 +1372,6 @@ function onOfficePickerChange(names){
   const before = new Set(lastOfficeSelection.map(n => trLower(n)));
   lastOfficeSelection = names.slice();
   if(!officeAutoFillMuted) names.filter(n => !before.has(trLower(n))).forEach(fillDesignerFromOffice);
-  updateUrunLabel();
 }
 // #p-office.value'ya doğrudan yazan her noktadan sonra çağrılır.
 function syncOfficePicker(){
@@ -1413,7 +1406,7 @@ fetch('/api/products/brands')
   .then(res => res.ok ? res.json() : {items: []})
   .then(data => {
     const names = (data.items || []).map(it => it.label).filter(Boolean);
-    brandSelect.innerHTML = optionHtml('', 'Marka seç')
+    brandSelect.innerHTML = optionHtml('', 'Ürün firması seç')
       + names.map(n => optionHtml(n, n)).join('');
   })
   .catch(()=>{});
@@ -1437,7 +1430,7 @@ function syncProductField(){
   const brand = brandSelect.value;
   setBrandAddHint('');
   if(!brand){
-    productSelect.innerHTML = optionHtml('', 'Önce marka seç');
+    productSelect.innerHTML = optionHtml('', 'Önce firma seç');
     productSelect.disabled = true;
     return;
   }
@@ -1453,7 +1446,7 @@ function syncProductField(){
 }
 brandSelect.addEventListener('change', syncProductField);
 
-const BRAND_ADD_HINT_DEFAULT = 'Sadece marka seçimleri de yapabilirsin, ürün seçmek zorunlu değil.';
+const BRAND_ADD_HINT_DEFAULT = 'Sadece firma seçimleri de yapabilirsin, ürün seçmek zorunlu değil.';
 function setBrandAddHint(msg){
   const el = document.getElementById('brand-add-hint');
   if(!el) return;
@@ -1476,7 +1469,6 @@ function renderBrandChips(){
       renderBrandChips();
     });
   });
-  updateUrunLabel();
 }
 // Görselde bir ürün işaretlendiğinde o ürünü "Kullanılan Ürünler / Firmalar" kutusuna da ekler
 // (kullanıcı isteği, 2026-09-01) — iki liste ayrı alanlara kaydedildiğinden (brands ve
@@ -1523,7 +1515,7 @@ function removeBrandChipForProduct(hotspot){
 function addBrandChip(){
   const brand = brandSelect.value;
   if(!brand){
-    setBrandAddHint('Önce listeden bir marka seç.');
+    setBrandAddHint('Önce listeden bir firma seç.');
     brandSelect.focus();
     return;
   }
@@ -1538,88 +1530,15 @@ function addBrandChip(){
 }
 document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
 
-// ---------- SEÇİLEN MARKALARIN ÜRÜNLERİ: çoktan seçmeli panel (kullanıcı isteği, 2026-09-11) ----------
-// Aday markalar: Firma kutusundaki seçimler + Marka menüsündeki değer + listedeki etiketlerin
-// markaları. Firma kutusundaki marka OLMAYAN firmalar için /api/products/search boş döner ve grup
-// hiç çizilmez (loadProductsForBrand istek başına önbelleklenir). Panel açılırken çizilir; işaret
-// değişince yalnızca etiket listesi ve düğme metni güncellenir (kaydırma konumu korunsun).
-function candidateProductBrands(){
-  const out = [];
-  const seen = new Set();
-  const push = (n) => {
-    const name = String(n || '').trim();
-    const key = trLower(name);
-    if(!key || seen.has(key)) return;
-    seen.add(key);
-    out.push(name);
-  };
-  (officePicker ? officePicker.get() : []).forEach(push);
-  push(brandSelect.value);
-  brandChips.forEach(c => push(c.brand));
-  return out;
-}
-function hasProductChip(brand, product){
-  return brandChips.some(c => trLower(c.brand || '') === trLower(brand) && trLower(c.product || '') === trLower(product));
-}
-function updateUrunLabel(){
-  const label = document.getElementById('dd-urun-btn-label');
-  if(!label) return;
-  const n = brandChips.filter(c => c.product).length;
-  label.textContent = n ? `${n} ürün seçili` : 'Seçilen markaların ürünlerini seç';
-}
-let productPanelToken = 0;
-async function renderProductPanel(){
-  const container = document.getElementById('dd-urun-options');
-  const brands = candidateProductBrands();
-  const token = ++productPanelToken;
-  if(!brands.length){
-    container.innerHTML = '<div class="dd-empty">Önce Firma kutusundan ya da Marka menüsünden bir marka seç.</div>';
-    return;
-  }
-  container.innerHTML = '<div class="dd-empty">Yükleniyor…</div>';
-  const groups = await Promise.all(brands.map(b => loadProductsForBrand(b).then(titles => ({ brand: b, titles }))));
-  if(token !== productPanelToken) return; // bu arada yeniden çizim istendi
-  const q = trLower(document.getElementById('dd-urun-search').value.trim());
-  const withProducts = groups.filter(g => g.titles.length);
-  const shown = withProducts
-    .map(g => ({ brand: g.brand, titles: g.titles.filter(t => !q || trLower(t).includes(q) || trLower(g.brand).includes(q)) }))
-    .filter(g => g.titles.length);
-  if(!shown.length){
-    container.innerHTML = `<div class="dd-empty">${withProducts.length ? 'Sonuç yok' : 'Seçilen markaların kayıtlı ürünü yok.'}</div>`;
-    return;
-  }
-  container.innerHTML = shown.map(g => `<div class="dd-group-label">${escapeAttr(g.brand)}</div>`
-    + g.titles.map(t => `<label class="dd-option"><input type="checkbox" data-brand="${escapeAttr(g.brand)}" value="${escapeAttr(t)}"${hasProductChip(g.brand, t) ? ' checked' : ''}><span>${escapeAttr(t)}</span></label>`).join('')
-  ).join('');
-  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const brand = cb.dataset.brand;
-      const product = cb.value;
-      if(cb.checked){ if(!hasProductChip(brand, product)) brandChips.push({ brand, product }); }
-      else brandChips = brandChips.filter(c => !(trLower(c.brand || '') === trLower(brand) && trLower(c.product || '') === trLower(product)));
-      renderBrandChips();
-    });
-  });
-}
-document.getElementById('dd-urun-btn').addEventListener('click', ()=>{
-  const field = document.getElementById('dd-urun');
-  const willOpen = !field.classList.contains('open');
-  closeAllDropdowns();
-  if(willOpen){
-    field.classList.add('open');
-    document.getElementById('dd-urun-search').value = '';
-    renderProductPanel();
-    document.getElementById('dd-urun-search').focus();
-  }
-});
-document.getElementById('dd-urun-search').addEventListener('input', renderProductPanel);
-document.getElementById('dd-urun-search').addEventListener('click', (e)=> e.stopPropagation());
-document.getElementById('dd-urun-search').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') e.preventDefault(); });
+// "Seçilen markaların ürünleri" paneli (2026-09-11) KALDIRILDI — kullanıcı isteği, 2026-09-14
+// madde 1. Onunla birlikte yalnızca onu besleyen candidateProductBrands/hasProductChip/
+// updateUrunLabel/renderProductPanel fonksiyonları ve dd-urun dinleyicileri düştü.
+// loadProductsForBrand KALDI: yukarıdaki Ürün menüsünü o dolduruyor (syncProductField).
 
 officePicker = createOfficePicker(document.getElementById('p-office-picker'), {
   input: document.getElementById('p-office'),
-  placeholder: 'Firma veya marka seç',
-  searchLabel: 'Firma veya marka ara...',
+  placeholder: 'Firma seç',
+  searchLabel: 'Firma ara...',
   onChange: onOfficePickerChange,
 });
 

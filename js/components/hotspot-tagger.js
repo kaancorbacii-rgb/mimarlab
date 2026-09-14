@@ -157,8 +157,8 @@ const HotspotTagger = (function () {
     form.className = 'ht-form';
     form.innerHTML = `
       <h4>Ürün Etiketle</h4>
-      <p class="ht-sub">Bu noktadaki ürünü seç. Katalogdaki her ürünü işaretleyebilirsin; etiketlemen ürünün marka sahibinin ve yöneticinin onayına gider, onaylanınca projede işaretçi olarak görünür.</p>
-      <div class="ht-ac"><input type="text" placeholder="Ürün adı ya da marka yaz" autocomplete="off"></div>
+      <p class="ht-sub">Bu noktadaki ürünü seç. Katalogdaki her ürünü işaretleyebilirsin; etiketlemen ürünün firma sahibinin ve yöneticinin onayına gider, onaylanınca projede işaretçi olarak görünür.</p>
+      <div class="ht-ac"><input type="text" placeholder="Ürün adı ya da firma yaz" autocomplete="off"></div>
       <p class="ht-msg" hidden></p>
       <div class="ht-actions">
         <button type="button" class="ht-save">Gönder</button>

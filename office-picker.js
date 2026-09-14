@@ -126,8 +126,12 @@
   // opts.onChange      — seçim değişince çağrılır (isim dizisiyle).
   function createOfficePicker(mount, opts) {
     const options = opts || {};
-    const placeholder = options.placeholder || 'Firma veya marka seç';
-    const searchLabel = options.searchLabel || 'Firma veya marka ara...';
+    // Etiketler "Firma veya marka" -> "Firma" (kullanıcı isteği, 2026-09-14 madde 2 ve 4): marka
+    // kavramı sitede kaldırıldı, ürün üreten kayıtlar artık "Üretim ve Satış" hizmet alanlı
+    // FİRMALAR (bkz. office-kind.js). Kutunun beslendiği uç (/api/offices/search) DEĞİŞMEDİ —
+    // aynı offices satırları listelenmeye devam ediyor, yalnızca ekrandaki dil tek kelimeye indi.
+    const placeholder = options.placeholder || 'Firma seç';
+    const searchLabel = options.searchLabel || 'Firma ara...';
     injectStyles();
     wireGlobalHandlers();
 

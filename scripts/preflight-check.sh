@@ -57,10 +57,10 @@ done < <(find js -name '*.js' -print0)
 
 echo ""
 echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/kisi-ekle/firma-ekle/urun-ekle/index/admin/hesabim)"
-# marka.html EKLENDİ (2026-09-06): kisi/firma ile birebir aynı iskelete sahip ve aynı elle yazılmış
-# inline render mantığını taşıyor, ama bu listede yoktu — yani onun inline script'i hiç kontrol
-# edilmiyordu.
-for f in index.html admin.html hesabim.html proje.html kisi.html firma.html marka.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html gorusme.html; do
+# marka.html/marka-ekle.html LİSTEDEN ÇIKTI (kullanıcı isteği, 2026-09-14 madde 4): iki sayfa da
+# silindi, marka kavramı sitede yok. Döngü zaten `[ -f "$f" ] || continue` ile eksik dosyayı
+# atlıyordu ama adı listede bırakmak "kontrol ediliyor" izlenimi verirdi.
+for f in index.html admin.html hesabim.html proje.html kisi.html firma.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html gorusme.html; do
   [ -f "$f" ] || continue
   node -e "
     const fs = require('fs');
@@ -188,12 +188,11 @@ check_prefetch_limit() {
 }
 check_prefetch_limit kisi.html kisi.html
 check_prefetch_limit firma.html firma.html
-check_prefetch_limit marka.html marka.html
 check_prefetch_limit proje.html js/pages/proje.js
 check_prefetch_limit urun.html urun.html
 # Aynı denetimin ikinci yarısı: prefetch'i TÜKETEN taraf hâlâ yerinde mi (biri silinirse istek
 # yapılır ama hiç kullanılmaz — sessiz bir israf).
-for f in kisi.html firma.html marka.html js/pages/proje.js; do
+for f in kisi.html firma.html js/pages/proje.js; do
   if grep -q "function listFetch(url)" "$f" && grep -q "await listFetch(" "$f"; then
     ok "$f — listFetch() tanımlı ve render() içinde kullanılıyor"
   else
@@ -204,7 +203,7 @@ done
 # Tembel varlık modalleri (performans denetimi, 2026-09-06 madde 4) — kişi/firma/marka liste
 # sayfaları architect-modal.js/office-modal.js'i ARTIK <script> etiketiyle yüklememeli; yüklerlerse
 # hem ~250 KB blocking JS geri gelir hem de lazy-modals zinciri gereksizleşir.
-for f in kisi.html firma.html marka.html; do
+for f in kisi.html firma.html; do
   if grep -qE '<script src="js/components/(architect|office)-modal\.js"' "$f"; then
     bad "$f — varlık modalı yeniden <script> etiketiyle yükleniyor (tembel yükleme regresyonu)"
   elif grep -q "LazyModals.load(" "$f"; then
@@ -220,7 +219,7 @@ done
 # açılmadı, konsolda tek satır uyarı yoktu. Sözdizimi kontrolü bunu YAKALAYAMAZ (geçerli JS'tir).
 # Kural: bu üç sayfada `ModalShell` yalnızca `window.ModalShell &&` koruması ile aynı satırda
 # geçebilir; korumasız her kullanım aynı sessiz ölüme yol açar.
-for f in kisi.html firma.html marka.html; do
+for f in kisi.html firma.html; do
   unguarded=$(grep -n 'ModalShell' "$f" | grep -v 'window.ModalShell &&' | grep -vE '^\s*[0-9]+:\s*(//|\*|<!--)' | grep -vE '^[0-9]+:.*(bkz\.|ile AYNI|yorum)' || true)
   if [ -n "$unguarded" ]; then
     bad "$f — korumasız ModalShell kullanımı (modal-shell.js tembel yükleniyor, bu satır ReferenceError verir): $(echo "$unguarded" | head -2 | tr '\n' ' ')"
@@ -443,6 +442,19 @@ else
 fi
 rm -f /tmp/preflight_aggsrc
 
+# KULLANICI İSTEĞİ, 2026-09-14 (üçüncü tur): marka kavramı sitede kaldırıldı (/marka + /marka-ekle
+# 301 ile firma tarafına, her ofis kaydı /firma/:slug, firma-ekle'de "Üretim ve Satış" hizmet alanı
+# seçilince Ürün Kategorisi kutusu), proje-ekle ürün diline geçti ve Hesabım'daki Firma/Kişi
+# kutuları yalnızca gerçek bir bağ varsa görünüyor (yöneticiye firmanın kişileri sayfa sayfa).
+# Bkz. scripts/test-2026-09-14-brand-removal-and-account-boxes.mjs ve office-kind.js.
+if node scripts/test-2026-09-14-brand-removal-and-account-boxes.mjs >/tmp/preflight_brandrm 2>&1; then
+  ok "marka kaldırma + Hesabım kutuları testleri geçti ($(grep -c '^  ok ' /tmp/preflight_brandrm) test)"
+else
+  bad "marka kaldırma + Hesabım kutuları testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_brandrm >&2
+fi
+rm -f /tmp/preflight_brandrm
+
 # KULLANICI BİLDİRİMİ (2026-09-12, üç kez tekrarlandı): "popup'ı açınca sayfa böyle gözüktü,
 # yenileyince düzeldi." Proje popup'ı, kuralları proje.html'in satır içi <style>'ında durduğu için
 # başka sayfalardan açıldığında ÇIPLAK çiziliyordu (performans turu popup'ı her sayfada aynı
@@ -507,7 +519,7 @@ fi
 # beklemeden yapıyor (top-level runSearch()) ama image-cdn.js'i defer ile yüklüyordu — /arama?q=…
 # konsolunda her aramada "cdnImg is not defined" hatası oluşuyor, sonuçlar ancak rozetler gelince
 # yapılan İKİNCİ render'da görünüyordu.
-for page in index.html proje.html kisi.html firma.html marka.html urun.html arama.html; do
+for page in index.html proje.html kisi.html firma.html urun.html arama.html; do
   if grep -q '<script src="image-cdn.js" defer>' "$page"; then
     bad "$page — image-cdn.js defer ile yükleniyor; ilk çizim senkron cdnImg bekler"
   else
@@ -816,11 +828,11 @@ slug_drift=""
 if [ -z "$slug_ref" ]; then
   bad "slugify TR/aksan haritası src/lib/slugify.js'te bulunamadı (biçim değişmiş olabilir)"
 else
-  for f in save-widget.js marka-ekle.html firma-ekle.html kisi-ekle.html; do
+  for f in save-widget.js firma-ekle.html kisi-ekle.html; do
     [ "$(slug_sig "$f")" = "$slug_ref" ] || slug_drift="$slug_drift $f"
   done
   if [ -n "$slug_drift" ]; then bad "slugify haritası src/lib/slugify.js'ten SAPMIŞ:$slug_drift"
-  else ok "slugify haritası beş kopyada da aynı"; fi
+  else ok "slugify haritası dört kopyada da aynı"; fi
 fi
 # Bildirim linki /gorusme/:uuid'e gidebilmeli — auth-modal.js#NOTIF_ENTITY_PATH_RE 'gorusme'
 # içermezse "görüşmen hazır" bildirimi tıklanınca hiçbir yere gitmez (sessiz regresyon).

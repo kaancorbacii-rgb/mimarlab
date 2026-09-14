@@ -1335,7 +1335,7 @@ const AuthModal = (function () {
                virgüllü tek metin olarak mimar kaydının office alanına da yazılır (bkz.
                submitArchitectSyncIfNeeded) — kisi-ekle.html ile aynı depolama biçimi. -->
           <div>
-            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma veya Marka <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
             <div id="am-edit-office-picker"></div>
             <!-- kisi-ekle.html'deki AYNI not (kullanıcı isteği, 2026-09-08 madde 1) — beyan,
                  firmanın profilinde görünmek demek değil; onay admin'de. -->
@@ -1436,7 +1436,14 @@ const AuthModal = (function () {
              de zaten oydu (mimar tipi filtreleniyor), bu yüzden o liste Profil Bilgileri'nden
              BURAYA taşındı: aynı bilgi iki kutuda birden görünmesin. Kutu ayrıca firmanın kendi
              künyesini (/api/office/:key) çeker, bkz. loadFirmInfo. -->
-        <div class="dash-section">
+        <!-- KUTU YALNIZCA BİR BAĞ VARSA GÖRÜNÜR (kullanıcı isteği, 2026-09-14 madde 8: "Eğer bir
+             kullanıcı üzerine bir kişi profili ya da firma profili atanmamışsa hesabım sayfasında
+             firma bilgileri ve kişi bilgileri kutuları olmasın."). Görünürlük renderFirmPage'de
+             firmEntries.length'e göre ayarlanır — o liste üç kaynağı da kapsar: onaylı/bekleyen
+             profile_claims('office'), kişi künyesindeki office metni ve office_founders bağları.
+             Yani kullanıcı siteye bir firma yüklediğinde ya da admin ona firma atadığında kutu
+             kendiliğinden belirir. -->
+        <div class="dash-section" id="am-firm-section" hidden>
           <!-- Firma künyesinin kendi "Profili Düzenle" butonu (kullanıcı isteği, 2026-09-01 madde 1)
                — yalnızca firmada YETKİLİ bir görevi olan kullanıcıya gösterilir, bkz.
                renderFirmEditBtn / OFFICE_EDIT_POSITIONS. -->
@@ -1467,7 +1474,10 @@ const AuthModal = (function () {
              Aç/kapa düğmesi başlığı sarar ama "Profili Düzenle"yi SARMAZ: <button> içine <button>
              koymak geçersiz HTML olurdu, o yüzden ikisi .dash-section-head'in kardeşleridir
              (bkz. injectStyles'taki .dash-collapse-toggle-inline kuralı). -->
-        <div class="dash-section">
+        <!-- AYNI KURAL KİŞİ KUTUSUNDA (kullanıcı isteği, 2026-09-14 madde 8): atanmış bir kişi
+             profili ya da kullanıcının kendi açtığı bir kişi kaydı yoksa kutu HİÇ çizilmez.
+             Görünürlük renderPersonPage'de personEntries.length'e göre ayarlanır. -->
+        <div class="dash-section" id="am-person-section" hidden>
           <div class="dash-section-head">
             <button type="button" class="dash-collapse-toggle dash-collapse-toggle-inline" data-collapse="am-profile-collapse" aria-expanded="true" aria-controls="am-profile-collapse">
               <h2>Kişi Bilgileri</h2>
@@ -1498,6 +1508,14 @@ const AuthModal = (function () {
               <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
             </div>
             <p class="dash-empty" id="am-person-empty" style="display:none;">Hesabına atanmış bir kişi profili yok. "Bilgileri Düzenle" ile kendi kişi künyeni oluşturabilirsin.</p>
+            <!-- SAYFALAMA (kullanıcı isteği, 2026-09-14 madde 8): "Eğer bir kullanıcıya bir
+                 firmanın yönetici rolü atanırsa o kullanıcının hesabım sayfasında kişi bilgileri
+                 kutusunda butonla açılabilen sayfalar halinde firmanın kişileri de (kurucu, kurucu
+                 ortak, ortak, ekip lideri) yer alsın." — Firma Bilgileri kutusuyla BİREBİR aynı
+                 .dash-pagination bileşeni (renderDashPagination), sayfa başına bir KİŞİ.
+                 1. sayfa kullanıcının kendi kişi künyesi, sonraki sayfalar yönettiği firmaların
+                 kişileri (bkz. buildPersonEntries). -->
+            <div class="dash-pagination" id="am-person-pagination"></div>
           </div>
         </div>
 
@@ -1575,7 +1593,6 @@ const AuthModal = (function () {
               <button type="button" class="submissions-filter-btn" data-filter="architect">Kişi</button>
               <button type="button" class="submissions-filter-btn" data-filter="office">Firma</button>
               <button type="button" class="submissions-filter-btn" data-filter="product">Ürün</button>
-              <button type="button" class="submissions-filter-btn" data-filter="brand">Marka</button>
             </div>
             <div id="am-archive-list"><div class="dash-empty">Yükleniyor…</div></div>
             <div class="dash-pagination" id="am-archive-pagination"></div>
@@ -1614,7 +1631,7 @@ const AuthModal = (function () {
                  karar verir (availableScopes) — sahiplenilmemiş bir profilin sekmesi hiç çizilmez. -->
             <div class="stat-scope" id="am-stats-scope" role="tablist" aria-label="İstatistik kapsamı" hidden>
               <button type="button" class="stat-scope-btn active" data-scope="self" role="tab" aria-selected="true">Profilim için</button>
-              <button type="button" class="stat-scope-btn" data-scope="office" role="tab" aria-selected="false">Firmam / Markam için</button>
+              <button type="button" class="stat-scope-btn" data-scope="office" role="tab" aria-selected="false">Firmam için</button>
             </div>
             <p class="section-hint" id="am-stats-hint">Profilinin ve içeriklerinin performansı.</p>
             <div id="am-stats-body"><div class="dash-empty">Yükleniyor…</div></div>
@@ -1729,7 +1746,6 @@ const AuthModal = (function () {
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
             <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
-            <button type="button" class="saved-filter-btn" data-filter="brand">Marka</button>
           </div>
           <div id="am-dash-shares"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-shares-pagination"></div>
@@ -1752,8 +1768,11 @@ const AuthModal = (function () {
             <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
             <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
             <button type="button" class="submissions-filter-btn" data-filter="architects">Kişi</button>
+            <!-- "Marka" filtre düğmesi KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4): marka
+                 kavramı yok, ürün üreten kayıtlar da FİRMA. "Firma" artık offices gönderilerinin
+                 TAMAMINI gösteriyor (aşağıdaki matchesSubmissionFilter'daki isBrand ayrımı da
+                 kalktı) — aksi halde eski marka gönderileri hiçbir filtrede görünmezdi. -->
             <button type="button" class="submissions-filter-btn" data-filter="offices">Firma</button>
-            <button type="button" class="submissions-filter-btn" data-filter="brands">Marka</button>
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
@@ -1844,9 +1863,6 @@ const AuthModal = (function () {
              aktivitelerim popupından kaldırıp koleksiyonum popupında taşı". Kutu Aktivitelerim'den
              OLDUĞU GİBİ taşındı (aynı /api/follows + /api/follows/feed kaynağı, aynı .saved-row
              işaretlemesi, aynı sekme/sayfalama) — yalnızca iki ekleme var:
-               • "Marka" filtresi: markalar da offices satırıdır (bkz. office-kind.js), sunucu
-                 /api/follows'ta is_brand döner ve istemci onları 'brand' tipinde sayar; böylece
-                 marka profilindeki Takip Et buradaki Marka sekmesinde görünür.
                • "Yeni" rozeti: son ziyaretten sonra yayınlanmış gönderilerin yanında (bkz.
                  followSeenAt / FOLLOW_FEED_SEEN_KEY). -->
         <div class="dash-section">
@@ -1867,7 +1883,6 @@ const AuthModal = (function () {
             <button type="button" class="saved-filter-btn" data-filter="gundem">Gündem</button>
             <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
-            <button type="button" class="saved-filter-btn" data-filter="brand">Marka</button>
           </div>
           <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-follow-feed-pagination"></div>
@@ -2074,17 +2089,20 @@ const AuthModal = (function () {
   // Marka gönderileri offices tipindedir (bkz. marka-ekle.html: type:'offices') — İçeriklerim >
   // Eklediklerim satırında hem etiketi ("Marka") hem Düzenle hedefi (marka-ekle.html) bu yüzden
   // tipe DEĞİL, sunucudan gelen item.isBrand'a göre seçilir (bkz. src/routes/submissions.js#listMine).
-  function submissionTypeLabel(type, item) {
-    if (type === 'offices') return item && item.isBrand ? 'Marka' : 'Firma';
+  // Marka/Firma ayrımı KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4): ofis gönderilerinin
+  // hepsi "Firma" etiketiyle görünür ve hepsi firma-ekle.html'de düzenlenir.
+  function submissionTypeLabel(type, _item) {
+    if (type === 'offices') return 'Firma';
     return TYPE_LABELS[type];
   }
-  function editPageFor(type, item) {
-    if (type === 'offices' && item && item.isBrand) return '/marka-ekle';
+  function editPageFor(type, _item) {
     return EDIT_PAGE_BY_TYPE[type];
   }
   // brand: gerçek bir saved/follow tipi DEĞİL — Takip Ettiklerim'in marka satırları için
   // istemcide türetilen görüntüleme tipi (bkz. mountCollections#loadFollowFeed).
-  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', brand: 'Marka', gundem: 'Gündem' };
+  // 'brand' ARTIK ÜRETİLMİYOR (kullanıcı isteği, 2026-09-14 madde 4 — marka kavramı kaldırıldı,
+  // her ofis satırı 'office' tipinde geliyor); anahtar listeden çıkarıldı.
+  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', gundem: 'Gündem' };
   // Paylaştıklarım satırının alt metnindeki kanal etiketi — js/components/share-button.js'in
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
@@ -2135,7 +2153,7 @@ const AuthModal = (function () {
   function getProfessionChecks(groupId) {
     return [...document.querySelectorAll(`#${groupId} input:checked`)].map(i => i.value).join(',');
   }
-  const CLAIM_TYPE_LABELS = { architect: 'Kişi', office: 'Firma / Marka' };
+  const CLAIM_TYPE_LABELS = { architect: 'Kişi', office: 'Firma' };
   // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
   // (kisi-ekle.html/proje-ekle.html ile ortak) geliyor, bu dosyanın <script> etiketinden HEMEN
   // önce her sayfada senkron yüklenir (bkz. o dosyanın başındaki yorum). Buradaki "Mimar Profili"
@@ -2155,11 +2173,11 @@ const AuthModal = (function () {
   const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', revoked: 'Yetki kaldırıldı' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
   const CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
-  // Saf markaların düzenleme sayfası AYRIDIR (bkz. js/components/office-modal.js#editUrlBase ile
-  // BİREBİR aynı karar): firma-ekle.html'in Hizmet Alanı kutucukları yalnızca mimarlık hizmetlerini
-  // içerir (bkz. office-kind.js#OFFICE_SERVICE_CATS), bir markayı oradan kaydetmek cats'ini sessizce
-  // boşaltıp onu marka.html listesinden düşürürdü.
-  function claimEditPageForOffice(isBrand) { return isBrand ? '/marka-ekle' : CLAIM_EDIT_PAGE.office; }
+  // Tek düzenleme sayfası: firma-ekle.html (kullanıcı isteği, 2026-09-14 madde 4). Eski gerekçe —
+  // "firma-ekle bir markanın cats'ini boşaltır" — artık geçerli değil: o sayfa "Üretim ve Satış"
+  // seçiliyken ürün kategorilerini de düzenliyor (bkz. firma-ekle.html#dd-urunkat).
+  // Parametre, çağıranlar değişmesin diye korundu.
+  function claimEditPageForOffice(_isBrand) { return CLAIM_EDIT_PAGE.office; }
   // bkz. src/routes/submissions.js#OFFICE_EDIT_POSITIONS / js/components/claim-correction-box.js
   // (firma sayfasındaki Düzenle butonu) ile BİREBİR aynı liste — kullanıcı isteği: "Firmayı sadece
   // kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir". Hesabım'daki Firma satırı bu kontrolü
@@ -2219,15 +2237,23 @@ const AuthModal = (function () {
   // tek istek, firmOfficeCache ile AYNI desen. undefined = uçuşta, null = yetkisiz/başarısız
   // (satır çizilmez), dizi = gelen liste.
   const firmManagersCache = Object.create(null);
+  // key -> { founders, team }: firma künyesindeki KİŞİLER. "Kişi Bilgileri" kutusunun firma
+  // sayfalarını besler (kullanıcı isteği, 2026-09-14 madde 8). /api/office/:key'in AYNI yanıtından
+  // doldurulur (bkz. ensureFirmOffice) — ayrı bir uç ya da ek istek yok.
+  const firmPeopleCache = Object.create(null);
+  // "Kişi Bilgileri" kutusunun sayfaları: [0] kullanıcının kendi künyesi (varsa), sonrakiler
+  // yönettiği firmaların kişileri (bkz. buildPersonEntries).
+  let personEntries = [];
+  let personPage = 1;
   // #am-firm-facts kutusunda O AN gösterilen sayfanın firması (bkz. renderFirmPage).
   // amClaimItems ile AYNI kapsamda tutulur çünkü renderClaimsList onu, loadFirmInfo'dan ÖNCE de
   // çağrılabilecek şekilde okuyor (bkz. oradaki filtre).
   let firmInfoKey = null;
-  // Firma / Marka Bilgileri kutusunun "Profili Düzenle" butonunun hedefi/görünürlüğü (bkz.
+  // Firma Bilgileri kutusunun "Profili Düzenle" butonunun hedefi/görünürlüğü (bkz.
   // renderFirmEditBtn). firmInfoSlug: /firma-ekle?claim=<slug> için gereken slug; firmInfoApproved:
-  // talep onaylı mı (bekleyen bir talep henüz düzenleme yetkisi vermez); firmInfoIsBrand: saf marka
-  // ise düzenleme sayfası /marka-ekle olmalı (bkz. office-kind.js#isPureBrandOffice — kararın TEK
-  // kaynağı sunucudur, /api/office/:key yanıtındaki isBrand alanı).
+  // talep onaylı mı (bekleyen bir talep henüz düzenleme yetkisi vermez). firmInfoIsBrand artık
+  // düzenleme HEDEFİNİ değiştirmiyor (kullanıcı isteği, 2026-09-14 madde 4 — tek sayfa var);
+  // alan, sunucunun "bu firma üretici mi" cevabını taşıdığı için okunur kaldı.
   let firmInfoSlug = null;
   let firmInfoApproved = false;
   let firmInfoIsBrand = false;
@@ -2723,8 +2749,8 @@ const AuthModal = (function () {
         return firmaOptionsPromise;
       }
       firmaPicker = createOfficePicker(mount, {
-        placeholder: 'Firma veya marka seç',
-        searchLabel: 'Firma veya marka ara...',
+        placeholder: 'Firma seç',
+        searchLabel: 'Firma ara...',
       });
       firmaOptionsPromise = firmaPicker.ready;
       return firmaOptionsPromise;
@@ -3185,24 +3211,100 @@ const AuthModal = (function () {
       renderPersonInfo();
     }
 
-    // "Kişi Bilgileri" kutusunun satırları + kişi düzenleme pop-up'ının alanları — TEK kaynaktan
-    // (amPersonRecord). Kayıt yoksa satırlar "—" kalır ve kutuda bir yönlendirme cümlesi görünür.
-    function renderPersonInfo() {
-      const rec = amPersonRecord;
+    // FİRMANIN KİŞİLERİ — "Kişi Bilgileri" kutusuna eklenecek sayfalar (kullanıcı isteği,
+    // 2026-09-14 madde 8: "Eğer bir kullanıcıya bir firmanın yönetici rolü atanırsa ... kişi
+    // bilgileri kutusunda butonla açılabilen sayfalar halinde firmanın kişileri de (kurucu, kurucu
+    // ortak, ortak, ekip lideri) yer alsın. Eğer o kişiler firmadan silinirse bu kutudan da
+    // silinsin.").
+    //
+    // HANGİ FİRMALAR: yalnızca kullanıcının GERÇEKTEN yetkili olduğu firmalar — renderFirmEditBtn
+    // ile BİREBİR aynı iki yol (onaylı talep + yetkili görev, ya da sunucunun office_founders
+    // kararı). Yetki kuralı burada yeniden hesaplanmaz, firmEntries'in taşıdığı alanlar okunur.
+    //
+    // HANGİ KİŞİLER: firma künyesinin Kurucular + Ekip listeleri (bkz. src/routes/office.js#
+    // buildOfficePeople) — kurucu/kurucu ortak/ortak Kurucular'da, ekip lideri Ekip'te durur.
+    // Liste HER YÜKLEMEDE sunucudan gelir, bu yüzden firmadan çıkarılan bir kişi kutudan da düşer;
+    // istemcide ayrıca bir silme mantığı yoktur ("dinamik tasarım" isteğinin karşılığı).
+    function canManageFirmEntry(entry) {
+      return !!entry && (((entry.approved && OFFICE_EDIT_POSITIONS.has(entry.position))) || !!entry.founderCanEdit);
+    }
+    function buildPersonEntries() {
+      const entries = [];
+      // 1. sayfa: kullanıcının KENDİ kişi künyesi (atanmış profil ya da kendi gönderisi).
+      if (amPersonRecord) entries.push({ kind: 'self', record: amPersonRecord });
+      // Sonraki sayfalar: yönetilen firmaların kişileri. Aynı kişi iki firmada da varsa bir kez.
+      const seen = new Set();
+      if (amPersonRecord && amPersonRecord.name) seen.add(foldTrAm(amPersonRecord.name));
+      for (const entry of firmEntries) {
+        if (!canManageFirmEntry(entry)) continue;
+        const people = firmPeopleCache[entry.key];
+        if (!people) continue;
+        for (const p of [...(people.founders || []), ...(people.team || [])]) {
+          const name = String((p && p.name) || '').trim();
+          if (!name) continue;
+          const folded = foldTrAm(name);
+          if (seen.has(folded)) continue;
+          seen.add(folded);
+          entries.push({ kind: 'firm', firm: entry.key, record: p });
+        }
+      }
+      return entries;
+    }
+
+    // "Kişi Bilgileri" kutusu — kendi künyesi + (varsa) yönetilen firmaların kişileri, sayfa sayfa.
+    // Kutu HİÇ sayfası yoksa (ne atanmış/kendi kişi kaydı ne de yönetilen bir firma kişisi) TAMAMEN
+    // gizlenir (kullanıcı isteği, 2026-09-14 madde 8).
+    function renderPersonPage() {
+      const section = document.getElementById('am-person-section');
+      personEntries = buildPersonEntries();
+      if (section) section.hidden = !personEntries.length;
+      if (personPage < 1 || personPage > personEntries.length) personPage = 1;
+      const entry = personEntries[personPage - 1] || null;
+      const isSelf = !entry || entry.kind === 'self';
+      const rec = entry ? entry.record : null;
+
       const empty = document.getElementById('am-person-empty');
       if (empty) empty.style.display = rec ? 'none' : '';
       const facts = document.getElementById('am-profile-tab-facts');
       if (facts) facts.style.display = rec ? '' : 'none';
-      renderAmNameBadge();                       // Ad Soyad satırı (+ rozet, + profil bağlantısı)
+
+      // Ad Soyad satırı: KENDİ künyesinde rozet + profil bağlantısıyla (renderAmNameBadge),
+      // firmanın kişisinde düz ad + /kisi/:slug bağlantısı (kaydı varsa).
+      if (isSelf) {
+        renderAmNameBadge();
+      } else {
+        const nameEl = document.getElementById('am-fact-name');
+        if (nameEl) {
+          nameEl.innerHTML = rec && rec.slug
+            ? `<a href="/kisi/${encodeURIComponent(rec.slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(rec.name || '')}</a>`
+            : escapeHtml((rec && rec.name) || '—');
+        }
+      }
       const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '—'; };
       // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çeviri gerekmez.
-      set('am-fact-profession', rec && rec.profession);
-      set('am-fact-position', rec && rec.position);
-      set('am-fact-school', rec && rec.school);
-      set('am-fact-dob', rec && rec.dob ? String(rec.dob).slice(0, 4) : '');
-      renderPersonEditBtn();
+      // Firma kişisi yükünde yalnızca ad/görev/foto/slug var (bkz. buildOfficePeople); okul/doğum
+      // yılı/meslek alanları o sayfalarda boş kalır — uydurma veri basılmaz.
+      set('am-fact-profession', isSelf ? (rec && rec.profession) : '');
+      set('am-fact-position', rec && (isSelf ? rec.position : rec.role));
+      set('am-fact-school', isSelf ? (rec && rec.school) : '');
+      set('am-fact-dob', isSelf && rec && rec.dob ? String(rec.dob).slice(0, 4) : '');
+
+      // "Bilgileri Düzenle" YALNIZCA kendi künyesinde: firmanın kişisi başka birinin profilidir,
+      // bu kutu onu düzenlemek için değil GÖRÜNTÜLEMEK için. (Yetkili kullanıcı o profili firma
+      // pop-up'ındaki Düzenle ile zaten düzenleyebiliyor — bkz. claim-correction-box.js.)
+      const editBtn = document.getElementById('am-dash-edit-btn');
+      if (editBtn) editBtn.style.display = isSelf ? '' : 'none';
+      if (isSelf) renderPersonEditBtn();
+
+      renderDashPagination('am-person-pagination', personPage, personEntries.length, (n) => {
+        personPage = n;
+        renderPersonPage();
+      });
       prefillPersonEditForm();
     }
+
+    // Eski ad KORUNDU: refreshArchitectSyncState ve diğer çağıranlar bunu çağırıyor.
+    function renderPersonInfo() { renderPersonPage(); }
 
     // "Bilgileri Düzenle" -> kisi-ekle/düzenle sayfası (kullanıcı isteği, 2026-09-14 ikinci tur
     // madde 1) — FİRMA kutusundaki düğmeyle (renderFirmEditBtn) BİREBİR aynı desen ve kişi/firma
@@ -4198,27 +4300,46 @@ const AuthModal = (function () {
       firmEntries = entries;
       if (firmPage > entries.length) firmPage = 1;
       renderFirmPage();
+      // Kişi kutusunun firma sayfaları firmEntries'e bağlı (bkz. buildPersonEntries) — liste
+      // değiştiğinde o kutu da yeniden çizilmeli. Künyeler henüz gelmediğinden bu çizimde yalnızca
+      // kendi kaydı görünür; ensureFirmOffice yanıtları geldikçe sayfalar eklenir.
+      renderPersonPage();
       ensureFirmOffice();
+      // YÖNETİLEN TÜM firmaların künyesi çekilir, yalnızca açık sayfanınki değil (kullanıcı isteği,
+      // 2026-09-14 madde 8): "Kişi Bilgileri" kutusunun sayfaları bu firmaların kişilerinden
+      // oluşuyor, dolayısıyla kullanıcı Firma kutusunda o sayfaya geçmeden de görünmeliler.
+      // Maliyet sınırlı: bir kullanıcı genelde bir-iki firmada yetkilidir ve her anahtar için
+      // TEK istek atılır (firmOfficeCache guard'ı).
+      firmEntries.filter(canManageFirmEntry).forEach(e => ensureFirmOffice(e.key));
       ensureFirmManagers();
     }
 
     // O an gösterilen sayfanın firma künyesini (/api/office/:key) çeker ve gelince sayfayı yeniden
     // çizer. Sayfa başına tek istek, sonuç firmOfficeCache'te tutulur — kullanıcı sayfalar arasında
     // gidip gelirken ağ isteği tekrarlanmaz.
-    function ensureFirmOffice() {
+    function ensureFirmOffice(explicitKey) {
       const entry = firmEntries[firmPage - 1];
-      if (!entry || entry.key in firmOfficeCache) return;
-      const key = entry.key;
+      const key = explicitKey || (entry && entry.key);
+      if (!key || key in firmOfficeCache) return;
       firmOfficeCache[key] = undefined; // aynı anahtar için ikinci bir uçuş başlamasın
       fetch(`/api/office/${encodeURIComponent(key)}`)
         .then(r => (r.ok ? r.json() : null))
-        .then(d => { firmOfficeCache[key] = (d && d.item) || null; })
-        .catch(() => { firmOfficeCache[key] = null; })
+        .then(d => {
+          firmOfficeCache[key] = (d && d.item) || null;
+          // Künyedeki KİŞİLER (kurucu/kurucu ortak/ortak/ekip lideri) — "Kişi Bilgileri" kutusunun
+          // firma sayfaları bunları kullanır (kullanıcı isteği, 2026-09-14 madde 8). AYNI yanıtta
+          // geliyorlar, ek istek YOK. Kişi firmadan çıkarıldığında bir sonraki yüklemede listeden
+          // de düşer — "dinamik" isteğinin karşılığı budur, istemcide ayrıca silme mantığı yok.
+          firmPeopleCache[key] = d ? { founders: d.founders || [], team: d.team || [] } : null;
+        })
+        .catch(() => { firmOfficeCache[key] = null; firmPeopleCache[key] = null; })
         .then(() => {
           // Kullanıcı bu arada başka bir sayfaya geçmiş olabilir — yalnızca hâlâ bu giriş
           // gösteriliyorsa yeniden çiz (aksi halde açık sayfanın üzerine yanlış künye yazılırdı).
           const current = firmEntries[firmPage - 1];
           if (current && current.key === key) renderFirmPage();
+          // Kişi kutusunun firma sayfaları bu yanıta bağlı — her durumda tazelenmeli.
+          renderPersonPage();
         });
     }
 
@@ -4362,6 +4483,11 @@ const AuthModal = (function () {
       const box = document.getElementById('am-firm-facts');
       const pager = document.getElementById('am-firm-pagination');
       if (!box) return;
+      // KUTU YALNIZCA BİR BAĞ VARSA (kullanıcı isteği, 2026-09-14 madde 8). firmEntries üç kaynağı
+      // da kapsar (claims / kişi künyesindeki office metni / office_founders), yani kullanıcı bir
+      // firma yüklediğinde ya da admin ona firma atadığında kutu kendiliğinden belirir.
+      const section = document.getElementById('am-firm-section');
+      if (section) section.hidden = !firmEntries.length;
       if (!firmEntries.length) {
         firmInfoKey = null;
         firmInfoSlug = null;
@@ -4370,7 +4496,7 @@ const AuthModal = (function () {
         firmInfoPosition = null;
         firmInfoFounderCanEdit = false;
         renderFirmEditBtn();
-        box.innerHTML = '<div class="dash-empty">Henüz bir firmada veya markada görev almıyorsun. Profili Düzenle\'den firmanı ya da markanı seçebilirsin.</div>';
+        box.innerHTML = '<div class="dash-empty">Henüz bir firmada görev almıyorsun. Profili Düzenle\'den firmanı seçebilirsin.</div>';
         if (pager) pager.innerHTML = '';
         renderClaimsList();
         return;
@@ -4389,7 +4515,7 @@ const AuthModal = (function () {
       renderFirmEditBtn();
       // Künye çekilemediyse (ağ hatası ya da henüz canonical'a senkronlanmamış bekleyen bir talep)
       // en azından adı gösterilir.
-      const rows = [[firmInfoIsBrand ? 'Marka' : 'Firma', office ? office.name : entry.key]];
+      const rows = [['Firma', office ? office.name : entry.key]];
       if (office) {
         // cats üç biçimde gelebilir (JSON dizi / ' · ' ayrımlı string / null) — office-kind.js#
         // officeCatList'in tarayıcı tarafında yüklü olduğuna güvenmek yerine (bu dosya onu <script>
@@ -4515,9 +4641,7 @@ const AuthModal = (function () {
       const canEdit = !!firmInfoSlug
         && ((firmInfoApproved && OFFICE_EDIT_POSITIONS.has(firmInfoPosition)) || firmInfoFounderCanEdit);
       btn.style.display = canEdit ? '' : 'none';
-      // Saf markalar marka-ekle.html'den düzenlenir (bkz. js/components/office-modal.js#editUrlBase
-      // ile AYNI karar) — firma-ekle.html'in Hizmet Alanı kutucukları marka kategorilerini hiç
-      // içermediğinden bir markayı oradan kaydetmek cats'ini sessizce boşaltırdı.
+      // Tek düzenleme sayfası: firma-ekle.html (kullanıcı isteği, 2026-09-14 madde 4).
       if (canEdit) btn.href = `${claimEditPageForOffice(firmInfoIsBrand)}?claim=${encodeURIComponent(firmInfoSlug)}`;
     }
 
@@ -4542,7 +4666,7 @@ const AuthModal = (function () {
     let archiveFilter = '';
     let archiveSearch = '';
     let archivePage = 1;
-    const ARCHIVE_KIND_LABELS = { project: 'Proje', architect: 'Kişi', office: 'Firma', brand: 'Marka', product: 'Ürün' };
+    const ARCHIVE_KIND_LABELS = { project: 'Proje', architect: 'Kişi', office: 'Firma', brand: 'Firma', product: 'Ürün' };
 
     async function loadArchive() {
       const res = await fetch('/api/archive/mine');
@@ -5547,15 +5671,15 @@ const AuthModal = (function () {
     let sharesFilter = '';
     let sharesPage = 1;
     // Bir paylaşım satırının HANGİ sekmelerde görüneceği — Koleksiyonum > Takip Ettiklerim'deki
-    // filterTypes ile AYNI kural (bkz. loadFollowFeed): Autoban gibi hem mimarlık yapan hem ürün
-    // tasarlayan bir ofis HEM "Firma" HEM "Marka" sekmesinde çıkar, VitrA gibi saf üretici yalnızca
-    // "Marka"da. Ofis olmayan tipler eski davranışta kalır (product/material aynı sekmede).
+    // filterTypes ile AYNI kural (bkz. loadFollowFeed). "Marka" sekmesi KALDIRILDI (kullanıcı
+    // isteği, 2026-09-14 madde 4): her ofis satırı yalnızca "Firma" sekmesinde çıkar. Sunucu
+    // is_brand/is_pure_brand göndermeye devam ediyor (başka çağıranları var), burada okunmuyor.
+    // Ofis olmayan tipler eski davranışta kalır (product/material aynı sekmede).
     function shareFilterTypes(it) {
       if (it.item_type !== 'office') {
         return it.item_type === 'product' || it.item_type === 'material' ? ['product', it.item_type] : [it.item_type];
       }
-      if (it.is_pure_brand) return ['brand'];
-      return it.is_brand ? ['office', 'brand'] : ['office'];
+      return ['office'];
     }
     async function loadShares() {
       const res = await fetch('/api/shares');
@@ -5583,7 +5707,7 @@ const AuthModal = (function () {
       const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
       container.innerHTML = pageItems.map(it => {
         // Etiket: saf marka "Marka" yazar, karma ofis "Firma" kalır (bkz. shareFilterTypes notu).
-        const typeLabel = it.is_pure_brand ? 'Marka' : (SAVED_TYPE_LABELS[it.item_type] || '');
+        const typeLabel = SAVED_TYPE_LABELS[it.item_type] || '';
         const metaBits = [typeLabel, SHARE_CHANNEL_LABELS[it.channel] || '', it.item_meta || ''].filter(Boolean);
         return `
         <div class="saved-row" data-id="${escapeAttr(it.id)}">
@@ -5640,13 +5764,12 @@ const AuthModal = (function () {
         document.getElementById('am-submissions-pagination').innerHTML = '';
         return;
       }
-      // 'brands' gerçek bir gönderi tipi DEĞİL (bkz. şablondaki yorum): offices gönderilerinin
-      // marka olanları. 'offices' (Firma) ise simetrik olarak marka OLMAYANLARI gösterir — aksi
-      // halde her marka iki filtrede birden çıkar ve iki buton ayırt edici olmaktan çıkardı.
+      // 'brands' ayrımı KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4). Eskiden 'offices'
+      // yalnızca marka OLMAYANLARI, 'brands' ise marka olanları gösteriyordu; marka kavramı
+      // kalkınca 'offices' filtresi ofis gönderilerinin TAMAMINI göstermeli — aksi halde eski
+      // marka gönderileri (isBrand true) hiçbir filtrede görünmezdi.
       const matchesSubmissionFilter = (s) => {
         if (!submissionsFilter) return true;
-        if (submissionsFilter === 'brands') return s.type === 'offices' && !!s.item.isBrand;
-        if (submissionsFilter === 'offices') return s.type === 'offices' && !s.item.isBrand;
         return s.type === submissionsFilter;
       };
       const all = submissionsFilter ? allSubmissions.filter(matchesSubmissionFilter) : allSubmissions;
@@ -7382,19 +7505,17 @@ const AuthModal = (function () {
       const feedData = feedRes.ok ? await feedRes.json() : { items: [] };
       const followsData = followsRes.ok ? await followsRes.json() : { items: [] };
       const profileItems = (followsData.items || []).map(f => ({
-        // type = SATIRIN ETİKETİ, filterTypes = HANGİ SEKMELERDE görüneceği. İkisi bilerek ayrı:
-        // Autoban gibi hem mimarlık yapan hem ürün tasarlayan bir ofis marka.html'de DE listelenir
-        // (bkz. office-kind.js#isBrandOffice) ama etiketi "Firma" kalmalı; VitrA gibi saf üretici
-        // yalnızca Marka'dır. Sunucu bu iki soruyu is_brand/is_pure_brand olarak ayrı ayrı yanıtlar.
-        type: f.followed_type === 'office' && f.is_pure_brand ? 'brand' : f.followed_type,
-        filterTypes: f.followed_type !== 'office' ? [f.followed_type]
-          : (f.is_pure_brand ? ['brand'] : (f.is_brand ? ['office', 'brand'] : ['office'])),
+        // "Marka" ETİKETİ ve SEKMESİ KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 4): takip edilen
+        // her ofis satırı "Firma" olarak etiketlenir ve yalnızca Firma sekmesinde görünür. Sunucu
+        // is_brand/is_pure_brand göndermeye devam ediyor (başka çağıranları var), burada okunmuyor.
+        type: f.followed_type,
+        filterTypes: [f.followed_type],
         deleteType: f.followed_type,
         key: f.followed_key,
         title: f.followed_title || f.followed_key,
         image: f.followed_image || null,
-        // Marka profilleri de firma detay sayfasında yaşıyor (/marka yalnızca LİSTE sayfası, tekil
-        // bir /marka/:slug yolu YOK — bkz. src/index.js#CLEAN_URL_ASSETS), bu yüzden href aynı kalır.
+        // Her ofis profili /firma/:slug altında yaşıyor (kullanıcı isteği, 2026-09-14 madde 4 —
+        // /marka* adresleri 301 ile buraya taşındı).
         href: `/${f.followed_type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(f.followed_key)}`,
         // follows.created_at ms epoch olarak saklanır (bkz. src/routes/follows.js#createFollow) —
         // projects/products'ın "YYYY-MM-DD HH:MM:SS" metnini bekleyen feedTimeMs'e ihtiyaç yok.
