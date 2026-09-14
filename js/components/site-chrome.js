@@ -79,6 +79,39 @@
       + '.ml-retry-btn{display:inline-block;margin-left:8px;padding:6px 14px;border-radius:100px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}';
     (document.head || document.documentElement).appendChild(style);
   })();
+  // ---------------------------------------------------------------------------------------------
+  // DOKUNMATİKTE ODAKLANINCA EKRAN YAKINLAŞMASINI ENGELLE (kullanıcı isteği, 2026-09-14: "Mobilde
+  // bir şey yazmak için bir kutucuğa tıklandığında o kutucuğa doğru ekran yaklaşıyor. Örneğin arama
+  // popupındaki arama çubuğuna tıkladığımızda oluyor.").
+  //
+  // NEDENİ TARAYICI DAVRANIŞI, BİZİM KODUMUZ DEĞİL: iOS Safari/WebKit, odaklanan bir form alanının
+  // yazı puntosu 16 px'in ALTINDAysa alanı okunur kılmak için sayfayı otomatik büyütür (ve odak
+  // bırakılınca eski ölçeğe DÖNMEZ — kullanıcı elle uzaklaştırmak zorunda kalır). Sitedeki alanların
+  // çoğu 12,5-13,5 px, yani eşiğin altında. Tek çözüm alanları 16 px'e çıkarmaktır.
+  //
+  // NEDEN `user-scalable=no` / `maximum-scale=1` DEĞİL: o da yakınlaşmayı durdurur ama aynı zamanda
+  // kullanıcının PARMAKLA yakınlaştırmasını da tamamen kapatır — az gören kullanıcılar için gerçek
+  // bir erişilebilirlik kaybı (WCAG 1.4.4). Punto yükseltmek aynı sonucu bedelsiz verir.
+  //
+  // KAPSAM `(hover:none) and (pointer:coarse)`: yalnızca dokunmatik cihazlar (telefon + tablet).
+  //   * Genişlik eşiği KULLANILMADI çünkü iPad de (768-1024 px) aynı şekilde yakınlaştırır;
+  //     max-width:640px onu kaçırırdı.
+  //   * Masaüstü hiç etkilenmez — daraltılmış bir masaüstü penceresi bile, çünkü orada hover var.
+  // !important ŞART: alanların puntosu ya sayfa içi <style> bloklarındaki daha yüksek özgüllüklü
+  // kurallardan (ör. .dash-field input) ya da doğrudan inline style'dan geliyor; bu dosya 31 sayfaya
+  // sonradan enjekte edildiğinden !important olmadan hiçbirini ezemez.
+  // checkbox/radio/range METİN taşımaz — punto onlarda yalnızca yerleşimi bozabilir, dışarıda bırakıldı.
+  // Sabit 16px KÜÇÜLTME riski taşımıyor: depodaki hiçbir input/select/textarea 16 px'ten BÜYÜK bir
+  // punto taşımıyor (en büyüğü tam 16 px), yani kural yalnızca eşiğin altındakileri yukarı çeker.
+  (function(){
+    const style = document.createElement('style');
+    style.id = 'ml-no-zoom-style';
+    style.textContent = '@media (hover:none) and (pointer:coarse){'
+      + 'input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea'
+      + '{font-size:16px !important;}}';
+    (document.head || document.documentElement).appendChild(style);
+  })();
+
   window.mlFetch = function(url, opts){
     opts = opts || {};
     const timeoutMs = opts.timeoutMs || 12000;
@@ -1013,9 +1046,12 @@
           }
           .nav-search-modal-chips::-webkit-scrollbar{display:none;}
           .nav-search-modal-chip{flex:0 0 auto; white-space:nowrap;}
-          /* kullanıcı isteği (2026-08-30): "Aradığını yaz, bulmana yardımcı olalım" placeholder'ı
-             mobilde kutunun genişliğine sığmadığından kırpılıyordu — yalnızca mobilde punto küçültüldü. */
-          .nav-search-modal-input-row input{font-size:13px;}
+          /* Buradaki eski font-size:13px KALDIRILDI (2026-09-14). Amacı "Aradığını yaz, bulmana
+             yardımcı olalım" placeholder'ının mobilde kırpılmamasıydı (kullanıcı isteği,
+             2026-08-30) ama 16 px altındaki her alan iOS'ta odaklanınca ekranı yakınlaştırıyor
+             (bkz. ml-no-zoom-style) — yani bu kural tam da kullanıcının şikayet ettiği davranışın
+             kaynağıydı ve zaten o kuralca eziliyor. Placeholder artık PUNTOYU değil METNİ kısaltarak
+             sığdırılıyor (bkz. syncSearchPlaceholder). */
         }
       `;
       document.head.appendChild(style);
@@ -1063,6 +1099,23 @@
 
     const modalInput = overlay.querySelector('#nav-search-modal-input');
     const body = overlay.querySelector('#nav-search-modal-body');
+
+    // Placeholder DAR EKRANDA kısalır (kullanıcı isteği, 2026-08-30: mobilde kırpılmasın).
+    // Eskiden punto 13 px'e düşürülerek sığdırılıyordu; o çözüm iOS'un odakta yakınlaştırma
+    // davranışını tetiklediği için bırakıldı (bkz. ml-no-zoom-style). ÖLÇÜLDÜ (Inter, 16 px):
+    // tam metin 278 px, 390 px'lik bir ekranda çubuğun metne ayırdığı alan 254 px — sığmıyor;
+    // kısa metin 212 px, rahatça sığıyor. Eşik modalın kendi mobil kırılımıyla (640px) AYNI
+    // tutuldu, ayrı bir sihirli sayı üretilmesin.
+    const SEARCH_PLACEHOLDER_FULL = 'Aradığını yaz, bulmana yardımcı olalım';
+    const SEARCH_PLACEHOLDER_SHORT = 'Aradığını yaz, yardımcı olalım';
+    const narrowMq = window.matchMedia('(max-width:640px)');
+    function syncSearchPlaceholder(){
+      modalInput.placeholder = narrowMq.matches ? SEARCH_PLACEHOLDER_SHORT : SEARCH_PLACEHOLDER_FULL;
+    }
+    syncSearchPlaceholder();
+    // Ekran döndürüldüğünde/pencere yeniden boyutlandığında da doğru kalsın.
+    if (narrowMq.addEventListener) narrowMq.addEventListener('change', syncSearchPlaceholder);
+    else if (narrowMq.addListener) narrowMq.addListener(syncSearchPlaceholder);
     let debounceTimer = null;
     let currentQuery = '';
 
