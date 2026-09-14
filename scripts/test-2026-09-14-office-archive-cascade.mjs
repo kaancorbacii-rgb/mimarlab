@@ -177,6 +177,55 @@ await test('kişi arşivlemek cascade tetiklemez (özyineleme yok)', async () =>
   assert.ok(!isArchived(db, 'projects', 1), 'kişi arşivlemek firmanın projesini arşivledi');
 });
 
+// ÖNİZLEMEDEKİ KAYITLAR — GERÇEK CANLI BULGU (kullanıcı bildirimi, 2026-09-14: "Arıkoğlu Arkitekt
+// firmasını arşive aldım ama firmaya ait proje ve kişi otomatik olarak arşive alınmadı").
+// Toplayıcı kaydı atlarken yalnızca hidden_at'e bakıyordu; hidden_at ise ÜÇ durumun İKİSİNDE dolu
+// (bkz. migrations/0107_preview_state.sql). Önizlemedeki kayıt (hidden_at DOLU + preview_at DOLU)
+// "zaten canlıda değil" sanılıp cascade'in dışında bırakılıyor, firma arşive giderken künyesindeki
+// kişi/proje/ürün önizlemede asılı kalıyor ve sitede SOLUK KART olarak görünmeye devam ediyordu.
+// Aşağıdaki üç test tam olarak o durumu sabitler; idempotans testi (hemen altta) da korunmalı,
+// çünkü atlanması gereken tek durum GERÇEKTEN arşivlenmiş olandır.
+function toPreview(db, table, id) {
+  db.prepare(`UPDATE ${table} SET hidden_at = ?, preview_at = ? WHERE id = ?`)
+    .run('2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z', id);
+}
+const isPreview = (db, table, id) => { const r = hidden(db, table, id); return !!r.hidden_at && !!r.preview_at; };
+
+await test('ÖNİZLEMEDEKİ kişi ve proje de arşivlenir (soluk kart olarak asılı kalmaz)', async () => {
+  const { db, env } = freshEnv();
+  toPreview(db, 'architects', 1);   // Kurucu A
+  toPreview(db, 'projects', 1);     // Tek Künyeli
+  assert.ok(isPreview(db, 'architects', 1) && isPreview(db, 'projects', 1), 'kurulum: ikisi de önizlemede olmalı');
+  await archiveOfist(env);
+  assert.ok(isArchived(db, 'architects', 1), 'önizlemedeki kişi arşivlenmedi');
+  assert.ok(isArchived(db, 'projects', 1), 'önizlemedeki proje arşivlenmedi');
+});
+
+await test('ÖNİZLEMEDEKİ ürün de arşivlenir', async () => {
+  const { db, env } = freshEnv();
+  toPreview(db, 'products', 1);
+  await archiveOfist(env);
+  assert.ok(isArchived(db, 'products', 1), 'önizlemedeki ürün arşivlenmedi');
+});
+
+await test('önizlemeden arşive geçen kayıt yanıtta da RAPORLANIR', async () => {
+  const { db, env } = freshEnv();
+  toPreview(db, 'projects', 1);
+  const body = await archiveOfist(env);
+  assert.ok(body.cascade.archived.projects.includes('Tek Künyeli'),
+    `önizlemedeki proje raporlanmadı: ${JSON.stringify(body.cascade.archived.projects)}`);
+});
+
+// Ortak künye koruması önizlemede de geçerli olmalı: kural "canlıda kalan başka bir firmanın
+// künyesini bozma" — kaydın kendi durumu (canlı/önizleme) bunu değiştirmez.
+await test('önizlemede olsa bile ORTAK proje korunur (öteki firma hâlâ yayında)', async () => {
+  const { db, env } = freshEnv();
+  toPreview(db, 'projects', 2); // Ortak Proje (Ofist + Başka Firma)
+  await archiveOfist(env);
+  assert.ok(!isArchived(db, 'projects', 2), 'ortak proje korunmadı');
+  assert.ok(isPreview(db, 'projects', 2), 'ortak proje önizleme durumundan çıkarılmış');
+});
+
 await test('zaten arşivdeki kayıt ikinci turda tekrar işlenmez (idempotans)', async () => {
   const { db, env } = freshEnv();
   await archiveOfist(env);

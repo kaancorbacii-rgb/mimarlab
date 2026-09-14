@@ -25,6 +25,26 @@ async function idsFrom(env, sql, binds) {
   return (results || []).map(r => r.id).filter(id => id !== null && id !== undefined);
 }
 
+// GERÇEK BULGU (kullanıcı bildirimi, 2026-09-14: "Arıkoğlu Arkitekt firmasını arşive aldım ama
+// firmaya ait proje ve kişi otomatik olarak arşive alınmadı"): bu toplayıcı kaydı atlarken yalnızca
+// `hidden_at` doluluğuna bakıyordu. Ama hidden_at ÜÇ durumdan İKİSİNDE dolu (bkz.
+// migrations/0107_preview_state.sql):
+//   hidden_at NULL, preview_at NULL -> yayında
+//   hidden_at DOLU, preview_at DOLU -> ÖNİZLEME: listelerde hâlâ SOLUK KART olarak görünür
+//   hidden_at DOLU, preview_at NULL -> tam arşiv: hiçbir yerde görünmez
+// Yani önizlemedeki kayıtlar "zaten canlıda değil" sayılıp cascade'in DIŞINDA bırakılıyordu; firma
+// arşive giderken künyesindeki kişi/proje/ürün önizlemede asılı kalıyor ve sitede soluk kart olarak
+// görünmeye devam ediyordu — canlı vaka: Arıkoğlu Arkitekt + "Arıkoğlu Plaza Apartmanı" + "Kaya
+// Arıkoğlu". Atlanması gereken tek durum GERÇEKTEN arşivlenmiş olandır (idempotans); önizleme
+// arşivlenmelidir.
+//
+// Yazma yolu bunu zaten doğru yapıyor: setLegacyHidden(hidden=true) preview_at'i de NULL'a çeker
+// (bkz. src/routes/legacyContent.js#setLegacyHidden'daki "Arşivle HER ZAMAN TAM arşiv demektir"
+// notu) — eksik olan tek şey kaydın oraya HİÇ ulaşmamasıydı.
+function isAlreadyArchived(row) {
+  return !!row.hidden_at && !row.preview_at;
+}
+
 // "Bu kayıt, ARŞİVLENMEYEN ve HÂLÂ YAYINDA olan başka bir firmaya da mı ait?" — öyleyse cascade ona
 // DOKUNMAZ.
 //
@@ -75,7 +95,7 @@ export async function collectOfficeArchiveTargets(env, office) {
   if (architectIds.length) {
     const ph = architectIds.map(() => '?').join(', ');
     const { results } = await env.DB.prepare(
-      `SELECT id, name, slug, hidden_at FROM architects WHERE id IN (${ph}) AND deleted_at IS NULL`
+      `SELECT id, name, slug, hidden_at, preview_at FROM architects WHERE id IN (${ph}) AND deleted_at IS NULL`
     ).bind(...architectIds).all();
     // Kişinin bağlı olduğu DİĞER firmalar (iki bağ da) — yayında olan varsa kişi korunur.
     const { results: links } = await env.DB.prepare(
@@ -85,7 +105,7 @@ export async function collectOfficeArchiveTargets(env, office) {
     ).bind(...architectIds, ...architectIds).all();
     const liveOthers = await liveOfficeIdsExcluding(env, seedOfficeIds, (links || []).map(l => l.oid));
     for (const a of results || []) {
-      if (a.hidden_at) continue; // zaten canlıda değil — dokunma (idempotans)
+      if (isAlreadyArchived(a)) continue; // gerçekten arşivde — dokunma (idempotans)
       const blocker = (links || []).find(l => l.aid === a.id && liveOthers.has(l.oid));
       if (blocker) { skipped.architects.push(a.name); continue; }
       architects.push({ id: a.id, key: a.name, label: a.name });
@@ -113,14 +133,14 @@ export async function collectOfficeArchiveTargets(env, office) {
   if (projectIds.length) {
     const ph = projectIds.map(() => '?').join(', ');
     const { results } = await env.DB.prepare(
-      `SELECT id, slug, title, hidden_at FROM projects WHERE id IN (${ph}) AND deleted_at IS NULL`
+      `SELECT id, slug, title, hidden_at, preview_at FROM projects WHERE id IN (${ph}) AND deleted_at IS NULL`
     ).bind(...projectIds).all();
     const { results: designers } = await env.DB.prepare(
       `SELECT project_id AS pid, office_id AS oid FROM project_designers WHERE project_id IN (${ph}) AND office_id IS NOT NULL`
     ).bind(...projectIds).all();
     const liveOthers = await liveOfficeIdsExcluding(env, seedOfficeIds, (designers || []).map(d => d.oid));
     for (const p of results || []) {
-      if (p.hidden_at) continue;
+      if (isAlreadyArchived(p)) continue;
       const blocker = (designers || []).find(d => d.pid === p.id && liveOthers.has(d.oid));
       if (blocker) { skipped.projects.push(p.title); continue; }
       projects.push({ id: p.id, key: p.slug, label: p.title });
@@ -153,11 +173,11 @@ export async function collectOfficeArchiveTargets(env, office) {
   if (productIds.length) {
     const ph = productIds.map(() => '?').join(', ');
     const { results } = await env.DB.prepare(
-      `SELECT id, slug, title, kind, brand_office_id, hidden_at FROM products WHERE id IN (${ph}) AND deleted_at IS NULL`
+      `SELECT id, slug, title, kind, brand_office_id, hidden_at, preview_at FROM products WHERE id IN (${ph}) AND deleted_at IS NULL`
     ).bind(...productIds).all();
     const liveOthers = await liveOfficeIdsExcluding(env, seedOfficeIds, (results || []).map(p => p.brand_office_id).filter(Boolean));
     for (const p of results || []) {
-      if (p.hidden_at) continue;
+      if (isAlreadyArchived(p)) continue;
       // Markası BAŞKA ve hâlâ yayında olan bir firma olan ürün (yalnızca product_architects
       // üzerinden geldiyse mümkün) — o markanın kataloğundan düşmemeli.
       if (p.brand_office_id && liveOthers.has(p.brand_office_id)) { skipped.products.push(p.title); continue; }
