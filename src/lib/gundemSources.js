@@ -108,97 +108,21 @@ const EN_TITLE_HINTS = [
 
 export const GUNDEM_SOURCES = [
   // ===========================================================================================
-  // ARKITERA — kullanıcının verdiği üç kategori (haber / etkinlik / yarışma).
-  // ÖLÇÜM (2026-09-07): üç kategori feed'i de 200, 120 item. robots.txt yalnızca /wp-admin/ kapalı.
-  // Görsel feed'de YOK; makale sayfası 200 + og:image veriyor -> imageStrategy 'og'.
-  // Kategori feed'leri kullanıldığı için kategori AI'ye sorulmadan KESİN biliniyor.
-  // ===========================================================================================
-  {
-    id: 'arkitera-haber',
-    name: 'Arkitera',
-    domain: 'arkitera.com',
-    feedUrl: 'https://www.arkitera.com/kategori/haber/feed/',
-    type: 'rss',
-    enabled: true,
-    defaultCategory: 'haber',
-    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 6,
-    imageStrategy: 'og',
-    imageHosts: ['www.arkitera.com', 'arkitera.com'],
-    language: 'tr',
-    priority: 0, // Türkçe kaynaklar önce işlenir — tur bütçesi biterse en son onlar düşsün.
-  },
-  {
-    id: 'arkitera-etkinlik',
-    name: 'Arkitera',
-    domain: 'arkitera.com',
-    feedUrl: 'https://www.arkitera.com/kategori/etkinlik/feed/',
-    type: 'rss',
-    enabled: true,
-    defaultCategory: 'etkinlik',
-    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 4,
-    imageStrategy: 'og',
-    imageHosts: ['www.arkitera.com', 'arkitera.com'],
-    language: 'tr',
-    priority: 0,
-  },
-  {
-    id: 'arkitera-yarisma',
-    name: 'Arkitera',
-    domain: 'arkitera.com',
-    feedUrl: 'https://www.arkitera.com/kategori/yarisma/feed/',
-    type: 'rss',
-    enabled: true,
-    defaultCategory: 'yarisma',
-    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 4,
-    imageStrategy: 'og',
-    imageHosts: ['www.arkitera.com', 'arkitera.com'],
-    language: 'tr',
-    priority: 0,
-  },
-
-  // ===========================================================================================
-  // MİMDAP — kullanıcının verdiği altı kategori. TEK HTML KAYNAĞI.
+  // KALDIRILAN TÜRKÇE KAYNAKLAR (kullanıcı isteği, 2026-09-14): Arkitera (haber/etkinlik/yarışma),
+  // Mimdap ve Bigumigu kaynak listesinden ÇIKARILDI — "Gündem sayfası için çekilen içerik
+  // kaynaklarından mimdap, arkitera, bigumigu kaynaklarını sil." Yapılandırmadan düştükleri için
+  // artık hiç ağ isteği yapılmaz, GUNDEM_IMAGE_HOSTS'tan (dolayısıyla CSP img-src'den) da
+  // düşerler ve admin panelindeki kaynak sağlık tablosunda görünmezler. `enabled:false` YETMEZDİ:
+  // istek de yapılmaz ama host CSP'de kalır ve kaynak listede durmaya devam ederdi.
   //
-  // NEDEN HTML (RSS varken): mimdap.org'un kategori feed'leri teknik olarak ÇALIŞIYOR (200, 10
-  // item) ama sitenin robots.txt'si AÇIKÇA `Disallow: */feed/` diyor. Feed'i kullanmak robots'u
-  // çiğnemek olurdu. Kategori SAYFALARI ise robots'ta kapalı DEĞİL (yalnızca /wp-admin/, /wp-json/
-  // vb. kapalı) ve kullanıcının verdiği adresler zaten bunlar — bu yüzden HTML'den okunur.
-  // Çıkarıcı: src/lib/gundemHtmlList.js#extractMimdap (şablon değişirse 0 item döner, uydurmaz).
-  // Görsel: <img data-src="https://mimdap.org/wp-content/uploads/..."> — liste sayfasında hazır,
-  // makale sayfasına AYRICA gidilmesine gerek yok.
+  // O kaynaklardan GELMİŞ, D1'de duran gündem satırları ayrıca silinir — bkz.
+  // scripts/gundem-purge-sources.mjs ve .github/workflows/gundem-purge-sources.yml (uzak
+  // oturumdan D1'e erişilemediği için betik runner'da çalışır).
+  //
+  // mimdap'ın HTML liste çıkarıcısı (src/lib/gundemHtmlList.js#extractMimdap) BİLEREK duruyor:
+  // çıkarıcı kayıtları kaynak id'siyle anahtarlanır, kaynak olmayınca hiç çağrılmaz; kodu silmek
+  // yalnızca kaynağı geri açmak istendiğinde yeniden yazılmasını gerektirirdi.
   // ===========================================================================================
-  {
-    id: 'mimdap',
-    name: 'Mimdap',
-    domain: 'mimdap.org',
-    feedUrl: 'https://mimdap.org/kategori/haberler/',
-    type: 'html',
-    enabled: true,
-    defaultCategory: 'haber',
-    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 5,
-    imageStrategy: 'feed',
-    imageHosts: ['mimdap.org', 'www.mimdap.org'],
-    language: 'tr',
-    priority: 0,
-    // extraListUrls — AYNI kaynağın diğer kategori sayfaları. Ayrı kaynak kaydı açmak yerine tek
-    // kayıt altında toplanır: hepsi aynı site, aynı çıkarıcı, aynı görsel host'u ve aynı sağlık
-    // sayacı. Kategori, sayfanın kendi yoluna göre atanır (bkz. listUrlCategory).
-    extraListUrls: [
-      { url: 'https://mimdap.org/kategori/mimarlik-gundemi/', category: 'haber' },
-      { url: 'https://mimdap.org/kategori/ic-mekan/', category: 'haber' },
-      { url: 'https://mimdap.org/kategori/yarismalar/', category: 'yarisma' },
-      { url: 'https://mimdap.org/kategori/etkinlikler/', category: 'etkinlik' },
-      { url: 'https://mimdap.org/kategori/mimarlik-dunyasindan/', category: 'haber' },
-    ],
-  },
 
   // ===========================================================================================
   // DEZEEN — kullanıcının verdiği dört bölüm. Bölüm feed'lerinin dördü de 200 + 50 item (ölçüm
@@ -447,50 +371,6 @@ export const GUNDEM_SOURCES = [
     imageHosts: ['img.edilportale.com'],
     language: 'en',
     priority: 2,
-  },
-
-  // ===========================================================================================
-  // BIGUMIGU — kullanıcının verdiği kaynak (2026-09-07): https://bigumigu.com/
-  //
-  // ÖLÇÜM (2026-09-07, gerçek istekle): ana sayfa kendi RSS'ini bildiriyor (/feed/) — 200,
-  // application/rss+xml, 10 item, feed ~6 gün geriye gidiyor (yayın hızı günde ~1,7 içerik).
-  // 10 item'ın 10'unda görsel feed'in İÇİNDE ve tek host'tan (bigumigu.com/wp-content/uploads).
-  // robots.txt: `User-agent: * / Disallow:` — yani TAMAMEN açık, hiçbir yol kapalı değil.
-  //
-  // KAPSAM UYARISI (bilerek eklendi, karar kullanıcının): Bigumigu bir MİMARLIK yayını değil,
-  // genel yaratıcı endüstriler yayınıdır — feed'deki bölüm etiketleri Tasarım / Reklam / Teknoloji.
-  // Yani buradan gelen içeriğin bir kısmı reklam kampanyası, ürün tasarımı ya da illüstrasyon
-  // olacak; Gündem'in mimarlık odağına her içerik birebir oturmayabilir. Sistemdeki kalite kapıları
-  // KONU filtresi DEĞİLDİR (title_unrelated yalnızca AI halüsinasyonunu yakalar), dolayısıyla
-  // konu dışı içerik elenmez. Dar tutmak istenirse iki yol var: kaynağı enabled:false yapmak ya da
-  // bigumigu'nun kategori feed'lerinden (ör. /kategori/tasarim/feed/) beslenmek.
-  //
-  // FEED SIĞ AMA RİSKSİZ: 10 item ~6 gün kapsıyor; 4 saatlik cron ızgarasında iki tur arasında
-  // feed'in dolup içerik kaybetmesi için yayın hızının ~36 katına çıkması gerekirdi.
-  // ===========================================================================================
-  {
-    id: 'bigumigu',
-    name: 'Bigumigu',
-    domain: 'bigumigu.com',
-    feedUrl: 'https://bigumigu.com/feed/',
-    type: 'rss',
-    enabled: true,
-    // ZAMAN AŞIMI YÜKSELTİLDİ (canlı bulgu, denetim 2026-09-10): son 18 cron turunun 9'unda bu
-    // kaynak `The operation was aborted due to timeout` ile düştü — yani turların YARISINDA hiç
-    // içerik vermedi. Ölçüm (5 gerçek istek): 7,96s / 10,42s / 10,55s / 10,83s / 11,34s — bağlantı
-    // 0,1s, yani gecikme tamamen yayıncının kendi üretim süresi. Varsayılan 12sn tam bu dağılımın
-    // ÜSTÜNE denk geliyor, o yüzden kayıp rastgele. 20sn hem ölçülen en kötü değerin iki katı
-    // hem de tur bütçesinin (120sn) çok altında; feed'ler 3'erli gruplar hâlinde çekildiğinden
-    // en kötü etki tek bir grubun ~8sn uzamasıdır. Bkz. gundemFeed.js#feedTimeoutFor.
-    feedTimeoutMs: 20000,
-    defaultCategory: 'haber',
-    categoryHints: [...TR_TAG_HINTS, ...TR_TITLE_HINTS],
-    fetchIntervalMin: 180,
-    maxItemsPerRun: 4,
-    imageStrategy: 'feed',
-    imageHosts: ['bigumigu.com', 'www.bigumigu.com'],
-    language: 'tr',
-    priority: 0, // Türkçe kaynaklar önce işlenir (arkitera/mimdap ile aynı gerekçe).
   },
 
   // ===========================================================================================

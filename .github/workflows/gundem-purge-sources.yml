@@ -1,0 +1,109 @@
+name: Gündem — kaldırılan kaynakların içeriğini sil (arkitera, mimdap, bigumigu)
+
+# KULLANICI İSTEĞİ, 2026-09-14: "Gündem sayfası içim çekilen içerik kaynaklarından mimdap,
+# arkitera, bigumigu kaynaklarını sil. Ayrıca gündem sayfasındaki bu kaynaklara dair içerikleri
+# de sil."
+#
+# Kaynakların KENDİSİ koda gömülü yapılandırmadan çıkarıldı (src/lib/gundemSources.js) — o kısım
+# deploy ile canlıya gider ve bundan sonra o sitelere hiç gidilmez. BU WORKFLOW, daha önce
+# çekilmiş ve D1'de duran satırları temizler.
+#
+# NEDEN WORKFLOW: uzak (web/telefon) Claude oturumundan api.cloudflare.com çıkışı ağ politikasıyla
+# kapalı — D1'e oradan hiç yazılamaz. archive-brands-and-products.yml / gundem-retitle.yml ile
+# AYNI desen.
+#
+# NE YAPAR (betiğin başında ayrıntılı):
+#   1) o üç yayıncıya ait gundem_items satırlarını CANLI silme yolundan siler (gundem_entities
+#      kenarları + liste/tekil sayfa önbelleği de düşer),
+#   2) başka yayıncıların satırlarındaki İKİNCİL atıflardan (extra_sources) bu üç yayıncıyı çıkarır
+#      — o satırlar SİLİNMEZ, yalnızca kaldırılan kaynağa giden bağlantı kalkar,
+#   3) artık var olmayan kaynakların gundem_source_health satırlarını siler.
+#
+# VARSAYILAN DRY-RUN: apply=evet denmedikçe D1'e HİÇBİR ŞEY yazılmaz — önce listeyi okuyun.
+# Sayım kapısı: expect verilirse ve bulunan içerik sayısı farklıysa hiçbir şey yazılmadan durur.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "D1'e YAZ (evet = gerçekten sil, hayir = yalnızca liste)"
+        required: true
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+      expect:
+        description: 'Beklenen içerik sayısı (kapı; boş = kontrol yok)'
+        required: false
+        default: ''
+
+concurrency:
+  group: mimarlab-gundem-purge
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    # Silme satır başına birkaç D1 sorgusu + önbellek purge'ü demek; birkaç yüz satır için fazlasıyla yeter.
+    timeout-minutes: 60
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NPM_CONFIG_YES: 'true'
+
+    steps:
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1; fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1; fi
+          if [ "$missing" -eq 1 ]; then
+            echo "Kurulum adımları deploy.yml'in aynı adımında listeli." >&2
+            echo "Bu iş için gereken izin: D1:Edit (Account kapsamlı)." >&2
+            exit 1
+          fi
+          echo "Cloudflare sırları yerinde."
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            src
+            scripts
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sil
+        env:
+          IN_APPLY: ${{ inputs.apply }}
+          IN_EXPECT: ${{ inputs.expect }}
+        run: |
+          set -o pipefail
+          # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ (script-injection savunması).
+          argv=()
+          if [ "${IN_APPLY}" = "evet" ]; then argv+=("--apply"); fi
+          if [ -n "${IN_EXPECT}" ]; then
+            case "${IN_EXPECT}" in *[!0-9]*) echo "expect sayı olmalı" >&2; exit 1 ;; esac
+            argv+=("--expect=${IN_EXPECT}")
+          fi
+          echo "Çalıştırılıyor: node scripts/gundem-purge-sources.mjs ${argv[*]}"
+          node scripts/gundem-purge-sources.mjs "${argv[@]}" 2>&1 | tee gundem-purge-log.txt
+
+      - name: Rapor (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gundem-purge-log
+          path: gundem-purge-log.txt
+          if-no-files-found: warn
+
+      - name: Özet
+        if: always()
+        run: |
+          if [ "${{ inputs.apply }}" = "evet" ]; then
+            echo "UYGULANDI (log'a bakın): arkitera/mimdap/bigumigu içerikleri silindi."
+          else
+            echo "ÖNİZLEME (D1'e yazılmadı). Gerçekten silmek için apply=evet ile tekrar çalıştırın."
+          fi

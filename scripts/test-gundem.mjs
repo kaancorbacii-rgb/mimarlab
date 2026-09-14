@@ -692,6 +692,24 @@ await test('Her kaynağın zorunlu alanları tam ve tipleri doğru', () => {
   }
 });
 
+await test('KALDIRILAN kaynaklar (arkitera, mimdap, bigumigu) yapılandırmaya geri sızmadı', () => {
+  // Kullanıcı isteği, 2026-09-14: "Gündem sayfası içim çekilen içerik kaynaklarından mimdap,
+  // arkitera, bigumigu kaynaklarını sil." Bu üç yayıncı kaynak listesinden TAMAMEN çıkarıldı
+  // (enabled:false DEĞİL — o, host'u CSP'de ve kaynağı admin tablosunda bırakırdı).
+  // D1'de duran eski satırları silen ayrı bir iş var: scripts/gundem-purge-sources.mjs.
+  const removed = ['arkitera.com', 'mimdap.org', 'bigumigu.com'];
+  for (const src of GUNDEM_SOURCES) {
+    assert.ok(!removed.includes(src.domain), `kaldırılan kaynak geri gelmiş: ${src.id} (${src.domain})`);
+    for (const h of src.imageHosts || []) {
+      assert.ok(!removed.includes(String(h).replace(/^www\./, '')), `kaldırılan kaynağın görsel host'u duruyor: ${src.id} -> ${h}`);
+    }
+  }
+  // CSP img-src doğrudan bu beyandan üretilir — host orada da kalmamalı.
+  for (const h of GUNDEM_IMAGE_HOSTS) {
+    assert.ok(!removed.includes(String(h).replace(/^www\./, '')), `kaldırılan kaynağın host'u CSP'de: ${h}`);
+  }
+});
+
 await test('type:html olan her ETKİN kaynağın kayıtlı bir çıkarıcısı var', () => {
   for (const s of activeGundemSources().filter(x => x.type === 'html')) {
     assert.equal(hasHtmlExtractor(s.id), true, `HTML çıkarıcısı yok: ${s.id}`);
@@ -760,10 +778,10 @@ await test('feedTimeoutMs kullanan her kaynak tur bütçesinin çok altında kal
     assert.ok(feedTimeoutFor(src) <= 25000, `${src.id}: tavanı aşıyor`);
     assert.ok(feedTimeoutFor(src) * 3 < 120000, `${src.id}: tek grup tur bütçesini yiyebilir`);
   }
-  // Bulgunun kendisi: bigumigu ölçülen en kötü değerin (11,34 sn) en az iki katını beklemeli.
-  const bigumigu = activeGundemSources().find(s => s.id === 'bigumigu');
-  assert.ok(bigumigu, 'bigumigu kaynağı kayboldu');
-  assert.ok(feedTimeoutFor(bigumigu) >= 20000, 'bigumigu zaman aşımı 12sn varsayılanına geri döndürülmüş');
+  // Bulgunun KAYNAĞI olan kaynak (bigumigu) 2026-09-14'te listeden çıkarıldı (kullanıcı isteği),
+  // bu yüzden ona özel iddia kaldırıldı. Sözleşmenin KENDİSİ (feedTimeoutFor'un varsayılan/taban/
+  // tavan davranışı) bir üstteki testte, kaynak listesinden bağımsız olarak sabitlenmiş durumda —
+  // yani bulgudan öğrenilen kural, onu doğuran kaynak gitse de korunuyor.
 });
 
 await test('Etkin kaynakların gerçek görselleri kalite kapısından geçer', () => {

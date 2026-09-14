@@ -556,7 +556,13 @@ await test('splitCategories: tek/çoklu/boş', () => {
   const src = readFileSync(new URL('../src/routes/product.js', import.meta.url), 'utf8');
   assert.ok(src.includes("!(p.groups || [p.group]).includes(groupParam)") && src.includes("!(p.categories || [p.category]).includes(categoryParam)"), 'filtre çoklu kategoriyi tanımalı');
   const form = readFileSync(new URL('../urun-ekle.html', import.meta.url), 'utf8');
-  assert.ok(form.includes("category: [...selectedCategories].join(' · ')") && form.includes('id="u-category-pills"'));
+  // Seçim arayüzü 2026-09-14'te hap (pill) ızgarasından AÇILIR MENÜYE döndü (kullanıcı isteği:
+  // "Ürün ekle sayfasında kategori başlığı altındaki seçenekler açılır menü şeklinde olsun") —
+  // ÇOKLU seçim ve ' · ' ile birleştirilen depolama biçimi DEĞİŞMEDİ, bu testin asıl konusu da o.
+  assert.ok(form.includes("category: [...selectedCategories].join(' · ')"), 'çoklu kategori " · " ile birleştirilmiyor');
+  assert.ok(form.includes('<select id="u-category"'), 'kategori açılır menüsü yok');
+  assert.ok(form.includes('id="u-category-chips"'), 'seçilen kategorilerin chip listesi yok (çoklu seçim görünmez olur)');
+  assert.ok(!form.includes('u-category-pills'), 'eski hap ızgarası geri gelmiş');
 });
 section('firma/marka popup: önizleme proje/ürünleri dahil');
 await test('buildOfficePayload önizleme projelerini ve ürünlerini de döner (preview bayrağıyla)', async () => {
