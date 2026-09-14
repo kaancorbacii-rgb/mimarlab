@@ -1423,7 +1423,7 @@ const AuthModal = (function () {
                renderFirmEditBtn / OFFICE_EDIT_POSITIONS. -->
           <div class="dash-section-head">
             <button type="button" class="dash-collapse-toggle dash-collapse-toggle-inline" data-collapse="am-firm-collapse" aria-expanded="true" aria-controls="am-firm-collapse">
-              <h2>Firma / Marka Bilgileri</h2>
+              <h2>Firma Bilgileri</h2>
               <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <a class="dash-edit-btn dash-edit-btn-sm" id="am-firm-edit-btn" href="#" style="display:none;">Profili Düzenle</a>

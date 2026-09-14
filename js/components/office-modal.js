@@ -93,7 +93,8 @@ const OfficeModal = (function () {
          (projects.type) değerlerine göre bu ızgarayı, başlıktaki sayacı ve altındaki haritayı
          birlikte süzer. -->
     <div class="related-section" id="om-related-projects-section" style="display:none;">
-      <h2 class="related-title" id="om-related-projects-title">Projeler<span id="om-related-projects-count"></span><button type="button" class="pgf-toggle" id="om-projects-filter-toggle" style="display:none;"></button></h2>
+      <!-- #om-add-project-slot — bkz. architect-modal.js'teki AYNI yuva/gerekçe. -->
+      <h2 class="related-title" id="om-related-projects-title">Projeler<span id="om-related-projects-count"></span><button type="button" class="pgf-toggle" id="om-projects-filter-toggle" style="display:none;"></button><span id="om-add-project-slot"></span></h2>
       <div class="pgf-chips" id="om-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
       <div class="om-projects-map-wrap" id="om-projects-map-wrap" style="display:none;"></div>
@@ -910,6 +911,7 @@ const OfficeModal = (function () {
       // yazar — yalnızca etiketler ve Hizmet Alanı seçenekleri farklıdır, bu yüzden contentType/
       // getModerationTarget/claim akışının geri kalanı DEĞİŞMEZ.
       editUrlBase: isBrandProfile ? '/marka-ekle' : '/firma-ekle',
+      addProjectSlotId: 'om-add-project-slot',
       listUrl: isBrandProfile ? '/marka' : '/firma',
       contentType: 'offices',
       getModerationTarget: () => o.submissionId ? { id: o.submissionId } : { key: o.name },

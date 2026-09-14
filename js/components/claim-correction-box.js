@@ -79,6 +79,19 @@ function createClaimCorrectionBox(config){
     const style = document.createElement('style');
     style.id = 'claim-correction-box-styles';
     style.textContent = `
+      /* "Proje Ekle" — .related-title'ın İÇİNDE yaşayan küçük bir hap düğme. Başlık 17px/700
+         olduğundan buton kendi puntosunu (12px/600) ve normal ağırlığını açıkça yazar, yoksa
+         başlıktan miras alıp kocaman ve kalın görünürdü. vertical-align:middle, sayacın ve
+         .pgf-toggle çentiğinin optik hizasıyla aynı satırda tutar. */
+      .rt-add-btn{
+        display:inline-flex; align-items:center; gap:5px; vertical-align:middle; margin-left:10px;
+        padding:5px 12px; border:1px solid var(--line); border-radius:100px;
+        background:var(--paper-card); color:var(--ink);
+        font-family:inherit; font-size:12px; font-weight:600; line-height:1; white-space:nowrap;
+        text-decoration:none; cursor:pointer;
+      }
+      .rt-add-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+      .rt-add-btn svg{flex-shrink:0;}
       .feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
       .feedback-card[open]{padding-bottom:18px;}
       .feedback-card h5{margin:0 0 6px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:700;}
@@ -348,13 +361,19 @@ function createClaimCorrectionBox(config){
   // kontrolün yorumunda "önce boş yere doldurulan form, sonra 403" olarak tarif edilen tam da bu.
   // Artık tek kaynak sunucudan gelen dondurulmuş değer (/api/claims/status → officePosition).
   const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Yönetici']);
+  // YETKİLİ Mİ? — Düzenle butonunun ve (aynı yetkiye bağlı) Proje Ekle butonunun TEK kaynağı.
+  // İkisi ayrı ayrı hesaplansaydı biri görünürken öteki kaybolabilirdi; tek fonksiyon bunu imkânsız
+  // kılar. ownSubmissionId — kullanıcının KENDİ yayınladığı profil (bkz. loadOwnSubmissionId'deki
+  // GERÇEK BULGU): onaylı bir sahiplenme talebi olmasa da düzenleyebilmeli.
+  function isAuthorizedEditor(){
+    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(claimOfficePosition);
+    return !!currentUser && !!((isProfileOwner && canEditByPosition) || currentUser.role === 'admin' || ownSubmissionId || claimDelegatedEdit);
+  }
+
   function renderProfileEditButton(){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;
-    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(claimOfficePosition);
-    // ownSubmissionId — kullanıcının KENDİ yayınladığı profil (bkz. loadOwnSubmissionId'deki GERÇEK
-    // BULGU): onaylı bir sahiplenme talebi olmasa da düzenleyebilmeli.
-    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin' || ownSubmissionId || claimDelegatedEdit)){ slot.innerHTML = ''; return; }
+    if(!isAuthorizedEditor()){ slot.innerHTML = ''; return; }
     // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
     // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
     // etkilenmesin diye buraya bir varsayılan değerle eklendi).
@@ -381,6 +400,28 @@ function createClaimCorrectionBox(config){
     if(config.onEditClick) document.getElementById('profile-edit-btn').addEventListener('click', () => config.onEditClick());
   }
 
+  // PROJE EKLE — "Projeler" başlığının yanında, YALNIZCA yetkili kullanıcıya (kullanıcı isteği,
+  // 2026-09-14: "Yetkili kullanıcılar kişi ve firma popuplarını açtığı zaman Projeler başlığının
+  // yanında Proje Ekle butonu da olsun"). Yetki Düzenle ile AYNI kaynaktan (isAuthorizedEditor).
+  //
+  // Yuva opsiyoneldir: config.addProjectSlotId vermeyen çağıranlar (ör. danışman modalı) etkilenmez.
+  //
+  // stopPropagation ŞART: bu düğme .related-title'ın İÇİNDE duruyor ve grup filtresi etkinken
+  // BAŞLIĞIN KENDİSİ de tıklanabilir oluyor (bkz. project-group-filter.js#attach ->
+  // .pgf-title-clickable / bindClick(titleEl, toggleOpen)). Durdurulmazsa "Proje Ekle"ye her tıklama
+  // aynı anda filtreyi de açıp kapatırdı.
+  function renderAddProjectButton(){
+    const slotId = config.addProjectSlotId;
+    if(!slotId) return;
+    const slot = document.getElementById(slotId);
+    if(!slot) return;
+    if(!isAuthorizedEditor()){ slot.innerHTML = ''; return; }
+    slot.innerHTML = '<a class="rt-add-btn" href="/proje-ekle">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+      + 'Proje Ekle</a>';
+    slot.firstChild.addEventListener('click', (e) => { e.stopPropagation(); });
+  }
+
   async function init(){
     injectStyles();
     // İki sahiplik yolu PARALEL sorgulanır (claim durumu + kullanıcının kendi gönderileri) —
@@ -394,8 +435,9 @@ function createClaimCorrectionBox(config){
     // BAŞKA bir profile geçmiş olabilir. Tek bir kontrol burada her iki yazımı da kapsar.
     if(config.isStale && config.isStale()) return;
     renderProfileEditButton();
+    renderAddProjectButton();
     loadCorrectionCard();
   }
 
-  return { init, loadClaimCard, loadCorrectionCard, renderProfileEditButton, isOwner: () => isProfileOwner };
+  return { init, loadClaimCard, loadCorrectionCard, renderProfileEditButton, renderAddProjectButton, isOwner: () => isProfileOwner };
 }

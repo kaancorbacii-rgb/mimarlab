@@ -100,7 +100,12 @@ const ArchitectModal = (function () {
          project-group-filter.js; künyedeki "Grup" (projects.type) değerlerine göre bu ızgarayı,
          başlıktaki sayacı ve altındaki haritayı birlikte süzer. -->
     <div class="related-section" id="am-related-projects-section" style="display:none;">
-      <h2 class="related-title" id="am-related-projects-title">Projeler<span id="am-related-projects-count"></span><button type="button" class="pgf-toggle" id="am-projects-filter-toggle" style="display:none;"></button></h2>
+      <!-- #am-add-project-slot — YETKİLİ kullanıcıya "Proje Ekle" (kullanıcı isteği, 2026-09-14).
+           Yuvayı claim-correction-box.js#renderAddProjectButton doldurur; yetki Düzenle butonuyla
+           AYNI kaynaktan gelir (isAuthorizedEditor), yani ikisi ayrışamaz. Yetkisizde boş kalır.
+           Yalnızca ASIL profil kutusuna bağlandı — önizleme (preview) modali bu bölümü hiç
+           çizmediğinden oradaki claim kutusuna yuva verilmedi. -->
+      <h2 class="related-title" id="am-related-projects-title">Projeler<span id="am-related-projects-count"></span><button type="button" class="pgf-toggle" id="am-projects-filter-toggle" style="display:none;"></button><span id="am-add-project-slot"></span></h2>
       <div class="pgf-chips" id="am-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
@@ -856,6 +861,7 @@ const ArchitectModal = (function () {
       getClaimLinkKey: () => a.slug || a._claimKey || a.name,
       getStaticBadges: () => a.badges,
       editUrlBase: '/kisi-ekle',
+      addProjectSlotId: 'am-add-project-slot',
       listUrl: '/kisi',
       contentType: 'architects',
       getModerationTarget: () => ({ key: a.name }),
