@@ -36,11 +36,14 @@ const auth = await import('../src/routes/auth.js');
 const { isDuplicateCanonicalName } = await import('../src/lib/canonicalSync.js');
 
 let ipSeq = 0;
-async function signup(name, email) {
+// username: 2026-09-14'ten itibaren kayıtta ZORUNLU (kullanıcı isteği madde 1) — her çağrı için
+// benzersiz bir kullanıcı adı üretilir, aksi halde ad soyad kuralını değil kullanıcı adı tekilliğini
+// test etmiş olurduk. dob ARTIK ZORUNLU DEĞİL (aynı istek: doğum yılı kutusu formdan kaldırıldı).
+async function signup(name, email, username) {
   const req = new Request('https://mimarlab.com/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': `203.0.113.${++ipSeq}` },
-    body: JSON.stringify({ name, email, password: 'Sifre1234!', password_confirm: 'Sifre1234!', dob: '1990', botCheck: true, kvkkAccepted: true }),
+    body: JSON.stringify({ name, email, username: username || `kullanici${ipSeq}`, password: 'Sifre1234!', password_confirm: 'Sifre1234!', botCheck: true, kvkkAccepted: true }),
   });
   const res = await auth.handleAuthRoute(req, env, new URL(req.url));
   return { status: res.status, body: await res.json().catch(() => ({})) };
@@ -87,6 +90,53 @@ await test('Aynı adla YENİ kişi paylaşımı hâlâ reddedilir (isDuplicateCa
   assert.equal(await isDuplicateCanonicalName(env, 'architects', 'Ayşe Yılmaz'), true);
   assert.equal(await isDuplicateCanonicalName(env, 'architects', 'AYŞE YILMAZ'), true);
   assert.equal(await isDuplicateCanonicalName(env, 'architects', 'Zeynep Demir'), false);
+});
+
+// KULLANICI ADI KURALLARI (kullanıcı isteği, 2026-09-14 madde 1/5/8) — aynı formun ikinci tekillik
+// kapısı. Kural kaynağı src/lib/username.js; burada UÇTAN UCA (gerçek rota + D1) doğrulanır.
+await test('Kullanıcı adı zorunlu ve biçimi doğrulanır', async () => {
+  const noUser = await signup('Zeynep Demir', 'zd@example.com', ' ');
+  assert.equal(noUser.status, 400);
+  const bad = await signup('Zeynep Demir', 'zd2@example.com', 'ab');
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /3-30/);
+});
+
+await test('Türkçe harfler ASCII\'ye katlanır ve @ ile yazılsa da temizlenir', async () => {
+  const r = await signup('Kaan Çorbacı', 'kaan@example.com', '@Kaan.Çorbacı');
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(db.prepare('SELECT username FROM users WHERE email = ?').get('kaan@example.com').username, 'kaan.corbaci');
+});
+
+await test('Aynı kullanıcı adı ikinci hesapta alınamaz (409)', async () => {
+  const r = await signup('Başka Kişi', 'baska@example.com', 'kaan.corbaci');
+  assert.equal(r.status, 409);
+  assert.match(r.body.error, /kullanıcı adı alınmış/);
+});
+
+await test('Giriş kullanıcı adıyla da yapılabilir (madde 8)', async () => {
+  const req = (body) => new Request('https://mimarlab.com/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': `198.51.100.${++ipSeq}` },
+    body: JSON.stringify(body),
+  });
+  const byUsername = await auth.handleAuthRoute(req({ identifier: 'kaan.corbaci', password: 'Sifre1234!' }), env, new URL('https://mimarlab.com/api/auth/login'));
+  assert.equal(byUsername.status, 200, 'kullanıcı adıyla giriş başarısız');
+  // Türkçe/büyük harfli yazım da aynı hesaba düşer (kayıttaki AYNI katlama).
+  const folded = await auth.handleAuthRoute(req({ identifier: 'Kaan.Çorbacı', password: 'Sifre1234!' }), env, new URL('https://mimarlab.com/api/auth/login'));
+  assert.equal(folded.status, 200, 'katlanmış kullanıcı adıyla giriş başarısız');
+  const byEmail = await auth.handleAuthRoute(req({ email: 'kaan@example.com', password: 'Sifre1234!' }), env, new URL('https://mimarlab.com/api/auth/login'));
+  assert.equal(byEmail.status, 200, 'e-posta ile giriş bozulmuş');
+  const wrong = await auth.handleAuthRoute(req({ identifier: 'kaan.corbaci', password: 'yanlis-sifre' }), env, new URL('https://mimarlab.com/api/auth/login'));
+  assert.equal(wrong.status, 401);
+});
+
+await test('Hesabım: kullanıcı adı değiştirilebilir, başkasının adı alınamaz', async () => {
+  const id = userId('kaan@example.com');
+  const ok = await auth.updateUserProfileFields(env, id, { username: 'KaanC' });
+  assert.ok(!ok.error, ok.error);
+  assert.equal(ok.user.username, 'kaanc');
+  const clash = await auth.updateUserProfileFields(env, id, { username: 'kullanici1' });
+  assert.equal(clash.status, 409);
 });
 
 await test('PATCH /api/profile ve admin kullanıcı düzenleme 409 durumunu iletir', async () => {

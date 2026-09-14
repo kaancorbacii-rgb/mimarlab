@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
+  -- username — hesabın genel tanıtıcısı (@kaancorbaci). Kayıtta ZORUNLU, girişte e-postanın
+  -- alternatifi (bkz. src/lib/username.js, migrations/0119_users_username.sql). Eski satırlar
+  -- geri dolumla doldurulduğundan kolon NULL kabul eder; yeni kayıtların hepsi dolu gelir.
+  username TEXT UNIQUE,
   dob TEXT,
   school TEXT,
   dept TEXT,

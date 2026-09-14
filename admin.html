@@ -1904,7 +1904,9 @@ async function loadUsers(){
   let items = all;
   if(usersSearch){
     const q = usersSearch.toLocaleLowerCase('tr');
-    items = all.filter(u => `${u.name || ''} ${u.email || ''} ${u.school || ''} ${u.dept || ''}`.toLocaleLowerCase('tr').includes(q));
+    // Kullanıcı adı da aranabilir (kullanıcı isteği, 2026-09-14: hesapların genel tanıtıcısı artık
+    // @kullaniciadi — destek/arama akışında e-posta kadar sık kullanılır).
+    items = all.filter(u => `${u.name || ''} ${u.username || ''} ${u.email || ''} ${u.school || ''} ${u.dept || ''}`.toLocaleLowerCase('tr').includes(q));
     if(!items.length){ list.innerHTML = `<div class="admin-empty">"${escapeHtml(usersSearch)}" ile eşleşen üye yok.</div>`; return; }
   }
   list.innerHTML = items.map(u => `
@@ -1912,7 +1914,7 @@ async function loadUsers(){
       <div class="admin-card-head">
         <div>
           <div class="admin-card-title">${escapeHtml(u.name)} ${u.role === 'admin' ? '<span class="admin-badge badge-approved">Admin</span>' : ''}</div>
-          <div class="admin-card-meta">${escapeHtml(u.email)} ${u.dob ? '· doğ. ' + escapeHtml(String(u.dob).slice(0,4)) : ''} ${u.school ? '· ' + escapeHtml(u.school) : ''} · ${new Date(u.created_at).toLocaleDateString('tr-TR')}</div>
+          <div class="admin-card-meta">${u.username ? '@' + escapeHtml(u.username) + ' · ' : ''}${escapeHtml(u.email)} ${u.dob ? '· doğ. ' + escapeHtml(String(u.dob).slice(0,4)) : ''} ${u.school ? '· ' + escapeHtml(u.school) : ''} · ${new Date(u.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
       </div>
     </div>
@@ -1974,7 +1976,7 @@ async function openUserDetail(userId){
   const data = await api(`/api/admin/users/${encodeURIComponent(userId)}`);
   const u = data.user;
   document.getElementById('ud-title').textContent = u.name || '—';
-  document.getElementById('ud-subtitle').textContent = u.email + (u.role === 'admin' ? ' · Admin' : '');
+  document.getElementById('ud-subtitle').textContent = (u.username ? '@' + u.username + ' · ' : '') + u.email + (u.role === 'admin' ? ' · Admin' : '');
   document.getElementById('ud-f-name').value = u.name || '';
   document.getElementById('ud-f-dob').value = u.dob || '';
   document.getElementById('ud-f-school').value = u.school || '';

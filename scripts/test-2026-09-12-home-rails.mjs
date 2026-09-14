@@ -425,9 +425,13 @@ await test('myClaims: officeRole KÜNYEDEKİ görevi taşır, dondurulmuş claim
   assert.equal(row.officeRole, 'Ekip Lideri', 'Görevin satırı künyeden gelmeli');
 });
 
-await test('istemci: "Görevin" officeRole -> role -> hesap pozisyonu sırasıyla okunur (claim görevi DEĞİL)', () => {
+// 2026-09-14 (madde 7 — hesap/kişi ayrımı): son yedek artık HESABIN pozisyonu değil, KİŞİ
+// künyesinin pozisyonudur (amPersonRecord). users.position bu turdan sonra güncellenmediğinden
+// oradan okumak bayat bir değer gösterirdi; sıranın kendisi (künye görevi -> kurucu bağı rolü ->
+// kişi künyesi) ve "dondurulmuş claim görevi OKUNMAZ" kuralı değişmedi.
+await test('istemci: "Görevin" officeRole -> role -> kişi künyesi sırasıyla okunur (claim görevi DEĞİL)', () => {
   const modal = read('js/components/auth-modal.js');
-  assert.match(modal, /const role = entry\.officeRole \|\| entry\.role \|\| \(accountUser && accountUser\.position\);/);
+  assert.match(modal, /const role = entry\.officeRole \|\| entry\.role \|\| \(amPersonRecord && amPersonRecord\.position\);/);
   assert.ok(!/const role = entry\.position \|\|/.test(modal), 'dondurulmuş claim görevi hâlâ okunuyor');
 });
 

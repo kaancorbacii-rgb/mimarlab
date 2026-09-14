@@ -25,7 +25,7 @@ export async function getSessionUser(request, env) {
   if (!token) return null;
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.dob, u.school, u.dept, u.photo_url, u.profession, u.position, u.awards, u.about, u.social_links, u.role, u.created_at
+    `SELECT u.id, u.email, u.username, u.name, u.dob, u.school, u.dept, u.photo_url, u.profession, u.position, u.awards, u.about, u.social_links, u.role, u.created_at
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ? AND s.expires_at > ?`
   ).bind(tokenHash, Date.now()).first();
@@ -42,9 +42,9 @@ function parseJsonArray(v) {
 
 export function publicUser(user) {
   if (!user) return null;
-  const { id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at } = user;
+  const { id, email, username, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at } = user;
   return {
-    id, email, name, dob, school, dept, photoUrl: photo_url, profession, position,
+    id, email, username: username || null, name, dob, school, dept, photoUrl: photo_url, profession, position,
     awards: parseJsonArray(awards), about: about || null, social_links: parseJsonArray(social_links),
     role, createdAt: created_at,
   };

@@ -20,13 +20,8 @@ import { activateProfilesOnPublish, previewProfileIdsByKeys, PUBLISH_GRAPH_PROFI
 import { foldTr, titleCasePersonName } from '../lib/textMatch.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
-// Meslek etiketi <-> slug çevirisinin TEK kaynağı (bkz. profession-shared.js dosya başı yorumu:
-// users.profession SLUG, architects.profession ETİKET taşır) — kişi profilinden hesap profiline
-// geri senkron bu çeviriye muhtaç (bkz. syncOwnArchitectToAccount).
-import professionSharedJs from '../../profession-shared.js';
 
 const { isBrandOffice } = officeKindJs;
-const { professionSlugOf } = professionSharedJs;
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
@@ -275,12 +270,20 @@ export async function handleSubmissionRoute(request, env, url) {
 //   * ya da kayıt kullanıcının KENDİ adıyla açılmış olması (bkz. isSelfDirectoryListing'in AYNI kuralı).
 // Başkası adına açılan/düzenlenen kişi kayıtları (kisi-ekle.html'in asıl kullanımı) bu iki testin
 // ikisinden de geçemez, dolayısıyla düzenleyenin hesabına HİÇBİR ŞEY yazılmaz.
-const ACCOUNT_SYNC_STRING_FIELDS = ['dob', 'school', 'dept', 'position', 'about', 'photo_url'];
-// "Bu kişi kaydı kullanıcının KENDİSİ mi?" — syncOwnArchitectToAccount ve ensurePendingOfficeClaims
-// çağrısı AYNI soruyu sorar (biri hesap alanlarını doldurmak, diğeri firma bağı için onay talebi
-// açmak üzere), bu yüzden kural tek yerde durur. Kritik: kisi-ekle.html'in ASIL kullanımı BAŞKA
-// birini eklemektir — bir meslektaşının firmasını yazmak, o kullanıcı adına firma talebi
-// DOĞURMAMALI.
+// HESAP PROFİLİ İLE KİŞİ PROFİLİ ARTIK BİRBİRİNE YAZMIYOR (kullanıcı isteği, 2026-09-14 madde 7:
+// "kişi popuplarında yapılan değişiklik de profildeki kullanıcı bilgilerine yansımayacak").
+// Burada eskiden syncOwnArchitectToAccount vardı: kullanıcı KENDİ kişi kaydını (kisi-ekle.html,
+// kişi pop-up'ındaki Düzenle ya da Hesabım) kaydettiğinde ad soyad/doğum yılı/üniversite/meslek/
+// pozisyon/açıklama/fotoğraf/ödüller/sosyal medya alanlarını `users` satırına GERİ yazıyordu.
+// Ayrım isteği tam olarak bu köprüyü kaldırır — hesap yalnızca ad soyad + kullanıcı adı + e-posta
+// taşır (bkz. src/routes/auth.js#signup), kişi künyesi ise yalnızca architects/architect_submissions
+// satırında yaşar. TERS YÖN de kaldırıldı (bkz. src/routes/admin.js: fillUserFromArchitectProfile
+// artık atamada çağrılmıyor). Hesabım'daki "Kişi Bilgileri" kutusu bu yüzden users satırını DEĞİL
+// atanan kişi kaydını okur (bkz. js/components/auth-modal.js#loadPersonInfo).
+//
+// isOwnArchitectRecord KALDI: "bu kişi kaydı kullanıcının kendisi mi" sorusu firma talebi açma
+// (ensurePendingOfficeClaims) ve kutudan çıkarılan firmaları künyeden düşürme kapısı olarak hâlâ
+// gerekli — o bir YETKİ kararıdır, veri kopyalaması değil (bkz. madde 9: yetkiler aynı kalsın).
 async function isOwnArchitectRecord(env, user, row, selfMatchName) {
   if (!user || !row) return false;
   if (row.claimed_profile_key) {
@@ -292,44 +295,6 @@ async function isOwnArchitectRecord(env, user, row, selfMatchName) {
   // Ad karşılaştırması DÜZENLEMEDEN ÖNCEKİ ad (selfMatchName) üzerinden yapılır — kullanıcı kendi
   // kişi profilinde ad soyadını değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez, eski ad eşleşir.
   return !!(selfMatchName && user.name && foldTr(selfMatchName) === foldTr(user.name));
-}
-
-async function syncOwnArchitectToAccount(env, user, typeKey, row, selfMatchName) {
-  if (typeKey !== 'architects' || !user || !row) return;
-  if (!(await isOwnArchitectRecord(env, user, row, selfMatchName))) return;
-
-  const updates = [];
-  const values = [];
-  for (const f of ACCOUNT_SYNC_STRING_FIELDS) {
-    if (row[f] === undefined) continue;
-    updates.push(`${f} = ?`); values.push(row[f] || null);
-  }
-  if (row.name) { updates.push('name = ?'); values.push(row.name); }
-  // architects.profession HAM Türkçe etiket ("Mimar, Fotoğrafçı"), users.profession SLUG
-  // ("mimar,fotografci") — bkz. profession-shared.js. Tanınmayan etiket sessizce atlanır.
-  if (row.profession !== undefined) {
-    const slugs = String(row.profession || '').split(',').map(s => professionSlugOf(s)).filter(Boolean);
-    updates.push('profession = ?'); values.push(slugs.length ? [...new Set(slugs)].join(',') : null);
-  }
-  // awards/social_links: iki tabloda da AYNI JSON dizi biçimi (bkz. src/routes/auth.js#
-  // updateUserProfileFields). normalizeSubmission bu alanları D1'e bind edilebilir JSON METNİ olarak
-  // bırakır (bkz. o fonksiyondaki arrayFields dalı) — NULL ise "gövdede hiç yok" demektir ve
-  // hesaptaki mevcut değer korunur (nullableArrayFields semantiği).
-  for (const f of ['awards', 'social_links']) {
-    const raw = row[f];
-    if (raw === undefined || raw === null) continue;
-    updates.push(`${f} = ?`);
-    values.push(typeof raw === 'string' ? raw : JSON.stringify(Array.isArray(raw) ? raw : []));
-  }
-  if (!updates.length) return;
-  values.push(user.id);
-  try {
-    await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
-  } catch (err) {
-    // Best-effort yan etki — asıl gönderi yazımı zaten başarıyla tamamlandı, burada bir hata
-    // kullanıcıya 500 olarak dönmemeli (bkz. src/lib/notify.js#createNotification'daki AYNI gerekçe).
-    console.error('syncOwnArchitectToAccount failed', err);
-  }
 }
 
 async function createSubmission(request, env, user, typeKey) {
@@ -468,11 +433,6 @@ async function createSubmission(request, env, user, typeKey) {
   await env.DB.prepare(
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
-
-  // Kişi profili -> hesap profili geri senkronu (bkz. syncOwnArchitectToAccount). Yeni kayıtta
-  // "kendisi mi" testi kaydın KENDİ adıyla yapılır: bir kullanıcı ancak kendi adıyla açtığı kaydı
-  // kendi profili sayabilir (isSelfDirectoryListing ile AYNI kural).
-  await syncOwnArchitectToAccount(env, user, typeKey, { ...row, claimed_profile_key: body.claimed_profile_key || null }, row.name);
 
   // Bu, önceden arşivlenmiş (bkz. handleContentAction/handleProjectAction) bir statik kaydın
   // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
@@ -857,11 +817,10 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // SONRA çalışır, yazı başarısız olursa (yukarıdaki .run() fırlatırsa) buraya hiç ulaşılmaz.
   if (CANONICAL_TYPES.has(typeKey)) await cleanupReplacedR2Media(env, typeKey, existing, row);
 
-  // Kişi profili -> hesap profili geri senkronu (bkz. syncOwnArchitectToAccount) — "kendisi mi"
-  // testi DÜZENLEMEDEN ÖNCEKİ ad (existing.name) ile yapılır, kullanıcı kendi profilinde ad soyadını
-  // değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez.
+  // "kendisi mi" testi DÜZENLEMEDEN ÖNCEKİ ad (existing.name) ile yapılır: kullanıcı kendi kişi
+  // profilinde ad soyadını değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez. (Hesap alanlarına
+  // GERİ YAZMA kaldırıldı — bkz. dosyanın "HESAP PROFİLİ İLE KİŞİ PROFİLİ" başlıklı notu.)
   const architectRowForSelfCheck = { ...row, claimed_profile_key: body.claimed_profile_key || existing.claimed_profile_key || null };
-  await syncOwnArchitectToAccount(env, user, typeKey, architectRowForSelfCheck, existing.name);
 
   // "Firma veya Marka" alanı -> admin onayı — bkz. createSubmission'daki AYNI çağrı/gerekçe
   // (kullanıcı isteği, 2026-09-08 madde 1).

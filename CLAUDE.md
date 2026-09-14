@@ -24,6 +24,33 @@ Bunun için `.github/workflows/deploy.yml` var: **`workflow_dispatch`** ile elle
 - Yalnızca `main` deploy edilebilir; eşzamanlı çalıştırmalar `concurrency` ile serileştirilir.
 - **CI commit edileni yayınlar**, working tree'yi değil: yerelde duran ama commit edilmemiş bir asset canlı manifest'ten düşer. Yeni görselleri deploy'dan önce commit edin.
 
+## Hesap üyeliği ile kişi profili AYRIDIR (2026-09-14)
+
+Kullanıcı isteği: "kullanıcıların siteye üye oldukları bilgilerle kişi popuplarındaki bilgileri
+ayırıyoruz, birbirleriyle entegre olmayacaklar."
+
+- **Hesap (`users`)**: ad soyad, **kullanıcı adı** (`username`, @kaancorbaci), e-posta, şifre, avatar.
+  Hesabım başlığındaki "Profili Düzenle" YALNIZCA ad soyad + kullanıcı adını düzenler.
+- **Kişi künyesi (`architects` / `architect_submissions`)**: doğum yılı, üniversite, meslek,
+  pozisyon, ödüller, açıklama, sosyal medya, portfolyo. Hesabım'daki "Kişi Bilgileri" kutusu bunu
+  admin'in atadığı onaylı `profile_claims('architect')` kaydından okur (atama yoksa kullanıcının
+  kendi açtığı kişi kaydından) ve "Bilgileri Düzenle" düğmesi yalnızca o kaydı yazar.
+- **Kaldırılan üç köprü** (geri gelirse ayrım sessizce bozulur; preflight bunu arıyor —
+  `scripts/test-2026-09-14-account-person-split.mjs`):
+  `src/lib/claimedProfiles.js#fillUserFromArchitectProfile`,
+  `src/routes/submissions.js#syncOwnArchitectToAccount`,
+  `js/components/auth-modal.js#syncClaimedArchitectData`.
+- **Tek bilinçli istisna**: profil FOTOĞRAFI. Kişi künyesi formundan yüklenen fotoğraf hem kişi
+  kaydına hem hesabın avatarına yazılır (nav'daki avatarın tek düzenleme yolu orası).
+- **Kullanıcı adı kuralları TEK kaynakta**: `src/lib/username.js` (istemci kopyası
+  `js/components/auth-modal.js#normalizeUsernameInput`, SQL kopyası
+  `migrations/0119_users_username.sql`). Türkçe harfler ASCII'ye katlanır; giriş e-posta VEYA
+  kullanıcı adıyla yapılabilir (`POST /api/auth/login`, ayrım "@" içeriyor mu).
+- `migrations/0119_users_username.sql` mevcut TÜM hesaplara ad soyadlarından kullanıcı adı üretir
+  ("Kaan Çorbacı" -> `kaancorbaci`, çakışmalar `.2`). **Bu migration KOD DEPLOY'undan ÖNCE
+  uygulanmalıdır** (`.github/workflows/migrate.yml`): kolon yokken `getSessionUser`'ın SELECT'i
+  hata verir.
+
 ## Gündem içeriklerini kaynaktan yeniden üretmek
 
 Gündem kartlarındaki Türkçe **başlık ve özetler** kaynaktan yeniden üretilebilir:

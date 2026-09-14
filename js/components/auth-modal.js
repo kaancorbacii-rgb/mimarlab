@@ -113,6 +113,8 @@ const AuthModal = (function () {
     #am-panel .auth-switch{text-align:center; font-size:13.5px; color:var(--ink-soft); margin-top:20px;}
     #am-panel .auth-switch a{color:var(--walnut); font-weight:600; cursor:pointer;}
     #am-panel .auth-switch a:hover{text-decoration:underline;}
+    /* Kullanıcı adı kutusunun altındaki kural açıklaması (bkz. Üye Ol formundaki .auth-hint). */
+    #am-panel .auth-hint{margin:6px 0 0; font-size:11.5px; line-height:1.5; color:var(--ink-soft);}
     #am-panel .auth-forgot{text-align:right; font-size:12.5px; margin:-8px 0 16px;}
     #am-panel .auth-forgot a{color:var(--walnut); font-weight:600;}
     #am-panel .auth-forgot a:hover{text-decoration:underline;}
@@ -144,6 +146,12 @@ const AuthModal = (function () {
        yazılmayanlar .dash-head'den miras kalır. */
     #am-panel .dash-head-account{display:flex; align-items:center; gap:18px;}
     #am-panel .dash-head-titles{flex:1; min-width:0;}
+    /* Başlık satırının yeni satırları (kullanıcı isteği, 2026-09-14 madde 5): @kullaniciadi ve
+       e-posta alt alta, altlarında "Profili Düzenle". Düğme başlık bloğunun İÇİNDE durduğundan
+       .dash-head p kuralının margin'ini ezmek yerine kendi üst boşluğunu taşır. */
+    #am-panel .dash-head-username{font-weight:600; color:var(--walnut) !important;}
+    #am-panel .dash-head-member{font-size:12px !important; margin-top:2px !important;}
+    #am-panel #am-account-edit-btn{margin-top:12px;}
     /* ---------- SAYFA GEÇİŞ SATIRI (.dash-nav-row) ----------
        kullanıcı isteği (2026-08-31, madde 1 ve 3): Hesabım/Aktivitelerim/Koleksiyonum
        popup'larından birinin içindeyken DİĞER İKİSİ, kendi ayrı satırında değil, popup'ın KAPATMA (X)
@@ -822,9 +830,15 @@ const AuthModal = (function () {
         </div>
         <div class="auth-divider"><span>veya e-posta ile</span></div>
         <form id="am-login-form">
+          <!-- Kullanıcı isteği (2026-09-14 madde 8): "giriş yap kısmında E-posta yazılan yere
+               kullanıcı adı da yazılıp şifre yazılarak giriş yapılabilsin". Alan artık type="text"
+               (type="email" tarayıcıya "@ olmadan geçersiz" dedirtir ve kullanıcı adıyla girişi
+               formun kendisi engellerdi); ayrımı sunucu "@" içeriyor mu diye yapar (bkz.
+               src/routes/auth.js#login). id "am-login-email" KORUNDU — dosyanın başka yerleri ve
+               otomatik doldurma davranışı bu id'ye bağlı. -->
           <div class="auth-field">
-            <label for="am-login-email">E-posta</label>
-            <input type="email" id="am-login-email" name="email" placeholder="ornek@eposta.com" required>
+            <label for="am-login-email">E-posta veya Kullanıcı Adı</label>
+            <input type="text" id="am-login-email" name="identifier" placeholder="ornek@eposta.com ya da kullaniciadi" autocomplete="username" autocapitalize="none" spellcheck="false" required>
           </div>
           <div class="auth-field">
             <label for="am-login-password">Şifre</label>
@@ -898,6 +912,9 @@ const AuthModal = (function () {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            // identifier: e-posta ya da kullanıcı adı (bkz. src/routes/auth.js#login). `email`
+            // alanı da gönderilir — eski bir sunucu sürümü canlıda kalırsa giriş bozulmasın.
+            identifier: document.getElementById('am-login-email').value,
             email: document.getElementById('am-login-email').value,
             password: document.getElementById('am-login-password').value,
           }),
@@ -957,27 +974,21 @@ const AuthModal = (function () {
             <label for="am-signup-name">Ad Soyad *</label>
             <input type="text" id="am-signup-name" name="name" placeholder="Adın Soyadın" required>
           </div>
+          <!-- KULLANICI ADI (kullanıcı isteği, 2026-09-14 madde 1: "Ad Soyad'dan sonra 'Kullanıcı
+               Adı' kutucuğu koy ve kişi buraya kullanıcı adını yazsın"). Aynı turda DOĞUM YILI,
+               ÜNİVERSİTE ve MESLEK kutuları bu formdan KALDIRILDI: onlar artık kişi profilinin
+               (architects) alanları, hesabın değil (madde 7 — hesap bilgileri ile kişi
+               pop-up'larındaki bilgiler ayrı). Kutunun kuralları src/lib/username.js ile birebir
+               aynı; kullanıcı yazarken değer otomatik küçültülüp Türkçe harfler ASCII'ye katlanır
+               (bkz. wireSignup'taki normalizeUsernameInput) ki sunucudan hata almasın. -->
+          <div class="auth-field">
+            <label for="am-signup-username">Kullanıcı Adı *</label>
+            <input type="text" id="am-signup-username" name="username" placeholder="kullaniciadi" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+            <p class="auth-hint">Profilinde <strong>@kullaniciadi</strong> olarak görünür. Küçük harf, rakam, nokta ve alt çizgi.</p>
+          </div>
           <div class="auth-field">
             <label for="am-signup-email">E-posta *</label>
             <input type="email" id="am-signup-email" name="email" placeholder="ornek@eposta.com" required>
-          </div>
-          <div class="auth-field">
-            <label for="am-signup-dob">Doğum Yılı *</label>
-            <select id="am-signup-dob" name="dob" required><option value="">Yıl seç</option></select>
-          </div>
-          <div class="auth-field ac-field" id="am-school-field">
-            <label for="am-signup-school">Üniversite</label>
-            <input type="text" id="am-signup-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
-            <div class="ac-suggestions" id="am-school-suggestions"></div>
-          </div>
-          <!-- Çoklu meslek (kullanıcı isteği, 2026-09-01 madde 6) — uye-ol.html'deki AYNI onay
-               kutusu grubu; o sayfa ile bu popup aynı formun iki kopyasıdır (bkz. dosya başı
-               yorumu), ikisi birlikte güncellenir. -->
-          <div class="auth-field">
-            <label id="am-signup-profession-label">Meslek <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
-            <div class="am-check-group" id="am-signup-profession" role="group" aria-labelledby="am-signup-profession-label">
-              ${professionCheckboxesHtml('am-signup-profession-cb')}
-            </div>
           </div>
           <div class="auth-field">
             <label for="am-signup-password">Şifre *</label>
@@ -989,7 +1000,7 @@ const AuthModal = (function () {
           </div>
           <details class="kvkk-details">
             <summary>KVKK Aydınlatma Metni</summary>
-            <p>MİMARLAB olarak, üyelik formunda paylaştığın ad soyad, e-posta, doğum tarihi, okul ve meslek bilgilerini, 6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında yalnızca hesabını oluşturmak, profilini görüntülemek ve platform içi işlemlerini (ilan/proje gönderimi, yorum, kaydetme vb.) yürütmek amacıyla işleriz. Bilgilerin üçüncü taraflarla paylaşılması, yasal zorunluluklar dışında söz konusu değildir. KVKK madde 11 kapsamındaki haklarını (bilgi talep etme, düzeltme, silme vb.) info@mimarlab.com adresinden kullanabilirsin.</p>
+            <p>MİMARLAB olarak, üyelik formunda paylaştığın ad soyad, kullanıcı adı ve e-posta bilgilerini, 6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında yalnızca hesabını oluşturmak, profilini görüntülemek ve platform içi işlemlerini (ilan/proje gönderimi, yorum, kaydetme vb.) yürütmek amacıyla işleriz. Bilgilerin üçüncü taraflarla paylaşılması, yasal zorunluluklar dışında söz konusu değildir. KVKK madde 11 kapsamındaki haklarını (bilgi talep etme, düzeltme, silme vb.) info@mimarlab.com adresinden kullanabilirsin.</p>
           </details>
           <label class="auth-check"><input type="checkbox" id="am-signup-bot" required> Ben bir bot değilim.</label>
           <label class="auth-check"><input type="checkbox" id="am-signup-kvkk" required> KVKK Aydınlatma Metni'ni okudum, kişisel verilerimin işlenmesini kabul ediyorum.</label>
@@ -1003,6 +1014,35 @@ const AuthModal = (function () {
 
   function trLower(s) {
     return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+  }
+
+  // ---------- KULLANICI ADI (kullanıcı isteği, 2026-09-14 madde 1/5/8) ----------
+  // src/lib/username.js'in İSTEMCİ KOPYASI — üç yüzeyin (Üye Ol, Hesabım > Profili Düzenle, Giriş
+  // Yap'ın kullanıcı adı dalı) tek kaynağı. Katlama eşlemesi sunucudaki FOLD_MAP ve
+  // migrations/0119_users_username.sql'deki replace() zinciriyle BİREBİR aynı olmalı: ayrışırsa
+  // kullanıcı burada geçerli görünen ama sunucuda reddedilen bir değer yazar.
+  const USERNAME_RULE_TEXT_AM = 'Kullanıcı adı 3-30 karakter olmalı; yalnızca küçük harf, rakam, nokta ve alt çizgi kullanılabilir.';
+  const USERNAME_FOLD_AM = { 'İ': 'i', 'I': 'i', 'ı': 'i', 'Ş': 's', 'ş': 's', 'Ğ': 'g', 'ğ': 'g', 'Ü': 'u', 'ü': 'u', 'Ö': 'o', 'ö': 'o', 'Ç': 'c', 'ç': 'c', 'Â': 'a', 'â': 'a', 'Î': 'i', 'î': 'i', 'Û': 'u', 'û': 'u' };
+  function normalizeUsernameInput(raw) {
+    return String(raw || '').trim().replace(/^@+/, '')
+      .replace(/[İIıŞşĞğÜüÖöÇçÂâÎîÛû]/g, (ch) => USERNAME_FOLD_AM[ch] || ch)
+      .toLowerCase()
+      .replace(/[^a-z0-9._]/g, '')
+      .slice(0, 30);
+  }
+  // Kutuyu yazarken temizler; imleç düşen karakter sayısı kadar geri alınır.
+  function wireUsernameInput(el) {
+    if (!el) return;
+    el.addEventListener('input', () => {
+      const before = el.value;
+      const pos = el.selectionStart == null ? before.length : el.selectionStart;
+      const next = normalizeUsernameInput(before);
+      if (next === before) return;
+      el.value = next;
+      // İmleç: düşen karakter sayısı kadar geri alınır, taşarsa sona sabitlenir.
+      const caret = Math.max(0, Math.min(next.length, pos - (before.length - next.length)));
+      try { el.setSelectionRange(caret, caret); } catch {}
+    });
   }
 
   // src/lib/submissionTypes.js#isInvalidSchoolValue ile AYNI kural — kısaltmaları (YTÜ, İTÜ, ODTÜ,
@@ -1020,49 +1060,13 @@ const AuthModal = (function () {
   function wireSignup() {
     document.getElementById('am-goto-login').addEventListener('click', () => swap('login'));
 
-    // Meslek çekmecesi (kullanıcı isteği, 2026-09-02): 10 seçenek düz bir kutuda değil, kişi-ekle
-    // ve Profili Düzenle'dekiyle AYNI açılır pencerede.
-    // GERÇEK BULGU: çekmece daha önce yalnızca uye-ol.html'e ve Profili Düzenle formuna
-    // takılmıştı; oysa temiz /uye-ol yolu index.html + BU POPUP'ı servis ediyor (bkz.
-    // lazy-modals.js), yani kullanıcıların gerçekte gördüğü form buydu ve çıplak kalıyordu.
-    if (window.ProfessionDrawer) {
-      const grp = document.getElementById('am-signup-profession');
-      if (grp) ProfessionDrawer.mount(grp, { placeholder: 'Meslek seç' });
-    }
-
-    const dobSel = document.getElementById('am-signup-dob');
-    const currentYear = new Date().getFullYear();
-    for (let y = currentYear; y >= 1950; y--) {
-      const opt = document.createElement('option');
-      opt.value = String(y);
-      opt.textContent = String(y);
-      dobSel.appendChild(opt);
-    }
-
-    const schoolInput = document.getElementById('am-signup-school');
-    const schoolBox = document.getElementById('am-school-suggestions');
-    let schoolItems = [];
-    fetch('/api/architects/schools').then(r => r.ok ? r.json() : { items: [] }).then(d => { schoolItems = d.items || []; }).catch(() => {});
-    function closeSchoolBox() { schoolBox.classList.remove('show'); schoolBox.innerHTML = ''; }
-    function renderSchoolBox() {
-      const q = trLower(schoolInput.value.trim());
-      if (!q) { closeSchoolBox(); return; }
-      // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili
-      // olanlar çıksın") — liste artık Türkiye'deki tüm üniversiteleri taşıdığından (bkz.
-      // /api/architects/schools) saf "içinde geçiyor mu" sıralaması "Yıldız" yazan birine önce
-      // "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler atılmaz, arkaya alınır.
-      const starts = schoolItems.filter(it => trLower(it).startsWith(q));
-      const matches = starts.concat(schoolItems.filter(it => !trLower(it).startsWith(q) && trLower(it).includes(q))).slice(0, 8);
-      if (!matches.length) { closeSchoolBox(); return; }
-      schoolBox.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeHtml(it)}</div>`).join('');
-      schoolBox.classList.add('show');
-      schoolBox.querySelectorAll('.ac-suggestion').forEach((el, i) => {
-        el.addEventListener('mousedown', (e) => { e.preventDefault(); schoolInput.value = matches[i]; closeSchoolBox(); });
-      });
-    }
-    schoolInput.addEventListener('input', renderSchoolBox);
-    schoolInput.addEventListener('focus', renderSchoolBox);
-    schoolInput.addEventListener('blur', () => setTimeout(closeSchoolBox, 150));
+    // Kullanıcı adı kutusu: kullanıcı yazarken KANONİK biçime çevrilir (küçük harf + Türkçe harf
+    // katlaması + geçersiz karakterlerin düşürülmesi) — sunucudaki src/lib/username.js ile AYNI
+    // eşleme. Böylece "Kaan.Çorbacı" yazan biri de doğrudan geçerli bir değer ("kaan.corbaci")
+    // görür; kural sunucuda AYRICA doğrulanır, buradaki temizlik yalnızca kolaylıktır.
+    // (Meslek çekmecesi / doğum yılı listesi / üniversite otomatik tamamlaması bu formdan
+    // KALDIRILDI — kullanıcı isteği 2026-09-14 madde 1, bkz. şablondaki AYNI not.)
+    wireUsernameInput(document.getElementById('am-signup-username'));
 
     document.getElementById('am-signup-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1070,16 +1074,14 @@ const AuthModal = (function () {
       const submitBtn = e.target.querySelector('.auth-submit');
       const pw = document.getElementById('am-signup-password').value;
       const pwConfirm = document.getElementById('am-signup-password-confirm').value;
+      const username = normalizeUsernameInput(document.getElementById('am-signup-username').value);
       if (pw !== pwConfirm) { notice.textContent = 'Şifreler eşleşmiyor. Lütfen tekrar dene.'; notice.classList.add('show'); return; }
+      if (username.length < 3) { notice.textContent = USERNAME_RULE_TEXT_AM; notice.classList.add('show'); return; }
       if (!document.getElementById('am-signup-bot').checked) { notice.textContent = 'Lütfen "Ben bir bot değilim" kutucuğunu işaretle.'; notice.classList.add('show'); return; }
       if (!document.getElementById('am-signup-kvkk').checked) { notice.textContent = 'Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.'; notice.classList.add('show'); return; }
-      if (isInvalidSchoolValue(schoolInput.value)) { notice.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; notice.classList.add('show'); return; }
       const payload = {
         name: document.getElementById('am-signup-name').value,
-        dob: document.getElementById('am-signup-dob').value || null,
-        school: schoolInput.value || null,
-        // Çoklu meslek (bkz. getProfessionChecks / src/routes/auth.js#normalizeProfessions).
-        profession: getProfessionChecks('am-signup-profession') || null,
+        username,
         email: document.getElementById('am-signup-email').value,
         password: pw,
         password_confirm: pwConfirm,
@@ -1171,11 +1173,42 @@ const AuthModal = (function () {
     return `
     <div class="dash-wrap" id="am-dash-wrap">
       <div id="am-payment-success-banner" style="display:none; background:rgba(62,122,85,0.12); border:1px solid #3E7A55; color:var(--ink); font-size:13px; padding:13px 16px; border-radius:12px; margin-bottom:20px; line-height:1.6;">Ödemen alındı — rozetin aktif edildi.</div>
+      <!-- BAŞLIK (kullanıcı isteği, 2026-09-14 madde 5): "Hoş Geldin, kullanıcının adı soyadı",
+           hemen altında kullanıcı adı (@kaancorbaci), sonra e-posta; bunların altında da yalnızca
+           AD SOYAD ile KULLANICI ADINI düzenleyen bir "Profili Düzenle" düğmesi. Bu düğme kişi
+           künyesine DOKUNMAZ (madde 7 — ayrım): hesabın kendi kimliğini düzenler. Kişi künyesi
+           aşağıdaki "Kişi Bilgileri" kutusunun kendi "Bilgileri Düzenle" düğmesinden düzenlenir. -->
       <div class="dash-head dash-head-account">
         <div class="dash-avatar" id="am-dash-avatar">–</div>
         <div class="dash-head-titles">
           <h1 id="am-dash-title">Hoş Geldin</h1>
+          <p class="dash-head-username" id="am-dash-username"></p>
           <p id="am-dash-sub">—</p>
+          <p class="dash-head-member" id="am-dash-member"></p>
+          <button type="button" class="dash-edit-btn dash-edit-btn-sm" id="am-account-edit-btn">Profili Düzenle</button>
+        </div>
+      </div>
+
+      <!-- HESAP KİMLİĞİ POP-UP'I — yalnızca ad soyad + kullanıcı adı (kullanıcı isteği, madde 5).
+           Kişi künyesini düzenleyen büyük pop-up (#am-profile-edit-overlay) ile AYNI kabuk/desen. -->
+      <div class="profile-edit-overlay" id="am-account-edit-overlay">
+        <div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:420px;">
+          <button type="button" class="profile-edit-close" id="am-account-edit-close" aria-label="Kapat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;">Profili Düzenle</h2>
+          <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 18px;">Bu bilgiler yalnızca hesabına aittir; kişi profilindeki künyeyi değiştirmez.</p>
+          <div style="margin-bottom:14px;">
+            <label for="am-account-name" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ad Soyad</label>
+            <input type="text" id="am-account-name" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
+          </div>
+          <div style="margin-bottom:18px;">
+            <label for="am-account-username" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Kullanıcı Adı</label>
+            <input type="text" id="am-account-username" autocomplete="username" autocapitalize="none" spellcheck="false" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
+            <p class="auth-hint">Profilinde <strong>@kullaniciadi</strong> olarak görünür. Küçük harf, rakam, nokta ve alt çizgi.</p>
+          </div>
+          <button class="dash-edit-btn" id="am-account-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
+          <span id="am-account-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
         </div>
       </div>
 
@@ -1184,7 +1217,10 @@ const AuthModal = (function () {
         <button type="button" class="profile-edit-close" id="am-profile-edit-close" aria-label="Kapat">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
+        <!-- BAŞLIK (kullanıcı isteği, 2026-09-14 madde 3/4): bu form artık hesabın profilini değil
+             KİŞİ künyesini düzenliyor — kutudaki düğmenin adı da "Bilgileri Düzenle". -->
+        <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;">Kişi Bilgilerini Düzenle</h2>
+        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 16px;">Bu bilgiler kişi profilinde (kişi pop-up'ında) görünür; hesabının ad soyadını ve kullanıcı adını değiştirmez.</p>
         <div class="avatar-upload-row">
           <div class="avatar-upload-preview" id="am-avatar-preview">–</div>
           <div>
@@ -1380,35 +1416,10 @@ const AuthModal = (function () {
            .dash-row'un varsayılan 860px eşiği çekmecenin 90vw'lik tablet genişliğini tek sütuna
            düşürüyordu, bu sınıf eşiği 620px'e çeker (bkz. injectStyles'taki kural). -->
       <div class="dash-row col-two-col">
-        <!-- AÇILIR KAPANIR ama VARSAYILAN AÇIK (kullanıcı isteği, 2026-09-14: "profil bilgileri ve
-             marka / firma bilgileri de açılır kapanır butonların içinde olsun ama default olarak
-             açık gözüksünler"). Bildirimler/Mesajlar/Arşivim ile AYNI sözleşme
-             (.dash-collapse-toggle + data-collapse + .dash-collapse-body), tek farkı gövdenin
-             hidden ile BAŞLAMAMASI ve aria-expanded="true" olması — wireCollapsibles durumu
-             düğmeden okuduğu için ilk tıklama doğru şekilde KAPATIR.
-             Aç/kapa düğmesi başlığı sarar ama "Profili Düzenle"yi SARMAZ: <button> içine <button>
-             koymak geçersiz HTML olurdu, o yüzden ikisi .dash-section-head'in kardeşleridir
-             (bkz. injectStyles'taki .dash-collapse-toggle-inline kuralı). -->
-        <div class="dash-section">
-          <div class="dash-section-head">
-            <button type="button" class="dash-collapse-toggle dash-collapse-toggle-inline" data-collapse="am-profile-collapse" aria-expanded="true" aria-controls="am-profile-collapse">
-              <h2>Profil Bilgileri</h2>
-              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <button type="button" class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn">Profili Düzenle</button>
-          </div>
-          <div class="dash-collapse-body" id="am-profile-collapse">
-            <div id="am-profile-tab-facts">
-              <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
-              <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
-              <div class="profile-fact"><span class="profile-fact-label">Üniversite</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
-              <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
-              <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
-              <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
-            </div>
-          </div>
-        </div>
-
+        <!-- SIRA (kullanıcı isteği, 2026-09-14 madde 2): "Hesabım sayfasındaki profil bilgileri
+             kutusuyla firma bilgileri kutularının yerlerini değiştir" — Firma Bilgileri artık SOL
+             sütunda (ilk kutu), Kişi Bilgileri sağda. İki kutunun kendi işaretlemesi/kimlikleri
+             AYNEN korundu, yalnızca sıraları takas edildi. -->
         <!-- Firma / Marka Bilgileri — kullanıcı isteği (2026-09-01 madde 2): "Profil Bilgileri kutusunun
              yanındaki sütuna Firma Bilgileri kutusu ekle ve bir kullanıcı bir firmada görev
              alıyorsa firma bilgileri bu kısımda gözüksün". Kullanıcının firmayla bağı zaten
@@ -1426,7 +1437,7 @@ const AuthModal = (function () {
               <h2>Firma Bilgileri</h2>
               <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
-            <a class="dash-edit-btn dash-edit-btn-sm" id="am-firm-edit-btn" href="#" style="display:none;">Profili Düzenle</a>
+            <a class="dash-edit-btn dash-edit-btn-sm" id="am-firm-edit-btn" href="#" style="display:none;">Bilgileri Düzenle</a>
           </div>
           <div class="dash-collapse-body" id="am-firm-collapse">
             <div id="am-firm-facts"><div class="dash-empty">Yükleniyor…</div></div>
@@ -1439,6 +1450,42 @@ const AuthModal = (function () {
             <div class="dash-pagination" id="am-firm-pagination"></div>
           </div>
         </div>
+        <!-- AÇILIR KAPANIR ama VARSAYILAN AÇIK (kullanıcı isteği, 2026-09-14: "profil bilgileri ve
+             marka / firma bilgileri de açılır kapanır butonların içinde olsun ama default olarak
+             açık gözüksünler"). Bildirimler/Mesajlar/Arşivim ile AYNI sözleşme
+             (.dash-collapse-toggle + data-collapse + .dash-collapse-body), tek farkı gövdenin
+             hidden ile BAŞLAMAMASI ve aria-expanded="true" olması — wireCollapsibles durumu
+             düğmeden okuduğu için ilk tıklama doğru şekilde KAPATIR.
+             Aç/kapa düğmesi başlığı sarar ama "Profili Düzenle"yi SARMAZ: <button> içine <button>
+             koymak geçersiz HTML olurdu, o yüzden ikisi .dash-section-head'in kardeşleridir
+             (bkz. injectStyles'taki .dash-collapse-toggle-inline kuralı). -->
+        <div class="dash-section">
+          <div class="dash-section-head">
+            <button type="button" class="dash-collapse-toggle dash-collapse-toggle-inline" data-collapse="am-profile-collapse" aria-expanded="true" aria-controls="am-profile-collapse">
+              <h2>Kişi Bilgileri</h2>
+              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button type="button" class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn">Bilgileri Düzenle</button>
+          </div>
+          <div class="dash-collapse-body" id="am-profile-collapse">
+            <!-- KAYNAK DEĞİŞTİ (kullanıcı isteği, 2026-09-14 madde 3): "Bundan sonra Kişi
+                 bilgileri kısmında admin tarafından admin panelinde kullanıcıya atanan kişi
+                 profilinin bilgileri yer alacak". Bu satırlar artık "users" satırını DEĞİL,
+                 hesaba atanmış (onaylı profile_claims('architect')) kişi kaydını okur; atama yoksa
+                 kullanıcının kendi açtığı kişi kaydına düşer, o da yoksa kutu boş durumu gösterir
+                 (bkz. loadPersonInfo). "Üyelik" satırı buradan KALDIRILDI: o bir HESAP bilgisidir,
+                 başlık satırına taşındı (#am-dash-member). -->
+            <div id="am-profile-tab-facts">
+              <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Doğum Yılı</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Üniversite</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
+              <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
+            </div>
+            <p class="dash-empty" id="am-person-empty" style="display:none;">Hesabına atanmış bir kişi profili yok. "Bilgileri Düzenle" ile kendi kişi künyeni oluşturabilirsin.</p>
+          </div>
+        </div>
+
       </div>
 
       <!-- BİLDİRİMLER + MESAJLAR — açılır kapanır (kullanıcı isteği, 2026-09-12: "Hesabım
@@ -2051,6 +2098,16 @@ const AuthModal = (function () {
     const labels = professionSlugs(value).map(s => PROFESSION_LABELS[s] || s);
     return labels.length ? labels.join(', ') : '';
   }
+  // ETİKET -> SLUG ters çevirisi (architects.profession ETİKET, onay kutuları SLUG taşır).
+  // Eskiden syncClaimedArchitectData içinde yerel bir kopya olarak duruyordu; kişi künyesini
+  // pop-up'a doldurmak (bkz. prefillPersonEditForm) da aynı çeviriye muhtaç olduğundan tek yere
+  // taşındı. Listede olmayan/elle yazılmış etiketler sessizce atlanır.
+  function professionSlugsFromLabels(value) {
+    return String(value || '').split(',').map(x => x.trim()).filter(Boolean)
+      .map(label => Object.keys(PROFESSION_LABELS).find(k => PROFESSION_LABELS[k] === label))
+      .filter(Boolean)
+      .join(',');
+  }
   function professionCheckboxesHtml(namePrefix) {
     return Object.keys(PROFESSION_LABELS)
       .map(slug => `<label><input type="checkbox" name="${escapeAttr(namePrefix)}" value="${escapeAttr(slug)}"> ${escapeHtml(PROFESSION_LABELS[slug])}</label>`)
@@ -2166,6 +2223,12 @@ const AuthModal = (function () {
   let firmInfoFounderCanEdit = false;
   // Hesabın kişi profili ({name, slug}) — /api/claims/mine#architectProfile (bkz. renderAmNameBadge).
   let myArchitectProfile = null;
+  // KİŞİ KÜNYESİ (kullanıcı isteği, 2026-09-14 madde 3): "Kişi Bilgileri" kutusunun ve kişi
+  // düzenleme pop-up'ının TEK veri kaynağı. Hesabın `users` satırından BAĞIMSIZDIR (madde 7) —
+  // kaynağı, admin'in atadığı onaylı kişi kaydı (profile_claims('architect')), o yoksa kullanıcının
+  // kendi açtığı kişi kaydıdır. Biçimi fetchArchitectRecordForSync'in `merged` nesnesiyle aynıdır
+  // (name/dob/school/profession(ETİKET)/position/office/awards/about/social_links/photo_url/portfolio).
+  let amPersonRecord = null;
   // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
   // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
@@ -2248,7 +2311,9 @@ const AuthModal = (function () {
   function renderAmNameBadge() {
     const nameEl = document.getElementById('am-fact-name');
     if (!nameEl) return;
-    const name = accountUser ? (accountUser.name || '—') : '—';
+    // Ad artık HESABIN adı değil, KİŞİ künyesinin adı (kullanıcı isteği, 2026-09-14 madde 3/7) —
+    // hesabın ad soyadı başlık satırında (#am-dash-title) ve kendi pop-up'ında düzenlenir.
+    const name = (amPersonRecord && amPersonRecord.name) || '—';
     const badgeType = accountUser ? myEffectiveBadgeType() : null;
     // Hesaba bir kişi profili bağlıysa ad, o profilin pop-up'ına gider (kullanıcı isteği,
     // 2026-09-08 madde 3) — Firma satırındaki bağlantıyla AYNI desen ve AYNI stil; temiz URL'yi
@@ -2490,17 +2555,16 @@ const AuthModal = (function () {
       wireAvatarThumbCrop(file);
     }
 
+    // Başlık satırındaki HESAP avatarı. Kişi düzenleme pop-up'ındaki önizleme artık BURADAN
+    // beslenmiyor (bkz. renderPersonEditAvatar) — o kutu kişi künyesinin fotoğrafını gösterir.
     function renderAvatar() {
       const img = accountUser.photoUrl ? `<img src="${escapeAttr(avatarImg(accountUser.photoUrl, 128, accountUser.photoUrl))}" alt="">` : '';
       document.getElementById('am-dash-avatar').innerHTML = img || dashInitials(accountUser.name);
-      document.getElementById('am-avatar-preview').innerHTML = img || dashInitials(accountUser.name);
-      // Kaynak olarak ORİJİNAL photoUrl verilir, önizlemedeki 128px'lik türev DEĞİL — kırpma tam
-      // çözünürlükten yapılsın (bkz. avatarImg'in ikinci/üçüncü argümanı).
-      wireAvatarThumbCrop(accountUser.photoUrl || null);
     }
 
-    // Üniversite otomatik tamamlama — am-signup-school (bkz. wireSignup) ile BİREBİR aynı desen,
-    // Profilini Düzenle'de de canlı öneri sunar (bkz. kullanıcı isteği).
+    // Üniversite otomatik tamamlama — kişi künyesi formundaki Üniversite kutusuna canlı öneri
+    // (kaynak: /api/architects/schools). Üye Ol formunda ARTIK yok (bkz. kullanıcı isteği,
+    // 2026-09-14 madde 1: üniversite kutusu hesap kaydından kaldırıldı).
     (function wireAmEditSchoolAutocomplete(){
       const input = document.getElementById('am-edit-school');
       const box = document.getElementById('am-edit-school-suggestions');
@@ -2539,26 +2603,19 @@ const AuthModal = (function () {
       // 2026-09-02 madde 4). loadUser() içinde çağrılır çünkü pop-up yalnızca oturum doğrulandıktan
       // SONRA anlamlı — oturumsuz gelen biri zaten login görünümüne düşer (yukarıdaki swap).
       maybeOpenDirectoryPrompt();
-      document.getElementById('am-dash-title').textContent = 'Hoş Geldin, ' + (accountUser.name || '').split(' ')[0];
-      document.getElementById('am-dash-sub').textContent = accountUser.email + ' · MİMARLAB üyesi';
+      // BAŞLIK (kullanıcı isteği, 2026-09-14 madde 5): ad soyad (TAMAMI, yalnızca ilk ad değil),
+      // altında @kullanıcı adı, altında e-posta, en altta üyelik tarihi.
+      document.getElementById('am-dash-title').textContent = 'Hoş Geldin, ' + (accountUser.name || '');
+      document.getElementById('am-dash-username').textContent = accountUser.username ? '@' + accountUser.username : '';
+      document.getElementById('am-dash-sub').textContent = accountUser.email || '—';
+      document.getElementById('am-dash-member').textContent = accountUser.createdAt
+        ? 'MİMARLAB üyesi · ' + new Date(accountUser.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' })
+        : 'MİMARLAB üyesi';
+      // "Kişi Bilgileri" kutusunun satırları ve kişi düzenleme pop-up'ının alanları BURADAN
+      // DOLDURULMAZ (kullanıcı isteği madde 3/7): kaynağı hesap değil, atanan kişi kaydıdır —
+      // bkz. refreshArchitectSyncState -> renderPersonInfo (loadMyClaims tetikler).
       renderAmNameBadge();
-      document.getElementById('am-fact-profession').textContent = professionLabelText(accountUser.profession) || '—';
-      document.getElementById('am-fact-position').textContent = accountUser.position || '—';
       renderFirmEditBtn(); // pozisyon değişmiş olabilir (bkz. o fonksiyondaki paralel-yükleme gerekçesi)
-      document.getElementById('am-fact-school').textContent = accountUser.school || '—';
-      document.getElementById('am-fact-dob').textContent = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '—';
-      document.getElementById('am-fact-joined').textContent = new Date(accountUser.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' });
-      document.getElementById('am-edit-name').value = accountUser.name || '';
-      ensureDobYearOptions();
-      document.getElementById('am-edit-dob').value = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '';
-      document.getElementById('am-edit-school').value = accountUser.school || '';
-      setProfessionChecks('am-edit-profession', accountUser.profession);
-      document.getElementById('am-edit-position').value = accountUser.position || '';
-      ensureAwardsDropdown();
-      awardsDropdown.setChecked(accountUser.awards || []);
-      document.getElementById('am-edit-about').value = accountUser.about || '';
-      document.getElementById('am-social-rows').innerHTML = '';
-      (accountUser.social_links || []).forEach(s => addAmSocialRow(s.platform, s.url));
       // Bilerek await EDİLMİYOR (kullanıcı isteği, 2026-09-03: "Hesabım çok yavaş yükleniyor") —
       // ikisi de henüz görünmeyen Profili Düzenle formunun Firma açılır listesini doldurur, dashboard
       // kutularının (bildirim/mesaj/rozet/firma bilgisi) render'ını beklettirmeye değmez. Onlar
@@ -2615,9 +2672,9 @@ const AuthModal = (function () {
       }
       return myClaimsPromise;
     }
-    // Sahiplenilmiş MİMAR kaydı — hem syncClaimedArchitectData (profil alanlarını bir kerelik
-    // taşıma) hem loadFirmInfo/prefillFirmaSelect (firma bilgisi ikinci kaynağı, bkz. kullanıcı
-    // isteği 2026-09-06 madde 4) aynı kaydı istiyordu; üç ayrı fetch yerine tek paylaşılan söz.
+    // Sahiplenilmiş MİMAR kaydı — loadFirmInfo ve prefillFirmaSelect (firma bilgisi ikinci
+    // kaynağı, bkz. kullanıcı isteği 2026-09-06 madde 4) aynı kaydı istiyordu; iki ayrı fetch
+    // yerine tek paylaşılan söz.
     let claimedArchitectKey = null;
     let claimedArchitectPromise = null;
     function fetchClaimedArchitect(claimItems) {
@@ -3059,31 +3116,110 @@ const AuthModal = (function () {
       return ownSelfSubmissionPromise;
     }
 
+    // KİŞİ KÜNYESİNİ YÜKLE (kullanıcı isteği, 2026-09-14 madde 3) — hem "Kişi Bilgileri" kutusunun
+    // satırlarını hem kişi düzenleme pop-up'ının alanlarını besler, hem de Kaydet'in doğru uca
+    // yazması için architectSyncState'i (editId/profileKey/office/photoUrl) kurar.
+    //
+    // KAYNAK SIRASI:
+    //   1. admin'in ATADIĞI profil — onaylı profile_claims('architect') (isteğin sözü budur),
+    //   2. yoksa kullanıcının KENDİ açtığı kişi kaydı (claimed_profile_key taşımayan gönderisi),
+    //   3. ikisi de yoksa kayıt yok: kutu boş durumunu gösterir, pop-up boş açılır ve "Kişi
+    //      sayfasında görünmek istiyorum: Evet" ile ilk kayıt orada oluşturulur.
+    // `users` satırı bu yolların HİÇBİRİNDE okunmaz/yazılmaz (madde 7 — ayrım).
     async function refreshArchitectSyncState(claimItems) {
       const claim = claimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
       if (!claim) {
         // GERÇEK BULGU (kullanıcı bildirimi): burada eskiden yalnızca `architectSyncState = null`
         // vardı. Onaylı mimar profili OLMAYAN normal bir kullanıcı "Kişi sayfasında görünmek
         // istiyorum: Evet" deyip kaydettiğinde submitArchitectSyncIfNeeded ilk satırında geri
-        // dönüyor, tercih HİÇBİR YERE yazılmıyordu; /api/profile gövdesinde de bu alan yok.
-        // Formu yeniden açınca da okunacak bir kayıt olmadığından radyo HTML'deki varsayılan
-        // "Hayır"a düşüyordu — kullanıcının gördüğü "Evet dedim, Hayır'a dönmüş" davranışı buydu.
-        // Artık kullanıcının kendi kişi gönderisi (varsa) durum olarak kurulur ve tercih ondan okunur.
+        // dönüyor, tercih HİÇBİR YERE yazılmıyordu. Artık kullanıcının kendi kişi gönderisi (varsa)
+        // durum olarak kurulur ve tercih ondan okunur.
         const own = await fetchOwnSelfSubmission();
-        if (!own) { architectSyncState = null; setAmPortfolio([]); return; }
+        if (!own) {
+          architectSyncState = null;
+          amPersonRecord = null;
+          setAmPortfolio([]);
+          renderPersonInfo();
+          return;
+        }
         architectSyncState = { profileKey: null, editId: own.id, office: own.office || '', photoUrl: own.photo_url || '' };
+        // /api/architects/mine satırı snake_case gelir; kutunun/pop-up'ın beklediği `merged`
+        // biçimine çevrilir (bkz. fetchArchitectRecordForSync'in AYNI alan listesi).
+        amPersonRecord = {
+          name: own.name || '', dob: own.dob || '', school: own.school || '',
+          profession: own.profession || '', position: own.position || '', office: own.office || '',
+          awards: own.awards || [], about: own.about || '', social_links: own.social_links || [],
+          photo_url: own.photo_url || '', portfolio: Array.isArray(own.portfolio) ? own.portfolio : [],
+        };
         setAmPortfolio(own.portfolio || []);
         const el = document.querySelector(`input[name="am-directory-listed"][value="${own.directory_listed === 0 ? 'no' : 'yes'}"]`);
         if (el) el.checked = true;
+        renderPersonInfo();
         return;
       }
       const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
+      amPersonRecord = merged;
       setAmPortfolio(merged.portfolio || []);
       // Dizin tercihini mevcut kayda göre ayarla — kullanıcı daha önce "Hayır" dediyse form onu
       // "Evet" olarak göstermemeli (varsayılan Evet, YALNIZCA hiç kaydı olmayanlar için).
       const dirEl = document.querySelector(`input[name="am-directory-listed"][value="${merged.directory_listed === 0 ? 'no' : 'yes'}"]`);
       if (dirEl) dirEl.checked = true;
+      renderPersonInfo();
+    }
+
+    // "Kişi Bilgileri" kutusunun satırları + kişi düzenleme pop-up'ının alanları — TEK kaynaktan
+    // (amPersonRecord). Kayıt yoksa satırlar "—" kalır ve kutuda bir yönlendirme cümlesi görünür.
+    function renderPersonInfo() {
+      const rec = amPersonRecord;
+      const empty = document.getElementById('am-person-empty');
+      if (empty) empty.style.display = rec ? 'none' : '';
+      const facts = document.getElementById('am-profile-tab-facts');
+      if (facts) facts.style.display = rec ? '' : 'none';
+      renderAmNameBadge();                       // Ad Soyad satırı (+ rozet, + profil bağlantısı)
+      const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '—'; };
+      // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çeviri gerekmez.
+      set('am-fact-profession', rec && rec.profession);
+      set('am-fact-position', rec && rec.position);
+      set('am-fact-school', rec && rec.school);
+      set('am-fact-dob', rec && rec.dob ? String(rec.dob).slice(0, 4) : '');
+      prefillPersonEditForm();
+    }
+
+    // Kişi düzenleme pop-up'ının alanlarını kişi kaydından doldurur (eskiden accountUser'dan
+    // doluyordu — madde 7'nin kaldırdığı köprü tam olarak buydu). Kayıt yoksa alanlar BOŞ açılır;
+    // tek istisna Ad Soyad: ilk kez kişi künyesi oluşturan biri için hesabın adı makul bir başlangıç
+    // değeridir (yazdığı an kendi alanı olur, hesaba geri yazılmaz).
+    function prefillPersonEditForm() {
+      const rec = amPersonRecord;
+      const nameEl = document.getElementById('am-edit-name');
+      if (!nameEl) return;
+      nameEl.value = (rec && rec.name) || (accountUser && accountUser.name) || '';
+      ensureDobYearOptions();
+      document.getElementById('am-edit-dob').value = rec && rec.dob ? String(rec.dob).slice(0, 4) : '';
+      document.getElementById('am-edit-school').value = (rec && rec.school) || '';
+      // Pop-up'taki meslek onay kutuları SLUG ile çalışır, kişi kaydı ETİKET taşır — çeviri
+      // profession-shared.js'in tek kaynağından yapılır (bkz. PROFESSION_LABELS).
+      setProfessionChecks('am-edit-profession', professionSlugsFromLabels(rec && rec.profession));
+      document.getElementById('am-edit-position').value = (rec && rec.position) || '';
+      ensureAwardsDropdown();
+      awardsDropdown.setChecked((rec && rec.awards) || []);
+      document.getElementById('am-edit-about').value = (rec && rec.about) || '';
+      document.getElementById('am-social-rows').innerHTML = '';
+      ((rec && rec.social_links) || []).forEach(sl => addAmSocialRow(sl.platform, sl.url));
+      renderPersonEditAvatar();
+    }
+
+    // Pop-up'taki fotoğraf önizlemesi KİŞİ kaydının fotoğrafını gösterir (hesabın avatarı başlık
+    // satırındadır, bkz. renderAvatar).
+    function renderPersonEditAvatar() {
+      const prev = document.getElementById('am-avatar-preview');
+      if (!prev || pendingAvatarFile) return;     // bu turda seçilmiş bir dosya varsa önizlemeyi EZME
+      const photo = (amPersonRecord && amPersonRecord.photo_url) || '';
+      prev.innerHTML = photo
+        ? `<img src="${escapeAttr(avatarImg(photo, 128, photo))}" alt="">`
+        : dashInitials((amPersonRecord && amPersonRecord.name) || (accountUser && accountUser.name));
+      wireAvatarThumbCrop(photo || null);
     }
 
     // Profili Düzenle artık ayrı bir pop-up (bkz. hesabim.html#openProfileEditPopup ile AYNI desen) —
@@ -3102,7 +3238,7 @@ const AuthModal = (function () {
         ov.innerHTML = `
           <div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:420px;">
             <h2 style="font-size:16px; font-weight:700; margin:0 0 10px;">Kişi sayfasında diğer profesyonellerle birlikte yer almak ister misin?</h2>
-            <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0 0 18px;">Evet dersen profilini tamamlayabilmen için Profili Düzenle ekranına yönlendirilirsin.</p>
+            <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0 0 18px;">Evet dersen profilini tamamlayabilmen için Kişi Bilgilerini Düzenle ekranına yönlendirilirsin.</p>
             <div style="display:flex; gap:10px;">
               <button type="button" class="dash-edit-btn" id="am-dirprompt-yes" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Evet</button>
               <button type="button" class="dash-edit-btn" id="am-dirprompt-no" style="margin-left:0;">Hayır</button>
@@ -3229,6 +3365,18 @@ const AuthModal = (function () {
       } catch (e) {}
     }
 
+    // İKİ İÇ POP-UP: kişi künyesini düzenleyen büyük form (#am-profile-edit-overlay) ve hesabın
+    // kimliğini (ad soyad + kullanıcı adı) düzenleyen küçük form (#am-account-edit-overlay, kullanıcı
+    // isteği 2026-09-14 madde 5). Escape/Tab tuzakları İKİSİ İÇİN de aynıdır — hangisi açıksa o.
+    const AM_INNER_OVERLAY_IDS = ['am-profile-edit-overlay', 'am-account-edit-overlay'];
+    function openAmInnerOverlay() {
+      for (const id of AM_INNER_OVERLAY_IDS) {
+        const el = document.getElementById(id);
+        if (el && el.classList.contains('open')) return el;
+      }
+      return null;
+    }
+
     function openAmProfileEditPopup() {
       document.getElementById('am-profile-edit-overlay').classList.add('open');
       // Meslek çekmecesi (kullanıcı isteği, 2026-09-02) — panel her açılışta mount edilir;
@@ -3245,6 +3393,52 @@ const AuthModal = (function () {
     }
     on('am-dash-edit-btn', 'click', openAmProfileEditPopup);
     on('am-profile-edit-close', 'click', closeAmProfileEditPopup);
+
+    // ---------- HESAP KİMLİĞİ (ad soyad + kullanıcı adı) ----------
+    function openAmAccountEditPopup() {
+      document.getElementById('am-account-name').value = (accountUser && accountUser.name) || '';
+      document.getElementById('am-account-username').value = (accountUser && accountUser.username) || '';
+      document.getElementById('am-account-save-msg').textContent = '';
+      document.getElementById('am-account-edit-overlay').classList.add('open');
+      document.getElementById('am-account-edit-close').focus();
+    }
+    function closeAmAccountEditPopup() {
+      document.getElementById('am-account-edit-overlay').classList.remove('open');
+    }
+    on('am-account-edit-btn', 'click', openAmAccountEditPopup);
+    on('am-account-edit-close', 'click', closeAmAccountEditPopup);
+    on('am-account-edit-overlay', 'click', (e) => {
+      if (e.target.id === 'am-account-edit-overlay') closeAmAccountEditPopup();
+    });
+    wireUsernameInput(document.getElementById('am-account-username'));
+    on('am-account-save-btn', 'click', async (e) => {
+      const btn = e.target;
+      const msg = document.getElementById('am-account-save-msg');
+      const name = document.getElementById('am-account-name').value.trim();
+      const username = normalizeUsernameInput(document.getElementById('am-account-username').value);
+      if (!name) { msg.textContent = 'Ad soyad gerekli.'; return; }
+      if (username.length < 3) { msg.textContent = USERNAME_RULE_TEXT_AM; return; }
+      btn.disabled = true;
+      msg.textContent = 'Kaydediliyor…';
+      try {
+        // YALNIZCA bu iki alan gönderilir (kullanıcı isteği madde 5) — kişi künyesine (architects)
+        // hiçbir yazma YAPILMAZ (madde 7: hesap adı değişikliği kişi pop-up'larına yansımaz).
+        const res = await fetch('/api/profile', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, username }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { msg.textContent = data.error || 'Kaydedilemedi, tekrar dene.'; return; }
+        msg.textContent = 'Kaydedildi.';
+        await loadUser();
+        if (typeof refreshAuthNav === 'function') refreshAuthNav();
+        setTimeout(() => { msg.textContent = ''; closeAmAccountEditPopup(); }, 700);
+      } catch {
+        msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+      } finally {
+        btn.disabled = false;
+      }
+    });
     on('am-profile-edit-overlay', 'click', (e) => {
       if (e.target.id === 'am-profile-edit-overlay') closeAmProfileEditPopup();
     });
@@ -3256,9 +3450,10 @@ const AuthModal = (function () {
       amProfileEditEscapeWired = true;
       document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        if (!document.getElementById('am-profile-edit-overlay')?.classList.contains('open')) return;
+        const openOverlay = openAmInnerOverlay();
+        if (!openOverlay) return;
         e.stopPropagation();
-        closeAmProfileEditPopup();
+        openOverlay.classList.remove('open');
       }, true);
       // gerçek bulgu (denetim, 2026-08-24): bu iç pop-up'ın kendi focus trap'i YOKTU —
       // ModalShell'in paylaşılan trap'i (bkz. modal-shell.js#getFocusable/onKeydown) TÜM panelEl'i
@@ -3270,8 +3465,8 @@ const AuthModal = (function () {
       // trap'ine hiç ulaşmadan burada durdurulup yalnızca #am-profile-edit-overlay içinde döngüye sokulur.
       document.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return;
-        const overlay = document.getElementById('am-profile-edit-overlay');
-        if (!overlay || !overlay.classList.contains('open')) return;
+        const overlay = openAmInnerOverlay();
+        if (!overlay) return;
         const focusable = Array.from(overlay.querySelectorAll(
           'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
         )).filter(el => el.offsetParent !== null);
@@ -3376,6 +3571,9 @@ const AuthModal = (function () {
       if (!architectSyncState) {
         const picked = document.querySelector('input[name="am-directory-listed"]:checked');
         if (!picked || picked.value !== 'yes') return { ok: true };
+        // İLK kişi kaydı açılıyor: fotoğraf için başlangıç değeri hesabın avatarı olur (kişi kaydı
+        // henüz yok, yani kopyalanacak bir künye de yok). Bu bir BAŞLANGIÇ değeridir, süregelen bir
+        // senkron değil — kayıt oluştuktan sonra iki alan birbirinden bağımsız yaşar (madde 7).
         architectSyncState = { profileKey: null, editId: null, office: '', photoUrl: (accountUser && accountUser.photoUrl) || '' };
         createdSelfRecord = true;
       }
@@ -3491,7 +3689,11 @@ const AuthModal = (function () {
         // camelCase okuyordu — yalnızca bu satır sapmıştı.
         // Bu turda seçilmiş ama henüz yüklenmemiş bir fotoğraf da "var" sayılır — aksi halde ilk kez
         // fotoğraf seçen kullanıcı, fotoğrafı ekranda görmesine rağmen zorunlu alan uyarısı alırdı.
-        if (!((accountUser && accountUser.photoUrl) || '') && !pendingAvatarFile) eksik.push('Profil Fotoğrafı');
+        // Fotoğrafın kaynağı artık KİŞİ kaydıdır (bkz. amPersonRecord); kişi kaydında yoksa hesabın
+        // avatarı yedek sayılır — yeni bir kişi kaydı açılırken o URL kişi kaydına da yazıldığından
+        // (bkz. submitArchitectSyncIfNeeded'in ilk dalı) kontrol ile yazılan değer aynı kalır.
+        const personPhoto = (amPersonRecord && amPersonRecord.photo_url) || (accountUser && accountUser.photoUrl) || '';
+        if (!personPhoto && !pendingAvatarFile) eksik.push('Profil Fotoğrafı');
         if (eksik.length) {
           msg.textContent = 'Kişi sayfasında yayımlanmak için şu alanlar zorunlu: ' + eksik.join(', ') + '.';
           return;
@@ -3511,7 +3713,13 @@ const AuthModal = (function () {
       try {
         // Bekleyen profil fotoğrafı VARSA önce R2'ye yüklenir, dönen URL profil yazımına eklenir —
         // böylece fotoğraf ve diğer alanlar TEK Kaydet'te birlikte kalıcılaşır.
-        const patch = { name, dob, school, profession, position, awards, about, social_links: socialLinks };
+        // `patch` ARTIK HESAP ALANLARINI TAŞIMIYOR (kullanıcı isteği, 2026-09-14 madde 7): ad soyad,
+        // doğum yılı, üniversite, meslek, pozisyon, ödül, açıklama ve sosyal medya YALNIZCA kişi
+        // kaydına yazılır (bkz. aşağıdaki submitArchitectSyncIfNeeded). Nesne yalnızca bu turda
+        // yüklenen FOTOĞRAFI taşır: profil fotoğrafı hem kişi künyesinde hem hesabın avatarında
+        // (nav + Hesabım başlığı) görünen TEK görseldir, yeni yükleme ikisine de yazılır — aksi
+        // halde kullanıcı fotoğrafını değiştirdiğinde nav'daki avatar eski fotoğrafta kalırdı.
+        const patch = {};
         if (pendingAvatarFile) {
           msg.textContent = 'Fotoğraf yükleniyor…';
           try {
@@ -3540,25 +3748,18 @@ const AuthModal = (function () {
             return;
           }
         }
-        const res = await fetch('/api/profile', {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(patch),
-        });
-        if (!res.ok) {
-          // GERÇEK BULGU (kod incelemesi, 2026-09-06): Ad Soyad alanı hem hesap adı HEM kişi dizini
-          // kaydının adı olduğundan, isim çakışması ASLINDA burada (PATCH /api/profile) yakalanır —
-          // submitArchitectSyncIfNeeded'e hiç ULAŞILMADAN "Kaydedilemedi, tekrar dene." gösterilip
-          // dönülüyordu, kullanıcı isteğindeki "X kişisi zaten var, ... 'Bu profil bana ait' talebi
-          // oluştur" uyarısı BURADA da (bkz. src/routes/auth.js#updateUserProfileFields'in AYNI
-          // zenginleştirilmiş 409'u) gösterilmeliydi.
-          const errData = await res.json().catch(() => ({}));
-          if (res.status === 409 && errData.duplicateName) {
-            showDirectoryDuplicateWarning(errData.existingName, errData.existingSlug);
-            msg.textContent = errData.error || 'Kaydedilemedi.';
-          } else {
-            msg.textContent = errData.error || 'Kaydedilemedi, tekrar dene.';
+        // Hesaba yazılan TEK alan fotoğraftır (yukarıdaki gerekçe) — yeni fotoğraf yoksa hesap
+        // satırına hiç dokunulmaz, yani bu Kaydet hesabın ad soyadını/kullanıcı adını DEĞİŞTİRMEZ.
+        if (patch.photo_url) {
+          const res = await fetch('/api/profile', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photo_url: patch.photo_url }),
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            msg.textContent = errData.error || 'Fotoğraf kaydedilemedi, tekrar dene.';
+            return;
           }
-          return;
         }
         // Kayıt başarılı — bekleyen dosya tüketildi.
         if (pendingAvatarUrl) { URL.revokeObjectURL(pendingAvatarUrl); pendingAvatarUrl = null; }
@@ -3575,7 +3776,8 @@ const AuthModal = (function () {
         // (bkz. showDirectoryDuplicateWarning, claim-correction-box.js İLE AYNI POST /api/claims).
         if (architectResult && architectResult.duplicateName) {
           showDirectoryDuplicateWarning(architectResult.existingName, architectResult.existingSlug);
-          msg.textContent = 'Profil bilgilerin kaydedildi, ama kişi dizini için aşağıya bak.';
+          msg.textContent = 'Kişi bilgileri kaydedildi, ama kişi dizini için aşağıya bak.';
+          invalidatePersonCaches();
           await loadUser();
           await loadMyClaims();
           return;
@@ -3588,6 +3790,7 @@ const AuthModal = (function () {
         msg.textContent = claimSubmitted
           ? 'Kaydedildi. Firma talebi admin onayına gönderildi.'
           : (createdSelfRecord ? 'Kaydedildi. Profilin artık Kişi sayfasında yayında.' : 'Kaydedildi.');
+        invalidatePersonCaches();
         await loadUser();
         await loadMyClaims();
         // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz.
@@ -3848,6 +4051,19 @@ const AuthModal = (function () {
       renderAmNameBadge();
     }
 
+    // Kişi künyesi kaydedildikten sonra kutunun TAZE veri göstermesi için üç belleklenmiş sözün de
+    // (claims / atanmış kişi kaydı / kendi kişi gönderisi) düşürülmesi gerekir — hepsi mountAccount
+    // ömrü boyunca tek sefer çekiliyor (bkz. fetchMyClaims/fetchClaimedArchitect/
+    // fetchOwnSelfSubmission'ın yanındaki "Hesabım çok yavaş yükleniyor" gerekçeleri). Eskiden kutu
+    // hesabın `users` satırını okuduğu için loadUser() tek başına yetiyordu; artık kaynağı kişi
+    // kaydı olduğundan (madde 3) bu düşürme olmadan Kaydet sonrası ESKİ değerler görünürdü.
+    function invalidatePersonCaches() {
+      myClaimsPromise = null;
+      claimedArchitectKey = null;
+      claimedArchitectPromise = null;
+      ownSelfSubmissionPromise = null;
+    }
+
     async function loadMyClaims() {
       const data = await fetchMyClaims();
       const items = data.items || [];
@@ -3855,7 +4071,6 @@ const AuthModal = (function () {
       refreshArchitectSyncState(items);
       renderClaimsList();
       renderAmNameBadge();
-      syncClaimedArchitectData(items);
       loadFirmInfo(items);
     }
 
@@ -3908,8 +4123,8 @@ const AuthModal = (function () {
         pushEntry(c.profile_key, { status: c.status, approved: false, slug: c.slug || c.profile_key, officeRole: c.officeRole || null });
       }
       // fetchClaimedArchitect / fetchOwnSelfSubmission ikisi de belleklenmiş TEK istektir (bkz. o
-      // fonksiyonlar) — syncClaimedArchitectData ve prefillFirmaSelect zaten aynı yanıtı kullanıyor,
-      // burada ek bir ağ isteği doğmaz.
+      // fonksiyonlar) — prefillFirmaSelect zaten aynı yanıtı kullanıyor, burada ek bir ağ isteği
+      // doğmaz.
       const arch = (await fetchClaimedArchitect(claimItems)) || (await fetchOwnSelfSubmission());
       if (arch && arch.office) {
         String(arch.office).split(',').forEach(n => pushEntry(n, { role: arch.role || null }));
@@ -4139,7 +4354,10 @@ const AuthModal = (function () {
       // ANINDA dondurulmuş değeri (entry.position) ARTIK OKUNMAZ: o bir ünvan değil, yalnızca
       // yetkidir (hepsi 'Yönetici' donuyor, bkz. src/routes/admin.js#normalizeOfficePosition) ve
       // kişi görevini değiştirdiğinde künyeden kalıcı olarak ayrışıyordu — bu bildirimin kök nedeni.
-      const role = entry.officeRole || entry.role || (accountUser && accountUser.position);
+      // Son yedek artık HESABIN pozisyonu değil KİŞİ künyesinin pozisyonu (kullanıcı isteği,
+      // 2026-09-14 madde 7: hesap alanları kişi künyesinden ayrıldı, users.position artık
+      // güncellenmiyor — kişi künyesi bu bilginin tek canlı kaynağı).
+      const role = entry.officeRole || entry.role || (amPersonRecord && amPersonRecord.position);
       if (role) rows.push(['Görevin', role]);
       // "Yetkili Kullanıcılar" (kullanıcı isteği, 2026-09-12): bu firmanın içeriklerini yönetmekle
       // görevlendirilmiş DİĞER hesaplar; her biri bir çip, çipin içinde yetkiyi kaldıran X, satır
@@ -4250,42 +4468,13 @@ const AuthModal = (function () {
       if (canEdit) btn.href = `${claimEditPageForOffice(firmInfoIsBrand)}?claim=${encodeURIComponent(firmInfoSlug)}`;
     }
 
-    async function syncClaimedArchitectData(items) {
-      if (!accountUser) return;
-      // fetchClaimedArchitect: loadFirmInfo ile PAYLAŞILAN tek istek (bkz. o fonksiyonun yanındaki
-      // yorum) — ikisi de her loadUser()'da çalıştığından eskiden aynı uca iki istek gidiyordu.
-      const arch = await fetchClaimedArchitect(items);
-      if (!arch) return;
-      const patch = {};
-      if (!accountUser.photoUrl && arch.photo) patch.photo_url = arch.photo;
-      if (!accountUser.school && arch.school) patch.school = arch.school;
-      // Pozisyon (bkz. kullanıcı isteği: "tam bir senkronizasyon") — mimar kaydındaki `role` ile AYNI
-      // metin kümesini paylaşır (bkz. am-edit-position'daki genişletilmiş 10 seçenek), bu yüzden
-      // doğrudan kopyalanabilir. Meslek ise mimar kaydında ham Türkçe etiket ("Mimar"), users.profession
-      // ise kodlu bir slug ("mimar") olduğundan PROFESSION_LABELS ters çevrilerek eşleştirilir.
-      if (!accountUser.position && arch.role) patch.position = arch.role;
-      // Çoklu meslek (kullanıcı isteği, 2026-09-01 madde 6): iki taraf da artık virgüllü olabilir
-      // ("Mimar, Fotoğrafçı" ↔ "mimar,fotografci") — her etiket ayrı ayrı ters çevrilir, eşleşmeyen
-      // (listede olmayan, elle yazılmış) etiketler sessizce atlanır.
-      if (!accountUser.profession && arch.profession) {
-        const slugs = String(arch.profession).split(',').map(s => s.trim()).filter(Boolean)
-          .map(label => Object.keys(PROFESSION_LABELS).find(k => PROFESSION_LABELS[k] === label))
-          .filter(Boolean);
-        if (slugs.length) patch.profession = slugs.join(',');
-      }
-      // Ödüller/Açıklama/Sosyal Medya artık her kullanıcının hesap profilinde de var (bkz. kullanıcı
-      // isteği) — yeni onaylanan bir talepte mimar kaydında zaten dolu olan bu alanlar, hesap
-      // profili henüz boşsa bir kerelik buraya da taşınır (school/position/profession ile AYNI
-      // "yalnızca boşsa doldur" kuralı, kullanıcının kendi elle girdiği bir değerin üzerine yazmaz).
-      if (!(accountUser.awards || []).length && (arch.awards || []).length) patch.awards = arch.awards;
-      if (!accountUser.about && arch.about) patch.about = arch.about;
-      if (!(accountUser.social_links || []).length && (arch.social_links || []).length) patch.social_links = arch.social_links;
-      if (!Object.keys(patch).length) return;
-      try {
-        const res = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
-        if (res.ok) await loadUser();
-      } catch {}
-    }
+    // syncClaimedArchitectData KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 7). Burada, Hesabım
+    // her açıldığında, atanmış kişi kaydının fotoğraf/üniversite/pozisyon/meslek/ödül/açıklama/
+    // sosyal medya alanları hesabın BOŞ alanlarına PATCH /api/profile ile kopyalanıyordu — yani
+    // kişi künyesi hesabı sessizce dolduruyordu. Ayrım isteği bu köprüyü kaldırır: künye artık
+    // yalnızca kişi kaydında yaşar ve "Kişi Bilgileri" kutusu doğrudan oradan okur (bkz.
+    // renderPersonInfo). Sunucudaki iki kardeş köprü de kaldırıldı (bkz. src/routes/admin.js ve
+    // src/routes/submissions.js'teki AYNI tarihli notlar).
 
     // ---------- ARŞİVİM (kullanıcı isteği, 2026-09-10 madde 2/3) -------------------------------
     // Veri /api/archive/mine'dan gelir (bkz. src/routes/archive.js): kullanıcının KENDİ arşiv

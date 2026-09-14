@@ -576,6 +576,21 @@ else
 fi
 rm -f /tmp/preflight_offarch
 
+# HESAP ÜYELİĞİ <-> KİŞİ PROFİLİ AYRIMI (kullanıcı isteği, 2026-09-14): Üye Ol formundan doğum
+# yılı/üniversite/meslek kalktı ve kullanıcı adı geldi; Hesabım'da Firma/Kişi kutuları yer değiştirdi,
+# "Kişi Bilgileri" kutusu artık atanan kişi kaydını okuyor; hesap alanları ile kişi künyesi arasındaki
+# ÜÇ köprü kaldırıldı; giriş kullanıcı adıyla da yapılabiliyor. Köprülerden biri geri gelirse ayrım
+# sessizce bozulur (kişi künyesi hesabı, hesap künyeyi ezmeye başlar) — bu yüzden deploy'dan önce
+# durdurur. Geri dolum SQL'i (migrations/0119) de gerçek SQLite üzerinde çalıştırılır.
+# Bkz. scripts/test-2026-09-14-account-person-split.mjs.
+if node scripts/test-2026-09-14-account-person-split.mjs >/tmp/preflight_acsplit 2>&1; then
+  ok "hesap/kişi ayrımı + kullanıcı adı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_acsplit) test)"
+else
+  bad "hesap/kişi ayrımı + kullanıcı adı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_acsplit >&2
+fi
+rm -f /tmp/preflight_acsplit
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

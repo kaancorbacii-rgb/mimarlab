@@ -23,7 +23,7 @@ import { anyProfileClaimed } from '../src/lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../src/lib/projectClaimAccess.js';
 import { cascadeRemovedProfileClaims } from '../src/lib/officeFounderCascade.js';
 import { canUserEditProjectBySlug } from '../src/lib/projectClaimAccess.js';
-import { ensurePendingOfficeClaims, fillUserFromArchitectProfile, fetchOfficeFounderLinks, canEditOfficeViaFounderLink, fetchOwnArchitectRows } from '../src/lib/claimedProfiles.js';
+import { ensurePendingOfficeClaims, fetchOfficeFounderLinks, canEditOfficeViaFounderLink, fetchOwnArchitectRows } from '../src/lib/claimedProfiles.js';
 import { syncApprovedSubmissionToCanonical } from '../src/lib/canonicalSync.js';
 import { newId } from '../src/lib/crypto.js';
 import { parseSubmissionRow } from '../src/lib/submissionTypes.js';
@@ -432,47 +432,40 @@ await test('aksanlı adlar temiz slug üretir', () => {
   assert.equal(slugify('R.A.F. Studio'), 'r-a-f-studio');
 });
 
-section('madde 3 — atanan kişi profili hesap bilgilerini doldurur');
+// 2026-09-08'in "atanan kişi profili hesap bilgilerini doldurur" bölümü 2026-09-14'te KALDIRILDI
+// (kullanıcı isteği madde 7: "kişi popuplarıyla kullanıcı hesaplarını ayırmak ... kişi popuplarında
+// yapılan değişiklik de profildeki kullanıcı bilgilerine yansımayacak"). Testler artık tam TERSİNİ
+// kilitliyor: kopyalama yollarının ikisi de kaynakta OLMAMALI, aksi halde ayrım sessizce geri döner.
+section('AYRIM (2026-09-14) — kişi künyesi hesap alanlarına kopyalanmaz');
 
-function seedArchitectProfile(db) {
-  const now = Date.now();
-  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-cc','cc@nunarch.com','x','Celaleddin Çelik','user',?)`).run(now);
-  db.exec(`INSERT INTO architects (slug, name, dob, school, dept, profession, position, about, photo_url, awards, social_links, source)
-           VALUES ('celaleddin-celik','Celâleddin Çelik','1985','İTÜ','Mimarlık','Mimar, Fotoğrafçı','Kurucu','Hakkında metni','/u/foto.webp','["Ödül A"]','[{"platform":"instagram","url":"https://x.test"}]','legacy_static')`);
-}
+const claimedProfilesSrc = readFileSync(new URL('../src/lib/claimedProfiles.js', import.meta.url), 'utf8');
+const adminSrc = readFileSync(new URL('../src/routes/admin.js', import.meta.url), 'utf8');
+const submissionsSrc = readFileSync(new URL('../src/routes/submissions.js', import.meta.url), 'utf8');
 
-await test('boş hesap alanları kişi profilinden dolar (slug çevirisiyle)', async () => {
-  const db = freshDb(); seed(db); seedArchitectProfile(db);
-  const env = { DB: d1(db) };
-  assert.equal(await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik'), true);
-  const u = db.prepare(`SELECT * FROM users WHERE id = 'u-cc'`).get();
-  assert.equal(u.dob, '1985');
-  assert.equal(u.school, 'İTÜ');
-  assert.equal(u.dept, 'Mimarlık');
-  assert.equal(u.position, 'Kurucu');
-  assert.equal(u.profession, 'mimar,fotografci');
-  assert.equal(u.about, 'Hakkında metni');
-  assert.equal(u.photo_url, '/u/foto.webp');
-  assert.equal(u.name, 'Celaleddin Çelik', 'hesap adı EZİLMEMELİ');
+await test('fillUserFromArchitectProfile artık yok (atama künyeyi hesaba yazmıyor)', async () => {
+  assert.ok(!/export async function fillUserFromArchitectProfile/.test(claimedProfilesSrc), 'fonksiyon geri gelmiş');
+  assert.ok(!/await fillUserFromArchitectProfile\(/.test(adminSrc), 'admin atama yolu künyeyi hesaba kopyalıyor');
 });
 
-await test('kullanıcının kendi girdiği değerlerin üzerine YAZILMAZ', async () => {
-  const db = freshDb(); seed(db); seedArchitectProfile(db);
-  db.exec(`UPDATE users SET school = 'ODTÜ', dob = '1990' WHERE id = 'u-cc'`);
-  const env = { DB: d1(db) };
-  await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik');
-  const u = db.prepare(`SELECT school, dob, dept FROM users WHERE id = 'u-cc'`).get();
-  assert.equal(u.school, 'ODTÜ');
-  assert.equal(u.dob, '1990');
-  assert.equal(u.dept, 'Mimarlık', 'boş olan alan yine de dolmalı');
+await test('syncOwnArchitectToAccount artık yok (kişi kaydı hesaba geri yazmıyor)', async () => {
+  assert.ok(!/async function syncOwnArchitectToAccount/.test(submissionsSrc), 'geri senkron fonksiyonu geri gelmiş');
+  assert.ok(!/await syncOwnArchitectToAccount\(/.test(submissionsSrc), 'geri senkron çağrısı geri gelmiş');
+  // Yetki kapısı KALMALI (madde 9: yetkiler aynı kalsın) — firma talebi hâlâ bu kapıdan geçiyor.
+  assert.ok(/async function isOwnArchitectRecord/.test(submissionsSrc), 'firma talebi yetki kapısı kaybolmuş');
 });
 
-await test('listede olmayan pozisyon hesaba kopyalanmaz', async () => {
-  const db = freshDb(); seed(db); seedArchitectProfile(db);
-  db.exec(`UPDATE architects SET position = 'Baş Mimar' WHERE slug = 'celaleddin-celik'`);
-  const env = { DB: d1(db) };
-  await fillUserFromArchitectProfile(env, 'u-cc', 'Celâleddin Çelik');
-  assert.equal(db.prepare(`SELECT position FROM users WHERE id = 'u-cc'`).get().position, null);
+await test('atanan profil users satırına DOKUNMAZ (yalnızca profile_claims)', async () => {
+  const db = freshDb(); seed(db);
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-cc','cc@nunarch.com','x','Celaleddin Çelik','user',?)`).run(Date.now());
+  db.exec(`INSERT INTO architects (slug, name, dob, school, profession, position, source)
+           VALUES ('celaleddin-celik','Celâleddin Çelik','1985','İTÜ','Mimar','Kurucu','legacy_static')`);
+  db.exec(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at)
+           VALUES ('c-cc','u-cc','architect','Celâleddin Çelik','approved',1000,1000)`);
+  const u = db.prepare(`SELECT dob, school, profession, position FROM users WHERE id = 'u-cc'`).get();
+  assert.equal(u.dob, null);
+  assert.equal(u.school, null);
+  assert.equal(u.profession, null);
+  assert.equal(u.position, null);
 });
 
 // ================================================================================================

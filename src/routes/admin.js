@@ -29,7 +29,6 @@ import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { findR2Orphans, confirmStillOrphaned } from '../lib/r2Reconcile.js';
 import { scanBrokenImageRefs, repairBrokenImageRefs } from '../lib/brokenMedia.js';
-import { fillUserFromArchitectProfile } from '../lib/claimedProfiles.js';
 import { buildMeta } from '../lib/seo.js';
 import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSettings.js';
 import { handleGundemAdminRoute } from './gundemAdmin.js';
@@ -544,7 +543,7 @@ async function handleContactAdmin(request, env, segments) {
 
 async function listUsers(env) {
   const { results } = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, role, created_at FROM users ORDER BY created_at DESC LIMIT 2000'
+    'SELECT id, email, username, name, dob, school, dept, role, created_at FROM users ORDER BY created_at DESC LIMIT 2000'
   ).all();
   return json({ items: results });
 }
@@ -596,7 +595,7 @@ async function handleUsersAdmin(request, env, url, segments) {
 
 async function getUserAdmin(env, targetId) {
   const row = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, username, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
   ).bind(targetId).first();
   if (!row) return errorJson('Kullanıcı bulunamadı.', 404);
   return json({ user: publicUser(row) });
@@ -1552,10 +1551,13 @@ async function handleClaimsAdmin(request, env, url, segments) {
     }
     // bkz. aşağıdaki PATCH onay dalındaki AYNI invalidation gerekçesi — /api/public/badges bu tabloya
     // doğrudan JOIN olduğundan.
-    // Atanan KİŞİ profilinin künyesi hesabın kendi profiline taşınır (kullanıcı isteği, 2026-09-08
-    // madde 3) — bkz. src/lib/claimedProfiles.js#fillUserFromArchitectProfile: yalnızca BOŞ alanlar
-    // doldurulur, hem Hesabım formu hem admin panelindeki Üyeler ekranı aynı users satırını okur.
-    if (profileType === 'architect') await fillUserFromArchitectProfile(env, userId, profileKey);
+    // KİŞİ KÜNYESİ ARTIK HESABA KOPYALANMIYOR (kullanıcı isteği, 2026-09-14 madde 7: "kişi
+    // popuplarıyla kullanıcı hesaplarını ayırmak"). Burada eskiden fillUserFromArchitectProfile
+    // vardı: atanan kişi profilinin doğum yılı/üniversite/meslek/pozisyon/fotoğraf/ödül/açıklama
+    // alanlarını users satırının BOŞ alanlarına yazıyordu. Atama artık YALNIZCA bir yetki bağı
+    // kurar (profile_claims satırı, bkz. madde 9: mevcut yetkiler olduğu gibi kalır); künye
+    // architects satırında kalır ve Hesabım'daki "Kişi Bilgileri" kutusu doğrudan oradan okur
+    // (bkz. js/components/auth-modal.js#loadPersonInfo).
     // Atama, kişi/firma/marka profilini önizleme modundan çıkarır (bkz. activateClaimedProfile).
     await activateClaimedProfile(env, profileType, profileKey, userId);
     await invalidatePublicCache(env);
@@ -1632,12 +1634,8 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // `profile_claims.status = 'approved'` filtresine JOIN olduğundan, bir talep onaylandığında/
     // reddedildiğinde o profilin rozet görünümü en fazla ANON_CACHE_HEADERS penceresi (15sn) kadar
     // eski kalabiliyordu.
-    // bkz. POST dalındaki AYNI çağrı/gerekçe (kullanıcı isteği, 2026-09-08 madde 3) — bir profil
-    // ataması İKİ ayrı uçtan geçebiliyor, yan etki ikisine de eklenmeli (bkz. proje notu:
-    // "Atamanın İKİ admin yolu").
-    if (body.status === 'approved' && claim.profile_type === 'architect') {
-      await fillUserFromArchitectProfile(env, claim.user_id, claim.profile_key);
-    }
+    // (Kişi künyesini hesaba kopyalayan fillUserFromArchitectProfile çağrısı buradan da kaldırıldı —
+    // bkz. POST dalındaki AYNI gerekçe, kullanıcı isteği 2026-09-14 madde 7.)
     // Önizleme modundan çıkarma da İKİ atama yolunun İKİSİNE birden eklenmeli (bkz. yukarıdaki
     // "Atamanın İKİ admin yolu" notu ve activateClaimedProfile).
     if (body.status === 'approved') await activateClaimedProfile(env, claim.profile_type, claim.profile_key, claim.user_id);

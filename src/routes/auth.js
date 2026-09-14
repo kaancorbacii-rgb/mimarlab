@@ -10,6 +10,7 @@ import {
 import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
 import { foldTr } from '../lib/textMatch.js';
 import { createNotification } from '../lib/notify.js';
+import { normalizeUsername, isUsernameTaken, uniqueUsernameFrom } from '../lib/username.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
@@ -103,9 +104,14 @@ async function upsertOAuthUser(env, { email, name, photoUrl }) {
     const now = Date.now();
     const passwordHash = await hashPassword(randomToken());
     const displayName = (name || '').trim() || normalizedEmail.split('@')[0];
+    // Kullanıcı adı sosyal girişte SORULMAZ (kullanıcı hiçbir form doldurmuyor) — ad soyaddan,
+    // olmazsa e-postanın yerel kısmından türetilir (bkz. src/lib/username.js#uniqueUsernameFrom).
+    // Hesap kullanıcı adsız kalmamalı: girişin ikinci yolu (kullanıcı adı + şifre) ve Hesabım'daki
+    // "@kullaniciadi" satırı buna dayanıyor.
+    const username = await uniqueUsernameFrom(env, displayName, normalizedEmail.split('@')[0]);
     await env.DB.prepare(
-      'INSERT INTO users (id, email, password_hash, name, photo_url, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(id, normalizedEmail, passwordHash, displayName, photoUrl || null, now, 'user', now).run();
+      'INSERT INTO users (id, email, username, password_hash, name, photo_url, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(id, normalizedEmail, username, passwordHash, displayName, photoUrl || null, now, 'user', now).run();
     user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
   } else {
     // Mevcut hesap sosyal girişle eşleşti (bkz. yukarıdaki e-posta eşleştirme yorumu) — profilinde
@@ -116,6 +122,9 @@ async function upsertOAuthUser(env, { email, name, photoUrl }) {
     const values = [];
     if (!user.name && trimmedName) { updates.push('name = ?'); values.push(trimmedName); }
     if (!user.photo_url && photoUrl) { updates.push('photo_url = ?'); values.push(photoUrl); }
+    // Geri dolumdan (migrations/0119) önce silinip yeniden oluşmuş ya da kolonun eklenmesinden
+    // önce açılmış bir satır kullanıcı adsız olabilir — sosyal girişte sessizce tamamlanır.
+    if (!user.username) { updates.push('username = ?'); values.push(await uniqueUsernameFrom(env, trimmedName || user.name, normalizedEmail.split('@')[0])); }
     if (updates.length) {
       values.push(user.id);
       await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
@@ -206,15 +215,24 @@ async function signup(request, env) {
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
   const name = (body.name || '').trim();
+  // Doğum yılı / üniversite / meslek ARTIK ÜYE OL FORMUNDA SORULMUYOR (kullanıcı isteği,
+  // 2026-09-14 madde 1: "Üye Ol sayfasında doğum yılı, üniversite ve meslek kutucuklarını
+  // kaldır"). Bu alanlar artık KİŞİ profilinin (architects) alanlarıdır — hesap yalnızca ad soyad,
+  // kullanıcı adı, e-posta ve şifre taşır (bkz. madde 7: hesap bilgileri ile kişi pop-up'larındaki
+  // bilgiler AYRI). Gövdede yine gelirlerse (eski, önbellekten gelen bir istemci) kabul edilip
+  // doğrulanır — hiçbiri ZORUNLU değildir.
   const dob = body.dob || null;
   const school = (body.school || '').trim() || null;
   const dept = body.dept || null;
   // bkz. normalizeProfessions — birden çok meslek virgülle ayrılmış tek bir string olarak gelir.
   const professionResult = normalizeProfessions(body.profession);
   const profession = professionResult.value;
+  // Kullanıcı adı (kullanıcı isteği, 2026-09-14 madde 1) — kayıtta ZORUNLU; kuralların tek kaynağı
+  // src/lib/username.js (aynı kural Hesabım'daki düzenleme ve girişin kullanıcı adı dalında).
+  const usernameResult = normalizeUsername(body.username);
 
   if (!name) return errorJson('Ad soyad gerekli.');
-  if (!dob) return errorJson('Doğum tarihi gerekli.');
+  if (!usernameResult.ok) return errorJson(usernameResult.error);
   if (!EMAIL_RE.test(email)) return errorJson('Geçerli bir e-posta adresi gir.');
   if (password.length < 8) return errorJson('Şifre en az 8 karakter olmalı.');
   if (body.password !== body.password_confirm) return errorJson('Şifreler eşleşmiyor.');
@@ -226,6 +244,9 @@ async function signup(request, env) {
 
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) return errorJson('Bu e-posta ile zaten bir hesap var.', 409);
+  if (await isUsernameTaken(env, usernameResult.value)) {
+    return errorJson('Bu kullanıcı adı alınmış, başka bir tane seç.', 409);
+  }
 
   // Hesap adı yalnızca DİĞER HESAPLARLA çakışamaz — Kişi sayfasındaki bir adla üye olmak serbesttir
   // (kullanıcı isteği 2026-09-11, bkz. findUserByFoldedName'in üstündeki ayrım). 2026-09-02'deki
@@ -238,8 +259,8 @@ async function signup(request, env) {
   const now = Date.now();
   const passwordHash = await hashPassword(password);
   await env.DB.prepare(
-    'INSERT INTO users (id, email, password_hash, name, dob, school, dept, profession, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, email, passwordHash, name, dob, school, dept, profession, now, 'user', now).run();
+    'INSERT INTO users (id, email, username, password_hash, name, dob, school, dept, profession, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, email, usernameResult.value, passwordHash, name, dob, school, dept, profession, now, 'user', now).run();
 
   // Kullanıcı isteği (2026-09-02 madde 4): kayıt olur olmaz kişiyi dizine davet eden bir bildirim.
   // link=/hesabim?dizin=1 — hesabim (Hesabım pop-up'ı) bu parametreyi görünce evet/hayır sorusunu
@@ -254,7 +275,7 @@ async function signup(request, env) {
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, username, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
   ).bind(id).first();
 
   return json({ user: publicUser(user) }, 201, {
@@ -275,16 +296,34 @@ async function login(request, env) {
   }
 
   const body = await readJson(request);
-  const email = (body.email || '').trim().toLowerCase();
+  // KİMLİK ALANI: e-posta VEYA kullanıcı adı (kullanıcı isteği, 2026-09-14 madde 8: "giriş yap
+  // kısmında E-posta yazılan yere kullanıcı adı da yazılıp şifre yazılarak giriş yapılabilsin").
+  // Alan adı `email` olarak KALDI (yeni `identifier` da kabul edilir): önbellekten gelen eski bir
+  // istemci hâlâ `email` gönderir ve girişin bozulmaması kimlik doğrulamada en pahalı regresyondur.
+  // Ayrım "@" içeriyor mu ile yapılır — kullanıcı adları "@" İÇEREMEZ (bkz. src/lib/username.js),
+  // yani karar belirsiz kalamaz.
+  const identifier = (body.identifier || body.email || '').trim();
   const password = body.password || '';
-  if (email && !(await checkRateLimit(env, 'login-email', email, 10, 15 * 60 * 1000))) {
+  const isEmail = identifier.includes('@');
+  const email = isEmail ? identifier.toLowerCase() : '';
+  // Kullanıcı adı aranırken kayıttaki AYNI katlama uygulanır (Türkçe harf/büyük harf yazan kullanıcı
+  // da girebilsin) — normalizeUsername başarısız olursa eşleşecek bir satır yok demektir.
+  const usernameCandidate = isEmail ? '' : (normalizeUsername(identifier).value || '');
+  if (identifier && !(await checkRateLimit(env, 'login-email', identifier.toLowerCase(), 10, 15 * 60 * 1000))) {
     return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '900' });
   }
 
-  const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+  // İKİ AYRI SORGU, "OR" DEĞİL: e-posta (UNIQUE kolon) ve kullanıcı adı (idx_users_username)
+  // ayrı ayrı indeksliyken `WHERE email = ? OR username = ?` SQLite'ı tablo taramasına düşürür;
+  // ayrıca kullanıcı adı geçerli biçimde değilse hiç sorgu atmaya gerek yok.
+  const user = !identifier
+    ? null
+    : isEmail
+      ? await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first()
+      : (usernameCandidate ? await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(usernameCandidate).first() : null);
   const passwordOk = await verifyPassword(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
   if (!user || !passwordOk) {
-    return errorJson('E-posta veya şifre hatalı.', 401);
+    return errorJson('E-posta/kullanıcı adı veya şifre hatalı.', 401);
   }
 
   const { token, maxAge } = await createSession(env, user.id);
@@ -480,12 +519,23 @@ export async function updateUserProfileFields(env, userId, body) {
       return { error: DUPLICATE_USER_NAME_ERROR, status: 409 };
     }
   }
+  // Kullanıcı adı (kullanıcı isteği, 2026-09-14 madde 5: Hesabım başlığındaki "Profili Düzenle"
+  // YALNIZCA ad soyad ve kullanıcı adını düzenler). Kayıttaki AYNI kural + AYNI tekillik kontrolü
+  // (bkz. src/lib/username.js); admin panelindeki üye düzenleme ekranı da bu fonksiyondan geçer.
+  if ('username' in body) {
+    const result = normalizeUsername(body.username);
+    if (!result.ok) return { error: result.error };
+    if (await isUsernameTaken(env, result.value, userId)) {
+      return { error: 'Bu kullanıcı adı alınmış, başka bir tane seç.', status: 409 };
+    }
+    body.username = result.value;
+  }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
   // ödül, sosyal medya ve açıklama ekleyebilsinler" — kisi-ekle.html'in aynı alanlarıyla AYNI JSON
   // dizi kalıbı (bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES.architects). social_links'teki her
   // URL, photo_url ile AYNI isSafeUrlValue kontrolünden geçirilir (mevcut submission pipeline'ından
   // daha sıkı — orada bu alan hiç doğrulanmıyor, burada baştan güvenli tutulur).
-  const fields = ['name', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position', 'about'];
+  const fields = ['name', 'username', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position', 'about'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -507,7 +557,7 @@ export async function updateUserProfileFields(env, userId, body) {
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
   const updated = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, username, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
   ).bind(userId).first();
   return { user: publicUser(updated) };
 }
