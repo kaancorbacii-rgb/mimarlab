@@ -9,6 +9,11 @@
 // ÖNİZLEMEDEN (preview_at DOLU) yayına geçen kayıtları kapsıyor — buradaki senaryo firmanın
 // projeleri ZATEN CANLIYKEN (Per Se Mimarlık gibi) bir atama yapılması. Kural TEK yerde:
 // src/routes/admin.js#promoteOfficeProjectsOnAssignment (activateClaimedProfile'dan çağrılır).
+//
+// Dosyanın SON bölümü promosyonun PROFİL BAŞINA BİR KEZ çalışmasını kapsar (kullanıcı isteği,
+// 2026-09-14: "Bir firmaya daha önce bir yönetici atanmışsa ... firmaya tekrar yeni bir yönetici
+// atanınca firmanın son projesini tekrar proje sayfasında 1. sıraya koymana gerek yok.") —
+// bkz. src/routes/admin.js#profilesPromotedBefore ve migrations/0118_projects_promoted_at.sql.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -207,6 +212,113 @@ await test('önizlemeden çıkan DİĞER projeler damgalanmaz (partide tek damga
   // ZATEN CANLI olan firma projesi eskisi gibi yayılır (1. sıranın bir gün gerisinde).
   assert.ok(relistedAt(db, 'aaw-canli'), 'zaten canlı firma projesi yayılmalı');
   assert.ok(relistedAt(db, 'merzigo') > relistedAt(db, 'aaw-canli'));
+});
+
+section('promosyon PROFİL BAŞINA BİR KEZ (kullanıcı isteği, 2026-09-14)');
+
+// "Bir firmaya daha önce bir yönetici atanmışsa ve yönetici atanınca son eklenen projeleri proje
+// sayfasında ilk sıraya oturmuşsa, ya da admin tarafından firmanın bluru kaldırılıp yayına
+// alındıysa, firmaya tekrar yeni bir yönetici atanınca firmanın son projesini tekrar proje
+// sayfasında 1. sıraya koymana gerek yok."
+// Kural TEK yerde: src/routes/admin.js#profilesPromotedBefore + offices/architects
+// .projects_promoted_at (bkz. migrations/0118_projects_promoted_at.sql).
+function addSecondUser(db) {
+  db.prepare(`INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES ('u-ikinci', 'ikinci@example.com', 'x', 'İkinci Yönetici', 'user', ?)`).run(Date.now());
+}
+async function assignSecondManager(env, profileKey = 'Per Se Mimarlık') {
+  const url = new URL('https://mimarlab.com/api/admin/claims');
+  return handleAdminRoute(adminReq(url.pathname, {
+    method: 'POST', body: JSON.stringify({ userId: 'u-ikinci', profileType: 'office', profileKey }),
+  }), env, url);
+}
+const promotedAt = (db, name) => db.prepare(`SELECT projects_promoted_at FROM offices WHERE name = ?`).get(name).projects_promoted_at;
+
+await test('İLK atama profile projects_promoted_at damgası düşer', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  assert.equal(promotedAt(db, 'Per Se Mimarlık'), null, 'atamadan önce damgasız olmalı');
+  await assignOffice(env);
+  assert.ok(promotedAt(db, 'Per Se Mimarlık'), 'atamadan sonra damgalanmalı');
+  // Atamaya HİÇ girmeyen firma damgalanmaz — kendi ilk ataması hâlâ promosyon almalı.
+  assert.equal(promotedAt(db, 'İlgisiz Firma'), null);
+});
+
+await test('İKİNCİ yönetici ataması en son projeyi TEKRAR 1. sıraya koymaz', async () => {
+  const db = freshDb(); seed(db); addSecondUser(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env);
+  const before = db.prepare(`SELECT slug, relisted_at, display_order FROM projects ORDER BY slug`).all();
+  const res = await assignSecondManager(env);
+  assert.equal(res.status, 200, await res.text());
+  const after = db.prepare(`SELECT slug, relisted_at, display_order FROM projects ORDER BY slug`).all();
+  assert.deepEqual(after, before, 'ikinci atama hiçbir projenin sıralamasına dokunmamalı');
+});
+
+await test('İKİNCİ atama yine de BAŞARILI ve yetkiyi verir (yalnızca sıralama atlanır)', async () => {
+  const db = freshDb(); seed(db); addSecondUser(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env);
+  await assignSecondManager(env);
+  const claims = db.prepare(`SELECT user_id FROM profile_claims WHERE profile_key = 'Per Se Mimarlık' AND status = 'approved' ORDER BY user_id`).all();
+  assert.deepEqual(claims.map(c => c.user_id), ['u-ikinci', 'u-yeni']);
+});
+
+await test('AYNI kullanıcıya tekrar atama (claim yeniden onayı) da promosyonu tekrarlamaz', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignOffice(env);
+  const before = db.prepare(`SELECT slug, relisted_at FROM projects ORDER BY slug`).all();
+  await assignOffice(env);
+  assert.deepEqual(db.prepare(`SELECT slug, relisted_at FROM projects ORDER BY slug`).all(), before);
+});
+
+await test('admin BLURU KALDIRIP yayına aldıysa, sonraki yönetici ataması promosyonu tekrarlamaz', async () => {
+  const db = freshDb(); seedPreview(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  // Admin panelinin "Yayınla"sı (src/routes/legacyContent.js) bu uca girer.
+  const { activateProfilesOnPublish } = await import('../src/routes/admin.js');
+  const officeId = db.prepare(`SELECT id FROM offices WHERE slug = 'aaw'`).get().id;
+  await activateProfilesOnPublish(env, 'office', [officeId], 'u-admin');
+  assert.ok(promotedAt(db, 'AAW Ahmet Alataş Workshop'), 'yayına alma da damgalamalı');
+  const before = db.prepare(`SELECT slug, relisted_at, display_order FROM projects ORDER BY slug`).all();
+  const res = await assignManager(env);
+  assert.equal(res.status, 200, await res.text());
+  assert.deepEqual(db.prepare(`SELECT slug, relisted_at, display_order FROM projects ORDER BY slug`).all(), before,
+    'blur zaten kaldırılmışken atama sıralamayı bir daha değiştirmemeli');
+});
+
+await test('projesi OLMAYAN firma damgalanmaz — projeleri eklenince İLK promosyonunu alır', async () => {
+  const db = freshDb(); seed(db); await withSession(db, 'u-admin');
+  db.exec(`DELETE FROM project_designers WHERE office_id = 1`);
+  const env = { DB: d1(db) };
+  await assignOffice(env);
+  assert.equal(promotedAt(db, 'Per Se Mimarlık'), null, 'promosyon çalışmadıysa damga düşmemeli');
+  // Projeler sonradan künyeye bağlanır; ikinci atama artık gerçek ilk promosyonunu yapar.
+  db.exec(`INSERT INTO project_designers (project_id, office_id) VALUES (4, 1)`);
+  await assignOffice(env);
+  assert.ok(relistedAt(db, 'perse-en-yeni'), 'projeler sonradan gelince ilk promosyon çalışmalı');
+  assert.ok(promotedAt(db, 'Per Se Mimarlık'));
+});
+
+await test('promosyon atlansa da bu partide ÖNİZLEMEDEN ÇIKAN yeni proje damgalanır', async () => {
+  const db = freshDb(); seedPreview(db); addSecondUser(db); await withSession(db, 'u-admin');
+  const env = { DB: d1(db) };
+  await assignManager(env);
+  // Firma artık canlı ve damgalı. Sonradan ÖNİZLEMEDE yeni bir proje eklenir.
+  db.exec(`
+    INSERT INTO projects (slug, title, source, publish_date, created_at, display_order, hidden_at, preview_at)
+      VALUES ('aaw-yepyeni', 'AAW Yepyeni', 'legacy_static', '2026-09-13T00:00:00.000Z', '2026-09-13T00:00:00.000Z', 700, '${PREV}', '${PREV}');
+    INSERT INTO project_designers (project_id, office_id) SELECT id, 1 FROM projects WHERE slug = 'aaw-yepyeni';
+  `);
+  const merzigoBefore = relistedAt(db, 'merzigo');
+  await assignSecondManager(env, 'AAW Ahmet Alataş Workshop');
+  // Eski (zaten canlı) proje tekrar tepeye taşınmaz...
+  assert.equal(relistedAt(db, 'merzigo'), merzigoBefore, 'eski proje tekrar 1. sıraya taşınmamalı');
+  // ...ama İLK KEZ yayınlanan proje genel kurala göre (RELIST_TOP_PER_TYPE) damgalanır ve görünür.
+  const yeni = db.prepare(`SELECT relisted_at, preview_at, hidden_at FROM projects WHERE slug = 'aaw-yepyeni'`).get();
+  assert.equal(yeni.preview_at, null);
+  assert.equal(yeni.hidden_at, null);
+  assert.ok(yeni.relisted_at, 'yeni yayınlanan proje damgalanmalı (bkz. migrations/0108 sözleşmesi)');
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

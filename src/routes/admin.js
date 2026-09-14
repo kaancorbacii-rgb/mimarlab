@@ -1090,9 +1090,10 @@ async function idsFrom(env, sql, binds) {
 // gelmesi gereken satırlar (kullanıcı atamayı yaptığı profili listenin başında görmeli).
 const RELIST_TOP_PER_TYPE = 1;
 
-// `relistTop` — partide damgalanacak "en son" kayıt sayısı. Projelerde activateClaimedProfile 0 geçer:
-// projelerin 1. sırası promoteOfficeProjectsOnAssignment'ın TEK kuralıyla verilir (bkz. oradaki
-// 2026-09-11 "yönetici ataması" notu).
+// `relistTop` — partide damgalanacak "en son" kayıt sayısı. Projelerde activateProfileGraph, o
+// çağrıda promosyon çalışacaksa 0 geçer: projelerin 1. sırası promoteOfficeProjectsOnAssignment'ın
+// TEK kuralıyla verilir (bkz. oradaki 2026-09-11 "yönetici ataması" notu). Promosyon atlanıyorsa
+// (profil onu daha önce aldı, bkz. profilesPromotedBefore) buradaki varsayılan kurala dönülür.
 async function unpreviewByIds(env, table, ids, nowIso, { forceRelistIds = [], relistTop = RELIST_TOP_PER_TYPE } = {}) {
   if (!ids.length) return [];
   const capped = ids.slice(0, ACTIVATE_ID_LIMIT);
@@ -1163,8 +1164,11 @@ const PROMOTE_SPREAD_STEP_MS = 24 * 60 * 60 * 1000; // bir gün
 // çağrıda çıkanlar dahil), birinci = en son YAYINLANAN, display_order temizlenir. `noSpreadIds`
 // (bu çağrıda önizlemeden çıkanlar) YAYILMAYA girmez — unpreviewByIds'in "partide tek damga, kalanı
 // doğal sırasına" kuralı korunur (bkz. scripts/test-claim-activation-cascade.mjs).
+// Döndürdüğü değer, promosyonun GERÇEKTEN çalışıp çalışmadığıdır — çağıran `projects_promoted_at`
+// damgasını yalnızca çalıştıysa düşer (bkz. markProjectsPromoted): projesi olmayan bir profil
+// damgalanırsa, projeleri sonradan eklendiğinde hak ettiği İLK promosyonu hiç alamazdı.
 async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso, { noSpreadIds = new Set() } = {}) {
-  if (!projectIds.length) return;
+  if (!projectIds.length) return false;
   const capped = projectIds.slice(0, ACTIVATE_ID_LIMIT);
   const ph = capped.map(() => '?').join(', ');
   // Atamadan SONRA canlı olan satırlar (preview_at NULL) — önizlemeden bu çağrıda çıkanlar dahil.
@@ -1173,7 +1177,7 @@ async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso, { noSp
       ORDER BY COALESCE(publish_date, created_at) DESC, id DESC`
   ).bind(...capped).all();
   const liveIds = (results || []).map(r => r.id);
-  if (!liveIds.length) return;
+  if (!liveIds.length) return false;
 
   // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-11 — "Per Se'nin son projesini elle 1. sıraya al"):
   // relisted_at damgalamak TEK BAŞINA yetmeyebilir. ORDER BY `COALESCE(display_order, 0) ASC,
@@ -1194,6 +1198,53 @@ async function promoteOfficeProjectsOnAssignment(env, projectIds, nowIso, { noSp
   for (let i = 0; i < spread.length; i++) {
     const ts = new Date(nowMs - (i + 1) * PROMOTE_SPREAD_STEP_MS).toISOString();
     await env.DB.prepare(`UPDATE projects SET relisted_at = ?, display_order = NULL WHERE id = ?`).bind(ts, spread[i]).run();
+  }
+  return true;
+}
+
+// PROMOSYON PROFİL BAŞINA BİR KEREliktir (kullanıcı isteği, 2026-09-14: "Bir firmaya daha önce bir
+// yönetici atanmışsa ve yönetici atanınca son eklenen projeleri proje sayfasında ilk sıraya
+// oturmuşsa, ya da admin tarafından firmanın bluru kaldırılıp yayına alındıysa, firmaya tekrar yeni
+// bir yönetici atanınca firmanın son projesini tekrar proje sayfasında 1. sıraya koymana gerek
+// yok.").
+//
+// SORUN: yukarıdaki promosyonun tetikleyicisi TEKRARLANABİLİR — aynı firmaya ikinci bir yönetici
+// eklemek, bir claim'i yeniden onaylamak (PATCH aynı claim'e ikinci kez 'approved' yazabilir) ya da
+// zaten yayındaki bir firmayı tekrar "yayınla"mak activateProfileGraph'ı yeniden çalıştırır. Kural
+// "profil ilk kez görünürlük kazandığında öne çıksın" diye yazılmıştı; her tetiklemede çalışması
+// AYLAR ÖNCE yayınlanmış bir projeyi tekrar 1. sıraya oturtup gerçekten yeni içeriği aşağı itiyordu.
+//
+// DAMGA NEREDE DURUR: offices/architects.projects_promoted_at (bkz.
+// migrations/0118_projects_promoted_at.sql). Profil satırında durur çünkü soru "bu profil
+// promosyonunu aldı mı" — projede duramaz, promosyon her seferinde farklı (o anki en son) projeye
+// düşer ve projenin relisted_at'i başka yollardan da (normal yayınlama) dolabilir.
+//
+// KONTROL SEED'DE, DAMGA TÜM GRAFTA: kontrol yalnızca atanan/yayınlanan profile (seedIds) bakar —
+// "bu firmaya daha önce yönetici atanmış mı" sorusunun öznesi odur. Damga ise grafın TÜM
+// firma/kişilerine düşer, çünkü promosyona giren proje kümesi (projectIds) tam olarak onların
+// künyeli projeleridir: bir ortak, kendi firması üzerinden promosyona girmiş olsa bile projelerinin
+// hepsi zaten 1. sıraya taşınmıştır, sonradan ona doğrudan atama yapılması ikinci bir promosyonu
+// hak etmez.
+async function profilesPromotedBefore(env, profileType, seedIds) {
+  const table = profileType === 'office' ? 'offices' : profileType === 'architect' ? 'architects' : null;
+  if (!table || !seedIds.length) return false;
+  const capped = seedIds.slice(0, ACTIVATE_ID_LIMIT);
+  const ph = capped.map(() => '?').join(', ');
+  const row = await env.DB.prepare(
+    `SELECT 1 AS hit FROM ${table} WHERE id IN (${ph}) AND projects_promoted_at IS NOT NULL LIMIT 1`
+  ).bind(...capped).first();
+  return !!row;
+}
+
+// `projects_promoted_at IS NULL` koşulu bilinçli: damga İLK promosyonun anını tutar, sonrakiler
+// (zaten çalışmayacak olsa da) onu ileri kaydırmaz — denetim izinde "ne zaman öne çıktı" okunabilsin.
+async function markProjectsPromoted(env, officeIds, architectIds, nowIso) {
+  for (const [table, ids] of [['offices', officeIds], ['architects', architectIds]]) {
+    if (!ids.length) continue;
+    const ph = ids.map(() => '?').join(', ');
+    await env.DB.prepare(
+      `UPDATE ${table} SET projects_promoted_at = ? WHERE id IN (${ph}) AND projects_promoted_at IS NULL`
+    ).bind(nowIso, ...ids).run();
   }
 }
 
@@ -1371,13 +1422,23 @@ async function activateProfileGraph(env, profileType, seedIds, userId) {
     productIds.push(...await idsFrom(env, `SELECT DISTINCT pa.product_id AS id FROM product_architects pa WHERE pa.architect_id IN (${ph})`, architectIds));
   }
 
+  // Bu profil promosyonunu DAHA ÖNCE aldı mı (bkz. profilesPromotedBefore) — aşağıda hem
+  // promosyonun kendisini hem de projelerin relistTop kuralını belirler. Promosyon satırları
+  // değiştirmeden ÖNCE okunmalı, aksi halde bu çağrının kendi damgasını görürdü.
+  const promotedBefore = await profilesPromotedBefore(env, profileType, seedIds);
+
   // Atanan profilin KENDİSİ (seedIds) her zaman listenin başına gelir — admin atamayı yaptığı
   // profili 1. sayfada görmeli. Diğerleri için bkz. unpreviewByIds'teki RELIST_TOP_PER_TYPE kuralı.
   const activated = {
     architects: await unpreviewByIds(env, 'architects', architectIds, nowIso, { forceRelistIds: profileType === 'architect' ? seedIds : [] }),
     offices: await unpreviewByIds(env, 'offices', officeIds, nowIso, { forceRelistIds: profileType === 'office' ? seedIds : [] }),
     // relistTop: 0 — projelerin 1. sırası aşağıdaki promoteOfficeProjectsOnAssignment'tan gelir.
-    projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso, { relistTop: 0 }),
+    // Promosyon ATLANIYORSA (profil onu zaten aldı) o kural devreye girmez ve projeler genel
+    // RELIST_TOP_PER_TYPE kuralına döner: BU PARTİDE gerçekten önizlemeden çıkan (yani ilk kez
+    // yayınlanan) en son proje damgalanır. İkisi karıştırılmamalı — atlanan şey ZATEN CANLI eski
+    // bir projenin tekrar tepeye taşınmasıdır, yeni yayınlanan içeriğin görünmesi değil
+    // (bkz. migrations/0108_relisted_at.sql'in asıl sözleşmesi).
+    projects: await unpreviewByIds(env, 'projects', [...new Set(projectIds)], nowIso, { relistTop: promotedBefore ? RELIST_TOP_PER_TYPE : 0 }),
     products: await unpreviewByIds(env, 'products', [...new Set(productIds)], nowIso),
   };
 
@@ -1386,7 +1447,12 @@ async function activateProfileGraph(env, profileType, seedIds, userId) {
   // ikinci tur notu). Bu çağrıda önizlemeden çıkanlar 1. sıraya ADAY olur ama yayılmaya girmez —
   // unpreviewByIds'in "diğerleri doğal sırasına düşsün" kuralı bozulmasın (gerçek regresyon: bkz.
   // scripts/test-claim-activation-cascade.mjs — "partide tek proje damgalanmalı").
-  await promoteOfficeProjectsOnAssignment(env, [...new Set(projectIds)], nowIso, { noSpreadIds: new Set(activated.projects) });
+  // ...ama YALNIZCA BİR KEZ: ikinci bir yönetici ataması ya da tekrar "yayınla" eski bir projeyi
+  // tekrar tepeye oturtmaz (kullanıcı isteği, 2026-09-14 — bkz. profilesPromotedBefore).
+  if (!promotedBefore) {
+    const promoted = await promoteOfficeProjectsOnAssignment(env, [...new Set(projectIds)], nowIso, { noSpreadIds: new Set(activated.projects) });
+    if (promoted) await markProjectsPromoted(env, officeIds, architectIds, nowIso);
+  }
 
   if (userId) {
     for (const table of Object.keys(activated)) {

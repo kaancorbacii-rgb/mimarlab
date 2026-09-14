@@ -1261,3 +1261,11 @@ DROP INDEX IF EXISTS idx_projects_build_status_order;
 CREATE INDEX IF NOT EXISTS idx_projects_build_status_order
   ON projects(build_status, COALESCE(display_order, 0) ASC, COALESCE(relisted_at, publish_date, created_at) DESC, id DESC)
   WHERE deleted_at IS NULL AND hidden_at IS NULL;
+
+-- "Projeleri 1. sıraya BİR KEZ taşındı" damgası — bkz. migrations/0118_projects_promoted_at.sql.
+-- Atama / admin'in blur kaldırması (ikisi de src/routes/admin.js#activateProfileGraph'tan geçer)
+-- firmanın en son yayınlanan projesini proje sayfasının 1. sırasına taşır; bu damga o promosyonun
+-- profil başına YALNIZCA BİR KEZ çalışmasını sağlar (aynı firmaya ikinci bir yönetici eklemek eski
+-- bir projeyi tekrar tepeye oturtmasın).
+ALTER TABLE offices ADD COLUMN projects_promoted_at TEXT;
+ALTER TABLE architects ADD COLUMN projects_promoted_at TEXT;
