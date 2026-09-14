@@ -532,7 +532,7 @@
         <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z"/></svg></span>
       </button>
     </div>
-    <p class="footer-archive-note">MİMARLAB, açık kaynaklardan derlenen bilgilerle oluşturulmuştur. Bilgilerde hata, eksiklik veya güncellenmesi gereken bir durum olduğunu düşünüyorsanız <a href="/iletisim">bizimle iletişime geçin</a>.</p>
+    <p class="footer-archive-note">MİMARLAB, açık kaynaklardan derlenen bilgilerle oluşturuldu. Hata, eksiklik veya güncellemesi gereken bir durum olduğunu düşünüyorsan <a href="/iletisim">bizimle iletişime geç</a>.</p>
   </footer>`;
   }
 
