@@ -45,6 +45,7 @@ import { homedir } from 'node:os';
 globalThis.caches ||= { default: { match: async () => undefined, put: async () => {}, delete: async () => true } };
 
 const { runContentAction, runProjectAction } = await import('../src/routes/legacyContent.js');
+const { bumpFacetCounts } = await import('../src/lib/facetCounts.js');
 
 const ACCOUNT_ID = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim() || '2e3cd3c1a471552e19436913b2368c4f';
 const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
@@ -204,7 +205,16 @@ async function report(label, res) {
 }
 
 console.log('\nProjeler:');
-for (const p of projects) await report(p.title, await runProjectAction(env, user, { action: 'archive', slug: p.slug }));
+// skipFacets — bkz. scripts/archive-unassigned.mjs ve src/routes/unassignedArchive.js#archiveOne:
+// facet yeniden hesabı (recomputeProjectFacets) TÜM proje havuzunu okuyup facet_counts tablosunu
+// baştan yazar; kayıt başına çalıştırıldığında toplu tur D1 üzerinden dakikalarca sürer. Tur
+// sonunda TEK SEFER yapılır — ara durumun facet sayaçları zaten hiçbir yerde okunmuyor.
+for (const p of projects) await report(p.title, await runProjectAction(env, user, { action: 'archive', slug: p.slug, skipFacets: true }));
+if (projects.length > failed) {
+  process.stdout.write('  proje facet sayaçları yeniden hesaplanıyor… ');
+  await bumpFacetCounts(env, 'projects');
+  console.log('bitti');
+}
 
 console.log('Kurucu ortaklar:');
 for (const a of founders) await report(a.name, await runContentAction(env, user, { type: 'architects', action: 'archive', key: a.name }));
