@@ -331,9 +331,11 @@ await test('delegasyon ARTIK arşivleme/silme yetkisi de verir', async () => {
 // kişilerin ... hem de projelerin tüm görsellerini değiştirme yetkisine sahip olsun." Açık soruya
 // "tam düzenleme yetkisi" yanıtı verildi, yani SINIR artık DÜZENLEME yolunda açık.
 //
-// AMA YALNIZCA DÜZENLEME: yıkıcı yolda (arşivle/sil) SINIR aynen duruyor — bkz. submissions.js#
-// EDIT_ACCESS ve moderateOwnSubmission'ın o nesneyi BİLEREK geçirmemesi. Aşağıdaki İKİ test bu
-// ayrımı birlikte kilitler; biri geçip diğeri düşerse kural sessizce kaymış demektir.
+// ARŞİVLEME DE AÇIK, KALICI SİLME KAPALI (kullanıcı kararı, 2026-09-14 ikinci tur: "Sadece
+// arşivleme yetkisini aç, silmeyi kapalı bırak"). Ölçüt geri alınabilirlik: arşivlenen kayıt
+// "Arşivim > Yayına Al" ile geri gelir, silinen gelmez. Bkz. submissions.js#DELEGATED_ACCESS ve
+// moderateOwnSubmission'ın o nesneyi yalnızca action !== 'delete' iken geçirmesi.
+// Aşağıdaki ÜÇ test ayrımı birlikte kilitler; biri kayarsa kural sessizce değişmiş demektir.
 await test('KENDİ SAHİBİ OLAN profili firma yetkilisi artık DÜZENLEYEBİLİR (2026-09-14 kararı)', async () => {
   const db = freshDb(); seed(db); await withSessions(db);
   // Fatma kendi profilini sahiplenmiş; Tuna Rasa Studio'nun kurucusu. Tuna artık künyesindeki bu
@@ -351,7 +353,10 @@ await test('KENDİ SAHİBİ OLAN profili firma yetkilisi artık DÜZENLEYEBİLİ
   assert.equal(row.photo_url, 'https://mimarlab.com/media/u/yeni-foto.webp', 'yeni fotoğraf canonical satıra yazılmadı');
 });
 
-await test('...ama KENDİ SAHİBİ OLAN profili ARŞİVLEYEMEZ/SİLEMEZ (SINIR yıkıcı yolda duruyor)', async () => {
+// Ortak kurulum: Fatma kendi profilini sahiplenmiş; Tuna Rasa Studio'nun kurucusu ve o profil için
+// bir taslak oluşturmuş (düzenleme yolu açık olduğu için oluşturabiliyor — SINIR'ın "dolambaçlı
+// yolu" tam olarak budur ve KALICI silmede hâlâ kapalı olmalı).
+async function ownedProfileDraft() {
   const db = freshDb(); seed(db); await withSessions(db);
   const now = Date.now();
   db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES ('c-fatma-arch', 'u-fatma', 'architect', 'Fatma Zeynep Altınbaşlı', 'approved', ?, ?)`).run(now, now);
@@ -361,18 +366,30 @@ await test('...ama KENDİ SAHİBİ OLAN profili ARŞİVLEYEMEZ/SİLEMEZ (SINIR y
     env, new URL('https://mimarlab.com/api/architects'),
   );
   assert.equal(created.status, 201, 'düzenleme açık olmalı (bir üstteki test)');
-  const id = (await created.json()).id;
-  for (const action of ['archive', 'delete']) {
-    const res = await handleSubmissionRoute(
-      req('u-tuna', `/api/architects/${id}/moderate`, { method: 'POST', body: JSON.stringify({ action }) }),
-      env, new URL(`https://mimarlab.com/api/architects/${id}/moderate`),
-    );
-    assert.equal(res.status, 404, `${action}: sahipli profile yıkıcı işlem açılmış`);
-  }
-  // Canonical satır DOKUNULMAMIŞ olmalı — ne gizlenmiş ne silinmiş.
+  return { db, env, id: (await created.json()).id };
+}
+const moderateOwned = (env, id, action) => handleSubmissionRoute(
+  req('u-tuna', `/api/architects/${id}/moderate`, { method: 'POST', body: JSON.stringify({ action }) }),
+  env, new URL(`https://mimarlab.com/api/architects/${id}/moderate`),
+);
+
+await test('...KENDİ SAHİBİ OLAN profili ARŞİVLEYEBİLİR (geri alınabilir — 2026-09-14 ikinci tur)', async () => {
+  const { db, env, id } = await ownedProfileDraft();
+  const res = await moderateOwned(env, id, 'archive');
+  assert.ok(res.status < 400, `arşivleme reddedildi: ${res.status}`);
   const row = db.prepare(`SELECT hidden_at, deleted_at FROM architects WHERE name = 'Fatma Zeynep Altınbaşlı'`).get();
-  assert.equal(row.hidden_at, null, 'sahipli profil arşivlenmiş');
+  assert.ok(row.hidden_at, 'sahipli profil arşivlenmedi');
+  assert.equal(row.deleted_at, null, 'arşivleme satırı SİLMEMELİ');
+});
+
+await test('...ama KENDİ SAHİBİ OLAN profili SİLEMEZ (kalıcı kayıp kapalı kalıyor)', async () => {
+  const { db, env, id } = await ownedProfileDraft();
+  const res = await moderateOwned(env, id, 'delete');
+  assert.equal(res.status, 404, 'sahipli profile KALICI silme açılmış');
+  const row = db.prepare(`SELECT hidden_at, deleted_at FROM architects WHERE name = 'Fatma Zeynep Altınbaşlı'`).get();
+  assert.ok(row, 'sahipli profil silinmiş');
   assert.equal(row.deleted_at, null, 'sahipli profil silinmiş');
+  assert.equal(row.hidden_at, null, 'silme reddedildiği hâlde satır gizlenmiş');
 });
 
 // =================================================================================================
