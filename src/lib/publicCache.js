@@ -566,8 +566,13 @@ async function withSingleFlight(key, fn) {
 //     ana sayfadaki "Senin İçin" kartlarına kaydet butonu ve görsel karuseli eklendi. Satırların
 //     updated_at'i DEĞİŞMEDEN gövde değiştiğinden bump ŞART: aksi halde önbellekteki eski gövde
 //     4/6 görsel taşımaya ve Senin İçin kartları görselsiz/kaydetsiz kalmaya devam ederdi.
+// v43 -> v44 (kullanıcı isteği, 2026-09-14): /api/project/:slug ve /api/projects yüklerindeki
+//     `photoCredit.url` artık arkitera/archello/archdaily/divisare gibi bir YAYIN adresi olduğunda
+//     BOŞ dönüyor (bkz. src/lib/aggregatorSources.js). Satırların updated_at'i DEĞİŞMEDEN gövde
+//     değiştiğinden bump ŞART — aksi halde önbellekteki eski gövde fotoğrafçı etiketini hâlâ o
+//     agregatöre giden bir bağlantı olarak göstermeye devam ederdi.
 // Yanıtın ŞEKLİ ya da SIRASI değiştiğinde bu sabit artırılmalı.
-const API_PAYLOAD_VERSION = 'v43';
+const API_PAYLOAD_VERSION = 'v44';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const sessionUser = await getSessionUser(request, env);

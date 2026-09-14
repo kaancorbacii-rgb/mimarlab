@@ -742,7 +742,12 @@
           <div class="form-field" id="credit-url-field">
             <label for="p-credit-url" id="p-credit-url-label">Kaynak <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="p-credit-url" name="photoCreditUrl" autocomplete="off" inputmode="url">
-            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma ya da marka yazarsan web sitesi buraya otomatik gelir.</div>
+            <!-- AGREGATÖR UYARISI (kullanıcı isteği, 2026-09-14): "Hiçbir projenin kaynak kısmında
+                 arkitera, archello, archdaily, divisare gibi linkler olmasın." Kural sunucuda
+                 zorlanıyor (bkz. src/lib/aggregatorSources.js — böyle bir adres canonical kayda hiç
+                 yazılmaz); buradaki cümle, girdisinin neden kaybolduğunu kullanıcının ÖNCEDEN
+                 bilmesi içindir. -->
+            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma ya da marka yazarsan web sitesi buraya otomatik gelir. Yayın/arşiv siteleri (arkitera, archello, archdaily, divisare gibi) kabul edilmez — mimarlık firmasının kendi web sitesini gir ya da boş bırak.</div>
           </div>
         </div>
       </div>

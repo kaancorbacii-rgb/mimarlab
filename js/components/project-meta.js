@@ -84,6 +84,34 @@ const ProjectMeta = (function () {
     try { return new URL('https://' + raw).href; } catch (e) { return ''; }
   }
 
+  // AGREGATÖR KAPISI (kullanıcı isteği, 2026-09-14): "Hiçbir projenin kaynak kısmında arkitera,
+  // archello, archdaily, divisare gibi linkler olmasın." src/lib/aggregatorSources.js'in İSTEMCİ
+  // KOPYASIDIR (bu dosya klasik bir <script>, ES modülü değil — import edemez). Marka listesi iki
+  // dosyada da AYNI olmalı; scripts/test-2026-09-14-aggregator-source-links.mjs ikisini
+  // karşılaştırır ve ayrışırlarsa preflight'ı (dolayısıyla ./deploy.sh'i) kırar.
+  //
+  // Sunucu bu adresleri zaten hem yazarken (canonicalSync) hem okurken (project.js/seo.js) eliyor;
+  // buradaki kopya, popup'ın eski bir önbellek gövdesiyle ya da başka bir uçtan gelen yükle
+  // çizildiği durumlarda da bağlantının basılmamasını garanti eder.
+  const AGGREGATOR_SOURCE_BRANDS = [
+    'arkitera', 'archello', 'archdaily', 'divisare',
+    'plataformaarquitectura', 'europaconcorsi',
+    'arkiv', 'arkitektuel', 'mimarizm', 'mimdap', 'bigumigu', 'mimarlikdergisi', 'xxi', 'yapi',
+    'dezeen', 'designboom', 'architizer', 'archilovers', 'archiproducts', 'archpaper',
+    'architectural-review', 'architectsjournal', 'worldarchitecture', 'metalocus', 'floornature',
+    'arch2o', 'archeyes',
+  ];
+  function isAggregatorSourceUrl(value) {
+    // externalHttpUrl ile AYNI hoşgörü: şemasız saklanmış bir değer de ("archello.com/project/x")
+    // agregatör adresidir. Eşleşme alan adı ETİKETİ üzerinden TAM yapılır (bkz. sunucu kopyasındaki
+    // gerekçe) — "divisare-mimarlik.com" gibi gerçek bir firma adresi yakalanmaz.
+    const abs = externalHttpUrl(value);
+    if (!abs) return false;
+    let host = '';
+    try { host = new URL(abs).hostname.toLowerCase(); } catch (e) { return false; }
+    return host.split('.').some(function (label) { return AGGREGATOR_SOURCE_BRANDS.indexOf(label) !== -1; });
+  }
+
   // .designer-chip'in TÜM görsel kuralları sayfanın kendi CSS'inde (proje.html / en-iyi-100.html)
   // duruyor; bu bileşen normalde hiç stil enjekte etmez. TEK istisna aşağıdaki kural: kaynak
   // bağlantısı taşıyan fotoğrafçı etiketinin ALTI ÇİZİLİ olması (kullanıcı isteği, 2026-09-10
@@ -193,7 +221,10 @@ const ProjectMeta = (function () {
     // bu dosyada tanımlı) — javascript:/data: gibi bir değer künyeye yazılmış olsa bile bağlantıya
     // dönüşmez, şemasız yazılmış bir alan adı ("ytong.com.tr/x") ise site-içi bir yola DEĞİL
     // https://ytong.com.tr/x'e çözülür (bkz. o fonksiyondaki gerçek bulgu).
-    const sourceUrl = externalHttpUrl(item.photoCredit && item.photoCredit.url);
+    const rawSourceUrl = item.photoCredit && item.photoCredit.url;
+    // Agregatör adresi (arkitera/archello/archdaily/divisare...) hiç bağlantıya dönüşmez — o alanda
+    // yalnızca projeyi yapan firmanın KENDİ sitesi durabilir (kullanıcı isteği, 2026-09-14).
+    const sourceUrl = isAggregatorSourceUrl(rawSourceUrl) ? '' : externalHttpUrl(rawSourceUrl);
     const byName = new Map(matched.map(p => [p.name.trim().toLocaleLowerCase('tr'), p]));
     const chips = [];
     const seen = new Set();

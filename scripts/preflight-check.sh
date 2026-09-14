@@ -427,6 +427,22 @@ else
 fi
 rm -f /tmp/preflight_photosrc
 
+# KULLANICI İSTEĞİ, 2026-09-14: "Hiçbir projenin kaynak kısmında arkitera, archello, archdaily,
+# divisare gibi linkler olmasın. Bu linkler varsa bunları sil ve mimarlık firmalarının
+# websitelerinin linklerini koy. Websiteleri yoksa da boş bırak. Zaten kişi veya firma kaydı olan
+# bir fotoğrafçı varsa link girme." Test hem YAZMA kapısını (canonicalSync böyle bir adresi D1'e
+# hiç yazmamalı), hem OKUMA kapılarını (API yükü / SSR gövdesi / popup çipi bağlantı üretmemeli),
+# hem de temizlik betiğinin karar ağacını sınar; ayrıca istemci ile sunucudaki marka listelerinin
+# AYRIŞMADIĞINI doğrular. Bkz. scripts/test-2026-09-14-aggregator-source-links.mjs ve
+# src/lib/aggregatorSources.js.
+if node scripts/test-2026-09-14-aggregator-source-links.mjs >/tmp/preflight_aggsrc 2>&1; then
+  ok "agregatör kaynak bağlantısı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_aggsrc) test)"
+else
+  bad "agregatör kaynak bağlantısı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_aggsrc >&2
+fi
+rm -f /tmp/preflight_aggsrc
+
 # KULLANICI BİLDİRİMİ (2026-09-12, üç kez tekrarlandı): "popup'ı açınca sayfa böyle gözüktü,
 # yenileyince düzeldi." Proje popup'ı, kuralları proje.html'in satır içi <style>'ında durduğu için
 # başka sayfalardan açıldığında ÇIPLAK çiziliyordu (performans turu popup'ı her sayfada aynı

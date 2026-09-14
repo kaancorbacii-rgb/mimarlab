@@ -25,6 +25,7 @@ import { releaseR2StorageBytes } from './r2Quota.js';
 import { clearPendingForKeys } from './derivativeIngest.js';
 import { DERIVATIVE_WIDTHS } from './imageDerivative.js';
 import { SUBMISSION_TYPES, dateBucketFor } from './submissionTypes.js';
+import { dropAggregatorSourceUrl } from './aggregatorSources.js';
 import { slugify } from './slugify.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
@@ -1198,6 +1199,16 @@ async function setProjectProductLinks(env, side, ownerColumn, ownerId, otherColu
 
 async function syncProject(env, row, opts = {}) {
   const claimedSlug = row.claimed_slug;
+  // AGREGATÖR KAPISI (kullanıcı isteği, 2026-09-14): "Hiçbir projenin kaynak kısmında arkitera,
+  // archello, archdaily, divisare gibi linkler olmasın." Bağlantı alan İKİ kolon da (elle girilen
+  // "Kaynak" -> photo_credit_url, AI akışının "Kaynak Bağlantı"sı -> source_url) buradan geçer, yani
+  // onay/düzenleme/AI hangi yoldan gelirse gelsin böyle bir adres projects tablosuna HİÇ yazılmaz.
+  // Gönderi (project_submissions) satırına dokunulmaz — kullanıcının ne yazdığı denetim izi olarak
+  // orada kalır; elenen yalnızca CANONICAL kayıttır, künyeyi o besler.
+  // Boş değer, mevcut kolonu korumaya yarayan "" / null ayrımını bozmadan geçer (bkz. aşağıdaki
+  // `if (row.source_url)` koruması). Bkz. src/lib/aggregatorSources.js.
+  const photoCreditUrl = dropAggregatorSourceUrl(row.photoCreditUrl);
+  const sourceUrl = dropAggregatorSourceUrl(row.source_url);
   const marker = submissionMarker(row.id);
   const target = claimedSlug
     ? await env.DB.prepare(`SELECT * FROM projects WHERE deleted_at IS NULL AND (legacy_key = ? OR slug = ?) LIMIT 1`).bind(claimedSlug, claimedSlug).first()
@@ -1249,7 +1260,7 @@ async function syncProject(env, row, opts = {}) {
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
-      row.date || null, dateBucketFor(row.date) || null, period, row.photoCreditText || '', row.photoCreditUrl || '',
+      row.date || null, dateBucketFor(row.date) || null, period, row.photoCreditText || '', photoCreditUrl || '',
       row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
       row.lat ?? null, row.lng ?? null,
     ];
@@ -1259,9 +1270,9 @@ async function syncProject(env, row, opts = {}) {
     // bağlantısı hiçbir yere işlenmiyordu. Koşulsuz yazılamaz — AI'dan geçmeyen sıradan bir
     // düzenleme bu alanı NULL gönderir (bkz. proje-ekle.html: payload.source_url yalnızca
     // aiGenerated iken eklenir) ve mevcut kaynağı sessizce silerdi; images ile AYNI koruma deseni.
-    if (row.source_url) {
+    if (sourceUrl) {
       sets.splice(-1, 0, 'source_url = ?');
-      vals.push(row.source_url);
+      vals.push(sourceUrl);
     }
     if (row.images && row.images.length) {
       sets.splice(-1, 0, 'images = ?');
@@ -1296,7 +1307,7 @@ async function syncProject(env, row, opts = {}) {
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images, imageHotspots,
-      row.photoCreditText || null, row.photoCreditUrl || null, row.source_url || null, row.ai_generated ? 1 : 0,
+      row.photoCreditText || null, photoCreditUrl || null, sourceUrl || null, row.ai_generated ? 1 : 0,
       row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
       row.lat ?? null, row.lng ?? null,
       marker, row.owner_user_id
