@@ -1,0 +1,117 @@
+name: Markaları ve ürünleri arşive al (marka + ürün + markaya bağlı kişiler)
+
+# TÜM SAF MARKALARI, TÜM ÜRÜNLERİ (Ürün + Yapı Malzemesi) VE MARKALARA BAĞLI KİŞİLERİ ARŞİVE ALIR
+# (kullanıcı isteği, 2026-09-14: "Tüm markaları, ürünleri ve markalara ait kişileri arşive al".)
+#
+# NEDEN WORKFLOW: uzak (web/telefon) Claude oturumundan api.cloudflare.com çıkışı ağ politikasıyla
+# kapalı — D1'e oradan hiç yazılamaz. archive-ofist.yml'in kardeşi, AYNI desen.
+#
+# KAPSAM (kullanıcı 2026-09-14'te iki soruyu da açıkça yanıtladı, bkz. betik başı):
+#   MARKA : YALNIZCA SAF MARKA (office-kind.js#isPureBrandOffice). Autoban, +MURAT TABANLIOĞLU gibi
+#           hem mimarlık yapan hem ürün tasarlayan ofisler KAPSAM DIŞI.
+#   ÜRÜN  : TÜM katalog — kind='product' VE kind='material'.
+#   KİŞİ  : markaya bağlı kişiler; ayrıca arşivlenmez, marka arşivinin CASCADE'i toplar ve ortak
+#           künye koruması uygular (hâlâ yayında olan başka bir firmanın da künyesindeki kişi korunur).
+#
+# NE YAPMAZ: hiçbir şeyi SİLMEZ (hard delete yok, blacklist yok), slug DEĞİŞMEZ, R2 görselleri DURUR.
+# Her kayıt canlı kod yolundan geçtiği için "Arşivim > Yayına Al" ile geri alınabilir.
+#
+# VARSAYILAN DRY-RUN: apply=evet denmedikçe D1'e HİÇBİR ŞEY yazılmaz — önce listeyi okuyun.
+# Sayım kapısı: expect_* verilirse ve bulunan sayı farklıysa hiçbir şey yazılmadan durur.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "D1'e YAZ (evet = gerçekten arşivle, hayir = yalnızca liste)"
+        required: true
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+      expect_brands:
+        description: 'Beklenen saf marka sayısı (kapı; boş = kontrol yok)'
+        required: false
+        default: ''
+      expect_products:
+        description: 'Beklenen ürün+malzeme sayısı (kapı; boş = kontrol yok)'
+        required: false
+        default: ''
+
+concurrency:
+  group: mimarlab-archive-brands
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    # Katalog geniş olabilir ve her kayıt canlı kod yolundan (kayıt başına birkaç D1 sorgusu)
+    # geçiyor — archive-ofist.yml'in 20 dakikası burada yetmeyebilir.
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NPM_CONFIG_YES: 'true'
+
+    steps:
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1; fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1; fi
+          if [ "$missing" -eq 1 ]; then
+            echo "Kurulum adımları deploy.yml'in aynı adımında listeli." >&2
+            echo "Bu iş için gereken izin: D1:Edit (Account kapsamlı)." >&2
+            exit 1
+          fi
+          echo "Cloudflare sırları yerinde."
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            src
+            scripts
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Arşivle
+        env:
+          IN_APPLY: ${{ inputs.apply }}
+          IN_EXPECT_BRANDS: ${{ inputs.expect_brands }}
+          IN_EXPECT_PRODUCTS: ${{ inputs.expect_products }}
+        run: |
+          set -o pipefail
+          # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ (script-injection savunması); `bash -e`
+          # altında `[ x ] && cmd` adımı düşürebildiği için her yerde açık `if`.
+          argv=()
+          if [ "${IN_APPLY}" = "evet" ]; then argv+=("--apply"); fi
+          if [ -n "${IN_EXPECT_BRANDS}" ]; then
+            case "${IN_EXPECT_BRANDS}" in *[!0-9]*) echo "expect_brands sayı olmalı" >&2; exit 1 ;; esac
+            argv+=("--expect-brands=${IN_EXPECT_BRANDS}")
+          fi
+          if [ -n "${IN_EXPECT_PRODUCTS}" ]; then
+            case "${IN_EXPECT_PRODUCTS}" in *[!0-9]*) echo "expect_products sayı olmalı" >&2; exit 1 ;; esac
+            argv+=("--expect-products=${IN_EXPECT_PRODUCTS}")
+          fi
+          echo "Çalıştırılıyor: node scripts/archive-brands-and-products.mjs ${argv[*]}"
+          node scripts/archive-brands-and-products.mjs "${argv[@]}" 2>&1 | tee archive-brands-log.txt
+
+      - name: Rapor (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-brands-log
+          path: archive-brands-log.txt
+          if-no-files-found: warn
+
+      - name: Özet
+        if: always()
+        run: |
+          if [ "${{ inputs.apply }}" = "evet" ]; then
+            echo "UYGULANDI (log'a bakın): saf markalar + tüm ürünler + markaya bağlı kişiler arşive alındı."
+          else
+            echo "ÖNİZLEME (D1'e yazılmadı). Gerçekten arşivlemek için apply=evet ile tekrar çalıştırın."
+          fi
