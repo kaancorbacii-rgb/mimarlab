@@ -114,6 +114,17 @@ test('hubLinks ve arama hızlı bağlantıları da /marka taşımıyor', () => {
 test('smoke-test kaldırılan adresleri deploy sonrası doğruluyor', () => {
   assert.match(read('scripts/smoke-test.sh'), /for gone in \/marka \/marka-ekle \/marka\/[a-z-]+; do/);
 });
+// GERÇEK BULGU (deploy #63, 2026-09-14): smoke test'in charset bölümü hâlâ /marka'yı HTML sayfası
+// sanıp gezdiriyordu; adres artık 301 döndüğü için gövde ve Content-Type YOK ve kontrol "başlık
+// yok" diye kırmızı verdi — deploy canlıya çıkmıştı ama iş başarısız sayıldı. Preflight bunu
+// statik olarak yakalayamaz (smoke test canlıya HTTP atar), bu yüzden kapı burada: kaldırılan bir
+// adres, sayfa DÖNDÜĞÜNÜ varsayan hiçbir smoke listesinde kalmamalı.
+test('smoke-test\'in sayfa DÖNDÜĞÜNÜ varsayan listelerinde /marka YOK', () => {
+  const smoke = read('scripts/smoke-test.sh');
+  const charsetLoop = smoke.match(/^for p in \/ .*$/m);
+  assert.ok(charsetLoop, 'charset döngüsü bulunamadı (biçim değişmiş olabilir)');
+  assert.ok(!charsetLoop[0].includes('/marka'), `charset döngüsü hâlâ /marka içeriyor: ${charsetLoop[0]}`);
+});
 
 // -------------------------------------------------------------------------------------------
 section('madde 4 — firma-ekle: "Üretim ve Satış" seçilince Ürün Kategorisi kutusu');

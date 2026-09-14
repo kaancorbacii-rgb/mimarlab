@@ -266,7 +266,7 @@ done
 
 echo ""
 echo "12) Detay sayfalarında ARTIK liste sayfasının CollectionPage şeması OLMAMALI"
-# Production denetimi (2026-09-07) — proje/kisi/firma/marka/urun/gundem.html'in <head>'indeki
+# Production denetimi (2026-09-07) — proje/kisi/firma/urun/gundem.html'in <head>'indeki
 # statik <script id="list-jsonld"> bloğu, aynı şablon detay görünümünde servis edildiğinde de
 # sayfada kalıyordu: ~4.500 detay URL'i, kendi kaydını tanımlayan şemanın YANINDA "url: /proje"
 # diyen bir CollectionPage taşıyordu (sayfa düzeyinde, farklı `url`'li iki varlık düğümü).
@@ -379,7 +379,10 @@ echo "15) HTML yanıtlarında Content-Type charset=utf-8 (mojibake regresyon kor
 # ön-taramasına düşüyor — yani kodlama YALNIZCA ikinci savunma hattıyla doğruydu. src/index.js
 # giden yanıtta charset'i artık açıkça yazıyor; bu kontrol o sözleşmenin canlıda kalmasını sağlar
 # (statik olarak doğrulanamaz, gerçek bir yanıt başlığı gerekir).
-for p in / /proje /kisi /firma /marka /urun /gundem /arama /hakkinda; do
+# '/marka' LİSTEDEN ÇIKTI (kullanıcı isteği, 2026-09-14 madde 4): sayfa kaldırıldı ve adres artık
+# 301 dönüyor, yani gövdesi ve Content-Type başlığı YOK — bu döngüde kalması "başlık yok" diye
+# kırmızı veriyordu (deploy #63). Adresin 301 döndüğü 13. bölümün sonunda ayrıca doğrulanıyor.
+for p in / /proje /kisi /firma /urun /gundem /arama /hakkinda; do
   ct=$(curl -sI "$BASE_URL$p" | tr -d '\r' | grep -i '^content-type:' | head -1)
   case "$ct" in
     *charset=utf-8*|*charset=UTF-8*) ok "$p — $ct" ;;
