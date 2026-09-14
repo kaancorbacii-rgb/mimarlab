@@ -3352,7 +3352,16 @@ const AuthModal = (function () {
     // artık çağıran (am-dash-save-btn) sonuca göre ya normal başarı mesajı ya da isim çakışması
     // uyarısını (am-directory-duplicate-warning) gösterebiliyor.
     // portfolioUrls: dizi ise kişi kaydının portfolyosu olarak yazılır; null ise alan hiç gönderilmez.
-    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks, portfolioUrls = null) {
+    // uploadedPhotoUrl — BU Kaydet turunda R2'ye yüklenmiş YENİ profil fotoğrafının URL'i (bkz.
+    // am-dash-save-btn'deki pendingAvatarFile dalı), yoksa null.
+    //
+    // GERÇEK BULGU (kullanıcı bildirimi, 2026-09-14: "profil görsellerimizi güncelleyemedik,
+    // sisteme yüklüyoruz lakin kaydet dediğimizde hâlen eski foto görünüyor"): bu fonksiyon
+    // photo_url olarak HER ZAMAN `architectSyncState.photoUrl`'ü, yani panel AÇILDIĞINDA okunan
+    // ESKİ değeri gönderiyordu. Aynı Kaydet'te yüklenen yeni fotoğraf yalnızca PATCH /api/profile
+    // ile users satırına yazılıyor, hemen ardından çalışan bu ikinci yazım kişi kaydına ESKİ
+    // fotoğrafı geri yazıyordu — yani herkese açık kişi profili hiç güncellenmiyordu.
+    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks, portfolioUrls = null, uploadedPhotoUrl = null) {
       createdSelfRecord = false;
       // Onaylı profili de kendi kaydı da olmayan kullanıcı dizine girmek istiyorsa, kaydı BURADA
       // oluşturulur — kisi-ekle.html'in kullandığı AYNI uç (POST /api/architects). "Hayır" diyen
@@ -3363,6 +3372,9 @@ const AuthModal = (function () {
         architectSyncState = { profileKey: null, editId: null, office: '', photoUrl: (accountUser && accountUser.photoUrl) || '' };
         createdSelfRecord = true;
       }
+      // Yeni fotoğraf bu turda yüklendiyse durum nesnesi de tazelenir: aynı panel kapanmadan ikinci
+      // kez Kaydet'e basılırsa (ör. kullanıcı ardından açıklamayı düzeltir) yine ESKİ URL gitmesin.
+      if (uploadedPhotoUrl) architectSyncState.photoUrl = uploadedPhotoUrl;
       const payload = {
         name, dob: dob || null, school: school || null,
         // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çoklu meslek de
@@ -3376,7 +3388,12 @@ const AuthModal = (function () {
         office: (firmaPicker ? (firmaPicker.getText() || null) : (architectSyncState.office || null)),
         position: position || null,
         awards,
-        photo_url: architectSyncState.photoUrl || null,
+        // photo_url NULLABLE (bkz. src/lib/submissionTypes.js#nullableStringFields): alan gövdede
+        // YOKSA "dokunma", '' ise "temizle". Bu formda profil fotoğrafını SİLME yolu yok, bu yüzden
+        // yalnızca BİLİNEN bir değer yazılır. Eskiden koşulsuz `architectSyncState.photoUrl || null`
+        // gönderiliyordu; değer boşken (ör. kişi kaydı okunamadan Kaydet'e basıldığında) bu `null`
+        // sunucuda '' olarak normalize olup canonical satırdaki fotoğrafı SİLİYORDU.
+        ...(architectSyncState.photoUrl ? { photo_url: architectSyncState.photoUrl } : {}),
         about: about || null,
         social_links: socialLinks,
         // Portfolyo (kullanıcı isteği, 2026-09-12) — kisi-ekle.html ile AYNI alan.
@@ -3541,7 +3558,10 @@ const AuthModal = (function () {
         pendingAvatarFile = null;
         const claimSubmitted = await submitFirmaClaimIfChanged();
         const dirWarning = document.getElementById('am-directory-duplicate-warning');
-        const architectResult = await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks, portfolioUrls);
+        // patch.photo_url — bu turda yüklenen YENİ fotoğrafın URL'i (yüklenmediyse tanımsız). Kişi
+        // kaydına da AYNI Kaydet'te yazılmalı, aksi halde herkese açık profil eski fotoğrafta kalır
+        // (bkz. submitArchitectSyncIfNeeded'in dosya içi GERÇEK BULGU notu).
+        const architectResult = await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks, portfolioUrls, patch.photo_url || null);
 
         // Aynı isimde bir kişi zaten varsa (kullanıcı isteği, 2026-09-06) — pop-up KAPANMAZ, isim
         // altı çizili/profile bağlantılı bir uyarı + "Bu profil bana ait" talep butonu gösterilir

@@ -573,6 +573,19 @@ else
 fi
 rm -f /tmp/preflight_offarch
 
+# Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
+# bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
+# O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i
+# gönderiyordu; ayrıca boş değeri `|| null` ile yollayıp canonical fotoğrafı silebiliyordu. Bkz.
+# scripts/test-2026-09-14-profile-photo-sync.mjs.
+if node scripts/test-2026-09-14-profile-photo-sync.mjs >/tmp/preflight_photosync 2>&1; then
+  ok "profil fotoğrafı senkron testleri geçti ($(grep -c '^  ok ' /tmp/preflight_photosync) test)"
+else
+  bad "profil fotoğrafı senkron testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_photosync >&2
+fi
+rm -f /tmp/preflight_photosync
+
 # Admin önizlemedeki firmayı ya da KİŞİYİ yayına alınca grafı da yayına çıkar (projeler, firmadaki
 # kişiler; en son proje 1. sıraya) — kullanıcı isteği 2026-09-11 (firma) + 2026-09-12 ("yayına
 # alınmış mimarların projeleri de"); firma popup'ında Ekip Lideri Ekip'te. Kural tek yerde
