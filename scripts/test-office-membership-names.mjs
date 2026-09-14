@@ -109,9 +109,13 @@ test('kisi-ekle.html: applyOfficeMemberships mergeOfficeMembershipNames\'i çağ
   assert.match(kisiEkle, /function applyOfficeMemberships\(/);
   assert.match(kisiEkle, /mergeOfficeMembershipNames\(\{ officeTexts, offices, officeLinks: account\.officeLinks \}\)/);
 });
-test('kisi-ekle.html: üç ön-doldurma yolu da applyOfficeMemberships\'ten geçiyor, #m-office\'e doğrudan yazan eski satır kalmadı', () => {
+// ÜÇÜNCÜ yol (maybeAutoFillFromAccount — "Ad Soyad" kutusuna hesabının adını yazan kullanıcıda
+// formu hesaptan doldurma) 2026-09-14 ikinci turunda KALDIRILDI (madde 3: hesabın adı soyadıyla
+// kişi künyesinin adı arasında ilişki olmasın), bu yüzden artık İKİ yol var: prefillForClaim ve
+// prefillForEdit. Kural aynı: ikisi de #m-office'e doğrudan yazmaz, ortak yardımcıdan geçer.
+test('kisi-ekle.html: iki ön-doldurma yolu da applyOfficeMemberships\'ten geçiyor, #m-office\'e doğrudan yazan eski satır kalmadı', () => {
   const calls = kisiEkle.match(/await applyOfficeMemberships\(/g) || [];
-  assert.equal(calls.length, 3, `applyOfficeMemberships çağrı sayısı ${calls.length}, 3 bekleniyordu`);
+  assert.equal(calls.length, 2, `applyOfficeMemberships çağrı sayısı ${calls.length}, 2 bekleniyordu`);
   assert.doesNotMatch(kisiEkle, /getElementById\('m-office'\)\.value = (merged|item)\.office/);
 });
 test('kisi-ekle.html: hesap kaynakları yalnızca kişinin KENDİ profilinde eklenir (own kapısı) ve ?edit= yolunda editId ölçüt değil', () => {

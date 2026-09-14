@@ -57,6 +57,11 @@ for (const [id, name, role] of [['u-admin', 'Admin', 'admin'], ['u-uye', 'Ayşe 
   db.prepare(`INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`).run(await sha256Hex(`tok-${id}`), id, now, now + 3600_000);
 }
 db.prepare(`INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES ('c1', 'u-uye', 'office', 'Atölye X', 'approved', ?, ?)`).run(now, now);
+// Kişi kaydı 'u-uye' hesabından açılmış, yani hesabın KENDİ kişi profili (users satırları eklendikten
+// SONRA yazılır: claimed_by_user_id users(id)'ye FK). 2026-09-14 ikinci turuna kadar bu bağ hesap ADI
+// ile kurulurdu (hesap adı da 'Ayşe Kaya'); madde 3 ile ad eşleşmesi kaldırıldı ve sahiplik sinyali
+// architects.claimed_by_user_id oldu (bkz. src/lib/claimedProfiles.js#fetchOwnArchitectRows).
+db.exec(`UPDATE architects SET claimed_by_user_id = 'u-uye' WHERE slug = 'ayse-kaya'`);
 
 const env = { DB: d1(db) };
 const req = (uid, path, init = {}) => new Request(`https://mimarlab.com${path}`, {
@@ -76,7 +81,7 @@ const valid = (over = {}) => ({
 
 console.log('\ngönderi — kimlik ve doğrulama');
 await test('oturumsuz /mine → 401', async () => { assert.equal((await submit(null, '/api/gundem-submissions/mine', { method: 'GET' })).status, 401); });
-await test('/mine: kendi adıyla eşleşen kişi + onaylı firma claim profilleri döner, başka firma dönmez', async () => {
+await test('/mine: hesabın KENDİ kişi kaydı + onaylı firma claim profilleri döner, başka firma dönmez', async () => {
   const data = await (await submit('u-uye', '/api/gundem-submissions/mine', { method: 'GET' })).json();
   const keys = data.profiles.map(p => `${p.type}:${p.key}`);
   assert.ok(keys.includes('architect:ayse-kaya'), keys.join());

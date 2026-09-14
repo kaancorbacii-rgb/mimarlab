@@ -8,7 +8,6 @@ import {
   isLinkedInConfigured, buildLinkedInAuthUrl, handleLinkedInCallback,
 } from '../lib/oauth.js';
 import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
-import { foldTr } from '../lib/textMatch.js';
 import { createNotification } from '../lib/notify.js';
 import { normalizeUsername, isUsernameTaken, uniqueUsernameFrom } from '../lib/username.js';
 
@@ -172,38 +171,18 @@ async function oauthCallback(request, env, url, provider) {
 }
 
 
-// architects tablosunda Türkçe-duyarlı TAM ad eşleşmesi arar. SQL LIKE/COLLATE NOCASE yalnızca
-// ASCII harfleri katladığından (bkz. src/routes/office.js#trLower'daki AYNI gerçek bulgu) eşleştirme
-// JS tarafında yapılır; tablo birkaç yüz satır olduğundan bu tam tarama ucuzdur ve
-// /api/public/check-name'in kullandığı normalize ile BİREBİR aynı sonucu verir.
-// Katlamanın kendisi src/lib/textMatch.js#foldTr'dedir (yerel kopya 2026-09-10'da kaldırıldı — o
-// kopya Unicode NFC adımını taşımıyordu, bkz. o dosyanın başındaki kök neden). Buradaki EK adım
-// yalnızca boşluk sadeleştirmesi: ad alanları serbest metin olduğundan "Ali  Veli" ile "Ali Veli"
-// aynı sayılmalıdır.
-function foldTrName(v) {
-  return foldTr(v).replace(/\s+/g, ' ').trim();
-}
-
-// Kullanıcı isteği (2026-09-11): "Kullanıcılar sitede kayıtlı kişi isimleriyle aynı isimde kullanıcı
-// hesabı oluşturabilsinler. Lakin aynı isimde yeniden bir kişi paylaşımı yapamasınlar. ... daha önce
-// üye olan kullanıcı adıyla aynı isim yazılamaz."
-// AYRIM: HESAP adı (users.name) ile KİŞİ profili (architects) iki ayrı ad alanıdır.
-//   * Hesap adı yalnızca DİĞER HESAPLARLA çakışamaz (bu fonksiyon) — Kişi sayfasındaki bir adla
-//     üye olmak SERBEST: kişi çoğu zaman sahiplenilmemiş profilin gerçek sahibidir, kayıttan sonra
-//     "Bu profil bana ait" ile profili alır (eskiden kayıt burada engelleniyordu).
-//   * Aynı adla YENİ bir kişi paylaşımı (kisi-ekle / Hesabım'dan dizine katılma) hâlâ reddedilir —
-//     o kapı submissions.js#createSubmission içindeki isDuplicateCanonicalName'dir, burası değil.
-// excludeUserId: Hesabım'dan ad güncellerken kullanıcının KENDİ satırı çakışma sayılmasın.
-// users birkaç yüz satır; foldTrName (Türkçe casefold + NFC + boşluk sadeleştirme) SQL'de
-// yapılamadığından JS'te karşılaştırılır — findArchitectByFoldedName'in eski deseniyle aynı.
-export async function findUserByFoldedName(env, name, excludeUserId = null) {
-  const target = foldTrName(name);
-  if (!target) return null;
-  const { results } = await env.DB.prepare(`SELECT id, name FROM users`).all();
-  return (results || []).find(r => r.id !== excludeUserId && foldTrName(r.name) === target) || null;
-}
-
-const DUPLICATE_USER_NAME_ERROR = 'Bu ad soyad ile daha önce üye olunmuş. Farklı bir ad soyad gir (örneğin ikinci adını ya da bir baş harf ekleyerek).';
+// HESAP AD SOYADI ARTIK TEKİL DEĞİL (kullanıcı isteği, 2026-09-14 ikinci tur madde 2: "Hesap Adı
+// Soyadı artık başka bir kullanıcıyla aynı olabilsin ama kullanıcı adı aynı olamasın").
+//
+// Burada eskiden foldTrName + findUserByFoldedName vardı: yeni bir hesabın (ve Hesabım'dan yapılan
+// ad değişikliğinin) adı, Türkçe casefold ile BAŞKA BİR HESABIN adıyla çakışamıyordu. O kural
+// hesabın adı hâlâ genel bir tanıtıcıyken (kişi dizininde eşleşme anahtarıydı) anlamlıydı; artık
+// hesabın TEK tekil tanıtıcısı KULLANICI ADIDIR (users.username, bkz. src/lib/username.js) ve iki
+// "Kaan Çorbacı" aynı sitede rahatça üye olabilir — kişi künyesiyle de bir ilişkisi kalmadı
+// (madde 3, bkz. src/lib/claimedProfiles.js#fetchOwnArchitectRows).
+//
+// KİŞİ DİZİNİ tekilliği DEĞİŞMEDİ: aynı adla YENİ bir kişi paylaşımı hâlâ reddedilir — o kapı
+// src/lib/canonicalSync.js#isDuplicateCanonicalName'dir (bkz. submissions.js#createSubmission).
 
 async function signup(request, env) {
   const ip = clientIp(request);
@@ -246,13 +225,6 @@ async function signup(request, env) {
   if (existing) return errorJson('Bu e-posta ile zaten bir hesap var.', 409);
   if (await isUsernameTaken(env, usernameResult.value)) {
     return errorJson('Bu kullanıcı adı alınmış, başka bir tane seç.', 409);
-  }
-
-  // Hesap adı yalnızca DİĞER HESAPLARLA çakışamaz — Kişi sayfasındaki bir adla üye olmak serbesttir
-  // (kullanıcı isteği 2026-09-11, bkz. findUserByFoldedName'in üstündeki ayrım). 2026-09-02'deki
-  // "Kişi sayfasındaki adla üye olunamasın" kuralının yerini aldı.
-  if (await findUserByFoldedName(env, name)) {
-    return errorJson(DUPLICATE_USER_NAME_ERROR, 409);
   }
 
   const id = newId();
@@ -509,16 +481,8 @@ export async function updateUserProfileFields(env, userId, body) {
   if ('school' in body && isInvalidSchoolValue(body.school)) {
     return { error: 'Geçerli bir üniversite adı gir (kısaltma kullanma).' };
   }
-  // Hesabım'dan ad değişikliği signup ile AYNI kural: başka bir HESABIN adı seçilemez, Kişi
-  // sayfasındaki bir ad seçilebilir (kullanıcı isteği 2026-09-11). Kişi dizinine aynı adla yeni bir
-  // kayıt açma girişimi ise submitArchitectSyncIfNeeded → POST /api/submissions/architects'te
-  // isDuplicateCanonicalName ile yakalanır ve istemci "Bu profil bana ait" uyarısını orada gösterir
-  // (duplicateName/existingSlug yanıtı, bkz. submissions.js#isSelfDirectoryListing).
-  if ('name' in body && body.name) {
-    if (await findUserByFoldedName(env, body.name, userId)) {
-      return { error: DUPLICATE_USER_NAME_ERROR, status: 409 };
-    }
-  }
+  // Ad soyad için TEKİLLİK KONTROLÜ YOK (kullanıcı isteği, 2026-09-14 ikinci tur madde 2) — iki
+  // hesap aynı ad soyadı taşıyabilir; çakışmayan tek alan kullanıcı adıdır (aşağısı).
   // Kullanıcı adı (kullanıcı isteği, 2026-09-14 madde 5: Hesabım başlığındaki "Profili Düzenle"
   // YALNIZCA ad soyad ve kullanıcı adını düzenler). Kayıttaki AYNI kural + AYNI tekillik kontrolü
   // (bkz. src/lib/username.js); admin panelindeki üye düzenleme ekranı da bu fonksiyondan geçer.

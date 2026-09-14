@@ -34,7 +34,7 @@ ayırıyoruz, birbirleriyle entegre olmayacaklar."
 - **Kişi künyesi (`architects` / `architect_submissions`)**: doğum yılı, üniversite, meslek,
   pozisyon, ödüller, açıklama, sosyal medya, portfolyo. Hesabım'daki "Kişi Bilgileri" kutusu bunu
   admin'in atadığı onaylı `profile_claims('architect')` kaydından okur (atama yoksa kullanıcının
-  kendi açtığı kişi kaydından) ve "Bilgileri Düzenle" düğmesi yalnızca o kaydı yazar.
+  kendi açtığı kişi kaydından); düzenleme kisi-ekle sayfasında yapılır (bkz. aşağısı).
 - **Kaldırılan üç köprü** (geri gelirse ayrım sessizce bozulur; preflight bunu arıyor —
   `scripts/test-2026-09-14-account-person-split.mjs`):
   `src/lib/claimedProfiles.js#fillUserFromArchitectProfile`,
@@ -42,6 +42,25 @@ ayırıyoruz, birbirleriyle entegre olmayacaklar."
   `js/components/auth-modal.js#syncClaimedArchitectData`.
 - **Tek bilinçli istisna**: profil FOTOĞRAFI. Kişi künyesi formundan yüklenen fotoğraf hem kişi
   kaydına hem hesabın avatarına yazılır (nav'daki avatarın tek düzenleme yolu orası).
+- **Hesap ad soyadı TEKİL DEĞİL** (2026-09-14 ikinci tur): iki hesap aynı ad soyadı taşıyabilir;
+  hesabın tek tekil tanıtıcısı `users.username`. Kişi dizini tekilliği (aynı adla yeni kişi
+  paylaşımı) DEĞİŞMEDİ — o kapı `canonicalSync.js#isDuplicateCanonicalName`.
+- **Hesap adı ile kişi künyesinin adı arasında HİÇBİR bağ yoktur**: sahiplik iki yoldan gelir —
+  (a) admin ataması (`profile_claims('architect')`), (b) kaydı kendi hesabından açmış olmak
+  (`architects.claimed_by_user_id`). Ad eşleşmesi (`name_fold = foldTr(user.name)`) her yerden
+  kaldırıldı: `claimedProfiles.js#fetchOwnArchitectRows`, `submissions.js#isOwnArchitectRecord`,
+  `kisi-ekle.html#isOwnAccountProfile` ve `maybeAutoFillFromAccount`. Ad eşleşmesi, hesap adları
+  çoğalabildiği için artık bir SIZMA yolu olurdu (var olan bir kişinin adıyla üye olup onun firma
+  bağlarını/görevlerini görmek).
+- **Kendi-kendine-yayın kısayolu kaldırıldı**: yeni kişi kaydı (Hesabım'daki dizin akışı dahil)
+  kisi-ekle.html ile AYNI admin moderasyon kuyruğuna girer — ad doğrulaması olmadan "bu kayıt
+  benim" iddiasını doğrulamanın yolu yok.
+- **Kişi künyesi Hesabım'dan DÜZENLENMEZ**: "Kişi Bilgileri" kutusundaki "Bilgileri Düzenle",
+  firma düğmesiyle aynı desende `kisi-ekle` sayfasına gider (atanmış profil `?claim=<slug>`,
+  kendi gönderisi `?edit=<id>&stype=architects`, kayıt yoksa boş form). Modal içindeki kişi formu
+  yalnızca "Kişi sayfasında yer almak ister misin?" bildirimi/sorusundan açılır.
+- **Şifre Değiştir + Hesabımı Sil** hesap kimliği pop-up'ındadır (başlıktaki "Profili Düzenle"),
+  varsayılan kapalı; kişi formunda DEĞİL.
 - **Kullanıcı adı kuralları TEK kaynakta**: `src/lib/username.js` (istemci kopyası
   `js/components/auth-modal.js#normalizeUsernameInput`, SQL kopyası
   `migrations/0119_users_username.sql`). Türkçe harfler ASCII'ye katlanır; giriş e-posta VEYA

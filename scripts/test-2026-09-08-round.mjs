@@ -480,9 +480,11 @@ function seedFounderLinks(db) {
   db.exec(`INSERT INTO architects (slug,name,position,source) VALUES ('kaan-corbaci','Kaan Çorbacı','Kurucu','legacy_static')`);
   const kid = db.prepare(`SELECT id FROM architects WHERE slug='kaan-corbaci'`).get().id;
   db.prepare(`INSERT INTO profile_claims (id,user_id,profile_type,profile_key,status,created_at,updated_at) VALUES ('pc-k','u-k','architect','Kaan Çorbacı','approved',?,?)`).run(now, now);
-  // (b) TALEBİ OLMAYAN ama hesap adı kişi kaydıyla eşleşen kullanıcı -> görünürlük VAR, yetki YOK
+  // (b) TALEBİ OLMAYAN ama kişi kaydını KENDİ HESABINDAN açmış kullanıcı -> görünürlük VAR, yetki YOK.
+  // 2026-09-14 ikinci turuna kadar bu bağ HESAP ADI eşleşmesiydi; madde 3 ile sahiplik sinyali
+  // architects.claimed_by_user_id oldu (bkz. src/lib/claimedProfiles.js#fetchOwnArchitectRows).
   db.prepare(`INSERT INTO users (id,email,password_hash,name,role,created_at) VALUES ('u-r','r@e.com','x','MİMARLAB Robotu','user',?)`).run(now);
-  db.exec(`INSERT INTO architects (slug,name,position,source) VALUES ('mimarlab-robotu','MİMARLAB Robotu','Kurucu','legacy_static')`);
+  db.exec(`INSERT INTO architects (slug,name,position,source,claimed_by_user_id) VALUES ('mimarlab-robotu','MİMARLAB Robotu','Kurucu','legacy_static','u-r')`);
   const rid = db.prepare(`SELECT id FROM architects WHERE slug='mimarlab-robotu'`).get().id;
   // (c) onaylı talebi olan ama görevi Ekip Üyesi -> görünürlük VAR, yetki YOK
   db.prepare(`INSERT INTO users (id,email,password_hash,name,role,created_at) VALUES ('u-e','e@e.com','x','Ekip Kişi','user',?)`).run(now);
@@ -496,17 +498,20 @@ function seedFounderLinks(db) {
   db.prepare(`INSERT INTO office_founders (office_id, architect_id) VALUES (4, ?)`).run(kid);
 }
 
-await test('kişi kaydını bulmanın İKİ yolu da çözülür (talep + ad eşleşmesi)', async () => {
+await test('kişi kaydını bulmanın İKİ yolu da çözülür (talep + kaydı kendi açmış olmak)', async () => {
   const db = freshDb(); seed(db); seedFounderLinks(db);
   const env = { DB: d1(db) };
   const k = await fetchOwnArchitectRows(env, { id: 'u-k', name: 'Kaan Çorbacı' });
   assert.equal(k.claimed.length, 1);
   const r = await fetchOwnArchitectRows(env, { id: 'u-r', name: 'MİMARLAB Robotu' });
   assert.equal(r.claimed.length, 0);
-  assert.equal(r.selfNamed.length, 1, 'ad eşleşmesi yolu çalışmalı');
-  // Türkçe katlama: hesap adı farklı yazılmış olsa da eşleşir
-  const r2 = await fetchOwnArchitectRows(env, { id: 'u-r', name: 'MIMARLAB ROBOTU' });
-  assert.equal(r2.selfNamed.length, 1);
+  assert.equal(r.selfNamed.length, 1, 'sahiplik (claimed_by_user_id) yolu çalışmalı');
+  // AD EŞLEŞMESİ ARTIK YOK (kullanıcı isteği, 2026-09-14 ikinci tur madde 3) — hesabın adı kişi
+  // künyesinin adıyla birebir aynı olsa bile bağ kurulmaz; ölçüt yalnızca sahiplik/atamadır.
+  // (Madde 2 aynı adla ikinci bir hesap açılmasına izin verdiğinden bu bir sızma yolu olurdu.)
+  const impostor = await fetchOwnArchitectRows(env, { id: 'u-yabanci', name: 'MİMARLAB Robotu' });
+  assert.equal(impostor.claimed.length, 0);
+  assert.equal(impostor.selfNamed.length, 0, 'ad eşleşmesi bağ KURMAMALI');
 });
 
 await test('TALEBİ OLMAYAN kullanıcı da firmalarını görür (canlı bulgu: iki firma, tek satır)', async () => {
@@ -514,7 +519,12 @@ await test('TALEBİ OLMAYAN kullanıcı da firmalarını görür (canlı bulgu: 
   const env = { DB: d1(db) };
   const links = await fetchOfficeFounderLinks(env, { id: 'u-r', name: 'MİMARLAB Robotu' }, OFFICE_EDIT_POSITIONS);
   assert.deepEqual(links.map(l => l.name), ['DS Mimarlık']);
-  assert.equal(links[0].canEdit, false, 'ad eşleşmesi düzenleme yetkisi VERMEZ');
+  assert.equal(links[0].canEdit, false, 'kaydı kendi açmış olmak düzenleme yetkisi VERMEZ');
+  // Aynı adı taşıyan YABANCI bir hesap hiçbir şey görmez (bkz. yukarıdaki madde 3 notu).
+  assert.deepEqual(
+    (await fetchOfficeFounderLinks(env, { id: 'u-yabanci', name: 'MİMARLAB Robotu' }, OFFICE_EDIT_POSITIONS)).map(l => l.name),
+    [],
+  );
   // onaylı talebi olan kullanıcıda iki firma da listelenir
   const kLinks = await fetchOfficeFounderLinks(env, { id: 'u-k', name: 'Kaan Çorbacı' }, OFFICE_EDIT_POSITIONS);
   assert.deepEqual(kLinks.map(l => l.name).sort(), ['Boş Firma', 'DS Mimarlık']);
@@ -529,8 +539,10 @@ await test('düzenleme yetkisi: onaylı talep + yetkili görev şartı', async (
   assert.equal(await can({ id: 'u-k', name: 'Kaan Çorbacı' }, 'Boş Firma'), true);
   // bağlı OLMADIĞI firma
   assert.equal(await can({ id: 'u-k', name: 'Kaan Çorbacı' }, 'IND [Inter.National.Design]'), false);
-  // talebi yok (yalnızca ad eşleşmesi) -> yetki YOK
+  // talebi yok (kaydı yalnızca kendi açmış) -> yetki YOK
   assert.equal(await can({ id: 'u-r', name: 'MİMARLAB Robotu' }, 'DS Mimarlık'), false);
+  // aynı adı taşıyan yabancı hesap -> yetki YOK (ad eşleşmesi kaldırıldı, madde 3)
+  assert.equal(await can({ id: 'u-yabanci', name: 'MİMARLAB Robotu' }, 'DS Mimarlık'), false);
   // talebi var ama görevi Ekip Üyesi -> yetki YOK
   assert.equal(await can({ id: 'u-e', name: 'Ekip Kişi' }, 'DS Mimarlık'), false);
   // kullanıcı yok

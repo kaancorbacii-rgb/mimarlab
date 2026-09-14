@@ -983,8 +983,10 @@ const AuthModal = (function () {
                (bkz. wireSignup'taki normalizeUsernameInput) ki sunucudan hata almasın. -->
           <div class="auth-field">
             <label for="am-signup-username">Kullanıcı Adı *</label>
+            <!-- Kural açıklaması KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 5) —
+                 kutu zaten yazarken değeri kanonik biçime çeviriyor, geçersiz bir şey yazılamıyor;
+                 hata durumunda mesaj #am-signup-notice'ta görünür. -->
             <input type="text" id="am-signup-username" name="username" placeholder="kullaniciadi" autocomplete="username" autocapitalize="none" spellcheck="false" required>
-            <p class="auth-hint">Profilinde <strong>@kullaniciadi</strong> olarak görünür. Küçük harf, rakam, nokta ve alt çizgi.</p>
           </div>
           <div class="auth-field">
             <label for="am-signup-email">E-posta *</label>
@@ -1209,6 +1211,65 @@ const AuthModal = (function () {
           </div>
           <button class="dash-edit-btn" id="am-account-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
           <span id="am-account-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
+
+          <!-- ŞİFRE DEĞİŞTİR + HESABIMI SİL — 2026-09-14 ikinci turda (madde 4: "Profili düzenle
+               butonuna tıklayınca şifre değiştir ve hesabımı sil açılır kapanır butonları da olsun
+               (default olarak kapalı görünüm)") kişi künyesi pop-up'ından BURAYA taşındı: ikisi de
+               HESABA ait işlemler, kişi künyesine değil (bkz. madde 1 — künye artık kisi-ekle
+               sayfasından düzenleniyor). id'ler ve JS kancaları DEĞİŞMEDİ, yalnızca yer değişti.
+               Kullanıcı isteği (2026-09-08 madde 3): "Şifre Değiştir" ve "Hesabımı Sil" alt alta
+               iki AÇILIR/KAPANIR bölüm — varsayılan kapalı, başlığa tıklayınca açılıyor. İstatistikler/
+               Rozetlerim ile AYNI sözleşme (.dash-collapse-toggle + data-collapse + hidden gövde,
+               bkz. wireCollapsibles), bu yüzden ayrı bir JS kancası gerekmez: wireCollapsibles zaten
+               #am-panel içindeki TÜM .dash-collapse-toggle[data-collapse] düğmelerini bağlar ve bu
+               form da #am-panel'in içindedir. Kapalıyken gövde hidden niteliğini taşıdığından şifre
+               alanları layout hesabına hiç girmez. -->
+          <div class="dash-danger-collapsibles">
+            <div class="dash-collapse-item">
+              <button type="button" class="dash-collapse-toggle" data-collapse="am-pw-collapse" aria-expanded="false" aria-controls="am-pw-collapse">
+                <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0;">Şifre Değiştir</h2>
+                <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dash-collapse-body" id="am-pw-collapse" hidden>
+                <div class="dash-field">
+                  <label for="am-pw-current">Mevcut Şifre</label>
+                  <input type="password" id="am-pw-current" autocomplete="current-password">
+                </div>
+                <div class="dash-field">
+                  <label for="am-pw-new">Yeni Şifre</label>
+                  <input type="password" id="am-pw-new" autocomplete="new-password">
+                </div>
+                <div class="dash-field">
+                  <label for="am-pw-new-confirm">Yeni Şifre (Tekrar)</label>
+                  <input type="password" id="am-pw-new-confirm" autocomplete="new-password">
+                </div>
+                <button class="dash-edit-btn" id="am-pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
+                <span id="am-pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
+                <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="am-pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
+              </div>
+            </div>
+
+            <div class="dash-collapse-item">
+              <button type="button" class="dash-collapse-toggle dash-collapse-danger" data-collapse="am-delete-collapse" aria-expanded="false" aria-controls="am-delete-collapse">
+                <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0; color:#B3261E;">Hesabımı Sil</h2>
+                <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dash-collapse-body" id="am-delete-collapse" hidden>
+                <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
+                <!-- Kullanıcı isteği (2026-09-02 madde 1): silme butonunun ÜSTÜNDE e-posta kutusu; kullanıcı
+                     giriş yaptığı adresi yazmadan hesabını silemez. Yanlışlıkla silmeye karşı gerçek bir
+                     sürtünme — tek başına confirm() diyaloğu bunu sağlamıyordu. Doğrulama İSTEMCİDE
+                     yapılır (sunucu zaten oturum sahibinden başkasının hesabını silemez, bkz.
+                     src/routes/auth.js#handleAccountDeleteRoute); buradaki amaç kasıt teyidi. -->
+                <label for="am-delete-confirm-email" style="display:block; font-size:12.5px; font-weight:600; margin:0 0 5px;">Onaylamak için e-posta adresini yaz</label>
+                <input type="email" id="am-delete-confirm-email" autocomplete="off" placeholder="ornek@eposta.com" style="width:100%; max-width:320px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
+                  <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E;"></span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1354,59 +1415,6 @@ const AuthModal = (function () {
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
-        <!-- Kullanıcı isteği (2026-09-08 madde 3): "Şifre Değiştir" ve "Hesabımı Sil" ARTIK alt alta
-             iki AÇILIR/KAPANIR bölüm — varsayılan kapalı, başlığa tıklayınca açılıyor. İstatistikler/
-             Rozetlerim ile AYNI sözleşme (.dash-collapse-toggle + data-collapse + hidden gövde,
-             bkz. wireCollapsibles), bu yüzden ayrı bir JS kancası gerekmez: wireCollapsibles zaten
-             #am-panel içindeki TÜM .dash-collapse-toggle[data-collapse] düğmelerini bağlar ve bu
-             form da #am-panel'in içindedir. Kapalıyken gövde hidden niteliğini taşıdığından şifre
-             alanları layout hesabına hiç girmez. -->
-        <div class="dash-danger-collapsibles">
-          <div class="dash-collapse-item">
-            <button type="button" class="dash-collapse-toggle" data-collapse="am-pw-collapse" aria-expanded="false" aria-controls="am-pw-collapse">
-              <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0;">Şifre Değiştir</h2>
-              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dash-collapse-body" id="am-pw-collapse" hidden>
-              <div class="dash-field">
-                <label for="am-pw-current">Mevcut Şifre</label>
-                <input type="password" id="am-pw-current" autocomplete="current-password">
-              </div>
-              <div class="dash-field">
-                <label for="am-pw-new">Yeni Şifre</label>
-                <input type="password" id="am-pw-new" autocomplete="new-password">
-              </div>
-              <div class="dash-field">
-                <label for="am-pw-new-confirm">Yeni Şifre (Tekrar)</label>
-                <input type="password" id="am-pw-new-confirm" autocomplete="new-password">
-              </div>
-              <button class="dash-edit-btn" id="am-pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
-              <span id="am-pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
-              <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="am-pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
-            </div>
-          </div>
-
-          <div class="dash-collapse-item">
-            <button type="button" class="dash-collapse-toggle dash-collapse-danger" data-collapse="am-delete-collapse" aria-expanded="false" aria-controls="am-delete-collapse">
-              <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0; color:#B3261E;">Hesabımı Sil</h2>
-              <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dash-collapse-body" id="am-delete-collapse" hidden>
-              <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
-              <!-- Kullanıcı isteği (2026-09-02 madde 1): silme butonunun ÜSTÜNDE e-posta kutusu; kullanıcı
-                   giriş yaptığı adresi yazmadan hesabını silemez. Yanlışlıkla silmeye karşı gerçek bir
-                   sürtünme — tek başına confirm() diyaloğu bunu sağlamıyordu. Doğrulama İSTEMCİDE
-                   yapılır (sunucu zaten oturum sahibinden başkasının hesabını silemez, bkz.
-                   src/routes/auth.js#handleAccountDeleteRoute); buradaki amaç kasıt teyidi. -->
-              <label for="am-delete-confirm-email" style="display:block; font-size:12.5px; font-weight:600; margin:0 0 5px;">Onaylamak için e-posta adresini yaz</label>
-              <input type="email" id="am-delete-confirm-email" autocomplete="off" placeholder="ornek@eposta.com" style="width:100%; max-width:320px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; margin-bottom:10px;">
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
-                <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E;"></span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
       </div>
 
@@ -1465,7 +1473,14 @@ const AuthModal = (function () {
               <h2>Kişi Bilgileri</h2>
               <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
-            <button type="button" class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn">Bilgileri Düzenle</button>
+            <!-- FİRMA KUTUSUYLA AYNI DESEN (kullanıcı isteği, 2026-09-14 ikinci tur madde 1: "Kişi
+                 Bilgileri kutusunda bilgileri düzenle butonuna tıklayınca hesapla eşleşen kişi
+                 popupının kisi ekle/duzenle sayfası açılsın. Aynı firma düzenle butonuna tıklayınca
+                 olduğu gibi."): artık pop-up açan bir <button> değil, kisi-ekle sayfasına giden bir
+                 <a>. Hedef renderPersonEditBtn'de kurulur (atanmış profil -> ?claim=<slug>,
+                 kullanıcının kendi kişi gönderisi -> ?edit=<id>&stype=architects, hiçbiri yoksa
+                 boş form). -->
+            <a class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn" href="/kisi-ekle">Bilgileri Düzenle</a>
           </div>
           <div class="dash-collapse-body" id="am-profile-collapse">
             <!-- KAYNAK DEĞİŞTİ (kullanıcı isteği, 2026-09-14 madde 3): "Bundan sonra Kişi
@@ -2229,6 +2244,9 @@ const AuthModal = (function () {
   // kendi açtığı kişi kaydıdır. Biçimi fetchArchitectRecordForSync'in `merged` nesnesiyle aynıdır
   // (name/dob/school/profession(ETİKET)/position/office/awards/about/social_links/photo_url/portfolio).
   let amPersonRecord = null;
+  // Kutunun "Bilgileri Düzenle" bağlantısının hedefini kuran onaylı KİŞİ ataması (varsa) — bkz.
+  // renderPersonEditBtn (kullanıcı isteği, 2026-09-14 ikinci tur madde 1).
+  let amPersonClaim = null;
   // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
   // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
@@ -3099,17 +3117,15 @@ const AuthModal = (function () {
             const data = await res.json();
             const own = (data.items || []).filter(m => !m.claimed_profile_key);
             if (!own.length) return null;
-            // GERÇEK BULGU (2026-09-06): burada yalnızca "en son güncellenen claim'siz kayıt"
-            // seçiliyordu. Ama kisi-ekle.html'in ASIL kullanımı BAŞKA birini eklemek — kullanıcı
-            // bir meslektaşını eklediği anda o kayıt en yenisi olup kullanıcının KENDİ kaydının
-            // önüne geçiyor, Profili Düzenle de (dizin tercihi, firma seçimleri) yanlış kaydı
-            // okuyordu. Önce hesabın adıyla eşleşen kayıt aranır — sunucunun "bu gönderi kişinin
-            // kendisi mi" kuralıyla (bkz. src/routes/submissions.js#isSelfDirectoryListing) AYNI
-            // ölçüt; eşleşme yoksa eski davranış (en yeni kayıt) korunur.
-            const myName = foldTrAm((accountUser && accountUser.name) || '');
-            const byName = myName ? own.filter(m => foldTrAm(m.name || '') === myName) : [];
-            const pool = byName.length ? byName : own;
-            return pool.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
+            // AD TERCİHİ KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3: "Hesabın adı
+            // soyadıyla kişi popupının adının soyadının bir alakası olmasın"). Burada önce hesabın
+            // ad soyadıyla eşleşen gönderi seçiliyordu; artık hesabın adı bir kişi künyesine
+            // bağlanma ölçütü DEĞİL. Kalan kural: kullanıcının EN SON GÜNCELLEDİĞİ, bir profili
+            // sahiplenmeyen (claimed_profile_key taşımayan) kendi gönderisi. Bu bir gösterim
+            // tercihidir, yetki değil: düzenleme yolu (?edit=<id>) sunucuda owner_user_id ile
+            // doğrulanır ve atanmış bir profil varsa o HER ZAMAN öncelikli (bkz.
+            // refreshArchitectSyncState'in kaynak sırası).
+            return own.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
           } catch { return null; }
         })();
       }
@@ -3128,6 +3144,7 @@ const AuthModal = (function () {
     // `users` satırı bu yolların HİÇBİRİNDE okunmaz/yazılmaz (madde 7 — ayrım).
     async function refreshArchitectSyncState(claimItems) {
       const claim = claimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
+      amPersonClaim = claim || null;
       if (!claim) {
         // GERÇEK BULGU (kullanıcı bildirimi): burada eskiden yalnızca `architectSyncState = null`
         // vardı. Onaylı mimar profili OLMAYAN normal bir kullanıcı "Kişi sayfasında görünmek
@@ -3183,7 +3200,33 @@ const AuthModal = (function () {
       set('am-fact-position', rec && rec.position);
       set('am-fact-school', rec && rec.school);
       set('am-fact-dob', rec && rec.dob ? String(rec.dob).slice(0, 4) : '');
+      renderPersonEditBtn();
       prefillPersonEditForm();
+    }
+
+    // "Bilgileri Düzenle" -> kisi-ekle/düzenle sayfası (kullanıcı isteği, 2026-09-14 ikinci tur
+    // madde 1) — FİRMA kutusundaki düğmeyle (renderFirmEditBtn) BİREBİR aynı desen ve kişi/firma
+    // pop-up'larındaki "Düzenle" butonuyla (js/components/claim-correction-box.js#
+    // renderProfileEditButton) AYNI adres kuralı, böylece iki kapı da AYNI satırı düzenler ve
+    // mükerrer gönderi oluşmaz:
+    //   * admin'in ATADIĞI profil -> ?claim=<slug> (form o profili sahiplenme modunda açar; sunucu
+    //     onaylı profile_claims'i verifyClaimedProfileKey ile doğrular),
+    //   * atama yoksa kullanıcının KENDİ kişi gönderisi -> ?edit=<id>&stype=architects (sunucu
+    //     owner_user_id ile doğrular),
+    //   * hiçbiri yoksa boş form: kullanıcı ilk kişi künyesini oluşturur (moderasyona girer).
+    // Düğme HER ZAMAN görünür (firma düğmesinin aksine): kişi künyesi oluşturmak herkese açıktır,
+    // firma künyesini düzenlemek ise yetki gerektirir.
+    function renderPersonEditBtn() {
+      const btn = document.getElementById('am-dash-edit-btn');
+      if (!btn) return;
+      const claimKey = amPersonClaim && (amPersonClaim.slug || amPersonClaim.profile_key);
+      if (claimKey) {
+        btn.href = `${CLAIM_EDIT_PAGE.architect}?claim=${encodeURIComponent(claimKey)}`;
+      } else if (architectSyncState && architectSyncState.editId) {
+        btn.href = `${CLAIM_EDIT_PAGE.architect}?edit=${encodeURIComponent(architectSyncState.editId)}&stype=architects`;
+      } else {
+        btn.href = CLAIM_EDIT_PAGE.architect;
+      }
     }
 
     // Kişi düzenleme pop-up'ının alanlarını kişi kaydından doldurur (eskiden accountUser'dan
@@ -3391,7 +3434,10 @@ const AuthModal = (function () {
     function closeAmProfileEditPopup() {
       document.getElementById('am-profile-edit-overlay').classList.remove('open');
     }
-    on('am-dash-edit-btn', 'click', openAmProfileEditPopup);
+    // 'am-dash-edit-btn' ARTIK bir pop-up açmıyor: kisi-ekle/düzenle sayfasına giden bir bağlantı
+    // (kullanıcı isteği, 2026-09-14 ikinci tur madde 1, bkz. renderPersonEditBtn). Kişi künyesi
+    // pop-up'ı (#am-profile-edit-overlay) yalnızca "Kişi sayfasında yer almak ister misin?"
+    // bildirimi/sorusundan açılmaya devam eder (bkz. openDirectoryPrompt).
     on('am-profile-edit-close', 'click', closeAmProfileEditPopup);
 
     // ---------- HESAP KİMLİĞİ (ad soyad + kullanıcı adı) ----------
@@ -3399,6 +3445,15 @@ const AuthModal = (function () {
       document.getElementById('am-account-name').value = (accountUser && accountUser.name) || '';
       document.getElementById('am-account-username').value = (accountUser && accountUser.username) || '';
       document.getElementById('am-account-save-msg').textContent = '';
+      // "default olarak kapalı görünüm" (kullanıcı isteği, 2026-09-14 ikinci tur madde 4): Şifre
+      // Değiştir / Hesabımı Sil bölümleri pop-up'ın HER açılışında kapalı başlar — wireCollapsibles
+      // durumu düğmeden okuduğu için ikisini birlikte sıfırlamak yeterli (bkz. o fonksiyon).
+      ['am-pw-collapse', 'am-delete-collapse'].forEach((id) => {
+        const body = document.getElementById(id);
+        const toggle = document.querySelector(`#am-panel .dash-collapse-toggle[data-collapse="${id}"]`);
+        if (body) body.hidden = true;
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      });
       document.getElementById('am-account-edit-overlay').classList.add('open');
       document.getElementById('am-account-edit-close').focus();
     }
@@ -3613,11 +3668,10 @@ const AuthModal = (function () {
         // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu
         // POST/PATCH /api/architects'te bunu ZORUNLU kılar (src/lib/rightsConsent.js).
         ...(window.RightsConsent ? RightsConsent.payload() : {}),
-        // Kendi-kendine-yayın bayrağı (kullanıcı isteği, 2026-09-06) — YALNIZCA bu turda YENİ bir
-        // kayıt açılıyorsa gönderilir (bkz. src/routes/submissions.js#isSelfDirectoryListing, isim
-        // sunucuda oturumdaki hesabın adıyla AYRICA doğrulanır, istemci bayrağına güvenilmez).
-        // Sunucu bunu görünce admin onay kuyruğuna DÜŞMEDEN anında yayına alır.
-        ...(createdSelfRecord ? { selfDirectoryListing: true } : {}),
+        // (Kendi-kendine-yayın bayrağı KALDIRILDI — kullanıcı isteği, 2026-09-14 ikinci tur madde 3:
+        // hesabın adı ile kişi künyesi arasındaki ilişki kalkınca bayrağı doğrulamanın yolu kalmadı,
+        // bkz. src/routes/submissions.js'teki AYNI tarihli not. Yeni kişi kaydı artık kisi-ekle.html
+        // ile AYNI moderasyon kuyruğuna girer.)
       };
       // profileKey yalnızca bir PROFİL SAHİPLENME akışında doludur; kendi kaydını açan kullanıcıda
       // null'dır ve alan hiç gönderilmemelidir (aksi halde sunucu boş bir sahiplenme anahtarı yazar).
@@ -3784,12 +3838,11 @@ const AuthModal = (function () {
         }
         if (dirWarning) dirWarning.style.display = 'none';
 
-        // Kendi-kendine-yayın artık ANINDA canlıya girer (kullanıcı isteği, 2026-09-06) — eskiden
-        // burada "admin onayına gönderildi" yazıyordu, submissions.js#isSelfDirectoryListing bunu
-        // moderasyon kuyruğundan tamamen çıkardığından mesaj artık YANLIŞ olurdu.
+        // Yeni kişi kaydı ARTIK MODERASYONA girer (kullanıcı isteği, 2026-09-14 ikinci tur madde 3 —
+        // kendi-kendine-yayın kısayolu kaldırıldı), bu yüzden mesaj da onu söyler.
         msg.textContent = claimSubmitted
           ? 'Kaydedildi. Firma talebi admin onayına gönderildi.'
-          : (createdSelfRecord ? 'Kaydedildi. Profilin artık Kişi sayfasında yayında.' : 'Kaydedildi.');
+          : (createdSelfRecord ? 'Kaydedildi. Kişi profilin admin onayından sonra Kişi sayfasında yayınlanacak.' : 'Kaydedildi.');
         invalidatePersonCaches();
         await loadUser();
         await loadMyClaims();

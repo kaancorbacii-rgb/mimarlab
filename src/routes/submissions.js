@@ -252,24 +252,6 @@ export async function handleSubmissionRoute(request, env, url) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// KİŞİ PROFİLİ <-> HESAP PROFİLİ ÇİFT YÖNLÜ SENKRON (kullanıcı isteği, 2026-09-06 madde 2:
-// "Kendi kişi profillerinde değişiklik yaparlarsa bu profil bilgileri ekranına da yansımalı ya da
-// profil bilgileri ekranında yapılan değişiklikler de şahsi kişi profiline yansımalı. Bu iki profil
-// birbiriyle entegre ve dinamik ilerlemeli.")
-//
-// İLERİ YÖN zaten vardı: Hesabım > Profili Düzenle'nin Kaydet'i hem PATCH /api/profile hem de bu
-// dosyanın uçlarına (POST/PATCH /api/architects) yazar — bkz. js/components/auth-modal.js#
-// submitArchitectSyncIfNeeded. GERİ YÖN hiç yoktu: kullanıcı AYNI profili kisi-ekle.html'den
-// düzenlediğinde (ya da artık kişi popup'ındaki Düzenle butonundan, bkz. claim-correction-box.js)
-// yalnızca architect_submissions satırı değişiyor, Profil Bilgileri kutusu eski değerleri
-// göstermeye devam ediyordu. Senkron İSTEMCİDE değil BURADA yapılır ki hangi form kullanılırsa
-// kullanılsın (kisi-ekle.html, Profili Düzenle, admin) sonuç aynı olsun.
-//
-// "Bu kayıt kullanıcının KENDİSİ mi?" sorusunun iki geçerli cevabı var ve ikisi de doğrulanır:
-//   * claimed_profile_key üzerinde ONAYLI bir profile_claims('architect') satırı (sahiplenilmiş profil),
-//   * ya da kayıt kullanıcının KENDİ adıyla açılmış olması (bkz. isSelfDirectoryListing'in AYNI kuralı).
-// Başkası adına açılan/düzenlenen kişi kayıtları (kisi-ekle.html'in asıl kullanımı) bu iki testin
-// ikisinden de geçemez, dolayısıyla düzenleyenin hesabına HİÇBİR ŞEY yazılmaz.
 // HESAP PROFİLİ İLE KİŞİ PROFİLİ ARTIK BİRBİRİNE YAZMIYOR (kullanıcı isteği, 2026-09-14 madde 7:
 // "kişi popuplarında yapılan değişiklik de profildeki kullanıcı bilgilerine yansımayacak").
 // Burada eskiden syncOwnArchitectToAccount vardı: kullanıcı KENDİ kişi kaydını (kisi-ekle.html,
@@ -283,18 +265,21 @@ export async function handleSubmissionRoute(request, env, url) {
 //
 // isOwnArchitectRecord KALDI: "bu kişi kaydı kullanıcının kendisi mi" sorusu firma talebi açma
 // (ensurePendingOfficeClaims) ve kutudan çıkarılan firmaları künyeden düşürme kapısı olarak hâlâ
-// gerekli — o bir YETKİ kararıdır, veri kopyalaması değil (bkz. madde 9: yetkiler aynı kalsın).
-async function isOwnArchitectRecord(env, user, row, selfMatchName) {
-  if (!user || !row) return false;
-  if (row.claimed_profile_key) {
-    const claim = await env.DB.prepare(
-      `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved'`
-    ).bind(user.id, row.claimed_profile_key).first();
-    if (claim) return true;
-  }
-  // Ad karşılaştırması DÜZENLEMEDEN ÖNCEKİ ad (selfMatchName) üzerinden yapılır — kullanıcı kendi
-  // kişi profilinde ad soyadını değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez, eski ad eşleşir.
-  return !!(selfMatchName && user.name && foldTr(selfMatchName) === foldTr(user.name));
+// gerekli — o bir YETKİ kararıdır, veri kopyalaması değil.
+//
+// AD EŞLEŞMESİ KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3: "Hesabın adı soyadıyla
+// kişi popupının adının soyadının bir alakası olmasın"). Burada ikinci bir dal vardı: gönderinin
+// adı (düzenlemeden önceki adıyla) hesabın ad soyadıyla katlanmış biçimde eşleşiyorsa kayıt
+// "kullanıcının kendisi" sayılıyordu. Madde 2 hesap adlarının çoğalmasına izin verdiğinden bu dal
+// artık şunu yapardı: var olan bir kişi künyesinin adıyla üye olan biri, o kişinin künyesini
+// düzenleyerek kendi adına firma yetki talepleri açabilirdi. Tek geçerli cevap kaldı: bu profil
+// ADMIN ONAYIYLA bu hesaba atanmış mı (profile_claims('architect')).
+async function isOwnArchitectRecord(env, user, row) {
+  if (!user || !row || !row.claimed_profile_key) return false;
+  const claim = await env.DB.prepare(
+    `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved'`
+  ).bind(user.id, row.claimed_profile_key).first();
+  return !!claim;
 }
 
 async function createSubmission(request, env, user, typeKey) {
@@ -348,16 +333,14 @@ async function createSubmission(request, env, user, typeKey) {
   // olmayan HİÇBİR yoldan bu değer yazılamaz. updateOwnSubmission'da da AYNI kontrol tekrarlanır.
   if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
 
-  // Kişi dizini kendi-kendine-yayın (kullanıcı isteği, 2026-09-06): Hesabım'daki "Kişi sayfasında
-  // görünmek istiyorum: Evet" akışı (bkz. auth-modal.js#submitArchitectSyncIfNeeded) artık admin
-  // onay kuyruğuna DÜŞMEDEN doğrudan yayına girer — TEK KOŞULLA: gönderilen isim, oturum açmış
-  // hesabın KENDİ adıyla (foldTr ile Türkçe casefold, büyük/küçük+aksan bağımsız) birebir eşleşmeli.
-  // Bu, bir kullanıcının "selfDirectoryListing" bayrağını BAŞKASININ adıyla göndererek moderasyonu
-  // atlatıp sahte bir üçüncü şahıs profili anında yayınlamasını engeller — yalnızca "kendini"
-  // temsil eden gönderi bu kısayolu kullanabilir, diğer HERKES (kisi-ekle.html, başkası adına
-  // gönderiler) normal moderasyon kuyruğuna girmeye devam eder.
-  const isSelfDirectoryListing = typeKey === 'architects' && body.selfDirectoryListing === true
-    && !!(body.name || '').trim() && foldTr((body.name || '').trim()) === foldTr(user.name || '');
+  // KENDİ-KENDİNE-YAYIN KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3). Burada
+  // `selfDirectoryListing` bayrağı vardı: gönderilen ad, oturumdaki hesabın ad soyadıyla birebir
+  // (Türkçe casefold) eşleşiyorsa yeni kişi kaydı admin onay kuyruğuna DÜŞMEDEN anında yayına
+  // giriyordu. O kısayolun TEK güvenlik dayanağı ad eşleşmesiydi; hesap adı ile kişi künyesi
+  // arasındaki ilişki kaldırıldığına (madde 3) ve hesap adları artık çoğalabildiğine (madde 2)
+  // göre bayrağı doğrulamanın bir yolu kalmadı — bayraksız bir "anında yayınla" ise herkesin
+  // moderasyonu atlayıp sahte bir kişi profili yayınlaması demekti. Artık kişi kaydı açan HERKES
+  // (Hesabım'daki dizin akışı dahil) kisi-ekle.html ile AYNI moderasyon kuyruğuna girer.
 
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key, DELEGATED_ACCESS);
@@ -385,7 +368,11 @@ async function createSubmission(request, env, user, typeKey) {
       // kişisi zaten var, profile giderek 'Bu profil bana ait' talebi oluştur" örneğindeki AYNI
       // uyarı — istemcinin (auth-modal.js) bağlantı kurabilmesi için mevcut profilin slug'ı da
       // döner (bkz. claim-correction-box.js'teki AYNI "Bu profil bana ait" akışı, POST /api/claims).
-      if (isSelfDirectoryListing) {
+      // Zenginleştirilmiş 409 (mevcut profilin slug'ı + adı) artık TÜM kişi gönderileri için döner —
+      // eskiden yalnızca kendi-kendine-yayın dalında dönüyordu (o dal kaldırıldı, bkz. yukarısı).
+      // İstemci bu yanıtla "X kişisi zaten var, profile giderek 'Bu profil bana ait' talebi oluştur"
+      // uyarısını gösterir (bkz. auth-modal.js#showDirectoryDuplicateWarning, kisi-ekle.html).
+      if (typeKey === 'architects') {
         const { results } = await env.DB.prepare(`SELECT slug, name FROM architects WHERE deleted_at IS NULL`).all();
         const foldedDup = foldTr(dupName);
         const existingMatch = (results || []).find(r => foldTr(r.name || '') === foldedDup);
@@ -424,7 +411,7 @@ async function createSubmission(request, env, user, typeKey) {
   // kullanıcı isteği: "kullanıcı o firmaya/mimara ait projelerde de istediği zaman değişiklik
   // yapabilsin" / "ürün ekle/düzenle de aynı entegre sistem").
   const isOwnerProfileEdit = !!body.claimed_profile_key || (CLAIMED_SLUG_TYPES.has(typeKey) && !!body.claimed_slug);
-  const status = (user.role === 'admin' || isOwnerProfileEdit || isSelfDirectoryListing) ? 'approved' : 'pending';
+  const status = (user.role === 'admin' || isOwnerProfileEdit) ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];
   const placeholders = columns.map(() => '?').join(', ');
@@ -458,7 +445,7 @@ async function createSubmission(request, env, user, typeKey) {
   // "Firma veya Marka" alanı -> admin onayı (bkz. src/lib/claimedProfiles.js#
   // ensurePendingOfficeClaims, kullanıcı isteği 2026-09-08 madde 1). Kişi FİRMA profilinde ancak bu
   // talep onaylandıktan sonra görünür (bkz. src/lib/canonicalSync.js#splitAdminApprovedOffices).
-  if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, { ...row, claimed_profile_key: body.claimed_profile_key || null }, row.name)) {
+  if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, { ...row, claimed_profile_key: body.claimed_profile_key || null })) {
     await ensurePendingOfficeClaims(env, user, (row.office || '').split(','), newId);
     // TERS YÖN (kullanıcı isteği, 2026-09-10 madde 1) — bkz. updateOwnSubmission'daki AYNI çağrı.
     // Burada "eski" değer canonical `architects` satırından okunur: bu, kullanıcının sahiplendiği
@@ -817,14 +804,14 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // SONRA çalışır, yazı başarısız olursa (yukarıdaki .run() fırlatırsa) buraya hiç ulaşılmaz.
   if (CANONICAL_TYPES.has(typeKey)) await cleanupReplacedR2Media(env, typeKey, existing, row);
 
-  // "kendisi mi" testi DÜZENLEMEDEN ÖNCEKİ ad (existing.name) ile yapılır: kullanıcı kendi kişi
-  // profilinde ad soyadını değiştiriyorsa yeni ad hesabınkiyle henüz eşleşmez. (Hesap alanlarına
-  // GERİ YAZMA kaldırıldı — bkz. dosyanın "HESAP PROFİLİ İLE KİŞİ PROFİLİ" başlıklı notu.)
+  // "kendisi mi" testi ARTIK YALNIZCA onaylı atamaya bakar (bkz. isOwnArchitectRecord) — bu yüzden
+  // taslağın claimed_profile_key'i (gövdeden ya da mevcut satırdan) tek girdidir; ad karşılaştırması
+  // kaldırıldı (kullanıcı isteği, 2026-09-14 ikinci tur madde 3).
   const architectRowForSelfCheck = { ...row, claimed_profile_key: body.claimed_profile_key || existing.claimed_profile_key || null };
 
   // "Firma veya Marka" alanı -> admin onayı — bkz. createSubmission'daki AYNI çağrı/gerekçe
   // (kullanıcı isteği, 2026-09-08 madde 1).
-  if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, architectRowForSelfCheck, existing.name)) {
+  if (typeKey === 'architects' && await isOwnArchitectRecord(env, user, architectRowForSelfCheck)) {
     await ensurePendingOfficeClaims(env, user, (row.office || '').split(','), newId);
     // ... ve TERS YÖN (kullanıcı isteği, 2026-09-10 madde 1): alandan ÇIKARILAN her firma/marka,
     // kişiyi kendi künyesinden de düşürmeli (bkz. src/lib/officeFounderCascade.js#

@@ -17,6 +17,15 @@
 //   7. Ayrım: hesap alanları ile kişi künyesi arasındaki ÜÇ köprünün hiçbiri kaynakta yok.
 //   8. Giriş kutusu e-posta VEYA kullanıcı adı kabul ediyor (istemci `identifier` gönderiyor).
 //
+// AYNI GÜNÜN İKİNCİ TURU (6 madde) da burada kilitlenir:
+//   1. Kişi Bilgileri kutusunun "Bilgileri Düzenle" düğmesi pop-up açmaz; firma düğmesi gibi
+//      kisi-ekle/düzenle sayfasına gider (?claim= / ?edit= / boş form).
+//   2. Hesap ad soyadı ARTIK TEKİL DEĞİL; tekil olan yalnızca kullanıcı adı.
+//   3. Hesabın ad soyadı ile kişi künyesinin adı arasında HİÇBİR bağ yok (sunucuda sahiplik/atama,
+//      istemcide ad tercihi ve hesap-adından-otomatik-doldurma kaldırıldı).
+//   4. Hesap kimliği pop-up'ında Şifre Değiştir + Hesabımı Sil (varsayılan KAPALI).
+//   5. Üye Ol formundaki kullanıcı adı açıklaması kaldırıldı.
+//
 // Giriş/kayıt/kullanıcı adı kurallarının UÇTAN UCA (gerçek rota + D1) testi ayrı dosyada:
 // scripts/test-2026-09-11-signup-name.mjs (aynı turda genişletildi).
 import assert from 'node:assert/strict';
@@ -90,8 +99,8 @@ test('başlıklar "Firma Bilgileri" ve "Kişi Bilgileri"', () => {
 });
 
 test('iki kutunun düğmesi de "Bilgileri Düzenle"', () => {
-  assert.ok(authModal.includes('id="am-dash-edit-btn">Bilgileri Düzenle<'), 'Kişi kutusu düğmesi değişmemiş');
-  assert.ok(authModal.includes('style="display:none;">Bilgileri Düzenle<'), 'Firma kutusu düğmesi değişmemiş');
+  assert.match(authModal, /id="am-dash-edit-btn"[^>]*>Bilgileri Düzenle</, 'Kişi kutusu düğmesi değişmemiş');
+  assert.match(authModal, /id="am-firm-edit-btn"[^>]*>Bilgileri Düzenle</, 'Firma kutusu düğmesi değişmemiş');
 });
 
 test('Kişi Bilgileri satırları artık hesap alanlarından DOLDURULMUYOR', () => {
@@ -207,6 +216,100 @@ test('sunucu "@" ile e-posta/kullanıcı adı ayrımı yapıyor ve iki indeksi d
   assert.match(authRoute, /SELECT \* FROM users WHERE username = \?/, 'kullanıcı adı sorgusu yok');
   // Yorumda geçmesi serbest; asıl aranan, HAZIRLANMIŞ bir sorgunun OR kullanmaması.
   assert.ok(!/prepare\('SELECT \* FROM users WHERE email = \? OR username = \?'\)/.test(authRoute), 'OR sorgusu tablo taramasına düşürür');
+});
+
+section('ikinci tur madde 1 — Kişi kutusunun düğmesi kisi-ekle/düzenle sayfasına gider');
+
+test('düğme bir BAĞLANTI (pop-up açan buton değil) ve pop-up kancası kaldırıldı', () => {
+  assert.match(authModal, /<a class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn" href="\/kisi-ekle">/, 'düğme hâlâ <button> ya da href yok');
+  assert.ok(!/on\('am-dash-edit-btn', 'click', openAmProfileEditPopup\)/.test(authModal), 'düğme hâlâ kişi pop-up\'ını açıyor');
+});
+
+test('hedef: atanmış profil -> ?claim=, kendi gönderisi -> ?edit=, hiçbiri -> boş form', () => {
+  const fn = authModal.slice(authModal.indexOf('function renderPersonEditBtn()'));
+  const body = fn.slice(0, fn.indexOf('\n    }'));
+  assert.match(body, /amPersonClaim && \(amPersonClaim\.slug \|\| amPersonClaim\.profile_key\)/, 'atanmış profil anahtarı okunmuyor');
+  assert.match(body, /\?claim=\$\{encodeURIComponent\(claimKey\)\}/, '?claim= yolu yok');
+  assert.match(body, /\?edit=\$\{encodeURIComponent\(architectSyncState\.editId\)\}&stype=architects/, '?edit= yolu yok');
+  assert.match(body, /btn\.href = CLAIM_EDIT_PAGE\.architect;/, 'kayıt yokken boş forma gitmiyor');
+  // FİRMA düğmesiyle AYNI sayfa ailesi: /kisi-ekle (firma: /firma-ekle | /marka-ekle)
+  assert.match(authModal, /CLAIM_EDIT_PAGE = \{ architect: '\/kisi-ekle'/, 'kişi düzenleme sayfası tek kaynaktan gelmiyor');
+});
+
+section('ikinci tur madde 2 — hesap ad soyadı tekil DEĞİL, kullanıcı adı tekil');
+
+test('sunucu: ad tekillik kontrolü yok, kullanıcı adı tekillik kontrolü var', () => {
+  assert.ok(!/(export async function|await) findUserByFoldedName/.test(authRoute), 'ad tekillik kontrolü duruyor');
+  assert.match(authRoute, /if \(await isUsernameTaken\(env, usernameResult\.value\)\)/, 'kayıt kullanıcı adı tekilliğini kontrol etmiyor');
+  assert.match(authRoute, /if \(await isUsernameTaken\(env, result\.value, userId\)\)/, 'profil güncelleme kullanıcı adı tekilliğini kontrol etmiyor');
+  assert.ok(!/DUPLICATE_USER_NAME_ERROR/.test(authRoute), 'eski ad çakışma hatası duruyor');
+});
+
+test('şema: username TEKİL, name değil', () => {
+  assert.match(schema, /username TEXT UNIQUE,/);
+  assert.match(schema, /name TEXT NOT NULL,/);
+  assert.ok(!/name TEXT NOT NULL UNIQUE/.test(schema), 'ad tekil yapılmış');
+});
+
+section('ikinci tur madde 3 — hesap adı ile kişi künyesi arasında bağ YOK');
+
+test('sunucu: sahiplik ad eşleşmesiyle DEĞİL claimed_by_user_id ile çözülür', () => {
+  const claimed = read('src/lib/claimedProfiles.js');
+  assert.match(claimed, /claimed_by_user_id = \?/, 'sahiplik sinyali yok');
+  assert.ok(!/name_fold = \?`\)\.bind\(foldTr\(user\.name\)\)/.test(claimed), 'ad eşleşmesi geri gelmiş');
+});
+
+test('sunucu: "bu kayıt kullanıcının kendisi mi" yalnızca onaylı atamaya bakar', () => {
+  const subs = read('src/routes/submissions.js');
+  const fn = subs.slice(subs.indexOf('async function isOwnArchitectRecord'));
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert.match(body, /profile_type = 'architect' AND profile_key = \? AND status = 'approved'/, 'atama kontrolü yok');
+  assert.ok(!/foldTr\(selfMatchName\)/.test(body), 'ad karşılaştırması geri gelmiş');
+});
+
+test('sunucu: kendi-kendine-yayın (ad doğrulamalı moderasyon atlama) kaldırıldı', () => {
+  const subs = read('src/routes/submissions.js');
+  assert.ok(!/const isSelfDirectoryListing =/.test(subs), 'bayrak geri gelmiş');
+  assert.match(subs, /const status = \(user\.role === 'admin' \|\| isOwnerProfileEdit\) \? 'approved' : 'pending';/, 'durum kuralı beklenenden farklı');
+  assert.ok(!/selfDirectoryListing: true/.test(authModal), 'istemci bayrağı hâlâ gönderiyor');
+});
+
+test('istemci: kişi gönderisi seçimi ve kisi-ekle ön-doldurması hesap adına bakmıyor', () => {
+  assert.ok(!/foldTrAm\(\(accountUser && accountUser\.name\)/.test(authModal), 'kendi gönderisi seçimi hâlâ ada bakıyor');
+  const kisiEkle = read('kisi-ekle.html');
+  assert.ok(!/async function maybeAutoFillFromAccount/.test(kisiEkle), 'hesaptan otomatik doldurma geri gelmiş');
+  assert.ok(!/trLower\(user\.name\) === n/.test(kisiEkle), 'isOwnAccountProfile hâlâ hesap adını karşılaştırıyor');
+});
+
+section('ikinci tur madde 4/5 — hesap pop-up\'ı ve Üye Ol açıklaması');
+
+test('Şifre Değiştir + Hesabımı Sil hesap pop-up\'ının İÇİNDE ve varsayılan KAPALI', () => {
+  const start = authModal.indexOf('id="am-account-edit-overlay"');
+  const end = authModal.indexOf('id="am-profile-edit-overlay"');
+  assert.ok(start > -1 && end > start, 'pop-up\'lardan biri yok ya da sıra bozuk');
+  const popup = authModal.slice(start, end);
+  assert.ok(popup.includes('data-collapse="am-pw-collapse" aria-expanded="false"'), 'Şifre Değiştir hesap pop-up\'ında değil ya da açık başlıyor');
+  assert.ok(popup.includes('data-collapse="am-delete-collapse" aria-expanded="false"'), 'Hesabımı Sil hesap pop-up\'ında değil ya da açık başlıyor');
+  assert.ok(popup.includes('<div class="dash-collapse-body" id="am-pw-collapse" hidden>'), 'şifre gövdesi hidden başlamıyor');
+  assert.ok(popup.includes('<div class="dash-collapse-body" id="am-delete-collapse" hidden>'), 'silme gövdesi hidden başlamıyor');
+  // Kişi künyesi pop-up'ında ARTIK YOK (tek kopya kalmalı — id çakışması olmasın).
+  const personPopup = authModal.slice(end);
+  assert.ok(!personPopup.includes('id="am-pw-collapse"'), 'şifre bölümü kişi pop-up\'ında da duruyor (id çakışması)');
+  assert.ok(!personPopup.includes('id="am-delete-collapse"'), 'silme bölümü kişi pop-up\'ında da duruyor (id çakışması)');
+});
+
+test('pop-up her açılışta iki bölümü de kapatıyor', () => {
+  const fn = authModal.slice(authModal.indexOf('function openAmAccountEditPopup()'));
+  const body = fn.slice(0, fn.indexOf('\n    }'));
+  assert.match(body, /\['am-pw-collapse', 'am-delete-collapse'\]\.forEach/, 'açılışta kapatma yok');
+  assert.match(body, /body\.hidden = true/, 'gövde kapatılmıyor');
+});
+
+test('Üye Ol formundaki kullanıcı adı açıklaması silindi', () => {
+  const form = authModal.slice(authModal.indexOf('id="am-signup-form"'), authModal.indexOf('id="am-signup-password"'));
+  assert.ok(!form.includes('auth-hint'), 'açıklama hâlâ Üye Ol formunda');
+  const uyeOlForm = uyeOl.slice(uyeOl.indexOf('id="signup-form"'), uyeOl.indexOf('id="signup-password"'));
+  assert.ok(!uyeOlForm.includes('olarak görünür'), 'açıklama statik uye-ol.html kopyasında duruyor');
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

@@ -56,34 +56,32 @@ await test('Kişi sayfasındaki bir adla üye olunabilir (Ayşe Yılmaz kişi pr
   assert.ok(userId('ayse1@example.com'));
 });
 
-await test('Daha önce üye olan kullanıcının adıyla ikinci hesap açılamaz (409)', async () => {
+// 2026-09-14 İKİNCİ TUR madde 2: "Hesap Adı Soyadı artık başka bir kullanıcıyla aynı olabilsin ama
+// kullanıcı adı aynı olamasın." Aşağıdaki üç test eski 409 kuralının yerini alır — hesabın tekil
+// tanıtıcısı artık YALNIZCA kullanıcı adıdır.
+await test('Daha önce üye olan kullanıcının adıyla ikinci hesap AÇILABİLİR (madde 2)', async () => {
   const r = await signup('Ayşe Yılmaz', 'ayse2@example.com');
-  assert.equal(r.status, 409);
-  assert.match(r.body.error, /daha önce üye olunmuş/);
-  assert.equal(userId('ayse2@example.com'), undefined);
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.ok(userId('ayse2@example.com'));
 });
 
-await test('Çakışma Türkçe büyük/küçük harf, fazla boşluk ve NFD biçiminden bağımsız', async () => {
+await test('Aynı adın her yazımı (büyük harf, fazla boşluk, NFD) da kabul edilir', async () => {
   for (const variant of ['AYŞE  YILMAZ', ' ayşe yılmaz ', 'Ayşe Yılmaz'.normalize('NFD')]) {
     const r = await signup(variant, `v${ipSeq}@example.com`);
-    assert.equal(r.status, 409, `"${variant}" kabul edildi`);
+    assert.equal(r.status, 201, `"${variant}" reddedildi: ${JSON.stringify(r.body)}`);
   }
 });
 
-await test('Farklı bir ad (ikinci ad) kabul edilir', async () => {
+await test('Hesabım: ad soyad serbestçe değiştirilebilir (başka hesabın adı dahil)', async () => {
   const r = await signup('Ayşe Nur Yılmaz', 'aysenur@example.com');
   assert.equal(r.status, 201, JSON.stringify(r.body));
-});
-
-await test('Hesabım: başka bir hesabın adına geçilemez (status 409), Kişi adına geçilebilir, kendi adı serbest', async () => {
   const id = userId('aysenur@example.com');
   const clash = await auth.updateUserProfileFields(env, id, { name: 'ayşe yılmaz' });
-  assert.equal(clash.status, 409);
-  assert.match(clash.error, /daha önce üye olunmuş/);
-  const own = await auth.updateUserProfileFields(env, id, { name: 'Ayşe Nur Yılmaz' });
-  assert.ok(!own.error, own.error);
+  assert.ok(!clash.error, clash.error);
   const kisi = await auth.updateUserProfileFields(env, id, { name: 'Mehmet Kaya' });
   assert.ok(!kisi.error, kisi.error);
+  // Ad değişikliği kişi kaydına DOKUNMAZ (madde 3) — architects satırı olduğu gibi kalır.
+  assert.equal(db.prepare(`SELECT name FROM architects WHERE slug = 'mehmet-kaya'`).get().name, 'Mehmet Kaya');
 });
 
 await test('Aynı adla YENİ kişi paylaşımı hâlâ reddedilir (isDuplicateCanonicalName)', async () => {
@@ -145,6 +143,9 @@ await test('PATCH /api/profile ve admin kullanıcı düzenleme 409 durumunu ilet
   assert.match(authSrc, /errorJson\(result\.error, result\.status \|\| 400\)/);
   assert.match(adminSrc, /errorJson\(result\.error, result\.status \|\| 400\)/);
   assert.doesNotMatch(authSrc, /findArchitectByFoldedName\(/, 'signup hâlâ Kişi adını engelliyor');
+  // madde 2: hesap adı tekilliği TAMAMEN kalktı — fonksiyon da ÇAĞRISI da kaynakta olmamalı
+  // (yorumda anılması serbest; aranan şey gerçek bir çağrı/tanım).
+  assert.doesNotMatch(authSrc, /(export async function|await) findUserByFoldedName/, 'hesap adı tekillik kontrolü geri gelmiş');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

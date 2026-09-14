@@ -707,9 +707,8 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
 const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Ekip Üyesi','Akademisyen','Serbest Çalışan','Öğrenci','Emekli','İşsiz'];
 // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
 // geliyor (proje-ekle.html/js/components/auth-modal.js ile ortak, bkz. o dosyanın başındaki yorum).
-// users.profession kodlu bir slug'dır (ör. "mimar"), MESLEK_OPTIONS/architects.profession ise ham
-// Türkçe etiket ("Mimar") — bkz. js/components/auth-modal.js#PROFESSION_LABELS ile AYNI eşleme,
-// aşağıdaki maybeAutoFillFromAccount'ta ters yönde kullanılır.
+// MESLEK_OPTIONS/architects.profession ham Türkçe etiket taşır ("Mimar") — slug karşılığı
+// (users.profession'ın biçimi) yalnızca hesap tarafında kullanılır; bkz. profession-shared.js.
 // architects.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6:
 // "Mimar profili oluşturulurken ya da düzenlenirken de birden fazla meslek seçilebilsin") — ham
 // Türkçe etiketler virgülle ayrılır ("Mimar, Fotoğrafçı"). Tek meslekli eski satırlar bu biçimin
@@ -1529,59 +1528,20 @@ function mountArchitectAdminActions(){
   deleteBtn.addEventListener('click', () => run('delete'));
 }
 
-// "Ad Soyad" alanına kendi hesap adını yazan, henüz bir mimar profiliyle eşleşmemiş bir kullanıcı
-// için — bkz. kullanıcı isteği: "profili doldurduysa ve henüz mimar profili yoksa ... kendi isim
-// kısmına kendi ismini yazdığında kalan kısımların bilgileri otomatik olarak profil ekranından
-// çekilsin". Yalnızca YENİ bir profil eklenirken (claim=/edit= YOKKEN) devreye girer, yalnızca BOŞ
-// alanları doldurur (o ana kadar elle girilmiş hiçbir değerin üzerine yazmaz) ve tek seferliktir
-// (autoFilledFromAccount bayrağı — isim tekrar değiştirilse bile ikinci kez doldurmaz).
-let autoFilledFromAccount = false;
-async function maybeAutoFillFromAccount(){
-  if(claimName || editId || autoFilledFromAccount) return;
-  const data = await currentUserReady;
-  const user = data && data.user;
-  if(!user || !user.name) return;
-  const typed = document.getElementById('m-name').value.trim();
-  if(!typed || trLower(typed) !== trLower(user.name)) return;
-  autoFilledFromAccount = true;
-  if(!selectedDob && user.dob){
-    const year = parseInt(String(user.dob).slice(0, 4), 10);
-    if(!Number.isNaN(year)){ selectedDob = year; document.getElementById('dd-dob-btn-label').textContent = String(year); }
-  }
-  const schoolInput = document.getElementById('m-school');
-  if(!schoolInput.value && user.school) schoolInput.value = user.school;
-  if(!meslekDropdown.getChecked().length && user.profession){
-    // users.profession kodlu slug listesi ("mimar,fotografci") → ham Türkçe etiketler.
-    const labels = String(user.profession).split(',').map(s => PROFESSION_LABELS[s.trim()]).filter(Boolean);
-    if(labels.length) meslekDropdown.setChecked(labels);
-  }
-  if(!pozisyonDropdown.get() && user.position) pozisyonDropdown.set(user.position);
-  if(!odullerDropdown.getChecked().length && (user.awards || []).length) odullerDropdown.setChecked(user.awards);
-  const aboutInput = document.getElementById('m-about');
-  if(!aboutInput.value && user.about) aboutInput.value = user.about;
-  if(!socialRows.children.length && (user.social_links || []).length){
-    user.social_links.forEach(s => addSocialRow(s.platform, s.url));
-  }
-  if(!existingPhotoUrl && !selectedFiles.length && user.photoUrl){
-    existingPhotoUrl = user.photoUrl;
-    renderPreviews();
-  }
-  // Firma — bkz. kullanıcı isteği: "firma alanında da aynı otomatik doldurmayı yap". Kaynak,
-  // hesabın KİŞİ profilinin office_founders bağlarıdır (/api/claims/mine -> officeLinks), Profili
-  // Düzenle ile AYNI birleşim (bkz. office-picker.js#mergeOfficeMembershipNames).
-  // Hesabın profile_claims('office') satırları BİLEREK okunmaz (2026-09-14): onlar bir görev değil
-  // yalnızca "bu hesap bu firmanın içeriklerini yönetebilir" yetkisidir — bkz. o dosyadaki
-  // KALDIRILDI notu. Aksi halde yeni açılan HER kişi kaydı, kaydı açan hesabın yönetici olduğu tüm
-  // firmalarla ön-dolardı.
-  const officeInput = document.getElementById('m-office');
-  if(!officeInput.value){
-    await applyOfficeMemberships({ officeTexts: [], offices: [], own: true });
-  }
-}
+// HESAP ADINDAN OTOMATİK DOLDURMA KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3:
+// "Hesabın adı soyadıyla kişi popupının adının soyadının bir alakası olmasın").
+//
+// Burada maybeAutoFillFromAccount vardı: "Ad Soyad" kutusuna hesabının adını yazan kullanıcıda,
+// formun kalan alanları (doğum yılı, üniversite, meslek, pozisyon, ödüller, açıklama, fotoğraf,
+// sosyal medya, firmalar) hesabın `users` satırından doldurulurdu. İki gerekçeyle kalktı:
+//   * hesap ile kişi künyesi artık tamamen AYRI (bkz. CLAUDE.md "Hesap üyeliği ile kişi profili
+//     AYRIDIR") ve hesap adı bir eşleşme ölçütü değil — hesap adları artık çoğalabiliyor (madde 2),
+//   * hesap satırında zaten bu alanların hiçbiri sorulmuyor (Üye Ol formunda doğum yılı/üniversite/
+//     meslek kutuları kaldırıldı), yani doldurulacak bir kaynak da kalmadı.
 
 // ---------- FİRMA/MARKA KUTUSUNUN ORTAK DOLDURUCUSU (kullanıcı isteği, 2026-09-08: "kişi ekle/düzenle
 // sayfası ile profilini düzenle sayfası aynı bilgilere sahip olsun, dinamik ve eş zamanlı çalışsın").
-// Üç ön-doldurma yolu (prefillForClaim, prefillForEdit, maybeAutoFillFromAccount) da buradan geçer;
+// İki ön-doldurma yolu (prefillForClaim, prefillForEdit) da buradan geçer;
 // birleştirme kuralı office-picker.js#mergeOfficeMembershipNames'te, auth-modal.js#prefillFirmaSelect
 // ile BİREBİR aynı fonksiyon. Hesaba bağlı kaynak (/api/claims/mine: officeLinks — hesabın KİŞİ
 // profilinin office_founders bağları) YALNIZCA düzenlenen profil oturumdaki hesabın KENDİ profiliyse
@@ -1615,15 +1575,21 @@ async function fetchCanonicalOffices(name){
     return data.offices || [];
   }catch{ return []; }
 }
+// "Düzenlenen bu kişi kaydı, oturumdaki hesabın KENDİ kişi profili mi?" — kutuya hesabın firma
+// bağlarının eklenip eklenmeyeceğini belirler. TEK ölçüt sunucunun söylediği kişi profilidir
+// (/api/claims/mine -> architectProfile: onaylı atama, yoksa hesabın kendi açtığı kayıt; bkz.
+// src/lib/claimedProfiles.js#fetchOwnArchitectRows).
+//
+// HESAP ADI KARŞILAŞTIRMASI KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3: "Hesabın
+// adı soyadıyla kişi popupının adının soyadının bir alakası olmasın") — burada ikinci bir dal
+// vardı: düzenlenen kaydın adı hesabın ad soyadıyla eşleşiyorsa kayıt "kendi profili" sayılıyordu.
+// Hesap adları artık çoğalabildiğinden (madde 2) o dal, aynı adı taşıyan bir hesabın yabancı bir
+// kişi künyesine kendi firmalarını yazmasına yol açardı.
 async function isOwnAccountProfile(name){
   const n = trLower(String(name || '').trim());
   if(!n) return false;
-  const data = await currentUserReady;
-  const user = data && data.user;
-  if(!user) return false;
   const src = await fetchMyMembershipSources();
-  if(src.architectProfile && trLower(src.architectProfile.name || '') === n) return true;
-  return !!user.name && trLower(user.name) === n;
+  return !!(src.architectProfile && trLower(src.architectProfile.name || '') === n);
 }
 async function applyOfficeMemberships({ officeTexts, offices, own }){
   const account = own ? await fetchMyMembershipSources() : { officeLinks: [] };
@@ -1631,9 +1597,6 @@ async function applyOfficeMemberships({ officeTexts, offices, own }){
   document.getElementById('m-office').value = names.join(', ');
   officePicker.syncFromInput();
 }
-document.getElementById('m-name').addEventListener('input', maybeAutoFillFromAccount);
-document.getElementById('m-name').addEventListener('blur', maybeAutoFillFromAccount);
-
 if(claimName) prefillForClaim(); else prefillForEdit();
 
 // Görsel yükleme boru hattı image-upload.js'te (bkz. o dosyanın başındaki gerekçe): tarayıcı

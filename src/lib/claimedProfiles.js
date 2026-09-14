@@ -181,10 +181,21 @@ export async function ensurePendingOfficeClaims(env, user, officeNames, newId) {
 
 // Kullanıcının kişi (architects) satır id'leri.
 //   claimed  — admin onaylı profile_claims('architect') üzerinden bağlı satırlar
-//   selfNamed— kullanıcının KENDİ adıyla eşleşen satır (name_fold, migrations/0079'un generated
-//              kolonu; foldTr'nin SQL karşılığı — JS tarafıyla birebir aynı katlama)
+//   selfNamed— kullanıcının SAHİP OLDUĞU (kendi hesabından açılmış) kişi satırları:
+//              architects.claimed_by_user_id = user.id (bkz. src/lib/canonicalSync.js#
+//              resolveClaimedByUserId — gönderinin owner_user_id'sinden yazılır, idx_architects_claimed_by
+//              indeksi var).
 // İkisi AYRI döner: görünürlük her ikisini de kabul eder, DÜZENLEME YETKİSİ yalnızca `claimed`
-// yolundan verilir (ad eşleşmesi admin onayı DEĞİLDİR).
+// yolundan verilir (kaydı açmış olmak admin onayı DEĞİLDİR).
+//
+// AD EŞLEŞMESİ KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3: "Hesabın adı soyadıyla
+// kişi popupının adının soyadının bir alakası olmasın"). Burada eskiden
+// `architects.name_fold = foldTr(user.name)` vardı; hesabın ad soyadı bir kişi künyesine
+// bağlanmanın ikinci yoluydu. Madde 2 aynı turda hesap adlarının ÇOĞALMASINA izin verdiğinden
+// (iki "Kaan Çorbacı" üye olabilir) bu yol artık bir SIZMA yolu da olurdu: var olan bir kişi
+// künyesinin adıyla üye olan biri o kişinin firma bağlarını/görevlerini kendi Hesabım'ında
+// görürdü. Sahiplik artık yalnızca (a) admin ataması ya da (b) kaydı kendi hesabından açmış
+// olmaktan gelir; ikisi de addan bağımsızdır.
 export async function fetchOwnArchitectRows(env, user) {
   if (!user) return { claimed: [], selfNamed: [] };
   const [claimedRes, selfRes] = await Promise.all([
@@ -193,9 +204,7 @@ export async function fetchOwnArchitectRows(env, user) {
          JOIN architects a ON (a.name = c.profile_key OR a.legacy_key = c.profile_key) AND a.deleted_at IS NULL
         WHERE c.user_id = ? AND c.profile_type = 'architect' AND c.status = 'approved'`
     ).bind(user.id).all(),
-    user.name
-      ? env.DB.prepare(`SELECT id, name, slug, position FROM architects WHERE deleted_at IS NULL AND name_fold = ?`).bind(foldTr(user.name)).all()
-      : Promise.resolve({ results: [] }),
+    env.DB.prepare(`SELECT id, name, slug, position FROM architects WHERE deleted_at IS NULL AND claimed_by_user_id = ?`).bind(user.id).all(),
   ]);
   const claimed = claimedRes.results || [];
   const claimedIds = new Set(claimed.map(r => r.id));
