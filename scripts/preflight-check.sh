@@ -559,6 +559,20 @@ else
 fi
 rm -f /tmp/preflight_projpromo
 
+# Admin bir FİRMAYI/MARKAYI arşivleyince künyesindeki kişi/proje/ürünlerin de arşivlenmesi (kullanıcı
+# isteği, 2026-09-14). Yayın grafının (activateProfileGraph) TERS yönü ve onunla AYNI ilişkileri
+# okumak zorunda — sapması "firmayı arşivledim ama projeleri sitede duruyor" demek. Cascade'in
+# yayına almadan TEK farkı olan ORTAK KÜNYE KORUMASI da burada sabitlenir: hâlâ yayında olan başka
+# bir firmanın ortak projesi/kişisi/ürünü canlıdan düşmemeli. Bkz.
+# scripts/test-2026-09-14-office-archive-cascade.mjs ve src/lib/officeArchiveCascade.js.
+if node scripts/test-2026-09-14-office-archive-cascade.mjs >/tmp/preflight_offarch 2>&1; then
+  ok "firma/marka arşiv cascade testleri geçti ($(grep -c '^  ok ' /tmp/preflight_offarch) test)"
+else
+  bad "firma/marka arşiv cascade testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_offarch >&2
+fi
+rm -f /tmp/preflight_offarch
+
 # Admin önizlemedeki firmayı ya da KİŞİYİ yayına alınca grafı da yayına çıkar (projeler, firmadaki
 # kişiler; en son proje 1. sıraya) — kullanıcı isteği 2026-09-11 (firma) + 2026-09-12 ("yayına
 # alınmış mimarların projeleri de"); firma popup'ında Ekip Lideri Ekip'te. Kural tek yerde

@@ -17,6 +17,7 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 import { classicSearch } from '../lib/classicSearch.js';
 import { activateProfilesOnPublish, previewProfileIdsByKeys, PUBLISH_GRAPH_PROFILE_TYPE } from './admin.js';
+import { collectOfficeArchiveTargets } from '../lib/officeArchiveCascade.js';
 
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
 const FACET_TYPES = new Set(['projects']);
@@ -647,6 +648,68 @@ async function handleContentAction(request, env, user) {
   return runContentAction(env, user, { type: body.type, action: body.action, id: body.id, key: body.key });
 }
 
+// ADMIN BİR FİRMAYI/MARKAYI ARŞİVLEYİNCE KÜNYESİNDEKİ KİŞİ/PROJE/ÜRÜNLER DE ARŞİVLENİR
+// (kullanıcı isteği, 2026-09-14: "admin bir firmayı ya da markayı arşivlerse o firma ve markaya ait
+// kişiler, projeler ve ürünler otomatik olarak arşivlensin").
+//
+// YAYIN GRAFININ TERSİ: src/routes/admin.js#activateProfileGraph ("firmayı yayına alınca projeleri
+// ve kişileri de yayına gelsin") ile AYNI ilişkileri okur — hangi kayıtların birlikte hareket ettiği
+// sorusunun iki yönde iki ayrı cevabı olmasın diye. İlişki toplama işi tek kaynakta:
+// src/lib/officeArchiveCascade.js#collectOfficeArchiveTargets (orada neyin neden kapsam dışı
+// bırakıldığı da yazılı).
+//
+// YALNIZCA ADMIN: istek açıkça "admin ... arşivlerse" diyor. Sıradan bir kullanıcının kendi firmasını
+// arşivlemesi (src/routes/submissions.js#handleSelfContentModerate -> runContentAction) BU CASCADE'İ
+// TETİKLEMEZ — o kullanıcının, künyedeki başka kişilerin profillerini ve ortak projeleri canlıdan
+// düşürme yetkisi yoktur; admin panelindeki toplu işlem ile kullanıcının kendi kaydını gizlemesi
+// aynı şey değildir.
+//
+// YALNIZCA firma/marka (type === 'offices'): marka ayrı bir tablo DEĞİL, o da bir `offices` satırıdır
+// (bkz. office-kind.js) — tek dal ikisini birden kapsar. Kişi arşivlemek bu cascade'i tetiklemez,
+// dolayısıyla özyineleme (kişi -> firma -> kişi) da yoktur.
+//
+// CANLI KOD YOLU: her kayıt runProjectAction/runContentAction'dan geçer, çünkü geri alınabilirliği
+// sağlayan *_submissions taslağı ("Arşivim > Yayına Al") yalnızca orada oluşur — toplu bir
+// `UPDATE ... hidden_at` bu taslakları HİÇ yaratmaz.
+//
+// skipFacets: proje arşivlemek bumpFacetCounts('projects')i tetikler, o da TÜM aktif proje havuzunu
+// okuyup facet_counts'u baştan yazar (bkz. src/lib/facetCounts.js#recomputeProjectFacets). Kayıt
+// başına çalıştırmak tek bir admin isteğini dakikalara çıkarır; parti sonunda BİR KEZ çalıştırılır
+// (src/routes/unassignedArchive.js#archiveOne ile AYNI gerekçe ve AYNI çözüm).
+async function archiveOfficeGraph(env, user, type, officeKey) {
+  if (type !== 'offices' || !officeKey) return null;
+  if (!user || user.role !== 'admin') return null;
+  const office = await findCanonicalRowByNaturalKey(env, 'offices', officeKey);
+  if (!office) return null;
+
+  const targets = await collectOfficeArchiveTargets(env, office);
+  const done = { architects: [], projects: [], products: [] };
+  const failed = [];
+
+  for (const p of targets.projects) {
+    const res = await runProjectAction(env, user, { action: 'archive', slug: p.key, skipFacets: true });
+    if (res && res.status >= 400) failed.push(p.label); else done.projects.push(p.label);
+  }
+  for (const a of targets.architects) {
+    const res = await runContentAction(env, user, { type: 'architects', action: 'archive', key: a.key });
+    if (res && res.status >= 400) failed.push(a.label); else done.architects.push(a.label);
+  }
+  for (const pr of targets.products) {
+    const res = await runContentAction(env, user, { type: pr.type, action: 'archive', key: pr.key });
+    if (res && res.status >= 400) failed.push(pr.label); else done.products.push(pr.label);
+  }
+  if (done.projects.length) await bumpFacetCounts(env, 'projects');
+
+  return {
+    archived: { architects: done.architects, projects: done.projects, products: done.products },
+    // Ortak künye koruması nedeniyle canlıda BIRAKILANLAR (bkz. collectOfficeArchiveTargets) —
+    // admin "arşivledim" dedikten sonra hâlâ yayında duran bir kaydı görünce bunun bir hata değil,
+    // hâlâ yayında olan BAŞKA bir firmanın künyesini koruma olduğunu anlayabilsin.
+    skipped: targets.skipped,
+    ...(failed.length ? { failed } : {}),
+  };
+}
+
 // runProjectAction (bu dosyada aşağıda) ile AYNI desen — bu fonksiyon kendi başına hiçbir yetki
 // kontrolü YAPMAZ, çağıranı (handleContentAction, admin dispatcher) kendi yetki kontrolünü yapıp
 // buraya düşer.
@@ -657,6 +720,10 @@ export async function runContentAction(env, user, { type, action, id, key }) {
   key = (key || '').trim();
   if (!['delete', 'archive', 'publish'].includes(action)) return errorJson('Geçersiz işlem.');
   if (!id && !key) return errorJson('Geçersiz istek.');
+
+  // Firma/marka arşivlenince künyesindeki kişi/proje/ürünlere ne olduğunun raporu (bkz.
+  // archiveOfficeGraph). Yanıtta döner ki admin ne kadarının birlikte arşivlendiğini görsün.
+  let cascade = null;
 
   if (id) {
     // bkz. src/lib/canonicalSync.js#findOrHealSubmissionDraft dosya başı yorumu — products/materials'ta
@@ -701,6 +768,8 @@ export async function runContentAction(env, user, { type, action, id, key }) {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (targetKey) await setLegacyHidden(env, user, type, targetKey, true);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
+      // Firma/marka arşivleniyorsa künyesindeki kişi/proje/ürünler de — bkz. archiveOfficeGraph.
+      cascade = await archiveOfficeGraph(env, user, type, targetKey || row.name);
     } else {
       // Arşiv > "Yayınla" önizlemedeki bir firmayı ya da KİŞİYİ açıyorsa grafı da (projeler,
       // firmalar/ortaklar, ürünler — bkz. src/routes/admin.js#activateProfilesOnPublish);
@@ -717,7 +786,7 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     await invalidatePublicCache(env);
     const target = ssrPurgeTargetFor(type, row);
     if (target) await purgeSsrDetailCache(target.type, target.key, env);
-    return json({ ok: true });
+    return json({ ok: true, ...(cascade ? { cascade } : {}) });
   }
 
   // key ile: canonical bir kayıt, henüz kendine ait bir *_submissions satırı olmayabilir.
@@ -778,8 +847,10 @@ export async function runContentAction(env, user, { type, action, id, key }) {
   }
 
   await setLegacyHidden(env, user, type, key, true);
+  // Firma/marka arşivleniyorsa künyesindeki kişi/proje/ürünler de — bkz. archiveOfficeGraph.
+  cascade = await archiveOfficeGraph(env, user, type, key);
   await invalidatePublicCache(env);
   const target = ssrPurgeTargetFor(type, { name: key });
   if (target) await purgeSsrDetailCache(target.type, target.key, env);
-  return json({ ok: true });
+  return json({ ok: true, ...(cascade ? { cascade } : {}) });
 }
