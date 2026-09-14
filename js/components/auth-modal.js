@@ -502,6 +502,18 @@ const AuthModal = (function () {
     #am-panel .dash-pagination .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
     #am-panel .dash-pagination .page-ellipsis{color:var(--ink-soft); padding:0 4px;}
     #am-panel .saved-filter{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;}
+    /* Tek satır + yatay kaydırma (kullanıcı isteği, 2026-09-14: Paylaştıklarım'ın altı düğmesi
+       "tek satır halinde sağa doğru kaydırılabilir olsun"). Kutu iç boşluğu kadar negatif margin +
+       eşit padding: satır kutunun kenarına kadar uzar, taşan düğme yarım görünür ve kaydırılabilir
+       olduğu okumadan anlaşılır (arama popup'ındaki önerilen-arama çipleriyle AYNI desen).
+       Yalnızca bu sınıfı taşıyan satıra uygulanır — diğer kutuların filtreleri sarmaya devam eder. */
+    #am-panel .saved-filter-scroll{
+      flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain;
+      -webkit-overflow-scrolling:touch; scrollbar-width:none;
+      margin-inline:-24px; padding-inline:24px; scroll-padding-inline:24px;
+    }
+    #am-panel .saved-filter-scroll::-webkit-scrollbar{display:none;}
+    #am-panel .saved-filter-scroll .saved-filter-btn{flex:0 0 auto; white-space:nowrap;}
     #am-panel .saved-filter-btn{padding:6px 13px; border-radius:100px; border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:600; color:var(--ink-soft);}
     #am-panel .saved-filter-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
     #am-panel .submissions-toolbar-row{display:flex; gap:6px; margin-bottom:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
@@ -1598,7 +1610,11 @@ const AuthModal = (function () {
            860px eşiği çekmecenin 90vw genişliğindeki tablet görünümünü tek sütuna düşürürdü. -->
       <div class="dash-row col-two-col">
         <div class="dash-section">
-          <h2>Beğendiklerim</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-act-rated-collapse" aria-expanded="true" aria-controls="am-act-rated-collapse">
+            <h2>Beğendiklerim</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-act-rated-collapse">
           <div class="saved-filter" id="am-rated-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
@@ -1606,15 +1622,21 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-rated-pagination"></div>
+          </div>
         </div>
 
         <div class="dash-section">
-          <h2>Yorumlarım</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-act-comments-collapse" aria-expanded="true" aria-controls="am-act-comments-collapse">
+            <h2>Yorumlarım</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-act-comments-collapse">
           <div class="saved-filter" id="am-comments-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
           </div>
           <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-comments-pagination"></div>
+          </div>
         </div>
       </div>
 
@@ -1628,16 +1650,28 @@ const AuthModal = (function () {
              bağlantıyı kopyalamak/WhatsApp/X/LinkedIn'e göndermek ya da yerel paylaşım sayfasını
              onaylamak sayılır. -->
         <div class="dash-section">
-          <h2>Paylaştıklarım</h2>
-          <div class="saved-filter" id="am-shares-filter">
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-act-shares-collapse" aria-expanded="true" aria-controls="am-act-shares-collapse">
+            <h2>Paylaştıklarım</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-act-shares-collapse">
+          <!-- "Marka" (kullanıcı isteği, 2026-09-14) — Koleksiyonum > Takip Ettiklerim'deki AYNI
+               model: marka ayrı bir paylaşım tipi değil, offices satırıdır; sunucu /api/shares'te
+               is_brand/is_pure_brand döner (bkz. src/routes/shares.js) ve istemci sekme eşleşmesini
+               shareFilterTypes ile yapar. saved-filter-scroll: altı düğme mobilde iki satıra
+               sarıyordu; artık tek satır + yatay kaydırma (arama popup'ındaki chip satırıyla aynı
+               desen — kenara taşan son düğme "kaydırılabilir" olduğunu kendiliğinden anlatır). -->
+          <div class="saved-filter saved-filter-scroll" id="am-shares-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
             <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+            <button type="button" class="saved-filter-btn" data-filter="brand">Marka</button>
           </div>
           <div id="am-dash-shares"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-shares-pagination"></div>
+          </div>
         </div>
 
         <!-- Eklediklerim — eski contentsTemplate/İçeriklerim popup'ından TAŞINDI (kullanıcı isteği,
@@ -1646,7 +1680,11 @@ const AuthModal = (function () {
              ayrım sunucudan gelen item.isBrand ile yapılır (bkz. src/routes/submissions.js#listMine
              ve office-kind.js). -->
         <div class="dash-section">
-          <h2>Eklediklerim</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-act-submissions-collapse" aria-expanded="true" aria-controls="am-act-submissions-collapse">
+            <h2>Eklediklerim</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-act-submissions-collapse">
           <div class="submissions-toolbar-row" id="am-submissions-filter">
             <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
@@ -1657,6 +1695,7 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -1694,7 +1733,11 @@ const AuthModal = (function () {
         <!-- dash-section-wide: Panolarım tek başına ilk satırı tam genişlik kaplar, Kaydettiklerim
              ve Takip Ettiklerim altında yan yana ikinci satıra düşer. -->
         <div class="dash-section dash-section-wide">
-          <h2>Panolarım</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-col-boards-collapse" aria-expanded="true" aria-controls="am-col-boards-collapse">
+            <h2>Panolarım</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-col-boards-collapse">
           <p class="section-hint">Yeni bir pano oluştur, sonra içine kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekle.</p>
           <div class="col-new-row">
             <input type="text" id="am-col-new-title" placeholder="Yeni pano adı" maxlength="120" autocomplete="off">
@@ -1702,6 +1745,7 @@ const AuthModal = (function () {
           </div>
           <div class="col-notice" id="am-col-list-notice"></div>
           <div id="am-col-list"><div class="dash-empty">Yükleniyor…</div></div>
+          </div>
         </div>
 
         <!-- Kaydettiklerim (kullanıcı isteği, 2026-08-31: "Kaydettiklerim kutucuğunu da KOLEKSİYONUM
@@ -1709,7 +1753,11 @@ const AuthModal = (function () {
              .saved-row işaretlemesi, aynı filtre/sayfalama), oradan KALDIRILMADAN buraya da eklendi.
              Burada ayrıca doğal bir yeri var: panolara öğe eklemenin ana kaynağı bu liste. -->
         <div class="dash-section">
-          <h2>Kaydettiklerim</h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-col-saved-collapse" aria-expanded="true" aria-controls="am-col-saved-collapse">
+            <h2>Kaydettiklerim</h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-col-saved-collapse">
           <p class="section-hint">Panolarına eklemek için kaydettiğin içerikler. Bir panonun içinden "Kaydettiklerimden Ekle" ile seçebilirsin.</p>
           <!-- kullanıcı isteği (2026-09-01 madde 4): "Mimar" ve "Firma" filtre butonları BU kutudan
                kaldırıldı. Yalnızca butonlar gitti — filtreleme mantığı (colMatchesCatalogFilter) ve
@@ -1727,6 +1775,7 @@ const AuthModal = (function () {
           </div>
           <div id="am-col-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-col-saved-pagination"></div>
+          </div>
         </div>
 
         <!-- Takip Ettiklerim — kullanıcı isteği (2026-09-01 madde 2): "Takip ettiklerim kutusunu
@@ -1739,7 +1788,11 @@ const AuthModal = (function () {
                • "Yeni" rozeti: son ziyaretten sonra yayınlanmış gönderilerin yanında (bkz.
                  followSeenAt / FOLLOW_FEED_SEEN_KEY). -->
         <div class="dash-section">
-          <h2>Takip Ettiklerim <span class="dash-new-count" id="am-follow-feed-new-count" hidden></span></h2>
+          <button type="button" class="dash-collapse-toggle" data-collapse="am-col-follow-collapse" aria-expanded="true" aria-controls="am-col-follow-collapse">
+            <h2>Takip Ettiklerim <span class="dash-new-count" id="am-follow-feed-new-count" hidden></span></h2>
+            <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dash-collapse-body" id="am-col-follow-collapse">
           <p class="section-hint">Takip ettiğin mimar, firma ve markalar ile onların takibe başladıktan SONRA eklediği proje ve ürünler.</p>
           <div class="saved-filter" id="am-follow-feed-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
@@ -1756,6 +1809,7 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-follow-feed-pagination"></div>
+          </div>
         </div>
       </div>
 
@@ -2338,6 +2392,38 @@ const AuthModal = (function () {
     return shared.then(d => (d && d.user ? d : freshAuthMe()), freshAuthMe);
   }
 
+  // AÇILIR KAPANIR KUTULARIN TEK KANCASI — Hesabım, Aktivitelerim ve Koleksiyonum aynı
+  // .dash-collapse-toggle + data-collapse + .dash-collapse-body sözleşmesini paylaşır.
+  //
+  // Eskiden bu fonksiyon mountAccount()'un İÇİNDE tanımlıydı, yani yalnızca Hesabım görünümünde
+  // çalışıyordu; Aktivitelerim/Koleksiyonum kutuları açılır kapanır yapılınca (kullanıcı isteği,
+  // 2026-09-14) düğmeleri hiçbir yere bağlanmazdı. Modül kapsamına alındı — mount eden her görünüm
+  // kendi lazy yükleyicileriyle çağırır (Hesabım'ın 'stats'ı gibi; diğer iki görünümde yok).
+  //
+  // data-collapseWired: aynı düğme iki kez bağlanmasın (bir görünüm yeniden mount edilebilir, o
+  // zaman düğme YENİdir ve işaret taşımaz — eski düğme DOM'dan gitmiştir).
+  // Durum DÜĞMEDEN okunur (aria-expanded), gövdenin hidden'ından değil: varsayılan AÇIK kutularda
+  // (bkz. Profil Bilgileri / Bildirimler / Aktivitelerim'in tamamı) ilk tıklama böylece KAPATIR.
+  function wireCollapsibles(lazySectionLoaders = {}, lazySectionDone = new Set()) {
+    document.querySelectorAll('#am-panel .dash-collapse-toggle[data-collapse]').forEach((btn) => {
+      if (btn.dataset.collapseWired) return;
+      btn.dataset.collapseWired = '1';
+      btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') !== 'true';
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.dataset.collapse.split(/\s+/).filter(Boolean).forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.hidden = !open;
+        });
+        const lazy = btn.dataset.lazy;
+        if (open && lazy && !lazySectionDone.has(lazy) && lazySectionLoaders[lazy]) {
+          lazySectionDone.add(lazy);
+          Promise.resolve(lazySectionLoaders[lazy]()).catch(() => {});
+        }
+      });
+    });
+  }
+
   function mountAccount() {
     // Telif ve Sorumluluk Beyanı kutuları (Profili Düzenle + Arşivim) — bu şablon DİNAMİK basıldığı
     // için rights-consent.js'in DOMContentLoaded'daki otomatik kurulumu bu düğümleri göremez,
@@ -2378,26 +2464,7 @@ const AuthModal = (function () {
     // Oturum boyunca tek sefer: kutu bir kez açılıp veri geldiyse panel kapanıp yeniden açıldığında
     // tekrar çekilmez (dönem düğmeleri zaten kendi loadStats()'ını çağırıyor).
     const lazySectionDone = new Set();
-    function wireCollapsibles() {
-      document.querySelectorAll('#am-panel .dash-collapse-toggle[data-collapse]').forEach((btn) => {
-        if (btn.dataset.collapseWired) return;
-        btn.dataset.collapseWired = '1';
-        btn.addEventListener('click', () => {
-          const open = btn.getAttribute('aria-expanded') !== 'true';
-          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-          btn.dataset.collapse.split(/\s+/).filter(Boolean).forEach((id) => {
-            const el = document.getElementById(id);
-            if (el) el.hidden = !open;
-          });
-          const lazy = btn.dataset.lazy;
-          if (open && lazy && !lazySectionDone.has(lazy) && lazySectionLoaders[lazy]) {
-            lazySectionDone.add(lazy);
-            Promise.resolve(lazySectionLoaders[lazy]()).catch(() => {});
-          }
-        });
-      });
-    }
-    wireCollapsibles();
+    wireCollapsibles(lazySectionLoaders, lazySectionDone);
 
     // Önizlemedeki fotoğrafa tıklamak onu büyütüp yeniden kırpar (kullanıcı isteği, 2026-09-04) —
     // bkz. js/components/image-crop.js#enableThumbCrop, kisi-ekle.html'deki AYNI desen. PROFİL
@@ -5078,6 +5145,10 @@ const AuthModal = (function () {
   // kontrolüyle çalışır.
   // ---------------------------------------------------------------------------------------------
   function mountActivities() {
+    // Kutular açılır kapanır, hepsi VARSAYILAN AÇIK (kullanıcı isteği, 2026-09-14).
+    // Lazy yükleyici YOK: bu görünümlerdeki kutuların hepsi mount anında zaten yükleniyor
+    // (Hesabım'daki İstatistikler gibi pahalı/ertelenen bir kutu burada bulunmuyor).
+    wireCollapsibles();
     const wired = new Set();
     function on(id, evt, fn) {
       const key = id + ':' + evt;
@@ -5206,6 +5277,17 @@ const AuthModal = (function () {
     let shareItems = [];
     let sharesFilter = '';
     let sharesPage = 1;
+    // Bir paylaşım satırının HANGİ sekmelerde görüneceği — Koleksiyonum > Takip Ettiklerim'deki
+    // filterTypes ile AYNI kural (bkz. loadFollowFeed): Autoban gibi hem mimarlık yapan hem ürün
+    // tasarlayan bir ofis HEM "Firma" HEM "Marka" sekmesinde çıkar, VitrA gibi saf üretici yalnızca
+    // "Marka"da. Ofis olmayan tipler eski davranışta kalır (product/material aynı sekmede).
+    function shareFilterTypes(it) {
+      if (it.item_type !== 'office') {
+        return it.item_type === 'product' || it.item_type === 'material' ? ['product', it.item_type] : [it.item_type];
+      }
+      if (it.is_pure_brand) return ['brand'];
+      return it.is_brand ? ['office', 'brand'] : ['office'];
+    }
     async function loadShares() {
       const res = await fetch('/api/shares');
       const data = res.ok ? await res.json() : { items: [] };
@@ -5215,7 +5297,7 @@ const AuthModal = (function () {
     function renderShares() {
       const container = document.getElementById('am-dash-shares');
       if (!container) return;
-      const items = sharesFilter ? shareItems.filter(it => matchesCatalogFilter(it.item_type, sharesFilter)) : shareItems;
+      const items = sharesFilter ? shareItems.filter(it => shareFilterTypes(it).includes(sharesFilter)) : shareItems;
       if (!shareItems.length) {
         container.innerHTML = '<div class="dash-empty">Henüz bir içerik paylaşmadın.<br>Bir proje ya da ürün popup\'ındaki Paylaş butonunu kullandığında burada listelenir.<br><a href="/proje">Projelere göz at</a></div>';
         document.getElementById('am-shares-pagination').innerHTML = '';
@@ -5231,7 +5313,9 @@ const AuthModal = (function () {
       const startIdx = (sharesPage - 1) * PAGE_SIZE_DASH;
       const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
       container.innerHTML = pageItems.map(it => {
-        const metaBits = [SAVED_TYPE_LABELS[it.item_type] || '', SHARE_CHANNEL_LABELS[it.channel] || '', it.item_meta || ''].filter(Boolean);
+        // Etiket: saf marka "Marka" yazar, karma ofis "Firma" kalır (bkz. shareFilterTypes notu).
+        const typeLabel = it.is_pure_brand ? 'Marka' : (SAVED_TYPE_LABELS[it.item_type] || '');
+        const metaBits = [typeLabel, SHARE_CHANNEL_LABELS[it.channel] || '', it.item_meta || ''].filter(Boolean);
         return `
         <div class="saved-row" data-id="${escapeAttr(it.id)}">
           <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
@@ -5346,6 +5430,10 @@ const AuthModal = (function () {
   // ile idempotent dinleyici bağlama, sonda TEK bir /api/auth/me kontrolü). Tüm veri
   // /api/collections* uçlarından gelir (bkz. src/routes/collections.js).
   function mountCollections() {
+    // Kutular açılır kapanır, hepsi VARSAYILAN AÇIK (kullanıcı isteği, 2026-09-14).
+    // Lazy yükleyici YOK: bu görünümlerdeki kutuların hepsi mount anında zaten yükleniyor
+    // (Hesabım'daki İstatistikler gibi pahalı/ertelenen bir kutu burada bulunmuyor).
+    wireCollapsibles();
     const wired = new Set();
     function on(id, evt, fn) {
       const key = id + ':' + evt;

@@ -4,6 +4,10 @@ import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { findProductsByKeys } from './product.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+import officeKindJs from '../../office-kind.js';
+import { parseCanonicalRow } from '../lib/canonicalRead.js';
+
+const { isBrandOffice, isPureBrandOffice } = officeKindJs;
 
 // Paylaştıklarım (kullanıcı isteği, 2026-08-31): Aktivitelerim'in 2. satır 2. sütunundaki kutu —
 // "kullanıcıların paylaş butonuna tıklayarak başkalarına ilettikleri gönderiler". src/routes/saved.js
@@ -70,10 +74,44 @@ export async function listShares(env, user) {
     return findCanonicalRowByNaturalKey(env, canonicalType, r.item_key);
   }));
 
-  const items = results.filter((_, i) => {
+  const kept = results.filter((_, i) => {
     const row = rows[i];
     if (row === undefined) return true;
     return !!row && !row.deleted_at && !row.hidden_at;
+  });
+
+  // is_brand / is_pure_brand — Aktivitelerim > Paylaştıklarım'ın "Marka" sekmesi için (kullanıcı
+  // isteği, 2026-09-14). Koleksiyonum > Takip Ettiklerim ile BİREBİR AYNI model ve AYNI kaynak
+  // (bkz. src/routes/follows.js#listFollows): marka ayrı bir item_type DEĞİL, o da bir offices
+  // satırıdır (bkz. office-kind.js dosya başı) ve Paylaş butonu type='office' gönderir. Ayrımın
+  // TEK kaynağı office-kind.js olduğu için karar burada, sunucuda verilir — iki kutuda iki farklı
+  // cevap çıkmasın.
+  //   is_brand      → MARKA sekmesinde görünür mü? (marka.html'de listelenenlerin aynısı)
+  //   is_pure_brand → yalnızca marka mı? (satırın ETİKETİNİ belirler; Autoban "Firma" kalır)
+  // parseCanonicalRow ŞART: offices.cats üç biçimde de saklanabiliyor (JSON dizi / JSON-quoted düz
+  // metin / NULL) — bkz. follows.js'teki aynı gerekçe.
+  const officeRowByIdx = new Map();
+  kept.forEach((r) => {
+    const i = results.indexOf(r);
+    if (r.item_type === 'office' && rows[i]) officeRowByIdx.set(r, rows[i]);
+  });
+  const officeIds = [...new Set([...officeRowByIdx.values()].map(o => o.id).filter(Boolean))];
+  const productCountById = new Map();
+  if (officeIds.length) {
+    const ph = officeIds.map(() => '?').join(',');
+    const { results: countRows } = await env.DB.prepare(
+      `SELECT brand_office_id AS id, COUNT(*) AS n FROM products
+        WHERE deleted_at IS NULL AND hidden_at IS NULL AND brand_office_id IN (${ph})
+        GROUP BY brand_office_id`
+    ).bind(...officeIds).all();
+    for (const c of countRows || []) productCountById.set(c.id, c.n);
+  }
+  const items = kept.map((r) => {
+    const office = officeRowByIdx.get(r);
+    if (!office) return r;
+    const cats = parseCanonicalRow('offices', office).cats;
+    const productCount = productCountById.get(office.id) || 0;
+    return { ...r, is_brand: isBrandOffice(cats, productCount), is_pure_brand: isPureBrandOffice(cats, productCount) };
   });
   return json({ items });
 }

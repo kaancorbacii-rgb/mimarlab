@@ -92,6 +92,13 @@
   .ge-lead{font-size:14px; line-height:1.55; color:var(--ink-soft); margin:0 0 26px;}
   .ge-card{background:var(--paper-card); border-radius:22px; padding:30px 32px; box-shadow:0 1px 2px rgba(27,42,61,0.04);}
   .ge-field{display:flex; flex-direction:column; gap:7px; margin-bottom:22px;}
+  /* GERÇEK BULGU (kullanıcı bildirimi, 2026-09-14: "iş / staj ilanı butonuna tıklayınca gelen metin
+     kutusunu kaldır"): js/pages/gundem-ekle.js#syncCategoryFields bu kategoride #ge-text-field'a
+     `hidden` yazıyordu ama kutu EKRANDA KALIYORDU — yukarıdaki display:flex, tarayıcının kendi
+     [hidden]{display:none} kuralını EZER (yazar stili UA stilini yener). Yani 2026-09-12'de istenen
+     "sadece ilan başlığı ve ilan görseli olsun" davranışı hiç çalışmamış. Aynı tuzak Hesabım'daki
+     uyarı noktasında da yaşanmıştı (bkz. auth-modal.js#dash-alert-dot[hidden]). */
+  .ge-field[hidden]{display:none;}
   .ge-label{font-size:13px; font-weight:700; color:var(--ink);}
   .ge-label small{font-weight:500; color:var(--ink-soft);}
   .ge-hint{font-size:12.5px; color:var(--ink-soft); line-height:1.5;}

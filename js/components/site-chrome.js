@@ -1032,7 +1032,12 @@
           .nav-search-modal{padding:48px 22px 22px;}
           .nav-search-modal-close{top:8px; right:12px;}
           .nav-search-modal-input-row{margin-right:0;}
-          .nav-search-modal-image-box{flex-direction:column;}
+          /* Sütuna dönen kutuda 18px gap + 20px padding, "Görseli sürükle..." / VEYA / URL kutusu
+             arasında mobilde gereğinden geniş boşluklar bırakıyordu (kullanıcı isteği, 2026-09-14:
+             "VEYA yazısıyla üst yazının ve alttaki URL kutucuğunun arası çok açık"). Yatay
+             yerleşimde 18px iki sütunu ayıran makul bir aralıktı; dikeyde üç satırı gereksiz yere
+             birbirinden koparıyor. Masaüstü (yan yana) düzeni değişmedi. */
+          .nav-search-modal-image-box{flex-direction:column; gap:8px; padding:14px;}
           /* Önerilen aramalar mobilde TEK SATIR + yatay kaydırma (kullanıcı isteği, 2026-09-14).
              Beş chip sarmalandığında ("Ofis / İş Merkezi", "Turizm / Otel"... uzun etiketler) üç
              satıra kadar çıkıp popup'ın yarısını yiyordu. Negatif margin + eşit padding, satırın
