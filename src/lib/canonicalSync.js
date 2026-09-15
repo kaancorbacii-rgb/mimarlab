@@ -1360,6 +1360,16 @@ async function syncProject(env, row, opts = {}) {
     for (const link of links) {
       statements.push(env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`).bind(projectId, link.architect_id, link.office_id));
     }
+    // KÜNYEDEKİ HAM ADLAR (kullanıcı isteği, 2026-09-15 madde 2; bkz. migrations/
+    // 0120_project_designer_names_raw.sql). Yukarıdaki links yalnızca EŞLEŞEN adları taşır —
+    // architects/offices'te karşılığı olmayan bir isim resolve*Link'ten null döndüğü için
+    // project_designers'a hiç yazılamaz (CHECK kısıtı) ve /proje listesinin Mimar / Mimarlık
+    // Firması filtrelerinde görünmezdi. Adlar formda YAZILDIĞI HÂLİYLE burada saklanır; okuma
+    // tarafı (src/lib/projectPool.js#shapeProjectItem) eşleşenlerle birleştirip tekilleştirir.
+    // AYNI batch'te ve AYNI kapının içinde yazılır: künye baştan yazıldığında iki kaynak birlikte
+    // tazelenmeli, aksi halde silinen bir ad ham listede hayatta kalırdı.
+    statements.push(env.DB.prepare(`UPDATE projects SET designer_names_raw = ?, office_names_raw = ? WHERE id = ?`)
+      .bind(JSON.stringify(row.designer || []), JSON.stringify(row.office || []), projectId));
     if (statements.length) await env.DB.batch(statements);
 
     // Yeni künye adları: resolve edilen id'lerden DEĞİL, formda yazılan adlardan okunur — damga

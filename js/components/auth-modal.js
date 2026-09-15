@@ -1337,7 +1337,7 @@ const AuthModal = (function () {
             <div id="am-edit-office-picker"></div>
             <!-- kisi-ekle.html'deki AYNI not (kullanıcı isteği, 2026-09-08 madde 1) — beyan,
                  firmanın profilinde görünmek demek değil; onay admin'de. -->
-            <p style="margin:6px 0 0; font-size:12px; line-height:1.45; color:var(--ink-soft);">Seçtiğin firma/marka admin onayına gönderilir; onaylanana kadar o firmanın profilinde görünmezsin.</p>
+            <p style="margin:6px 0 0; font-size:12px; line-height:1.45; color:var(--ink-soft);">Seçtiğin firma admin onayına gönderilir; onaylanana kadar o firmanın profilinde görünmezsin.</p>
           </div>
           <!-- Ödüller/Sosyal Medya/Açıklama — bkz. kullanıcı isteği: "Mimar profiliyle henüz
                eşleşmemiş kullanıcılar da ödül, sosyal medya ve açıklama ekleyebilsinler" — herkes
@@ -1862,7 +1862,7 @@ const AuthModal = (function () {
             <svg class="dash-collapse-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dash-collapse-body" id="am-col-follow-collapse">
-          <p class="section-hint">Takip ettiğin mimar, firma ve markalar ile onların takibe başladıktan SONRA eklediği proje ve ürünler.</p>
+          <p class="section-hint">Takip ettiğin mimar ve firmalar ile onların takibe başladıktan SONRA eklediği proje ve ürünler.</p>
           <div class="saved-filter" id="am-follow-feed-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
@@ -2253,6 +2253,9 @@ const AuthModal = (function () {
   let firmInfoPosition = null;
   // office_founders yolundan gelen düzenleme yetkisi (sunucunun kararı, bkz. renderFirmEditBtn).
   let firmInfoFounderCanEdit = false;
+  // Firmayı siteye EKLEYEN kullanıcı mı (kullanıcı isteği, 2026-09-15 madde 1) — firmInfoFounderCanEdit
+  // ile AYNI rol: sunucunun verdiği yetki kararını "Bilgileri Düzenle" butonuna taşır.
+  let firmInfoOwnerCanEdit = false;
   // Hesabın kişi profili ({name, slug}) — /api/claims/mine#architectProfile (bkz. renderAmNameBadge).
   let myArchitectProfile = null;
   // KİŞİ KÜNYESİ (kullanıcı isteği, 2026-09-14 madde 3): "Kişi Bilgileri" kutusunun ve kişi
@@ -2689,12 +2692,17 @@ const AuthModal = (function () {
     // src/routes/claims.js#myClaims). Aynı yanıtta geldiğinden ek bir istek doğurmaz; loadFirmInfo
     // ÜÇÜNCÜ KAYNAK olarak bunu okur.
     let myOfficeLinks = [];
+    // ownOffices — kullanıcının SİTEYE KENDİ EKLEDİĞİ firmalar (kullanıcı isteği, 2026-09-15 madde 1;
+    // bkz. src/routes/claims.js#myClaims). officeLinks'ten AYRI tutulur: "bu firmayı ben ekledim"
+    // ile "bu firmada görevliyim" farklı şeylerdir ve ikincisi kişi künyesinin Firma kutusunu besler.
+    let myOwnOffices = [];
     function fetchMyClaims() {
       if (!myClaimsPromise) {
         myClaimsPromise = fetch('/api/claims/mine')
           .then(r => r.ok ? r.json() : { items: [] })
           .then(d => {
             myOfficeLinks = (d && d.officeLinks) || [];
+            myOwnOffices = (d && d.ownOffices) || [];
             // Ad Soyad satırının bağlanacağı kişi profili (bkz. renderAmNameBadge) — sunucu
             // sahipliğin İKİ yolunu da çözer (onaylı talep, yoksa hesabın adıyla eşleşen kendi kaydı).
             myArchitectProfile = (d && d.architectProfile) || null;
@@ -3210,7 +3218,8 @@ const AuthModal = (function () {
     // Liste HER YÜKLEMEDE sunucudan gelir, bu yüzden firmadan çıkarılan bir kişi kutudan da düşer;
     // istemcide ayrıca bir silme mantığı yoktur ("dinamik tasarım" isteğinin karşılığı).
     function canManageFirmEntry(entry) {
-      return !!entry && (((entry.approved && OFFICE_EDIT_POSITIONS.has(entry.position))) || !!entry.founderCanEdit);
+      // ownerCanEdit — firmayı siteye ekleyen kullanıcı (kullanıcı isteği, 2026-09-15 madde 1).
+      return !!entry && (((entry.approved && OFFICE_EDIT_POSITIONS.has(entry.position))) || !!entry.founderCanEdit || !!entry.ownerCanEdit);
     }
     function buildPersonEntries() {
       const entries = [];
@@ -4222,7 +4231,7 @@ const AuthModal = (function () {
         const folded = foldTrAm(name);
         if (seen.has(folded)) return;
         seen.add(folded);
-        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, officeRole: null, founderCanEdit: false, ...extra });
+        entries.push({ key: name, status: null, approved: false, position: null, slug: name, role: null, officeRole: null, founderCanEdit: false, ownerCanEdit: false, ...extra });
       };
       for (const c of officeClaims.filter(c => c.status === 'approved')) {
         pushEntry(c.profile_key, {
@@ -4256,6 +4265,22 @@ const AuthModal = (function () {
       // girdisi kazanır (yetkiyi orada dondurulmuş görev belirler).
       for (const l of myOfficeLinks) {
         pushEntry(l.name, { role: l.role || null, officeRole: l.officeRole || l.role || null, slug: l.slug || l.name, founderCanEdit: !!l.canEdit });
+      }
+      // DÖRDÜNCÜ KAYNAK — KAYDI KENDİ EKLEYEN KULLANICI (kullanıcı isteği, 2026-09-15 madde 1):
+      // "bir kullanıcı siteye yeni bir ... firma eklerse otomatik olarak o ... firma profilinin
+      // yöneticisi olsun ve hesabım sayfasındaki kutularda ... firma profili gözüksün". Onaylanmış
+      // kayıtlarda ownerCanEdit true gelir (sunucudaki AYNI karar — bkz. claimedProfiles.js#
+      // canEditOfficeAsCreator), onay bekleyen gönderilerde satır yalnızca "Durum" ile görünür.
+      // pushEntry ilk gireni koruduğundan, firma ayrıca claim/kurucu bağıyla da geliyorsa o girdi
+      // kazanır (orada dondurulmuş görev/yetki daha spesifiktir).
+      for (const o of myOwnOffices) {
+        pushEntry(o.name, {
+          status: o.status === 'approved' ? 'approved' : o.status,
+          approved: o.status === 'approved',
+          officeRole: o.officeRole || null,
+          slug: o.slug || o.name,
+          ownerCanEdit: !!o.canEdit,
+        });
       }
       firmEntries = entries;
       if (firmPage > entries.length) firmPage = 1;
@@ -4411,7 +4436,7 @@ const AuthModal = (function () {
       if (!btn) return;
       const msg = box.querySelector('[data-role="firm-dismiss-msg"]');
       btn.addEventListener('click', async () => {
-        if (!confirm(`${key} bu kutudan kaldırılsın mı?\n\nFirmanın kendi künyesi (Kurucular, Ekip) etkilenmez; yalnızca bu kayıt hesabının Firma / Marka Bilgileri kutusundan çıkar.`)) return;
+        if (!confirm(`${key} bu kutudan kaldırılsın mı?\n\nFirmanın kendi künyesi (Kurucular, Ekip) etkilenmez; yalnızca bu kayıt hesabının Firma Bilgileri kutusundan çıkar.`)) return;
         btn.disabled = true;
         if (msg) { msg.textContent = 'Kaldırılıyor…'; msg.className = 'am-mgr-msg'; }
         try {
@@ -4455,6 +4480,7 @@ const AuthModal = (function () {
         firmInfoIsBrand = false;
         firmInfoPosition = null;
         firmInfoFounderCanEdit = false;
+        firmInfoOwnerCanEdit = false;
         renderFirmEditBtn();
         box.innerHTML = '<div class="dash-empty">Henüz bir firmada görev almıyorsun. Profili Düzenle\'den firmanı seçebilirsin.</div>';
         if (pager) pager.innerHTML = '';
@@ -4468,6 +4494,7 @@ const AuthModal = (function () {
       firmInfoApproved = entry.approved;
       firmInfoPosition = entry.position;
       firmInfoFounderCanEdit = !!entry.founderCanEdit;
+      firmInfoOwnerCanEdit = !!entry.ownerCanEdit;
       firmInfoSlug = (office && office.slug) || entry.slug;
       // Saf marka mı? Kararın TEK kaynağı sunucudur (office-kind.js#isPureBrandOffice, /api/office/
       // :key yanıtındaki isBrand) — istemci burada ikinci bir kategori listesi taşımaz.
@@ -4530,10 +4557,10 @@ const AuthModal = (function () {
         ? (amPublicBadges.office && amPublicBadges.office[entry.key])
         : null;
       const firmBadgeType = firmBadgeList && firmBadgeList.length ? firmBadgeList[0] : null;
-      // Kanonik önek: saf markalar /marka/:slug, geri kalanlar /firma/:slug (bkz.
-      // src/lib/officeUrl.js#officePath) — yanlış önekte sunucu zaten 301 atar, ama doğrudan doğru
-      // adrese gitmek bir gereksiz gidiş-dönüşü önler.
-      const detailBase = firmInfoIsBrand ? '/marka/' : '/firma/';
+      // TEK önek: /firma/:slug (kullanıcı isteği, 2026-09-15 madde 4 — marka kavramı kaldırıldı,
+      // /marka/* adresleri 301 ile buraya taşındı, bkz. src/index.js). firmInfoIsBrand'e göre
+      // dallanan eski hâl bu kutuda bir "Marka" bağlantısı üretiyordu.
+      const detailBase = '/firma/';
       // Üçüncü eleman (html) varsa değer HAZIR HTML'dir ve escape EDİLMEZ — yalnızca bu dosyanın
       // kendi ürettiği, içindeki her kullanıcı verisi zaten escapeHtml/escapeAttr'dan geçmiş
       // işaretleme için kullanılır (bkz. managersRowHtml).
@@ -4598,8 +4625,11 @@ const AuthModal = (function () {
       //  (b) firmanın Kurucular listesindeki, admin onaylı kişi profilin (claims/mine -> officeLinks
       //      [].canEdit, bkz. claimedProfiles.js#canEditOfficeViaFounderLink). (b) İSTEMCİDE YENİDEN
       //      HESAPLANMAZ: kural office_founders'a bakmayı gerektiriyor, sunucu zaten söylüyor.
+      //  (c) firmayı siteye EKLEYEN kullanıcı (kullanıcı isteği, 2026-09-15 madde 1) — sunucudaki
+      //      AYNI karar (claims/mine -> ownOffices[].canEdit, bkz. claimedProfiles.js#
+      //      canEditOfficeAsCreator); yalnızca onaylanmış (canonical satırı olan) kayıtlarda true.
       const canEdit = !!firmInfoSlug
-        && ((firmInfoApproved && OFFICE_EDIT_POSITIONS.has(firmInfoPosition)) || firmInfoFounderCanEdit);
+        && ((firmInfoApproved && OFFICE_EDIT_POSITIONS.has(firmInfoPosition)) || firmInfoFounderCanEdit || firmInfoOwnerCanEdit);
       btn.style.display = canEdit ? '' : 'none';
       // Tek düzenleme sayfası: firma-ekle.html (kullanıcı isteği, 2026-09-14 madde 4).
       if (canEdit) btn.href = `${claimEditPageForOffice(firmInfoIsBrand)}?claim=${encodeURIComponent(firmInfoSlug)}`;
@@ -5310,7 +5340,7 @@ const AuthModal = (function () {
       });
       if (hint) {
         hint.textContent = statsScope === 'office'
-          ? 'Firmanın / markanın ve ona bağlı içeriklerin performansı.'
+          ? 'Firmanın ve ona bağlı içeriklerin performansı.'
           : 'Profilinin ve içeriklerinin performansı.';
       }
     }
@@ -7507,7 +7537,9 @@ const AuthModal = (function () {
       // filterTypes yoksa (feed'den gelen proje/ürün satırları) tipin kendisi kullanılır.
       const items = followFeedFilter ? followFeedItems.filter(it => (it.filterTypes || [it.type]).includes(followFeedFilter)) : followFeedItems;
       if (!followFeedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar, firma ya da marka yok.<br><a href="/marka">Markalara göz at</a></div>';
+        // "Markalara göz at" düğmesi KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 4): marka
+        // kavramı sitede yok, /marka adresi zaten /firma'ya 301 atıyor (bkz. src/index.js).
+        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar ya da firma yok.<br><a href="/firma">Firmalara göz at</a></div>';
         document.getElementById('am-follow-feed-pagination').innerHTML = '';
         return;
       }

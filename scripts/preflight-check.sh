@@ -619,6 +619,21 @@ else
 fi
 rm -f /tmp/preflight_acsplit
 
+# 2026-09-15 dört maddesi: (1) kaydı siteye ekleyen kullanıcı o kaydın YÖNETİCİSİDİR ve firma
+# Hesabım kutusunda görünür, (2) proje künyesine yazılmış AMA sitede kaydı olmayan adlar /proje
+# filtrelerinde de görünür (projects.designer_names_raw / office_names_raw), (3) proje-ekle'nin
+# firma kutusuna elle isim girilebilir (office-picker allowCustom, YALNIZCA o sayfada), (4) hesap
+# ekranlarında marka düğmesi/bağlantısı kalmadı. Yetki kapıları geri alınırsa ya da ham ad kolonları
+# yazılmayı/okunmayı bırakırsa deploy'u durdurur.
+# Bkz. scripts/test-2026-09-15-owner-manager-and-credit-names.mjs.
+if node scripts/test-2026-09-15-owner-manager-and-credit-names.mjs >/tmp/preflight_owner 2>&1; then
+  ok "kayıt sahipliği + künye adları + firma kutusu testleri geçti ($(grep -c '^  ok ' /tmp/preflight_owner) test)"
+else
+  bad "kayıt sahipliği + künye adları + firma kutusu testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_owner >&2
+fi
+rm -f /tmp/preflight_owner
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

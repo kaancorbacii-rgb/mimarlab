@@ -78,7 +78,12 @@
       .op-option{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
       .op-option:hover{background:var(--paper-alt);}
       .op-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
-      .op-option-kind{margin-left:auto; flex-shrink:0; font-size:11px; font-weight:600; color:var(--ink-soft); letter-spacing:0.02em;}
+      /* Elle firma ekleme satırı (bkz. allowCustom) — seçeneklerle AYNI satır yüksekliği/dolgusu,
+         ama bir <button>: tıklanınca yazılan adı seçime katar. Marka etiketi (.op-option-kind)
+         KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 4): marka kavramı sitede yok, listedeki her
+         satır bir firmadır. */
+      .op-option-add{width:100%; text-align:left; background:none; border:1px dashed var(--line); font-family:inherit; font-weight:600; color:var(--walnut); margin-bottom:4px;}
+      .op-option-add:hover{background:var(--paper-alt); color:var(--ink);}
       .op-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
       /* Seçilenler düğmenin ALTINDA çıkarılabilir birer çip olarak durur — çoklu seçimde "kaç tane
          seçtim / hangileri" sorusunu paneli açmadan cevaplar. */
@@ -124,6 +129,12 @@
   //                      sayfadaki mevcut TÜM okuma/yazma noktaları (#m-office.value) dokunulmadan
   //                      çalışmaya devam eder.
   // opts.onChange      — seçim değişince çağrılır (isim dizisiyle).
+  // opts.allowCustom   — true ise arama kutusuna yazılan, listede KARŞILIĞI OLMAYAN bir ad "+ «...»
+  //                      ekle" satırıyla seçime katılabilir (kullanıcı isteği, 2026-09-15 madde 3 —
+  //                      proje-ekle.html). Varsayılan KAPALI: kişi künyesindeki firma kutusu (kisi-ekle
+  //                      + Hesabım) sitede kayıtlı firmalara bağlanmak içindir, orada serbest metin
+  //                      firma talebi/üyelik zincirini (bkz. claimedProfiles.js#ensurePendingOfficeClaims)
+  //                      karşılığı olmayan bir adla doldururdu.
   function createOfficePicker(mount, opts) {
     const options = opts || {};
     // Etiketler "Firma veya marka" -> "Firma" (kullanıcı isteği, 2026-09-14 madde 2 ve 4): marka
@@ -196,13 +207,37 @@
       // Arama boşken TÜM liste basılır (kullanıcı isteği: "alt alta çoktan seçilebilir şekilde") —
       // 800 civarı satır tek innerHTML yazımıyla geliyor, panel kendi içinde kaydırılıyor.
       const shown = allOptions().filter(o => !q || foldTr(o.name).includes(q));
-      if (!shown.length) { list.innerHTML = '<div class="op-empty">Sonuç bulunamadı.</div>'; return; }
-      list.innerHTML = shown.map(o => `
+      // ELLE FİRMA EKLEME (kullanıcı isteği, 2026-09-15 madde 3: "proje ekle sayfasında firma seçim
+      // kısmına manuel olarak da sitede kayıtlı olmasa dahi firma ismi girilebilsin"). Yalnızca
+      // allowCustom veren çağıran (bugün proje-ekle.html) için: aranan metin hiçbir kayıtla TAM
+      // eşleşmiyorsa listenin başına "…ekle" satırı çıkar. Seçim, listede olmayan adları zaten
+      // koruyan `extras` yoluna düşer (bkz. allOptions) — yani ek bir durum/alan gerekmez.
+      // Ad künyeye yazıldığı gibi kaydedilir; eşleşen bir firma kaydı yoksa profil bağlantısı
+      // kurulmaz ama isim künyede ve filtrelerde görünür (bkz. migrations/
+      // 0120_project_designer_names_raw.sql).
+      const typed = search.value.trim();
+      const canAddTyped = !!(options.allowCustom && typed
+        && !allOptions().some(o => foldTr(o.name) === foldTr(typed))
+        && !keys.has(foldTr(typed)));
+      const addRow = canAddTyped
+        ? `<button type="button" class="op-option op-option-add" data-add="${esc(typed)}">+ &laquo;${esc(typed)}&raquo; ekle</button>`
+        : '';
+      if (!shown.length && !addRow) { list.innerHTML = '<div class="op-empty">Sonuç bulunamadı.</div>'; return; }
+      list.innerHTML = addRow + shown.map(o => `
         <label class="op-option">
           <input type="checkbox" value="${esc(o.name)}"${keys.has(foldTr(o.name)) ? ' checked' : ''}>
           <span>${esc(o.name)}</span>
-          ${o.brand ? '<span class="op-option-kind">Marka</span>' : ''}
         </label>`).join('');
+      const addBtn = list.querySelector('[data-add]');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          const name = addBtn.dataset.add;
+          if (!selectedKeys().has(foldTr(name))) selected.push(name);
+          search.value = '';
+          commit();          // liste yeniden çizilir: yeni ad artık `extras` içinde ve işaretli
+          search.focus();
+        });
+      }
       list.querySelectorAll('input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', () => {
           const key = foldTr(cb.value);
@@ -243,7 +278,14 @@
     });
     search.addEventListener('input', renderList);
     // Arama kutusunda Enter formu göndermemeli (kisi-ekle.html gerçek bir <form> içinde yaşıyor).
-    search.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+    search.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      // Enter, açık duran "+ «...» ekle" satırına basmakla aynı şeyi yapar (allowCustom'suz
+      // çağıranlarda böyle bir satır hiç çizilmediğinden davranış eskisi gibi: yalnızca engelle).
+      const addBtn = list.querySelector('[data-add]');
+      if (addBtn) addBtn.click();
+    });
 
     const ready = loadOfficeOptions().then(list => {
       items = list;
