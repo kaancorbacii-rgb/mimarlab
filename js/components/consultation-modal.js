@@ -185,8 +185,6 @@ const ConsultationModal = (function () {
         .cns-iban-value{font-weight:700; text-align:right; word-break:break-all;}
         .cns-iban-copy{background:none; border:1px solid var(--line); border-radius:100px; padding:5px 12px; font-family:inherit; font-size:11.5px; font-weight:600; color:var(--ink); cursor:pointer; margin-top:6px;}
         .cns-iban-copy:hover{background:var(--paper);}
-        .cns-pay-later{display:block; width:100%; background:none; border:none; color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; text-decoration:underline; cursor:pointer; padding:10px 0 0;}
-        .cns-pay-later:hover{color:var(--ink);}
       `;
       document.head.appendChild(style);
     }
@@ -287,8 +285,13 @@ const ConsultationModal = (function () {
             <p class="cns-pay-hint">Açıklama alanına <strong id="cns-pm-ref">—</strong> yazmayı unutma. Havaleni aldıktan sonra talebini onaylayıp görüşme odanı hazırlıyoruz.</p>
           </div>
 
+          <!-- "Daha sonra ödeyeceğim" KALDIRILDI (kullanıcı isteği, 2026-09-15 onuncu tur madde 2:
+               "Danışmanlık Al sayfasında ödemeye sonra yapacağım butonunu kaldır, ödemeler şimdilik
+               kapalı olsun"). Ekranda TEK düğme kalır; hiçbir yöntem açık değilken o düğme akışı
+               kapatan "Tamam" olur (bkz. renderPayment) — aksi halde ödeme alınamayan bugünkü
+               durumda ekran çıkışsız kalırdı (talep zaten açılmış olduğundan bu bir iptal değil,
+               yalnızca onay ekranına geçiştir). -->
           <button class="cns-submit" type="button" id="cns-pm-submit">Ödemeye Geç</button>
-          <button type="button" class="cns-pay-later" id="cns-pm-later">Daha sonra ödeyeceğim</button>
           <div class="cns-pay-notice" id="cns-pm-notice"></div>
         </div>
 
@@ -337,7 +340,6 @@ const ConsultationModal = (function () {
     const pmIbanBox = overlay.querySelector('#cns-pm-iban-box');
     const pmRefEl = overlay.querySelector('#cns-pm-ref');
     const pmSubmitBtn = overlay.querySelector('#cns-pm-submit');
-    const pmLaterBtn = overlay.querySelector('#cns-pm-later');
     const pmNotice = overlay.querySelector('#cns-pm-notice');
     const offerNoteEl = overlay.querySelector('#cns-offer-note');
     const pmNameInput = overlay.querySelector('#cns-pm-name');
@@ -659,9 +661,16 @@ const ConsultationModal = (function () {
       if (methods.length) {
         selectMethod(methods[0]);
       } else {
+        // HİÇ AÇIK YÖNTEM YOK (bugünkü durum — kart ürün kararıyla kapalı, havale sırlar tanımlı
+        // değilse kapalı). Düğme ÖLÜ BIRAKILMAZ: "Daha sonra ödeyeceğim" kaldırıldığından
+        // (kullanıcı isteği, 2026-09-15 onuncu tur madde 2) ekranın tek çıkışı bu düğmedir ve
+        // kullanıcı randevu özetini/"Görüşme Tarihini Değiştir"i taşıyan onay ekranını hiç
+        // görmeden kalırdı. Ödeme yeniden açıldığında bu dal kendiliğinden devre dışı kalır.
         pmMethod = null;
-        pmSubmitBtn.disabled = true;
-        pmSubmitBtn.textContent = 'Ödeme şu anda alınamıyor';
+        pmSubmitBtn.disabled = false;
+        pmSubmitBtn.textContent = 'Tamam';
+        pmNotice.textContent = 'Ödemeler şu an kapalı — talebin alındı, ödeme açıldığında Hesabım > Bildirimler\'deki görüşme detayından tamamlayabilirsin.';
+        pmNotice.classList.add('show');
       }
     }
 
@@ -684,13 +693,12 @@ const ConsultationModal = (function () {
       showScreen('payment');
     }
 
-    // "Daha sonra ödeyeceğim" — talep ZATEN açık olduğu için bu bir iptal DEĞİLDİR; ödeme, bildirim
-    // kutusundan açılan görüşme detayındaki "Ödeme Yap" düğmesinden tamamlanır (bkz.
-    // consultation-detail-modal.js). Onay ekranının metni de bu duruma göre değişir.
-    pmLaterBtn.addEventListener('click', () => showSuccessScreen());
-
     pmSubmitBtn.addEventListener('click', async () => {
-      if (!pmMethod || !state.requestId) return;
+      // Açık yöntem YOKKEN düğme "Tamam"dır (bkz. renderPayment) ve yaptığı tek şey onay ekranına
+      // geçmektir: talep POST /api/consultations ile ZATEN açıldı, ödeme açıldığında Hesabım >
+      // Bildirimler'deki görüşme detayından tamamlanır (consultation-detail-modal.js).
+      if (!pmMethod) { if (state.requestId) showSuccessScreen(); return; }
+      if (!state.requestId) return;
       pmNotice.classList.remove('show', 'success');
       const payload = { method: pmMethod === 'havale' ? 'havale' : 'iyzico' };
       if (pmMethod === 'iyzico') {
@@ -841,8 +849,9 @@ const ConsultationModal = (function () {
         // Eskiden bu koşul "sunucu en az bir yöntem sunuyorsa" idi; kart artık bilinçli olarak
         // KAPALI olduğundan (IYZICO_ENABLED=false) o koşul, havale de yapılandırılmamışsa ekranı
         // tamamen atlar ve kullanıcı istediği iki seçeneği HİÇ göremezdi. Hiçbir yöntem aktif
-        // değilse ekran yine açılır ama gönder düğmesi kapalıdır (bkz. renderPayment) — kullanıcı
-        // "Daha sonra ödeyeceğim" ile geçebilir.
+        // değilse ekran yine açılır; o durumda tek düğme "Tamam" olur ve onay ekranına geçirir
+        // (bkz. renderPayment — "Daha sonra ödeyeceğim" bağlantısı 2026-09-15 onuncu turda
+        // kullanıcı isteğiyle kaldırıldı).
         state.payment = data.payment || null;
         state.paymentDeclared = false;
         if (state.payment) {

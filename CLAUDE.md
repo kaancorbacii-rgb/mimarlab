@@ -568,3 +568,60 @@ danışmanlık verdiklerini vs. bilgi olarak yazsınlar.", (3) Google Meet enteg
   `scripts/test-2026-09-15-danismanlik-page.mjs` (17 test), ikisi de preflight'a bağlı.
   `test-meet-gateway.mjs` fikstürüne `consultants` satırı eklendi (yeniden planlama kapısı artık
   oraya bakıyor).
+
+## Hesap ikonu, kapalı ödemeler ve yeni projenin 1. sırası (2026-09-15, onuncu tur)
+
+Kullanıcı isteği (üç madde): (1) "Ana menüde giriş yapan kullanıcı isminin yanına koyduğun icon
+yerine ekte ilettiğim iconu koy arka planı olmayan şekilde beyaz renkte koy. Mobil ve tablet
+görünümünde de yan çekmece menüde ismin yanında yine bu icon olsun.", (2) "Danışmanlık Al sayfasında
+ödemeye sonra yapacağım butonunu kaldır, ödemeler şimdilik kapalı olsun önemli değil. Rozet al
+sayfasında da ödemeye ilerlensin ama onda da şimdilik ödemeler kapalı olsun.", (3) "Bir kullanıcı
+siteye bir proje eklediği zaman bu proje, proje sayfasında 1. sıraya yerleşsin."
+
+- **İkon (madde 1)**: `auth-nav.js#ICON_PERSON` — 2026-09-15 beşinci turda konan 6px'lik dolu daire
+  (`.nav-avatar-dot`) kaldırıldı. İkon `fill="none"` + `stroke="currentColor"`, yani ARKA PLANI YOK
+  ve rengini taşıyıcısından alır: koyu mavi hesap düğmesinde beyaz (`var(--paper-card)`), açık
+  zeminli mobil çekmecede ad satırının rengi. Sabit bir `#fff` yazılsaydı çekmecede beyaz üstüne
+  beyaz olurdu. Çekmecede kırpma kuralları (`nowrap/ellipsis`) ad METNİNİN kapsayıcısına
+  (`.nav-mobile-account-name-text`) taşındı — aynı kutuda kalsalardı uzun adlarda ellipsis ikonu da
+  yiyebilirdi. Sağ üst köşedeki turuncu `.nav-avatar-alert` (bildirim/mesaj) BUNDAN AYRIDIR.
+- **Danışmanlık (madde 2)**: `consultation-modal.js`'ten "Daha sonra ödeyeceğim" (`#cns-pm-later`)
+  düğmesi, stili ve dinleyicisi tamamen çıktı. **Ekran çıkışsız KALMAZ**: hiçbir ödeme yöntemi açık
+  değilken (bugünkü durum) kalan tek düğme pasif "Ödeme şu anda alınamıyor" DEĞİL, etkin **"Tamam"**
+  olur ve onay ekranını gösterir. Talep o noktada `POST /api/consultations` ile ZATEN açılmıştır —
+  bu bir iptal değil, yalnızca randevu özetini/"Görüşme Tarihini Değiştir"i taşıyan ekrana geçiştir.
+  Bir yöntem açılırsa dal kendiliğinden devre dışı kalır ("Ödemeyi Yaptım"/"Ödemeye Geç").
+- **Rozet (madde 2)**: Rozet Al pop-up'ı artık bir **ödeme adımına ilerler**
+  (`info-modal.js#mountRozetAl` — "Ödeme Sayfasına İlerle" → `#im-payment-section`, hedef/kademe
+  bölümleri kapanır, "Kademe seçimine dön" ile geri dönülür). 2026-09-08'de kaldırılan kutunun
+  yerine gelen `#im-sales-closed` bu düğmeyle değişti.
+  * **Yöntemler SUNUCUDAN çizilir**: `GET /api/badges/options` (`badges.js#badgePaymentOptions`,
+    oturum İSTEMEZ — sayfa giriş yapılmadan da görüntülenebiliyor). Bugün ikisi de "Henüz aktif
+    değil.", sayfada "açık mı" kararı YOK.
+  * **KAPI SUNUCUDA**: `BADGE_SALES_OPEN` artık dışa aktarılıyor ve **`payments.js#startCheckout`**
+    da onunla 403 döner — kart yolu 2026-09-08'de yalnızca UI'dan kaldırılmış, sunucuda AÇIK
+    kalmıştı (havale yolu zaten kapalıydı).
+  * **IBAN kutusu GERİ GELMEDİ** (2026-09-08 kuralı) ve **"Ödemeye Geç" düğmesi kural olarak
+    pasiftir**: ödeme akışı (kart formu + `POST /api/payments/checkout`) bilerek kurulmadı. Satışı
+    açmak TEK SATIRLIK bir bayrak değişikliği DEĞİLDİR — ikisi birlikte kurulmalı.
+- **Yeni proje 1. sırada (madde 3) — KÖK NEDEN BİÇİM UYUŞMAZLIĞI**: sıralama anahtarı METİNDİR
+  (`COALESCE(relisted_at, publish_date, created_at) DESC`) ve iki AYRI biçimde yazılıyordu —
+  `src/routes/admin.js` (yönetici ataması, önizlemeden çıkarma, claim onayı)
+  `new Date().toISOString()` ile `2026-09-15T09:00:00.000Z`, `canonicalSync.js` ve `created_at`
+  varsayılanı ise `datetime('now')` ile `2026-09-15 18:00:00`. SQLite metni BAYT BAYT karşılaştırır,
+  10. karakterde `'T'` (0x54) > `' '` (0x20): aynı gün ISO damgalı bir satır, saat farkı ne olursa
+  olsun yeni projenin ÜSTÜNE çıkıyordu.
+  * Tek biçim **ISO** seçildi (canlı veride zaten o var): `canonicalSync.js#NOW_ISO_SQL =
+    strftime('%Y-%m-%dT%H:%M:%fZ','now')` — `toISOString` ile birebir aynı şekil/uzunluk. Dört türün
+    (mimar/firma/proje/ürün) "önizlemeden çıkanı damgala" CASE'i de bu sabiti kullanır.
+  * `syncProject`'in INSERT'i artık **`relisted_at`** yazar (`relistNew = opts.publish !== false &&
+    !publishDate`). `display_order` INSERT'te hiç yazılmadığından "atanmamış" (0) kovasındadır,
+    `preview_at` de NULL'dur — üç koşul birlikte 1. sırayı GARANTİ eder, tesadüfe bırakmaz.
+  * **`publishDate` doluysa damgalanmaz**: yayın tarihini yalnızca admin yazabilir ve o tarih zaten
+    "bu proje ne zaman yayınlandı" demektir; damga admin'in seçtiği sırayı ezerdi.
+  * **Önizlemeye giren kayıt damgalanmaz** — `(preview_at IS NOT NULL) ASC` gereği listede zaten en
+    sondadır; yayına çıkarken CASE onu damgalar.
+- Testler: `scripts/test-2026-09-15-account-icon-payments-and-new-project-order.mjs` (17 test,
+  preflight'a bağlı). Sıralama testi **gerçek SQLite** (`node:sqlite`) üzerinde çalışır ve ORDER
+  BY'ı `projectPool.js` KAYNAĞINDAN okur; kök nedeni de ölçer (damga kaldırılınca yeni proje 1.
+  sırayı KAYBETMELİ, aksi halde test anlamını yitirmiştir).
