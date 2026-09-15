@@ -461,3 +461,49 @@ kisi-ekle'nin firma kutusuna da elle isim girilebilsin.
   kullandığı `lastCommaSegment`/`replaceLastCommaSegment`) ile urun-ekle'deki
   `wireOfficeSuggest`/`loadOfficeNames`/`foldTrUrun` çağrısız kaldı ve silindi. urun-ekle'de
   `wireAutocompleteLive` KALDI — "Kullanılan Projeler" kutusu onu kullanmaya devam ediyor.
+
+## DANIŞMANLIK sayfası — /danismanlik (2026-09-15, sekizinci tur)
+
+Kullanıcı isteği: "DANIŞMANLIK diye bir sayfa tasarla. Aynı kişi sayfası gibi olsun, sol tarafta
+filtreler ve filtrelerin en altında Danışman Ol butonu olsun. Sayfayı yayına al ama hiçbir menüye
+ekleme. Danışman olarak Kaan Çorbacı'yı koy ve Kaan Çorbacı'nın profilindeki Danışmanlık Al
+butonundaki bilgileri kullan."
+
+- **Sayfa `danismanlik.html`** — kisi.html'in kabuğu (nav/breadcrumb/page-head/kenar çubuğu/sonuç
+  barı/sayfalama/altbilgi + TÜM breakpoint'ler) birebir aynı. Kişi DETAY görünümüne ait iki blok
+  alınmadı (`.ssr-entity` ve `pm-boot-loading` "boot veil"i): bu sayfanın iç içe bir `/danismanlik/:slug`
+  yolu YOK, dolayısıyla `<head>`'deki prefetch/veil shim'i de yok.
+- **Kart, kişi kartı DEĞİL**: bir portre değil bir TEKLİF taşıyor (tanıtım cümlesi, süre, uygun
+  gün/saatler, ücret, "Danışmanlık Al"). Izgara bu yüzden 4 sabit sütun değil
+  `auto-fill, minmax(340px, 1fr)` — tek danışmanda satırı doldurur, danışman çoğaldıkça sütunlanır.
+- **KİMİN DANIŞMAN OLDUĞU SAYFADA YAZMAZ**: liste, randevu talebini kabul eden kapının
+  (`src/routes/consultations.js#ALLOWED_HOST_SLUGS`) TA KENDİSİNDEN türetilir —
+  `GET /api/consultants` (`handleConsultantsRoute` -> saf gövde `fetchConsultantList`). Sayfaya elle
+  bir slug yazılsaydı kapı değiştiği gün sayfa çalışmayan bir kart gösterirdi.
+  `directory_listed` kapısı bu sorguda BİLEREK YOK (`/api/architects/names`'teki AYNI gerekçe):
+  danışman olmak, /kisi dizininde listelenmekten bağımsızdır.
+- **Teklif bilgilerinin hepsi `offer` alanından gelir** ve o alan akışı DOĞRULAYAN sabitleri okur:
+  `CONSULTATION_PRICE_TRY`, `ALLOWED_WEEKDAYS`, `ALLOWED_TIMES` (consultations.js) +
+  `CONSULTATION_DURATION_MIN`, `CONSULTATION_TIMEZONE` (consultationMeet.js). Sayfada ücret/süre/
+  saat/gün SABİTİ YOKTUR — preflight bunu ayrı ayrı arıyor.
+- **Tanıtım cümlesinin tek kaynağı** `consultations.js#consultationIntro`. `consultation-modal.js#open`
+  artık opsiyonel bir `intro` alır; danismanlik.html uçtan geleni geçirir, kişi pop-up'ındaki
+  "Danışmanlık Al" HİÇBİR ŞEY geçirmez ve modalin kendi (birebir aynı) cümlesine düşer — yani o
+  akışın davranışı DEĞİŞMEDİ. İki cümlenin ayrışmasını test kelepçeler.
+- **"Danışmanlık Al" AYNI modaldir** (`ConsultationModal.open({hostSlug, hostName, intro})`); yeni
+  bir randevu yolu AÇILMADI. Modül bu sayfada doğrudan `<script defer>` ile yüklenir (kişi
+  sayfasında lazy-modals zincirinin `deferredDeps`'inden geliyordu).
+- **"Danışman Ol"** kenar çubuğunun EN ALTINDA, "Kişi Ekle" ile aynı yuvada (`.sidebar-add`).
+  Hedefi **`/iletisim`**: siteye kendi kendine danışman ekleyen bir akış YOKTUR ve olmamalıdır —
+  randevu kapısı elle küratörlüdür.
+- **HİÇBİR MENÜDE YOK** (kullanıcı isteği): `js/components/site-chrome.js`'e DOKUNULMADI; sitedeki
+  hiçbir sayfa `/danismanlik`'a `<a href>` ile bağlanmıyor. Sayfa `noindex` DEĞİL, bu yüzden
+  "indexlenebilir ama sitemap'te yok" çelişkisi oluşmasın diye `SITEMAP_STATIC_PAGES`'e eklendi —
+  keşif yolu budur. `/danismanlik.html` -> `/danismanlik` 301.
+- **Filtre/sıralama/sayfalama İSTEMCİDE**: havuz tanımı gereği avuç içi kadar olduğundan
+  `/api/consultants` tüm listeyi tek istekte döner; sayaçlar da aynı havuzdan hesaplanır
+  (kisi.html'deki "0 kişilik seçenek çizilmez" kuralı korunur). Temiz sayfalama adresi
+  (`/danismanlik/sayfa-2`) BİLEREK YOK — sunucu tarafında ayrıca tanınmayı gerektirirdi
+  (`PAGED_LIST_BASES`) ve bu havuzda ikinci sayfa pratikte hiç oluşmaz; sayfa `?page=N` kullanır.
+- Testler: `scripts/test-2026-09-15-danismanlik-page.mjs` (preflight'a bağlı) + `smoke-test.sh` 13b
+  (canlıda 200, kabukta filtreler + Danışman Ol, `/api/consultants` dolu, ana sayfada bağlantı YOK).

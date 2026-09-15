@@ -813,7 +813,7 @@ const ConsultationModal = (function () {
     successCloseBtn.addEventListener('click', close);
 
     popupApi = {
-      open({ hostSlug, hostName }) {
+      open({ hostSlug, hostName, intro }) {
         state.hostSlug = hostSlug;
         state.hostName = hostName;
         state.requestId = null;
@@ -827,7 +827,12 @@ const ConsultationModal = (function () {
         calendarState.month = now.getMonth();
         calendarState.availability = {};
         titleEl.textContent = `${hostName} ile Görüşme`;
-        introEl.textContent = `${hostName}; mimarlık kariyeri, portföy geliştirme ve dijital ürün/yayıncılık alanlarında birebir online mentörlük görüşmesi sunar.`;
+        // `intro` ÇAĞIRANDAN gelebilir (danismanlik.html onu GET /api/consultants'tan geçirir —
+        // bkz. src/routes/consultations.js#consultationIntro, tanıtım cümlesinin TEK KAYNAĞI).
+        // Verilmezse aşağıdaki cümle kullanılır: kişi pop-up'ındaki "Danışmanlık Al" düğmesi
+        // (architect-modal.js) hiçbir şey geçirmez, yani onun davranışı DEĞİŞMEDİ. İki cümlenin
+        // ayrışmasını scripts/test-2026-09-15-danismanlik-page.mjs kelepçeler.
+        introEl.textContent = intro || `${hostName}; mimarlık kariyeri, portföy geliştirme ve dijital ürün/yayıncılık alanlarında birebir online mentörlük görüşmesi sunar.`;
         nameInput.value = '';
         emailInput.value = '';
         phoneInput.value = '';
