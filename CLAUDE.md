@@ -239,6 +239,31 @@ isimler görülmeli."
 - `project_designers` DEĞİŞMEDİ: profil çipleri/bağlantıları hâlâ oradan gelir, bu kolonlar yalnızca
   "künyede ne yazıyordu" sorusunun cevabıdır.
 
+## Hesabım: mobil başlık + firma yetkilisinin kişi düzenlemesi (2026-09-15, üçüncü tur)
+
+Kullanıcı isteği: (1) "Mobilde hesabım sayfasındaki 'Hoş Geldin, Kaan Çorbacı' yazısının puntosunu
+biraz küçült.", (2) "admin panelinden bir firmaya bir kullanıcıyı yönetici olarak atadığı zaman o
+kullanıcının hesabım sayfasında kişi bilgileri bölümünde görülen diğer kişi sayfalarında da profili
+düzenle butonu görünsün. Yönetici bu butona tıklayarak firmadaki tüm kişilerin popuplarını
+düzenleyebilsin."
+
+- **Başlık**: `.dash-head h1` 26px -> **mobilde (<=720px) 20px**; masaüstü ölçüsü değişmedi. Kural
+  İKİ yüzeyde de var (Hesabım modali `js/components/auth-modal.js`, bağımsız sayfa `hesabim.html`).
+- **"Profili Düzenle"**: "Kişi Bilgileri" kutusunun FİRMA sayfalarında (1. sayfa hâlâ kullanıcının
+  kendi künyesi, "Bilgileri Düzenle") artık düğme görünür ve `kisi-ekle?claim=<kişinin slug'ı>`
+  açar — firma pop-up'ındaki "Düzenle" ile **aynı yol** (bkz. `js/components/claim-correction-box.js`).
+  Yeni bir düzenleme yolu AÇILMADI; var olan yol Hesabım'dan da erişilebilir oldu.
+- **Yetki istemcide yeniden hesaplanmaz**: kutunun firma sayfaları zaten yalnızca
+  `canManageFirmEntry`den geçen firmaların kişilerinden oluşur (yönetici/kurucu/kurucu ortak/ortak/
+  ekip lideri ya da kaydı siteye ekleyen). Sunucu AYNI kararı kendi kapısında tekrar verir:
+  `src/routes/submissions.js#verifyClaimedProfileKey`in üçüncü yolu ->
+  `claimedProfiles.js#canEditArchitectViaOfficeMembership` (düzenleme yolları `DELEGATED_ACCESS`
+  ile çağırır, yani profil başka bir hesaba ait olsa da düzenlenebilir; **arşivle/sil** bayrağı
+  geçmez, o sınır duruyor).
+- **Sitede kaydı olmayan ad** (künyenin Kurucular/Ekip kutusuna serbest metin yazılmış, `slug` yok)
+  için düğme gizlidir: `?claim=` canonical bir satır ister.
+- Testler: `scripts/test-2026-09-15-account-title-and-firm-person-edit.mjs` (preflight'a bağlı).
+
 ## Filtrelerde Mimar / Firma ayrımı (2026-09-15, ikinci tur)
 
 Kullanıcı isteği: "Proje sayfasındaki filtrelerde mimar kısmında sadece mimar künyesindeki isimler

@@ -738,6 +738,11 @@ const AuthModal = (function () {
          2026-09-01) Profil Bilgileri kutusunun başlığına taşındığından buradaki eski üç alanlı grid
          (avatar/edit/titles) gereksiz kaldı; mobilde de masaüstündeki AYNI tek satır korunur. */
       #am-panel .dash-head-account{gap:12px;}
+      /* BAŞLIK PUNTOSU (kullanıcı isteği, 2026-09-15 üçüncü tur madde 1: "Mobilde hesabım
+         sayfasındaki 'Hoş Geldin, Kaan Çorbacı' yazısının puntosunu biraz küçült"). Başlık TAM
+         ad soyadı taşıyor (bkz. #am-dash-title'ı yazan satır), masaüstündeki 26px telefonda iki
+         satıra taşıyordu. Yalnızca mobil kural — masaüstü ölçüsü DEĞİŞMEDİ. */
+      #am-panel .dash-head h1{font-size:20px;}
       /* Kutu başlığındaki buton dar ekranda başlığı ezmesin: başlık ile buton alt alta düşer. */
       #am-panel .dash-section-head{flex-wrap:wrap; gap:8px;}
     }
@@ -3282,12 +3287,39 @@ const AuthModal = (function () {
       set('am-fact-school', isSelf ? (rec && rec.school) : '');
       set('am-fact-dob', isSelf && rec && rec.dob ? String(rec.dob).slice(0, 4) : '');
 
-      // "Bilgileri Düzenle" YALNIZCA kendi künyesinde: firmanın kişisi başka birinin profilidir,
-      // bu kutu onu düzenlemek için değil GÖRÜNTÜLEMEK için. (Yetkili kullanıcı o profili firma
-      // pop-up'ındaki Düzenle ile zaten düzenleyebiliyor — bkz. claim-correction-box.js.)
+      // DÜZENLE DÜĞMESİ (kullanıcı isteği, 2026-09-15 üçüncü tur madde 2: "admin panelinden bir
+      // firmaya bir kullanıcıyı yönetici olarak atadığı zaman o kullanıcının hesabım sayfasında
+      // kişi bilgileri bölümünde görülen DİĞER kişi sayfalarında da profili düzenle butonu
+      // görünsün. Yönetici bu butona tıklayarak firmadaki tüm kişilerin popuplarını
+      // düzenleyebilsin.").
+      //
+      // Kendi künyesinde eski davranış (renderPersonEditBtn: ?claim=<slug> / ?edit=<id>). Firmanın
+      // kişisinde düğme AYNI kisi-ekle sayfasını ?claim=<kişinin slug'ı> ile açar — firma
+      // pop-up'ındaki "Düzenle" ile BİREBİR aynı yol (bkz. js/components/claim-correction-box.js
+      // ve kisi-ekle.html'deki "firma yetkilisinin ortağının profili — buraya ?claim= ile gelir"
+      // notu), yani yeni bir düzenleme yolu AÇILMIYOR, var olan yol Hesabım'dan da erişilebilir
+      // oluyor.
+      //
+      // YETKİ İSTEMCİDE YENİDEN HESAPLANMAZ: sayfa zaten YALNIZCA canManageFirmEntry'den geçen
+      // (yönetici/kurucu/ortak/ekip lideri ya da kaydı ekleyen) firmaların kişilerinden
+      // oluşuyor ve sunucu AYNI kararı kendi kapısında tekrar veriyor (bkz. src/routes/
+      // submissions.js#verifyClaimedProfileKey'in ÜÇÜNCÜ yetki yolu -> claimedProfiles.js#
+      // canEditArchitectViaOfficeMembership; DELEGATED_ACCESS ile, yani profil başka bir hesaba
+      // ait olsa da düzenlenebilir — o kararın gerekçesi orada).
+      //
+      // SITEDE KAYDI OLMAYAN AD (slug yok — künyenin Kurucular/Ekip kutusuna serbest metin olarak
+      // yazılmış bir isim) düzenlenemez: ?claim= canonical bir satır ister, aksi halde form boş
+      // açılır ve kaydetme "Bu profil artık bu adla mevcut değil" ile reddedilirdi.
       const editBtn = document.getElementById('am-dash-edit-btn');
-      if (editBtn) editBtn.style.display = isSelf ? '' : 'none';
-      if (isSelf) renderPersonEditBtn();
+      if (isSelf) {
+        if (editBtn) { editBtn.style.display = ''; editBtn.textContent = 'Bilgileri Düzenle'; }
+        renderPersonEditBtn();
+      } else if (editBtn) {
+        const personSlug = (rec && rec.slug) || '';
+        editBtn.style.display = personSlug ? '' : 'none';
+        editBtn.textContent = 'Profili Düzenle';
+        if (personSlug) editBtn.href = `${CLAIM_EDIT_PAGE.architect}?claim=${encodeURIComponent(personSlug)}`;
+      }
 
       renderDashPagination('am-person-pagination', personPage, personEntries.length, (n) => {
         personPage = n;
