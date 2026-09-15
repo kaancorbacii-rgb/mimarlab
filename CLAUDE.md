@@ -295,8 +295,15 @@ filtrelerde firma isimleri mimar kısmına karışmış gözüküyor."
   proje/sayfa sorgularının yanıt şekli değişmedi.
 - **facet_counts sürümlendi** (`FACET_SHAPE_VERSION`, `projects:v2`): sayaçlar D1'de kalıcıdır ve
   yalnızca bir içerik yazımında tazelenir — sürüm olmasaydı eski (firma adlarını Mimar altında
-  taşıyan) satırlar filtresiz ilk sayfa yüklemesinde servis edilmeye devam ederdi. Yeni sürümde satır
-  yokken okuyucu tam taramaya (doğru yol) düşer, ilk yazmada yeniden dolar.
+  taşıyan) satırlar filtresiz ilk sayfa yüklemesinde servis edilmeye devam ederdi.
+- **Sayaçlar boşken uç KENDİNİ ONARIR** (gerçek bulgu, dördüncü tur — deploy #70'in sağlık kontrolü
+  "/proje -> kabuk HIT ama `#ml-list-data` yok" ile KIRMIZI döndü): tablo boşken
+  `/api/projects/filters` her istekte tam taramaya düşüyordu ve `/proje`'nin SSR verisi o ucu
+  **`HUB_SSR_TIMEOUT_MS = 2000 ms`** ile çektiğinden (bkz. `src/index.js#HUB_SSR/loadHubListData`)
+  soğuk havuzda `#ml-list-data` sayfaya HİÇ yazılmıyordu. Uç artık tablo boşsa sayaçları
+  **`ctx.waitUntil`** ile bir kez yeniden hesaplayıp yazar (yanıtın gecikmesi değişmez, yazma yanıt
+  sonrası da yaşar); `scripts/health-check.sh` de ölçümden önce ucu bir kez ısıtır. "İlk içerik
+  yazımında dolar" varsayımı bu SSR yolunu hesaba katmıyordu.
 - Testler: `scripts/test-2026-09-15-architect-office-filter-split.mjs` (preflight'a bağlı).
 
 ## proje-ekle: firma kutusuna elle isim (2026-09-15)
