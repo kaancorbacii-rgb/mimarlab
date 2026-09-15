@@ -5,7 +5,7 @@ import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/pu
 import { applyPinnedOrder, pinnedSlugsFromUrl } from '../lib/homeCarousels.js';
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring, likePattern } from '../lib/searchFold.js';
-import { getCachedFacetCounts } from '../lib/facetCounts.js';
+import { getCachedFacetCounts, bumpFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { BC_DATE_BUCKET } from '../lib/submissionTypes.js';
@@ -665,7 +665,9 @@ function facetPayload(counts, options) {
   return { options, counts: options.map(o => counts[o]) };
 }
 
-export async function handleProjectFiltersRoute(request, env, url) {
+// ctx — YALNIZCA aşağıdaki "kendini onaran sayaç" yolu için (ctx.waitUntil); verilmezse yol
+// bloklayarak çalışır, davranış aynı kalır (bkz. o bloktaki gerekçe).
+export async function handleProjectFiltersRoute(request, env, url, ctx) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
@@ -681,7 +683,39 @@ export async function handleProjectFiltersRoute(request, env, url) {
     // seti yalnızca herhangi bir filtre aktifken (aşağıdaki tam tarama yoluyla) hesaplanır.
     const otherParams = [...url.searchParams.keys()].filter(k => k !== 'buildStatus');
     if (otherParams.length === 0 && buildStatus === 'built') {
-      const cached = await getCachedFacetCounts(env, 'projects');
+      let cached = await getCachedFacetCounts(env, 'projects');
+      // KENDİNİ ONARAN YOL (gerçek bulgu, 2026-09-15 dördüncü tur — deploy #70'in sağlık kontrolü
+      // KIRMIZI döndü: "/proje -> kabuk HIT ama #ml-list-data yok").
+      //
+      // facet_counts YALNIZCA bir içerik yazımında dolar (bkz. bumpFacetCounts çağrı noktaları).
+      // Tablo boşken bu uç HER istekte tam taramaya düşer; /proje'nin SSR verisi ise bu ucu
+      // HUB_SSR_TIMEOUT_MS = 2000 ms ile çekiyor (bkz. src/index.js#HUB_SSR/loadHubListData).
+      // Soğuk havuzda tam tarama o bütçeyi aşınca sayfanın <head>'ine #ml-list-data HİÇ yazılmıyor
+      // ve ilk boyama istemci isteğine kalıyor. Tablo, sayaçların ŞEKLİ sürümlendiğinde de
+      // (FACET_SHAPE_VERSION, aynı günün ikinci turu) boş kalır — yani bu yalnızca "ilk deploy"
+      // durumu değil, her şekil değişiminde tekrarlanacak bir durumdu.
+      //
+      // Bu yüzden tablo boşsa sayaçlar BURADA bir kez yeniden hesaplanır ve yazılır; sonraki
+      // istekler yine hızlı yoldan döner. Maliyet tek seferliktir ve yalnızca "hiç filtre yok"
+      // dalında ödenir: yanıt cachedPublicJson'ın single-flight'ı (json:<pathname>) ile
+      // korunduğundan aynı isolate'teki eşzamanlı istekler tek bir hesaplamayı paylaşır, sonuç da
+      // edge'de önbelleklenir. Hesap başarısız olursa (D1 hatası) sessizce aşağıdaki tam taramaya
+      // düşülür — bu uç ASLA bir yazma hatası yüzünden 500 dönmemeli.
+      //
+      // ctx.waitUntil ile YAZILIR, yanıt beklenmeden: bu isteğin gecikmesi değişmez (aşağıdaki tam
+      // tarama yine doğru sonucu döndürür) ama yazma, yanıt gönderildikten sonra da yaşamaya devam
+      // eder. Bu ÖNEMLİ: bu ucu çağıranlardan biri /proje sayfasının SSR yolu ve orası yanıtı
+      // 2 sn'de bırakıyor — waitUntil olmadan yeniden hesaplama tam da onarması gereken durumda
+      // yarıda kesilebilirdi. ctx yoksa (başka bir çağıran) bloklayarak yapılır.
+      if (!Object.keys(cached).length) {
+        const heal = (async () => {
+          try {
+            await bumpFacetCounts(env, 'projects');
+          } catch { /* tam tarama zaten doğru sonucu üretir; bu uç yazma hatasında 500 dönmemeli */ }
+        })();
+        if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(heal);
+        else { await heal; cached = await getCachedFacetCounts(env, 'projects'); }
+      }
       if (Object.keys(cached).length) {
         // Önizleme satırları liste havuzunda göründüğü için toplam sayaç da onları içermeli
         // (bkz. migrations/0107_preview_state.sql) — aksi halde filtre çubuğundaki "N proje

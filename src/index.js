@@ -2178,7 +2178,7 @@ async function routeApi(request, env, url, ctx) {
   // Gündem KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11) — ayrı önek: /api/gundem/:slug ile
   // çakışmasın (bkz. src/routes/gundemSubmit.js dosya başı). Oturum zorunlu, public cache YOK.
   if (path === '/api/gundem-submissions' || path.startsWith('/api/gundem-submissions/')) return handleGundemSubmitRoute(request, env, url);
-  if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
+  if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url, ctx);
   // proje.html/kisi.html/firma.html/urun.html'in yeni sayfalanmış (?page=&limit=) liste uçları —
   // BARE /api/projects/architects/offices/products, method GET iken buraya düşer; aynı path'lere
   // POST (yeni gönderi oluşturma) her zaman aşağıdaki handleSubmissionRoute'a gider (bkz. o dosyadaki

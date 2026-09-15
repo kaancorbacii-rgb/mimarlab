@@ -145,5 +145,23 @@ test('facet_counts sayaç şekli sürümlü (eski satırlar servis edilmez)', ()
   assert.match(facetCounts, /DELETE FROM facet_counts WHERE list_type IN \(\?, \?\)/);
 });
 
+// GERÇEK BULGU (2026-09-15 dördüncü tur — deploy #70'in sağlık kontrolü kırmızı döndü:
+// "/proje -> kabuk HIT ama #ml-list-data yok"). Sürümleme tabloyu boşalttığı için /api/projects/
+// filters her istekte tam taramaya düşüyordu; /proje'nin SSR verisi o ucu 2 sn timeout ile
+// çektiğinden soğuk havuzda #ml-list-data sayfaya HİÇ yazılmıyordu. Sayaçlar artık ilk istekte
+// kendini onarıyor — bu kapı kalkarsa aynı sessiz SSR kaybı geri gelir.
+test('sayaçlar boşsa uç kendini onarıyor (ctx.waitUntil ile yazma)', () => {
+  const projectRoute = read('src/routes/project.js');
+  assert.match(projectRoute, /import \{ getCachedFacetCounts, bumpFacetCounts \} from '\.\.\/lib\/facetCounts\.js';/);
+  assert.match(projectRoute, /if \(!Object\.keys\(cached\)\.length\) \{[\s\S]*?bumpFacetCounts\(env, 'projects'\)/);
+  assert.match(projectRoute, /ctx && typeof ctx\.waitUntil === 'function'/);
+  // Yazma hatası bu ucu ASLA 500'e düşürmemeli — tam tarama zaten doğru sonucu üretir.
+  assert.match(projectRoute, /\} catch \{ \/\* tam tarama zaten doğru sonucu üretir/);
+  // ctx gerçekten geçiriliyor mu (yoksa waitUntil dalı hiç çalışmaz).
+  assert.match(read('src/index.js'), /handleProjectFiltersRoute\(request, env, url, ctx\)/);
+  // Sağlık kontrolü ölçümden önce ucu ısıtıyor (bkz. o dosyadaki gerekçe).
+  assert.match(read('scripts/health-check.sh'), /3y\) Facet sayaçlarını ısıtma/);
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 process.exit(failed ? 1 : 0);

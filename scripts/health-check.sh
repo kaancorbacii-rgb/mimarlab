@@ -79,6 +79,18 @@ else
   fail=1
 fi
 
+# ISINMA (gerçek bulgu, 2026-09-15 dördüncü tur — deploy #70 bu adımda kırmızı döndü):
+# /proje'nin SSR verisi /api/projects/filters'ı HUB_SSR_TIMEOUT_MS = 2000 ms ile çeker. O uç,
+# facet_counts tablosu BOŞKEN (deploy'un ilk isteği ya da sayaç şeklinin sürümlenmesinden sonra)
+# tam taramaya düşer ve soğuk havuzda bu bütçeyi aşabilir. Uç artık kendini onarıyor — ilk istekte
+# sayaçları ctx.waitUntil ile yeniden hesaplayıp yazıyor (bkz. src/routes/project.js#
+# handleProjectFiltersRoute) — ama yazmanın bitmesi için ölçümden ÖNCE bir kez çağrılması gerekir.
+# Bu bir ÖRTBAS DEĞİL: aşağıdaki kontrol hâlâ SSR verisinin gerçekten gömüldüğünü doğrular.
+echo "3y) Facet sayaçlarını ısıtma (/api/projects/filters — kendini onaran yol)"
+curl -s -o /dev/null "$BASE_URL/api/projects/filters?buildStatus=built" || true
+sleep 5
+curl -s -o /dev/null "$BASE_URL/api/projects/filters?buildStatus=built" || true
+
 echo "3z) Hub kabuğu önbelleği (src/index.js#serveHubListPage) — X-ML-Shell-Cache + gömülü SSR verisi"
 # Kullanıcı isteği 2026-09-10: hub HTML'i her istekte yeniden kuruluyordu; artık kabuk Cache API'de,
 # SSR verisi önbelleğin dışında her yanıta eklenir. Başlık HIT|MISS olmalı ve gövde #ml-list-data
