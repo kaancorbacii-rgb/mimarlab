@@ -100,6 +100,56 @@ function mergeCreditNames(canonical, raw) {
   return out;
 }
 
+// MİMAR KUTUSUNA YAZILMIŞ AMA GERÇEKTE FİRMA OLAN ADLAR (kullanıcı isteği, 2026-09-15 ikinci tur:
+// "Proje sayfasındaki filtrelerde mimar kısmında SADECE mimar künyesindeki isimler, firma kısmında
+// SADECE mimarlık firması künyesindeki isimler yer alacak. Şu an filtrelerde firma isimleri mimar
+// kısmına karışmış gözüküyor").
+//
+// KÖK NEDEN. 2026-09-15 BİRİNCİ turda künyeye YAZILDIĞI HÂLİYLE adlar (designer_names_raw /
+// office_names_raw) filtrelere dahil edildi; bu, o güne kadar filtrede HİÇ görünmeyen iki ad
+// kümesini birden görünür yaptı ve ikisi de Mimar filtresine düşüyordu:
+//   1. ESKİ (0030 öncesi) gönderiler — o zaman form TEK kutu gönderiyordu: Mimar ve Firma adları
+//      `project_submissions.designer` içinde BİRLİKTE duruyor, `office` kolonu NULL (bkz.
+//      migrations/0030_project_submission_office.sql, src/routes/project.js#fetchRawDesignerNames'in
+//      isLegacy dalı ve 0120'nin geri dolumu — o dolum ps.designer'ı olduğu gibi kopyalar).
+//      Proje pop-up'ı bu satırlarda ayrımı isOfficeName() sezgisiyle yapıyordu, filtre ise hepsini
+//      "mimar" sayıyordu: aynı künye pop-up'ta "Firma", listede "Mimar" diyordu.
+//   2. Firma adının Mimar kutusuna yazıldığı gönderiler — resolveArchitectLink YALNIZCA `architects`
+//      tablosuna bakar (bkz. src/lib/canonicalSync.js), firma orada olmadığı için ad
+//      project_designers'a hiç yazılamaz; ham listeye ise yazıldığı kutuyla, yani Mimar olarak düşer.
+//
+// KARAR SIRASI — sezgi EN SONDA ve yalnızca başka hiçbir kanıt yokken:
+//   a. Ad project_designers'ta MİMAR olarak bağlıysa (ar.name) kesin mimardır, ASLA taşınmaz.
+//   b. Sitede o adla bir `offices` kaydı varsa (officeNameFolds) kesin firmadır — arşivde/gizli
+//      olanlar dahil (bkz. fetchOfficeNameFolds), çünkü arşivlenmiş bir firma da firmadır.
+//   c. (a) ve (b) yoksa VE satır eski BİRLEŞİK kutudan geliyorsa (office_names_raw NULL)
+//      isOfficeName() sezgisi. Pop-up künyesi o satırlarda zaten aynı sezgiyi kullanıyor, ikisi
+//      ayrışmasın. MODERN gönderilerde sezgiye HİÇ başvurulmaz: kullanıcının adı hangi kutuya
+//      yazdığı kesin bilgidir ve 2026-08-19 bulgusu ("+MURAT TABANLIOĞLU" anahtar kelimelerin
+//      hiçbirine uymadığı için Mimar'a sızmıştı) sezginin tek başına yeterli OLMADIĞINI gösterdi.
+//
+// Dönen adlar `designer` listesinden ÇIKARILMAZ (o liste künyenin tamamıdır: arama alanlarını ve
+// kart altyazılarını besler), yalnızca `officeNames`e EKLENİR — Mimar filtresi zaten "designer eksi
+// officeNames" olarak hesaplanır (bkz. buildFilterGroups), böylece ad Mimar'dan düşer ve Firma
+// filtresinde görünür.
+function officeNamesInDesignerBox(row, canonicalNames, canonicalOfficeNames, rawDesignerNames, officeNameFolds) {
+  if (!officeNameFolds || !rawDesignerNames.length) return [];
+  const officeFold = new Set(canonicalOfficeNames.map(n => foldTr(n)));
+  // (a) — designer_names = COALESCE(ar.name, ofc.name), office_names = yalnızca ofc.name;
+  // aradaki fark project_designers'ta MİMAR olarak bağlı adlardır.
+  const architectFold = new Set(canonicalNames.map(n => foldTr(n)).filter(k => !officeFold.has(k)));
+  // Eski BİRLEŞİK kutu: office_names_raw NULL (modern gönderi her zaman '[]' bile olsa yazar, bkz.
+  // src/lib/canonicalSync.js#syncProject).
+  const legacyCombinedBox = row.office_names_raw == null;
+  const out = [];
+  for (const name of rawDesignerNames) {
+    const key = foldTr(name);
+    if (!key || architectFold.has(key)) continue;
+    if (officeNameFolds.has(key) || (legacyCombinedBox && isOfficeName(name))) out.push(name);
+  }
+  return out;
+}
+
 // projects.image_hotspots ham metnini güvenle çözer — biçim bozuksa/dizi ise boş nesneye düşer
 // (bkz. shapeProjectItem'daki kullanım ve migrations/0076_project_image_hotspots.sql).
 function parseHotspots(raw) {
@@ -130,6 +180,18 @@ export const CARD_CAROUSEL_IMAGES = 3;
 export function shapeProjectItem(row, opts) {
   const p = parseCanonicalRow('projects', row);
   const coverOnly = opts && opts.coverOnly;
+  // Künye adları — üç kaynak (bkz. officeNamesInDesignerBox yukarıda): project_designers'tan gelen
+  // EŞLEŞEN adlar, künyeye yazıldığı hâliyle HAM adlar ve Mimar kutusuna yazılmış firma adları.
+  const canonicalNames = designerNamesFrom(row.designer_names);
+  const canonicalOfficeNames = officeNamesFrom(row.office_names);
+  const rawDesignerNames = parseNameArray(row.designer_names_raw);
+  const rawOfficeNames = parseNameArray(row.office_names_raw);
+  // officeNameFolds YALNIZCA filtre havuzundan (fetchActiveProjectPool) geçirilir — Mimar/Firma
+  // ayrımını okuyan tek yüzey orası. Tekil proje / sayfa sorguları bu opsiyonu geçirmez, onların
+  // yanıt şekli (kart altyazısı, pop-up künyesi) DEĞİŞMEDEN kalır.
+  const designerBoxOffices = officeNamesInDesignerBox(
+    row, canonicalNames, canonicalOfficeNames, rawDesignerNames, opts && opts.officeNameFolds,
+  );
   // Alan yalnızca GERÇEKTEN işaretçi varsa yüke eklenir — liste/havuz yolunda (yüzlerce kayıt, KV'de
   // önbelleklenen tek bir JSON) her karta boş bir nesne iliştirmenin hiçbir faydası yok.
   //
@@ -151,13 +213,12 @@ export function shapeProjectItem(row, opts) {
     // designer / officeNames — EŞLEŞEN adlar (project_designers) + künyeye yazılmış HAM adlar
     // (kullanıcı isteği, 2026-09-15 madde 2). Mimar filtresi `designer` eksi `officeNames` olarak
     // hesaplandığından (bkz. buildFilterGroups) ham FİRMA adları her iki listeye de girer: böylece
-    // Mimarlık Firması filtresinde görünür, Mimar filtresine sızmazlar.
+    // Mimarlık Firması filtresinde görünür, Mimar filtresine sızmazlar. Mimar KUTUSUNA yazılmış
+    // firma adları da aynı yoldan Firma tarafına geçer (bkz. officeNamesInDesignerBox, 2026-09-15
+    // ikinci tur) — `designer` künyenin TAMAMI olmaya devam eder (arama/altyazı onu okur).
     period: p.period,
-    designer: mergeCreditNames(
-      designerNamesFrom(row.designer_names),
-      [...parseNameArray(row.designer_names_raw), ...parseNameArray(row.office_names_raw)],
-    ),
-    officeNames: mergeCreditNames(officeNamesFrom(row.office_names), parseNameArray(row.office_names_raw)),
+    designer: mergeCreditNames(canonicalNames, [...rawDesignerNames, ...rawOfficeNames]),
+    officeNames: mergeCreditNames(canonicalOfficeNames, [...rawOfficeNames, ...designerBoxOffices]),
     // url: agregatör kapısı (kullanıcı isteği, 2026-09-14 — bkz. src/lib/aggregatorSources.js).
     // Kart/liste yükü bu bağlantıyı bugün <a> olarak basmıyor (bkz. js/components/project-gallery.js
     // — yalnızca .text okunuyor), ama kapı burada da durur: aynı yükü okuyan yeni bir çağıran
@@ -200,6 +261,22 @@ export const OFFICE_KEYWORDS = ["mimarlık","architecture","architects","archite
 export function isOfficeName(name) {
   if (OFFICE_NAME_OVERRIDES.has(name)) return true;
   return OFFICE_KEYWORDS.some(k => name.toLowerCase().includes(k));
+}
+
+// Sitedeki TÜM firma adlarının TR-duyarlı katlanmış kümesi (bkz. officeNamesInDesignerBox (b)
+// maddesi). Gizli/arşivlenmiş kayıtlar da DAHİL (yalnızca silinenler dışarıda): arşivdeki bir firma
+// da firmadır, adı Mimar filtresinde görünmemeli — 2026-09-14'te markaların büyük bölümü arşive
+// alındı, onları dışarıda bırakmak tam da bu turda düzeltilen sızıntıyı geri getirirdi.
+// TEK sorgu ve YALNIZCA filtre havuzu yolunda çalışır; havuz KV'de önbelleklendiğinden (bkz.
+// src/lib/publicCache.js#getCachedPool) maliyeti istek başına değil, önbellek yenilenmesi başınadır.
+export async function fetchOfficeNameFolds(env) {
+  const { results } = await env.DB.prepare(`SELECT name FROM offices WHERE deleted_at IS NULL`).all();
+  const out = new Set();
+  for (const row of results) {
+    const key = foldTr(String(row.name || '').trim());
+    if (key) out.add(key);
+  }
+  return out;
 }
 
 // bkz. src/lib/facetCounts.js#recomputeProjectFacets — facet_counts'ın "hiçbir filtre aktif değil"
@@ -246,7 +323,11 @@ export async function fetchActiveProjectPool(env, buildStatus) {
      WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL) AND p.build_status = ?
      GROUP BY p.id ORDER BY (p.preview_at IS NOT NULL) ASC, COALESCE(p.display_order, 0) ASC, COALESCE(p.relisted_at, p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(status).all();
-  return results.map(row => shapeProjectItem(row, { coverOnly: true }));
+  // officeNameFolds — Mimar kutusuna yazılmış firma adlarını Firma tarafına taşımak için (bkz.
+  // officeNamesInDesignerBox). Havuzun TEK tüketicileri liste/filtre yüzeyleri olduğundan sorgu
+  // yalnızca burada açılır; sonuç (şekillendirilmiş havuz) zaten önbelleklenir.
+  const officeNameFolds = await fetchOfficeNameFolds(env);
+  return results.map(row => shapeProjectItem(row, { coverOnly: true, officeNameFolds }));
 }
 
 // proje.html sunucudan gelen filters.designer/designerOffice listelerini olduğu gibi render eder,
@@ -272,7 +353,14 @@ export function buildFilterGroups(ratingByProject) {
         return (info.district && info.city === 'İstanbul') ? [info.district] : [];
       } },
     { key: 'dateBucket', label: 'Yıl', nested: false, field: p => [p.dateBucket] },
-    { key: 'designer', label: 'Mimar', nested: false, field: p => (p.designer || []).filter(d => !(p.officeNames || []).includes(d)) },
+    // Mimar = künyenin tamamı EKSİ firma adları. Karşılaştırma foldTr ile yapılır (düz `includes`
+    // değil): iki liste aynı adı farklı yazımla taşıyabilir (biri canonical kayıttan, diğeri
+    // künyeye elle yazılmış hâlinden gelir) ve tek harflik bir fark firmayı Mimar filtresine
+    // sızdırırdı — bkz. mergeCreditNames'teki AYNI TR-duyarlı katlama.
+    { key: 'designer', label: 'Mimar', nested: false, field: p => {
+        const officeFold = new Set((p.officeNames || []).map(n => foldTr(n)));
+        return (p.designer || []).filter(d => !officeFold.has(foldTr(d)));
+      } },
     { key: 'designerOffice', label: 'Mimarlık Firması', nested: false, field: p => p.officeNames || [] },
     { key: 'award', label: 'Ödül', nested: false, field: p => p.awards || [] },
     { key: 'rating', label: 'Puan', nested: false, field: p => ratingBuckets((ratingByProject.get(p.slug) || { average: 0 }).average) },

@@ -239,6 +239,35 @@ isimler görülmeli."
 - `project_designers` DEĞİŞMEDİ: profil çipleri/bağlantıları hâlâ oradan gelir, bu kolonlar yalnızca
   "künyede ne yazıyordu" sorusunun cevabıdır.
 
+## Filtrelerde Mimar / Firma ayrımı (2026-09-15, ikinci tur)
+
+Kullanıcı isteği: "Proje sayfasındaki filtrelerde mimar kısmında sadece mimar künyesindeki isimler
+yer alacak. Firma kısmında ise sadece mimarlık firması künyesindeki isimler yer alacak. Şu an
+filtrelerde firma isimleri mimar kısmına karışmış gözüküyor."
+
+- **Kök neden**: yukarıdaki "TÜM adlar filtrelerde" turu ham künye adlarını filtrelere soktu ve iki
+  ad kümesini birden **Mimar** tarafına düşürdü: (1) 0030 öncesi **tek kutulu** gönderilerde mimar +
+  firma adları `project_submissions.designer` içinde birlikte duruyor (`office` NULL, 0120 geri
+  dolumu onu olduğu gibi kopyalar) — pop-up künyesi orada `isOfficeName()` sezgisiyle ayırıyordu,
+  filtre ayırmıyordu; (2) firma adı **Mimar kutusuna** yazıldığında `resolveArchitectLink` yalnızca
+  `architects`e baktığı için eşleşme bulunamıyor, ad `project_designers`'a hiç yazılamıyor ve ham
+  listeye Mimar olarak düşüyor.
+- **Karar sırası** (`src/lib/projectPool.js#officeNamesInDesignerBox`): (a) ad `project_designers`'ta
+  MİMAR olarak bağlıysa asla taşınmaz, (b) sitede o adla bir `offices` kaydı varsa (arşivdekiler
+  dahil, `fetchOfficeNameFolds`) firmadır, (c) yalnızca eski **birleşik** kutuda `isOfficeName()`
+  sezgisi — modern gönderide kullanıcının hangi kutuya yazdığı kesin bilgi olduğundan sezgiye HİÇ
+  başvurulmaz (bkz. 2026-08-19 "+MURAT TABANLIOĞLU" bulgusu).
+- Taşınan ad `designer` listesinden ÇIKMAZ (künyenin tamamı; arama ve kart altyazısı onu okur),
+  yalnızca `officeNames`e eklenir — Mimar filtresi zaten "designer eksi officeNames"tir ve bu
+  çıkarma artık `foldTr` ile yapılır (yazım farkı sızıntıya yol açmasın).
+- **Sınır**: `officeNameFolds` YALNIZCA filtre havuzuna (`fetchActiveProjectPool`) geçirilir; tekil
+  proje/sayfa sorgularının yanıt şekli değişmedi.
+- **facet_counts sürümlendi** (`FACET_SHAPE_VERSION`, `projects:v2`): sayaçlar D1'de kalıcıdır ve
+  yalnızca bir içerik yazımında tazelenir — sürüm olmasaydı eski (firma adlarını Mimar altında
+  taşıyan) satırlar filtresiz ilk sayfa yüklemesinde servis edilmeye devam ederdi. Yeni sürümde satır
+  yokken okuyucu tam taramaya (doğru yol) düşer, ilk yazmada yeniden dolar.
+- Testler: `scripts/test-2026-09-15-architect-office-filter-split.mjs` (preflight'a bağlı).
+
 ## proje-ekle: firma kutusuna elle isim (2026-09-15)
 
 - `office-picker.js` yeni **`allowCustom`** seçeneği: arama kutusuna yazılan ve listede karşılığı
