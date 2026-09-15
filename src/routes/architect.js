@@ -13,6 +13,10 @@ import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 import { TR_UNIVERSITIES, canonicalSchoolName } from '../lib/universities.js';
 import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
 import { buildOfficePeople } from './office.js';
+// "Danışmanlık Al" düğmesi artık SABİT BİR SLUG'A bağlı değil (kullanıcı isteği, 2026-09-15):
+// kişi onaylı bir danışmansa pop-up düğmeyi ve o kişinin KENDİ teklifini gösterir.
+// consultants.js DÖNGÜ YARATMAZ — o modül yalnızca claimedProfiles.js'e bakar.
+import { fetchApprovedConsultant, publicOffer, consultationIntro } from '../lib/consultants.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
@@ -853,6 +857,17 @@ export async function buildArchitectPayload(env, key) {
   // FOTOĞRAFÇININ profil fotoğrafı popup'ta blurlanır (telif). Kural isArchitectProfileClaimed ile
   // AYNI — bkz. src/lib/claimedProfiles.js#fetchUnclaimedPhotographerSlugs (kart tarafı).
   const photoBlur = !claimed && professionLabelList(a.profession).includes('Fotoğrafçı');
+  // Teklif, randevuyu DOĞRULAYAN satırın ta kendisinden okunur (fetchApprovedConsultant yalnızca
+  // status='approved' döner), yani pop-up'ta görünen süre/ücret ile sunucunun kabul ettiği değer
+  // ayrışamaz. publicOffer ile AYNI şekil kullanılır — istemcideki tek çizim kodu iki uçtan da
+  // aynı alanları okur.
+  const consultantRow = a.slug ? await fetchApprovedConsultant(env, a.slug) : null;
+  const consultant = consultantRow ? {
+    ...publicOffer(consultantRow),
+    intro: consultantRow.intro || consultationIntro(a.name),
+    expertise: consultantRow.expertise || null,
+  } : null;
+
   return {
     item,
     claimed,
@@ -873,6 +888,11 @@ export async function buildArchitectPayload(env, key) {
     preferredBrands,
     prevItem: adjacent.prevItem,
     nextItem: adjacent.nextItem,
+    // consultant — kişi ONAYLI bir danışmansa teklifi (süre/ücret/uygun gün-saat + tanıtım).
+    // Pop-up'taki "Danışmanlık Al" düğmesi YALNIZCA bu alan doluyken çizilir; eskiden düğme
+    // architect-modal.js içinde 'kaan-corbaci' slug'ına GÖMÜLÜYDÜ (bkz. kullanıcı isteği,
+    // 2026-09-15: danışman kadrosu artık başvuru + admin onayıyla belirleniyor).
+    consultant,
     // hidden: önizleme satırlarında hidden_at DOLU kalır (bkz. migrations/0107_preview_state.sql) —
     // ama bu gövde artık gerçek bir kayıt taşıdığından `hidden` false olmalı: hem statusFor 200
     // dönsün hem de istemcinin fetchEntity'si (modal-shell.js) gövdeyi "yok" saymasın.

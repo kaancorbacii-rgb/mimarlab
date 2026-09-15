@@ -330,6 +330,12 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .consult-card-intro{font-size:13px; line-height:1.6; color:var(--ink-soft); margin:10px 0 0;}
+  /* "hangi alanda danışmanlık verdiklerini vs. bilgi olarak yazsınlar" (kullanıcı isteği) —
+     başvuruda yazılan serbest metin. Uzun olabileceğinden dört satırla kırpılır. */
+  .consult-card-expertise{
+    font-size:12.5px; line-height:1.6; color:var(--ink); margin:8px 0 0;
+    display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;
+  }
   .consult-card-facts{list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:5px;}
   .consult-card-facts li{display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--ink);}
   .consult-card-facts svg{flex-shrink:0; margin-top:1px; opacity:0.6;}
@@ -474,11 +480,10 @@
       <!-- "Danışman Ol" — kenar çubuğunun EN ALTINDA, kisi.html'deki "Kişi Ekle" düğmesiyle AYNI
            yuva (.sidebar-add) ve AYNI görsel dil (kullanıcı isteği: "filtrelerin en altında
            Danışman Ol butonu olsun").
-           HEDEF /iletisim: danışman olmak bir FORM DOLDURMA işi değil, bir başvurudur — siteye
-           kendi kendine danışman ekleyen bir akış YOKTUR ve olmamalıdır da, çünkü randevu kapısı
-           (src/routes/consultations.js#ALLOWED_HOST_SLUGS) elle küratörlüdür. Var olmayan bir
-           sayfaya bağlamak yerine sitenin gerçek başvuru yüzeyine gider. -->
-      <div class="sidebar-add"><a class="sidebar-add-btn" href="/iletisim"><span class="sidebar-add-icon">+</span> Danışman Ol</a></div>
+           HEDEF /danisman-ol (2026-09-15 ikinci tur): artık gerçek bir başvuru sayfası var.
+           Başvuru kendi kendine danışman YAPMAZ — kayıt 'pending' açılır, randevu kapısı yalnızca
+           admin onaylı ('approved') satırı tanır (bkz. src/lib/consultants.js). -->
+      <div class="sidebar-add"><a class="sidebar-add-btn" href="/danisman-ol"><span class="sidebar-add-icon">+</span> Danışman Ol</a></div>
     </aside>
 
     <main>
@@ -582,7 +587,6 @@ function tzLabel(tz){ return TZ_LABELS[tz] || tz || ''; }
 // js/components/consultation-modal.js#formatTry ile AYNI biçim.
 function formatTry(n){ return `${Number(n).toLocaleString('tr-TR')} ₺`; }
 
-let offer = null;
 let allItems = [];
 
 // ---------------------------------------------------------------------------------------------
@@ -812,6 +816,10 @@ const ICON_CALENDAR = '<rect x="3" y="5" width="18" height="16" rx="2"/><line x1
 const ICON_VIDEO = '<rect x="2" y="6" width="14" height="12" rx="2"/><polygon points="22 8 16 12 22 16 22 8"/>';
 
 function cardHtml(item, eager){
+  // TEKLİF ARTIK KART BAŞINA (kullanıcı isteği, 2026-09-15: her danışman kendi süresini/ücretini/
+  // saatlerini seçer). Liste düzeyinde tek bir `offer` okumak, ikinci danışman eklendiği anda
+  // herkese aynı süreyi/ücreti gösterirdi.
+  const offer = item.offer || null;
   const href = `/kisi/${encodeURIComponent(item.slug)}`;
   const sub = item.office || item.positionRaw || '';
   const photoSrcset = item.photo && typeof cdnSrcset === 'function' ? cdnSrcset(item.photo, [200, 400]) : '';
@@ -832,6 +840,7 @@ function cardHtml(item, eager){
       <a class="consult-card-name" href="${escapeAttr(href)}">${escapeHtml(item.name)}${badgeHtmlSafe('architect', item.name, item.badges)}</a>
       ${sub ? `<div class="consult-card-sub">${escapeHtml(sub)}</div>` : ''}
       ${item.intro ? `<p class="consult-card-intro">${escapeHtml(item.intro)}</p>` : ''}
+      ${item.expertise ? `<p class="consult-card-expertise">${escapeHtml(item.expertise)}</p>` : ''}
       ${facts.length ? `<ul class="consult-card-facts">${facts.join('')}</ul>` : ''}
       <div class="consult-card-foot">
         ${offer && offer.priceTry ? `<span class="consult-card-price">${escapeHtml(formatTry(offer.priceTry))}</span>` : ''}
@@ -882,7 +891,6 @@ async function load(){
     else { empty.textContent = 'Danışmanlar yüklenemedi, lütfen sayfayı yenile.'; empty.style.display = 'block'; }
     return;
   }
-  offer = data.offer || null;
   allItems = data.items || [];
   render();
 }
@@ -902,7 +910,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
     window.location.href = `/kisi/${encodeURIComponent(item.slug)}`;
     return;
   }
-  ConsultationModal.open({ hostSlug: item.slug, hostName: item.name, intro: item.intro || '' });
+  ConsultationModal.open({ hostSlug: item.slug, hostName: item.name, intro: item.intro || '', offer: item.offer || null });
 });
 
 let searchDebounce = null;

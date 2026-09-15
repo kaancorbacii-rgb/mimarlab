@@ -9,6 +9,8 @@ import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidP
 import { createNotification, notifySubmissionApproved, notifySubmissionRejected } from '../lib/notify.js';
 // Google Meet gateway'i (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import { createMeetForConsultation } from '../lib/consultationMeet.js';
+// Danışman başvuruları (kullanıcı isteği, 2026-09-15) — bkz. src/lib/consultants.js.
+import { parseConsultantRow, CONSULTANT_STATUSES } from '../lib/consultants.js';
 import { handleGoogleMeetAuthAdmin } from './googleMeetAuth.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { handleUnassignedArchiveAdmin } from './unassignedArchive.js';
@@ -165,6 +167,7 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'badges') return await handleBadgesAdmin(request, env, url, segments);
     if (sub === 'consultations') return await handleConsultationsAdmin(request, env, url, segments);
     if (sub === 'consultation-actions') return await handleConsultationActionsAdmin(request, env, url, segments);
+    if (sub === 'consultant-applications') return await handleConsultantApplicationsAdmin(request, env, url, segments);
     // Google Meet OAuth kurulumu (kullanıcı kararı, 2026-09-13) — kişisel Gmail hesapları servis
     // hesabıyla Meet konferansı ÜRETEMEDİĞİ için yenileme belirteci üreten tek seferlik akış.
     // Belirteç SAKLANMAZ, yalnızca admin'e gösterilir (bkz. src/routes/googleMeetAuth.js).
@@ -378,7 +381,7 @@ async function handleAdminSummary(env) {
   const gundemPending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM gundem_items WHERE status = 'pending'`).first().catch(() => null);
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0) + (gundemPending?.n || 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow, consultationActionsRow, newUsersRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultationsRow, consultationActionsRow, consultantApplicationsRow, newUsersRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
@@ -387,6 +390,7 @@ async function handleAdminSummary(env) {
     env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_actions WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM consultants WHERE status = 'pending'`).first(),
     countNewUsers(env),
   ]);
 
@@ -399,6 +403,7 @@ async function handleAdminSummary(env) {
     unseenComments: commentsRow?.n || 0,
     pendingConsultations: consultationsRow?.n || 0,
     pendingConsultationActions: consultationActionsRow?.n || 0,
+    pendingConsultantApplications: consultantApplicationsRow?.n || 0,
     newUsers: newUsersRow?.n || 0,
   });
 }
@@ -1837,6 +1842,83 @@ async function handleConsultationsAdmin(request, env, url, segments) {
     if (row.status !== 'approved') return errorJson('Meet yalnızca onaylı rezervasyon için oluşturulur.');
     const meet = await createMeetForConsultation(env, id, { origin: new URL(request.url).origin });
     return json({ ok: meet.status === 'ready', status: meet.status, error: meet.error || null, reason: meet.reason || null });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// /api/admin/consultant-applications?status=pending
+// /api/admin/consultant-applications/:slug  (PATCH: status -> approved | rejected, opsiyonel admin_note)
+//
+// DANIŞMAN KADROSUNUN ONAY KAPISI (kullanıcı isteği, 2026-09-15). Başvuru ucu (consultations.js#
+// submitConsultantApplication) status'u ASLA 'approved' yapmaz; onay YALNIZCA buradan verilir —
+// aksi halde herkes kendini danışman ilan edip randevu kabul etmeye başlardı.
+async function handleConsultantApplicationsAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const status = url.searchParams.get('status');
+    // Kişi künyesi (ad/fotoğraf) ve başvuran hesap birlikte döner — admin, başvuruyu
+    // değerlendirmek için ayrı ekranlara bakmak zorunda kalmasın.
+    const base = `SELECT c.*, a.name AS architect_name, a.photo_url AS architect_photo,
+                         a.profession AS architect_profession, u.name AS user_name, u.email AS user_email
+                    FROM consultants c
+                    LEFT JOIN architects a ON a.slug = c.architect_slug
+                    LEFT JOIN users u ON u.id = c.user_id`;
+    const query = status
+      ? env.DB.prepare(`${base} WHERE c.status = ? ORDER BY c.updated_at DESC`).bind(status)
+      : env.DB.prepare(`${base} ORDER BY c.updated_at DESC`);
+    const { results } = await query.all();
+    return json({
+      items: (results || []).map(r => ({
+        ...parseConsultantRow(r),
+        architectName: r.architect_name || null,
+        architectPhoto: r.architect_photo || null,
+        architectProfession: r.architect_profession || null,
+        userName: r.user_name || null,
+        userEmail: r.user_email || null,
+        adminNote: r.admin_note || null,
+      })),
+    });
+  }
+
+  if (segments.length === 4 && request.method === 'PATCH') {
+    const slug = decodeURIComponent(segments[3] || '');
+    const body = await readJson(request);
+    if (!['approved', 'rejected'].includes(body.status) || !CONSULTANT_STATUSES.has(body.status)) {
+      return errorJson('Geçersiz durum.');
+    }
+    const row = await env.DB.prepare(
+      `SELECT c.architect_slug, c.user_id, c.status, a.id AS architect_id, a.claimed_by_user_id
+         FROM consultants c LEFT JOIN architects a ON a.slug = c.architect_slug
+        WHERE c.architect_slug = ?`
+    ).bind(slug).first();
+    if (!row) return errorJson('Bulunamadı', 404);
+    // ONAYIN ÖN KOŞULU: kişi kaydı GERÇEKTEN var olmalı. Kayıt silinmiş/yeniden adlandırılmışsa
+    // onay, randevu alınamayan bir danışman üretirdi (fetchApprovedConsultantRows JOIN'i boş döner)
+    // — hata burada, sessiz kalmadan verilir.
+    if (body.status === 'approved' && !row.architect_id) {
+      return errorJson('Bu slug ile bir kişi kaydı bulunamadı — önce kişi kaydı yayında olmalı.');
+    }
+    const now = Date.now();
+    const adminNote = typeof body.adminNote === 'string' ? body.adminNote.trim().slice(0, 1000) || null : null;
+    await env.DB.prepare(
+      `UPDATE consultants SET status = ?, admin_note = ?, updated_at = ?, approved_at = ? WHERE architect_slug = ?`
+    ).bind(body.status, adminNote, now, body.status === 'approved' ? now : null, slug).run();
+
+    // Başvuru sahibine bildirim. Hedef: başvuruyu yapan hesap; yoksa kişi kaydının sahibi.
+    const targetUser = row.user_id || row.claimed_by_user_id;
+    if (targetUser) {
+      await createNotification(
+        env, targetUser,
+        body.status === 'approved' ? 'consultant_application_approved' : 'consultant_application_rejected',
+        body.status === 'approved' ? 'Danışman başvurun onaylandı' : 'Danışman başvurun onaylanmadı',
+        body.status === 'approved'
+          ? 'Artık Danışmanlık sayfasında listeleniyorsun ve randevu alabilirsin.'
+          : (adminNote || 'Başvurun şu an için onaylanmadı. Detay için bizimle iletişime geçebilirsin.'),
+        '/danismanlik',
+      );
+    }
+    // /api/consultants herkese açık ve önbelleklidir — onay/ret anında tazelensin.
+    await invalidatePublicCache(env);
+    return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
 }

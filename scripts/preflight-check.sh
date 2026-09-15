@@ -1032,6 +1032,19 @@ else
 fi
 rm -f /tmp/preflight_danismanlik
 
+# DANIŞMAN OL + ÖDEME SEÇENEKLERİ (kullanıcı isteği, 2026-09-15 ikinci tur). DÖRT SESSİZ REGRESYON:
+# (a) kart ödemesinin yalnızca arayüzde pasifleştirilip sunucuda açık kalması, (b) başvurunun kendi
+# kendini onaylaması (randevu kapısı anlamsızlaşır), (c) başkasının kişi profili adına başvuru,
+# (d) görüşme süresinin randevu yerine danışman ayarından okunması (geçmiş randevuların Meet
+# penceresi kayar). Bkz. scripts/test-2026-09-15-danisman-ol.mjs.
+if node scripts/test-2026-09-15-danisman-ol.mjs >/tmp/preflight_danismanol 2>&1; then
+  ok "danışman ol + ödeme seçenekleri testleri geçti ($(grep -c '^  ok ' /tmp/preflight_danismanol) test)"
+else
+  bad "danışman ol + ödeme seçenekleri testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_danismanol >&2
+fi
+rm -f /tmp/preflight_danismanol
+
 # 'mimarlab:authchange' OLAY HEDEFİ (kullanıcı bildirimi, 2026-09-13: giriş sonrası "Senin İçin"
 # otomatik gelmiyordu). Olay auth-nav.js'te WINDOW üzerinde yayınlanır; bir dinleyici DOCUMENT
 # üzerinde beklerse olayı HİÇ ALMAZ ve hiçbir hata vermez — giriş sonrası o blok sessizce eski

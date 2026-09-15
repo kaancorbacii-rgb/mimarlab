@@ -30,7 +30,7 @@ import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleArchiveRoute } from './routes/archive.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
-import { handleConsultationsRoute, handleConsultantsRoute } from './routes/consultations.js';
+import { handleConsultationsRoute, handleConsultantsRoute, handleConsultantApplicationsRoute } from './routes/consultations.js';
 import { handleTop100Route } from './routes/top100.js';
 import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
@@ -413,6 +413,10 @@ const PATH_RENAME_REDIRECTS = {
   // buradaki tek amaç aşağıdaki "adı değişmemiş sayfaların .html biçimi" kuralıyla aynı: Assets'in
   // 307'si yerine 301 vermek. Sayfa HİÇBİR menüde bağlanmaz (kullanıcı isteği).
   '/danismanlik.html': '/danismanlik',
+  // Danışman Ol başvuru sayfası (2026-09-15) — /danismanlik ile AYNI gerekçe (Assets'in 307'si
+  // yerine 301). Sitemap'te YOK: giriş gerektiren işlemsel bir başvuru sayfası (bkz. /rozet-al,
+  // /iade-et ile aynı sınıf), indekslenmesi istenmiyor.
+  '/danisman-ol.html': '/danisman-ol',
   // ---------------------------------------------------------------------------------------------
   // ADI DEĞİŞMEMİŞ SAYFALARIN ".html" BİÇİMİ (SEO denetimi, 2026-09-07)
   // ---------------------------------------------------------------------------------------------
@@ -2203,6 +2207,9 @@ async function routeApi(request, env, url, ctx) {
   // '/api/consultations' önekiyle ÇAKIŞMAZ (ayrı yol) ama ona benzediği için burada, diğer herkese
   // açık liste uçlarının yanında durur.
   if (path === '/api/consultants' && (request.method === 'GET' || request.method === 'HEAD')) return handleConsultantsRoute(request, env, url);
+  // Danışman Ol başvurusu (kullanıcı isteği, 2026-09-15) — tamamen oturum korumalı, herkese açık
+  // okuma ucu YOK. '/api/consultants' ile önek çakışması olmasın diye TAM eşleşme kullanılır.
+  if (path === '/api/consultant-applications') return handleConsultantApplicationsRoute(request, env, url);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki

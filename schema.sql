@@ -937,11 +937,35 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
   payment_status TEXT,
   payment_token TEXT,
   payment_id TEXT,
-  paid_at INTEGER
+  paid_at INTEGER,
+  -- Görüşme süresi TALEBİN KENDİSİNDE (0121) — danışman başına değişebildiği için sonradan
+  -- değiştirilebilir bir ayardan okunamaz (price_try ile AYNI gerekçe, bkz. o migration).
+  duration_min INTEGER NOT NULL DEFAULT 45
 );
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_host_status ON consultation_requests(host_slug, status, requested_date);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_consultation_requests_room_uuid ON consultation_requests(room_uuid);
+
+-- ---------- Danışman kadrosu (0121) ----------
+-- Kim danışmandır + teklifi nedir (süre/ücret/uygun gün-saat). Eskiden kaynak kodda tek bir Set ve
+-- dört global sabitti; tam gerekçe için bkz. migrations/0121_consultants.sql.
+CREATE TABLE IF NOT EXISTS consultants (
+  architect_slug TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  duration_min INTEGER NOT NULL CHECK (duration_min IN (30, 45, 60)),
+  price_try INTEGER NOT NULL CHECK (price_try >= 0),
+  weekdays TEXT NOT NULL, -- JSON dizi, Date#getUTCDay uzayı (0=Pazar … 6=Cumartesi)
+  times TEXT NOT NULL,    -- JSON dizi, "HH:MM"
+  expertise TEXT,
+  intro TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected
+  admin_note TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  approved_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_consultants_status ON consultants(status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_consultants_user ON consultants(user_id);
 
 -- ---------- Danışmanlık görüşme aksiyonu talepleri (0098) ----------
 -- "Görüşme Gerçekleşti"/"Değerlendir"/"İptal Et" — profile_corrections İLE AYNI desen (bkz.

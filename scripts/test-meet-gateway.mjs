@@ -142,6 +142,11 @@ async function seed(db, { status = 'approved', meet = {} } = {}) {
     ins(`INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`, await sha256Hex(TOKENS[id]), id, now, now + 86400e3 * 365);
   }
   ins(`INSERT INTO architects (slug, name, position, photo_url, claimed_by_user_id) VALUES ('kaan-corbaci', 'Kaan Çorbacı', 'Mimar', '/mimarlar/kaan.webp', ?)`, HOST);
+  // DANIŞMAN SATIRI (0121, 2026-09-15): randevu/yeniden planlama kapısı artık bu tabloya bakıyor
+  // (eskiden koddaki sabit bir Set'ti). Teklif, bu fikstürün SLOT/NEW_SLOT değerlerini kapsar:
+  // Pzt/Çar/Cum + 18:00/19:00/20:00, 45 dk, 1500 TL — yani eski davranışla birebir aynı.
+  ins(`INSERT INTO consultants (architect_slug, user_id, duration_min, price_try, weekdays, times, status, created_at, updated_at, approved_at)
+       VALUES ('kaan-corbaci', ?, 45, 1500, '[1,3,5]', '["18:00","19:00","20:00"]', 'approved', ?, ?, ?)`, HOST, now, now, now);
   const roomUuid = crypto.randomUUID();
   ins(`INSERT INTO consultation_requests (id, user_id, host_slug, requested_date, requested_time, price_try, status, created_at, updated_at, contact_name, contact_email, contact_phone, room_uuid, meet_link, meet_status, meet_event_id)
        VALUES ('c1', ?, 'kaan-corbaci', ?, ?, 1500, ?, ?, ?, 'Ayşe Yılmaz', 'ayse@example.com', '05311112233', ?, ?, ?, ?)`,
