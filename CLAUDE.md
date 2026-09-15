@@ -720,6 +720,12 @@ veya ürünü olmayan blurlu firmaları arşive al." + "Aynı şekilde blurlu ki
 - **Yazma canlı koddan**: `runContentAction(env, user, { type: KIND, action:'archive', key:name })`
   — elle `UPDATE ... hidden_at` YAZILMAZ, aksi halde geri alınabilirliği sağlayan `*_submissions`
   taslağı hiç oluşmaz.
+- **ELLE DIŞLAMA `--skip=` / workflow `skip`** (kullanıcı isteği, on üçüncü tur: kişi listesinden
+  dört ad çıkarıldı — Arif Özden, Nur Urfalıoğlu, Alp Nuhoğlu, Serkan Ennaç): virgüllü liste, slug
+  ya da ad kabul eder, eşleşme `foldTr` ile yapılır. **Dışlanan adlar KODA GÖMÜLMEZ** — kural değil,
+  o TURA ait bir karardır; koda yazılsaydı sonraki tur sessizce yanlış olurdu. Dışlananlar log'da
+  AYRI başlıkta raporlanır, `--expect` sayımına GİRMEZ ve karşılığı bulunamayan bir girdi (yazım
+  hatası) UYARI satırıyla bildirilir — sessizce arşivlenmesin.
 - **Çalıştırma**: `scripts/archive-empty-preview-profiles.mjs` +
   `.github/workflows/archive-empty-preview-profiles.yml` (`workflow_dispatch`; `type=architects|offices`,
   **varsayılan dry-run**, yazmak için `apply=evet`, `expect=N` sayım kapısı). Uzak (web/telefon)
@@ -728,5 +734,5 @@ veya ürünü olmayan blurlu firmaları arşive al." + "Aynı şekilde blurlu ki
     SAHİPLİ kayıtları listeler, hiçbir şey yazmaz. Sahiplik kapısı on üçüncü turda eklendiği için,
     **on ikinci turda arşivlenen 77 firmanın** yanlışlıkla bir üye kaydını düşürüp düşürmediğini
     denetlemenin yolu budur.
-- Testler: `scripts/test-2026-09-15-archive-empty-preview-profiles.mjs` (30 test, preflight'a bağlı)
+- Testler: `scripts/test-2026-09-15-archive-empty-preview-profiles.mjs` (35 test, preflight'a bağlı)
   — her kapı İKİ TİP için de tek tek kelepçelenir.

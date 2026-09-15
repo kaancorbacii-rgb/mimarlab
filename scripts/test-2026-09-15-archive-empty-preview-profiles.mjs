@@ -21,6 +21,7 @@ import { collectOfficeArchiveTargets } from '../src/lib/officeArchiveCascade.js'
 import { parseCanonicalRow } from '../src/lib/canonicalRead.js';
 import {
   PROFILE_KINDS, fetchPreviewProfiles, fetchPhotographerNameFolds, fetchOwnership, fetchArchitectLinkIds, auditProfileContent,
+  parseSkipList, isSkipped,
 } from '../src/lib/emptyProfileAudit.js';
 
 let passed = 0, failed = 0;
@@ -274,6 +275,39 @@ await test('virgülle ayrılmış künyede TEK ad da yakalanır', async () => {
   const folds = await fetchPhotographerNameFolds({ DB: d1(db3) });
   assert.equal(folds.has('foto firma'), true);
   assert.equal(folds.has('ali veli'), true);
+});
+
+section('--skip — elle dışlama (kural değil, tura ait karar)');
+
+await test('slug ile dışlanır', async () => {
+  const a = people.get('Boş Kişi');
+  assert.equal(isSkipped(a, parseSkipList('bos-kisi')), true);
+  assert.equal(isSkipped(a, parseSkipList('baska-kisi')), false);
+});
+
+await test('AD ile de dışlanır ve Türkçe karakter farkı bozmaz', async () => {
+  const a = people.get('Boş Kişi');
+  assert.equal(isSkipped(a, parseSkipList('Boş Kişi')), true, 'ad birebir');
+  assert.equal(isSkipped(a, parseSkipList('BOS KISI')), true, 'foldTr: ş/s, İ/i, büyük harf');
+});
+
+await test('virgüllü liste ve boşluklar', async () => {
+  const set = parseSkipList(' arif-ozden ,  Nur Urfalıoğlu , ');
+  assert.equal(set.size, 2);
+  assert.equal(isSkipped({ slug: 'arif-ozden', name: 'Arif Özden' }, set), true);
+  assert.equal(isSkipped({ slug: 'nur-urfalioglu', name: 'Nur Urfalıoğlu' }, set), true);
+});
+
+await test('boş --skip hiçbir şeyi dışlamaz', async () => {
+  assert.equal(parseSkipList('').size, 0);
+  assert.equal(isSkipped(people.get('Boş Kişi'), parseSkipList('')), false);
+});
+
+await test('betik --skip listesini SAYIM KAPISINDAN ÖNCE uygular', async () => {
+  const src = readFileSync(new URL('./archive-empty-preview-profiles.mjs', import.meta.url), 'utf8');
+  const skipAt = src.indexOf('const empty = emptyAll.filter');
+  const expectAt = src.indexOf('args.expect !== undefined');
+  assert.ok(skipAt > 0 && expectAt > skipAt, '--expect, skip sonrası sayıyı doğrulamalı');
 });
 
 section('kaynak kelepçesi — betik kuralı KOPYALAMAZ');

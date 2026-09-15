@@ -217,6 +217,30 @@ export function auditProfileContent(kind, row, payload, { cascade = null, linkId
   };
 }
 
+// ELLE DIŞLAMA — "şunları arşivleme" (kullanıcı isteği, 2026-09-15 on üçüncü tur: kişi listesinden
+// dört ad çıkarıldı).
+//
+// NEDEN BETİĞE GÖMÜLMEZ: dışlanan adları koda yazmak, listeyi sonraki turda sessizce yanlış yapardı
+// (kural değil, o TURA ait bir karardır). Bu yüzden çalıştırma parametresidir ve log'da AYRI bir
+// başlıkla raporlanır — hangi kaydın neden atlandığı çalıştırma kaydından okunabilsin.
+//
+// EŞLEŞME HEM SLUG HEM AD ÜZERİNDEN, `foldTr` ile: kullanıcı listeden kopyalarken slug de ("arif-ozden")
+// ad da ("Arif Özden") yazabilir; Türkçe karakter farkı eşleşmeyi bozmamalı (sitenin her yerindeki
+// "aynı ad" tanımı budur).
+export function parseSkipList(raw) {
+  const out = new Set();
+  for (const part of String(raw || '').split(',')) {
+    const fold = foldTr(part.trim());
+    if (fold) out.add(fold);
+  }
+  return out;
+}
+
+export function isSkipped(audit, skipFolds) {
+  if (!skipFolds || !skipFolds.size) return false;
+  return skipFolds.has(foldTr(audit.slug || '')) || skipFolds.has(foldTr(audit.name || ''));
+}
+
 // Raporun "neden korundu" satırı — betik ve test AYNI cümleyi kullansın diye burada.
 export function reasonsFor(audit) {
   const labels = {

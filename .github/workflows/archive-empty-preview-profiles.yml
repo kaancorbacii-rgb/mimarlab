@@ -36,8 +36,12 @@ on:
         default: 'hayir'
         type: choice
         options: ['hayir', 'evet']
+      skip:
+        description: 'Arşivlenmeyecek kayıtlar (virgülle; slug ya da ad)'
+        required: false
+        default: ''
       expect:
-        description: 'Beklenen firma sayısı (kapı; boş = kontrol yok)'
+        description: 'Beklenen kayıt sayısı (kapı; skip sonrası; boş = kontrol yok)'
         required: false
         default: ''
 
@@ -95,6 +99,7 @@ jobs:
           IN_TYPE: ${{ inputs.type }}
           IN_APPLY: ${{ inputs.apply }}
           IN_AUDIT: ${{ inputs.audit_archived }}
+          IN_SKIP: ${{ inputs.skip }}
           IN_EXPECT: ${{ inputs.expect }}
         run: |
           set -o pipefail
@@ -107,6 +112,8 @@ jobs:
           elif [ "${IN_APPLY}" = "evet" ]; then
             argv+=("--apply")
           fi
+          # Girdi ARGÜMAN DİZİSİNE konur, kabuk satırına GÖMÜLMEZ (script-injection savunması).
+          if [ -n "${IN_SKIP}" ]; then argv+=("--skip=${IN_SKIP}"); fi
           if [ -n "${IN_EXPECT}" ]; then
             case "${IN_EXPECT}" in *[!0-9]*) echo "expect sayı olmalı" >&2; exit 1 ;; esac
             argv+=("--expect=${IN_EXPECT}")

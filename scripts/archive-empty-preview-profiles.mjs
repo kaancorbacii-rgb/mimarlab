@@ -29,6 +29,9 @@
 // KULLANIM:
 //   node scripts/archive-empty-preview-profiles.mjs --type=architects          # DRY-RUN, listeyi basar
 //   node scripts/archive-empty-preview-profiles.mjs --type=offices --apply     # gerçekten arşivle
+//   node scripts/archive-empty-preview-profiles.mjs --type=architects --skip=arif-ozden,alp-nuhoglu --apply
+//       -> listedeki kayıtları ATLAR (slug ya da ad, Türkçe katlamalı). Dışlananlar log'da ayrı
+//          başlıkta raporlanır ve --expect sayımına GİRMEZ.
 //   node scripts/archive-empty-preview-profiles.mjs --type=offices --audit-archived
 //       -> ARŞİVDEKİ (hidden_at DOLU + preview_at BOŞ) ama SAHİPLİ profilleri listeler. Sahiplik
 //          kapısı 2026-09-15 on üçüncü turda eklendiği için, ondan ÖNCE arşivlenmiş bir kaydın
@@ -49,7 +52,7 @@ const { buildOfficePayload } = await import('../src/routes/office.js');
 const { buildArchitectPayload } = await import('../src/routes/architect.js');
 const { collectOfficeArchiveTargets } = await import('../src/lib/officeArchiveCascade.js');
 const { parseCanonicalRow } = await import('../src/lib/canonicalRead.js');
-const { PROFILE_KINDS, fetchPreviewProfiles, fetchPhotographerNameFolds, fetchOwnership, fetchArchitectLinkIds, auditProfileContent, reasonsFor } =
+const { PROFILE_KINDS, fetchPreviewProfiles, fetchPhotographerNameFolds, fetchOwnership, fetchArchitectLinkIds, auditProfileContent, reasonsFor, parseSkipList, isSkipped } =
   await import('../src/lib/emptyProfileAudit.js');
 
 const ACCOUNT_ID = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim() || '2e3cd3c1a471552e19436913b2368c4f';
@@ -162,13 +165,27 @@ for (const raw of previewRows) {
   if (scanned % 25 === 0) console.log(`   ... tarandı ${scanned}/${previewRows.length}`);
 }
 
-const empty = audits.filter(a => a.empty);
+// ELLE DIŞLANANLAR — bkz. emptyProfileAudit.js#parseSkipList. Kural DEĞİL, bu TURA ait karar.
+const skipFolds = parseSkipList(args.skip === true ? '' : args.skip);
+const emptyAll = audits.filter(a => a.empty);
+const skipped = emptyAll.filter(a => isSkipped(a, skipFolds));
+const empty = emptyAll.filter(a => !isSkipped(a, skipFolds));
 const kept = audits.filter(a => !a.empty);
 const keptOwnedOnly = kept.filter(a => a.owned && !a.photographer && !a.cascade && !a.linked
   && Object.values(a.sections).every(n => n === 0));
 
 console.log(`\n=== ARŞİVE ALINACAK (içeriği HİÇ yok): ${empty.length} ===`);
 for (const a of empty) console.log(`   · ${a.name}   (${a.slug})`);
+
+if (skipFolds.size) {
+  console.log(`\n=== ELLE DIŞLANDI (--skip, içeriği yok ama arşivlenmeyecek): ${skipped.length} ===`);
+  for (const a of skipped) console.log(`   · ${a.name}   (${a.slug})`);
+  // Karşılığı bulunamayan bir --skip girdisi SESSİZ KALMAZ: kullanıcı yazım hatası yaptıysa kayıt
+  // yine arşivlenirdi, bunu çalıştırma kaydından görmesi gerekir.
+  const matched = new Set(skipped.flatMap(a => [a.slug, a.name].filter(Boolean).map(x => x.trim())));
+  const unmatched = [...skipFolds].filter(f => !skipped.some(a => [a.slug, a.name].some(x => (x || '').trim() && parseSkipList(x).has(f))));
+  if (unmatched.length) console.log(`   UYARI — listede karşılığı bulunamayan --skip girdisi: ${unmatched.join(', ')}  (eşleşen: ${matched.size})`);
+}
 
 if (keptOwnedOnly.length) {
   console.log(`\n=== KORUNDU — bomboş ama SAHİPLİ (üye kaydı / atama / danışman): ${keptOwnedOnly.length} ===`);
