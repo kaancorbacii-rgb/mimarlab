@@ -634,6 +634,22 @@ else
 fi
 rm -f /tmp/preflight_owner
 
+# /proje filtrelerinde Mimar / Mimarlık Firması AYRIMI (kullanıcı isteği, 2026-09-15 ikinci tur:
+# "mimar kısmında sadece mimar künyesindeki isimler, firma kısmında sadece mimarlık firması
+# künyesindeki isimler"). Ham künye adları filtrelere girdiğinde (aynı günün birinci turu) firma
+# adları Mimar tarafına sızıyordu: (a) 0030 öncesi TEK kutulu gönderilerde mimar+firma adları
+# birlikte duruyor, (b) firma adı Mimar kutusuna yazıldığında architects'te eşleşme bulunmuyor.
+# Ayrım artık sitedeki `offices` kayıtlarından (kesin bilgi) kararlaştırılıyor; karar sırası
+# bozulursa ya da facet sayaçlarının sürüm kapısı kalkarsa deploy'u durdurur.
+# Bkz. scripts/test-2026-09-15-architect-office-filter-split.mjs ve src/lib/projectPool.js.
+if node scripts/test-2026-09-15-architect-office-filter-split.mjs >/tmp/preflight_archoffice 2>&1; then
+  ok "Mimar/Firma filtre ayrımı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_archoffice) test)"
+else
+  bad "Mimar/Firma filtre ayrımı testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_archoffice >&2
+fi
+rm -f /tmp/preflight_archoffice
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

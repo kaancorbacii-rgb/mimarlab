@@ -24,17 +24,31 @@ import { fetchActiveProjectPool, buildFilterGroups } from './projectPool.js';
 import { reserveKvWrite } from './kvQuota.js';
 
 const KV_TTL_SECONDS = 300;
-function kvKey(listType) { return `facet_counts:${listType}`; }
+
+// SAYAÇ ŞEKLİ SÜRÜMÜ (kullanıcı isteği, 2026-09-15 ikinci tur — firma adları Mimar facet'inden
+// çıkarıldı, bkz. src/lib/projectPool.js#officeNamesInDesignerBox). facet_counts D1'de KALICI
+// tutulur ve yalnızca bir İÇERİK YAZIMI'nda yeniden hesaplanır; yani bir deploy sayaçların ŞEKLİNİ
+// değiştirdiğinde eski satırlar (firma adlarını hâlâ "Mimar" altında taşıyan) bir sonraki yazıma
+// kadar filtresiz ilk sayfa yüklemesinde servis edilmeye DEVAM ederdi — düzeltme canlıda saatlerce
+// görünmezdi. list_type'a sürüm eklemek bunu tek hamlede keser: yeni sürümde satır YOKTUR, okuyucu
+// boş küme görür ve handleProjectFiltersRoute tam taramaya (her zaman doğru olan yol) düşer; ilk
+// yazma sayaçları yeni şekliyle doldurur. Şekil bir daha değişirse bu sabit artırılır.
+const FACET_SHAPE_VERSION = 'v2';
+function storedListType(listType) { return listType === 'projects' ? `projects:${FACET_SHAPE_VERSION}` : listType; }
+function kvKey(listType) { return `facet_counts:${storedListType(listType)}`; }
 
 async function replaceFacetCounts(env, listType, groups) {
   const now = new Date().toISOString();
-  const statements = [env.DB.prepare(`DELETE FROM facet_counts WHERE list_type = ?`).bind(listType)];
+  const stored = storedListType(listType);
+  // Sürümlenmemiş eski satırlar (bkz. FACET_SHAPE_VERSION) aynı yazmada temizlenir — aksi halde
+  // D1'de sonsuza kadar okunmayan binlerce ölü satır kalırdı.
+  const statements = [env.DB.prepare(`DELETE FROM facet_counts WHERE list_type IN (?, ?)`).bind(stored, listType)];
   for (const [facetKey, counts] of Object.entries(groups)) {
     for (const [facetValue, count] of Object.entries(counts)) {
       statements.push(
         env.DB.prepare(
           `INSERT INTO facet_counts (list_type, facet_key, facet_value, count, updated_at) VALUES (?, ?, ?, ?, ?)`
-        ).bind(listType, facetKey, facetValue, count, now)
+        ).bind(stored, facetKey, facetValue, count, now)
       );
     }
   }
@@ -71,7 +85,7 @@ export async function getCachedFacetCounts(env, listType) {
     const cached = await env.FACET_CACHE.get(kvKey(listType), 'json');
     if (cached) return cached;
   }
-  const { results } = await env.DB.prepare(`SELECT facet_key, facet_value, count FROM facet_counts WHERE list_type = ?`).bind(listType).all();
+  const { results } = await env.DB.prepare(`SELECT facet_key, facet_value, count FROM facet_counts WHERE list_type = ?`).bind(storedListType(listType)).all();
   const out = {};
   for (const row of results) {
     if (!out[row.facet_key]) out[row.facet_key] = {};
