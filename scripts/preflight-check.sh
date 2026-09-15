@@ -749,6 +749,18 @@ else
 fi
 rm -f /tmp/preflight_offseed
 
+# İÇERİĞİ HİÇ OLMAYAN BLURLU FİRMALARIN ARŞİVLENMESİ (kullanıcı isteği, 2026-09-15 on ikinci tur):
+# "boş" kararı src/lib/emptyOfficeAudit.js'te TEK yerde durur ve veriyi firma pop-up'ının CANLI
+# kodundan (office.js#buildOfficePayload) + arşiv cascade'inin toplayıcısından alır — betiğin kendi
+# proje/ürün sorgusu YOK. Bkz. scripts/test-2026-09-15-archive-empty-preview-offices.mjs.
+if node scripts/test-2026-09-15-archive-empty-preview-offices.mjs >/tmp/preflight_emptyoffice 2>&1; then
+  ok "boş blurlu firma arşivi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_emptyoffice) test)"
+else
+  bad "boş blurlu firma arşivi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_emptyoffice >&2
+fi
+rm -f /tmp/preflight_emptyoffice
+
 # Gündem KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11): gönder → admin onayı → public liste +
 # profil şeridi; sahibin düzenlemesi yeniden onaya düşer; yayın kapısı yalnızca admin moderate ucu.
 # Bkz. scripts/test-2026-09-11-gundem-user-submissions.mjs.

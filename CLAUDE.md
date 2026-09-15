@@ -665,3 +665,44 @@ yayınlansın."
   İlk test iki yolu AYNI fikstürde yan yana koşturup sonuçları `deepEqual` ile karşılaştırır — yani
   ayrışma geri gelirse kelepçe orada kırılır. `test-2026-09-11-office-publish-cascade.mjs`'teki
   "ZATEN CANLI firmayı kaydetmek grafı tetiklemez" testi bu turda TERSİNE çevrildi (eski dar kural).
+
+## İçeriği hiç olmayan blurlu firmalar arşive alındı (2026-09-15, on ikinci tur)
+
+Kullanıcı isteği: "Sitede hiç kurucusu, kurucu ortağı, ortağı, projesi, çektiği fotoğraflar bölümü
+veya ürünü olmayan blurlu firmaları arşive al."
+
+- **"Boş" kararı TEK yerde**: `src/lib/emptyOfficeAudit.js#auditOfficeContent`. Saf bir fonksiyondur,
+  **hiçbir veriyi kendi okumaz** — firma pop-up'ını çizen CANLI kodun çıktısını
+  (`src/routes/office.js#buildOfficePayload`) ve arşiv cascade'inin KENDİ toplayıcısının çıktısını
+  (`src/lib/officeArchiveCascade.js#collectOfficeArchiveTargets`) hazır alır. Betiğin kendi
+  "bu firmanın projesi var mı" sorgusu YOKTUR: olsaydı pop-up bir bölümü değiştirdiği gün betik
+  "boş" demeye devam eder ve sitede içeriği GÖRÜNEN bir firmayı arşivlerdi (preflight bunu dosya
+  taramasıyla da arıyor).
+- **Bağımlılık yönü korundu**: bu depoda `src/lib -> src/routes` yönünde import HİÇ yok (ölçüldü).
+  Bu yüzden kural lib'de saf kalır, `buildOfficePayload` çağrısını çağıran (betik/test) yapar.
+- **ALTI KAPI**, hepsi boşsa arşivlenir: (1) Kurucular/Ortaklar, (2) Ekip, (3) Projeler,
+  (4) Ürünler + Yapı Malzemeleri, (5) künyelerde fotoğrafçı olarak geçen ad, (6) arşivleme
+  cascade'inin götüreceği/koruyacağı herhangi bir kayıt.
+  * **Ekip (2) kullanıcının saydığı dört kalemde YOK** ama kapı sayılıyor: tek bir ekip üyesi bile
+    pop-up'ta GÖRÜNEN içeriktir. Rapor bunları `emptyByUserRule` ile AYRI listeler ("korundu — ...
+    ama başka bir bağı var") ki kapsamı genişletme kararı kullanıcıda kalsın.
+  * **Cascade (6)** pop-up'ın görmediği YAPISAL bağları yakalar — örn. `architects.office_id` ile
+    bağlı ama `office_founders` satırı olmayan bir kişi: cascade onu arşivler, pop-up onu hiç
+    çizmez. `skipped` de sayılır; "ortak künye koruması" bir kaydın VAR olduğunun kanıtıdır.
+  * **"Projelerde Kullanılan Ürünler" BİLEREK sayılmaz**: o küme firmanın KENDİ projelerinden
+    türer, projesi olmayan firmada tanımı gereği boştur.
+- **Fotoğrafçı bağı FİRMA tarafında ŞEMADA YOK**: `project_photographers` yalnızca `architect_id`
+  tutar (bkz. `migrations/0080`). Firma karşılığı okuma anında ADDAN çözülür
+  (`project.js#fetchPhotographerOfficeDetails`). `emptyOfficeAudit.js#fetchPhotographerNameFolds` o
+  eşleşmenin TERSİDİR ve AYNI iki kuralı kullanır (virgülle ayırma + `foldTr`); tek taramayla tüm
+  firmalara yeter. Kapsam bilerek geniş: arşivdeki projelerin künyeleri de okunur (yalnızca DAHA AZ
+  firma arşivlenir — güvenli yön).
+- **Havuz**: yalnızca `hidden_at DOLU + preview_at DOLU` (blurlu). Yayındakine DOKUNULMAZ, tam
+  arşivdeki zaten hedef durumdadır.
+- **Yazma canlı koddan**: `runContentAction(env, user, { type:'offices', action:'archive', key:name })`
+  — elle `UPDATE ... hidden_at` YAZILMAZ, aksi halde geri alınabilirliği sağlayan `office_submissions`
+  taslağı hiç oluşmaz (bkz. archive-brands-and-products.mjs'teki aynı gerekçe).
+- **Çalıştırma**: `scripts/archive-empty-preview-offices.mjs` + `.github/workflows/archive-empty-preview-offices.yml`
+  (`workflow_dispatch`, **varsayılan dry-run**, yazmak için `apply=evet`, `expect=N` sayım kapısı).
+  Uzak (web/telefon) oturumdan ÇALIŞTIRILAMAZ — api.cloudflare.com kapalı.
+- Testler: `scripts/test-2026-09-15-archive-empty-preview-offices.mjs` (14 test, preflight'a bağlı).
