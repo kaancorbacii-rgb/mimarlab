@@ -1273,3 +1273,12 @@ CREATE INDEX IF NOT EXISTS idx_projects_build_status_order
 -- bir projeyi tekrar tepeye oturtmasın).
 ALTER TABLE offices ADD COLUMN projects_promoted_at TEXT;
 ALTER TABLE architects ADD COLUMN projects_promoted_at TEXT;
+
+-- 0120 — künyeye YAZILDIĞI HÂLİYLE Mimar / Firma adları (JSON dizi, bkz.
+-- migrations/0120_project_designer_names_raw.sql). project_designers şema gereği yalnızca sitede
+-- KAYDI OLAN mimar/firmalar için satır taşıyabildiğinden, künyeye yazılmış ama eşleşmeyen adlar
+-- /proje listesinin Mimar / Mimarlık Firması filtrelerinde hiç görünmüyordu. products.brand_name_raw
+-- ile AYNI desen: bağlantı (çip/profil linki) hâlâ join tablosundan, "künyede ne yazıyordu" ise
+-- buradan okunur.
+ALTER TABLE projects ADD COLUMN designer_names_raw TEXT;
+ALTER TABLE projects ADD COLUMN office_names_raw TEXT;

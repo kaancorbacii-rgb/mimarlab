@@ -7,6 +7,9 @@
 // de aynı fonksiyonları artık buradan import eder (davranış değişmedi, yalnızca konum).
 import { parseCanonicalRow } from './canonicalRead.js';
 import { dropAggregatorSourceUrl } from './aggregatorSources.js';
+// Künyedeki ham adları canonical adlarla tekilleştirirken (bkz. mergeCreditNames) sitenin her
+// yerinde kullanılan AYNI TR-duyarlı casefold — "nevzat sayın" ile "Nevzat Sayın" tek seçenek olsun.
+import { foldTr } from './textMatch.js';
 // bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu — il-ilce-data.js proje.html'deki
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
 // burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor.
@@ -70,6 +73,33 @@ export function officeNamesFrom(concat) {
   return out;
 }
 
+// projects.designer_names_raw / office_names_raw ham metnini güvenle çözer — künyeye YAZILDIĞI
+// HÂLİYLE ad listesi (bkz. migrations/0120_project_designer_names_raw.sql). Kolon NULL ise (gönderi
+// satırı olmayan legacy_static kayıtlar) boş dizi döner ve davranış eskisiyle aynı kalır.
+function parseNameArray(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(n => String(n || '').trim()).filter(Boolean) : [];
+  } catch { return []; }
+}
+
+// Eşleşen (project_designers'tan gelen canonical) adlarla künyeye yazılmış HAM adları birleştirir.
+// Canonical yazım ÖNCE gelir ve kazanır: kullanıcı "nevzat sayın" yazmış, sitedeki kayıt "Nevzat
+// Sayın" ise filtrede TEK seçenek olmalı ve o da kaydın kendi yazımı olmalı — tekilleştirme bu
+// yüzden foldTr (src/lib/textMatch.js'teki AYNI TR-duyarlı katlama) üzerinden yapılır.
+function mergeCreditNames(canonical, raw) {
+  const out = [];
+  const seen = new Set();
+  for (const name of [...canonical, ...raw]) {
+    const key = foldTr(String(name || '').trim());
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 // projects.image_hotspots ham metnini güvenle çözer — biçim bozuksa/dizi ise boş nesneye düşer
 // (bkz. shapeProjectItem'daki kullanım ve migrations/0076_project_image_hotspots.sql).
 function parseHotspots(raw) {
@@ -118,8 +148,16 @@ export function shapeProjectItem(row, opts) {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
     location: p.location, locationDetail: p.location_detail, lat: p.lat ?? null, lng: p.lng ?? null,
     date: p.project_date, dateBucket: p.date_bucket,
-    period: p.period, designer: designerNamesFrom(row.designer_names),
-    officeNames: officeNamesFrom(row.office_names),
+    // designer / officeNames — EŞLEŞEN adlar (project_designers) + künyeye yazılmış HAM adlar
+    // (kullanıcı isteği, 2026-09-15 madde 2). Mimar filtresi `designer` eksi `officeNames` olarak
+    // hesaplandığından (bkz. buildFilterGroups) ham FİRMA adları her iki listeye de girer: böylece
+    // Mimarlık Firması filtresinde görünür, Mimar filtresine sızmazlar.
+    period: p.period,
+    designer: mergeCreditNames(
+      designerNamesFrom(row.designer_names),
+      [...parseNameArray(row.designer_names_raw), ...parseNameArray(row.office_names_raw)],
+    ),
+    officeNames: mergeCreditNames(officeNamesFrom(row.office_names), parseNameArray(row.office_names_raw)),
     // url: agregatör kapısı (kullanıcı isteği, 2026-09-14 — bkz. src/lib/aggregatorSources.js).
     // Kart/liste yükü bu bağlantıyı bugün <a> olarak basmıyor (bkz. js/components/project-gallery.js
     // — yalnızca .text okunuyor), ama kapı burada da durur: aynı yükü okuyan yeni bir çağıran
@@ -201,6 +239,8 @@ export async function fetchActiveProjectPool(env, buildStatus) {
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
             p.image_hotspots, p.preview_at, p.relisted_at,
+            -- künyeye yazıldığı hâliyle adlar (bkz. migrations/0120_project_designer_names_raw.sql)
+            p.designer_names_raw, p.office_names_raw,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND (p.hidden_at IS NULL OR p.preview_at IS NOT NULL) AND p.build_status = ?

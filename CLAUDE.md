@@ -196,3 +196,66 @@ görünmek istiyor musunuz?' kutusunu kaldır."
   zaten yalnızca "Kişi sayfasında ... yer almak ister misin?" bildiriminden gelindiği için
   (`openDirectoryPrompt`) bu, o akışın "Evet" dalıyla aynı davranıştır.
 - Bir profili dizinden çıkarmak artık yalnızca admin işidir (doğrudan D1).
+
+## Kaydı ekleyen, o kaydın yöneticisidir (2026-09-15)
+
+Kullanıcı isteği: "bir kullanıcı siteye yeni bir kişi veya firma eklerse otomatik olarak o kişi ve
+firma profilinin yöneticisi olsun ve hesabım sayfasındaki kutularda kişi ve firma profili gözüksün."
+
+- **Yetkinin kaynağı `claimed_by_user_id`** (gönderinin `owner_user_id`'si; `resolveClaimedByUserId`
+  admin'in eklediklerinde NULL bırakır, yani bu kapı admin'e hiçbir şey açmaz). Ad eşleşmesi YOK —
+  2026-09-14 ikinci tur madde 3'teki sızma gerekçesi aynen geçerli.
+- **Sunucu kapıları** (`src/lib/claimedProfiles.js`): `fetchOwnCreatedOfficeRows`,
+  `canEditOfficeAsCreator`, `canEditArchitectAsCreator`. `verifyClaimedProfileKey`'in 4. ve 5. yolu
+  olarak bağlıdır; `fetchUserEditableOfficeRows` (a3) ve `/api/claims/status`'ın `delegatedEdit`'i de
+  bunları okur, yani buton ile sunucu kapısı ayrışamaz.
+- **İptal edilebilir**: Hesabım > Yetkili Kullanıcılar'daki X (profile_claims `revoked`) bu yolu da
+  kapatır. Kişi tarafında ise BAŞKA bir hesaba onaylı atama varsa kapı kapalıdır (admin ataması,
+  kaydı açmış olmanın üzerindedir).
+- **Hesabım kutusu**: `/api/claims/mine` yeni bir **`ownOffices`** alanı döndürür — onaylanmış
+  (canonical) kayıtlar `canEdit: true`, kullanıcının onay bekleyen kendi firma gönderisi ise
+  durum satırıyla görünür (kutu, kayıt eklenir eklenmez belirsin diye). `officeLinks`'e KARIŞTIRILMAZ:
+  o alan "bu kişi bu firmada görevli" demektir ve kişi künyesinin Firma kutusunu besler — bir firmayı
+  siteye eklemiş olmak orada çalışmak anlamına gelmez.
+- Kişi tarafı zaten çalışıyordu (kendi gönderisi kutuyu besliyor, `?edit=<id>` ile düzenleniyor);
+  eklenen tek şey aynı kaydın canonical yoluna (`?claim=<slug>`) da yetki vermek.
+
+## Proje künyesindeki TÜM adlar filtrelerde (2026-09-15)
+
+Kullanıcı isteği: "Proje sayfasındaki mimar filtresinde projelerin mimar künyesinde yazan tüm
+isimler görülmeli."
+
+- **Kök neden**: `project_designers` şema gereği (CHECK) yalnızca sitede KAYDI OLAN mimar/firmalar
+  için satır taşıyabilir; proje-ekle'ye yazılan eşleşmeyen adlar `resolveArchitectLink`/
+  `resolveOfficeLink`'ten null dönüp sessizce atlanıyordu. Pop-up künyesi onları zaten gösteriyordu
+  (`fetchRawDesignerNames`), liste/filtre göstermiyordu.
+- **Çözüm**: `projects.designer_names_raw` / `projects.office_names_raw` (JSON dizi, bkz.
+  `migrations/0120_project_designer_names_raw.sql` — **kod deploy'undan ÖNCE uygulanmalı**,
+  havuz sorguları kolonları açıkça seçiyor). `products.brand_name_raw` ile aynı desen.
+- `syncProject` bunları künye yazımıyla **AYNI batch'te** tazeler (ayrışmasınlar);
+  `shapeProjectItem` eşleşen adlarla birleştirip `foldTr` ile tekilleştirir — canonical yazım kazanır.
+  Ham FİRMA adları hem `designer`'a hem `officeNames`'e girer, böylece Mimar filtresi
+  (`designer` eksi `officeNames`) firma adlarını almaz.
+- `project_designers` DEĞİŞMEDİ: profil çipleri/bağlantıları hâlâ oradan gelir, bu kolonlar yalnızca
+  "künyede ne yazıyordu" sorusunun cevabıdır.
+
+## proje-ekle: firma kutusuna elle isim (2026-09-15)
+
+- `office-picker.js` yeni **`allowCustom`** seçeneği: arama kutusuna yazılan ve listede karşılığı
+  olmayan ad "+ «...» ekle" satırıyla (ya da Enter'la) seçime katılır.
+- **YALNIZCA `proje-ekle.html` açar.** kisi-ekle ve Hesabım'daki kişi formu kapalı kalır: oradaki
+  kutu sitede kayıtlı bir firmaya BAĞLANMAK içindir (bkz. `ensurePendingOfficeClaims`), serbest metin
+  o zinciri karşılığı olmayan bir adla doldururdu.
+- Girilen ad künyeye yazıldığı gibi kaydedilir; firma kaydı olmadığından tıklanabilir bir profil
+  çipi oluşmaz ama isim künyede ve /proje filtrelerinde görünür (yukarıdaki madde).
+
+## Hesap ekranlarında marka kalıntıları (2026-09-15)
+
+Kullanıcı isteği: "hesabım, koleksiyonum ve aktivitelerim sayfalarındaki marka butonlarını kaldır."
+
+Filtre sekmeleri 2026-09-14'te zaten kaldırılmıştı; bu turda kalan kalıntılar temizlendi:
+Koleksiyonum > Takip Ettiklerim boş durumundaki "Markalara göz at" düğmesi (artık Firmalara),
+Hesabım > Firma Bilgileri kutusunun `/marka/:slug` bağlantısı (artık her zaman `/firma/`),
+firma seçim listesindeki "Marka" rozeti (`office-picker.js`) ve kalan "firma/marka", "markalar"
+metinleri. Sunucu `is_brand`/`is_pure_brand` göndermeye devam ediyor (başka çağıranları var),
+hesap ekranlarında okunmuyor.

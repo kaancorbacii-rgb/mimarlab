@@ -4,7 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
 import { foldTr } from '../lib/textMatch.js';
-import { fetchOfficeFounderLinks, fetchOwnArchitectRows, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers, fetchOwnOfficeRoles, OFFICE_MANAGER_REVOKED, OFFICE_MANAGER_DISMISSED } from '../lib/claimedProfiles.js';
+import { fetchOfficeFounderLinks, fetchOwnArchitectRows, fetchOwnCreatedOfficeRows, canEditArchitectAsCreator, canEditOfficeAsCreator, canEditArchitectViaOfficeMembership, canEditOfficeViaFounderLink, fetchOfficeManagers, fetchOwnOfficeRoles, OFFICE_MANAGER_REVOKED, OFFICE_MANAGER_DISMISSED } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS, MANAGER_POSITION } from '../lib/projectClaimAccess.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
@@ -141,6 +141,23 @@ async function myClaims(env, user) {
   // adıyla eşleşen kendi kaydı (bkz. fetchOwnArchitectRows).
   const own = await fetchOwnArchitectRows(env, user);
   const ownArchitect = own.claimed[0] || own.selfNamed[0] || null;
+  // ownOffices — KULLANICININ SİTEYE KENDİ EKLEDİĞİ FİRMALAR (kullanıcı isteği, 2026-09-15 madde 1).
+  // officeLinks'ten AYRI bir alan olması BİLİNÇLİ: officeLinks "bu kişi bu firmada görevli" demektir
+  // ve kişi künyesinin Firma kutusunu da besler (bkz. office-picker.js#mergeOfficeMembershipNames) —
+  // bir firmayı siteye eklemiş olmak orada çalışmak anlamına gelmez, o kutuya sızmamalı.
+  //   * canonical: onaylanmış (offices.claimed_by_user_id) kayıtlar — künye düzenlenebilir,
+  //   * pending: henüz admin onayından geçmemiş KENDİ gönderisi — kutuda "Durum: Onay bekliyor"
+  //     satırıyla görünür (kullanıcı kaydı eklediği anda kutunun belirmesi isteğin ikinci yarısı),
+  //     düzenleme Eklediklerim'den kendi taslağı üzerinden yapılır.
+  // claimed_profile_key IS NULL — var olan bir firmayı SAHİPLENME akışıyla açılmış taslaklar burada
+  // "benim eklediğim firma" sayılmaz, onların yolu profile_claims'tir.
+  const ownOffices = await fetchOwnCreatedOfficeRows(env, user);
+  const ownOfficeFold = new Set(ownOffices.map(o => foldTr(o.name)));
+  const { results: pendingOwnOffices } = await env.DB.prepare(
+    `SELECT name, status FROM office_submissions
+      WHERE owner_user_id = ? AND status = 'pending' AND (claimed_profile_key IS NULL OR claimed_profile_key = '')
+      ORDER BY updated_at DESC LIMIT 20`
+  ).bind(user.id).all();
   return json({
     items: items
       .filter(r => !(r.profile_type === 'office' && dismissed.has(foldTr(r.profile_key))))
@@ -149,6 +166,14 @@ async function myClaims(env, user) {
       .filter(l => !dismissed.has(foldTr(l.name)))
       .map(l => ({ ...l, officeRole: roleFor(l.name) || l.role || null })),
     architectProfile: ownArchitect ? { name: ownArchitect.name, slug: ownArchitect.slug } : null,
+    ownOffices: [
+      ...ownOffices
+        .filter(o => !dismissed.has(foldTr(o.name)))
+        .map(o => ({ name: o.name, slug: o.slug, status: 'approved', canEdit: true, officeRole: roleFor(o.name) })),
+      ...(pendingOwnOffices || [])
+        .filter(o => o.name && !ownOfficeFold.has(foldTr(o.name)) && !dismissed.has(foldTr(o.name)))
+        .map(o => ({ name: o.name, slug: null, status: o.status, canEdit: false, officeRole: null })),
+    ],
   });
 }
 
@@ -389,8 +414,14 @@ async function claimStatus(env, url, user) {
   // claim-correction-box.js#renderProfileEditButton) — yani sunucudaki DÜZENLEME kapısıyla
   // (submissions.js#EDIT_ACCESS) aynı genişlikte olmalı. Dar kalsaydı buton hiç görünmez, geniş
   // kalsaydı arşivle/sil yetkisi ima edilirdi; ikisi de olmuyor.
-  const delegatedEdit = (profileType === 'architect' && (!row || row.status !== 'approved'))
-    ? await canEditArchitectViaOfficeMembership(env, user, profileKey, OFFICE_EDIT_POSITIONS, { includeOwnedByOthers: true })
+  // Kaydı SİTEYE KENDİ EKLEYEN kullanıcı da aynı butonu görür (kullanıcı isteği, 2026-09-15 madde 1)
+  // — kişide ve firmada, sunucudaki asıl kapıyla (verifyClaimedProfileKey'in 4./5. yolu) AYNI
+  // yardımcılardan. Onaylı bir talebi zaten varsa bu hesap hiç yapılmaz (buton oradan çiziliyor).
+  const delegatedEdit = (!row || row.status !== 'approved')
+    ? (profileType === 'architect'
+        ? (await canEditArchitectViaOfficeMembership(env, user, profileKey, OFFICE_EDIT_POSITIONS, { includeOwnedByOthers: true })
+           || await canEditArchitectAsCreator(env, user, profileKey))
+        : await canEditOfficeAsCreator(env, user, profileKey))
     : false;
 
   // officePosition — bkz. dosya sonundaki AYNI gerekçe/myClaims: istemcinin "Düzenle" butonunu

@@ -6,7 +6,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, cascadeRemovedOfficesFromArchitect, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditArchitectViaOfficeMembership, isArchitectOwnedByAnotherUser } from '../lib/claimedProfiles.js';
+import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditOfficeAsCreator, canEditArchitectAsCreator, canEditArchitectViaOfficeMembership, isArchitectOwnedByAnotherUser } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { projectEditGraceState } from '../lib/projectEditGrace.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
@@ -163,6 +163,12 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey, opts = {}
     // src/lib/claimedProfiles.js#canEditOfficeViaFounderLink. Hesabım'daki buton AYNI kararı
     // sunucudan (GET /api/claims/mine -> officeLinks[].canEdit) okur, ikisi ayrışamaz.
     if (typeKey === 'offices' && await canEditOfficeViaFounderLink(env, user, currentName, OFFICE_EDIT_POSITIONS)) return null;
+    // DÖRDÜNCÜ YETKİ YOLU (kullanıcı isteği, 2026-09-15 madde 1): kaydı SİTEYE KENDİ EKLEYEN kullanıcı
+    // o firmanın yöneticisidir — ortada bir profile_claims satırı olmasa da künyesini düzenleyebilir.
+    // Kaynak offices.claimed_by_user_id (gönderinin owner_user_id'si; admin'in eklediklerinde NULL),
+    // kural ve güvenlik gerekçesi için bkz. src/lib/claimedProfiles.js#fetchOwnCreatedOfficeRows.
+    // Hesabım'daki buton AYNI kararı sunucudan okur (GET /api/claims/mine -> ownOffices), ayrışamazlar.
+    if (typeKey === 'offices' && await canEditOfficeAsCreator(env, user, currentName)) return null;
     // ÜÇÜNCÜ YETKİ YOLU (kullanıcı isteği, 2026-09-08): bir firmanın/markanın yetkilisi (Kurucu,
     // Kurucu Ortak, Ortak, Ekip Lideri, Yönetici) o firmanın Kurucular/Ekip listesindeki DİĞER
     // kişilerin profillerini de düzenleyebilir — kendi adına onaylı bir kişi talebi olmasa da.
@@ -170,6 +176,10 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey, opts = {}
     // canEditArchitectViaOfficeMembership. İstemcideki Düzenle butonu AYNI kararı sunucudan okur
     // (GET /api/claims/status -> delegatedEdit), ikisi ayrışamaz.
     if (typeKey === 'architects' && await canEditArchitectViaOfficeMembership(env, user, currentName, OFFICE_EDIT_POSITIONS, opts)) return null;
+    // BEŞİNCİ YETKİ YOLU (kullanıcı isteği, 2026-09-15 madde 1) — kişi künyesini siteye KENDİ ekleyen
+    // kullanıcı. Firma tarafındaki (a4) ile AYNI ilke ve AYNI kaynak (claimed_by_user_id); profil
+    // başka bir hesaba ATANMIŞSA kapı kapalıdır (bkz. canEditArchitectAsCreator).
+    if (typeKey === 'architects' && await canEditArchitectAsCreator(env, user, currentName)) return null;
     return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
   }
   // P1 güvenlik düzeltmesi (bkz. migrations/0068): canlı user.position YERİNE, admin bu claim'i

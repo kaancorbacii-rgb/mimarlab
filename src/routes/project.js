@@ -817,6 +817,8 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset, noPreview) 
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
             p.image_hotspots, p.preview_at, p.relisted_at,
+            -- künyeye yazıldığı hâliyle adlar (bkz. migrations/0120_project_designer_names_raw.sql)
+            p.designer_names_raw, p.office_names_raw,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
            WHERE ${innerWhere}

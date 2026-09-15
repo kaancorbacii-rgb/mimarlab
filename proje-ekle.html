@@ -698,7 +698,7 @@
             <label for="p-office-picker" id="p-office-label">Firma <span class="opt">(opsiyonel)</span></label>
             <input type="hidden" id="p-office" name="office">
             <div id="p-office-picker"></div>
-            <div class="form-hint">Listeden birden fazla firma seçebilirsin.</div>
+            <div class="form-hint">Listeden birden fazla firma seçebilirsin. Aradığın firma listede yoksa adını yazıp «ekle» diyerek künyeye ekleyebilirsin.</div>
           </div>
           <div class="form-field ac-field" id="ac-mimar-field">
             <label for="p-designer" id="p-designer-label">Mimar <span class="opt">(opsiyonel)</span></label>
@@ -1535,10 +1535,17 @@ document.getElementById('brand-add-btn').addEventListener('click', addBrandChip)
 // updateUrunLabel/renderProductPanel fonksiyonları ve dd-urun dinleyicileri düştü.
 // loadProductsForBrand KALDI: yukarıdaki Ürün menüsünü o dolduruyor (syncProductField).
 
+// allowCustom (kullanıcı isteği, 2026-09-15 madde 3): "firma seçim kısmına manuel olarak da sitede
+// kayıtlı olmasa dahi firma ismi girilebilsin". Arama kutusuna yazılan ve listede karşılığı olmayan
+// ad "+ «...» ekle" satırıyla (ya da Enter'la) seçime katılır. Ad künyeye yazıldığı gibi kaydedilir;
+// firma kaydı olmadığı için tıklanabilir bir profil çipi oluşmaz ama isim hem künyede hem /proje
+// filtrelerinde görünür (bkz. migrations/0120_project_designer_names_raw.sql). Kutu YALNIZCA bu
+// sayfada serbest metne açıktır — kişi künyesindeki firma kutusu kapalı kalır (bkz. office-picker.js).
 officePicker = createOfficePicker(document.getElementById('p-office-picker'), {
   input: document.getElementById('p-office'),
-  placeholder: 'Firma seç',
-  searchLabel: 'Firma ara...',
+  placeholder: 'Firma seç veya yaz',
+  searchLabel: 'Firma ara ya da yeni firma adı yaz...',
+  allowCustom: true,
   onChange: onOfficePickerChange,
 });
 

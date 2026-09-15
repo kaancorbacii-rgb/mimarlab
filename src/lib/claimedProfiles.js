@@ -360,6 +360,67 @@ export async function revokedOfficeKeysForUser(env, userId) {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------
+// KAYDI AÇAN = O KAYDIN YÖNETİCİSİ (kullanıcı isteği, 2026-09-15 madde 1: "bir kullanıcı siteye
+// yeni bir kişi veya firma eklerse otomatik olarak o kişi ve firma profilinin yöneticisi olsun ve
+// hesabım sayfasındaki kutularda kişi ve firma profili gözüksün").
+//
+// KAYNAK: offices.claimed_by_user_id — gönderinin owner_user_id'sinden, canonical satır
+// oluşurken yazılır (bkz. src/lib/canonicalSync.js#resolveClaimedByUserId; admin'in platform
+// içeriği olarak eklediği kayıtlarda BİLEREK NULL kalır, yani bu kapı admin'e hiçbir şey açmaz).
+// Kişi tarafında bu yol ZATEN vardı (fetchOwnArchitectRows#selfNamed + kullanıcının kendi gönderi
+// satırını düzenleyebilmesi); eksik olan firma tarafıydı: kendi eklediği firmayı Hesabım'da hiç
+// göremiyor, künyesini düzenleyemiyordu.
+//
+// NEDEN GÜVENLİ: bu, ad eşleşmesine DAYANMAZ (bkz. 2026-09-14 ikinci tur madde 3'teki sızma
+// gerekçesi) — kullanıcı gerçekten o satırı kendi hesabından oluşturmuştur ve kayıt admin
+// moderasyonundan geçerek canonical'a yazılmıştır. Var olan bir firmayı bu yolla ele geçirmek
+// mümkün değil: aynı adla ikinci bir kayıt açılamaz (canonicalSync#isDuplicateCanonicalName) ve
+// mevcut bir kaydı düzenlemek claimed_by_user_id'yi DEĞİŞTİRMEZ (UPDATE dalı yalnızca alan doluysa
+// yazar, bkz. syncOffice).
+//
+// ELLE İPTAL EDİLEBİLİR: Hesabım > Yetkili Kullanıcılar'daki X (profile_claims 'revoked') bu kapıyı
+// da kapatır — kurucu bağı yolundaki AYNI kontrol (bkz. canEditOfficeViaFounderLink).
+export async function fetchOwnCreatedOfficeRows(env, user) {
+  if (!user) return [];
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, slug FROM offices
+      WHERE deleted_at IS NULL AND claimed_by_user_id = ? ORDER BY name COLLATE NOCASE ASC`
+  ).bind(user.id).all();
+  const rows = results || [];
+  if (!rows.length) return [];
+  const revoked = await revokedOfficeKeysForUser(env, user.id);
+  return rows.filter(r => !revoked.has(foldTr(r.name)));
+}
+
+// KİŞİ karşılığı — kullanıcının siteye kendi eklediği kişi künyesi (architects.claimed_by_user_id).
+// Kişi tarafında kullanıcı kendi TASLAĞINI zaten düzenleyebiliyordu (Hesabım > Kişi Bilgileri ->
+// kisi-ekle?edit=<id>); bu kapı, aynı kaydın CANONICAL yoluna (?claim=<slug>) da aynı yetkiyi verir
+// — profil pop-up'ındaki "Düzenle" ya da bayat bir bağlantı o yoldan geldiğinde kullanıcı kendi
+// eklediği kayda "önce sahiplen" duvarına çarpmasın.
+//
+// SINIR (bkz. canEditArchitectViaOfficeMembership'teki AYNI ilke): profil BAŞKA bir hesaba onaylı
+// olarak atanmışsa bu kapı kapanır — admin ataması, kaydı açmış olmanın üzerindedir.
+export async function canEditArchitectAsCreator(env, user, architectName) {
+  if (!user || !architectName) return false;
+  if (await isArchitectOwnedByAnotherUser(env, user, architectName)) return false;
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM architects
+      WHERE deleted_at IS NULL AND claimed_by_user_id = ?1 AND (name = ?2 OR legacy_key = ?2) LIMIT 1`
+  ).bind(user.id, architectName).first();
+  return !!row;
+}
+
+export async function canEditOfficeAsCreator(env, user, officeName) {
+  if (!user || !officeName) return false;
+  if (await isOfficeManagerRevoked(env, user.id, officeName)) return false;
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM offices
+      WHERE deleted_at IS NULL AND claimed_by_user_id = ?1 AND (name = ?2 OR legacy_key = ?2) LIMIT 1`
+  ).bind(user.id, officeName).first();
+  return !!row;
+}
+
 // Sunucu tarafı yetki kapısı — src/routes/submissions.js#verifyClaimedProfileKey buradan geçer.
 //
 // KURAL: kullanıcının ADMIN ONAYLI bir kişi profili var VE o kişi bu firmanın office_founders
@@ -461,6 +522,11 @@ async function fetchUserEditableOfficeRows(env, user, officeEditPositions) {
                              AND (rc.profile_key = o.name OR (o.legacy_key IS NOT NULL AND rc.profile_key = o.legacy_key)))`
     ).bind(...archIds, user.id).all();
     for (const r of results || []) if (!byId.has(r.office_id)) byId.set(r.office_id, { id: r.office_id, name: r.name, slug: r.slug });
+  }
+  // (a3) KAYDI KENDİ AÇMIŞ OLMAK (kullanıcı isteği, 2026-09-15 madde 1) — bkz.
+  // fetchOwnCreatedOfficeRows'un dosya içi gerekçesi. İptal edilmiş yetkiler orada süzülür.
+  for (const r of await fetchOwnCreatedOfficeRows(env, user)) {
+    if (!byId.has(r.id)) byId.set(r.id, { id: r.id, name: r.name, slug: r.slug });
   }
   // Düz IN(...) sınırı — bkz. proje notu: SQLite ifade-ağacı derinlik sınırı. Bir hesabın onlarca
   // firmayı birden yönetmesi beklenmez, üst sınır yalnızca uç veriye karşı emniyet supabı.
