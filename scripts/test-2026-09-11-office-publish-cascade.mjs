@@ -124,11 +124,19 @@ await test('admin BEYANSIZ kaydeder: firma blurlu kalır, graf HİÇ yürümez',
   for (const id of [100, 101]) assert.ok(isPreview(db, 'projects', id), `proje ${id} önizlemede kalmalı`);
 });
 
-await test('ZATEN CANLI firmayı kaydetmek grafı tetiklemez (önizlemedeki kişiler olduğu gibi kalır)', async () => {
+// KURAL 2026-09-15 ON BİRİNCİ TURDA DEĞİŞTİ (kullanıcı isteği — bkz. scripts/
+// test-2026-09-15-office-publish-graph-live-seed.mjs): burada eskiden TERSİ iddia ediliyordu
+// ("canlı firma kaydı kişileri açmamalı — tetikleyici önizlemeden çıkıştır"). Ölçülen canlı
+// ayrışma: AYNI firmaya 'Yönetici' ataması her şeyi yayına alırken, firmanın düzenle sayfasından
+// telif beyanlı kaydetmek hiçbir şey yapmıyordu. Artık admin'in beyanlı FİRMA kaydı, firma zaten
+// canlı olsa da grafı atamayla AYNI seed kuralıyla yürütür.
+await test('ZATEN CANLI firmayı admin beyanla kaydetmek grafı ATAMAYLA AYNI şekilde yürütür', async () => {
   const db = freshDb(); await seed(db); envRef.env = { DB: d1(db) };
   db.exec(`UPDATE offices SET hidden_at = NULL, preview_at = NULL WHERE id = 1`);
   await call('u-admin', '/api/offices', { method: 'POST', body: JSON.stringify(officeBody({ rightsAccepted: true })) });
-  assert.ok(isPreview(db, 'architects', 10), 'canlı firma kaydı kişileri açmamalı — tetikleyici önizlemeden çıkıştır');
+  assert.ok(isLive(db, 'architects', 10), 'canlı firmanın blurlu kişisi de yayına gelmeli');
+  assert.ok(isLive(db, 'projects', 101), 'canlı firmanın blurlu projesi de yayına gelmeli');
+  assert.ok(isPreview(db, 'architects', 14) && isPreview(db, 'projects', 102), 'başka firmanın içeriğine dokunulmamalı');
 });
 
 await test('admin paneli Arşiv > "Yayınla" (runContentAction publish) da AYNI grafı yürütür', async () => {

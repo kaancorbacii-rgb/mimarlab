@@ -737,6 +737,18 @@ else
 fi
 rm -f /tmp/preflight_offpub
 
+# Admin, FİRMANIN DÜZENLE SAYFASINDAN telif beyanıyla kaydedince graf ATAMAYLA AYNI seed kuralıyla
+# yürür — firma zaten canlı olsa da künyesindeki blurlu kişi/projeler yayına gelir (kullanıcı
+# isteği, 2026-09-15 on birinci tur). Kural tek yerde: admin.js#publishGraphSeeds({ includeLive })
+# + submissions.js#adminOfficePublishSave. Bkz. scripts/test-2026-09-15-office-publish-graph-live-seed.mjs.
+if node scripts/test-2026-09-15-office-publish-graph-live-seed.mjs >/tmp/preflight_offseed 2>&1; then
+  ok "firma yayın grafı canlı-seed testleri geçti ($(grep -c '^  ok ' /tmp/preflight_offseed) test)"
+else
+  bad "firma yayın grafı canlı-seed testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_offseed >&2
+fi
+rm -f /tmp/preflight_offseed
+
 # Gündem KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11): gönder → admin onayı → public liste +
 # profil şeridi; sahibin düzenlemesi yeniden onaya düşer; yayın kapısı yalnızca admin moderate ucu.
 # Bkz. scripts/test-2026-09-11-gundem-user-submissions.mjs.

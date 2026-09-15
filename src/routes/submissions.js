@@ -16,7 +16,7 @@ import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { notifySubmissionApproved } from '../lib/notify.js';
-import { activateProfilesOnPublish, previewProfileIdsByKeys, PUBLISH_GRAPH_PROFILE_TYPE } from './admin.js';
+import { activateProfilesOnPublish, publishGraphSeeds, PUBLISH_GRAPH_PROFILE_TYPE } from './admin.js';
 import { foldTr, titleCasePersonName } from '../lib/textMatch.js';
 // bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
 import officeKindJs from '../../office-kind.js';
@@ -102,6 +102,24 @@ async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue)
   // kendi yakaladıkları id'lerle yürütür; bkz. setLegacyHidden'daki gerekçe (çift yürütme
   // "kümelenme yok" kuralını bozuyor).
   await setLegacyHidden(env, user, typeKey, key, false, { skipPublishGraph: true });
+}
+
+// YAYIN GRAFI SEED'İNİ GENİŞLETEN TEK KAPI (kullanıcı isteği, 2026-09-15 on birinci tur: "Admin
+// hesabından bir firmanın düzenle sayfasına girip telif butonunu işaretleyerek kaydedip yayınlayarak
+// blurdan kurtarınca o firmaya ait kişiler ve projeler de blurdan kalkarak yayınlanmış olsun. Yani
+// sanki firmaya bir yönetici atanmış gibi tüm içerik otomatik olarak yayınlansın.").
+//
+// Doğru olan tek çağrı yeri, telif beyanının ZATEN doğrulandığı (keepPreview === false) daldır — bu
+// fonksiyon beyana kendisi BAKMAZ, çağıranın o daldaki konumu beyanın karşılığıdır.
+//
+// ÜÇ DARALTMA, gerekçeleri admin.js#publishGraphSeeds'te:
+//   * yalnızca admin  — sıradan üye kendi profilini her kaydettiğinde firmanın tüm blurlu içeriğini
+//                       yayına alan bir yetki kazanmamalı,
+//   * yalnızca firma  — kişi dalının grafı kişinin firmalarını + o firmaların ortaklarını + hepsinin
+//                       projelerini kapsar; kapsam bu istekten çok daha geniş olurdu,
+//   * (çağıranda) yalnızca beyanlı kaydetme — admin'in telifsiz kaydı zaten hiçbir şeyi yayınlamaz.
+function adminOfficePublishSave(user, typeKey) {
+  return !!user && user.role === 'admin' && typeKey === 'offices';
 }
 
 const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' };
@@ -439,8 +457,9 @@ async function createSubmission(request, env, user, typeKey) {
   // admin.js#activateProfilesOnPublish). id'ler BURADA, unhideIfClaimedApproved'dan ÖNCE yakalanır —
   // o çağrı (setLegacyHidden) preview_at'i temizlediği için sonradan profil önizlemede görünmez.
   const publishGraphType = PUBLISH_GRAPH_PROFILE_TYPE[typeKey] || null;
-  const publishingProfileIds = publishGraphType && !keepPreview && status === 'approved'
-    ? await previewProfileIdsByKeys(env, publishGraphType, [body.claimed_profile_key, `submission:${id}`]) : [];
+  const publishSeeds = publishGraphType && !keepPreview && status === 'approved'
+    ? await publishGraphSeeds(env, publishGraphType, [body.claimed_profile_key, `submission:${id}`], { includeLive: adminOfficePublishSave(user, typeKey) })
+    : { ids: [], previewIds: [] };
   if (!keepPreview) await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? body.claimed_slug : body.claimed_profile_key);
 
   // Admin bu firmayı/mimarı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki
@@ -506,9 +525,11 @@ async function createSubmission(request, env, user, typeKey) {
     // okuyor, admin'in anında yayına giren kendi gönderisi de aynı anda oraya senkronlanmalı.
     if (CANONICAL_TYPES.has(typeKey)) {
       const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-      // publishingProfileIds — yukarıda, unhideIfClaimedApproved'dan ÖNCE yakalandı.
+      // publishSeeds — yukarıda, unhideIfClaimedApproved'dan ÖNCE yakalandı.
       syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow), { publish: !keepPreview });
-      if (publishingProfileIds.length) await activateProfilesOnPublish(env, publishGraphType, publishingProfileIds, user.id);
+      if (publishSeeds.ids.length) {
+        await activateProfilesOnPublish(env, publishGraphType, publishSeeds.ids, user.id, { promoteOnlyIfActivated: !publishSeeds.previewIds.length });
+      }
       if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
     }
     await invalidatePublicCache(env);
@@ -881,10 +902,13 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
         const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
         // bkz. createSubmission'daki AYNI blok — önizlemedeki firma/kişi beyanla yayına alınıyorsa graf.
         const publishGraphType = PUBLISH_GRAPH_PROFILE_TYPE[typeKey] || null;
-        const publishingProfileIds = publishGraphType && !keepPreview
-          ? await previewProfileIdsByKeys(env, publishGraphType, [body.claimed_profile_key, existing.claimed_profile_key, existing.name, `submission:${id}`]) : [];
+        const publishSeeds = publishGraphType && !keepPreview
+          ? await publishGraphSeeds(env, publishGraphType, [body.claimed_profile_key, existing.claimed_profile_key, existing.name, `submission:${id}`], { includeLive: adminOfficePublishSave(user, typeKey) })
+          : { ids: [], previewIds: [] };
         syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow), { publish: !keepPreview });
-        if (publishingProfileIds.length) await activateProfilesOnPublish(env, publishGraphType, publishingProfileIds, user.id);
+        if (publishSeeds.ids.length) {
+          await activateProfilesOnPublish(env, publishGraphType, publishSeeds.ids, user.id, { promoteOnlyIfActivated: !publishSeeds.previewIds.length });
+        }
       } else if (existing.status === 'approved') {
         await hideCanonicalForUnapprovedSubmission(env, typeKey, existing);
       }

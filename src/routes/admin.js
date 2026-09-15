@@ -1357,21 +1357,59 @@ async function activateClaimedProfile(env, profileType, profileKey, userId) {
 //     mimarların projeleri de otomatik olarak yayına alınsın." Kişi dalı zaten atamada kullanılan
 //     graf olduğundan projelerin yanında kişinin firmaları/ortakları/ürünleri de yayına gelir —
 //     AYNI kuralın iki tetikleyicisi olsun diye bilerek ikinci bir "yalnızca projeler" yolu açılmadı.
-export async function activateProfilesOnPublish(env, profileType, profileIds, userId) {
+export async function activateProfilesOnPublish(env, profileType, profileIds, userId, opts = {}) {
   const ids = [...new Set((profileIds || []).filter(id => id !== null && id !== undefined))];
   if (!ids.length) return;
-  await activateProfileGraph(env, profileType, ids, userId);
+  await activateProfileGraph(env, profileType, ids, userId, opts);
 }
 
-// Senkrondan ÖNCE çağrılır — anahtar (ad/slug/legacy_key) ile eşleşen, şu an ÖNİZLEMEDEKİ profiller.
-export async function previewProfileIdsByKeys(env, profileType, keys) {
+// YAYIN GRAFININ SEED'İ — anahtar (ad/slug/legacy_key) ile eşleşen profiller. Senkrondan ÖNCE
+// çağrılır: senkron preview_at'i temizlediği için sonradan hangisinin önizlemede olduğu ayırt
+// edilemez.
+//
+// `includeLive` — KULLANICI İSTEĞİ, 2026-09-15 (on birinci tur): "Admin ... bir firmanın düzenle
+// sayfasına girip telif butonunu işaretleyerek kaydedip yayınlayarak blurdan kurtarınca o firmaya
+// ait kişiler ve projeler de blurdan kalkarak yayınlanmış olsun. Yani sanki firmaya bir yönetici
+// atanmış gibi tüm içerik otomatik olarak yayınlansın."
+//
+// GERÇEK BULGU (bu turun tetikleyicisi, ölçüldü): AYNI firma + AYNI blurlu kişi/proje kümesiyle iki
+// yol AYRIŞIYORDU — admin panelinden 'Yönetici' ataması her şeyi yayına alıyor, firmanın düzenle
+// sayfasından telif beyanlı kaydetmek HİÇBİR ŞEY yapmıyordu. Neden: atama (activateClaimedProfile)
+// grafı anahtarla eşleşen TÜM profillerle seed'liyor, yayın yolu ise YALNIZCA profilin KENDİSİ o an
+// önizlemedeyse. Firma zaten canlıyken (ör. graf 2026-09-11'de eklenmeden önce yayına alınmış —
+// bkz. archiveSync.js'in 62 satırlık canlı bulgusu) künyesindeki kişi/projeler önizlemede asılı
+// kalıyor ve admin'in elinde onları açacak bir düğme kalmıyordu.
+//
+// KAPSAM: yalnızca ADMIN'in TELİF BEYANLI kaydında ve yalnızca FİRMA tipinde açılır (bkz.
+// src/routes/submissions.js). Sıradan üyenin kendi profilini kaydetmesi eski kuralda kalır —
+// aksi halde her rutin düzenleme, firmanın tüm blurlu içeriğini yayına alan bir yetkiye dönerdi.
+// Kişi tipi de eski kuralda kalır: kişi dalının grafı kişinin firmalarını, o firmaların ortaklarını
+// ve hepsinin projelerini kapsar, yani ZATEN CANLI bir mimarın rutin düzenlemesi çok daha geniş bir
+// kümeyi yayına alırdı. GRAF (activateProfileGraph) İKİ TETİKLEYİCİDE DE AYNIDIR — değişen yalnızca
+// seed süzgecidir.
+//
+// Döner: { ids, previewIds } — `ids` seed kümesi, `previewIds` bunlardan ŞU AN önizlemede olanlar
+// (çağıran promosyon kapısını buna göre kurar, bkz. promoteOnlyIfActivated).
+export async function publishGraphSeeds(env, profileType, keys, { includeLive = false } = {}) {
   const table = profileType === 'architect' ? 'architects' : profileType === 'office' ? 'offices' : null;
   const wanted = [...new Set((keys || []).filter(Boolean))];
-  if (!table || !wanted.length) return [];
+  if (!table || !wanted.length) return { ids: [], previewIds: [] };
   const ph = wanted.map(() => '?').join(', ');
-  return idsFrom(env,
-    `SELECT id FROM ${table} WHERE deleted_at IS NULL AND preview_at IS NOT NULL
-       AND (name IN (${ph}) OR slug IN (${ph}) OR legacy_key IN (${ph}))`, [...wanted, ...wanted, ...wanted]);
+  const { results } = await env.DB.prepare(
+    `SELECT id, preview_at FROM ${table} WHERE deleted_at IS NULL
+       AND (name IN (${ph}) OR slug IN (${ph}) OR legacy_key IN (${ph}))`
+  ).bind(...wanted, ...wanted, ...wanted).all();
+  const rows = (results || []).filter(r => r.id !== null && r.id !== undefined);
+  const previewIds = rows.filter(r => r.preview_at).map(r => r.id);
+  return { ids: includeLive ? rows.map(r => r.id) : previewIds, previewIds };
+}
+
+// Önizleme süzgeçli seed — publishGraphSeeds'in eski (dar) hâli. Admin panelinin Arşiv > "Yayınla"sı
+// ve Gizle/Göster anahtarı bunu kullanır: o iki yol zaten tanımı gereği önizlemedeki/arşivdeki bir
+// kayda dokunur, "zaten canlı" dalı oralarda hiç oluşmaz.
+export async function previewProfileIdsByKeys(env, profileType, keys) {
+  const { previewIds } = await publishGraphSeeds(env, profileType, keys);
+  return previewIds;
 }
 
 // Gönderi tipi -> profil tipi (yalnızca bu iki tip bir profil grafına sahiptir; proje/ürün yok).
@@ -1401,7 +1439,15 @@ async function architectIdsFromOfficeDraftNames(env, officeIds) {
     `SELECT id FROM architects WHERE deleted_at IS NULL AND name_fold IN (${folds.map(() => '?').join(', ')})`, folds);
 }
 
-async function activateProfileGraph(env, profileType, seedIds, userId) {
+// `promoteOnlyIfActivated` — promosyon ("en yeni proje 1. sıraya") YALNIZCA bu parti gerçekten bir
+// şeyi önizlemeden çıkardıysa çalışsın. Yalnızca publishGraphSeeds'in `includeLive` dalı geçirir
+// (bkz. oradaki KAPSAM notu): orada seed ZATEN CANLI bir firma olabilir ve firmanın tüm içeriği de
+// zaten canlıysa ortada yayına giren hiçbir şey yoktur — admin'in yazım hatası düzeltmesi gibi
+// rutin bir kaydetmesi, aylar önce yayınlanmış bir projeyi proje sayfasının 1. sırasına oturtmamalı.
+// Varsayılan false: ATAMA yolu (activateClaimedProfile) ve önizlemeden çıkış yolu davranışlarını
+// AYNEN korur — "yönetici atanınca firmanın en yeni projesi 1. sıraya" kuralı (2026-09-11/09-14)
+// içeriğin tamamı zaten canlı olan bir firmada da geçerlidir, orada promosyon atamanın ta kendisidir.
+async function activateProfileGraph(env, profileType, seedIds, userId, { promoteOnlyIfActivated = false } = {}) {
   const nowIso = new Date().toISOString();
   let officeIds = [], architectIds = [];
   if (profileType === 'office') {
@@ -1495,7 +1541,8 @@ async function activateProfileGraph(env, profileType, seedIds, userId) {
   // scripts/test-claim-activation-cascade.mjs — "partide tek proje damgalanmalı").
   // ...ama YALNIZCA BİR KEZ: ikinci bir yönetici ataması ya da tekrar "yayınla" eski bir projeyi
   // tekrar tepeye oturtmaz (kullanıcı isteği, 2026-09-14 — bkz. profilesPromotedBefore).
-  if (!promotedBefore) {
+  const activatedAny = Object.values(activated).some(list => list.length);
+  if (!promotedBefore && (activatedAny || !promoteOnlyIfActivated)) {
     const promoted = await promoteOfficeProjectsOnAssignment(env, [...new Set(projectIds)], nowIso, { noSpreadIds: new Set(activated.projects) });
     if (promoted) await markProjectsPromoted(env, officeIds, architectIds, nowIso);
   }

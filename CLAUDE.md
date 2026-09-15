@@ -625,3 +625,43 @@ siteye bir proje eklediği zaman bu proje, proje sayfasında 1. sıraya yerleşs
   preflight'a bağlı). Sıralama testi **gerçek SQLite** (`node:sqlite`) üzerinde çalışır ve ORDER
   BY'ı `projectPool.js` KAYNAĞINDAN okur; kök nedeni de ölçer (damga kaldırılınca yeni proje 1.
   sırayı KAYBETMELİ, aksi halde test anlamını yitirmiştir).
+
+## Firmayı telif beyanıyla yayınlamak = yönetici ataması (2026-09-15, on birinci tur)
+
+Kullanıcı isteği: "Admin hesabından bir firmanın düzenle sayfasına girip telif butonunu
+işaretleyerek kaydedip yayınlayarak blurdan kurtarınca o firmaya ait kişiler ve projeler de blurdan
+kalkarak yayınlanmış olsun. Yani sanki firmaya bir yönetici atanmış gibi tüm içerik otomatik olarak
+yayınlansın."
+
+- **KÖK NEDEN SEED'DİR, GRAF DEĞİL** (ölçüldü): yayın grafı (`admin.js#activateProfileGraph`) atama
+  ile yayınlamada 2026-09-11'den beri AYNI, ama SEED'leri ayrışıyordu — atama
+  (`activateClaimedProfile`) anahtarla eşleşen TÜM profilleri seed'liyor, yayınlama
+  (`previewProfileIdsByKeys`) ise YALNIZCA profilin KENDİSİ o an ÖNİZLEMEDEYSE. Firma zaten canlıysa
+  (graf eklenmeden önce yayına alınmış kayıtlar — bkz. `archiveSync.js`'in 62 satırlık canlı bulgusu)
+  künyesindeki kişi/projeler önizlemede asılı kalıyor, admin'in elinde onları açacak düğme
+  kalmıyordu. AYNI fikstürde ölçüm: atama -> hepsi LIVE, telif beyanlı kaydetme -> hepsi PREVIEW.
+- **Çözüm**: `admin.js#publishGraphSeeds(env, type, keys, { includeLive })` — `{ ids, previewIds }`
+  döner. `previewProfileIdsByKeys` onun önizleme süzgeçli sarmalayıcısı olarak KALDI (admin
+  panelinin Arşiv > "Yayınla"sı ve Gizle/Göster anahtarı onu kullanır; o iki yolda "zaten canlı"
+  dalı tanımı gereği hiç oluşmaz).
+- **ÜÇ DARALTMA** (`submissions.js#adminOfficePublishSave` — tek kapı): yalnızca **admin**, yalnızca
+  **firma** tipi, yalnızca **telif beyanlı** kaydetme (`keepPreview === false` dalı).
+  * admin olmayan: her rutin düzenleme, firmanın tüm blurlu içeriğini yayına alan bir yetkiye
+    dönerdi;
+  * kişi tipi: kişi dalının grafı kişinin firmalarını + o firmaların ortaklarını + hepsinin
+    projelerini kapsar, yani ZATEN CANLI bir mimarın rutin düzenlemesi çok daha geniş bir kümeyi
+    açardı. Kişi eski (önizlemeden çıkış) kuralında KALDI.
+- **PROMOSYON KAPISI** (`activateProfileGraph`'ın yeni `promoteOnlyIfActivated` opsiyonu): "yılca en
+  yeni proje 1. sıraya" artık, seed genişletilmiş dalda, YALNIZCA parti gerçekten bir şeyi
+  önizlemeden çıkardıysa çalışır — admin'in yazım hatası düzeltmesi gibi rutin bir kaydetmesi aylar
+  önce yayınlanmış bir projeyi proje sayfasının 1. sırasına oturtmamalı. Varsayılan `false`, yani
+  **ATAMA yolunun davranışı DEĞİŞMEDİ**: içeriğin tamamı zaten canlı olan bir firmada da promosyon
+  çalışır (orada promosyon atamanın ta kendisidir). Profil başına bir kerelik damga
+  (`projects_promoted_at`) her iki dalda da aynen geçerli.
+- **ARŞİVDEKİ içerik geri gelmez** (atamada da gelmiyordu): `unpreviewByIds` yalnızca
+  `preview_at IS NOT NULL` satırlara dokunur; `hidden_at` dolu + `preview_at` NULL (tam arşiv)
+  bilinçli olarak kapsam dışıdır.
+- Testler: `scripts/test-2026-09-15-office-publish-graph-live-seed.mjs` (9 test, preflight'a bağlı).
+  İlk test iki yolu AYNI fikstürde yan yana koşturup sonuçları `deepEqual` ile karşılaştırır — yani
+  ayrışma geri gelirse kelepçe orada kırılır. `test-2026-09-11-office-publish-cascade.mjs`'teki
+  "ZATEN CANLI firmayı kaydetmek grafı tetiklemez" testi bu turda TERSİNE çevrildi (eski dar kural).
