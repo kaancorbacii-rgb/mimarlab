@@ -164,14 +164,20 @@ await test('modal dört ekranlı: book -> pay -> payment -> success', () => {
   assert.match(modal, /paymentScreen\.style\.display = name === 'payment'/);
   // "önce talep, sonra ödeme": ödeme ekranına ancak talep AÇILDIKTAN sonra (state.requestId
   // dolduktan sonra) geçilir.
-  assert.match(modal, /state\.requestId = data\.id;[\s\S]{0,600}showPaymentScreen\(\)/);
+  // Pencere 2026-09-15'te genişletildi: aradaki gerekçe yorumu uzadı, iddia (talep AÇILDIKTAN
+  // sonra ödeme ekranı) değişmedi.
+  assert.match(modal, /state\.requestId = data\.id;[\s\S]{0,1400}showPaymentScreen\(\)/);
 });
 
-await test('yöntemlerin görünürlüğüne SUNUCU karar verir', () => {
-  assert.match(modal, /if \(p\.iyzico\) list\.push\('iyzico'\)/);
-  assert.match(modal, /if \(p\.bankTransfer\) list\.push\('havale'\)/);
-  // Hiçbir yöntem yapılandırılmamışsa akış bozulmaz, doğrudan onaya geçer.
-  assert.match(modal, /if \(state\.payment && \(state\.payment\.iyzico \|\| state\.payment\.bankTransfer\)\) \{\s*\n\s*showPaymentScreen\(\);\s*\n\s*\} else \{\s*\n\s*showSuccessScreen\(\);/);
+await test('yöntemlerin SEÇİLEBİLİRLİĞİNE sunucu karar verir (görünürlük ayrı soru)', () => {
+  // 2026-09-15: iki seçenek de HER ZAMAN çizilir (kullanıcı isteği), ama hangisinin SEÇİLEBİLİR
+  // olduğu hâlâ yalnızca sunucunun bayraklarından belirlenir — istemci kendi kararını vermez.
+  assert.match(modal, /enabled: !!p\.bankTransfer/);
+  assert.match(modal, /enabled: !!p\.iyzico/);
+  assert.match(modal, /function availableMethods\(\) \{\s*\n\s*return methodEntries\(\)\.filter\(e => e\.enabled\)/);
+  // Ödeme ekranı artık KOŞULSUZ açılır; aktif yöntem yoksa gönder düğmesi kapalı kalır.
+  assert.match(modal, /if \(state\.payment\) \{\s*\n\s*showPaymentScreen\(\);/);
+  assert.match(modal, /pmSubmitBtn\.disabled = true;\s*\n\s*pmSubmitBtn\.textContent = 'Ödeme şu anda alınamıyor';/);
 });
 
 await test('"Daha sonra öde" diyen kullanıcı ödemeyi detay ekranından tamamlayabilir', () => {
@@ -184,7 +190,8 @@ await test('"Daha sonra öde" diyen kullanıcı ödemeyi detay ekranından tamam
 });
 
 await test('havale hesabı yalnızca ALICIYA ve yalnızca ödenebilir durumda döner', () => {
-  assert.match(consultations, /payment: isBuyer && isPayableStatus\(row\)\s*\n\s*\? \{ \.\.\.paymentOptions\(env\), account: getBankTransferAccount\(env\)/);
+  // paymentOptions artık talebin KENDİ fiyatını alır (fiyat danışman başına — 2026-09-15).
+  assert.match(consultations, /payment: isBuyer && isPayableStatus\(row\)\s*\n\s*\? \{ \.\.\.paymentOptions\(env, row\.price_try\), account: getBankTransferAccount\(env\)/);
 });
 
 await test('onay metni artık "onaylanmıştır" demez (talep pending\'dir)', () => {

@@ -386,6 +386,7 @@
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
         <button class="admin-tab" data-tab="consultations">Danışmanlık Talepleri<span class="admin-tab-dot" data-dot="consultations"></span></button>
         <button class="admin-tab" data-tab="consultation-actions">Görüşme Aksiyonları<span class="admin-tab-dot" data-dot="consultation-actions"></span></button>
+        <button class="admin-tab" data-tab="consultant-applications">Danışman Başvuruları<span class="admin-tab-dot" data-dot="consultant-applications"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler<span class="admin-tab-dot dot-new" data-dot="users"></span></button>
@@ -449,6 +450,13 @@
       <div class="admin-section" id="section-consultation-actions">
         <div class="admin-subtabs" id="consultation-actions-subtabs"></div>
         <div id="consultation-actions-list"></div>
+      </div>
+
+      <!-- Danışman Ol başvuruları (kullanıcı isteği, 2026-09-15). Onay kapısı BURADADIR: başvuru
+           ucu status'u asla 'approved' yapmaz (bkz. src/routes/consultations.js). -->
+      <div class="admin-section" id="section-consultant-applications">
+        <div class="admin-subtabs" id="consultant-applications-subtabs"></div>
+        <div id="consultant-applications-list"></div>
       </div>
 
       <div class="admin-section" id="section-contact">
@@ -1255,6 +1263,7 @@ let correctionsStatus = 'pending';
 let badgesStatus = 'pending';
 let consultationsStatus = 'pending';
 let consultationActionsStatus = 'pending';
+let consultantApplicationsStatus = 'pending';
 // 'revoked': yetkisi Hesabım > Yetkili Kullanıcılar satırından kaldırılmış atama (bkz.
 // src/lib/claimedProfiles.js#OFFICE_MANAGER_REVOKED).
 const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', revoked:'Yetki kaldırıldı' };
@@ -1473,6 +1482,61 @@ async function loadConsultationRequests(){
     });
   });
 }
+// DANIŞMAN BAŞVURULARI (kullanıcı isteği, 2026-09-15) — loadConsultationRequests İLE AYNI desen.
+// Kartta başvuranın kişi künyesi + teklifin TAMAMI (süre/ücret/gün/saat/uzmanlık) görünür, çünkü
+// onay kararı tam olarak bu bilgilere bakar; admin ayrı ekranlara gitmek zorunda kalmamalı.
+const CONSULTANT_WEEKDAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+async function loadConsultantApplications(){
+  renderStatusSubtabs(document.getElementById('consultant-applications-subtabs'), CONSULTATION_STATUS_LABELS_ADMIN, consultantApplicationsStatus, (s)=>{ consultantApplicationsStatus = s; loadConsultantApplications(); }, true);
+  const list = document.getElementById('consultant-applications-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/consultant-applications?status=${consultantApplicationsStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda başvuru yok.</div>'; return; }
+  list.innerHTML = items.map(c => `
+    <div class="admin-card" data-slug="${escapeAttr(c.slug)}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(c.architectName || c.slug)}
+            <span class="admin-badge badge-approved">${c.durationMin} dk</span>
+            <span class="admin-badge badge-pending">${Number(c.priceTry).toLocaleString('tr-TR')} TL</span>
+            ${c.architectName ? '' : '<span class="admin-badge badge-rejected">kişi kaydı bulunamadı</span>'}
+          </div>
+          <div class="admin-card-meta">${escapeHtml(c.userName || '—')}${c.userEmail ? ` · ${escapeHtml(c.userEmail)}` : ''} · /kisi/${escapeHtml(c.slug)}</div>
+          <div class="admin-card-meta">${escapeHtml((c.weekdays || []).map(w => CONSULTANT_WEEKDAY_NAMES[w]).join(', '))} · ${escapeHtml((c.times || []).join(' / '))}</div>
+        </div>
+        ${c.status !== 'approved' ? `
+        <div class="admin-actions">
+          <button class="admin-btn primary" data-action="approved">Onayla</button>
+          <button class="admin-btn danger" data-action="rejected">Reddet</button>
+        </div>` : `
+        <div class="admin-actions">
+          <button class="admin-btn danger" data-action="rejected">Yayından Kaldır</button>
+        </div>`}
+      </div>
+      ${c.expertise ? `<div class="admin-card-note"><strong>Danışmanlık alanları</strong>${escapeHtml(c.expertise)}</div>` : ''}
+      ${c.intro ? `<div class="admin-card-note"><strong>Tanıtım cümlesi</strong>${escapeHtml(c.intro)}</div>` : ''}
+      ${c.adminNote ? `<div class="admin-card-note"><strong>Admin notu</strong>${escapeHtml(c.adminNote)}</div>` : ''}
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const slug = btn.closest('.admin-card').dataset.slug;
+      const status = btn.dataset.action;
+      // Ret/yayından kaldırma gerekçesi başvurana bildirim olarak gider — boş bırakılabilir.
+      const adminNote = status === 'rejected' ? (prompt('Gerekçe (başvurana bildirim olarak gider, boş bırakılabilir):') || '') : '';
+      btn.disabled = true;
+      try{
+        await api(`/api/admin/consultant-applications/${encodeURIComponent(slug)}`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status, adminNote }),
+        });
+      }catch(e){ alert('İşlem başarısız: ' + (e && e.message ? e.message : 'sunucu hatası')); }
+      loadConsultantApplications();
+      refreshAdminSummary();
+    });
+  });
+}
+
 // GOOGLE MEET KURULUM DURUMU (kullanıcı kararı, 2026-09-13).
 // Sunucu hangi kimlik modunun kurulu olduğunu söyler (bkz. src/routes/googleMeetAuth.js):
 //   'oauth'           -> kullanıcı yetkisi; kişisel Gmail hesaplarında Meet üreten TEK yol
@@ -2202,6 +2266,7 @@ async function refreshAdminSummary(){
       badges: data.pendingBadges > 0,
       consultations: data.pendingConsultations > 0,
       'consultation-actions': data.pendingConsultationActions > 0,
+      'consultant-applications': data.pendingConsultantApplications > 0,
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
       conflicts: data.pendingMigrationConflicts > 0,
@@ -2929,6 +2994,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'consultations') loadConsultationRequests();
     if(tab.dataset.tab === 'consultation-actions') loadConsultationActions();
+    if(tab.dataset.tab === 'consultant-applications') loadConsultantApplications();
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     // Sekmeye her girişte liste yeniden çekilir (arama kutusuna yazarken DEĞİL — bkz. usersCache).

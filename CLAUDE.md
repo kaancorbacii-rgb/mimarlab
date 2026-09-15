@@ -507,3 +507,64 @@ butonundaki bilgileri kullan."
   (`PAGED_LIST_BASES`) ve bu havuzda ikinci sayfa pratikte hiç oluşmaz; sayfa `?page=N` kullanır.
 - Testler: `scripts/test-2026-09-15-danismanlik-page.mjs` (preflight'a bağlı) + `smoke-test.sh` 13b
   (canlıda 200, kabukta filtreler + Danışman Ol, `/api/consultants` dolu, ana sayfada bağlantı YOK).
+
+## Danışman kadrosu VERİTABANINA taşındı + Danışman Ol (2026-09-15, dokuzuncu tur)
+
+Kullanıcı isteği (dört madde): (1) "Danışmanlık Al butonunda ... Talebi Gönder butonunun ismini
+'Ödeme Sayfasına İlerle' yap ve bu butona tıklayınca ödeme ekranı açılsın. 2 tane ödeme seçeneği
+çıksın 1- Havele / Eft 2- Kart ile Ödeme (Henüz aktif değil.)", (2) "Danışman Ol sayfasını tasarla
+... hali hazırda kişi profilleri varsa bunu seçebilsinler ve bilgiler otomatik olarak doldurulsun.
+Bu sayfada kişiler kaç dakikalık görüşme verebileceklerini (30, 45 veya 60dk), bu görüşme
+saatlerinin kaç TL olduğunu ve hangi tarihlerde müsait olduklarını seçsinler. Ayrıca hangi alanda
+danışmanlık verdiklerini vs. bilgi olarak yazsınlar.", (3) Google Meet entegrasyonu, (4) deploy.
+
+- **KÖK DEĞİŞİKLİK — `consultants` tablosu** (`migrations/0121_consultants.sql`, **kod
+  deploy'undan ÖNCE uygulanmalı**): "kim danışmandır" sorusunun cevabı artık kaynak kodda değil
+  D1'de. Eskiden `consultations.js#ALLOWED_HOST_SLUGS` tek elemanlı bir Set'ti ve teklifin tamamı
+  GLOBAL sabitti (`CONSULTATION_PRICE_TRY`, `CONSULTATION_DURATION_MIN`, `ALLOWED_WEEKDAYS`,
+  `ALLOWED_TIMES`) — yani yeni danışman eklemek DEPLOY gerektiriyordu ve iki danışman farklı
+  süre/ücret sunamıyordu. Migration mevcut tek danışmanı bugünkü teklifiyle tabloya taşır.
+- **Sabitler SİLİNMEDİ, VARSAYILAN oldular**: `src/lib/consultants.js#DEFAULT_OFFER` tek kaynak;
+  `consultations.js` ve `consultationMeet.js` değerlerini oradan okur. Satır okunamazsa teklifin
+  ALANLARI varsayılana düşer — ama **kapı asla düşmez**: `fetchApprovedConsultant` yalnızca
+  `status='approved'` döner.
+- **Bağımlılık yönü**: `consultants.js` → `claimedProfiles.js`. `consultationMeet.js` ve
+  `architect.js` ondan okur; `CONSULTATION_TIMEZONE`'un tanımı bu yüzden consultants.js'e taşındı
+  (consultationMeet.js yeniden dışa aktarır). `architect.js` ↔ `consultations.js` arasında
+  **döngü kurmayın** — `publicOffer`/`consultationIntro` bu yüzden lib'de durur.
+- **Süre artık RANDEVUNUN KENDİSİNDE** (`consultation_requests.duration_min`, `price_try` ile aynı
+  gerekçe): danışman süresini sonradan değiştirirse geçmiş randevuların Meet etkinliği ve odanın
+  katılım penceresi geçmişe dönük KAYMAZ. Tek okuma noktası
+  `consultationMeet.js#consultationDurationMin(row)`.
+- **Kişi pop-up'ındaki "Danışmanlık Al" artık slug'a gömülü DEĞİL**: `/api/architect/:slug`
+  onaylı danışmanlarda `consultant` alanı döner, `architect-modal.js` düğmeyi ona bakarak çizer ve
+  teklifi modale geçirir. Takvim artık danışmanın KENDİ gün/saatleriyle çizilir
+  (`consultation-modal.js#state.offer`; teklif gelmezse uygunluk yanıtındaki `offer` devralır).
+- **Ödeme (madde 1)**: düğme "Ödeme Sayfasına İlerle" ve ödeme ekranı artık **koşulsuz** açılır
+  (eskiden "sunucu en az bir yöntem sunuyorsa" idi — kart kapanınca o koşul ekranı tamamen
+  atlardı). İki seçenek de HER ZAMAN çizilir; kart **"Henüz aktif değil."** etiketiyle pasiftir.
+  **Kapı yalnızca arayüzde değil**: `consultations.js#IYZICO_ENABLED = false` ve
+  `startConsultationPayment` 'iyzico' yöntemini 503 ile REDDEDER. Açmak için tek satır.
+  Bu bayrak `isIyzicoConfigured`'dan AYRIDIR — bir ÜRÜN kararıdır, yapılandırma durumu değil.
+- **`/danisman-ol`** (yeni, noindex, sitemap'te YOK — işlemsel başvuru sayfası): kullanıcının kendi
+  kişi kayıtlarını listeler, seçilince bilgiler dolar; süre (30/45/60), ücret, gün+saat ve
+  danışmanlık alanı toplanır. **Form seçenekleri SUNUCUDAN çizilir** (`consultantFormOptions`) —
+  sayfada ikinci bir liste yok. Başvuru `pending` açılır; **onay yalnızca admin panelindeki
+  "Danışman Başvuruları" sekmesinden** gelir. Onaylı bir danışmanın teklifini güncellemesi onayı
+  DÜŞÜRMEZ.
+- **KİŞİ KAYDI ŞARTTIR ve bu yapısaldır** (tercih değil): `consultation_requests.host_slug` bir
+  `architects.slug`'dır, oda yetkisi `architects.claimed_by_user_id`'den kurulur, düğme kişi
+  pop-up'ında yaşar. Kaydı olmayan başvuru sahibi `/kisi-ekle`'ye yönlendirilir — kişi formunun
+  ikinci bir kopyasını bu sayfaya gömmek, bu deponun tam da kaçındığı "iki kaynak" tuzağı olurdu.
+- **Google Meet (madde 3) — KOD ZATEN TAM, eksik olan SIRLAR.** Zincir uçtan uca yerinde: admin
+  onayı → `createMeetForConsultation` → Google Calendar (conferenceData) → `meet_link` →
+  alıcı VE danışmana bildirim (`/gorusme/:room_uuid`) → bildirime tıklayınca oda pop-up'ı →
+  katılım penceresinde "Görüşmeye Katıl" Meet'i açar. Çalışması için `GOOGLE_REFRESH_TOKEN` (+
+  CLIENT_ID/SECRET) ya da servis hesabı üçlüsü `wrangler secret put` ile tanımlı olmalı; admin
+  panelinde "Danışmanlık Talepleri" sekmesindeki kutu eksikse uyarır ve tek seferlik
+  yetkilendirmeyi başlatır (`src/routes/googleMeetAuth.js`). **7 GÜN TUZAĞI**: OAuth onay ekranı
+  "Testing" durumundayken Google refresh token'ı 7 günde geçersiz kılar — "In production" olmalı.
+- Testler: `scripts/test-2026-09-15-danisman-ol.mjs` (16 test) +
+  `scripts/test-2026-09-15-danismanlik-page.mjs` (17 test), ikisi de preflight'a bağlı.
+  `test-meet-gateway.mjs` fikstürüne `consultants` satırı eklendi (yeniden planlama kapısı artık
+  oraya bakıyor).

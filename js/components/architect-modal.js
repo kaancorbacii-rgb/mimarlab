@@ -666,11 +666,14 @@ const ArchitectModal = (function () {
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data) { followBtn.dataset.followerCount = String(data.count || 0); paintFollowBtn(followBtn); } })
       .catch(() => {});
-    // Danışmanlık Al — bkz. kullanıcı isteği (2026-09-05): ŞİMDİLİK yalnızca kaan-corbaci profilinde
-    // (id 20) görünür, diğer hiçbir kişi profilinde render EDİLMEZ. a.slug DB'deki canonical alan
-    // (bkz. src/routes/architect.js); architectKey (slugify(a.name)) fallback olarak da kontrol
-    // edilir — a.slug boş dönerse (ör. eski/legacy satır) buton yine de doğru profilde görünsün diye.
-    if ((a.slug === 'kaan-corbaci' || architectKey === 'kaan-corbaci') && headerActions) {
+    // Danışmanlık Al — ARTIK SABİT BİR SLUG'A BAĞLI DEĞİL (kullanıcı isteği, 2026-09-15: "Danışman
+    // Ol sayfasını tasarla, kullanıcılar ... başvuru yapsınlar"). Eskiden burada `a.slug ===
+    // 'kaan-corbaci'` yazıyordu; danışman kadrosu artık başvuru + admin onayıyla belirlendiğinden
+    // düğme, sunucunun gönderdiği `consultant` alanı DOLUYSA çizilir. O alan yalnızca ONAYLI bir
+    // `consultants` satırı için gelir (bkz. src/routes/architect.js#buildArchitectPayload), yani
+    // düğmenin görünürlüğü ile randevunun kabul edilebilirliği ayrışamaz.
+    const consultantOffer = payload && payload.consultant ? payload.consultant : null;
+    if (consultantOffer && headerActions) {
       const consultBtn = document.createElement('button');
       consultBtn.type = 'button';
       consultBtn.className = 'consult-btn';
@@ -678,7 +681,14 @@ const ArchitectModal = (function () {
       consultBtn.textContent = 'Danışmanlık Al';
       consultBtn.addEventListener('click', () => {
         if (typeof ConsultationModal !== 'undefined') {
-          ConsultationModal.open({ hostSlug: a.slug || architectKey, hostName: a.name });
+          // Teklif (süre/ücret/uygun gün-saat) ve tanıtım cümlesi de geçirilir: modal takvimi bu
+          // danışmanın KENDİ gün/saatleriyle çizsin, kendi varsayılanına düşmesin.
+          ConsultationModal.open({
+            hostSlug: a.slug || architectKey,
+            hostName: a.name,
+            intro: consultantOffer.intro || '',
+            offer: consultantOffer,
+          });
         }
       });
       headerActions.appendChild(consultBtn);

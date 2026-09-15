@@ -47,11 +47,17 @@ const ConsultationModal = (function () {
   // "Ödemeyi Yaptım" bir BEYANDIR, doğrulama değil: sunucu payment_status'u 'declared' yapar,
   // 'paid' YAPMAZ. Kart ödemesinde bile talep otomatik onaylanmaz — Meet odası yalnızca admin
   // onayında kurulur (bkz. src/lib/consultationMeet.js).
-  // Uygun günler (Pzt/Çar/Cum) ve saatler (kullanıcı isteği, 2026-09-05) — src/routes/
-  // consultations.js#ALLOWED_WEEKDAYS/ALLOWED_TIMES İLE AYNI, sunucu bağımsız olarak yeniden
-  // doğrular (istemciye güvenilmez).
-  const ALLOWED_WEEKDAYS = new Set([1, 3, 5]);
-  const ALLOWED_TIMES = ['18:00', '19:00', '20:00'];
+  // TEKLİF ARTIK DANIŞMAN BAŞINA (kullanıcı isteği, 2026-09-15: her danışman kendi süresini,
+  // ücretini ve uygun gün/saatlerini seçer). Aşağıdakiler yalnızca VARSAYILANDIR ve iki durumda
+  // kullanılır: (a) çağıran bir teklif geçirmediyse, (b) uygunluk yanıtı henüz gelmediyse.
+  // Gerçek teklif `state.offer`dadır; kaynağı ya çağıran (kişi pop-up'ı / danismanlik.html) ya da
+  // GET /api/consultations/availability yanıtının `offer` alanıdır. Sunucu HER ZAMAN bağımsız
+  // olarak yeniden doğrular (bkz. consultations.js#isAllowedSlot) — istemciye güvenilmez.
+  const DEFAULT_WEEKDAYS = [1, 3, 5];
+  const DEFAULT_TIMES = ['18:00', '19:00', '20:00'];
+  const DEFAULT_DURATION_MIN = 45;
+  const DEFAULT_TZ_LABEL = 'İstanbul (GMT+3)';
+  const TZ_LABELS = { 'Europe/Istanbul': DEFAULT_TZ_LABEL };
   // src/routes/consultations.js#MIN_NOTICE_MS İLE AYNI — yalnızca takvimde günü erkenden
   // noktasız/tıklanamaz göstermek için, asıl doğrulama sunucudadır.
   const MIN_NOTICE_MS = 24 * 60 * 60 * 1000;
@@ -66,12 +72,14 @@ const ConsultationModal = (function () {
   // Bir takvim gününün durumu — 'past' (geçmiş/ilk 24 saat, noktasız/tıklanamaz), 'red' (haftanın
   // uygun olmayan günü YA DA tüm uygun saatler dolu), 'green' (en az bir saat seçilebilir).
   // `bookedTimes`, o gün için zaten alınmış (pending/approved) saatlerin listesi.
-  function dayStatus(dateIso, todayIso, bookedTimes) {
+  function dayStatus(dateIso, todayIso, bookedTimes, offer) {
     if (dateIso < todayIso) return 'past';
+    const weekdays = (offer && offer.weekdays) || DEFAULT_WEEKDAYS;
+    const times = (offer && offer.times) || DEFAULT_TIMES;
     const dow = new Date(`${dateIso}T00:00:00`).getDay();
-    if (!ALLOWED_WEEKDAYS.has(dow)) return 'red';
+    if (!weekdays.includes(dow)) return 'red';
     const cutoffMs = Date.now() + MIN_NOTICE_MS;
-    const eligible = ALLOWED_TIMES.filter((t) => new Date(`${dateIso}T${t}:00`).getTime() >= cutoffMs);
+    const eligible = times.filter((t) => new Date(`${dateIso}T${t}:00`).getTime() >= cutoffMs);
     if (!eligible.length) return 'past'; // bugün/yarın — henüz ilk 24 saat dolmamış
     const free = eligible.filter((t) => !(bookedTimes || []).includes(t));
     return free.length ? 'green' : 'red'; // tamamen dolu
@@ -157,8 +165,18 @@ const ConsultationModal = (function () {
         .cns-method-radio{flex-shrink:0; width:16px; height:16px; margin-top:1px; border-radius:50%; border:1.5px solid var(--ink-soft); position:relative;}
         .cns-method.active .cns-method-radio{border-color:var(--ink);}
         .cns-method.active .cns-method-radio::after{content:''; position:absolute; inset:3px; border-radius:50%; background:var(--ink);}
-        .cns-method-name{font-size:13.5px; font-weight:700;}
-        .cns-method-desc{font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:2px;}
+        /* display:block — GERÇEK BULGU (2026-09-15, ödeme ekranı ekran görüntüsünde yakalandı):
+           ikisi de <span> olduğundan satır içi akıyor ve ad ile açıklama yapışık çıkıyordu
+           ("Havale / EFTIBAN'a transfer et…"). .cns-method-desc'in margin-top'u da satır içi bir
+           elemanda etkisizdi. */
+        .cns-method-name{display:block; font-size:13.5px; font-weight:700;}
+        .cns-method-desc{display:block; font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:2px;}
+        /* Pasif ödeme yöntemi (kullanıcı isteği, 2026-09-15: kart görünür ama "Henüz aktif
+           değil."). Gizlemek YERİNE soluk+tıklanamaz gösterilir — kullanıcı yöntemin var
+           olduğunu ama henüz açılmadığını görsün. */
+        .cns-method-disabled{opacity:0.55; cursor:not-allowed;}
+        .cns-method-disabled:hover{border-color:var(--line);}
+        .cns-method-soon{font-weight:600; color:var(--ink-soft);}
         .cns-method-panel{display:none; padding:2px 0 4px;}
         .cns-method-panel.open{display:block;}
         .cns-iban-box{border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--paper-alt); margin-bottom:4px;}
@@ -183,7 +201,9 @@ const ConsultationModal = (function () {
 
         <div id="cns-screen-book">
           <p class="cns-intro" id="cns-intro"></p>
-          <div class="cns-notice-banner">Görüşme süresi 45 dakikadır. Saatler İstanbul (GMT+3) zaman dilimine göredir.</div>
+          <!-- Metin SABİT DEĞİL: süre ve saat dilimi danışmanın kendi teklifinden gelir
+               (applyOfferToUi). Teklif henüz gelmediyse varsayılanla çizilir. -->
+          <div class="cns-notice-banner" id="cns-offer-note"></div>
           <div class="cns-field-label">Tarih</div>
           <div class="cns-cal">
             <div class="cns-cal-head">
@@ -223,9 +243,12 @@ const ConsultationModal = (function () {
             <textarea id="cns-note" maxlength="2000" placeholder="Opsiyonel — konuşmak istediğin konuyu ya da eklemek istediklerini yaz…"></textarea>
           </div>
 
-          <p class="cns-pay-section-hint" style="margin-top:14px;">Talebini gönderdikten sonra ödeme adımına geçeceksin. Randevu saatin talebi gönderdiğin anda senin için tutulur.</p>
+          <p class="cns-pay-section-hint" style="margin-top:14px;">Bir sonraki adımda ödeme yöntemini seçeceksin. Randevu saatin bu adımda senin için tutulur.</p>
 
-          <button class="cns-submit" type="button" id="cns-pay-confirm-btn">Talebi Gönder</button>
+          <!-- Etiket kullanıcı isteğidir (2026-09-15): bu düğme talebi açar VE hemen ardından ödeme
+               ekranını gösterir, yani bir sonraki adımın adını taşımalı. Akış değişmedi (önce
+               talep, sonra ödeme) — değişen yalnızca kullanıcıya ne söylediği. -->
+          <button class="cns-submit" type="button" id="cns-pay-confirm-btn">Ödeme Sayfasına İlerle</button>
           <div class="cns-pay-notice" id="cns-pay-notice"></div>
         </div>
 
@@ -316,12 +339,13 @@ const ConsultationModal = (function () {
     const pmSubmitBtn = overlay.querySelector('#cns-pm-submit');
     const pmLaterBtn = overlay.querySelector('#cns-pm-later');
     const pmNotice = overlay.querySelector('#cns-pm-notice');
+    const offerNoteEl = overlay.querySelector('#cns-offer-note');
     const pmNameInput = overlay.querySelector('#cns-pm-name');
     const pmSurnameInput = overlay.querySelector('#cns-pm-surname');
     const pmTcInput = overlay.querySelector('#cns-pm-tc');
     const pmAddressInput = overlay.querySelector('#cns-pm-address');
     const pmCityInput = overlay.querySelector('#cns-pm-city');
-    const CONFIRM_BTN_LABEL = 'Talebi Gönder';
+    const CONFIRM_BTN_LABEL = 'Ödeme Sayfasına İlerle';
 
     // ---------------------------------------------------------------------------------------
     // Telefon maskesi (kullanıcı isteği, 2026-09-06 madde 3): "sadece 11 haneli, başında 0 olan
@@ -388,7 +412,7 @@ const ConsultationModal = (function () {
 
     // payment: sunucudan gelen ödeme seçenekleri (bkz. src/routes/consultations.js#paymentOptions);
     // paymentDeclared: bu oturumda havale beyanı verildi mi (yalnızca onay metnini değiştirir).
-    const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null, hasRescheduled: false, payment: null, paymentDeclared: false };
+    const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null, hasRescheduled: false, payment: null, paymentDeclared: false, offer: null };
     const calendarState = { year: 0, month: 0, availability: {} };
     let availReqSeq = 0;
     let prefill = { name: '', email: '' };
@@ -419,7 +443,7 @@ const ConsultationModal = (function () {
       for (let i = 0; i < firstIdx; i++) html += '<div class="cns-cal-cell cns-cal-cell-empty"></div>';
       for (let day = 1; day <= numDays; day++) {
         const iso = `${y}-${pad2(m + 1)}-${pad2(day)}`;
-        const status = dayStatus(iso, todayIso, calendarState.availability[iso]);
+        const status = dayStatus(iso, todayIso, calendarState.availability[iso], state.offer);
         const clickable = status === 'green';
         const isActive = iso === state.date;
         const dot = status === 'green' ? '<span class="cns-dot cns-dot-green"></span>' : status === 'red' ? '<span class="cns-dot cns-dot-red"></span>' : '';
@@ -439,10 +463,14 @@ const ConsultationModal = (function () {
         const res = await fetch(`/api/consultations/availability?hostSlug=${encodeURIComponent(state.hostSlug)}&from=${from}&to=${to}`);
         const data = res.ok ? await res.json() : {};
         booked = data.booked || {};
+        // Teklif, uygunluk yanıtında da gelir — "Tarihi Değiştir" gibi çağıranın teklifi elinde
+        // OLMADIĞI yollarda takvim yine danışmanın kendi gün/saatleriyle çizilsin diye.
+        if (data.offer) { state.offer = data.offer; applyOfferToUi(); }
       } catch {}
       if (seq !== availReqSeq) return; // ay hızlıca değiştirildiyse eski yanıt yok sayılır
       calendarState.availability = booked;
       renderCalendarMonth();
+      renderTimeRowForSelectedDate();
     }
 
     function shiftMonth(delta) {
@@ -464,6 +492,15 @@ const ConsultationModal = (function () {
       refreshContinueState();
     });
 
+    // Teklife bağlı TÜM metin/alanları tek noktadan tazeler. İki yerden çağrılır: open()/
+    // openReschedule() (çağıran teklifi biliyorsa) ve uygunluk yanıtı geldiğinde (bilmiyorsa).
+    function applyOfferToUi() {
+      const o = state.offer || {};
+      const duration = o.durationMin || DEFAULT_DURATION_MIN;
+      const tz = TZ_LABELS[o.timezone] || DEFAULT_TZ_LABEL;
+      if (offerNoteEl) offerNoteEl.textContent = `Görüşme süresi ${duration} dakikadır. Saatler ${tz} zaman dilimine göredir.`;
+    }
+
     function renderTimeRowForSelectedDate() {
       if (!state.date) {
         timeLabelEl.style.display = 'none';
@@ -473,7 +510,8 @@ const ConsultationModal = (function () {
       }
       const booked = calendarState.availability[state.date] || [];
       const cutoffMs = Date.now() + MIN_NOTICE_MS;
-      timeRowEl.innerHTML = ALLOWED_TIMES.map((t) => {
+      const offerTimes = (state.offer && state.offer.times) || DEFAULT_TIMES;
+      timeRowEl.innerHTML = offerTimes.map((t) => {
         const slotMs = new Date(`${state.date}T${t}:00`).getTime();
         const isBooked = booked.includes(t);
         const tooSoon = slotMs < cutoffMs;
@@ -532,17 +570,32 @@ const ConsultationModal = (function () {
       return `${Number(n).toLocaleString('tr-TR')} ₺`;
     }
 
+    // SIRA KULLANICI İSTEĞİDİR (2026-09-15): "1- Havele / Eft  2- Kart ile Ödeme (Henüz aktif
+    // değil.)" — havale önce, kart sonra ve pasif.
     const PM_LABELS = {
-      iyzico: { name: 'Kredi / Banka Kartı', desc: 'iyzico güvenli ödeme sayfasında tek çekim.' },
       havale: { name: 'Havale / EFT', desc: 'IBAN\'a transfer et, ardından "Ödemeyi Yaptım"a bas.' },
+      iyzico: { name: 'Kart ile Ödeme', desc: 'iyzico güvenli ödeme sayfasında tek çekim.' },
     };
+    const PM_ORDER = ['havale', 'iyzico'];
 
-    function availableMethods() {
+    // Her yöntemin ÇİZİLİP çizilmeyeceği ile SEÇİLEBİLİR olup olmadığı AYRI sorulardır (kullanıcı
+    // isteği: kart görünsün ama "Henüz aktif değil."). Kapı sunucudadır — `iyzico` bayrağı
+    // consultations.js#IYZICO_ENABLED'a bakar ve o kapalıyken sunucu yöntemi ayrıca REDDEDER;
+    // buradaki pasiflik yalnızca kullanıcıya doğru şeyi göstermek içindir.
+    function methodEntries() {
       const p = state.payment || {};
-      const list = [];
-      if (p.iyzico) list.push('iyzico');
-      if (p.bankTransfer) list.push('havale');
-      return list;
+      return PM_ORDER.map((m) => {
+        if (m === 'havale') {
+          return { method: m, enabled: !!p.bankTransfer, note: p.bankTransfer ? '' : 'Şu anda kullanılamıyor.' };
+        }
+        // iyzicoComingSoon: sunucunun "ürün kararı olarak kapalı" sinyali. Eski yanıtlarda bu alan
+        // hiç olmayabilir — o durumda `iyzico` bayrağı ne diyorsa o geçerli (davranış bozulmaz).
+        const comingSoon = p.iyzicoComingSoon === undefined ? !p.iyzico : !!p.iyzicoComingSoon;
+        return { method: m, enabled: !!p.iyzico, note: comingSoon ? 'Henüz aktif değil.' : (p.iyzico ? '' : 'Şu anda kullanılamıyor.') };
+      });
+    }
+    function availableMethods() {
+      return methodEntries().filter(e => e.enabled).map(e => e.method);
     }
 
     function selectMethod(method) {
@@ -560,11 +613,12 @@ const ConsultationModal = (function () {
     }
 
     function renderPayment() {
-      const methods = availableMethods();
-      pmMethodsEl.innerHTML = methods.map((m) => `
-        <button type="button" class="cns-method" data-method="${m}">
+      const entries = methodEntries();
+      const methods = entries.filter(e => e.enabled).map(e => e.method);
+      pmMethodsEl.innerHTML = entries.map(({ method: m, enabled, note }) => `
+        <button type="button" class="cns-method${enabled ? '' : ' cns-method-disabled'}" data-method="${m}"${enabled ? '' : ' disabled aria-disabled="true"'}>
           <span class="cns-method-radio"></span>
-          <span><span class="cns-method-name">${PM_LABELS[m].name}</span><span class="cns-method-desc">${PM_LABELS[m].desc}</span></span>
+          <span><span class="cns-method-name">${PM_LABELS[m].name}${note ? ` <span class="cns-method-soon">(${note})</span>` : ''}</span><span class="cns-method-desc">${PM_LABELS[m].desc}</span></span>
         </button>`).join('');
 
       const account = (state.payment && state.payment.account) || null;
@@ -597,11 +651,18 @@ const ConsultationModal = (function () {
       pmRefEl.textContent = state.requestId ? String(state.requestId).slice(0, 8).toUpperCase() : '—';
 
       pmMethodsEl.querySelectorAll('.cns-method').forEach((el) => {
+        if (el.disabled) return; // pasif seçenek (ör. "Henüz aktif değil.") seçilemez
         el.addEventListener('click', () => selectMethod(el.dataset.method));
       });
-      // Tek yöntem varsa seçim diye bir şey yoktur — kullanıcıyı gereksiz bir tıklamaya zorlamadan
-      // doğrudan seçili gelir.
-      if (methods.length) selectMethod(methods[0]);
+      // Tek AKTİF yöntem varsa seçim diye bir şey yoktur — kullanıcıyı gereksiz bir tıklamaya
+      // zorlamadan doğrudan seçili gelir. Hiç aktif yöntem yoksa gönder düğmesi kapalı kalır.
+      if (methods.length) {
+        selectMethod(methods[0]);
+      } else {
+        pmMethod = null;
+        pmSubmitBtn.disabled = true;
+        pmSubmitBtn.textContent = 'Ödeme şu anda alınamıyor';
+      }
     }
 
     function showPaymentScreen() {
@@ -775,12 +836,16 @@ const ConsultationModal = (function () {
           return;
         }
         state.requestId = data.id;
-        // Talep açıldı ve slot tutuldu. Ödeme adımı SUNUCU en az bir yöntem sunuyorsa gelir;
-        // hiçbiri yapılandırılmamışsa (sırlar yok) doğrudan onaya geçilir — özellik bu durumda
-        // 2026-09-08 sonrası hâliyle AYNI şekilde, ücretsiz talep olarak çalışmaya devam eder.
+        // Talep açıldı ve slot tutuldu — ARDINDAN HER ZAMAN ÖDEME EKRANI (kullanıcı isteği,
+        // 2026-09-15: "bu butona tıklayınca ödeme ekranı açılsın. 2 tane ödeme seçeneği çıksın").
+        // Eskiden bu koşul "sunucu en az bir yöntem sunuyorsa" idi; kart artık bilinçli olarak
+        // KAPALI olduğundan (IYZICO_ENABLED=false) o koşul, havale de yapılandırılmamışsa ekranı
+        // tamamen atlar ve kullanıcı istediği iki seçeneği HİÇ göremezdi. Hiçbir yöntem aktif
+        // değilse ekran yine açılır ama gönder düğmesi kapalıdır (bkz. renderPayment) — kullanıcı
+        // "Daha sonra ödeyeceğim" ile geçebilir.
         state.payment = data.payment || null;
         state.paymentDeclared = false;
-        if (state.payment && (state.payment.iyzico || state.payment.bankTransfer)) {
+        if (state.payment) {
           showPaymentScreen();
         } else {
           showSuccessScreen();
@@ -813,9 +878,12 @@ const ConsultationModal = (function () {
     successCloseBtn.addEventListener('click', close);
 
     popupApi = {
-      open({ hostSlug, hostName, intro }) {
+      open({ hostSlug, hostName, intro, offer }) {
         state.hostSlug = hostSlug;
         state.hostName = hostName;
+        // Teklif çağırandan gelir (kişi pop-up'ı ve /danismanlik ikisi de biliyor). Gelmezse
+        // uygunluk yanıtındaki `offer` devralır — bkz. loadAvailabilityForMonth.
+        state.offer = offer || null;
         state.requestId = null;
         state.date = null;
         state.time = null;
@@ -839,6 +907,7 @@ const ConsultationModal = (function () {
         noteInput.value = '';
         bookNotice.classList.remove('show', 'success');
         bookNotice.textContent = '';
+        applyOfferToUi();
         renderTimeRowForSelectedDate();
         refreshContinueState();
         showScreen('book');
@@ -873,9 +942,12 @@ const ConsultationModal = (function () {
         document.body.style.overflow = 'hidden';
         showPaymentScreen();
       },
-      openReschedule({ requestId, hostSlug, hostName, date, time, hasRescheduled }) {
+      openReschedule({ requestId, hostSlug, hostName, date, time, hasRescheduled, offer }) {
         state.hostSlug = hostSlug;
         state.hostName = hostName;
+        // Detay ekranı teklifi bilmeyebilir; bilmiyorsa uygunluk yanıtı doldurur.
+        state.offer = offer || null;
+        applyOfferToUi();
         state.requestId = requestId;
         state.date = date || null;
         state.time = time || null;

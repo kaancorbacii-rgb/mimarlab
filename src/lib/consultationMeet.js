@@ -22,14 +22,29 @@
 import { createMeetEvent, patchEventTime, isGoogleMeetConfigured, missingMeetSecrets, safeErrorMessage } from './googleMeet.js';
 import { createNotification } from './notify.js';
 import { checkRateLimit } from './rateLimit.js';
+import { DEFAULT_OFFER, CONSULTATION_TIMEZONE } from './consultants.js';
 
 // Takvim/saat sözleşmesi mevcut rezervasyon sistemiyle AYNI: saatler İstanbul (GMT+3) — bkz.
 // js/components/consultation-modal.js'teki "Görüşme süresi 45 dakikadır. Saatler İstanbul (GMT+3)
 // zaman dilimine göredir." uyarısı. Türkiye 2016'dan beri yaz saati uygulamıyor, ofset SABİT +03:00
 // (bkz. wrangler.jsonc#triggers yorumundaki aynı gerekçe).
-export const CONSULTATION_TIMEZONE = 'Europe/Istanbul';
+// Tanım src/lib/consultants.js'tedir (bağımlılık yönü için — bkz. oradaki not); burada yalnızca
+// mevcut çağıranlar için yeniden dışa aktarılır.
+export { CONSULTATION_TIMEZONE };
 export const CONSULTATION_UTC_OFFSET = '+03:00';
-export const CONSULTATION_DURATION_MIN = 45;
+// VARSAYILAN görüşme süresi. 2026-09-15'ten (Danışman Ol turu) itibaren GERÇEK süre randevunun
+// KENDİ satırındadır (consultation_requests.duration_min) — her danışman 30/45/60 arasından kendi
+// süresini seçer. Bu sabit yalnızca o kolon okunamadığında kullanılır ve değeri tek kaynaktan
+// (src/lib/consultants.js#DEFAULT_OFFER) gelir.
+export const CONSULTATION_DURATION_MIN = DEFAULT_OFFER.durationMin;
+
+// Bir randevunun süresi — HER yerde bu fonksiyondan okunur (pencere hesabı, Google etkinliğinin
+// bitişi, açıklama metni). Üç yerde ayrı ayrı `row.duration_min || 45` yazmak, biri unutulduğunda
+// 30 dakikalık bir görüşmenin 45 dakikalık bir Meet etkinliğiyle açılmasına yol açardı.
+export function consultationDurationMin(row) {
+  const n = Number(row && row.duration_min);
+  return Number.isFinite(n) && n > 0 ? n : CONSULTATION_DURATION_MIN;
+}
 export const JOIN_EARLY_MIN = 15;
 // 'creating' kilidi bu süreden eskiyse (çökmüş/zaman aşımına uğramış bir deneme) devralınabilir.
 const CREATING_LOCK_STALE_MS = 2 * 60 * 1000;
@@ -55,7 +70,7 @@ export function consultationStartMs(row) {
 //   ended   : başlangıç + 45 dk sonrası
 export function meetingWindow(row, nowMs = Date.now()) {
   const startsAt = consultationStartMs(row);
-  const endsAt = startsAt + CONSULTATION_DURATION_MIN * 60 * 1000;
+  const endsAt = startsAt + consultationDurationMin(row) * 60 * 1000;
   const joinOpensAt = startsAt - JOIN_EARLY_MIN * 60 * 1000;
   let phase;
   if (Number.isNaN(startsAt)) phase = 'invalid';
@@ -162,9 +177,9 @@ export async function createMeetForConsultation(env, consultationId, {
     try {
       const { eventId, meetLink } = await createMeetEvent(env, {
         summary: `MİMARLAB Danışmanlık — ${row.contact_name || 'Kullanıcı'} & ${hostName}`,
-        description: `MİMARLAB danışmanlık görüşmesi (${CONSULTATION_DURATION_MIN} dk).\nGüvenli görüşme odası: ${origin}${roomPath(row.room_uuid)}`,
+        description: `MİMARLAB danışmanlık görüşmesi (${consultationDurationMin(row)} dk).\nGüvenli görüşme odası: ${origin}${roomPath(row.room_uuid)}`,
         startIso: localWallClock(row, 0),
-        endIso: localWallClock(row, CONSULTATION_DURATION_MIN),
+        endIso: localWallClock(row, consultationDurationMin(row)),
         timeZone: CONSULTATION_TIMEZONE,
         requestId: `mimarlab-${row.room_uuid}`,
         privateProps: { mimarlab_consultation_id: row.id },
@@ -212,7 +227,7 @@ export async function rescheduleMeetForConsultation(env, consultationId, { fetch
     await patchEventTime(env, {
       eventId: row.meet_event_id,
       startIso: localWallClock(row, 0),
-      endIso: localWallClock(row, CONSULTATION_DURATION_MIN),
+      endIso: localWallClock(row, consultationDurationMin(row)),
       timeZone: CONSULTATION_TIMEZONE,
     }, { fetchImpl, now });
     await env.DB.prepare(

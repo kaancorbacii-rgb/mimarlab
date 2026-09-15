@@ -92,6 +92,11 @@ const CACHEABLE_PATHS = [
   // (`handleTop100Route` her zaman TÜM listeyi döner) diğer sabit CACHEABLE_PATHS ile aynı basit
   // desene uyuyor. Admin mutasyonları (handleTop100AdminRoute — POST/PATCH/move/reorder/DELETE)
   // artık burayı da invalidatePublicCache() ile temizliyor (bkz. top100.js).
+  // /api/consultants — /danismanlik listesinin tek veri ucu (2026-09-15). Burada olmasının sebebi
+  // önbelleklenmesi DEĞİL, TEMİZLENMESİDİR: admin bir danışman başvurusunu onayladığında ya da
+  // danışman teklifini güncellediğinde kart anında tazelensin (invalidatePublicCache bu listeyi
+  // hem edge'den hem global purge ile düşürür).
+  '/api/consultants',
   '/api/public/top100',
   // /neden-mimarlab sayfasının canlı platform sayaçları + vitrin verisi (bkz. src/routes/
   // platform.js). Sorgu dizesi taşımaz, bu yüzden diğer sabit yollarla AYNI basit desene uyar;

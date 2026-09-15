@@ -13,10 +13,19 @@ import { isValidTcKimlik, normalizeGsm } from '../lib/iyzicoBuyer.js';
 // AYNI alanlardan çizilsin diye kova/etiket dönüşümleri kisi.html'in okuduğu yerden alınır. Bu
 // içe aktarma DÖNGÜ YARATMAZ: consultations.js'i yalnızca payments.js import eder ve architect.js
 // zincirinde (office.js/auth.js) payments.js yoktur.
-import { cachedPublicJson } from '../lib/publicCache.js';
+import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { canonicalSchoolName } from '../lib/universities.js';
 import { positionOf, professionLabelList } from './architect.js';
+// DANIŞMAN KADROSU ARTIK D1'DE (kullanıcı isteği, 2026-09-15) — bkz. src/lib/consultants.js.
+import {
+  fetchApprovedConsultant, fetchApprovedConsultantRows, parseConsultantRow, DEFAULT_OFFER,
+  publicOffer, consultationIntro, normalizeConsultantOffer, fetchUserConsultantCandidates,
+  CONSULTANT_DURATIONS, CONSULTANT_TIME_SLOTS, CONSULTANT_WEEKDAYS, WEEKDAY_NAMES_TR,
+} from '../lib/consultants.js';
+// Geriye dönük yeniden dışa aktarım: bu ikisinin tanımı artık src/lib/consultants.js'tedir
+// (src/routes/architect.js oradan okuyor — buradan okusaydı iki route modülü arasında döngü olurdu).
+export { publicOffer, consultationIntro };
 // Güvenli Görüşme Gateway'i / Google Meet (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import {
   ROOM_UUID_RE, roomPath, meetingWindow, resolveConsultationAccess, ensureRoomUuid, maybeRetryMeetOnAccess,
@@ -40,7 +49,11 @@ import {
 // payment_status'u 'paid' yapar. Onay kapısı (ve dolayısıyla Meet odasının kurulması) admin'de
 // kalır — ödeme doğrulaması o kapının YERİNE geçmez, ÖNÜNE eklenir. Aksi halde ödemesi geçmiş ama
 // admin'in henüz bakmadığı bir talep kendiliğinden takvime/Meet'e düşerdi.
-export const CONSULTATION_PRICE_TRY = 1500;
+// ÜCRET ARTIK DANIŞMAN BAŞINA (kullanıcı isteği, 2026-09-15: "bu görüşme saatlerinin kaç TL
+// olduğunu ... seçsinler"). Bu sabit yalnızca `consultants` satırı OKUNAMADIĞINDA kullanılan geri
+// düşüştür ve değeri tek kaynaktan (consultants.js#DEFAULT_OFFER) gelir — iki yerde iki farklı
+// "varsayılan fiyat" olmasın.
+export const CONSULTATION_PRICE_TRY = DEFAULT_OFFER.priceTry;
 // payment_status sözleşmesi — bkz. migrations/0117_consultation_payment.sql (AYNI liste).
 const PAYMENT_STATUS = new Set(['pending', 'declared', 'paid', 'failed']);
 // iyzico callback'i (src/routes/payments.js#handleCallback) rozet ve danışmanlık taleplerini AYNI
@@ -50,14 +63,20 @@ const PAYMENT_STATUS = new Set(['pending', 'declared', 'paid', 'failed']);
 export const CONSULTATION_CONVERSATION_PREFIX = 'cns_';
 // TC Kimlik No/adres/şehir SADECE iyzico'ya iletilir, D1'e YAZILMAZ (veri minimizasyonu) —
 // src/routes/payments.js#startCheckout'taki AYNI kural.
-export const ALLOWED_HOST_SLUGS = new Set(['kaan-corbaci']);
+// RANDEVU KAPISI ARTIK BU SET DEĞİL, `consultants` TABLOSUDUR (status='approved' —
+// bkz. src/lib/consultants.js#fetchApprovedConsultant). Set yalnızca TOHUM olarak duruyor:
+// migrations/0121_consultants.sql bu slug'ı bugünkü teklifiyle tabloya taşıdı. Kodda hiçbir kapı
+// artık buna bakmaz; silinmemesinin tek sebebi, tablonun nereden doğduğunun kayıtta kalmasıdır.
+export const SEED_HOST_SLUGS = new Set(['kaan-corbaci']);
 // Uygun günler/saatler (kullanıcı isteği, 2026-09-05): Pazartesi/Çarşamba/Cuma, 18:00/19:00/20:00.
 // getUTCDay() ile kontrol edilir (0=Pazar…6=Cumartesi) — bir takvim gününün haftanın hangi gününe
 // denk geldiği saat dilimine bağlı değildir, bu yüzden "YYYY-MM-DDT00:00:00Z" olarak ayrıştırıp
 // UTC gün adını okumak istemcinin yerel hesabıyla HER ZAMAN aynı sonucu verir (bkz.
 // consultation-modal.js#isoDateLocal'daki AYNI gerekçe).
-export const ALLOWED_WEEKDAYS = new Set([1, 3, 5]);
-export const ALLOWED_TIMES = new Set(['18:00', '19:00', '20:00']);
+// Uygun gün/saatler de DANIŞMAN BAŞINADIR; bunlar yalnızca geri düşüştür (yukarıdaki ücretle
+// AYNI gerekçe ve AYNI tek kaynak).
+export const ALLOWED_WEEKDAYS = new Set(DEFAULT_OFFER.weekdays);
+export const ALLOWED_TIMES = new Set(DEFAULT_OFFER.times);
 const MAX_CONTACT_LEN = 120;
 const MAX_NOTE_LEN = 2000;
 
@@ -96,27 +115,21 @@ export async function handleConsultationsRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
-// "{Ad}; mimarlık kariyeri, ..." — DANIŞMANLIK TEKLİFİNİN TANITIM CÜMLESİ. Tek kaynak burasıdır;
-// js/components/consultation-modal.js#open aynı cümleyi hâlâ kendi içinde taşır ama YALNIZCA geri
-// düşüş olarak (çağıran `intro` verirse onu kullanır) — danismanlik.html bu uçtan geleni geçirir,
-// kişi pop-up'ındaki "Danışmanlık Al" düğmesi ise geçirmez ve eski davranışını korur. İki cümlenin
-// ayrışmasını scripts/test-2026-09-15-danismanlik-page.mjs kelepçeler.
-export function consultationIntro(name) {
-  return `${name}; mimarlık kariyeri, portföy geliştirme ve dijital ürün/yayıncılık alanlarında birebir online mentörlük görüşmesi sunar.`;
-}
 
 // GET /api/consultants — danismanlik.html'in TEK veri ucu (kullanıcı isteği, 2026-09-15:
 // "DANIŞMANLIK diye bir sayfa tasarla ... Danışman olarak Kaan Çorbacı'yı koy ve Kaan Çorbacı'nın
 // profilindeki Danışmanlık Al butonundaki bilgileri kullan").
 //
 // KİMİN DANIŞMAN OLDUĞU BURADA YENİDEN TANIMLANMAZ: liste, randevu talebini kabul eden kapının
-// (ALLOWED_HOST_SLUGS) TA KENDİSİNDEN türetilir. Sayfaya elle bir slug yazılsaydı, kapı değiştiği
-// gün sayfa sessizce ayrışır ve "Danışmanlık Al" düğmesi çalışmayan bir kart gösterirdi.
-// `offer` alanındaki her değer de (fiyat, süre, saat dilimi, uygun günler/saatler) bu dosyanın ve
-// consultationMeet.js'in AKIŞI DOĞRULARKEN kullandığı sabitlerden okunur — sayfada hiçbir sabit
-// tekrar yazılmaz.
+// (`consultants` tablosu, status='approved' — bkz. src/lib/consultants.js) TA KENDİSİNDEN
+// türetilir. Sayfaya elle bir slug yazılsaydı, kapı değiştiği gün sayfa sessizce ayrışır ve
+// "Danışmanlık Al" düğmesi çalışmayan bir kart gösterirdi.
 //
-// SAYFALAMA/FİLTRE PARAMETRESİ YOK: havuz, tanımı gereği (ALLOWED_HOST_SLUGS) avuç içi kadardır;
+// TEKLİF KART BAŞINADIR (2026-09-15, "Danışman Ol" turu): her kartın kendi `offer` alanı vardır
+// (süre/ücret/uygun gün-saat) çünkü her danışman kendi teklifini seçer. Değerler randevuyu
+// DOĞRULAYAN satırın ta kendisinden okunur — sayfada hiçbir teklif değeri tekrar yazılmaz.
+//
+// SAYFALAMA/FİLTRE PARAMETRESİ YOK: havuz küratörlüdür (admin onaylı başvurular) ve küçüktür;
 // danismanlik.html filtreleme/sıralama/sayfalamayı bu tam yanıt üzerinde istemcide yapar. Yanıt
 // hiçbir kişisel veri taşımaz (randevu satırlarına HİÇ bakılmaz), bu yüzden herkese açıktır.
 export async function handleConsultantsRoute(request, env, url) {
@@ -127,38 +140,121 @@ export async function handleConsultantsRoute(request, env, url) {
 // Yanıtın SAF gövdesi — önbellek/oturum katmanından ayrı tutulur ki birim testi (bkz.
 // scripts/test-2026-09-15-danismanlik-page.mjs) sahte bir env ile doğrudan çağırabilsin
 // (cachedPublicJson, Node'da bulunmayan `caches` global'ine ve oturum okumasına dokunur).
-export async function fetchConsultantList(env) {
-  const slugs = [...ALLOWED_HOST_SLUGS];
-  const offer = {
-    priceTry: CONSULTATION_PRICE_TRY,
-    durationMin: CONSULTATION_DURATION_MIN,
-    timezone: CONSULTATION_TIMEZONE,
-    // Pazartesi=1 … Pazar=0 (Date#getUTCDay) — istemci etiketleri bu sayılardan üretir.
-    weekdays: [...ALLOWED_WEEKDAYS].sort((a, b) => a - b),
-    times: [...ALLOWED_TIMES].sort(),
+// ---------------------------------------------------------------------------------------------
+// DANIŞMAN OL — BAŞVURU UCU  (kullanıcı isteği, 2026-09-15)
+// ---------------------------------------------------------------------------------------------
+// GET  /api/consultant-applications  -> başvuru sayfasının TEK açılış isteği:
+//      { candidates, application, options }
+// POST /api/consultant-applications  -> başvuruyu oluşturur/günceller (her zaman 'pending')
+//
+// KİŞİ KAYDI ŞARTTIR ve bu bir tercih değil YAPISAL bir zorunluluktur: danışmanlığın tamamı bir
+// architects satırının üzerine kuruludur (consultation_requests.host_slug, görüşme odası yetkisi
+// architects.claimed_by_user_id, "Danışmanlık Al" düğmesinin yaşadığı kişi pop-up'ı). Kaydı
+// olmayan başvuru sahibi /kisi-ekle'ye yönlendirilir; `candidates` boş dönmesi bu durumun
+// istemciye verilen sinyalidir.
+//
+// ONAY KAPISI ADMİNDEDİR: bu uç status'u ASLA 'approved' yapmaz. Kendi kendini onaylayabilen bir
+// başvuru, randevu kapısını (fetchApprovedConsultant) tamamen anlamsız kılardı.
+export async function handleConsultantApplicationsRoute(request, env, url) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  if (request.method === 'GET') return getConsultantApplication(env, user);
+  if (request.method === 'POST') return submitConsultantApplication(request, env, user);
+  return errorJson('Bulunamadı', 404);
+}
+
+// Formun seçeneklerini SUNUCU bildirir (süreler, saat listesi, gün listesi). İstemcide ikinci bir
+// kopya tutulsaydı, bir seçenek eklendiğinde form onu göstermeye devam eder ama sunucu reddederdi.
+function consultantFormOptions() {
+  return {
+    durations: CONSULTANT_DURATIONS,
+    times: CONSULTANT_TIME_SLOTS,
+    weekdays: CONSULTANT_WEEKDAYS.map(n => ({ value: n, label: WEEKDAY_NAMES_TR[n] })),
   };
-  if (!slugs.length) return { items: [], total: 0, offer };
+}
 
-  const placeholders = slugs.map(() => '?').join(',');
-  const { results } = await env.DB.prepare(
-    // directory_listed KAPISI BİLEREK YOK (bkz. src/routes/architect.js#handleArchitectNamesRoute'
-    // taki AYNI gerekçe): danışman olmak, /kisi dizininde listelenmekten bağımsız bir yetkidir —
-    // profilini dizinden çıkarmış bir danışman bu sayfadan sessizce kaybolmamalı.
-    `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, a.awards,
-            o.name AS office_name, o.awards AS office_awards
-       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-      WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.slug IN (${placeholders})`
-  ).bind(...slugs).all();
+async function getConsultantApplication(env, user) {
+  const candidates = await fetchUserConsultantCandidates(env, user);
+  let application = null;
+  if (candidates.length) {
+    const slugs = candidates.map(c => c.slug);
+    // Kullanıcının kendi kişi kayıtlarından HERHANGİ birine bağlı bir başvuru varsa onu düzenler.
+    const row = await env.DB.prepare(
+      `SELECT * FROM consultants WHERE architect_slug IN (${slugs.map(() => '?').join(',')})
+        ORDER BY updated_at DESC LIMIT 1`
+    ).bind(...slugs).first();
+    if (row) {
+      const parsed = parseConsultantRow(row);
+      application = {
+        slug: parsed.slug, status: parsed.status,
+        durationMin: parsed.durationMin, priceTry: parsed.priceTry,
+        weekdays: parsed.weekdays, times: parsed.times,
+        expertise: parsed.expertise, intro: parsed.intro,
+        adminNote: row.admin_note || null,
+      };
+    }
+  }
+  return json({ candidates, application, options: consultantFormOptions() });
+}
 
-  const bySlug = new Map();
-  for (const row of results || []) {
+async function submitConsultantApplication(request, env, user) {
+  if (!(await checkRateLimit(env, 'consultant-apply', user.id, 10, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+  const body = await readJson(request);
+  const slug = String(body.architectSlug || '').trim();
+
+  // SAHİPLİK KAPISI: başvurulan kişi kaydı GERÇEKTEN bu hesabın olmalı. İstemcinin gönderdiği
+  // slug'a güvenilmez — aksi halde herkes başkasının profilini danışmanlığa açabilirdi.
+  const candidates = await fetchUserConsultantCandidates(env, user);
+  const candidate = candidates.find(c => c.slug === slug);
+  if (!candidate) {
+    return errorJson('Bu kişi kaydı senin hesabına bağlı değil. Önce kendi kişi kaydını oluştur ya da sahiplen.', 403);
+  }
+
+  const parsed = normalizeConsultantOffer(body);
+  if (!parsed.ok) return errorJson(parsed.error);
+  const v = parsed.value;
+  const now = Date.now();
+
+  const existing = await env.DB.prepare(`SELECT status FROM consultants WHERE architect_slug = ?`).bind(slug).first();
+  // ONAYLI BİR DANIŞMAN KENDİ TEKLİFİNİ GÜNCELLEYEBİLİR ve bu onayı DÜŞÜRMEZ: süre/ücret/saat
+  // değiştirmek yeni bir başvuru değildir, aksi halde fiyatını güncelleyen danışman kendini
+  // yayından düşürürdü. Değişiklik yalnızca BUNDAN SONRAKİ randevuları etkiler — mevcut randevular
+  // kendi price_try/duration_min değerlerini taşır (bkz. createConsultationRequest).
+  const nextStatus = existing && existing.status === 'approved' ? 'approved' : 'pending';
+  await env.DB.prepare(
+    `INSERT INTO consultants
+       (architect_slug, user_id, duration_min, price_try, weekdays, times, expertise, intro, status, created_at, updated_at, approved_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+     ON CONFLICT(architect_slug) DO UPDATE SET
+       user_id = excluded.user_id, duration_min = excluded.duration_min, price_try = excluded.price_try,
+       weekdays = excluded.weekdays, times = excluded.times, expertise = excluded.expertise,
+       intro = excluded.intro, status = excluded.status, updated_at = excluded.updated_at`
+  ).bind(
+    slug, user.id, v.durationMin, v.priceTry, JSON.stringify(v.weekdays), JSON.stringify(v.times),
+    v.expertise, v.intro, nextStatus, now, now,
+  ).run();
+
+  // Liste ucu herkese açık ve önbelleklidir — onaylı bir danışman teklifini güncellediğinde
+  // /danismanlik kartının bayat kalmaması için temizlenir.
+  await invalidatePublicCache(env);
+
+  return json({ status: nextStatus, slug }, existing ? 200 : 201);
+}
+
+export async function fetchConsultantList(env) {
+  const rows = await fetchApprovedConsultantRows(env);
+  const items = [];
+  for (const row of rows) {
+    const consultant = parseConsultantRow(row);
     const a = parseCanonicalRow('architects', row);
     let officeAwards = [];
     if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
     const ownAwards = Array.isArray(a.awards) ? a.awards : [];
-    bySlug.set(a.slug, {
-      slug: a.slug,
-      name: a.name,
+    items.push({
+      slug: consultant.slug,
+      name: row.name,
       dob: a.dob || null,
       photo: a.photo_url || null,
       office: row.office_name || null,
@@ -169,13 +265,16 @@ export async function fetchConsultantList(env) {
       // Kişi kartındakiyle AYNI birleşim (kendi ödülleri + bağlı firmanın ödülleri) — bkz.
       // src/routes/architect.js#fetchArchitectPool.
       awards: [...new Set([...ownAwards, ...officeAwards])],
-      intro: consultationIntro(a.name),
+      // Başvuruda yazılan tanıtım cümlesi varsa o, yoksa eski üretilen cümle (davranış korunur).
+      intro: consultant.intro || consultationIntro(row.name),
+      // "hangi alanda danışmanlık verdiklerini vs. bilgi olarak yazsınlar" (kullanıcı isteği).
+      expertise: consultant.expertise || null,
+      // TEKLİF ARTIK KART BAŞINA: iki danışman farklı süre/ücret/saat sunabilir, bu yüzden liste
+      // düzeyinde TEK bir `offer` alanı YANLIŞ olurdu.
+      offer: publicOffer(consultant),
     });
   }
-  // Sıra ALLOWED_HOST_SLUGS'ın sırasıdır; D1'den dönmeyen (silinmiş/gizlenmiş) bir slug sessizce
-  // düşer — sayfa boş kalır, kırılmaz.
-  const items = slugs.map(slug => bySlug.get(slug)).filter(Boolean);
-  return { items, total: items.length, offer };
+  return { items, total: items.length };
 }
 
 function isValidDate(s) {
@@ -226,10 +325,16 @@ function isAfterMeeting(row) {
   return Date.now() >= consultationStartMs(row);
 }
 
-function isAllowedSlot(dateStr, timeStr) {
-  if (!isValidDate(dateStr) || !ALLOWED_TIMES.has(timeStr)) return false;
+// Slot kontrolü artık DANIŞMANIN KENDİ teklifine bakar (kullanıcı isteği, 2026-09-15: her danışman
+// kendi gün ve saatlerini seçer). `consultant`, fetchApprovedConsultant'ın döndürdüğü nesnedir —
+// çağıran onu ZATEN okumuş olmak zorundadır, yani kapıdan (approved mı) geçmeden buraya gelinemez.
+export function isAllowedSlot(consultant, dateStr, timeStr) {
+  const offer = consultant || DEFAULT_OFFER;
+  const times = offer.times || DEFAULT_OFFER.times;
+  const weekdays = offer.weekdays || DEFAULT_OFFER.weekdays;
+  if (!isValidDate(dateStr) || !times.includes(timeStr)) return false;
   const d = new Date(`${dateStr}T00:00:00Z`);
-  if (!ALLOWED_WEEKDAYS.has(d.getUTCDay())) return false;
+  if (!weekdays.includes(d.getUTCDay())) return false;
   const slotMs = new Date(`${dateStr}T${timeStr}:00Z`).getTime();
   return slotMs - Date.now() >= MIN_NOTICE_MS;
 }
@@ -249,7 +354,8 @@ async function getAvailability(env, url) {
   const hostSlug = (url.searchParams.get('hostSlug') || '').trim();
   const from = url.searchParams.get('from') || '';
   const to = url.searchParams.get('to') || '';
-  if (!ALLOWED_HOST_SLUGS.has(hostSlug)) return errorJson('Bu profil için danışmanlık randevusu şu an açık değil.');
+  const consultant = await fetchApprovedConsultant(env, hostSlug);
+  if (!consultant) return errorJson('Bu profil için danışmanlık randevusu şu an açık değil.');
   if (!isValidDate(from) || !isValidDate(to)) return errorJson('Geçersiz tarih aralığı.');
   // Tek seferde en fazla ~2 aylık ufuk — takvim zaten ay bazında istek atıyor, geniş bir aralık
   // istenmesinin tek nedeni kötüye kullanım olurdu.
@@ -264,7 +370,9 @@ async function getAvailability(env, url) {
   for (const r of results || []) {
     (booked[r.requested_date] ||= []).push(r.requested_time);
   }
-  return json({ booked });
+  // Teklif de dönüyor: takvim, danışmanın gün/saatlerini istemcideki bir sabitten DEĞİL buradan
+  // çizsin (aksi halde iki danışmanın farklı saatleri aynı sabitle çizilirdi).
+  return json({ booked, offer: publicOffer(consultant) });
 }
 
 // GET /api/consultations/:id — "Görüşme Detayı": danışmanı "yeni talep" bildiriminden, ALICIYI ise
@@ -341,7 +449,7 @@ async function getConsultationDetail(env, user, id) {
     paymentStatus: row.payment_status || null,
     canPay: isBuyer && isPayableStatus(row),
     payment: isBuyer && isPayableStatus(row)
-      ? { ...paymentOptions(env), account: getBankTransferAccount(env), status: row.payment_status || null }
+      ? { ...paymentOptions(env, row.price_try), account: getBankTransferAccount(env), status: row.payment_status || null }
       : null,
   });
 }
@@ -381,7 +489,9 @@ export function buildRoomState(env, row, access, freshRow, nowMs = Date.now()) {
     date: r.requested_date,
     time: r.requested_time,
     timezone: CONSULTATION_TIMEZONE,
-    durationMin: CONSULTATION_DURATION_MIN,
+    // Süre TALEBİN KENDİSİNDEN (0121) — danışman teklifini sonradan değiştirse bile bu odanın
+    // katılım penceresi satın alındığı andaki süreyle kalır (bkz. consultationMeet.js#meetingWindow).
+    durationMin: Number(r.duration_min) || CONSULTATION_DURATION_MIN,
     joinEarlyMin: JOIN_EARLY_MIN,
     startsAt: win.startsAt,
     endsAt: win.endsAt,
@@ -422,8 +532,11 @@ async function createConsultationRequest(request, env, user) {
 
   const body = await readJson(request);
   const hostSlug = typeof body.hostSlug === 'string' ? body.hostSlug.trim() : '';
-  if (!ALLOWED_HOST_SLUGS.has(hostSlug)) return errorJson('Bu profil için danışmanlık randevusu şu an açık değil.');
-  if (!isAllowedSlot(body.date, body.time)) return errorJson('Lütfen listelenen uygun gün ve saatlerden birini seç.');
+  // KAPI: yalnızca ONAYLI bir `consultants` satırı randevu kabul eder (kullanıcı isteği,
+  // 2026-09-15). Başvurusu onay bekleyen ya da reddedilmiş bir kişi bu noktadan geçemez.
+  const consultant = await fetchApprovedConsultant(env, hostSlug);
+  if (!consultant) return errorJson('Bu profil için danışmanlık randevusu şu an açık değil.');
+  if (!isAllowedSlot(consultant, body.date, body.time)) return errorJson('Lütfen listelenen uygun gün ve saatlerden birini seç.');
   if (await hasBookingClash(env, hostSlug, body.date, body.time)) {
     return errorJson('Bu saat başka biri tarafından alınmış, lütfen başka bir saat seç.');
   }
@@ -441,11 +554,14 @@ async function createConsultationRequest(request, env, user) {
   // room_uuid — Güvenli Görüşme Gateway'inin adresi (/gorusme/:room_uuid), crypto.randomUUID()
   // (CSPRNG). Rezervasyon anında atanır; tek başına yetki VERMEZ (bkz. consultationMeet.js).
   const roomUuid = crypto.randomUUID();
+  // FİYAT VE SÜRE REZERVASYON ANINDA TALEBE YAZILIR (istemciden ASLA alınmaz). Danışman sonradan
+  // teklifini değiştirse bile bu randevu, satın alındığı andaki süre ve ücretle kalır — Meet
+  // etkinliğinin bitişi ve görüşme odasının katılım penceresi geçmişe dönük kaymaz.
   await env.DB.prepare(
     `INSERT INTO consultation_requests
-       (id, user_id, host_slug, requested_date, requested_time, price_try, status, created_at, updated_at, payment_provider, contact_name, contact_email, contact_phone, note, room_uuid)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'havale', ?, ?, ?, ?, ?)`
-  ).bind(id, user.id, hostSlug, body.date, body.time, CONSULTATION_PRICE_TRY, now, now, contactName, contactEmail, contactPhone, note, roomUuid).run();
+       (id, user_id, host_slug, requested_date, requested_time, price_try, duration_min, status, created_at, updated_at, payment_provider, contact_name, contact_email, contact_phone, note, room_uuid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'havale', ?, ?, ?, ?, ?)`
+  ).bind(id, user.id, hostSlug, body.date, body.time, consultant.priceTry, consultant.durationMin, now, now, contactName, contactEmail, contactPhone, note, roomUuid).run();
 
   // Kaan Çorbacı'ya bildirim (kullanıcı isteği, 2026-09-05: "Bir kişi danışmanlık satın alımı
   // yaptığında Kaan Çorbacı'ya bildirim gitsin"). Hedef kullanıcı architects.claimed_by_user_id'den
@@ -485,8 +601,9 @@ async function createConsultationRequest(request, env, user) {
   return json({
     id,
     status: 'pending',
-    priceTry: CONSULTATION_PRICE_TRY,
-    payment: { ...paymentOptions(env), account: getBankTransferAccount(env), status: null },
+    priceTry: consultant.priceTry,
+    durationMin: consultant.durationMin,
+    payment: { ...paymentOptions(env, consultant.priceTry), account: getBankTransferAccount(env), status: null },
   }, 201);
 }
 
@@ -511,7 +628,11 @@ async function updateConsultationRequest(request, env, user, id) {
   }
 
   const body = await readJson(request);
-  if (!isAllowedSlot(body.date, body.time)) return errorJson('Lütfen listelenen uygun gün ve saatlerden birini seç.');
+  // Yeni tarih, randevunun DANIŞMANININ güncel gün/saatlerine uymalı. Danışman onaydan çıkmışsa
+  // (başvuru geri alındı/reddedildi) tarih değiştirilemez — mevcut randevu durur, yenisi yazılmaz.
+  const consultant = await fetchApprovedConsultant(env, row.host_slug);
+  if (!consultant) return errorJson('Bu danışman şu anda randevu kabul etmiyor.');
+  if (!isAllowedSlot(consultant, body.date, body.time)) return errorJson('Lütfen listelenen uygun gün ve saatlerden birini seç.');
   if (await hasBookingClash(env, row.host_slug, body.date, body.time, id)) {
     return errorJson('Bu saat başka biri tarafından alınmış, lütfen başka bir saat seç.');
   }
@@ -608,10 +729,23 @@ async function createConsultationAction(request, env, user, consultationId) {
 // sunucu da reddeder (yarı yapılandırılmış "IBAN yok ama Ödemeyi Yaptım var" durumu oluşamaz).
 // bankTransfer.account YALNIZCA talebin sahibine, yalnızca kendi talebinin ödeme adımında döner —
 // IBAN kaynak kodda ya da anonim bir uçta DURMAZ (bkz. src/lib/bankTransfer.js dosya başı gerekçe).
-function paymentOptions(env) {
+// KART İLE ÖDEME ŞİMDİLİK KAPALI (kullanıcı isteği, 2026-09-15: "2 tane ödeme seçeneği çıksın
+// 1- Havele / Eft  2- Kart ile Ödeme (Henüz aktif değil.)"). Bu bir YAPILANDIRMA durumu değil bir
+// ÜRÜN KARARIDIR, bu yüzden isIyzicoConfigured'dan AYRI bir bayrak olarak durur: iyzico sırları
+// tanımlı olsa bile seçenek kapalıdır. Açmak için tek satır (`false` -> isIyzicoConfigured(env)).
+//
+// KAPI YALNIZCA ARAYÜZDE DEĞİL: startConsultationPayment de bu bayrağa bakar ve kapalıyken
+// 'iyzico' yöntemini REDDEDER — aksi halde elle hazırlanmış bir istek hâlâ checkout başlatabilirdi.
+export const IYZICO_ENABLED = false;
+
+function paymentOptions(env, priceTry) {
   return {
-    priceTry: CONSULTATION_PRICE_TRY,
-    iyzico: isIyzicoConfigured(env),
+    priceTry: Number.isFinite(Number(priceTry)) ? Number(priceTry) : CONSULTATION_PRICE_TRY,
+    iyzico: IYZICO_ENABLED && isIyzicoConfigured(env),
+    // Kart seçeneği arayüzde HER ZAMAN görünür ama kapalıyken seçilemez (kullanıcı isteği:
+    // "Henüz aktif değil."). İstemci bu iki bayrağı ayrı okur: `iyzico` seçilebilirliği,
+    // `iyzicoComingSoon` ise kartın pasif olarak ÇİZİLECEĞİNİ söyler.
+    iyzicoComingSoon: !IYZICO_ENABLED,
     bankTransfer: isBankTransferConfigured(env),
   };
 }
@@ -671,6 +805,11 @@ async function startConsultationPayment(request, env, user, consultationId) {
 
   // ---- iyzico: hosted Checkout Form -------------------------------------------------------------
   if (method !== 'iyzico') return errorJson('Geçersiz ödeme yöntemi.');
+  // Ürün kararı kapısı (bkz. IYZICO_ENABLED) — arayüzdeki "Henüz aktif değil." etiketinin sunucu
+  // tarafındaki karşılığı. Arayüzü gizlemek tek başına bir kapı DEĞİLDİR.
+  if (!IYZICO_ENABLED) {
+    return errorJson('Kart ile ödeme henüz aktif değil. Lütfen havale/EFT seçeneğini kullan.', 503);
+  }
   if (!isIyzicoConfigured(env)) {
     return errorJson('Kart ile ödeme şu anda kullanılamıyor. Lütfen havale/EFT seçeneğini kullan ya da daha sonra tekrar dene.', 503);
   }
