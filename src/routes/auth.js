@@ -95,7 +95,10 @@ async function oauthStart(request, env, url, provider) {
 // Kullanıcı şifresini asla girmediğinden password_hash rastgele/kullanılamaz bir değerle NOT NULL
 // kısıtını karşılar — bu kullanıcı ileride yalnızca sosyal girişle oturum açabilir (bkz. login()'in
 // DUMMY_PASSWORD_HASH ile eşleşme olasılığı olmadığından güvenlik açığı oluşturmaz).
-async function upsertOAuthUser(env, { email, name, photoUrl }) {
+// PROFİL FOTOĞRAFI ARTIK ALINMIYOR (kullanıcı isteği, 2026-09-15 madde 2): sağlayıcının gönderdiği
+// resim (profile.picture) users.photo_url'e YAZILMAZ — hesapların profil fotoğrafı yok. Alan
+// imzada kalmadı; oauth.js hâlâ photoUrl döndürüyor olabilir, burada bilinçle yok sayılır.
+async function upsertOAuthUser(env, { email, name }) {
   const normalizedEmail = (email || '').trim().toLowerCase();
   let user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(normalizedEmail).first();
   if (!user) {
@@ -109,18 +112,18 @@ async function upsertOAuthUser(env, { email, name, photoUrl }) {
     // "@kullaniciadi" satırı buna dayanıyor.
     const username = await uniqueUsernameFrom(env, displayName, normalizedEmail.split('@')[0]);
     await env.DB.prepare(
-      'INSERT INTO users (id, email, username, password_hash, name, photo_url, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(id, normalizedEmail, username, passwordHash, displayName, photoUrl || null, now, 'user', now).run();
+      'INSERT INTO users (id, email, username, password_hash, name, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(id, normalizedEmail, username, passwordHash, displayName, now, 'user', now).run();
     user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
   } else {
-    // Mevcut hesap sosyal girişle eşleşti (bkz. yukarıdaki e-posta eşleştirme yorumu) — profilinde
-    // ad soyad veya fotoğraf eksikse sağlayıcıdan (Google/LinkedIn) gelen verilerle otomatik doldurulur;
-    // dolu alanların ÜZERİNE YAZILMAZ (kullanıcı isteği: yalnızca boş alanlar otomatik doldurulsun).
+    // Mevcut hesap sosyal girişle eşleşti (bkz. yukarıdaki e-posta eşleştirme yorumu) — ad soyadı
+    // eksikse sağlayıcıdan (Google/LinkedIn) gelen veriyle otomatik doldurulur; dolu alanların
+    // ÜZERİNE YAZILMAZ (kullanıcı isteği: yalnızca boş alanlar otomatik doldurulsun). Fotoğraf bu
+    // dolguya DAHİL DEĞİL (2026-09-15 madde 2).
     const trimmedName = (name || '').trim();
     const updates = [];
     const values = [];
     if (!user.name && trimmedName) { updates.push('name = ?'); values.push(trimmedName); }
-    if (!user.photo_url && photoUrl) { updates.push('photo_url = ?'); values.push(photoUrl); }
     // Geri dolumdan (migrations/0119) önce silinip yeniden oluşmuş ya da kolonun eklenmesinden
     // önce açılmış bir satır kullanıcı adsız olabilir — sosyal girişte sessizce tamamlanır.
     if (!user.username) { updates.push('username = ?'); values.push(await uniqueUsernameFrom(env, trimmedName || user.name, normalizedEmail.split('@')[0])); }
@@ -465,9 +468,11 @@ async function resetPassword(request, env) {
 // düzenleme yetkisi olsun") AYNI doğrulama/kaydetme mantığı kullanılsın diye ayrı bir fonksiyona
 // çıkarıldı — iki çağıran arasındaki tek fark hangi user id'nin güncellendiği.
 export async function updateUserProfileFields(env, userId, body) {
-  if ('photo_url' in body && !isSafeUrlValue(body.photo_url)) {
-    return { error: 'Profil fotoğrafı bağlantısı geçersiz.' };
-  }
+  // photo_url ARTIK KABUL EDİLMİYOR (kullanıcı isteği, 2026-09-15 madde 2: "Kullanıcı hesapları için
+  // bundan sonra profil fotoğrafı ekle kısmı olmayacak") — alan aşağıdaki `fields` listesinde de yok,
+  // yani gövdede gelse bile sessizce yok sayılır. users.photo_url KOLONU duruyor (mevcut değerler
+  // silinmiyor), yalnızca yeni yazma yolu kapatıldı. KİŞİ künyesinin fotoğrafı BAŞKA bir alandır
+  // (architects.photo_url) ve POST/PATCH /api/architects ile yazılmaya devam eder.
   // bkz. normalizeProfessions — çoklu meslek (virgülle ayrılmış slug'lar). Doğrulanmış/normalize
   // edilmiş değer aşağıdaki genel `fields` döngüsünde yazılabilsin diye body'e geri yazılır.
   if ('profession' in body) {
@@ -499,7 +504,7 @@ export async function updateUserProfileFields(env, userId, body) {
   // dizi kalıbı (bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES.architects). social_links'teki her
   // URL, photo_url ile AYNI isSafeUrlValue kontrolünden geçirilir (mevcut submission pipeline'ından
   // daha sıkı — orada bu alan hiç doğrulanmıyor, burada baştan güvenli tutulur).
-  const fields = ['name', 'username', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position', 'about'];
+  const fields = ['name', 'username', 'dob', 'school', 'dept', 'profession', 'position', 'about'];
   const updates = [];
   const values = [];
   for (const f of fields) {

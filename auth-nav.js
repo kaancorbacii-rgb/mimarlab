@@ -3,9 +3,6 @@
   function firstName(name) {
     return (name || '').trim().split(/\s+/)[0] || 'Hesabım';
   }
-  function initials(name) {
-    return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-  }
   function escapeHtml(s) {
     const d = document.createElement('div');
     d.textContent = s;
@@ -43,14 +40,14 @@
       /* position:relative — .nav-avatar-alert (bildirim noktası) DÜĞMENİN kendi köşesine çıpalanır.
          Sarmalayıcı .nav-avatar-wrap'e bırakılsaydı nokta, sarmalayıcı bir nedenle düğmeden geniş
          kaldığı her düzende (ör. .nav-right flex olmayan bir barındırıcıda) avatarın uzağına kayardı. */
-      .nav-avatar{position:relative; display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:5px 14px 5px 5px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
-      .nav-avatar-circle{width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12px; font-weight:600; flex-shrink:0;}
+      /* Simetrik yatay dolgu: soldaki dar 5px, artık ÇİZİLMEYEN avatar dairesi içindi (kullanıcı
+         isteği, 2026-09-15 madde 2) — daire gidince düğme sola yaslanmış görünüyordu. */
+      .nav-avatar{position:relative; display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:9px 16px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
       .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:240px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
       .nav-avatar-menu.open{display:flex;}
       .nav-avatar-menu a, .nav-avatar-menu button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
       .nav-avatar-menu a:hover, .nav-avatar-menu button:hover{background:var(--paper-alt);}
       .nav-avatar-menu-header{display:flex; align-items:center; gap:11px; padding:8px 12px 12px;}
-      .nav-avatar-menu-avatar{width:38px; height:38px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13px; font-weight:600; flex-shrink:0;}
       .nav-avatar-menu-id{min-width:0;}
       .nav-avatar-menu-name{font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-email{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -60,7 +57,6 @@
          hedefleri için büyütülmüş (bkz. kullanıcı isteği: hamburger menüde giriş yapılmışsa "Giriş
          Yap" yerine hesap menüsü görünsün). */
       .nav-mobile-account-header{display:flex; align-items:center; gap:12px; padding:6px 4px 14px;}
-      .nav-mobile-account-avatar{width:40px; height:40px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14px; font-weight:600; flex-shrink:0;}
       .nav-mobile-account-id{min-width:0;}
       .nav-mobile-account-name{font-size:14.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-mobile-account-email{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -176,18 +172,19 @@
 
     injectStyleOnce();
     const adminLink = user.role === 'admin' ? `<a href="/admin"><span>${ICON_ADMIN}</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>` : '';
-    const avatarInner = user.photoUrl
-      ? `<img src="${escapeAttr(user.photoUrl)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-      : initials(user.name);
+    // PROFİL FOTOĞRAFI KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 2): hesapların artık profil
+    // fotoğrafı yok — ne üst menüdeki düğmede, ne açılır menünün başlığında, ne de mobil çekmecenin
+    // hesap bölümünde bir avatar dairesi çizilir. Düğme yalnızca kullanıcının adını taşır; menü
+    // başlığı ad + e-posta. KİŞİ (mimar/tasarımcı) pop-up'larının fotoğrafı BUNDAN ETKİLENMEZ —
+    // o görsel architects.photo_url'den gelir ve kişi künyesi formundan yüklenir.
     navRight.innerHTML = `
       <div class="nav-avatar-wrap">
         <button class="nav-avatar" id="nav-avatar-btn" type="button">
-          <span class="nav-avatar-circle">${avatarInner}</span> ${escapeHtml(firstName(user.name))}
+          ${escapeHtml(firstName(user.name))}
           <i class="nav-avatar-alert" id="nav-avatar-alert" aria-hidden="true"></i>
         </button>
         <div class="nav-avatar-menu" id="nav-avatar-menu">
           <div class="nav-avatar-menu-header">
-            <span class="nav-avatar-menu-avatar">${avatarInner}</span>
             <div class="nav-avatar-menu-id">
               <div class="nav-avatar-menu-name">${escapeHtml(user.name || '')}</div>
               <div class="nav-avatar-menu-email">${escapeHtml(user.email || '')}</div>
@@ -215,7 +212,6 @@
       const mobileAdminLink = user.role === 'admin' ? `<a class="nav-mobile-link" href="/admin"><span>${ICON_ADMIN}</span> Admin Paneli</a>` : '';
       mobileFoot.innerHTML = `
         <div class="nav-mobile-account-header">
-          <span class="nav-mobile-account-avatar">${avatarInner}</span>
           <div class="nav-mobile-account-id">
             <div class="nav-mobile-account-name">${escapeHtml(user.name || '')}</div>
             <div class="nav-mobile-account-email">${escapeHtml(user.email || '')}</div>

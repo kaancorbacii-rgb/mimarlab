@@ -94,14 +94,12 @@
   .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
   .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
   .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  /* Yatay dolgu simetrik: soldaki dar 5px, artık çizilmeyen avatar dairesi içindi (kullanıcı
+     isteği, 2026-09-15 madde 2 — bkz. auth-nav.js'teki AYNI düzeltme). */
   .nav-avatar{
     display:flex; align-items:center; gap:9px;
-    border:1px solid var(--line); border-radius:100px; padding:5px 14px 5px 5px;
+    border:1px solid var(--line); border-radius:100px; padding:9px 16px;
     background:var(--paper-card); font-size:13.5px; font-weight:600;
-  }
-  .nav-avatar-circle{
-    width:28px; height:28px; border-radius:50%; background:var(--walnut); color:var(--paper-card);
-    display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12px; font-weight:600;
   }
   .nav-rate{
     background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
@@ -129,13 +127,8 @@
   /* ---------- DASHBOARD ---------- */
   .dash-wrap{max-width:1080px; margin:0 auto; padding:36px 32px 90px;}
   .dash-head{display:flex; align-items:center; gap:18px; margin-bottom:32px; flex-wrap:wrap;}
-  .dash-avatar{
-    width:64px; height:64px; border-radius:50%; flex-shrink:0; overflow:hidden;
-    background:var(--walnut); color:var(--paper-card);
-    display:flex; align-items:center; justify-content:center;
-    font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;
-  }
-  .dash-avatar img{width:100%; height:100%; object-fit:cover;}
+  /* (.dash-avatar KALDIRILDI — kullanıcı isteği, 2026-09-15 madde 2: hesapların profil fotoğrafı
+     yok, başlık satırında avatar dairesi çizilmiyor.) */
   .dash-head-info{display:flex; align-items:center; justify-content:space-between; gap:18px; flex:1; min-width:0;}
   .dash-head h1{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0 0 4px;}
   .dash-head p{color:var(--ink-soft); font-size:13.5px; margin:0;}
@@ -251,20 +244,9 @@
   }
   .submissions-add-link:hover{color:var(--ink);}
 
-  /* ---------- PROFİL FOTOĞRAFI ---------- */
-  .avatar-upload-row{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
-  .avatar-upload-preview{
-    width:56px; height:56px; border-radius:50%; flex-shrink:0; overflow:hidden;
-    background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center;
-    font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:18px;
-  }
-  .avatar-upload-preview img{width:100%; height:100%; object-fit:cover;}
-  .avatar-upload-btn{
-    background:none; border:1.5px solid var(--ink); color:var(--ink); padding:8px 16px;
-    border-radius:100px; font-weight:600; font-size:12.5px;
-  }
-  .avatar-upload-btn:hover{background:var(--ink); color:var(--paper-card);}
-  .avatar-upload-hint{font-size:11.5px; color:var(--ink-soft); margin-top:6px;}
+  /* ---------- PROFİL FOTOĞRAFI KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 2) ----------
+     Hesaplar için fotoğraf yükleme kutusu yok; stiller de kaldırıldı. Kişi künyesinin fotoğrafı
+     AYRI bir şeydir ve durur (kisi-ekle.html + Hesabım modalindeki "Kişi Bilgilerini Düzenle"). */
 
   /* ---------- ROZET ---------- */
   .badge-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
@@ -344,7 +326,9 @@
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
-<script src="image-upload.js" defer></script>
+<!-- image-upload.js BURADA ARTIK KULLANILMIYOR (kullanıcı isteği, 2026-09-15 madde 2: hesap profil
+     fotoğrafı yükleme kaldırıldı) — betik etiketi de kaldırıldı ki sayfa gereksiz bir dosya indirmesin.
+     Fotoğraf yükleyen formlar (kisi-ekle/firma-ekle/...) kendi etiketlerini taşıyor. -->
 
   <div id="site-header-mount" data-nav-active=""></div>
   <script src="js/components/site-chrome.js"></script>
@@ -360,7 +344,6 @@
   <div class="dash-wrap" id="dash-wrap" style="display:none;">
     <div id="payment-success-banner" style="display:none; background:rgba(62,122,85,0.12); border:1px solid #3E7A55; color:var(--ink); font-size:13px; padding:13px 16px; border-radius:12px; margin-bottom:20px; line-height:1.6;">Ödemen alındı — rozetin aktif edildi.</div>
     <div class="dash-head">
-      <div class="dash-avatar" id="dash-avatar">–</div>
       <div class="dash-head-info">
         <div>
           <h1 id="dash-title">Hoş Geldin</h1>
@@ -376,14 +359,6 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
       <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
-      <div class="avatar-upload-row">
-        <div class="avatar-upload-preview" id="avatar-preview">–</div>
-        <div>
-          <button type="button" class="avatar-upload-btn" id="avatar-upload-btn">Fotoğraf Yükle</button>
-          <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
-          <div class="avatar-upload-hint" id="avatar-upload-hint">JPEG/PNG/WEBP, otomatik küçültülür (~150KB).</div>
-        </div>
-      </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
         <div>
           <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ad Soyad</label>
@@ -679,14 +654,8 @@ function isInvalidSchoolValue(v){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 })();
 
-function initials(name){
-  return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-}
-function renderAvatar(){
-  const img = currentUser.photoUrl ? `<img src="${escapeAttr(avatarImg(currentUser.photoUrl, 128, currentUser.photoUrl))}" alt="">` : '';
-  document.getElementById('dash-avatar').innerHTML = img || initials(currentUser.name);
-  document.getElementById('avatar-preview').innerHTML = img || initials(currentUser.name);
-}
+// (initials + renderAvatar KALDIRILDI — kullanıcı isteği, 2026-09-15 madde 2: hesabın profil fotoğrafı yok,
+// çizilecek bir avatar kutusu da kalmadı.)
 function itemTitle(type, item){
   if(type === 'offices') return item.name;
   if(type === 'architects') return item.name;
@@ -718,7 +687,6 @@ async function loadUser(){
   const data = await res.json();
   currentUser = data.user;
   document.getElementById('dash-wrap').style.display = 'block';
-  renderAvatar();
   document.getElementById('dash-title').textContent = 'Hoş Geldin, ' + (currentUser.name || '').split(' ')[0];
   document.getElementById('dash-sub').textContent = currentUser.email + ' · MİMARLAB üyesi';
   renderNameBadges();
@@ -804,37 +772,11 @@ document.getElementById('dash-save-btn').addEventListener('click', async ()=>{
   setTimeout(()=>{ msg.textContent = ''; closeProfileEditPopup(); }, 700);
 });
 
-// Profil fotoğrafı da ortak görsel boru hattından (image-upload.js) geçer: tarayıcıda 480 px'e
-// küçültülüp WebP'ye çevrilir. Bu boyutta responsive TÜREV üretilmez ve bu DOĞRUDUR — modül,
-// betikle aynı kuralı uygular: 40 KB'ın altındaki bir kaynak için üç ek R2 nesnesi net kayıptır
-// (bkz. image-upload.js#MIN_SOURCE_BYTES ve generate-image-derivatives.py'deki AYNI eşik).
-
-document.getElementById('avatar-upload-btn').addEventListener('click', ()=>{
-  document.getElementById('avatar-file-input').click();
-});
-document.getElementById('avatar-file-input').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const hint = document.getElementById('avatar-upload-hint');
-  hint.textContent = 'Yükleniyor…';
-  try{
-    const form = await MimarlabUpload.buildUploadForm(file, { maxEdge: 480, quality: 0.82, filename: 'avatar.webp' });
-    const blob = form.get('file');
-    const uploadRes = await fetch('/api/uploads', { method: 'POST', body: form });
-    const uploadData = await uploadRes.json();
-    if(!uploadRes.ok) throw new Error(uploadData.error || 'Yükleme başarısız.');
-    const profileRes = await fetch('/api/profile', {
-      method: 'PATCH', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ photo_url: uploadData.url }),
-    });
-    if(!profileRes.ok) throw new Error('Profil güncellenemedi.');
-    hint.textContent = `JPEG/PNG/WEBP, otomatik küçültülür (~150KB). Yaklaşık boyut: ${Math.round(blob.size/1024)} KB.`;
-    await loadUser();
-  }catch(err){
-    hint.textContent = err.message || 'Fotoğraf yüklenemedi, tekrar dene.';
-  }
-  e.target.value = '';
-});
+// HESAP PROFİL FOTOĞRAFI YÜKLEME KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 2): "Kullanıcı
+// hesapları için bundan sonra profil fotoğrafı ekle kısmı olmayacak." Buradaki yükle-düğmesi,
+// dosya girişi ve PATCH /api/profile { photo_url } yazımı tamamen çıkarıldı; sunucu da artık bu
+// alanı kabul etmiyor (bkz. src/routes/auth.js#updateUserProfileFields). KİŞİ künyesinin fotoğrafı
+// AYRIDIR ve olduğu gibi durur — kisi-ekle.html'den yüklenir, kişi pop-up'ında görünür.
 
 let allSubmissions = [];
 let submissionsFilter = '';
@@ -1268,7 +1210,9 @@ async function syncClaimedArchitectData(items){
   }catch{ return; }
   if(!arch) return;
   const patch = {};
-  if(!currentUser.photoUrl && arch.photo) patch.photo_url = arch.photo;
+  // FOTOĞRAF AKTARIMI KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 2): kişi künyesinin fotoğrafı
+  // artık hesaba kopyalanmaz — hesapların profil fotoğrafı yok. Kişi kaydındaki fotoğraf yerinde
+  // kalır (kişi pop-up'ı etkilenmez).
   if(!currentUser.school && arch.school) patch.school = arch.school;
   if(!Object.keys(patch).length) return;
   try{

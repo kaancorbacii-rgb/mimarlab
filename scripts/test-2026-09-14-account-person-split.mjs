@@ -145,12 +145,75 @@ test('hesap kimliği pop-up\'ı YALNIZCA ad soyad + kullanıcı adı gönderiyor
   assert.ok(!/fetch\(['\`][^'\`]*\/api\/architects/.test(body), 'hesap pop-up\'ı kişi kaydına da yazıyor (ayrım bozuldu)');
 });
 
-test('kişi künyesi pop-up\'ının Kaydet\'i hesap alanlarına yazmıyor', () => {
+test('kişi künyesi pop-up\'ının Kaydet\'i hesap satırına HİÇ yazmıyor', () => {
   const save = authModal.slice(authModal.indexOf("on('am-dash-save-btn', 'click'"));
   const body = save.slice(0, save.indexOf("\n    on('am-avatar-upload-btn'"));
-  assert.ok(body.includes("fetch('/api/profile'"), 'fotoğraf yazımı da kaybolmuş');
-  // Hesaba giden TEK alan fotoğraftır (nav avatarı) — ad/dob/okul/meslek/pozisyon gitmemeli.
-  assert.match(body, /JSON\.stringify\(\{ photo_url: patch\.photo_url \}\)/, 'hesaba fotoğraftan fazlası yazılıyor');
+  // 2026-09-15 madde 2'ye kadar tek bir istisna vardı: yüklenen fotoğraf hesabın avatarına da
+  // yazılırdı. Hesapların profil fotoğrafı kalkınca o yazım da kaldırıldı — bu Kaydet artık
+  // YALNIZCA kişi künyesine (POST/PATCH /api/architects) yazar.
+  assert.ok(!body.includes("fetch('/api/profile'"), 'kişi pop-up\'ı yine hesap satırına yazıyor (ayrım bozuldu)');
+  assert.ok(!/JSON\.stringify\(\{ photo_url/.test(body), 'hesaba fotoğraf yazımı geri gelmiş');
+  // Fotoğraf kişi kaydına gitmeye DEVAM etmeli (kişi pop-up'ındaki görsel oradan gelir).
+  assert.ok(
+    body.includes('patch.photo_url = upData.url;') &&
+    body.includes('submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks, portfolioUrls, patch.photo_url || null)'),
+    'yüklenen fotoğraf kişi kaydına da taşınmıyor',
+  );
+});
+
+// 2026-09-15 madde 2 — hesap profil fotoğrafı KALDIRILDI (kişi künyesinin fotoğrafı AYRI ve durur).
+section('2026-09-15 madde 2 — hesapların profil fotoğrafı yok');
+
+test('sunucu: PATCH /api/profile photo_url\'ü kabul etmiyor', () => {
+  const routes = read('src/routes/auth.js');
+  assert.ok(
+    !/const fields = \[[^\]]*'photo_url'/.test(routes),
+    'photo_url yazılabilir alanlar listesine geri gelmiş',
+  );
+  assert.ok(
+    !/if \(!user\.photo_url && photoUrl\)/.test(routes),
+    'sosyal giriş yine sağlayıcının fotoğrafını hesaba yazıyor',
+  );
+  assert.ok(
+    !/INSERT INTO users \([^)]*photo_url/.test(routes),
+    'yeni hesap satırı yine photo_url ile açılıyor',
+  );
+});
+
+test('istemci: hesap avatarı hiçbir yüzeyde çizilmiyor', () => {
+  assert.ok(!/id="am-dash-avatar"/.test(authModal), 'Hesabım başlığındaki avatar geri gelmiş');
+  assert.ok(!/accountUser\.photoUrl/.test(authModal), 'hesabın fotoğrafı yine okunuyor');
+  const nav = read('auth-nav.js');
+  assert.ok(!/user\.photoUrl/.test(nav), 'üst menü/çekmece yine hesabın fotoğrafını çiziyor');
+  assert.ok(!/nav-avatar-circle|nav-mobile-account-avatar/.test(nav), 'avatar dairesi geri gelmiş');
+  const hesabim = read('hesabim.html');
+  assert.ok(!/id="avatar-upload-btn"|id="dash-avatar"/.test(hesabim), 'Hesabım sayfasında avatar/yükleme kutusu duruyor');
+});
+
+test('kişi künyesinin fotoğrafı DURUYOR (kişi pop-up\'ı etkilenmedi)', () => {
+  assert.ok(/id="am-avatar-upload-btn"/.test(authModal), 'kişi formundaki fotoğraf yükleme kaybolmuş');
+  assert.ok(read('kisi-ekle.html').includes('photo_url: photoUrl'), 'kisi-ekle fotoğrafı göndermiyor');
+  assert.ok(
+    read('src/lib/canonicalSync.js').includes("if (row.photo_url != null) { sets.push('photo_url = ?'); vals.push(row.photo_url || null); }"),
+    'kişi kaydının fotoğraf yazımı bozulmuş',
+  );
+});
+
+// 2026-09-15 madde 1 — "Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?"
+section('2026-09-15 madde 1 — dizin sorusu iki formdan da kaldırıldı');
+
+test('kisi-ekle.html ve Hesabım pop-up\'ında soru/radyo grubu yok', () => {
+  const kisiEkle = read('kisi-ekle.html');
+  assert.ok(!/name="directory_listed"/.test(kisiEkle), 'kisi-ekle\'de radyo grubu duruyor');
+  assert.ok(!/listing-consent-q/.test(kisiEkle), 'soru kutusu markup\'ı duruyor');
+  assert.ok(!/name="am-directory-listed"/.test(authModal), 'pop-up\'ta radyo grubu duruyor');
+});
+
+test('hiçbir form directory_listed GÖNDERMİYOR (mevcut tercihler korunur)', () => {
+  assert.ok(!/directory_listed:/.test(read('kisi-ekle.html')), 'kisi-ekle alanı yine gönderiyor');
+  assert.ok(!/directory_listed: picked/.test(authModal), 'pop-up alanı yine gönderiyor');
+  // Sunucu tarafı DEĞİŞMEDİ: kolon ve /kisi dizin süzgeci yerinde.
+  assert.match(read('src/routes/architect.js'), /a\.directory_listed = 1/, 'dizin süzgeci kaldırılmış');
 });
 
 section('madde 6 — geri dolum: ad soyaddan kullanıcı adı (migrations/0119)');
