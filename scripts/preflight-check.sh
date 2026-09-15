@@ -650,6 +650,20 @@ else
 fi
 rm -f /tmp/preflight_archoffice
 
+# Hesabım başlığının MOBİL puntosu + firma yetkilisinin "Profili Düzenle" düğmesi (kullanıcı isteği,
+# 2026-09-15 üçüncü tur). Düğme, Kişi Bilgileri kutusunun FİRMA sayfalarında görünür ve firma
+# pop-up'ındaki Düzenle ile AYNI yolu (kisi-ekle?claim=<slug>) açar; dayanağı sunucudaki üçüncü
+# yetki yoludur (canEditArchitectViaOfficeMembership). O kapı kalkarsa düğme kullanıcıyı 403'e
+# götürür — ikisi burada birlikte kilitlenir.
+# Bkz. scripts/test-2026-09-15-account-title-and-firm-person-edit.mjs.
+if node scripts/test-2026-09-15-account-title-and-firm-person-edit.mjs >/tmp/preflight_amtitle 2>&1; then
+  ok "Hesabım başlığı + firma kişisi düzenleme testleri geçti ($(grep -c '^  ok ' /tmp/preflight_amtitle) test)"
+else
+  bad "Hesabım başlığı + firma kişisi düzenleme testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_amtitle >&2
+fi
+rm -f /tmp/preflight_amtitle
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

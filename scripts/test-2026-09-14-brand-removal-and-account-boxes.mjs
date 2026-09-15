@@ -221,8 +221,20 @@ test('sayfalama firma kutusuyla AYNI bileşen', () => {
   assert.match(authModal, /renderDashPagination\('am-person-pagination', personPage, personEntries\.length/);
   assert.match(authModal, /<div class="dash-pagination" id="am-person-pagination"><\/div>/);
 });
-test('"Bilgileri Düzenle" YALNIZCA kendi künyesinde görünür', () => {
-  assert.match(authModal, /if \(editBtn\) editBtn\.style\.display = isSelf \? '' : 'none';/);
+// KURAL DEĞİŞTİ (kullanıcı isteği, 2026-09-15 üçüncü tur madde 2): bu turda düğme YALNIZCA kendi
+// künyesinde görünüyordu ("firmanın kişisi başka birinin profilidir, bu kutu onu GÖRÜNTÜLEMEK
+// için"). Kullanıcı bunu açıkça kaldırdı: "admin panelinden bir firmaya bir kullanıcıyı yönetici
+// olarak atadığı zaman ... diğer kişi sayfalarında da profili düzenle butonu görünsün. Yönetici bu
+// butona tıklayarak firmadaki tüm kişilerin popuplarını düzenleyebilsin." Bu testin eski hâli o
+// isteği engellerdi; yerine İKİ dalın da doğru davrandığı sabitlenir. Ayrıntılı sözleşme:
+// scripts/test-2026-09-15-account-title-and-firm-person-edit.mjs.
+test('düğme: kendi künyesinde "Bilgileri Düzenle", firma kişisinde "Profili Düzenle"', () => {
+  assert.match(authModal, /editBtn\.textContent = 'Bilgileri Düzenle';/);
+  assert.match(authModal, /editBtn\.textContent = 'Profili Düzenle';/);
+  // Firma kişisinde hedef, firma pop-up'ındaki Düzenle ile AYNI yol (kisi-ekle?claim=<slug>).
+  assert.match(authModal, /editBtn\.href = `\$\{CLAIM_EDIT_PAGE\.architect\}\?claim=\$\{encodeURIComponent\(personSlug\)\}`/);
+  // Sitede kaydı olmayan ad (slug yok) düzenlenemez -> düğme gizli.
+  assert.match(authModal, /editBtn\.style\.display = personSlug \? '' : 'none';/);
 });
 test('"Marka" sekmeleri/etiketleri Hesabım\'dan kalktı', () => {
   for (const needle of ['data-filter="brand">Marka<', 'data-filter="brands">Marka<',
