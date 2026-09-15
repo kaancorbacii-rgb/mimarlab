@@ -333,7 +333,7 @@ echo "13) Adı değişmemiş sayfaların .html biçimi KALICI (301) yönlendirme
 # Production denetimi (2026-09-07): bunlar PATH_RENAME_REDIRECTS'te olmadığından Cloudflare
 # Assets'in kendi html_handling davranışına düşüyor ve 307 (GEÇİCİ) dönüyordu — site 2026-09-01'e
 # kadar bu URL'lerle geziliyordu, yani indekslenmiş/backlink almış olabilirler.
-for legacy in /index.html /proje.html /kisi.html /firma.html /urun.html /marka.html /gundem.html /arama.html /en-iyi-100.html; do
+for legacy in /index.html /proje.html /kisi.html /firma.html /urun.html /marka.html /gundem.html /arama.html /en-iyi-100.html /danismanlik.html; do
   legacy_code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$legacy")
   if [ "$legacy_code" = "301" ]; then
     ok "$legacy -> 301"
@@ -353,6 +353,31 @@ for gone in /marka /marka-ekle /marka/autoban; do
     bad "$gone -> $gone_code (301 bekleniyordu; PATH_RENAME_REDIRECTS/PREFIX_RENAME_REDIRECTS girdisi kaybolmuş olabilir)"
   fi
 done
+
+echo ""
+echo "13b) Danışmanlık sayfası (2026-09-15) — yayında, ama hiçbir menüde değil"
+# Sayfa hiçbir iç bağlantıdan erişilemez (kullanıcı isteği), yani bir deploy onu sessizce düşürse
+# HİÇ KİMSE fark etmezdi — canlı kontrol bu yüzden burada.
+check_status "/danismanlik" 200
+dan_html=$(curl -s "$BASE_URL/danismanlik")
+if [[ "$dan_html" == *"Danışman Ol"* ]] && [[ "$dan_html" == *'id="filter-groups"'* ]]; then
+  ok "/danismanlik kabuğu filtreler + Danışman Ol düğmesiyle geliyor"
+else
+  bad "/danismanlik kabuğunda filtreler ya da Danışman Ol düğmesi YOK"
+fi
+# Kartları çizen TEK veri ucu. Boş dönerse sayfa boş görünür ama 200 kalır — durum kodu yetmez.
+dan_api=$(curl -s "$BASE_URL/api/consultants")
+if [[ "$dan_api" == *'"offer"'* ]] && [[ "$dan_api" == *'"slug"'* ]]; then
+  ok "/api/consultants en az bir danışman + teklif bilgisi dönüyor"
+else
+  bad "/api/consultants boş/eksik yanıt verdi: $(printf '%s' "$dan_api" | head -c 160)"
+fi
+# Menüye sızma kontrolü: ana sayfanın çizilmiş HTML'inde /danismanlik bağlantısı OLMAMALI.
+if [[ "$home_html" == *"/danismanlik"* ]]; then
+  bad "ana sayfada /danismanlik bağlantısı var (sayfa hiçbir menüye eklenmemeliydi)"
+else
+  ok "ana sayfada /danismanlik bağlantısı yok"
+fi
 
 echo ""
 echo "14) Güvenli Görüşme Gateway'i (/gorusme/:room_uuid, 2026-09-08) — anonim/geçersiz erişim"

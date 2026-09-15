@@ -1019,6 +1019,19 @@ else
 fi
 rm -f /tmp/preflight_cnspay
 
+# DANIŞMANLIK SAYFASI (kullanıcı isteği, 2026-09-15: "DANIŞMANLIK diye bir sayfa tasarla ... Sayfayı
+# yayına al ama hiçbir menüye ekleme"). ÜÇ SESSİZ REGRESYON: (a) danışman listesinin sayfaya elle
+# yazılıp randevu kapısından (ALLOWED_HOST_SLUGS) ayrışması, (b) ücret/süre/gün/saat bilgisinin
+# sayfaya kopyalanıp kural değiştiğinde eski hâlinde kalması, (c) sayfanın bir menüye/iç bağlantıya
+# sızması. Bkz. scripts/test-2026-09-15-danismanlik-page.mjs.
+if node scripts/test-2026-09-15-danismanlik-page.mjs >/tmp/preflight_danismanlik 2>&1; then
+  ok "danışmanlık sayfası testleri geçti ($(grep -c '^  ok ' /tmp/preflight_danismanlik) test)"
+else
+  bad "danışmanlık sayfası testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_danismanlik >&2
+fi
+rm -f /tmp/preflight_danismanlik
+
 # 'mimarlab:authchange' OLAY HEDEFİ (kullanıcı bildirimi, 2026-09-13: giriş sonrası "Senin İçin"
 # otomatik gelmiyordu). Olay auth-nav.js'te WINDOW üzerinde yayınlanır; bir dinleyici DOCUMENT
 # üzerinde beklerse olayı HİÇ ALMAZ ve hiçbir hata vermez — giriş sonrası o blok sessizce eski

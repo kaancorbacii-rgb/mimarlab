@@ -9,6 +9,14 @@ import { sendConsultationMessage } from './messages.js';
 import { initializeCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
 import { getBankTransferAccount, isBankTransferConfigured } from '../lib/bankTransfer.js';
 import { isValidTcKimlik, normalizeGsm } from '../lib/iyzicoBuyer.js';
+// /danismanlik sayfasının (danismanlik.html) liste ucu için — kişi kartı, kişi listesindekiyle
+// AYNI alanlardan çizilsin diye kova/etiket dönüşümleri kisi.html'in okuduğu yerden alınır. Bu
+// içe aktarma DÖNGÜ YARATMAZ: consultations.js'i yalnızca payments.js import eder ve architect.js
+// zincirinde (office.js/auth.js) payments.js yoktur.
+import { cachedPublicJson } from '../lib/publicCache.js';
+import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { canonicalSchoolName } from '../lib/universities.js';
+import { positionOf, professionLabelList } from './architect.js';
 // Güvenli Görüşme Gateway'i / Google Meet (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import {
   ROOM_UUID_RE, roomPath, meetingWindow, resolveConsultationAccess, ensureRoomUuid, maybeRetryMeetOnAccess,
@@ -32,7 +40,7 @@ import {
 // payment_status'u 'paid' yapar. Onay kapısı (ve dolayısıyla Meet odasının kurulması) admin'de
 // kalır — ödeme doğrulaması o kapının YERİNE geçmez, ÖNÜNE eklenir. Aksi halde ödemesi geçmiş ama
 // admin'in henüz bakmadığı bir talep kendiliğinden takvime/Meet'e düşerdi.
-const CONSULTATION_PRICE_TRY = 1500;
+export const CONSULTATION_PRICE_TRY = 1500;
 // payment_status sözleşmesi — bkz. migrations/0117_consultation_payment.sql (AYNI liste).
 const PAYMENT_STATUS = new Set(['pending', 'declared', 'paid', 'failed']);
 // iyzico callback'i (src/routes/payments.js#handleCallback) rozet ve danışmanlık taleplerini AYNI
@@ -42,14 +50,14 @@ const PAYMENT_STATUS = new Set(['pending', 'declared', 'paid', 'failed']);
 export const CONSULTATION_CONVERSATION_PREFIX = 'cns_';
 // TC Kimlik No/adres/şehir SADECE iyzico'ya iletilir, D1'e YAZILMAZ (veri minimizasyonu) —
 // src/routes/payments.js#startCheckout'taki AYNI kural.
-const ALLOWED_HOST_SLUGS = new Set(['kaan-corbaci']);
+export const ALLOWED_HOST_SLUGS = new Set(['kaan-corbaci']);
 // Uygun günler/saatler (kullanıcı isteği, 2026-09-05): Pazartesi/Çarşamba/Cuma, 18:00/19:00/20:00.
 // getUTCDay() ile kontrol edilir (0=Pazar…6=Cumartesi) — bir takvim gününün haftanın hangi gününe
 // denk geldiği saat dilimine bağlı değildir, bu yüzden "YYYY-MM-DDT00:00:00Z" olarak ayrıştırıp
 // UTC gün adını okumak istemcinin yerel hesabıyla HER ZAMAN aynı sonucu verir (bkz.
 // consultation-modal.js#isoDateLocal'daki AYNI gerekçe).
-const ALLOWED_WEEKDAYS = new Set([1, 3, 5]);
-const ALLOWED_TIMES = new Set(['18:00', '19:00', '20:00']);
+export const ALLOWED_WEEKDAYS = new Set([1, 3, 5]);
+export const ALLOWED_TIMES = new Set(['18:00', '19:00', '20:00']);
 const MAX_CONTACT_LEN = 120;
 const MAX_NOTE_LEN = 2000;
 
@@ -86,6 +94,88 @@ export async function handleConsultationsRoute(request, env, url) {
     return startConsultationPayment(request, env, user, segments[2]);
   }
   return errorJson('Bulunamadı', 404);
+}
+
+// "{Ad}; mimarlık kariyeri, ..." — DANIŞMANLIK TEKLİFİNİN TANITIM CÜMLESİ. Tek kaynak burasıdır;
+// js/components/consultation-modal.js#open aynı cümleyi hâlâ kendi içinde taşır ama YALNIZCA geri
+// düşüş olarak (çağıran `intro` verirse onu kullanır) — danismanlik.html bu uçtan geleni geçirir,
+// kişi pop-up'ındaki "Danışmanlık Al" düğmesi ise geçirmez ve eski davranışını korur. İki cümlenin
+// ayrışmasını scripts/test-2026-09-15-danismanlik-page.mjs kelepçeler.
+export function consultationIntro(name) {
+  return `${name}; mimarlık kariyeri, portföy geliştirme ve dijital ürün/yayıncılık alanlarında birebir online mentörlük görüşmesi sunar.`;
+}
+
+// GET /api/consultants — danismanlik.html'in TEK veri ucu (kullanıcı isteği, 2026-09-15:
+// "DANIŞMANLIK diye bir sayfa tasarla ... Danışman olarak Kaan Çorbacı'yı koy ve Kaan Çorbacı'nın
+// profilindeki Danışmanlık Al butonundaki bilgileri kullan").
+//
+// KİMİN DANIŞMAN OLDUĞU BURADA YENİDEN TANIMLANMAZ: liste, randevu talebini kabul eden kapının
+// (ALLOWED_HOST_SLUGS) TA KENDİSİNDEN türetilir. Sayfaya elle bir slug yazılsaydı, kapı değiştiği
+// gün sayfa sessizce ayrışır ve "Danışmanlık Al" düğmesi çalışmayan bir kart gösterirdi.
+// `offer` alanındaki her değer de (fiyat, süre, saat dilimi, uygun günler/saatler) bu dosyanın ve
+// consultationMeet.js'in AKIŞI DOĞRULARKEN kullandığı sabitlerden okunur — sayfada hiçbir sabit
+// tekrar yazılmaz.
+//
+// SAYFALAMA/FİLTRE PARAMETRESİ YOK: havuz, tanımı gereği (ALLOWED_HOST_SLUGS) avuç içi kadardır;
+// danismanlik.html filtreleme/sıralama/sayfalamayı bu tam yanıt üzerinde istemcide yapar. Yanıt
+// hiçbir kişisel veri taşımaz (randevu satırlarına HİÇ bakılmaz), bu yüzden herkese açıktır.
+export async function handleConsultantsRoute(request, env, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname, () => fetchConsultantList(env));
+}
+
+// Yanıtın SAF gövdesi — önbellek/oturum katmanından ayrı tutulur ki birim testi (bkz.
+// scripts/test-2026-09-15-danismanlik-page.mjs) sahte bir env ile doğrudan çağırabilsin
+// (cachedPublicJson, Node'da bulunmayan `caches` global'ine ve oturum okumasına dokunur).
+export async function fetchConsultantList(env) {
+  const slugs = [...ALLOWED_HOST_SLUGS];
+  const offer = {
+    priceTry: CONSULTATION_PRICE_TRY,
+    durationMin: CONSULTATION_DURATION_MIN,
+    timezone: CONSULTATION_TIMEZONE,
+    // Pazartesi=1 … Pazar=0 (Date#getUTCDay) — istemci etiketleri bu sayılardan üretir.
+    weekdays: [...ALLOWED_WEEKDAYS].sort((a, b) => a - b),
+    times: [...ALLOWED_TIMES].sort(),
+  };
+  if (!slugs.length) return { items: [], total: 0, offer };
+
+  const placeholders = slugs.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    // directory_listed KAPISI BİLEREK YOK (bkz. src/routes/architect.js#handleArchitectNamesRoute'
+    // taki AYNI gerekçe): danışman olmak, /kisi dizininde listelenmekten bağımsız bir yetkidir —
+    // profilini dizinden çıkarmış bir danışman bu sayfadan sessizce kaybolmamalı.
+    `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, a.awards,
+            o.name AS office_name, o.awards AS office_awards
+       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+      WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.slug IN (${placeholders})`
+  ).bind(...slugs).all();
+
+  const bySlug = new Map();
+  for (const row of results || []) {
+    const a = parseCanonicalRow('architects', row);
+    let officeAwards = [];
+    if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
+    const ownAwards = Array.isArray(a.awards) ? a.awards : [];
+    bySlug.set(a.slug, {
+      slug: a.slug,
+      name: a.name,
+      dob: a.dob || null,
+      photo: a.photo_url || null,
+      office: row.office_name || null,
+      position: positionOf(a.position),
+      positionRaw: a.position || null,
+      professions: professionLabelList(a.profession),
+      school: canonicalSchoolName(a.school) || null,
+      // Kişi kartındakiyle AYNI birleşim (kendi ödülleri + bağlı firmanın ödülleri) — bkz.
+      // src/routes/architect.js#fetchArchitectPool.
+      awards: [...new Set([...ownAwards, ...officeAwards])],
+      intro: consultationIntro(a.name),
+    });
+  }
+  // Sıra ALLOWED_HOST_SLUGS'ın sırasıdır; D1'den dönmeyen (silinmiş/gizlenmiş) bir slug sessizce
+  // düşer — sayfa boş kalır, kırılmaz.
+  const items = slugs.map(slug => bySlug.get(slug)).filter(Boolean);
+  return { items, total: items.length, offer };
 }
 
 function isValidDate(s) {

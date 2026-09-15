@@ -30,7 +30,7 @@ import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleArchiveRoute } from './routes/archive.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
-import { handleConsultationsRoute } from './routes/consultations.js';
+import { handleConsultationsRoute, handleConsultantsRoute } from './routes/consultations.js';
 import { handleTop100Route } from './routes/top100.js';
 import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
@@ -409,6 +409,10 @@ const PATH_RENAME_REDIRECTS = {
   // statik dosya (neden-mimarlab.html) yalnızca sunum modu (?sunum=1) için duruyor. Buradaki satır
   // eskisi gibi ".html"li biçimi kanonik yola 301'ler.
   '/neden-mimarlab.html': '/neden-mimarlab',
+  // DANIŞMANLIK (kullanıcı isteği, 2026-09-15) — yeni bir sayfa, yani bir YENİDEN ADLANDIRMA yok;
+  // buradaki tek amaç aşağıdaki "adı değişmemiş sayfaların .html biçimi" kuralıyla aynı: Assets'in
+  // 307'si yerine 301 vermek. Sayfa HİÇBİR menüde bağlanmaz (kullanıcı isteği).
+  '/danismanlik.html': '/danismanlik',
   // ---------------------------------------------------------------------------------------------
   // ADI DEĞİŞMEMİŞ SAYFALARIN ".html" BİÇİMİ (SEO denetimi, 2026-09-07)
   // ---------------------------------------------------------------------------------------------
@@ -554,6 +558,11 @@ const SITEMAP_STATIC_PAGES = [
   // 'daily'; tekil /gundem/:slug URL'leri buildSitemapUrlBlocks'ta ayrıca listelenir.
   { loc: '/gundem', changefreq: 'daily', priority: '0.8' },
   { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
+  // DANIŞMANLIK (kullanıcı isteği, 2026-09-15). Sayfa HİÇBİR menüde bağlanmaz — yani site içinden
+  // hiçbir <a href> ona işaret etmiyor ve tek keşif yolu burasıdır. Sayfa noindex DEĞİL (bkz.
+  // danismanlik.html), dolayısıyla "indexlenebilir ama sitemap'te yok" çelişkisi oluşmasın diye
+  // listeye alındı — bkz. aşağıdaki gizlilik/hizmet sayfalarındaki AYNI gerçek bulgu.
+  { loc: '/danismanlik', changefreq: 'weekly', priority: '0.6' },
   // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı ana sunum
   // sayfası; kurumsal sayfalardan daha yüksek öncelik, içeriği (canlı sayaçlar) haftalık değişir.
   { loc: '/neden-mimarlab', changefreq: 'weekly', priority: '0.8' },
@@ -2190,6 +2199,10 @@ async function routeApi(request, env, url, ctx) {
   if (path === '/api/architects' && (request.method === 'GET' || request.method === 'HEAD')) return handleArchitectListRoute(request, env, url);
   if (path === '/api/offices' && (request.method === 'GET' || request.method === 'HEAD')) return handleOfficeListRoute(request, env, url);
   if (path === '/api/products' && (request.method === 'GET' || request.method === 'HEAD')) return handleProductListRoute(request, env, url);
+  // /danismanlik sayfasının liste ucu (bkz. src/routes/consultations.js#handleConsultantsRoute).
+  // '/api/consultations' önekiyle ÇAKIŞMAZ (ayrı yol) ama ona benzediği için burada, diğer herkese
+  // açık liste uçlarının yanında durur.
+  if (path === '/api/consultants' && (request.method === 'GET' || request.method === 'HEAD')) return handleConsultantsRoute(request, env, url);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki
