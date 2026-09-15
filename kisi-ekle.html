@@ -224,24 +224,8 @@
   .portfolio-progress{display:none; font-size:12px; color:var(--ink-soft); margin:10px 2px 0;}
   .portfolio-progress.show{display:block;}
 
-  /* ---------- Dizinde görünme sorusu (kullanıcı isteği, 2026-09-01 madde 4: "gönder-kaydet
-     butonunun üzerinde TEK SATIRDA ... diye sor") — soru metni ve Evet/Hayır aynı satırda kalır,
-     yalnızca dar ekranda (≤560px) alt alta sarar. ---------- */
-  .listing-consent{
-    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-    margin-bottom:16px; padding:13px 16px;
-    border:1px solid var(--line); border-radius:12px; background:var(--paper);
-    font-size:13.5px; color:var(--ink);
-  }
-  .listing-consent-q{flex:1; min-width:0;}
-  .listing-consent-opts{display:flex; align-items:center; gap:14px; flex-shrink:0;}
-  .listing-consent-opts label{display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;}
-  .listing-consent-opts input{accent-color:var(--ink); width:15px; height:15px;}
-  .listing-consent-opts label:hover{color:var(--ink);}
-  @media (max-width:560px){
-    .listing-consent{align-items:flex-start;}
-    .listing-consent-q{flex:1 1 100%;}
-  }
+  /* (Dizinde görünme sorusunun stilleri KALDIRILDI — kullanıcı isteği, 2026-09-15 madde 1: soru
+     kutusu formdan tamamen çıktı, bkz. aşağıdaki aynı tarihli not.) */
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
@@ -523,17 +507,14 @@
         </div>
       </div>
 
-      <!-- kullanıcı isteği (2026-09-01 madde 4). "Hayır" YALNIZCA /kisi dizin listesinden çıkarır
-           (bkz. migrations/0081_architect_directory_listed.sql) — profil, popup'ı, künye bağları ve
-           proje/ürün/firma/marka formlarındaki mimar/tasarımcı/fotoğrafçı önerileri aynen çalışmaya
-           devam eder (aynı maddenin ikinci cümlesi). -->
-      <div class="listing-consent">
-        <span class="listing-consent-q">Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?</span>
-        <span class="listing-consent-opts">
-          <label><input type="radio" name="directory_listed" value="1" checked> Evet</label>
-          <label><input type="radio" name="directory_listed" value="0"> Hayır</label>
-        </span>
-      </div>
+      <!-- DİZİNDE GÖRÜNME SORUSU KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 1): "Kişi sayfasında
+           diğer profesyonellerle birlikte görünmek istiyor musunuz?" kutusu bu formdan çıkarıldı.
+           architects.directory_listed KOLONU DURUYOR (bkz. migrations/0081_architect_directory_listed.sql)
+           ve /kisi dizin sorgusu hâlâ onu süzüyor — form artık alanı HİÇ GÖNDERMEZ, yani:
+             • mevcut kayıtlar kaydedilmiş tercihlerini korur (nullable semantiği: alan yoksa dokunma),
+             • yeni kayıtlar kolonun varsayılanıyla, yani dizinde GÖRÜNÜR olarak açılır — kaldırılan
+               sorunun varsayılanı da "Evet"ti, davranış değişmedi.
+           Bir profili dizinden çıkarmak artık yalnızca admin işidir (doğrudan D1). -->
 
       <!-- Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1): "Gönder" butonunun
            ÜZERİNDE zorunlu onay kutucuğu; işaretlenmeden içerik yayınlanamaz. Metnin/­davranışın TEK
@@ -1214,21 +1195,9 @@ async function wireAdminBadgePicker(profileKey){
   });
 }
 
-// "Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?" (bkz. .listing-consent
-// markup'ı) — 1/0 olarak gönderilir. Değer HER ZAMAN gönderilir (undefined bırakılmaz): düzenleme
-// modunda "Hayır"dan "Evet"e dönüş de kaydedilebilmeli.
-function getDirectoryListed(){
-  const checked = document.querySelector('input[name="directory_listed"]:checked');
-  return checked && checked.value === '0' ? 0 : 1;
-}
-// Kaydedilmiş tercihi forma geri yazar. undefined/null (bu soru eklenmeden önce oluşmuş kayıtlar)
-// varsayılan "Evet"te bırakılır — bugün dizinde görünen hiçbir profil sessizce kaybolmaz.
-function setDirectoryListed(value){
-  if(value === undefined || value === null) return;
-  const wanted = String(Number(value) === 0 ? '0' : '1');
-  const el = document.querySelector(`input[name="directory_listed"][value="${wanted}"]`);
-  if(el) el.checked = true;
-}
+// (getDirectoryListed/setDirectoryListed KALDIRILDI — kullanıcı isteği, 2026-09-15 madde 1: formdaki
+// dizin sorusu çıktığı için okunacak/geri yazılacak bir kutu kalmadı. Alan gönderilmediğinden mevcut
+// tercihler korunur, bkz. formdaki aynı tarihli not.)
 
 // GERÇEK BULGU (kullanıcı isteği, 2026-09-01: "MİMARLAB firmasının profilinde sosyal simgeler
 // gözüküyor ama profili düzenle deyince o kutu boş"): sahiplenilmiş bir profilin formu üç kaynağı
@@ -1317,7 +1286,6 @@ async function prefillForEdit(){
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
     document.getElementById('m-about').value = item.about || '';
-    setDirectoryListed(item.directory_listed);
     (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
@@ -1422,8 +1390,6 @@ async function prefillForClaim(){
         mineMatched = true;
         merged = overlayNonEmpty(merged, { name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links, portfolio: mine.portfolio });
         officeTexts.push(mine.office);
-        // Taslakta bu soru hiç yanıtlanmamışsa (NULL) canonical satırdan gelen değer korunur.
-        if(mine.directory_listed !== undefined && mine.directory_listed !== null) merged.directory_listed = mine.directory_listed;
       }
     }
   }catch{}
@@ -1455,7 +1421,6 @@ async function prefillForClaim(){
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
   document.getElementById('m-about').value = merged.about || '';
-  setDirectoryListed(merged.directory_listed);
   (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
@@ -1691,7 +1656,9 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
     // nullableArrayFields) — bu form portfolyonun tek düzenleme yeri olduğundan silme işlemi
     // yansımalı.
     portfolio: portfolioUrls,
-    directory_listed: getDirectoryListed(),
+    // directory_listed ARTIK GÖNDERİLMİYOR (kullanıcı isteği, 2026-09-15 madde 1) — alan nullable,
+    // gövdede yoksa mevcut değere dokunulmaz; yeni kayıtlar kolon varsayılanıyla (dizinde görünür)
+    // açılır.
   };
   // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu bu iki alanı
   // ZORUNLU kılar (src/lib/rightsConsent.js#requireRightsAcceptance); kutu işaretlenmeden gönderim

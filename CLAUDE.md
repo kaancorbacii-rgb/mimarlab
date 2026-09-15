@@ -29,7 +29,8 @@ Bunun için `.github/workflows/deploy.yml` var: **`workflow_dispatch`** ile elle
 Kullanıcı isteği: "kullanıcıların siteye üye oldukları bilgilerle kişi popuplarındaki bilgileri
 ayırıyoruz, birbirleriyle entegre olmayacaklar."
 
-- **Hesap (`users`)**: ad soyad, **kullanıcı adı** (`username`, @kaancorbaci), e-posta, şifre, avatar.
+- **Hesap (`users`)**: ad soyad, **kullanıcı adı** (`username`, @kaancorbaci), e-posta, şifre.
+  (Avatar/profil fotoğrafı 2026-09-15'te kaldırıldı — bkz. aşağısı.)
   Hesabım başlığındaki "Profili Düzenle" YALNIZCA ad soyad + kullanıcı adını düzenler.
 - **Kişi künyesi (`architects` / `architect_submissions`)**: doğum yılı, üniversite, meslek,
   pozisyon, ödüller, açıklama, sosyal medya, portfolyo. Hesabım'daki "Kişi Bilgileri" kutusu bunu
@@ -40,8 +41,9 @@ ayırıyoruz, birbirleriyle entegre olmayacaklar."
   `src/lib/claimedProfiles.js#fillUserFromArchitectProfile`,
   `src/routes/submissions.js#syncOwnArchitectToAccount`,
   `js/components/auth-modal.js#syncClaimedArchitectData`.
-- **Tek bilinçli istisna**: profil FOTOĞRAFI. Kişi künyesi formundan yüklenen fotoğraf hem kişi
-  kaydına hem hesabın avatarına yazılır (nav'daki avatarın tek düzenleme yolu orası).
+- **İstisna KALMADI** (2026-09-15 madde 2): eskiden tek bilinçli istisna profil FOTOĞRAFIYDI (kişi
+  formundan yüklenen görsel hesabın avatarına da yazılırdı). **Hesapların artık profil fotoğrafı
+  yok** — bkz. aşağıdaki "Hesap profil fotoğrafı KALDIRILDI" başlığı.
 - **Hesap ad soyadı TEKİL DEĞİL** (2026-09-14 ikinci tur): iki hesap aynı ad soyadı taşıyabilir;
   hesabın tek tekil tanıtıcısı `users.username`. Kişi dizini tekilliği (aynı adla yeni kişi
   paylaşımı) DEĞİŞMEDİ — o kapı `canonicalSync.js#isDuplicateCanonicalName`.
@@ -153,3 +155,44 @@ firma olacak ama BİRİM Design markası hariç hepsi arşivde kalsın. Tüm mar
   ortak, ortak, ekip lideri). Kişiler `/api/office/:key`'in AYNI yanıtından okunur (ek uç/istek
   yok), bu yüzden firmadan çıkarılan biri kutudan da düşer. "Bilgileri Düzenle" yalnızca kendi
   künyesi sayfasında görünür.
+
+## Hesap profil fotoğrafı KALDIRILDI (2026-09-15)
+
+Kullanıcı isteği: "Kullanıcı profil fotoğrafı bölümünü kaldır. Kullanıcı hesapları için bundan
+sonra profil fotoğrafı ekle kısmı olmayacak. Çekmece menüsünden, ana sayfadaki butondan ve hesabım
+sayfasından da profil fotoğrafını kaldır. Kişi popupları kesinlikle bundan etkilenmesin."
+
+- **KİŞİ künyesinin fotoğrafı AYRIDIR ve DURUR**: `architects.photo_url`, kisi-ekle.html ile
+  Hesabım'daki "Kişi Bilgilerini Düzenle" formundan yüklenir, kişi pop-up'ında/sayfasında görünür.
+  Bu değişiklik ona hiç dokunmaz (preflight bunu da arıyor —
+  `scripts/test-2026-09-14-account-person-split.mjs`, "2026-09-15 madde 2" bölümü).
+- **Yazma yolları kapatıldı**: `PATCH /api/profile` artık `photo_url` KABUL ETMEZ (alan
+  `src/routes/auth.js#updateUserProfileFields`'in `fields` listesinde yok — admin'in üye düzenleme
+  ekranı da aynı fonksiyondan geçer); sosyal giriş (Google/LinkedIn) sağlayıcının resmini ARTIK
+  yazmaz (`upsertOAuthUser`); kişi formunun Kaydet'indeki "fotoğrafı hesabın avatarına da yaz"
+  köprüsü kaldırıldı (`js/components/auth-modal.js`); hesabim.html'deki yükleme kutusu silindi.
+- **Okuma/çizme yolları**: üst menüdeki hesap düğmesi, açılır menü başlığı ve mobil çekmecenin
+  hesap bölümü (`auth-nav.js`) ile Hesabım başlığı (modal + hesabim.html) artık avatar dairesi
+  ÇİZMEZ (baş harf dairesi de yok, düğme yalnızca adı taşır).
+- **`users.photo_url` KOLONU DURUYOR** ve mevcut değerler SİLİNMEDİ (veri kaybı yok). Bu kolonu
+  hâlâ okuyan içerik yüzeyleri bilinçli olarak değiştirilmedi: yorum avatarı (`src/routes/comments.js`
+  — orada zaten kişi/firma künyesinin fotoğrafı önceliklidir), mesaj listesi (`messages.js`), firma
+  ekip satırı (`office.js`), sahip künyesi (`ownerByline.js`), görüşme odası (`consultations.js`).
+  Yeni değer yazılmadığı için bunlar zamanla baş harf yedeğine düşer.
+
+## Kişi formundaki dizin sorusu KALDIRILDI (2026-09-15)
+
+Kullanıcı isteği: "Kişi ekle/düzenle sayfasındaki 'Kişi sayfasında diğer profesyonellerle birlikte
+görünmek istiyor musunuz?' kutusunu kaldır."
+
+- Kutu **iki formdan da** çıkarıldı: `kisi-ekle.html` (`.listing-consent`) ve Hesabım modalindeki
+  "Kişi Bilgilerini Düzenle" (`.am-listing-consent`).
+- **`architects.directory_listed` kolonu ve /kisi dizin süzgeci DEĞİŞMEDİ**
+  (`src/routes/architect.js`). Formlar alanı artık HİÇ GÖNDERMEZ; alan nullable olduğundan
+  (`src/lib/submissionTypes.js`) mevcut kayıtlar kaydedilmiş tercihlerini korur, yeni kayıtlar kolon
+  varsayılanıyla (dizinde görünür) açılır — kaldırılan sorunun varsayılanı da "Evet"ti.
+- **Davranış değişikliği**: modaldeki kişi formunun Kaydet'i artık KOŞULSUZ yayımlar — zorunlu
+  alanlar (Ad Soyad, Meslek, Açıklama, Profil Fotoğrafı) ve Telif Beyanı her zaman aranır. Forma
+  zaten yalnızca "Kişi sayfasında ... yer almak ister misin?" bildiriminden gelindiği için
+  (`openDirectoryPrompt`) bu, o akışın "Evet" dalıyla aynı davranıştır.
+- Bir profili dizinden çıkarmak artık yalnızca admin işidir (doğrudan D1).

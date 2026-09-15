@@ -130,8 +130,7 @@ const AuthModal = (function () {
 
     #am-panel .dash-wrap{max-width:1080px; margin:0 auto; padding:8px 4px 24px;}
     #am-panel .dash-head{display:flex; align-items:center; gap:18px; margin-bottom:32px; flex-wrap:wrap;}
-    #am-panel .dash-avatar{width:64px; height:64px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;}
-    #am-panel .dash-avatar img{width:100%; height:100%; object-fit:cover;}
+    /* (.dash-avatar KALDIRILDI — kullanıcı isteği, 2026-09-15 madde 2: Hesabım başlığında avatar yok.) */
     #am-panel .dash-head-info{display:flex; align-items:center; justify-content:space-between; gap:18px; flex:1; min-width:0;}
     #am-panel .dash-head h1{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:26px; font-weight:700; margin:0 0 4px;}
     #am-panel .dash-head p{color:var(--ink-soft); font-size:13.5px; margin:0;}
@@ -1181,7 +1180,6 @@ const AuthModal = (function () {
            künyesine DOKUNMAZ (madde 7 — ayrım): hesabın kendi kimliğini düzenler. Kişi künyesi
            aşağıdaki "Kişi Bilgileri" kutusunun kendi "Bilgileri Düzenle" düğmesinden düzenlenir. -->
       <div class="dash-head dash-head-account">
-        <div class="dash-avatar" id="am-dash-avatar">–</div>
         <div class="dash-head-titles">
           <h1 id="am-dash-title">Hoş Geldin</h1>
           <p class="dash-head-username" id="am-dash-username"></p>
@@ -1384,19 +1382,12 @@ const AuthModal = (function () {
           </div>
         </div>
 
-        <!-- Kullanıcı isteği (2026-09-02 madde 4): Kaydet butonunun ÜSTÜNDE, kisi-ekle.html'deki
-             ile AYNI soru ve AYNI varsayılan (Evet işaretli). Kayıt sonrası bildirimden "Evet"
-             ile gelindiğinde bu grup zaten Evet'te olur; kullanıcı isterse Hayır'a çevirebilir.
-             Değer architects.directory_listed'e yazılır (bkz. submitArchitectSyncIfNeeded). -->
-        <div class="am-listing-consent" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; margin:4px 0 16px; border:1px solid var(--line); border-radius:10px; background:var(--paper);">
-          <span style="flex:1; min-width:0; font-size:13px;">Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?</span>
-          <span style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="yes" style="accent-color:var(--ink); width:15px; height:15px;"> Evet</label>
-            <!-- Varsayılan HAYIR (kullanıcı isteği, 2026-09-02 madde 2): profil yayımlamak bilinçli
-                 bir tercih olmalı; kullanıcı Evet demeden kişi dizinine düşmez. -->
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="no" checked style="accent-color:var(--ink); width:15px; height:15px;"> Hayır</label>
-          </span>
-        </div>
+        <!-- DİZİN SORUSU KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 1) — kisi-ekle.html'deki AYNI
+             kutu da kaldırıldı (bkz. oradaki aynı tarihli not). Bu pop-up'a zaten yalnızca "Kişi
+             sayfasında ... yer almak ister misin?" bildiriminden "Evet" denerek gelinir (bkz.
+             openDirectoryPrompt), dolayısıyla Kaydet ARTIK HER ZAMAN kişi künyesini yayımlar:
+             zorunlu alan kontrolü ve Telif Beyanı koşulsuz uygulanır, directory_listed alanı ise
+             hiç gönderilmez (mevcut değer korunur, yeni kayıt kolon varsayılanıyla açılır). -->
 
         <!-- Aynı isimde başka bir kişi zaten varsa (kullanıcı isteği, 2026-09-06) — isim ALTI ÇİZİLİ
              ve profilin linkine bağlı, yanında "Bu profil bana ait" talep butonu (bkz.
@@ -2599,12 +2590,10 @@ const AuthModal = (function () {
       wireAvatarThumbCrop(file);
     }
 
-    // Başlık satırındaki HESAP avatarı. Kişi düzenleme pop-up'ındaki önizleme artık BURADAN
-    // beslenmiyor (bkz. renderPersonEditAvatar) — o kutu kişi künyesinin fotoğrafını gösterir.
-    function renderAvatar() {
-      const img = accountUser.photoUrl ? `<img src="${escapeAttr(avatarImg(accountUser.photoUrl, 128, accountUser.photoUrl))}" alt="">` : '';
-      document.getElementById('am-dash-avatar').innerHTML = img || dashInitials(accountUser.name);
-    }
+    // (renderAvatar KALDIRILDI — kullanıcı isteği, 2026-09-15 madde 2: başlık satırındaki HESAP
+    // avatarı tamamen çıkarıldı, hesapların profil fotoğrafı yok. Kişi düzenleme pop-up'ındaki
+    // önizleme BUNDAN BAĞIMSIZDI ve durur: o kutu kişi künyesinin fotoğrafını gösterir, bkz.
+    // renderPersonEditAvatar.)
 
     // Üniversite otomatik tamamlama — kişi künyesi formundaki Üniversite kutusuna canlı öneri
     // (kaynak: /api/architects/schools). Üye Ol formunda ARTIK yok (bkz. kullanıcı isteği,
@@ -2642,7 +2631,6 @@ const AuthModal = (function () {
       const data = (opts && opts.shared) ? await sharedAuthMe() : await freshAuthMe();
       if (!data || !data.user) { swap('login'); return; }
       accountUser = data.user;
-      renderAvatar();
       // Bildirimdeki /hesabim?dizin=1 bağlantısıyla gelindiyse dizin sorusunu aç (kullanıcı isteği,
       // 2026-09-02 madde 4). loadUser() içinde çağrılır çünkü pop-up yalnızca oturum doğrulandıktan
       // SONRA anlamlı — oturumsuz gelen biri zaten login görünümüne düşer (yukarıdaki swap).
@@ -3195,8 +3183,6 @@ const AuthModal = (function () {
           photo_url: own.photo_url || '', portfolio: Array.isArray(own.portfolio) ? own.portfolio : [],
         };
         setAmPortfolio(own.portfolio || []);
-        const el = document.querySelector(`input[name="am-directory-listed"][value="${own.directory_listed === 0 ? 'no' : 'yes'}"]`);
-        if (el) el.checked = true;
         renderPersonInfo();
         return;
       }
@@ -3204,10 +3190,8 @@ const AuthModal = (function () {
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
       amPersonRecord = merged;
       setAmPortfolio(merged.portfolio || []);
-      // Dizin tercihini mevcut kayda göre ayarla — kullanıcı daha önce "Hayır" dediyse form onu
-      // "Evet" olarak göstermemeli (varsayılan Evet, YALNIZCA hiç kaydı olmayanlar için).
-      const dirEl = document.querySelector(`input[name="am-directory-listed"][value="${merged.directory_listed === 0 ? 'no' : 'yes'}"]`);
-      if (dirEl) dirEl.checked = true;
+      // (Dizin tercihini forma geri yazan satırlar KALDIRILDI — kullanıcı isteği, 2026-09-15
+      // madde 1: soru kutusu yok, tercih de gönderilmiyor, yani kayıttaki değere dokunulmuyor.)
       renderPersonInfo();
     }
 
@@ -3394,9 +3378,9 @@ const AuthModal = (function () {
         ov.querySelector('#am-dirprompt-no').addEventListener('click', () => ov.classList.remove('open'));
         ov.querySelector('#am-dirprompt-yes').addEventListener('click', () => {
           ov.classList.remove('open');
+          // Form artık dizin sorusu taşımıyor (kullanıcı isteği, 2026-09-15 madde 1) — "Evet"
+          // doğrudan Kişi Bilgilerini Düzenle'yi açar, Kaydet zaten yayımlar.
           openAmProfileEditPopup();
-          const yes = document.querySelector('input[name="am-directory-listed"][value="yes"]');
-          if (yes) yes.checked = true;
         });
       }
       ov.classList.add('open');
@@ -3722,16 +3706,15 @@ const AuthModal = (function () {
     // fotoğrafı geri yazıyordu — yani herkese açık kişi profili hiç güncellenmiyordu.
     async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks, portfolioUrls = null, uploadedPhotoUrl = null) {
       createdSelfRecord = false;
-      // Onaylı profili de kendi kaydı da olmayan kullanıcı dizine girmek istiyorsa, kaydı BURADA
-      // oluşturulur — kisi-ekle.html'in kullandığı AYNI uç (POST /api/architects). "Hayır" diyen
-      // ve zaten kaydı olmayan kullanıcı için yapılacak bir şey yok, boş gönderi açılmaz.
+      // Onaylı profili de kendi kaydı da olmayan kullanıcının kaydı BURADA oluşturulur —
+      // kisi-ekle.html'in kullandığı AYNI uç (POST /api/architects). Dizin sorusu kalktığından
+      // (kullanıcı isteği, 2026-09-15 madde 1) koşul yok: bu pop-up'ın Kaydet'ine basmak kişi
+      // künyesini yayımlamak demektir; forma zaten "kişi sayfasında yer almak ister misin?"
+      // bildiriminden geliniyor.
       if (!architectSyncState) {
-        const picked = document.querySelector('input[name="am-directory-listed"]:checked');
-        if (!picked || picked.value !== 'yes') return { ok: true };
-        // İLK kişi kaydı açılıyor: fotoğraf için başlangıç değeri hesabın avatarı olur (kişi kaydı
-        // henüz yok, yani kopyalanacak bir künye de yok). Bu bir BAŞLANGIÇ değeridir, süregelen bir
-        // senkron değil — kayıt oluştuktan sonra iki alan birbirinden bağımsız yaşar (madde 7).
-        architectSyncState = { profileKey: null, editId: null, office: '', photoUrl: (accountUser && accountUser.photoUrl) || '' };
+        // Fotoğraf için BAŞLANGIÇ değeri yok: hesapların artık profil fotoğrafı yok (kullanıcı
+        // isteği, 2026-09-15 madde 2), fotoğraf yalnızca bu formdan kişi kaydına yüklenir.
+        architectSyncState = { profileKey: null, editId: null, office: '', photoUrl: '' };
         createdSelfRecord = true;
       }
       // Yeni fotoğraf bu turda yüklendiyse durum nesnesi de tazelenir: aynı panel kapanmadan ikinci
@@ -3760,13 +3743,9 @@ const AuthModal = (function () {
         social_links: socialLinks,
         // Portfolyo (kullanıcı isteği, 2026-09-12) — kisi-ekle.html ile AYNI alan.
         ...(Array.isArray(portfolioUrls) ? { portfolio: portfolioUrls } : {}),
-        // Kişi dizininde görünme tercihi (kullanıcı isteği, 2026-09-02) — kisi-ekle.html'in
-        // gönderdiği AYNI alan (bkz. migrations/0081_architect_directory_listed.sql). Radyo grubu
-        // bulunamazsa alan HİÇ gönderilmez ki mevcut değer ezilmesin (nullable semantiği).
-        ...(function () {
-          const picked = document.querySelector('input[name="am-directory-listed"]:checked');
-          return picked ? { directory_listed: picked.value === 'yes' ? 1 : 0 } : {};
-        })(),
+        // directory_listed ARTIK GÖNDERİLMİYOR (kullanıcı isteği, 2026-09-15 madde 1): soru kutusu
+        // iki formdan da kaldırıldı. Alan nullable olduğundan mevcut tercih korunur, yeni kayıt
+        // kolon varsayılanıyla (dizinde görünür) açılır — kisi-ekle.html ile AYNI davranış.
         // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu
         // POST/PATCH /api/architects'te bunu ZORUNLU kılar (src/lib/rightsConsent.js).
         ...(window.RightsConsent ? RightsConsent.payload() : {}),
@@ -3827,40 +3806,29 @@ const AuthModal = (function () {
       // Profili YAYIMLAMAK (kişi dizininde görünmek) için ek zorunlu alanlar — kullanıcı isteği
       // Ad Soyad, Meslek, Açıklama ve profil fotoğrafı zorunlu. Doğum Yılı 2026-09-02'de
       // kullanıcı isteğiyle OPSİYONELE çevrildi; kisi-ekle.html ile bu dörtlü birebir aynı
-      // kalmalı — iki form aynı kişi kaydını besliyor. Dizine GİRMEK İSTEMEYEN
-      // biri bu alanlar boşken de profilini kaydedebilir — zorunluluk yalnızca herkese açık
-      // kartta eksik bilgi görünmesini engellemek için. kisi-ekle.html'de AYNI dörtlü zorunludur.
-      const wantsDirectory = document.querySelector('input[name="am-directory-listed"]:checked');
-      if (wantsDirectory && wantsDirectory.value === 'yes') {
+      // kalmalı — iki form aynı kişi kaydını besliyor.
+      // Kontrol ARTIK KOŞULSUZ (kullanıcı isteği, 2026-09-15 madde 1): dizin sorusu kalktığı için
+      // bu pop-up'taki Kaydet her zaman bir kişi künyesi yayımlar (bkz. yukarıdaki aynı tarihli not).
+      {
         const eksik = [];
         if (!name || !name.trim()) eksik.push('Ad Soyad');
         if (!profession) eksik.push('Meslek');
         if (!about || !about.trim()) eksik.push('Açıklama');
-        // GERÇEK BULGU (kullanıcı bildirimi: fotoğraf yüklendiği hâlde "Profil Fotoğrafı zorunlu"
-        // uyarısı çıkıyordu): burada `accountUser.photo_url` okunuyordu ama /api/auth/me kullanıcıyı
-        // publicUser() ile serileştiriyor ve alan adı `photoUrl` (bkz. src/lib/auth.js:47,
-        // "photoUrl: photo_url"). snake_case alan HİÇBİR ZAMAN tanımlı olmadığından kontrol her
-        // durumda başarısız oluyor, yani fotoğrafı olan kullanıcı da profilini yayımlayamıyordu.
-        // Aynı dosyadaki diğer iki kullanım (renderAvatar, mimar senkronizasyonu) zaten doğru
-        // camelCase okuyordu — yalnızca bu satır sapmıştı.
         // Bu turda seçilmiş ama henüz yüklenmemiş bir fotoğraf da "var" sayılır — aksi halde ilk kez
         // fotoğraf seçen kullanıcı, fotoğrafı ekranda görmesine rağmen zorunlu alan uyarısı alırdı.
-        // Fotoğrafın kaynağı artık KİŞİ kaydıdır (bkz. amPersonRecord); kişi kaydında yoksa hesabın
-        // avatarı yedek sayılır — yeni bir kişi kaydı açılırken o URL kişi kaydına da yazıldığından
-        // (bkz. submitArchitectSyncIfNeeded'in ilk dalı) kontrol ile yazılan değer aynı kalır.
-        const personPhoto = (amPersonRecord && amPersonRecord.photo_url) || (accountUser && accountUser.photoUrl) || '';
+        // Fotoğrafın TEK kaynağı KİŞİ kaydıdır (bkz. amPersonRecord). Hesabın avatarı yedek olarak
+        // OKUNMUYOR (kullanıcı isteği, 2026-09-15 madde 2): hesapların artık profil fotoğrafı yok.
+        const personPhoto = (amPersonRecord && amPersonRecord.photo_url) || '';
         if (!personPhoto && !pendingAvatarFile) eksik.push('Profil Fotoğrafı');
         if (eksik.length) {
           msg.textContent = 'Kişi sayfasında yayımlanmak için şu alanlar zorunlu: ' + eksik.join(', ') + '.';
           return;
         }
       }
-      // Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — YALNIZCA bu Kaydet
-      // gerçekten bir kişi profili YAYIMLAYACAKSA zorunlu: ya kullanıcının zaten bir kişi kaydı var
-      // (architectSyncState dolu, Kaydet o kaydı günceller) ya da dizine girmeyi bu turda seçiyor.
-      // Dizine hiç girmeyen kullanıcı hesap bilgilerini eskisi gibi onaysız kaydedebilir — beyan
-      // "yayınlanan içerik" içindir, hesap alanları için değil.
-      const willPublishArchitect = !!architectSyncState || !!(wantsDirectory && wantsDirectory.value === 'yes');
+      // Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1) — bu Kaydet her zaman bir
+      // kişi profili yayımlar (var olan kaydı günceller ya da yenisini açar, bkz. 2026-09-15 madde 1),
+      // dolayısıyla beyan KOŞULSUZ zorunludur; beş ekleme formundaki kuralın aynısı.
+      const willPublishArchitect = true;
       if (willPublishArchitect && window.RightsConsent && !RightsConsent.require(document.getElementById('am-rights-consent'))) {
         msg.textContent = 'Profilini yayımlamak için Telif ve Sorumluluk Beyanı’nı onaylaman gerekiyor.';
         return;
@@ -3904,19 +3872,11 @@ const AuthModal = (function () {
             return;
           }
         }
-        // Hesaba yazılan TEK alan fotoğraftır (yukarıdaki gerekçe) — yeni fotoğraf yoksa hesap
-        // satırına hiç dokunulmaz, yani bu Kaydet hesabın ad soyadını/kullanıcı adını DEĞİŞTİRMEZ.
-        if (patch.photo_url) {
-          const res = await fetch('/api/profile', {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photo_url: patch.photo_url }),
-          });
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            msg.textContent = errData.error || 'Fotoğraf kaydedilemedi, tekrar dene.';
-            return;
-          }
-        }
+        // HESABA ARTIK HİÇBİR ŞEY YAZILMIYOR (kullanıcı isteği, 2026-09-15 madde 2): eskiden yüklenen
+        // fotoğraf PATCH /api/profile ile hesabın avatarına da yazılırdı — "tek bilinçli istisna"
+        // buydu. Hesapların profil fotoğrafı kalktığı için o yazım kaldırıldı; fotoğraf YALNIZCA
+        // kişi künyesine gider (aşağıdaki submitArchitectSyncIfNeeded), yani kişi pop-up'ındaki
+        // görsel eskisi gibi çalışır. Sunucu da alanı kabul etmiyor (src/routes/auth.js).
         // Kayıt başarılı — bekleyen dosya tüketildi.
         if (pendingAvatarUrl) { URL.revokeObjectURL(pendingAvatarUrl); pendingAvatarUrl = null; }
         pendingAvatarFile = null;
