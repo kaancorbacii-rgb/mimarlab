@@ -15,7 +15,6 @@
 // UPDATE-or-INSERT sağlar (bkz. scripts/merge-submissions-to-id-first.js'teki AYNI legacy_key
 // kullanımı, orada NULL bırakılıyordu çünkü tek seferlikti; burada tekrar bulunabilir olması
 // gerekiyor).
-
 import { newId } from './crypto.js';
 import { filterUnreferencedKeys } from './r2References.js';
 import { freshSlugFor } from './officeFounderCascade.js';
@@ -34,6 +33,26 @@ import { foldTr, dedupeNamesTr } from './textMatch.js';
 // Künyeden çıkarılan firma/kişi için 1 günlük düzenleme yetkisi penceresi (kullanıcı isteği,
 // 2026-09-10 madde 2) — bkz. syncProject'teki project_designers yeniden yazma bloğu.
 import { recordProjectEditGrace, clearProjectEditGrace } from './projectEditGrace.js';
+
+// LİSTE SIRALAMA DAMGASI — ISO-8601, `datetime('now')` DEĞİL (gerçek bulgu, kullanıcı bildirimi
+// 2026-09-15 onuncu tur madde 3: "Bir kullanıcı siteye bir proje eklediği zaman bu proje, proje
+// sayfasında 1. sıraya yerleşsin").
+//
+// Sıralama anahtarı METİNDİR ve TEK bir COALESCE zincirinden gelir:
+//   ORDER BY ... COALESCE(relisted_at, publish_date, created_at) DESC   (bkz. src/lib/projectPool.js,
+//   src/routes/project.js#fetchProjectPageRows, office.js/architect.js havuzları)
+// Bu zincirdeki değerler İKİ AYRI BİÇİMDE yazılıyordu: src/routes/admin.js (yönetici ataması,
+// önizlemeden çıkarma, claim onayı) `new Date().toISOString()` ile "2026-09-15T09:00:00.000Z",
+// burası ve created_at varsayılanı ise `datetime('now')` ile "2026-09-15 18:00:00". SQLite metni
+// BAYT BAYT karşılaştırır ve 10. karakterde 'T' (0x54) > ' ' (0x20) — yani AYNI GÜN içinde ISO
+// damgalı bir satır, saat farkı ne olursa olsun, boşluklu damgalı satırın ÜSTÜNE çıkıyordu.
+// Sonuç: aynı gün içinde admin bir firmaya yönetici atadıysa (o akış eski bir projeye ISO damga
+// basar), o gün eklenen YENİ proje 1. sıraya değil onun ALTINA düşüyordu.
+//
+// Tek biçim olarak ISO seçildi: admin.js'teki mevcut damgalarla (canlı veride ZATEN duruyorlar)
+// birebir aynı şekle sahip, dolayısıyla eski satırlar da doğru karşılaştırılır. strftime'ın '%f'
+// alanı saniyeyi milisaniyeyle verir ("00.000"), yani üretilen metin toISOString ile aynı uzunlukta.
+const NOW_ISO_SQL = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 
 function submissionMarker(id) { return `submission:${id}`; }
 
@@ -840,7 +859,7 @@ async function syncOffice(env, row, opts = {}) {
     // korunur: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına FIRLATMAMALI.
     // Burada damgalanmalı, setLegacyHidden'da DEĞİL — çağrı sırası gereği oraya gelindiğinde
     // preview_at bu satır tarafından ZATEN temizlenmiş olur ve koşul hiç tutmazdı.
-    if (publish) sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
+    if (publish) sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN ${NOW_ISO_SQL} ELSE relisted_at END`);
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     result = { ...target, id: target.id, name: row.name || target.name };
@@ -1014,7 +1033,7 @@ async function syncArchitect(env, row, opts = {}) {
     // korunur: zaten yayında olan bir kaydın rutin düzenlemesi onu listenin başına FIRLATMAMALI.
     // Burada damgalanmalı, setLegacyHidden'da DEĞİL — çağrı sırası gereği oraya gelindiğinde
     // preview_at bu satır tarafından ZATEN temizlenmiş olur ve koşul hiç tutmazdı.
-    if (publish) sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`);
+    if (publish) sets.push(`relisted_at = CASE WHEN preview_at IS NOT NULL THEN ${NOW_ISO_SQL} ELSE relisted_at END`);
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     await syncOfficeFounderLink(env, target.id, founderLinkIds, founderPendingIds);
@@ -1255,7 +1274,7 @@ async function syncProject(env, row, opts = {}) {
       'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?',
       // "yayına al" üçlüsü — opts.publish === false (admin beyan onaylamadan kaydetti) iken
       // atlanır, bkz. syncApprovedSubmissionToCanonical yorumu.
-      ...(opts.publish === false ? [] : ['hidden_at = NULL', `relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END`, 'preview_at = NULL']),
+      ...(opts.publish === false ? [] : ['hidden_at = NULL', `relisted_at = CASE WHEN preview_at IS NOT NULL THEN ${NOW_ISO_SQL} ELSE relisted_at END`, 'preview_at = NULL']),
       `updated_at = datetime('now')`,
     ];
     const vals = [
@@ -1301,9 +1320,23 @@ async function syncProject(env, row, opts = {}) {
     let slug = row.slug;
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
+    // YENİ PROJE LİSTENİN 1. SIRASINA OTURUR (kullanıcı isteği, 2026-09-15 onuncu tur madde 3:
+    // "Bir kullanıcı siteye bir proje eklediği zaman bu proje, proje sayfasında 1. sıraya
+    // yerleşsin"). Sıralama `(preview_at IS NOT NULL) ASC, COALESCE(display_order, 0) ASC,
+    // COALESCE(relisted_at, publish_date, created_at) DESC` olduğundan üç koşul birden gerekir:
+    //   * preview_at NULL   — yayına giren kayıtta zaten öyle (opts.publish === false ise kayıt
+    //                         önizlemededir ve 1. sıraya OTURMAMALIDIR, bkz. aşağıdaki koşul),
+    //   * display_order NULL— INSERT bu kolonu hiç yazmaz, yani "atanmamış" (0) kovasındadır,
+    //   * relisted_at = now — BURADA damgalanır. created_at zaten "şimdi" ama biçimi farklı
+    //                         ("YYYY-MM-DD HH:MM:SS"); aynı gün ISO damgalı bir satır varsa
+    //                         (admin ataması/önizlemeden çıkarma) metin karşılaştırması onu üste
+    //                         çıkarıyordu — bkz. NOW_ISO_SQL'in başındaki kök neden notu.
+    // publishDate DOLUYSA damgalanmaz: yayın tarihini yalnızca admin yazabilir ve o tarih zaten
+    // "bu proje ne zaman yayınlandı" demektir — damga onu ezip admin'in seçtiği sırayı bozardı.
+    const relistNew = opts.publish !== false && !publishDate;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, image_hotspots, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, image_hotspots, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, relisted_at, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${relistNew ? NOW_ISO_SQL : 'NULL'}, 'submission', ?, ?)`
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images, imageHotspots,
@@ -1507,7 +1540,7 @@ async function syncProduct(env, row, kind, opts = {}) {
     // "yayına al" üçlüsü — opts.publish === false iken atlanır (bkz. syncApprovedSubmissionToCanonical).
     const publishSet = opts.publish === false
       ? ''
-      : `, hidden_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN datetime('now') ELSE relisted_at END, preview_at = NULL`;
+      : `, hidden_at = NULL, relisted_at = CASE WHEN preview_at IS NOT NULL THEN ${NOW_ISO_SQL} ELSE relisted_at END, preview_at = NULL`;
     await env.DB.prepare(
       `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}${publishSet}, updated_at = datetime('now') WHERE id = ?`
     ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, ...variantVal, existing.id).run();

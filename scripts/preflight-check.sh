@@ -696,6 +696,21 @@ else
 fi
 rm -f /tmp/preflight_pickers
 
+# Hesap düğmesi/çekmecesindeki kişi ikonu (arka plansız, currentColor), Danışmanlık Al ödeme
+# ekranından "Daha sonra ödeyeceğim"in kaldırılması, Rozet Al'ın ödeme adımına ilerlemesi (iki
+# yöntem de pasif; kapı SUNUCUDA: badges.js#BADGE_SALES_OPEN artık payments.js#startCheckout'u da
+# kapatıyor) ve YENİ PROJENİN /proje listesinde 1. sıraya oturması. Sonuncusu gerçek SQLite üzerinde
+# ölçülür ve ORDER BY'ı kaynaktan okur: kök neden, relisted_at'in iki AYRI biçimde
+# (ISO vs "YYYY-MM-DD HH:MM:SS") yazılmasıydı — aynı gün ISO damgalı satır metin karşılaştırmasında
+# yeni projenin üstüne çıkıyordu. Bkz. scripts/test-2026-09-15-account-icon-payments-and-new-project-order.mjs.
+if node scripts/test-2026-09-15-account-icon-payments-and-new-project-order.mjs >/tmp/preflight_icon_pay_order 2>&1; then
+  ok "hesap ikonu + ödeme kapıları + yeni proje sırası testleri geçti ($(grep -c '^  ok ' /tmp/preflight_icon_pay_order) test)"
+else
+  bad "hesap ikonu + ödeme kapıları + yeni proje sırası testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_icon_pay_order >&2
+fi
+rm -f /tmp/preflight_icon_pay_order
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

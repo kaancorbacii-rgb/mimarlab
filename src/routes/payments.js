@@ -4,7 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
-import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership, getBlockingRank } from './badges.js';
+import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership, getBlockingRank, BADGE_SALES_OPEN } from './badges.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 // Alıcı alanı doğrulamaları rozet ve danışmanlık ödemelerinde ORTAK — bkz. src/lib/iyzicoBuyer.js.
@@ -28,6 +28,15 @@ export async function handlePaymentsRoute(request, env, url) {
 // TC Kimlik No/telefon/adres gibi kişisel veriler burada DB'ye yazılmaz, yalnızca iyzico'ya
 // iletilir (veri minimizasyonu).
 async function startCheckout(request, env, url) {
+  // ÜRÜN KARARI KAPISI (kullanıcı isteği, 2026-09-15 onuncu tur madde 2: rozette de "şimdilik
+  // ödemeler kapalı"). Rozet Al ekranındaki "Henüz aktif değil." etiketinin sunucu tarafı
+  // karşılığı — arayüzde pasif bir düğme kapı DEĞİLDİR, elle hazırlanmış bir POST yine checkout
+  // başlatabilirdi. Havale yolu (badges.js#createBadgeRequest) AYNI bayrakla zaten kapalıydı;
+  // kart yolu 2026-09-08'de yalnızca UI'dan kaldırılmış, sunucuda açık kalmıştı.
+  // isIyzicoConfigured'dan AYRI durur: bu bir ürün kararıdır, yapılandırma durumu değil.
+  if (!BADGE_SALES_OPEN) {
+    return errorJson('Rozet satışı şu an açık değil.', 403);
+  }
   if (!isIyzicoConfigured(env)) {
     return errorJson('Ödeme altyapısı şu anda kullanılamıyor. Lütfen daha sonra tekrar dene.', 503);
   }

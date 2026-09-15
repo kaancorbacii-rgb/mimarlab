@@ -50,14 +50,19 @@ test('.nav-avatar dolu var(--ink) arka plan ve var(--paper-card) yazı taşır',
   assert.match(rule[0], /color:var\(--paper-card\)/, 'yazı beyaz olmalı');
 });
 
-test('ismin SOLUNA nokta çizilir (.nav-avatar-dot, ad ifadesinden ÖNCE)', () => {
-  assert.match(authNav, /\.nav-avatar-dot\{[^}]*border-radius:50%/, 'nokta kuralı yok');
+// NOKTA -> KİŞİ İKONU (kullanıcı isteği, 2026-09-15 onuncu tur madde 1): 6px'lik dolu daire
+// (.nav-avatar-dot) kaldırıldı, yerine ad soluna ARKA PLANSIZ, currentColor (koyu düğmede beyaz)
+// bir kişi silüeti kondu. Konum kuralı (ismin SOLUNDA) aynen korunur.
+test('ismin SOLUNA kişi ikonu çizilir (.nav-avatar-icon, ad ifadesinden ÖNCE)', () => {
+  assert.ok(!/\.nav-avatar-dot\{/.test(authNav) && !/class="nav-avatar-dot"/.test(authNav),
+    'eski nokta (.nav-avatar-dot) hâlâ çiziliyor');
+  assert.match(authNav, /\.nav-avatar-icon\{[^}]*\}/, 'ikon kuralı yok');
   const btn = authNav.match(/<button class="nav-avatar"[\s\S]*?<\/button>/);
   assert.ok(btn, 'hesap düğmesi markup\'ı bulunamadı');
-  const dotAt = btn[0].indexOf('nav-avatar-dot');
+  const iconAt = btn[0].indexOf('nav-avatar-icon');
   const nameAt = btn[0].indexOf('firstName(user.name)');
-  assert.ok(dotAt !== -1 && nameAt !== -1, 'nokta ya da ad ifadesi yok');
-  assert.ok(dotAt < nameAt, 'nokta ismin SOLUNDA olmalı');
+  assert.ok(iconAt !== -1 && nameAt !== -1, 'ikon ya da ad ifadesi yok');
+  assert.ok(iconAt < nameAt, 'ikon ismin SOLUNDA olmalı');
 });
 
 test('düğme puntosu yanındaki sayfa başlıklarıyla (.nav-link) aynı', () => {
@@ -75,7 +80,7 @@ test('ad ÜÇ yüzeyde de Türkçe kurallarına göre BÜYÜK harfe çevrilir', 
   assert.match(authNav, /function upperTr\(s\) \{[\s\S]*?replace\(\/i\/g, 'İ'\)[\s\S]*?replace\(\/ı\/g, 'I'\)/);
   assert.ok(authNav.includes('${escapeHtml(upperTr(firstName(user.name)))}'), 'üst menü düğmesi büyük harf değil');
   assert.ok(authNav.includes('<div class="nav-avatar-menu-name">${escapeHtml(upperTr(user.name || \'\'))}</div>'), 'açılır menü başlığı büyük harf değil');
-  assert.ok(authNav.includes('<div class="nav-mobile-account-name">${escapeHtml(upperTr(user.name || \'\'))}</div>'), 'çekmece başlığı büyük harf değil');
+  assert.ok(authNav.includes('<span class="nav-mobile-account-name-text">${escapeHtml(upperTr(user.name || \'\'))}</span>'), 'çekmece başlığı büyük harf değil');
   // Kaçış SONRA gelmeli: kaçırılmış metni büyütmek "&amp;"yi "&AMP;"ye çevirirdi.
   assert.ok(!/upperTr\(escapeHtml\(/.test(authNav), 'büyütme HTML kaçışından ÖNCE olmalı');
 });

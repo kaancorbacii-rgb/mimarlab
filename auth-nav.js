@@ -43,6 +43,21 @@
   // (bkz. js/components/auth-modal.js#collectionsTemplate). Diğer ikonlarla AYNI 16px/stroke stili.
   const ICON_COLLECTION = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg>';
   const ICON_LOGOUT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 21H5.8a1.8 1.8 0 0 1-1.8-1.8V4.8A1.8 1.8 0 0 1 5.8 3H9.5"/><polyline points="15.5 16.5 20.5 12 15.5 7.5"/><line x1="20.2" y1="12" x2="9" y2="12"/></svg>';
+  // HESAP DÜĞMESİNİN/ÇEKMECENİN AD YANINDAKİ KİŞİ İKONU (kullanıcı isteği, 2026-09-15 onuncu tur
+  // madde 1: "giriş yapan kullanıcı isminin yanına koyduğun icon yerine ekte ilettiğim iconu koy
+  // arka planı olmayan şekilde beyaz renkte koy. Mobil ve tablet görünümünde de yan çekmece menüde
+  // ismin yanında yine bu icon olsun.") — yerini aldığı şey, 2026-09-15 beşinci turda konan
+  // .nav-avatar-dot (6px dolu daire) idi.
+  //
+  // ARKA PLAN YOK, RENK currentColor: ikon `fill="none"` ile yalnızca ÇİZGİDİR ve rengini
+  // taşıyıcısından alır — koyu mavi (.nav-avatar, background:var(--ink)) düğme üzerinde
+  // var(--paper-card), yani beyaz; açık zeminli mobil çekmecede ise ad satırının kendi rengi
+  // (var(--ink)). Sabit bir `#fff` yazılsaydı çekmecede beyaz üstüne beyaz çizilirdi.
+  //
+  // ICON_ACCOUNT ile aynı konu (kişi silüeti) ama AYRI bir sabit: bu, satır ikonu değil ad
+  // yanındaki işarettir — ölçüsü (17px) ve çizgi kalınlığı (2) ekteki görselin daha kalın hâline
+  // göredir, menü satırlarının 16px/1.8 ölçüsü değişmeden kalır.
+  const ICON_PERSON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.6" r="4.1"/><path d="M4.6 20.4a7.4 7.4 0 0 1 14.8 0"/></svg>';
   function injectStyleOnce() {
     if (document.getElementById('auth-nav-style')) return;
     const style = document.createElement('style');
@@ -68,11 +83,13 @@
          göre yanlış büyütebilir. */
       .nav-avatar{position:relative; display:flex; align-items:center; gap:9px; border:1px solid var(--ink); border-radius:100px; padding:9px 16px; background:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; color:var(--paper-card); font-family:inherit;}
       .nav-avatar:hover{background:var(--walnut); border-color:var(--walnut);}
-      /* İsmin SOLUNDAKİ nokta (aynı istek: "ismin soluna ortaya bir nokta işareti koy") — dikey
-         olarak ortalı (flex align-items:center), rengi yazının rengiyle aynı (currentColor), yani
-         koyu düğme üstünde beyaz. Sağ üst köşedeki TURUNCU .nav-avatar-alert'ten (bildirim/mesaj
-         işareti) bilinçli olarak AYRI: bu nokta dekoratiftir, her zaman görünür ve durum taşımaz. */
-      .nav-avatar-dot{display:block; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0;}
+      /* İsmin SOLUNDAKİ KİŞİ İKONU (kullanıcı isteği, 2026-09-15 onuncu tur madde 1) — 6px'lik dolu
+         dairenin (.nav-avatar-dot) yerini aldı. Dikey olarak ortalı (flex align-items:center),
+         rengi yazının rengiyle aynı (currentColor => koyu düğme üstünde beyaz) ve ARKA PLANI YOK:
+         kural yalnızca yerleşim verir, background özelliğini HİÇ yazmaz (bkz. ICON_PERSON yorumu).
+         Sağ üst köşedeki TURUNCU .nav-avatar-alert'ten (bildirim/mesaj işareti) bilinçli olarak
+         AYRI: bu ikon dekoratiftir, her zaman görünür ve durum taşımaz. */
+      .nav-avatar-icon{display:flex; align-items:center; justify-content:center; flex-shrink:0;}
       .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:240px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
       .nav-avatar-menu.open{display:flex;}
       .nav-avatar-menu a, .nav-avatar-menu button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
@@ -102,7 +119,13 @@
       /* Masaüstü .nav-avatar-menu-id ile AYNI kural ve AYNI gerekçe (bkz. oradaki yorum); aralık
          yalnızca çekmecenin daha büyük ölçeğine göre bir tık geniş. */
       .nav-mobile-account-id{min-width:0; display:flex; flex-direction:column; gap:6px;}
-      .nav-mobile-account-name{font-size:14.5px; line-height:1.35; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      /* Ad satırı, üst menüdeki düğmeyle AYNI ikonu taşır (kullanıcı isteği, 2026-09-15 onuncu tur
+         madde 1: "yan çekmece menüde ismin yanında yine bu icon olsun"). İkon ad METNİNİN İÇİNE
+         değil, satırın yanına konur: kırpma kuralları (nowrap/ellipsis) metin kapsayıcısına
+         (.nav-mobile-account-name-text) taşındı — ikon da aynı kapsayıcıda olsaydı uzun adlarda
+         ellipsis ikonu da yiyebilirdi. */
+      .nav-mobile-account-name{display:flex; align-items:center; gap:9px; min-width:0; font-size:14.5px; line-height:1.35; font-weight:700; color:var(--ink);}
+      .nav-mobile-account-name-text{min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       /* Çekmecedeki kullanıcı adı — masaüstü .nav-avatar-menu-username ile AYNI sıra/gerekçe
          (kullanıcı isteği: "tablet ve mobil görünümde de açılan çekmecede isim soyisim ve e-posta
          adresinin arasına kullanıcı adını yaz"), yalnızca punto çekmecenin ölçeğine göre büyük. */
@@ -237,7 +260,7 @@
     navRight.innerHTML = `
       <div class="nav-avatar-wrap">
         <button class="nav-avatar" id="nav-avatar-btn" type="button">
-          <i class="nav-avatar-dot" aria-hidden="true"></i>
+          <i class="nav-avatar-icon" aria-hidden="true">${ICON_PERSON}</i>
           ${escapeHtml(upperTr(firstName(user.name)))}
           <i class="nav-avatar-alert" id="nav-avatar-alert" aria-hidden="true"></i>
         </button>
@@ -272,7 +295,7 @@
       mobileFoot.innerHTML = `
         <div class="nav-mobile-account-header">
           <div class="nav-mobile-account-id">
-            <div class="nav-mobile-account-name">${escapeHtml(upperTr(user.name || ''))}</div>
+            <div class="nav-mobile-account-name"><i class="nav-avatar-icon" aria-hidden="true">${ICON_PERSON}</i><span class="nav-mobile-account-name-text">${escapeHtml(upperTr(user.name || ''))}</span></div>
             ${usernameLine ? `<div class="nav-mobile-account-username">${escapeHtml(usernameLine)}</div>` : ''}
             <div class="nav-mobile-account-email">${escapeHtml(user.email || '')}</div>
           </div>

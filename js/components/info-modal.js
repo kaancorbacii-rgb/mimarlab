@@ -114,6 +114,24 @@ const InfoModal = (function () {
     #im-panel .tier-card-perks{font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0; padding-left:15px;}
     #im-panel .tier-card-perks li{margin-bottom:3px;}
     #im-panel .tier-card-perks li:last-child{margin-bottom:0;}
+    /* ÖDEME ADIMI (kullanıcı isteği, 2026-09-15 onuncu tur madde 2) — danışmanlık ödeme ekranının
+       (js/components/consultation-modal.js .cns-method*/.cns-pay-*) ölçü ve düzenini tekrarlar;
+       oradaki kurallar o modalin KENDİ <style>'ında yaşadığından bu panelde geçerli değil. */
+    #im-panel .im-pay-summary-row{display:flex; justify-content:space-between; gap:12px; font-size:13.5px; padding:9px 0; border-bottom:1px solid var(--line-soft);}
+    #im-panel .im-pay-summary-row span:first-child{color:var(--ink-soft);}
+    #im-panel .im-pay-summary-row span:last-child{font-weight:600; text-align:right;}
+    #im-panel .im-pay-total{font-size:15px;}
+    #im-panel .im-pay-section-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700; margin:18px 0 10px;}
+    #im-panel .im-pay-method{display:flex; align-items:flex-start; gap:11px; width:100%; text-align:left; background:var(--paper-card); border:1.5px solid var(--line); border-radius:12px; padding:13px 15px; margin-bottom:10px; font-family:inherit; color:var(--ink); cursor:pointer;}
+    #im-panel .im-pay-method.active{border-color:var(--ink);}
+    #im-panel .im-pay-method[disabled]{opacity:0.55; cursor:default;}
+    #im-panel .im-pay-method-radio{width:17px; height:17px; border-radius:50%; border:1.5px solid var(--line); flex-shrink:0; margin-top:2px;}
+    #im-panel .im-pay-method.active .im-pay-method-radio{border:5px solid var(--ink);}
+    #im-panel .im-pay-method-name{display:block; font-size:13.5px; font-weight:600;}
+    #im-panel .im-pay-method-soon{font-weight:600; color:var(--accent);}
+    #im-panel .im-pay-method-desc{display:block; font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+    #im-panel .im-pay-back{display:block; width:100%; background:none; border:none; color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; text-decoration:underline; cursor:pointer; padding:12px 0 0;}
+    #im-panel .im-pay-back:hover{color:var(--ink);}
     #im-panel .already-has{text-align:center; padding:10px 4px;}
     #im-panel .already-has strong{display:block; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; margin-bottom:6px;}
     #im-panel .already-has p{color:var(--ink-soft); font-size:13.5px; margin:0 0 16px; line-height:1.6;}
@@ -1034,14 +1052,33 @@ const InfoModal = (function () {
         </div>
       </div>
 
-      <div class="form-section">
+      <div class="form-section" id="im-tier-section">
         <h2>Rozetler</h2>
         <p class="section-hint">Devam etmeden önce dilediğin kademeyi seçebilirsin.</p>
         <div class="tier-grid" id="im-tier-grid"></div>
-        <div class="already-has" id="im-sales-closed" style="margin-top:18px;">
-          <strong>Rozet satışı şu an açık değil</strong>
-          <p>Şimdilik ödeme almıyoruz. Rozet satışı kredi/banka kartıyla ödeme açıldığında başlayacak; açıldığında burada duyuracağız.</p>
-        </div>
+        <!-- ÖDEME ADIMINA İLERLE (kullanıcı isteği, 2026-09-15 onuncu tur madde 2: "Rozet al
+             sayfasında da ödemeye ilerlensin ama onda da şimdilik ödemeler kapalı olsun").
+             2026-09-08'de kaldırılan "Rozeti Seç" düğmesinin yerini alır, ama AÇTIĞI ŞEY farklı:
+             eski düğme havale/EFT + IBAN kutusunu ve POST /api/badges'i açıyordu — o kutu geri
+             GELMEDİ (bkz. aşağıdaki ödeme adımı ve badges.js#badgePaymentOptions). -->
+        <button type="button" class="form-submit" id="im-pay-next" style="margin-top:18px;">Ödeme Sayfasına İlerle</button>
+      </div>
+
+      <!-- ÖDEME ADIMI — yöntemler SUNUCUDAN çizilir (GET /api/badges/options), sayfada "açık mı"
+           kararı YOKTUR. Bugün ikisi de pasiftir ("Henüz aktif değil."), satış açıldığında tek
+           değişen yer badges.js#BADGE_SALES_OPEN olur. Danışmanlık ödeme ekranıyla AYNI sıra ve
+           AYNI etiketler (bkz. js/components/consultation-modal.js#PM_LABELS/PM_ORDER). -->
+      <div class="form-section" id="im-payment-section" style="display:none;">
+        <h2>Ödeme</h2>
+        <p class="section-hint">Seçtiğin rozet ve tutar aşağıda. Ödeme yöntemini seç ve ödemeyi tamamla.</p>
+        <div class="im-pay-summary-row"><span>Rozet</span><span id="im-pay-tier">—</span></div>
+        <div class="im-pay-summary-row"><span>Kimin için</span><span id="im-pay-target">—</span></div>
+        <div class="im-pay-summary-row"><span>Toplam</span><span class="im-pay-total" id="im-pay-total">—</span></div>
+        <div class="im-pay-section-title">Ödeme Yöntemi</div>
+        <div id="im-pay-methods"></div>
+        <div class="form-notice show" id="im-pay-notice"></div>
+        <button type="button" class="form-submit" id="im-pay-submit" style="margin-top:16px;" disabled>Ödemeye Geç</button>
+        <button type="button" class="im-pay-back" id="im-pay-back">Kademe seçimine dön</button>
       </div>
 
       <div class="form-section" id="im-already-has-section" style="display:none;">
@@ -1062,11 +1099,15 @@ const InfoModal = (function () {
   // kurulmalı, IBAN'lı havale kutusu geri GETİRİLMEMELİ.
 
   function mountRozetAl() {
-    // Sayfa giriş YAPMADAN da görüntülenebilir (kullanıcı isteği, 2026-09-05). Satış şu an KAPALI
-    // (kullanıcı isteği, 2026-09-08 — "şimdilik ödeme almıyoruz"): "Rozeti Seç" butonu ve ödeme
-    // popup'ı kaldırıldı, yerinde #im-sales-closed kutusu duruyor; kademe/fiyat tanıtımı ve mevcut
-    // rozet paneli (loadMyBadges) çalışmaya devam eder. /api/claims/mine ve /api/badges/mine
-    // oturumsuzken sessizce boş sonuç döner (catch/res.ok kontrolleri), sayfa çökmez.
+    // Sayfa giriş YAPMADAN da görüntülenebilir (kullanıcı isteği, 2026-09-05) — ödeme adımı da o
+    // hâliyle görüntülenir (GET /api/badges/options oturum İSTEMEZ, bkz. handleBadgesRoute).
+    // ÖDEME ŞU AN KAPALI (kullanıcı isteği, 2026-09-15 onuncu tur madde 2: "Rozet al sayfasında da
+    // ödemeye ilerlensin ama onda da şimdilik ödemeler kapalı olsun"): akış artık ödeme adımına
+    // İLERLER, adımdaki iki yöntem de sunucunun söylediği gibi pasif çizilir ve gerçek kapı
+    // sunucudadır (badges.js#BADGE_SALES_OPEN -> createBadgeRequest 403 + payments.js#startCheckout
+    // 403). 2026-09-08'de kaldırılan IBAN'lı havale kutusu GERİ GELMEDİ.
+    // /api/claims/mine ve /api/badges/mine oturumsuzken sessizce boş sonuç döner (catch/res.ok
+    // kontrolleri), sayfa çökmez.
 
     // "Mesaj" perk'i her iki kademede de listelenir — bkz. architect-modal.js/office-modal.js#
     // renderMessageIcon (kullanıcı isteği 2026-08-30: doğrulanmış/altın üyeler artık TÜM kullanıcılara
@@ -1120,6 +1161,7 @@ const InfoModal = (function () {
           selectedTier = card.dataset.type;
           renderTierGrid();
           updateExistingBadgePanel();
+          renderPaymentSummary();
         });
       });
     }
@@ -1160,15 +1202,21 @@ const InfoModal = (function () {
         blocking = profileRank >= activeRank ? { badge_type: profileBadgeType, status: 'active', admin: true } : activeBadge;
       }
 
-      const salesClosedBox = document.getElementById('im-sales-closed');
+      // Engel varken (bekleyen talep ya da aynı/daha yüksek kademe) ödeme adımına İLERLENEMEZ —
+      // eskiden burada #im-sales-closed kutusu gizleniyordu, aynı yerde şimdi "Ödeme Sayfasına
+      // İlerle" düğmesi duruyor ve aynı koşulla gizlenir. Adım açıkken engel belirirse (panel
+      // asenkron dolar) adımdan da çıkılır, aksi halde kullanıcı alamayacağı bir rozetin ödeme
+      // ekranında kalırdı.
+      const payNextBtn = document.getElementById('im-pay-next');
       const alreadyHasSection = document.getElementById('im-already-has-section');
       if (!blocking) {
-        salesClosedBox.style.display = '';
+        payNextBtn.style.display = '';
         alreadyHasSection.style.display = 'none';
         return;
       }
       const tier = BADGE_TIERS.find(t => t.type === blocking.badge_type);
-      salesClosedBox.style.display = 'none';
+      payNextBtn.style.display = 'none';
+      showPaymentStep(false);
       alreadyHasSection.style.display = 'block';
       const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
       document.getElementById('im-already-has-title').textContent =
@@ -1228,9 +1276,94 @@ const InfoModal = (function () {
         }
         renderTierGrid();
         updateExistingBadgePanel();
+        renderPaymentSummary();
       });
     });
 
+    // -------------------------------------------------------------------------------------------
+    // ÖDEME ADIMI (kullanıcı isteği, 2026-09-15 onuncu tur madde 2)
+    // -------------------------------------------------------------------------------------------
+    // Yöntem listesi SUNUCUDAN gelir; istemci bir yöntemi kendi başına "açık" sayamaz — danışmanlık
+    // modalindeki AYNI sözleşme (bkz. consultation-modal.js#methodEntries). Uç ulaşılamazsa
+    // (çevrimdışı) hepsi pasif kabul edilir: kapalı göstermek, kapalı bir yöntemi açık göstermekten
+    // her zaman doğrudur.
+    const PAY_LABELS = {
+      havale: { name: 'Havale / EFT', desc: 'Banka havalesi ile ödeme.' },
+      iyzico: { name: 'Kart ile Ödeme', desc: 'iyzico güvenli ödeme sayfasında tek çekim.' },
+    };
+    let payOptions = null;
+    let payMethod = null;
+
+    function targetLabelText() {
+      return selectedTargetType === 'office' ? (selectedTargetKey || 'Firmam') : 'Kendim';
+    }
+
+    function renderPaymentSummary() {
+      const tier = BADGE_TIERS.find(t => t.type === selectedTier);
+      if (!tier) return;
+      document.getElementById('im-pay-tier').textContent = tier.label;
+      document.getElementById('im-pay-target').textContent = targetLabelText();
+      document.getElementById('im-pay-total').textContent = `${formatTRY(priceForTier(tier))} / ay`;
+    }
+
+    function renderPaymentMethods() {
+      const wrap = document.getElementById('im-pay-methods');
+      const entries = (payOptions && Array.isArray(payOptions.methods) ? payOptions.methods : [])
+        .filter(m => PAY_LABELS[m.method]);
+      const list = entries.length ? entries : Object.keys(PAY_LABELS).map(m => ({ method: m, enabled: false, note: 'Henüz aktif değil.' }));
+      wrap.innerHTML = list.map(({ method: m, enabled, note }) => `
+        <button type="button" class="im-pay-method" data-method="${m}"${enabled ? '' : ' disabled aria-disabled="true"'}>
+          <span class="im-pay-method-radio"></span>
+          <span><span class="im-pay-method-name">${PAY_LABELS[m].name}${note ? ` <span class="im-pay-method-soon">(${escapeHtml(note)})</span>` : ''}</span><span class="im-pay-method-desc">${PAY_LABELS[m].desc}</span></span>
+        </button>`).join('');
+      const submit = document.getElementById('im-pay-submit');
+      const notice = document.getElementById('im-pay-notice');
+      const active = list.filter(m => m.enabled);
+      wrap.querySelectorAll('.im-pay-method').forEach((el) => {
+        if (el.disabled) return;
+        el.addEventListener('click', () => {
+          payMethod = el.dataset.method;
+          wrap.querySelectorAll('.im-pay-method').forEach(b => b.classList.toggle('active', b === el));
+        });
+      });
+      // GÖNDER DÜĞMESİ BU TURDA HER HÂLÜKÂRDA PASİFTİR — ödeme akışı (kart formu + POST
+      // /api/payments/checkout) bilerek KURULMADI, çünkü istek "şimdilik ödemeler kapalı olsun".
+      // Bugün `active` zaten hep boştur (sunucu iki yöntemi de pasif bildiriyor); yarın bayrak
+      // çevrilirse burada boş bir söz veren, tıklanabilir ama hiçbir şey yapmayan bir düğme
+      // kalmasın diye koşul değil, KURAL olarak pasif bırakılır (bkz. badges.js#badgePaymentOptions
+      // "satışı açmak" notu — açılış tek satırlık bir bayrak değişikliği DEĞİLDİR).
+      payMethod = null;
+      submit.disabled = true;
+      submit.textContent = active.length ? 'Ödemeye Geç' : 'Ödeme şu anda alınamıyor';
+      notice.textContent = 'Rozet satışı şu an açık değil — şimdilik ödeme almıyoruz. Satış, kredi/banka kartıyla ödeme açıldığında başlayacak; açıldığında burada duyuracağız.';
+      notice.classList.add('show');
+    }
+
+    async function loadPaymentOptions() {
+      try {
+        const res = await fetch('/api/badges/options');
+        if (res.ok) payOptions = await res.json();
+      } catch {}
+      renderPaymentMethods();
+    }
+
+    function showPaymentStep(on) {
+      document.getElementById('im-payment-section').style.display = on ? '' : 'none';
+      document.getElementById('im-target-section').style.display = on ? 'none' : '';
+      document.getElementById('im-tier-section').style.display = on ? 'none' : '';
+      if (on) renderPaymentSummary();
+    }
+
+    document.getElementById('im-pay-next').addEventListener('click', () => {
+      showPaymentStep(true);
+      // Kaydırma konteyneri modalin gövdesidir, document.body DEĞİL (bkz. wireInPanelAnchors'taki
+      // aynı gerekçe) — adım değişince kullanıcı ekranın ortasında kalmasın diye başa alınır.
+      const body = document.querySelector('.modal-shell-body');
+      if (body) body.scrollTop = 0;
+    });
+    document.getElementById('im-pay-back').addEventListener('click', () => showPaymentStep(false));
+    renderPaymentSummary();
+    loadPaymentOptions();
   }
 
   // ---------------------------------------------------------------------------------------------

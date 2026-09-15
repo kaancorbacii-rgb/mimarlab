@@ -35,8 +35,40 @@ export function getBadgePrice(badgeType, targetType) {
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır
 
+// ÖDEME SEÇENEKLERİ — TEK KAYNAK (kullanıcı isteği, 2026-09-15 onuncu tur madde 2: "Rozet al
+// sayfasında da ödemeye ilerlensin ama onda da şimdilik ödemeler kapalı olsun").
+//
+// Rozet Al ekranı artık bir ödeme adımına ilerliyor (bkz. js/components/info-modal.js#
+// mountRozetAl). O adımın hangi yöntemi AÇIK göstereceğini SAYFA KARAR VERMEZ — burası söyler,
+// yani satış açıldığında tek değişen yer yine sunucu olur. Biçim, danışmanlık akışının AYNI
+// sözleşmesidir (src/routes/consultations.js#paymentOptions): her yöntem `enabled` + `note`.
+//
+// IBAN/havale kutusu BİLEREK YOK (kullanıcı isteği, 2026-09-08: "IBAN bilgilerini siteden sil") —
+// havale satış yeniden açıldığında da geri GETİRİLMEMELİ, akış kart (payments.js) üzerinden kurulur.
+//
+// SATIŞI AÇMAK TEK SATIRLIK BİR BAYRAK DEĞİŞİKLİĞİ DEĞİLDİR: BADGE_SALES_OPEN=true yapmak sunucu
+// kapılarını (createBadgeRequest, payments.js#startCheckout) açar, ama Rozet Al ekranındaki ödeme
+// adımı bugün yalnızca yöntemleri GÖSTERİR — kart formu (ad/soyad/T.C./telefon/adres/şehir, bkz.
+// payments.js#startCheckout doğrulamaları) ve POST /api/payments/checkout çağrısı o adımda henüz
+// YOK, bu yüzden "Ödemeye Geç" düğmesi orada kural olarak pasiftir. Açarken ikisini birlikte kur.
+export function badgePaymentOptions() {
+  return {
+    salesOpen: BADGE_SALES_OPEN,
+    methods: [
+      { method: 'havale', enabled: false, note: 'Henüz aktif değil.' },
+      { method: 'iyzico', enabled: BADGE_SALES_OPEN, note: BADGE_SALES_OPEN ? '' : 'Henüz aktif değil.' },
+    ],
+  };
+}
+
 export async function handleBadgesRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "badges", maybe "mine"]
+
+  // Oturum kapısından ÖNCE: Rozet Al ekranı giriş YAPILMADAN da görüntülenebilir (kullanıcı isteği,
+  // 2026-09-05) ve ödeme adımını da o hâliyle gösterir. Yanıtta kullanıcıya ait hiçbir bilgi yok.
+  if (segments.length === 3 && segments[2] === 'options' && request.method === 'GET') {
+    return json(badgePaymentOptions());
+  }
 
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
@@ -127,7 +159,7 @@ export async function getBlockingRank(env, userId, target) {
 // EFT kutusu ve "Ödemeyi Yaptım" butonu kaldırıldı; bu bayrak, eski JS'i önbellekten çalıştıran
 // ya da ucu doğrudan çağıran bir istemcinin yine de 'pending' talep açmasını engeller. Satış
 // yeniden açıldığında true yapılmalı — ama havale değil, kart akışı (payments.js) kurulmalı.
-const BADGE_SALES_OPEN = false;
+export const BADGE_SALES_OPEN = false;
 
 async function createBadgeRequest(request, env, user) {
   if (!BADGE_SALES_OPEN) return errorJson('Rozet satışı şu an açık değil.', 403);

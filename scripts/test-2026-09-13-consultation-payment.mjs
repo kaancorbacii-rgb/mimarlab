@@ -175,9 +175,14 @@ await test('yöntemlerin SEÇİLEBİLİRLİĞİNE sunucu karar verir (görünür
   assert.match(modal, /enabled: !!p\.bankTransfer/);
   assert.match(modal, /enabled: !!p\.iyzico/);
   assert.match(modal, /function availableMethods\(\) \{\s*\n\s*return methodEntries\(\)\.filter\(e => e\.enabled\)/);
-  // Ödeme ekranı artık KOŞULSUZ açılır; aktif yöntem yoksa gönder düğmesi kapalı kalır.
+  // Ödeme ekranı artık KOŞULSUZ açılır. AKTİF YÖNTEM YOKKEN düğme ARTIK PASİF DEĞİL "Tamam"dır
+  // (kullanıcı isteği, 2026-09-15 onuncu tur madde 2: "Daha sonra ödeyeceğim" kaldırıldı) — o
+  // bağlantı gidince ekranın tek çıkışı bu düğme kaldı; pasif bırakılsaydı kullanıcı randevu
+  // özetini/"Görüşme Tarihini Değiştir"i taşıyan onay ekranını hiç göremezdi. Talep bu noktada
+  // ZATEN açılmıştır, yani bu bir iptal değil yalnızca onay ekranına geçiştir.
   assert.match(modal, /if \(state\.payment\) \{\s*\n\s*showPaymentScreen\(\);/);
-  assert.match(modal, /pmSubmitBtn\.disabled = true;\s*\n\s*pmSubmitBtn\.textContent = 'Ödeme şu anda alınamıyor';/);
+  assert.match(modal, /pmSubmitBtn\.disabled = false;\s*\n\s*pmSubmitBtn\.textContent = 'Tamam';/);
+  assert.match(modal, /if \(!pmMethod\) \{ if \(state\.requestId\) showSuccessScreen\(\); return; \}/);
 });
 
 await test('"Daha sonra öde" diyen kullanıcı ödemeyi detay ekranından tamamlayabilir', () => {
