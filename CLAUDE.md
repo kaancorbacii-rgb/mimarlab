@@ -154,7 +154,8 @@ firma olacak ama BİRİM Design markası hariç hepsi arşivde kalsın. Tüm mar
   kullanıcının kendi künyesi, sonraki sayfalar YETKİLİ olduğu firmaların kişileri (kurucu, kurucu
   ortak, ortak, ekip lideri). Kişiler `/api/office/:key`'in AYNI yanıtından okunur (ek uç/istek
   yok), bu yüzden firmadan çıkarılan biri kutudan da düşer. "Bilgileri Düzenle" yalnızca kendi
-  künyesi sayfasında görünür.
+  künyesi sayfasındadır; firma sayfalarında onun yerine **"Profili Düzenle"** durur (kural
+  2026-09-15 üçüncü turda değişti — bkz. aşağıdaki başlık).
 
 ## Hesap profil fotoğrafı KALDIRILDI (2026-09-15)
 
