@@ -77,28 +77,37 @@
       .nav-avatar-menu.open{display:flex;}
       .nav-avatar-menu a, .nav-avatar-menu button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
       .nav-avatar-menu a:hover, .nav-avatar-menu button:hover{background:var(--paper-alt);}
-      .nav-avatar-menu-header{display:flex; align-items:center; gap:11px; padding:8px 12px 12px;}
-      .nav-avatar-menu-id{min-width:0;}
-      .nav-avatar-menu-name{font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-avatar-menu-header{display:flex; align-items:center; gap:11px; padding:10px 12px 14px;}
+      /* ÜÇ SATIR ARASINDAKİ BOŞLUK (kullanıcı isteği, 2026-09-15 altıncı tur: "isim soyisim,
+         kullanıcı adı ve e-posta adresi arasındaki boşluğu arttır. Çok birbirleri içerisine
+         geçmişler."). Aralık, satırlara tek tek margin vermek yerine kapsayıcıya flex + gap ile
+         verilir: kullanıcı adı satırı KOŞULLU çizildiğinden (kolonu boş eski hesapta yok) margin
+         yaklaşımı iki ve üç satırlı hâllerde farklı sonuç verirdi, gap ikisinde de doğrudur.
+         line-height ayrıca açıldı — satırlar BÜYÜK HARF olduğundan (bkz. upperTr) varsayılan
+         sıkışık satır yüksekliği asıl "iç içe geçmiş" hissini veren şeydi. */
+      .nav-avatar-menu-id{min-width:0; display:flex; flex-direction:column; gap:5px;}
+      .nav-avatar-menu-name{font-size:13.5px; line-height:1.35; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       /* KULLANICI ADI (kullanıcı isteği, 2026-09-15 beşinci tur madde 1): "açılınca çıkan ekranda
          ismin altında kullanıcı adı, onun da altında e-posta adresi olsun". Hesabın TEK tekil
          tanıtıcısı budur (bkz. src/lib/username.js) — ad soyad tekil DEĞİL, bu yüzden menüde de
          e-postadan önce o görünür. Ad ile e-posta arasındaki ara punto/ağırlık. */
-      .nav-avatar-menu-username{font-size:12px; font-weight:600; color:var(--walnut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-      .nav-avatar-menu-email{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-avatar-menu-username{font-size:12px; line-height:1.35; font-weight:600; color:var(--walnut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-avatar-menu-email{font-size:11.5px; line-height:1.35; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-sep{height:1px; background:var(--line); margin:4px 6px;}
       .nav-avatar-menu a span, .nav-avatar-menu button span{display:flex; flex-shrink:0; color:var(--ink-soft);}
       /* mobil çekmecenin hesap bölümü — masaüstü .nav-avatar-menu-header ile aynı fikir, dokunma
          hedefleri için büyütülmüş (bkz. kullanıcı isteği: hamburger menüde giriş yapılmışsa "Giriş
          Yap" yerine hesap menüsü görünsün). */
-      .nav-mobile-account-header{display:flex; align-items:center; gap:12px; padding:6px 4px 14px;}
-      .nav-mobile-account-id{min-width:0;}
-      .nav-mobile-account-name{font-size:14.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-mobile-account-header{display:flex; align-items:center; gap:12px; padding:8px 4px 16px;}
+      /* Masaüstü .nav-avatar-menu-id ile AYNI kural ve AYNI gerekçe (bkz. oradaki yorum); aralık
+         yalnızca çekmecenin daha büyük ölçeğine göre bir tık geniş. */
+      .nav-mobile-account-id{min-width:0; display:flex; flex-direction:column; gap:6px;}
+      .nav-mobile-account-name{font-size:14.5px; line-height:1.35; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       /* Çekmecedeki kullanıcı adı — masaüstü .nav-avatar-menu-username ile AYNI sıra/gerekçe
          (kullanıcı isteği: "tablet ve mobil görünümde de açılan çekmecede isim soyisim ve e-posta
          adresinin arasına kullanıcı adını yaz"), yalnızca punto çekmecenin ölçeğine göre büyük. */
-      .nav-mobile-account-username{font-size:12.5px; font-weight:600; color:var(--walnut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-      .nav-mobile-account-email{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-mobile-account-username{font-size:12.5px; line-height:1.35; font-weight:600; color:var(--walnut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-mobile-account-email{font-size:12px; line-height:1.35; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-mobile-account-sep{height:1px; background:var(--line); margin:0 4px 8px;}
       .nav-mobile-account-links{display:flex; flex-direction:column; gap:2px;}
       .nav-mobile-account-links .nav-mobile-link span{display:flex; flex-shrink:0; color:var(--ink-soft);}

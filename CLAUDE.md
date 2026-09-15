@@ -350,6 +350,11 @@ soyisim tamamen büyük harflerden oluşsun."
 - **Kullanıcı adı satırı** ad ile e-posta ARASINDA, iki yüzeyde de. Kaynak `/api/auth/me`'nin
   `username` alanı (bkz. `src/lib/auth.js#publicUser`); "@" ön eki yalnızca ekranda eklenir (saklanan
   değerde yoktur, bkz. `src/lib/username.js`). Kolonu boş eski hesapta satır HİÇ çizilmez.
+- **Üç satırın arası** (altıncı tur: "Çok birbirleri içerisine geçmişler."): aralık, satırlara tek
+  tek margin vererek DEĞİL, kapsayıcıya (`.nav-avatar-menu-id` / `.nav-mobile-account-id`)
+  `display:flex; flex-direction:column; gap` ile verilir — kullanıcı adı satırı KOŞULLU olduğundan
+  margin, iki ve üç satırlı hâllerde farklı sonuç verirdi. `line-height:1.35` ayrıca açıldı: asıl
+  sıkışıklığı, satırlar BÜYÜK HARF olduğu hâlde varsayılan satır yüksekliğinde kalmaları yaratıyordu.
 - Testler: `scripts/test-2026-09-15-account-button-and-designer-picker.mjs` (preflight'a bağlı).
 
 ## proje-ekle: Mimar kutusu da çoklu seçim + elle giriş (2026-09-15, beşinci tur)

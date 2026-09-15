@@ -113,6 +113,30 @@ test('mobil çekmecede sıra: ad -> kullanıcı adı -> e-posta', () => {
   assert.ok(name < uname && uname < email, 'kullanıcı adı ad ile e-posta ARASINDA olmalı');
 });
 
+test('üç satır arasında nefes payı var (gap + line-height, iki yüzeyde de)', () => {
+  // Kullanıcı bildirimi, 2026-09-15 altıncı tur: "Çok birbirleri içerisine geçmişler."
+  // Aralık kapsayıcıya flex+gap ile verilmeli, satırlara margin ile DEĞİL: kullanıcı adı satırı
+  // koşulludur (kolonu boş eski hesapta çizilmez), margin iki ve üç satırlı hâllerde farklı
+  // sonuç verirdi.
+  for (const [idSel, rows] of [
+    ['nav-avatar-menu-id', ['nav-avatar-menu-name', 'nav-avatar-menu-username', 'nav-avatar-menu-email']],
+    ['nav-mobile-account-id', ['nav-mobile-account-name', 'nav-mobile-account-username', 'nav-mobile-account-email']],
+  ]) {
+    const idRule = authNav.match(new RegExp(`\\.${idSel}\\{[^}]*\\}`));
+    assert.ok(idRule, `.${idSel} kuralı yok`);
+    assert.match(idRule[0], /display:flex/, `.${idSel} flex olmalı`);
+    assert.match(idRule[0], /flex-direction:column/, `.${idSel} dikey dizilmeli`);
+    const gap = idRule[0].match(/gap:(\d+(?:\.\d+)?)px/);
+    assert.ok(gap && Number(gap[1]) >= 5, `.${idSel} satır aralığı en az 5px olmalı`);
+    for (const row of rows) {
+      const rule = authNav.match(new RegExp(`\\.${row}\\{[^}]*\\}`));
+      assert.ok(rule, `.${row} kuralı yok`);
+      const lh = rule[0].match(/line-height:(\d+(?:\.\d+)?)/);
+      assert.ok(lh && Number(lh[1]) >= 1.3, `.${row} satır yüksekliği en az 1.3 olmalı (ad BÜYÜK HARF)`);
+    }
+  }
+});
+
 test('kullanıcı adı /api/auth/me#username alanından gelir ve "@" ile gösterilir', () => {
   assert.match(authNav, /const usernameLine = user\.username \? `@\$\{user\.username\}` : '';/);
   // Kolonu boş olan eski hesapta satır HİÇ çizilmez (boş bir "@" kalmaz).
