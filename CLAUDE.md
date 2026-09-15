@@ -153,9 +153,9 @@ firma olacak ama BİRİM Design markası hariç hepsi arşivde kalsın. Tüm mar
 - **Kişi Bilgileri kutusu sayfalanır** (Firma kutusuyla aynı `renderDashPagination`): 1. sayfa
   kullanıcının kendi künyesi, sonraki sayfalar YETKİLİ olduğu firmaların kişileri (kurucu, kurucu
   ortak, ortak, ekip lideri). Kişiler `/api/office/:key`'in AYNI yanıtından okunur (ek uç/istek
-  yok), bu yüzden firmadan çıkarılan biri kutudan da düşer. "Bilgileri Düzenle" yalnızca kendi
-  künyesi sayfasındadır; firma sayfalarında onun yerine **"Profili Düzenle"** durur (kural
-  2026-09-15 üçüncü turda değişti — bkz. aşağıdaki başlık).
+  yok), bu yüzden firmadan çıkarılan biri kutudan da düşer. **"Bilgileri Düzenle" düğmesi HER
+  sayfada aynı adı taşır** ve firma sayfalarında da görünür (kural 2026-09-15 üçüncü/dördüncü
+  turda değişti — bkz. aşağıdaki başlık); sayfaya göre değişen tek şey düğmenin HEDEFİ.
 
 ## Hesap profil fotoğrafı KALDIRILDI (2026-09-15)
 
@@ -250,10 +250,15 @@ düzenleyebilsin."
 
 - **Başlık**: `.dash-head h1` 26px -> **mobilde (<=720px) 20px**; masaüstü ölçüsü değişmedi. Kural
   İKİ yüzeyde de var (Hesabım modali `js/components/auth-modal.js`, bağımsız sayfa `hesabim.html`).
-- **"Profili Düzenle"**: "Kişi Bilgileri" kutusunun FİRMA sayfalarında (1. sayfa hâlâ kullanıcının
-  kendi künyesi, "Bilgileri Düzenle") artık düğme görünür ve `kisi-ekle?claim=<kişinin slug'ı>`
-  açar — firma pop-up'ındaki "Düzenle" ile **aynı yol** (bkz. `js/components/claim-correction-box.js`).
-  Yeni bir düzenleme yolu AÇILMADI; var olan yol Hesabım'dan da erişilebilir oldu.
+- **Düğme firma sayfalarında da var**: "Kişi Bilgileri" kutusunun FİRMA sayfalarında düğme artık
+  görünür ve `kisi-ekle?claim=<kişinin slug'ı>` açar — firma pop-up'ındaki "Düzenle" ile **aynı
+  yol** (bkz. `js/components/claim-correction-box.js`). Yeni bir düzenleme yolu AÇILMADI; var olan
+  yol Hesabım'dan da erişilebilir oldu.
+- **Etiket TEK**: düğme her sayfada **"Bilgileri Düzenle"** yazar (kullanıcı isteği, dördüncü tur:
+  "kişi bilgileri kutusundaki tüm bilgilerin üstündeki butonların ismi Bilgileri Düzenle olsun").
+  Üçüncü turda firma sayfalarına kısa süre "Profili Düzenle" yazılmıştı; kutu sayfa değiştirdikçe
+  düğmenin adı da değişiyordu. Etiket TEK yerde yazılır (`renderPersonPage`), dallar yalnızca
+  hedefi ve görünürlüğü belirler.
 - **Yetki istemcide yeniden hesaplanmaz**: kutunun firma sayfaları zaten yalnızca
   `canManageFirmEntry`den geçen firmaların kişilerinden oluşur (yönetici/kurucu/kurucu ortak/ortak/
   ekip lideri ya da kaydı siteye ekleyen). Sunucu AYNI kararı kendi kapısında tekrar verir:

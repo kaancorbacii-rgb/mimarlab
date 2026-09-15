@@ -73,8 +73,18 @@ test('başlık hâlâ TAM ad soyadı yazıyor (punto isteği metni değiştirmiy
 section('madde 2 — firma kişisi sayfasında "Profili Düzenle"');
 
 test('firma kişisinde düğme kisi-ekle?claim=<slug> açıyor', () => {
-  assert.match(authModal, /editBtn\.textContent = 'Profili Düzenle';/);
   assert.match(authModal, /editBtn\.href = `\$\{CLAIM_EDIT_PAGE\.architect\}\?claim=\$\{encodeURIComponent\(personSlug\)\}`/);
+});
+
+// KULLANICI İSTEĞİ, 2026-09-15 dördüncü tur: "Hesabım sayfasındaki kişi bilgileri kutusundaki tüm
+// bilgilerin üstündeki butonların ismi Bilgileri Düzenle olsun." Üçüncü turda firma sayfalarına
+// "Profili Düzenle" yazılmıştı; kutu sayfa değiştirdikçe düğmenin adı da değişiyordu.
+test('etiket HER sayfada "Bilgileri Düzenle" — tek yerde yazılıyor', () => {
+  assert.match(authModal, /if \(editBtn\) editBtn\.textContent = 'Bilgileri Düzenle';/);
+  assert.ok(!/editBtn\.textContent = 'Profili Düzenle'/.test(authModal),
+    'kişi kutusunun düğmesi yeniden sayfaya göre ad değiştiriyor');
+  // Kutunun HTML'indeki başlangıç etiketi de aynı olmalı (ilk çizimde yanıp sönmesin).
+  assert.match(authModal, /id="am-dash-edit-btn" href="\/kisi-ekle">Bilgileri Düzenle<\/a>/);
 });
 
 test('sitede kaydı olmayan ad (slug yok) için düğme GİZLİ', () => {
@@ -83,8 +93,7 @@ test('sitede kaydı olmayan ad (slug yok) için düğme GİZLİ', () => {
 });
 
 test('kendi künyesinde eski davranış korunuyor', () => {
-  assert.match(authModal, /editBtn\.textContent = 'Bilgileri Düzenle';/);
-  assert.match(authModal, /renderPersonEditBtn\(\);/);
+  assert.match(authModal, /if \(isSelf\) \{\s*\n\s*if \(editBtn\) editBtn\.style\.display = '';\s*\n\s*renderPersonEditBtn\(\);/);
   // Eski koşulsuz gizleme (isSelf değilse düğme yok) geri gelmemeli.
   assert.ok(!/editBtn\.style\.display = isSelf \? '' : 'none';/.test(authModal),
     'düğme yeniden yalnızca kendi künyesine kilitlenmiş');
