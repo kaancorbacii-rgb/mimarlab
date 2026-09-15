@@ -749,17 +749,19 @@ else
 fi
 rm -f /tmp/preflight_offseed
 
-# İÇERİĞİ HİÇ OLMAYAN BLURLU FİRMALARIN ARŞİVLENMESİ (kullanıcı isteği, 2026-09-15 on ikinci tur):
-# "boş" kararı src/lib/emptyOfficeAudit.js'te TEK yerde durur ve veriyi firma pop-up'ının CANLI
-# kodundan (office.js#buildOfficePayload) + arşiv cascade'inin toplayıcısından alır — betiğin kendi
-# proje/ürün sorgusu YOK. Bkz. scripts/test-2026-09-15-archive-empty-preview-offices.mjs.
-if node scripts/test-2026-09-15-archive-empty-preview-offices.mjs >/tmp/preflight_emptyoffice 2>&1; then
-  ok "boş blurlu firma arşivi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_emptyoffice) test)"
+# İÇERİĞİ HİÇ OLMAYAN BLURLU PROFİLLERİN ARŞİVLENMESİ — FİRMA + KİŞİ (kullanıcı isteği,
+# 2026-09-15 on ikinci ve on üçüncü tur): "boş" kararı src/lib/emptyProfileAudit.js'te TEK yerde
+# durur ve veriyi pop-up'ları çizen CANLI koddan (office.js#buildOfficePayload /
+# architect.js#buildArchitectPayload) + firma tarafında arşiv cascade'inin toplayıcısından alır —
+# betiğin kendi proje/ürün sorgusu YOK. SAHİPLİ profil (üye kaydı / atama / danışman) asla
+# arşivlenmez. Bkz. scripts/test-2026-09-15-archive-empty-preview-profiles.mjs.
+if node scripts/test-2026-09-15-archive-empty-preview-profiles.mjs >/tmp/preflight_emptyprofile 2>&1; then
+  ok "boş blurlu profil arşivi testleri geçti ($(grep -c '^  ok ' /tmp/preflight_emptyprofile) test)"
 else
-  bad "boş blurlu firma arşivi testleri BAŞARISIZ:"
-  tail -25 /tmp/preflight_emptyoffice >&2
+  bad "boş blurlu profil arşivi testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_emptyprofile >&2
 fi
-rm -f /tmp/preflight_emptyoffice
+rm -f /tmp/preflight_emptyprofile
 
 # Gündem KULLANICI GÖNDERİLERİ (kullanıcı isteği, 2026-09-11): gönder → admin onayı → public liste +
 # profil şeridi; sahibin düzenlemesi yeniden onaya düşer; yayın kapısı yalnızca admin moderate ucu.

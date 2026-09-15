@@ -666,43 +666,67 @@ yayınlansın."
   ayrışma geri gelirse kelepçe orada kırılır. `test-2026-09-11-office-publish-cascade.mjs`'teki
   "ZATEN CANLI firmayı kaydetmek grafı tetiklemez" testi bu turda TERSİNE çevrildi (eski dar kural).
 
-## İçeriği hiç olmayan blurlu firmalar arşive alındı (2026-09-15, on ikinci tur)
+## İçeriği hiç olmayan blurlu profiller arşive alındı — FİRMA + KİŞİ (2026-09-15, on ikinci/on üçüncü tur)
 
 Kullanıcı isteği: "Sitede hiç kurucusu, kurucu ortağı, ortağı, projesi, çektiği fotoğraflar bölümü
-veya ürünü olmayan blurlu firmaları arşive al."
+veya ürünü olmayan blurlu firmaları arşive al." + "Aynı şekilde blurlu kişileri de kontrol et."
 
-- **"Boş" kararı TEK yerde**: `src/lib/emptyOfficeAudit.js#auditOfficeContent`. Saf bir fonksiyondur,
-  **hiçbir veriyi kendi okumaz** — firma pop-up'ını çizen CANLI kodun çıktısını
-  (`src/routes/office.js#buildOfficePayload`) ve arşiv cascade'inin KENDİ toplayıcısının çıktısını
-  (`src/lib/officeArchiveCascade.js#collectOfficeArchiveTargets`) hazır alır. Betiğin kendi
-  "bu firmanın projesi var mı" sorgusu YOKTUR: olsaydı pop-up bir bölümü değiştirdiği gün betik
-  "boş" demeye devam eder ve sitede içeriği GÖRÜNEN bir firmayı arşivlerdi (preflight bunu dosya
-  taramasıyla da arıyor).
+- **"Boş" kararı TEK yerde, İKİ TİP için**: `src/lib/emptyProfileAudit.js#auditProfileContent`. Saf
+  bir fonksiyondur, **hiçbir veriyi kendi okumaz** — pop-up'ları çizen CANLI kodun çıktısını
+  (`office.js#buildOfficePayload` / `architect.js#buildArchitectPayload`) ve firma tarafında arşiv
+  cascade'inin KENDİ toplayıcısının çıktısını (`officeArchiveCascade.js#collectOfficeArchiveTargets`)
+  hazır alır. Betiğin kendi "bu profilin projesi var mı" sorgusu YOKTUR: olsaydı pop-up bir bölümü
+  değiştirdiği gün betik "boş" demeye devam eder ve sitede içeriği GÖRÜNEN bir profili arşivlerdi
+  (preflight bunu dosya taramasıyla da arıyor). **İki tip AYNI dosyada**: ayrı iki modül, "sahipli
+  profile dokunma" gibi ORTAK kapıların birinde unutulacağı tek yer olurdu.
 - **Bağımlılık yönü korundu**: bu depoda `src/lib -> src/routes` yönünde import HİÇ yok (ölçüldü).
-  Bu yüzden kural lib'de saf kalır, `buildOfficePayload` çağrısını çağıran (betik/test) yapar.
-- **ALTI KAPI**, hepsi boşsa arşivlenir: (1) Kurucular/Ortaklar, (2) Ekip, (3) Projeler,
-  (4) Ürünler + Yapı Malzemeleri, (5) künyelerde fotoğrafçı olarak geçen ad, (6) arşivleme
-  cascade'inin götüreceği/koruyacağı herhangi bir kayıt.
-  * **Ekip (2) kullanıcının saydığı dört kalemde YOK** ama kapı sayılıyor: tek bir ekip üyesi bile
-    pop-up'ta GÖRÜNEN içeriktir. Rapor bunları `emptyByUserRule` ile AYRI listeler ("korundu — ...
-    ama başka bir bağı var") ki kapsamı genişletme kararı kullanıcıda kalsın.
-  * **Cascade (6)** pop-up'ın görmediği YAPISAL bağları yakalar — örn. `architects.office_id` ile
-    bağlı ama `office_founders` satırı olmayan bir kişi: cascade onu arşivler, pop-up onu hiç
-    çizmez. `skipped` de sayılır; "ortak künye koruması" bir kaydın VAR olduğunun kanıtıdır.
-  * **"Projelerde Kullanılan Ürünler" BİLEREK sayılmaz**: o küme firmanın KENDİ projelerinden
-    türer, projesi olmayan firmada tanımı gereği boştur.
+  Kural lib'de saf kalır, `buildXPayload` çağrısını çağıran (betik/test) yapar.
+- **FİRMA kapıları**: (1) Kurucular/Ortaklar, (2) Ekip, (3) Projeler, (4) Ürünler + Yapı
+  Malzemeleri, (5) künyelerde fotoğrafçı olarak geçen ad, (6) arşiv cascade'inin
+  götüreceği/koruyacağı herhangi bir kayıt, (7) SAHİPLİK.
+- **KİŞİ kapıları**: (1) Firma (birincil firma + kurucu/ortak olduğu firmalar + künyeye serbest
+  metin yazılmış firma adları — firma tarafındaki "Kurucular/Ortaklar"ın AYNADAKİ karşılığı),
+  (2) Projeler, (3) **Fotoğrafladığı Projeler**, (4) Tasarladığı Ürünler, (5) **Portfolyo**
+  (`migrations/0105`), (6) künyede fotoğrafçı adı, (7) **yapısal kenar**, (8) SAHİPLİK.
+- **SAHİPLİK KAPISI (2026-09-15 on üçüncü tur, İKİ TİPTE de)** — `fetchOwnership`: bir profil bomboş
+  görünse bile arşivlenmez, eğer (a) `claimed_by_user_id` doluysa (kaydı ekleyen üye — bkz. "Kaydı
+  ekleyen, o kaydın yöneticisidir"), (b) `profile_claims`'te **approved VEYA pending** satırı varsa
+  (admin ataması / bekleyen sahiplenme talebi), (c) kişi tarafında `consultants` satırı varsa
+  (durumuna bakılmaksızın). Gerekçe: "içeriği yok" ile "sahibi yok" AYNI ŞEY DEĞİLDİR — henüz proje
+  eklememiş yeni bir üyenin kaydı tam olarak bu durumdadır ve arşiv onu hem siteden hem üyenin
+  Hesabım kutusundan düşürürdü; onaylı bir danışmanı arşivlemek ise /danismanlik kartını ve randevu
+  kapısını kırardı.
+- **KİŞİDE "pop-up'ın görmediği bağ" kapısı `fetchArchitectLinkIds`**: firma tarafında bu işi arşiv
+  cascade'i yapıyor; kişiyi arşivlemek hiçbir şeyi beraberinde götürmediğinden
+  (`legacyContent.js#archiveOfficeGraph`'ın `type !== 'offices'` kapısı) kişide öyle bir toplayıcı
+  YOK. En somut vaka: `product_architects` satırı olan ama adı `products.designer` METNİNDE geçmeyen
+  bir tasarımcı — "Tasarladığı Ürünler" o metinle süzüldüğü için (bkz. `architect.js#relatedProducts`)
+  pop-up BOŞ görünür, oysa kayıt gerçek bir tasarım bağı taşır. Dört kenar tek taramada okunur
+  (`office_founders`, `project_designers`, `project_photographers`, `product_architects`), görünürlük
+  süzgeci BİLEREK yok.
+- **Türetilmiş bölümler SAYILMAZ** (iki tipte de aynı gerekçe: profilin KENDİ projelerinden/firmasından
+  türerler, yani asıl kapı zaten boşsa tanımı gereği boşturlar): firmada "Projelerde Kullanılan
+  Ürünler/Firmalar", "Tercih Eden Firmalar/Mimarlar"; kişide "Ortaklar", "Ekip Arkadaşları",
+  "Tercih Ettiği Firmalar", "Kullandığı Ürünler". Öneri şeritleri ("Şehirdeki Diğer Firmalar",
+  "MİMARLAB'daki Diğer Kişiler") içerik değildir.
 - **Fotoğrafçı bağı FİRMA tarafında ŞEMADA YOK**: `project_photographers` yalnızca `architect_id`
   tutar (bkz. `migrations/0080`). Firma karşılığı okuma anında ADDAN çözülür
-  (`project.js#fetchPhotographerOfficeDetails`). `emptyOfficeAudit.js#fetchPhotographerNameFolds` o
-  eşleşmenin TERSİDİR ve AYNI iki kuralı kullanır (virgülle ayırma + `foldTr`); tek taramayla tüm
-  firmalara yeter. Kapsam bilerek geniş: arşivdeki projelerin künyeleri de okunur (yalnızca DAHA AZ
-  firma arşivlenir — güvenli yön).
+  (`project.js#fetchPhotographerOfficeDetails`). `fetchPhotographerNameFolds` o eşleşmenin TERSİDİR
+  ve AYNI iki kuralı kullanır (virgülle ayırma + `foldTr`); kişi tarafında YEDEK kapıdır (kenar
+  tablosuna hiç bağlanmamış ad da korunur). Kapsam bilerek geniş: arşivdeki projelerin künyeleri de
+  okunur — yalnızca DAHA AZ profil arşivlenir, güvenli yön.
 - **Havuz**: yalnızca `hidden_at DOLU + preview_at DOLU` (blurlu). Yayındakine DOKUNULMAZ, tam
   arşivdeki zaten hedef durumdadır.
-- **Yazma canlı koddan**: `runContentAction(env, user, { type:'offices', action:'archive', key:name })`
-  — elle `UPDATE ... hidden_at` YAZILMAZ, aksi halde geri alınabilirliği sağlayan `office_submissions`
-  taslağı hiç oluşmaz (bkz. archive-brands-and-products.mjs'teki aynı gerekçe).
-- **Çalıştırma**: `scripts/archive-empty-preview-offices.mjs` + `.github/workflows/archive-empty-preview-offices.yml`
-  (`workflow_dispatch`, **varsayılan dry-run**, yazmak için `apply=evet`, `expect=N` sayım kapısı).
-  Uzak (web/telefon) oturumdan ÇALIŞTIRILAMAZ — api.cloudflare.com kapalı.
-- Testler: `scripts/test-2026-09-15-archive-empty-preview-offices.mjs` (14 test, preflight'a bağlı).
+- **Yazma canlı koddan**: `runContentAction(env, user, { type: KIND, action:'archive', key:name })`
+  — elle `UPDATE ... hidden_at` YAZILMAZ, aksi halde geri alınabilirliği sağlayan `*_submissions`
+  taslağı hiç oluşmaz.
+- **Çalıştırma**: `scripts/archive-empty-preview-profiles.mjs` +
+  `.github/workflows/archive-empty-preview-profiles.yml` (`workflow_dispatch`; `type=architects|offices`,
+  **varsayılan dry-run**, yazmak için `apply=evet`, `expect=N` sayım kapısı). Uzak (web/telefon)
+  oturumdan ÇALIŞTIRILAMAZ — api.cloudflare.com kapalı.
+  * **`audit_archived=evet` (DENETİM modu)**: arşivdeki (hidden_at DOLU + preview_at BOŞ) ama
+    SAHİPLİ kayıtları listeler, hiçbir şey yazmaz. Sahiplik kapısı on üçüncü turda eklendiği için,
+    **on ikinci turda arşivlenen 77 firmanın** yanlışlıkla bir üye kaydını düşürüp düşürmediğini
+    denetlemenin yolu budur.
+- Testler: `scripts/test-2026-09-15-archive-empty-preview-profiles.mjs` (30 test, preflight'a bağlı)
+  — her kapı İKİ TİP için de tek tek kelepçelenir.

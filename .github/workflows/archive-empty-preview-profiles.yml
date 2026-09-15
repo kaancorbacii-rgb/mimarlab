@@ -1,7 +1,10 @@
-name: İçeriği hiç olmayan blurlu firmaları arşive al
+name: İçeriği hiç olmayan blurlu profilleri arşive al (firma / kişi)
 
-# BLURLU (ÖNİZLEME) FİRMALARDAN hiç kurucusu/kurucu ortağı/ortağı, projesi, fotoğraf künyesi ve ürünü
-# OLMAYANLARI arşive alır (kullanıcı isteği, 2026-09-15 on ikinci tur).
+# BLURLU (ÖNİZLEME) FİRMA ve KİŞİ profillerinden pop-up'ında gösterilecek HİÇBİR ŞEYİ olmayanları
+# arşive alır (kullanıcı isteği, 2026-09-15 on ikinci tur: firmalar; on üçüncü tur: kişiler).
+#
+# SAHİPLİ profiller ASLA arşivlenmez (üye kaydı / admin ataması / danışman başvurusu) — boş görünen
+# bir kayıt bir üyenin Hesabım kutusunu ya da /danismanlik kartını besliyor olabilir.
 #
 # NEDEN WORKFLOW: uzak (web/telefon) Claude oturumundan api.cloudflare.com çıkışı ağ politikasıyla
 # kapalı — D1'e oradan hiç yazılamaz. archive-brands-and-products.yml'in kardeşi, AYNI desen.
@@ -15,9 +18,21 @@ name: İçeriği hiç olmayan blurlu firmaları arşive al
 on:
   workflow_dispatch:
     inputs:
+      type:
+        description: 'Hangi profil tipi'
+        required: true
+        default: 'architects'
+        type: choice
+        options: ['architects', 'offices']
       apply:
         description: "D1'e YAZ (evet = gerçekten arşivle, hayir = yalnızca liste)"
         required: true
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+      audit_archived:
+        description: 'DENETİM: arşivdeki SAHİPLİ kayıtları listele (hiçbir şey yazmaz)'
+        required: false
         default: 'hayir'
         type: choice
         options: ['hayir', 'evet']
@@ -27,14 +42,14 @@ on:
         default: ''
 
 concurrency:
-  group: mimarlab-archive-empty-offices
+  group: mimarlab-archive-empty-profiles
   cancel-in-progress: false
 
 jobs:
   archive:
     runs-on: ubuntu-latest
-    # Her blurlu firma için firma pop-up'ının TAMAMI (buildOfficePayload) + arşiv cascade toplayıcısı
-    # çalışır, yani firma başına onlarca D1 turu düşer.
+    # Her blurlu profil için pop-up'ın TAMAMI (buildOfficePayload / buildArchitectPayload) + firma
+    # tarafında arşiv cascade toplayıcısı çalışır, yani profil başına onlarca D1 turu düşer.
     timeout-minutes: 90
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -77,34 +92,43 @@ jobs:
 
       - name: Arşivle
         env:
+          IN_TYPE: ${{ inputs.type }}
           IN_APPLY: ${{ inputs.apply }}
+          IN_AUDIT: ${{ inputs.audit_archived }}
           IN_EXPECT: ${{ inputs.expect }}
         run: |
           set -o pipefail
           # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ (script-injection savunması); `bash -e`
           # altında `[ x ] && cmd` adımı düşürebildiği için her yerde açık `if`.
-          argv=()
-          if [ "${IN_APPLY}" = "evet" ]; then argv+=("--apply"); fi
+          case "${IN_TYPE}" in architects|offices) ;; *) echo "type 'architects' ya da 'offices' olmalı" >&2; exit 1 ;; esac
+          argv=("--type=${IN_TYPE}")
+          if [ "${IN_AUDIT}" = "evet" ]; then
+            argv+=("--audit-archived")
+          elif [ "${IN_APPLY}" = "evet" ]; then
+            argv+=("--apply")
+          fi
           if [ -n "${IN_EXPECT}" ]; then
             case "${IN_EXPECT}" in *[!0-9]*) echo "expect sayı olmalı" >&2; exit 1 ;; esac
             argv+=("--expect=${IN_EXPECT}")
           fi
-          echo "Çalıştırılıyor: node scripts/archive-empty-preview-offices.mjs ${argv[*]}"
-          node scripts/archive-empty-preview-offices.mjs "${argv[@]}" 2>&1 | tee archive-empty-offices-log.txt
+          echo "Çalıştırılıyor: node scripts/archive-empty-preview-profiles.mjs ${argv[*]}"
+          node scripts/archive-empty-preview-profiles.mjs "${argv[@]}" 2>&1 | tee archive-empty-profiles-log.txt
 
       - name: Rapor (artifact)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: archive-empty-offices-log
-          path: archive-empty-offices-log.txt
+          name: archive-empty-profiles-log-${{ inputs.type }}
+          path: archive-empty-profiles-log.txt
           if-no-files-found: warn
 
       - name: Özet
         if: always()
         run: |
-          if [ "${{ inputs.apply }}" = "evet" ]; then
-            echo "UYGULANDI (log'a bakın): içeriği hiç olmayan blurlu firmalar arşive alındı."
+          if [ "${{ inputs.audit_archived }}" = "evet" ]; then
+            echo "DENETİM (D1'e yazılmadı): arşivdeki sahipli kayıtlar log'da listelendi."
+          elif [ "${{ inputs.apply }}" = "evet" ]; then
+            echo "UYGULANDI (log'a bakın): içeriği hiç olmayan blurlu profiller arşive alındı."
           else
             echo "ÖNİZLEME (D1'e yazılmadı). Gerçekten arşivlemek için apply=evet ile tekrar çalıştırın."
           fi
