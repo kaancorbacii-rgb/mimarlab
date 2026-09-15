@@ -3310,14 +3310,20 @@ const AuthModal = (function () {
       // SITEDE KAYDI OLMAYAN AD (slug yok — künyenin Kurucular/Ekip kutusuna serbest metin olarak
       // yazılmış bir isim) düzenlenemez: ?claim= canonical bir satır ister, aksi halde form boş
       // açılır ve kaydetme "Bu profil artık bu adla mevcut değil" ile reddedilirdi.
+      //
+      // ETİKET HER SAYFADA AYNI (kullanıcı isteği, 2026-09-15 dördüncü tur: "Hesabım sayfasındaki
+      // kişi bilgileri kutusundaki TÜM bilgilerin üstündeki butonların ismi Bilgileri Düzenle
+      // olsun"). Üçüncü turda firma sayfalarına "Profili Düzenle" yazılmıştı; kutu sayfa
+      // değiştirdikçe düğmenin adı da değişiyordu. Tek etiket TEK yerde yazılır ki dallar
+      // ayrışmasın — değişen tek şey düğmenin HEDEFİ ve görünürlüğü.
       const editBtn = document.getElementById('am-dash-edit-btn');
+      if (editBtn) editBtn.textContent = 'Bilgileri Düzenle';
       if (isSelf) {
-        if (editBtn) { editBtn.style.display = ''; editBtn.textContent = 'Bilgileri Düzenle'; }
+        if (editBtn) editBtn.style.display = '';
         renderPersonEditBtn();
       } else if (editBtn) {
         const personSlug = (rec && rec.slug) || '';
         editBtn.style.display = personSlug ? '' : 'none';
-        editBtn.textContent = 'Profili Düzenle';
         if (personSlug) editBtn.href = `${CLAIM_EDIT_PAGE.architect}?claim=${encodeURIComponent(personSlug)}`;
       }
 

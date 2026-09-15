@@ -228,9 +228,10 @@ test('sayfalama firma kutusuyla AYNI bileşen', () => {
 // butona tıklayarak firmadaki tüm kişilerin popuplarını düzenleyebilsin." Bu testin eski hâli o
 // isteği engellerdi; yerine İKİ dalın da doğru davrandığı sabitlenir. Ayrıntılı sözleşme:
 // scripts/test-2026-09-15-account-title-and-firm-person-edit.mjs.
-test('düğme: kendi künyesinde "Bilgileri Düzenle", firma kişisinde "Profili Düzenle"', () => {
-  assert.match(authModal, /editBtn\.textContent = 'Bilgileri Düzenle';/);
-  assert.match(authModal, /editBtn\.textContent = 'Profili Düzenle';/);
+test('düğme her sayfada "Bilgileri Düzenle", hedefi sayfaya göre değişir', () => {
+  // Etiket tek yerde (kullanıcı isteği, 2026-09-15 dördüncü tur); dallar yalnızca HEDEF ve
+  // görünürlük belirler.
+  assert.match(authModal, /if \(editBtn\) editBtn\.textContent = 'Bilgileri Düzenle';/);
   // Firma kişisinde hedef, firma pop-up'ındaki Düzenle ile AYNI yol (kisi-ekle?claim=<slug>).
   assert.match(authModal, /editBtn\.href = `\$\{CLAIM_EDIT_PAGE\.architect\}\?claim=\$\{encodeURIComponent\(personSlug\)\}`/);
   // Sitede kaydı olmayan ad (slug yok) düzenlenemez -> düğme gizli.
