@@ -165,8 +165,12 @@ const ConsultationModal = (function () {
         .cns-method-radio{flex-shrink:0; width:16px; height:16px; margin-top:1px; border-radius:50%; border:1.5px solid var(--ink-soft); position:relative;}
         .cns-method.active .cns-method-radio{border-color:var(--ink);}
         .cns-method.active .cns-method-radio::after{content:''; position:absolute; inset:3px; border-radius:50%; background:var(--ink);}
-        .cns-method-name{font-size:13.5px; font-weight:700;}
-        .cns-method-desc{font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:2px;}
+        /* display:block — GERÇEK BULGU (2026-09-15, ödeme ekranı ekran görüntüsünde yakalandı):
+           ikisi de <span> olduğundan satır içi akıyor ve ad ile açıklama yapışık çıkıyordu
+           ("Havale / EFTIBAN'a transfer et…"). .cns-method-desc'in margin-top'u da satır içi bir
+           elemanda etkisizdi. */
+        .cns-method-name{display:block; font-size:13.5px; font-weight:700;}
+        .cns-method-desc{display:block; font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:2px;}
         /* Pasif ödeme yöntemi (kullanıcı isteği, 2026-09-15: kart görünür ama "Henüz aktif
            değil."). Gizlemek YERİNE soluk+tıklanamaz gösterilir — kullanıcı yöntemin var
            olduğunu ama henüz açılmadığını görsün. */
