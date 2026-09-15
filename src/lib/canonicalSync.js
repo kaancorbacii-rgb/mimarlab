@@ -30,7 +30,7 @@ import { slugify } from './slugify.js';
 // trLower/foldTr artık src/lib/textMatch.js'ten gelir — bu dosyadaki birebir aynı yerel kopya
 // 2026-09-10'da kaldırıldı: Unicode NFC adımı (ayrışık yazılmış "doçem"in hiçbir şey bulamaması,
 // bkz. o dosyanın başındaki kök neden) altı ayrı kopyaya birden eklenemezdi.
-import { foldTr } from './textMatch.js';
+import { foldTr, dedupeNamesTr } from './textMatch.js';
 // Künyeden çıkarılan firma/kişi için 1 günlük düzenleme yetkisi penceresi (kullanıcı isteği,
 // 2026-09-10 madde 2) — bkz. syncProject'teki project_designers yeniden yazma bloğu.
 import { recordProjectEditGrace, clearProjectEditGrace } from './projectEditGrace.js';
@@ -1329,7 +1329,15 @@ async function syncProject(env, row, opts = {}) {
   // batch DIŞINDA önce yapılır; DELETE + gerçek INSERT'ler ise TEK bir env.DB.batch() ile atomik
   // yazılır — `target` yalnızca UPDATE dalında (yukarı) doluysa DELETE'e gerek vardır, yeni bir
   // projede (INSERT dalı) silinecek eski satır yoktur.
-  if ((row.designer && row.designer.length) || (row.office && row.office.length)) {
+  // KÜNYE AD LİSTELERİ — SON KAPI (kullanıcı isteği, 2026-09-15 beşinci tur madde 3). Gönderi
+  // kaydedilirken de tekilleştiriliyor (bkz. submissionTypes.js#nameArrayFields), ama canonical'a
+  // yazan tek yol burasıdır ve DAHA ESKİ gönderi satırları (bu değişiklikten önce kaydedilmiş,
+  // mükerrer ad taşıyan) her yeniden senkronda buradan geçer — o yüzden tekilleştirme aşağıdaki
+  // ÜÇ tüketicinin de (project_designers bağları, designer_names_raw/office_names_raw, düzenleme
+  // yetkisi damgası) ortak girdisinde, tek seferde yapılır.
+  const designerNames = dedupeNamesTr(row.designer || []);
+  const officeNames = dedupeNamesTr(row.office || []);
+  if (designerNames.length || officeNames.length) {
     // KÜNYEDEN ÇIKARILAN ADLAR — 1 günlük düzenleme yetkisi penceresi için (kullanıcı isteği,
     // 2026-09-10 madde 2; bkz. src/lib/projectEditGrace.js ve migrations/0109_project_edit_grace.sql).
     // Eski küme, DELETE'ten ÖNCE okunmak ZORUNDA: aşağıdaki batch project_designers'ı baştan yazar,
@@ -1347,11 +1355,11 @@ async function syncProject(env, row, opts = {}) {
       : [];
 
     const links = [];
-    for (const name of (row.designer || [])) {
+    for (const name of designerNames) {
       const resolved = await resolveArchitectLink(env, name, `project_submission:${row.id}`);
       if (resolved) links.push(resolved);
     }
-    for (const name of (row.office || [])) {
+    for (const name of officeNames) {
       const resolved = await resolveOfficeLink(env, name, `project_submission:${row.id}`);
       if (resolved) links.push(resolved);
     }
@@ -1369,14 +1377,14 @@ async function syncProject(env, row, opts = {}) {
     // AYNI batch'te ve AYNI kapının içinde yazılır: künye baştan yazıldığında iki kaynak birlikte
     // tazelenmeli, aksi halde silinen bir ad ham listede hayatta kalırdı.
     statements.push(env.DB.prepare(`UPDATE projects SET designer_names_raw = ?, office_names_raw = ? WHERE id = ?`)
-      .bind(JSON.stringify(row.designer || []), JSON.stringify(row.office || []), projectId));
+      .bind(JSON.stringify(designerNames), JSON.stringify(officeNames), projectId));
     if (statements.length) await env.DB.batch(statements);
 
     // Yeni künye adları: resolve edilen id'lerden DEĞİL, formda yazılan adlardan okunur — damga
     // profile_claims.profile_key (= çıplak ad) ile eşleşir, id ile değil.
     const currentNames = {
-      architects: [...(row.designer || [])],
-      offices: [...(row.office || [])],
+      architects: [...designerNames],
+      offices: [...officeNames],
     };
     const foldName = (n) => foldTr(String(n || '').trim());
     const currentArchFold = new Set(currentNames.architects.map(foldName));

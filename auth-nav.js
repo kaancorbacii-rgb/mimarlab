@@ -3,6 +3,18 @@
   function firstName(name) {
     return (name || '').trim().split(/\s+/)[0] || 'Hesabım';
   }
+  // TÜRKÇE BÜYÜK HARF (kullanıcı isteği, 2026-09-15 beşinci tur madde 1 eki): "ana menüde çıkan
+  // ismin büyük harflerle yazılmasını ... açılan alt menüdeki ve ... yan çekmecede açılan isim ve
+  // soyisim tamamen büyük harflerden oluşmasını ekle."
+  //
+  // CSS text-transform:uppercase DEĞİL, bilinçli: o dönüşüm tarayıcının Türkçe yerel verisine
+  // (lang="tr") bağlıdır ve "i" -> "I" üreten bir ortamda "İstanbul" -> "ISTANBUL" olurdu. Burada
+  // ayrım açıkça yazılır (i -> İ, ı -> I) — src/lib/textMatch.js#upperFirstTr ile AYNI gerekçe ve
+  // AYNI yöntem. HTML kaçışından ÖNCE çağrılmalı: kaçırılmış bir metni büyütmek "&amp;"yi
+  // "&AMP;"ye çevirip bozardı.
+  function upperTr(s) {
+    return String(s == null ? '' : s).replace(/i/g, 'İ').replace(/ı/g, 'I').toLocaleUpperCase('tr-TR');
+  }
   function escapeHtml(s) {
     const d = document.createElement('div');
     d.textContent = s;
@@ -42,7 +54,25 @@
          kaldığı her düzende (ör. .nav-right flex olmayan bir barındırıcıda) avatarın uzağına kayardı. */
       /* Simetrik yatay dolgu: soldaki dar 5px, artık ÇİZİLMEYEN avatar dairesi içindi (kullanıcı
          isteği, 2026-09-15 madde 2) — daire gidince düğme sola yaslanmış görünüyordu. */
-      .nav-avatar{position:relative; display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:9px 16px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
+      /* DOLU KOYU MAVİ DÜĞME (kullanıcı isteği, 2026-09-15 beşinci tur madde 1): "masaüstü
+         görünümünde hesaba giriş yapınca ana menüdeki hesap ismi yazan butonu ... giriş yap butonu
+         gibi koyu mavi yap ve üzerindeki isim yazısı beyaz olsun". Referans, her sayfanın KENDİ
+         <style>'ındaki .nav-rate:hover kuralıdır (background:var(--ink); color:var(--paper-card)) — yani
+         "Giriş Yap"ın dolu hâli; oturum açık düğme artık o görünümü SÜREKLİ taşır ve iki düğme
+         (anonim / oturum açık) üst menüde aynı ağırlıkta durur. Hover'da .nav-mobile-cta ile AYNI
+         koyulaşma (var(--walnut)). */
+      /* Punto, YANINDAKİ sayfa başlıklarıyla aynı (kullanıcı isteği, aynı maddenin eki): her
+         sayfanın KENDİ <style>'ındaki .nav-link 14.5px'tir (PROJE/KİŞİ/FİRMA/ÜRÜN/GÜNDEM) —
+         düğme 13.5px'ten oraya çekildi. Ad BÜYÜK HARFLE yazılır, ama dönüşüm CSS'te değil
+         JS'te yapılır (bkz. upperTr): text-transform Türkçe 'i' harfini ortamın yerel verisine
+         göre yanlış büyütebilir. */
+      .nav-avatar{position:relative; display:flex; align-items:center; gap:9px; border:1px solid var(--ink); border-radius:100px; padding:9px 16px; background:var(--ink); font-size:14.5px; font-weight:600; cursor:pointer; color:var(--paper-card); font-family:inherit;}
+      .nav-avatar:hover{background:var(--walnut); border-color:var(--walnut);}
+      /* İsmin SOLUNDAKİ nokta (aynı istek: "ismin soluna ortaya bir nokta işareti koy") — dikey
+         olarak ortalı (flex align-items:center), rengi yazının rengiyle aynı (currentColor), yani
+         koyu düğme üstünde beyaz. Sağ üst köşedeki TURUNCU .nav-avatar-alert'ten (bildirim/mesaj
+         işareti) bilinçli olarak AYRI: bu nokta dekoratiftir, her zaman görünür ve durum taşımaz. */
+      .nav-avatar-dot{display:block; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0;}
       .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:240px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
       .nav-avatar-menu.open{display:flex;}
       .nav-avatar-menu a, .nav-avatar-menu button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
@@ -50,6 +80,11 @@
       .nav-avatar-menu-header{display:flex; align-items:center; gap:11px; padding:8px 12px 12px;}
       .nav-avatar-menu-id{min-width:0;}
       .nav-avatar-menu-name{font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      /* KULLANICI ADI (kullanıcı isteği, 2026-09-15 beşinci tur madde 1): "açılınca çıkan ekranda
+         ismin altında kullanıcı adı, onun da altında e-posta adresi olsun". Hesabın TEK tekil
+         tanıtıcısı budur (bkz. src/lib/username.js) — ad soyad tekil DEĞİL, bu yüzden menüde de
+         e-postadan önce o görünür. Ad ile e-posta arasındaki ara punto/ağırlık. */
+      .nav-avatar-menu-username{font-size:12px; font-weight:600; color:var(--walnut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-email{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-sep{height:1px; background:var(--line); margin:4px 6px;}
       .nav-avatar-menu a span, .nav-avatar-menu button span{display:flex; flex-shrink:0; color:var(--ink-soft);}
@@ -59,6 +94,10 @@
       .nav-mobile-account-header{display:flex; align-items:center; gap:12px; padding:6px 4px 14px;}
       .nav-mobile-account-id{min-width:0;}
       .nav-mobile-account-name{font-size:14.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      /* Çekmecedeki kullanıcı adı — masaüstü .nav-avatar-menu-username ile AYNI sıra/gerekçe
+         (kullanıcı isteği: "tablet ve mobil görünümde de açılan çekmecede isim soyisim ve e-posta
+         adresinin arasına kullanıcı adını yaz"), yalnızca punto çekmecenin ölçeğine göre büyük. */
+      .nav-mobile-account-username{font-size:12.5px; font-weight:600; color:var(--walnut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-mobile-account-email{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-mobile-account-sep{height:1px; background:var(--line); margin:0 4px 8px;}
       .nav-mobile-account-links{display:flex; flex-direction:column; gap:2px;}
@@ -83,7 +122,9 @@
          <i> o seçicilerin hiçbirine takılmaz, böylece spesifiklik yarışına girmeden doğru çalışır. */
       .nav-alert-dot{display:none; width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0;}
       .nav-alert-dot.show{display:inline-block;}
-      .nav-avatar-alert{display:none; position:absolute; top:-1px; right:-1px; width:9px; height:9px; border-radius:50%; background:var(--accent); border:2px solid var(--paper-card); box-sizing:content-box;}
+      /* Halka rengi düğmenin ARKA PLANIYLA aynı olmalı ki nokta ondan ayrılmış görünsün — düğme
+         dolu koyu maviye döndüğünden (yukarısı) bu değer var(--paper-card)'tan var(--ink)'e geçti. */
+      .nav-avatar-alert{display:none; position:absolute; top:-1px; right:-1px; width:9px; height:9px; border-radius:50%; background:var(--accent); border:2px solid var(--ink); box-sizing:content-box;}
       .nav-avatar-alert.show{display:block;}
     `;
     document.head.appendChild(style);
@@ -172,6 +213,13 @@
 
     injectStyleOnce();
     const adminLink = user.role === 'admin' ? `<a href="/admin"><span>${ICON_ADMIN}</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>` : '';
+    // KULLANICI ADI SATIRI (kullanıcı isteği, 2026-09-15 beşinci tur madde 1) — masaüstü açılır
+    // menüde ve mobil çekmecede AYNI değer, ad soyad ile e-posta ARASINDA. Kaynak /api/auth/me'nin
+    // `username` alanıdır (bkz. src/lib/auth.js#publicUser). "@" ön eki ekranda eklenir, saklanan
+    // değerde YOKTUR (bkz. src/lib/username.js — kullanıcı adları "@" içeremez; giriş formu da
+    // e-posta/kullanıcı adı ayrımını "@" var mı diye yapar). Kolonu henüz dolmamış eski bir hesapta
+    // (migrations/0119 uygulanmadan önce açılmış oturum) satır HİÇ çizilmez, boş bir "@" kalmaz.
+    const usernameLine = user.username ? `@${user.username}` : '';
     // PROFİL FOTOĞRAFI KALDIRILDI (kullanıcı isteği, 2026-09-15 madde 2): hesapların artık profil
     // fotoğrafı yok — ne üst menüdeki düğmede, ne açılır menünün başlığında, ne de mobil çekmecenin
     // hesap bölümünde bir avatar dairesi çizilir. Düğme yalnızca kullanıcının adını taşır; menü
@@ -180,13 +228,15 @@
     navRight.innerHTML = `
       <div class="nav-avatar-wrap">
         <button class="nav-avatar" id="nav-avatar-btn" type="button">
-          ${escapeHtml(firstName(user.name))}
+          <i class="nav-avatar-dot" aria-hidden="true"></i>
+          ${escapeHtml(upperTr(firstName(user.name)))}
           <i class="nav-avatar-alert" id="nav-avatar-alert" aria-hidden="true"></i>
         </button>
         <div class="nav-avatar-menu" id="nav-avatar-menu">
           <div class="nav-avatar-menu-header">
             <div class="nav-avatar-menu-id">
-              <div class="nav-avatar-menu-name">${escapeHtml(user.name || '')}</div>
+              <div class="nav-avatar-menu-name">${escapeHtml(upperTr(user.name || ''))}</div>
+              ${usernameLine ? `<div class="nav-avatar-menu-username">${escapeHtml(usernameLine)}</div>` : ''}
               <div class="nav-avatar-menu-email">${escapeHtml(user.email || '')}</div>
             </div>
           </div>
@@ -213,7 +263,8 @@
       mobileFoot.innerHTML = `
         <div class="nav-mobile-account-header">
           <div class="nav-mobile-account-id">
-            <div class="nav-mobile-account-name">${escapeHtml(user.name || '')}</div>
+            <div class="nav-mobile-account-name">${escapeHtml(upperTr(user.name || ''))}</div>
+            ${usernameLine ? `<div class="nav-mobile-account-username">${escapeHtml(usernameLine)}</div>` : ''}
             <div class="nav-mobile-account-email">${escapeHtml(user.email || '')}</div>
           </div>
         </div>

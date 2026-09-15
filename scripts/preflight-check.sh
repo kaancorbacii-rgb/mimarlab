@@ -664,6 +664,22 @@ else
 fi
 rm -f /tmp/preflight_amtitle
 
+# 2026-09-15 beşinci tur: (1) üst menüdeki hesap düğmesi dolu koyu mavi + beyaz BÜYÜK harf ad,
+# soluna nokta, punto .nav-link ile aynı; menü/çekmece başlığında ad -> kullanıcı adı -> e-posta,
+# (2) proje-ekle'deki Mimar kutusu Firma kutusunun aynısı (çoklu seçim + elle giriş,
+# /api/architects/names), (3) aynı ad bir projenin künyesine İKİ KEZ yazılamaz — Türkçe/ASCII
+# yazım farkı dahil (form kutusu + submissionTypes#nameArrayFields + canonicalSync#syncProject +
+# project.js'in katlamalı okuma kapısı). Kapılardan biri kalkarsa "Ayça Akkaya Kul"/"Ayca Akkaya
+# Kul" künyede yine iki kez görünürdü — deploy'u durdurur.
+# Bkz. scripts/test-2026-09-15-account-button-and-designer-picker.mjs.
+if node scripts/test-2026-09-15-account-button-and-designer-picker.mjs >/tmp/preflight_acctbtn 2>&1; then
+  ok "hesap düğmesi + Mimar kutusu + mükerrer ad testleri geçti ($(grep -c '^  ok ' /tmp/preflight_acctbtn) test)"
+else
+  bad "hesap düğmesi + Mimar kutusu + mükerrer ad testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_acctbtn >&2
+fi
+rm -f /tmp/preflight_acctbtn
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

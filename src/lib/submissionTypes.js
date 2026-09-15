@@ -1,4 +1,6 @@
 import { slugify } from './slugify.js';
+// Künye ad listelerinin Türkçe katlamalı tekilleştirmesi (bkz. nameArrayFields).
+import { dedupeNamesTr } from './textMatch.js';
 import projectTaxonomyJs from '../../project-taxonomy.js';
 // bkz. yukarıdaki AYNI CJS-interop gerekçesi — hangi hizmet alanının firmaya, hangisinin markaya
 // ait olduğunun TEK kaynağı (firma-ekle.html/marka-ekle.html AYNI dosyayı <script> ile okur).
@@ -62,6 +64,14 @@ export const SUBMISSION_TYPES = {
     // hangi kutudan geldiği künye render'ına kadar korunur. awards: kisi-ekle.html/firma-ekle.html
     // ile AYNI JSON dizi deseni (bkz. migrations/0049_project_awards.sql).
     arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'office', 'images', 'brands', 'awards'],
+    // nameArrayFields — arrayFields'in bir ALT KÜMESİ: öğeleri KİŞİ/FİRMA ADI olan listeler. Bu
+    // alanlar ek olarak Türkçe katlamayla tekilleştirilir (bkz. normalizeSubmission ve
+    // src/lib/textMatch.js#dedupeNamesTr). Kullanıcı isteği, 2026-09-15 beşinci tur madde 3: "bir
+    // projede aynı isim mimar kutucuğuna 2 kere yazılamasın ... Türkçe ve İngilizce karakterler
+    // farklı olduğu için yazılabilmiş ama bunu da engelle". proje-ekle.html'in kutusu (bkz.
+    // office-picker.js) aynı kapıyı istemcide de kurar; burası o kapının SUNUCU karşılığıdır ve
+    // formdan geçmeyen yolları da (admin paneli, ?claim= akışı, AI ile ekleme) kapsar.
+    nameArrayFields: ['designer', 'office'],
     // imageHotspots — arrayFields'in NESNE karşılığı: kök değer bir dizi değil, görsel URL'sine göre
     // anahtarlanmış bir harita ({url: [{x,y,slug,title}]}, bkz. migrations/0076_project_image_
     // hotspots.sql). arrayFields'e konulsaydı normalizeSubmission onu `[nesne]` diye tek elemanlı bir
@@ -599,7 +609,12 @@ export function normalizeSubmission(type, body) {
         value = null;
       } else {
         if (!Array.isArray(value)) value = value ? [value] : [];
-        value = JSON.stringify(value.filter(Boolean));
+        // Ad listelerinde (bkz. nameArrayFields) filter(Boolean) YETMEZ: aynı kişi iki farklı
+        // yazımla ("Ayça Akkaya Kul" / "Ayca Akkaya Kul") iki ayrı öğe olarak geçer ve künyede iki
+        // kez görünürdü. dedupeNamesTr trim + foldTr anahtarıyla tekilleştirir, İLK yazımı korur.
+        value = JSON.stringify((config.nameArrayFields || []).includes(field)
+          ? dedupeNamesTr(value)
+          : value.filter(Boolean));
       }
     } else if ((config.nullableStringFields || []).includes(field)) {
       // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-04: "marka pop-up'ında düzenleye tıklayıp

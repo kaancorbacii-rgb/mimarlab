@@ -326,3 +326,81 @@ Hesabım > Firma Bilgileri kutusunun `/marka/:slug` bağlantısı (artık her za
 firma seçim listesindeki "Marka" rozeti (`office-picker.js`) ve kalan "firma/marka", "markalar"
 metinleri. Sunucu `is_brand`/`is_pure_brand` göndermeye devam ediyor (başka çağıranları var),
 hesap ekranlarında okunmuyor.
+
+## Üst menüdeki hesap düğmesi + kullanıcı adı satırı (2026-09-15, beşinci tur)
+
+Kullanıcı isteği: "Masaüstü görünümünde hesaba giriş yapınca ana menüdeki hesap ismi yazan butonu
+... giriş yap butonu gibi koyu mavi yap ve üzerindeki isim yazısı beyaz olsun. Ayrıca ismin soluna
+ortaya bir nokta işareti koy. Açılınca çıkan ekranda ismin altında kullanıcı adı, onun da altında
+e-posta adresi olsun. Tablet ve mobil görünümde de açılan çekmecede isim soyisim ve e-posta
+adresinin arasına kullanıcı adını yaz." + eki: "ana menüde çıkan ismin büyük harflerle yazılması ve
+yanındaki sayfa başlıklarıyla aynı puntoda olması ... alt menüdeki ve yan çekmecede açılan isim ve
+soyisim tamamen büyük harflerden oluşsun."
+
+- **Hepsi TEK dosyada**: `auth-nav.js` — hem masaüstü `.nav-avatar` düğmesi/açılır menüsü hem mobil
+  çekmecenin hesap bölümü (`nav-mobile-menu-foot`) oradan çizilir.
+- **Düğme**: `background:var(--ink)` + `color:var(--paper-card)` (referans: her sayfanın KENDİ
+  `<style>`'ındaki `.nav-rate:hover`, yani "Giriş Yap"ın dolu hâli), punto 13.5px -> **14.5px**
+  (`.nav-link` ile aynı). Adın solunda `.nav-avatar-dot` — dekoratif, her zaman görünür; sağ üst
+  köşedeki **turuncu** `.nav-avatar-alert` (bildirim/mesaj) ondan AYRI ve halkası artık `var(--ink)`
+  (düğmenin arka planı).
+- **BÜYÜK HARF, CSS ile DEĞİL JS ile** (`upperTr`): `text-transform:uppercase` tarayıcının Türkçe
+  yerel verisine bağlıdır, "i" -> "I" üreten bir ortamda "İstanbul" -> "ISTANBUL" olurdu. Dönüşüm
+  HTML kaçışından ÖNCE çağrılır (`escapeHtml(upperTr(x))`) — tersi "&amp;"yi "&AMP;"ye çevirirdi.
+- **Kullanıcı adı satırı** ad ile e-posta ARASINDA, iki yüzeyde de. Kaynak `/api/auth/me`'nin
+  `username` alanı (bkz. `src/lib/auth.js#publicUser`); "@" ön eki yalnızca ekranda eklenir (saklanan
+  değerde yoktur, bkz. `src/lib/username.js`). Kolonu boş eski hesapta satır HİÇ çizilmez.
+- Testler: `scripts/test-2026-09-15-account-button-and-designer-picker.mjs` (preflight'a bağlı).
+
+## proje-ekle: Mimar kutusu da çoklu seçim + elle giriş (2026-09-15, beşinci tur)
+
+Kullanıcı isteği: "Proje ekle/düzenle sayfasında firma seçiminde yaptığın gibi mimar seçiminde de
+siteye yüklü kişiler arasından çoklu seçim yapılabilsin, ayrıca manuel olarak elle de giriş
+yapılabilsin. Aynı firma kutucuğunda yaptığın gibi."
+
+- **`office-picker.js` genelleştirildi**: gövde artık `createNamePicker(mount, {optionsUrl, ...})`;
+  iki sarmalayıcı aynı davranışı iki uca bağlar — `createOfficePicker` (`/api/offices/names`) ve
+  **`createArchitectPicker`** (`/api/architects/names`). Ayrı bir dosya AÇILMADI: iki kopya, çoklu
+  seçim/arama/elle ekleme/Türkçe katlamayla tekilleştirme davranışının ayrışacağı tek yer olurdu.
+  Kaynak listesi artık URL başına önbelleklenir (`optionsPromises` Map'i).
+- **Yeni uç `GET /api/architects/names`** (`src/routes/architect.js#handleArchitectNamesRoute`).
+  `fetchArchitectPool` KULLANILMAZ: o havuz /kisi DİZİNİNİN havuzudur ve `directory_listed = 1` ile
+  'Bilinmiyor'u dışarıda bırakır — künyeye eklenebilirlik dizinde görünmekten bağımsızdır
+  (`/api/architects/search` de aynı gerekçeyle filtrelemez). Görünürlük kapısı arama ucuyla birebir
+  aynı; adlar `foldTr` ile tekilleştirilir.
+- **`#p-designer` gizli input olarak KALDI** (`#p-office` ile birebir aynı desen): gönderim ve tüm
+  prefill yolları (düzenleme, ?claim=, AI, firma üyeleri, kendi firması) onun virgüllü değerini
+  okumaya/yazmaya devam eder ve **yazan her nokta `syncDesignerPicker()` çağırır**. Test bunu
+  dosyadaki HER yazma noktası için ayrı ayrı doğrular.
+- `allowCustom: true` — sitede kaydı olmayan bir mimar adı da künyeye yazılabilir (eski serbest
+  metin kutusunun kaybolmaması gereken tek yeteneği).
+
+## Bir projede aynı ad künyeye İKİ KEZ yazılamaz (2026-09-15, beşinci tur)
+
+Kullanıcı isteği: "Bazen kullanıcılar bir projede ekle/düzenle sayfasında ... mimar kısmında
+isimlerini 2 kere yazabiliyorlar. Bunun önüne geç ... Türkçe ve İngilizce karakterler farklı olduğu
+için yazılabilmiş ama bunu da engelle."
+
+- **KÖK NEDEN** (canlıdaki "Messe Tekstil Showroom Ofisi"): künyede hem "Ayça Akkaya Kul" hem "Ayca
+  Akkaya Kul" duruyordu. İlk yazım `architects`te eşleşip profil çipi oluyor, ASCII yazım hiçbir
+  kayda bağlanamadığı için AYNI künyeye ikinci kez `unregistered` ham ad rozeti olarak ekleniyordu.
+  Tekilleştirmelerin hepsi birebir metin ya da `toLowerCase()` karşılaştırmasıydı — ikisi de
+  "ç"/"c", "ş"/"s", "ğ"/"g", "ı"/"i" ayrımını KORUR.
+- **Tek anahtar `foldTr`** (sitenin her yerindeki "aynı ad" tanımı: `name_fold`, arama, filtre
+  ayrımı). Ortak yardımcı: `src/lib/textMatch.js#dedupeNamesTr` — trim + `foldTr`, **İLK yazımı**
+  korur.
+- **DÖRT kapı**:
+  1. Form kutusu — `office-picker.js` seçimi zaten `foldTr` ile tekilleştirir (çip, onay kutusu ve
+     "+ «...» ekle" satırı dahil); `proje-ekle.html`'deki yerel karşılaştırmalar da artık
+     `foldTrLocal` kullanır (`toLowerCase()`/`toLocaleLowerCase('tr')` DEĞİL).
+  2. Gönderi yazımı — `src/lib/submissionTypes.js#nameArrayFields` (`designer`, `office`):
+     `normalizeSubmission` bu iki alanı `dedupeNamesTr`'den geçirir, yani formdan geçmeyen yollar
+     (admin paneli, ?claim= akışı, AI ile ekleme) da kapsanır.
+  3. Canonical yazım — `src/lib/canonicalSync.js#syncProject` listeyi bir kez tekilleştirip ÜÇ
+     tüketiciye birden verir: `project_designers` bağları, `designer_names_raw`/`office_names_raw`
+     ve düzenleme yetkisi damgası. Bu kapı, bu değişiklikten ÖNCE kaydedilmiş mükerrer gönderileri
+     de her yeniden senkronda temizler.
+  4. Künye OKUMASI — `src/routes/project.js`'teki `knownNames` artık `foldTr` anahtarlı. Yazma
+     kapıları yalnızca bundan sonrasını temizler; D1'de hâlihazırda duran mükerrer adlar bu kapı
+     sayesinde ilk görüntülemede künyeden düşer.
+- Testler: `scripts/test-2026-09-15-account-button-and-designer-picker.mjs` (preflight'a bağlı).

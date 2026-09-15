@@ -700,11 +700,22 @@
             <div id="p-office-picker"></div>
             <div class="form-hint">Listeden birden fazla firma seçebilirsin. Aradığın firma listede yoksa adını yazıp «ekle» diyerek künyeye ekleyebilirsin.</div>
           </div>
-          <div class="form-field ac-field" id="ac-mimar-field">
-            <label for="p-designer" id="p-designer-label">Mimar <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="p-designer" name="designer" autocomplete="off">
-            <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Firma seçtiğinde üyeler otomatik eklenir, dilersen ekle-çıkar yapabilirsin.</div>
+          <!-- Mimar: serbest metin + autocomplete yerine Firma kutusunun AYNISI — ÇOKTAN SEÇMELİ
+               kutu + elle isim girişi (kullanıcı isteği, 2026-09-15 beşinci tur madde 2: "firma
+               seçiminde yaptığın gibi mimar seçiminde de siteye yüklü kişiler arasından çoklu seçim
+               yapılabilsin, ayrıca manuel olarak elle de giriş yapılabilsin. Aynı firma kutucuğunda
+               yaptığın gibi."). Bileşen aynı dosyadan gelir (office-picker.js#createArchitectPicker),
+               yalnızca kaynağı /api/architects/names'tir. #p-designer gizli input olarak KALIR:
+               gönderim/prefill kodunun tamamı onun virgüllü değerini okumaya/yazmaya devam eder,
+               yazan her nokta syncDesignerPicker() çağırır — #p-office ile BİREBİR aynı desen.
+               EK KAZANÇ (aynı isteğin 3. maddesi): kutunun tekilleştirmesi Türkçe katlamalıdır,
+               yani "Ayça Akkaya Kul" ile "Ayca Akkaya Kul" tek ada iner ve aynı isim künyeye iki
+               kez yazılamaz. -->
+          <div class="form-field" id="ac-mimar-field">
+            <label for="p-designer-picker" id="p-designer-label">Mimar <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="p-designer" name="designer">
+            <div id="p-designer-picker"></div>
+            <div class="form-hint">Listeden birden fazla kişi seçebilirsin. Aradığın kişi listede yoksa adını yazıp «ekle» diyerek künyeye ekleyebilirsin. Firma seçtiğinde üyeler otomatik eklenir, dilersen ekle-çıkar yapabilirsin.</div>
           </div>
         </div>
         <div class="form-field">
@@ -1292,7 +1303,10 @@ document.getElementById('dd-grup-btn').addEventListener('click', () => {
   document.querySelectorAll('#dd-grup-options .dd-option').forEach(opt => { opt.style.display = ''; });
   setTimeout(() => search.focus(), 0);
 });
-wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
+// Mimar kutusu artık serbest metin + autocomplete DEĞİL, Firma kutusunun aynısı olan çoktan
+// seçmeli kutudur (bkz. #p-designer-picker HTML notu) — o kutunun canlı autocomplete bağlaması
+// bu yüzden kaldırıldı. Kutunun kendi arama satırı /api/architects/names'in tam listesini yerel
+// olarak süzer, yani tuş başına istek de atılmaz.
 // "Fotoğrafçı" kutusuna bir FİRMA ya da MARKA adı yazıldığında/seçildiğinde yanındaki "Kaynak"
 // kutusu o profilin web sitesiyle OTOMATİK dolar (kullanıcı isteği, 2026-09-10 onuncu tur madde 3:
 // "fotoğrafçı kısmına bir firmayı ya da markayı yazdığımız zaman bu firma ya da markanın websitesi
@@ -1349,15 +1363,22 @@ async function fillDesignerFromOffice(officeName){
     if(!names.length) return;
     const designerInput = document.getElementById('p-designer');
     const existing = designerInput.value.split(',').map(s => s.trim()).filter(Boolean);
-    const seen = new Set(existing.map(n => n.toLowerCase()));
+    // Tekilleştirme toLowerCase() DEĞİL trLower+foldTr: "Ayça Akkaya Kul" ile "Ayca Akkaya Kul"
+    // toLowerCase()'e göre FARKLI iki addır ve künyeye iki kez düşerdi (kullanıcı bildirimi,
+    // 2026-09-15 beşinci tur madde 3 — ekran görüntüsündeki gerçek durum). Kutunun kendi
+    // tekilleştirmesi (syncDesignerPicker -> office-picker.js#api.set) zaten aynı katlamayı
+    // uygular; burada da aynı anahtarı kullanmak, araya bir an için bile mükerrer bir değer
+    // yazılmamasını sağlar.
+    const seen = new Set(existing.map(foldTrLocal));
     const merged = existing.slice();
     for(const name of names){
-      const key = name.toLowerCase();
-      if(seen.has(key)) continue;
+      const key = foldTrLocal(name);
+      if(!key || seen.has(key)) continue;
       seen.add(key);
       merged.push(name);
     }
     designerInput.value = merged.join(', ');
+    syncDesignerPicker();
   }catch{}
 }
 // Firma çoktan seçmeli kutusu (bkz. #p-office-picker HTML notu). officePicker aşağıda, brandChips
@@ -1378,6 +1399,27 @@ function syncOfficePicker(){
   if(!officePicker) return;
   officeAutoFillMuted = true;
   try{ officePicker.syncFromInput(); } finally { officeAutoFillMuted = false; }
+}
+// Mimar kutusunun AYNI deseni (bkz. #p-designer-picker HTML notu). #p-designer.value'ya doğrudan
+// yazan her nokta bunu çağırır; kutu değeri okur, Türkçe katlamayla TEKİLLEŞTİRİR ve temizlenmiş
+// hâlini input'a geri yazar (office-picker.js#api.set -> pushToInput) — yani mükerrer bir ad hangi
+// yoldan gelirse gelsin (prefill, AI, firma üyeleri, elle giriş) forma yerleşemez.
+let designerPicker = null;
+function syncDesignerPicker(){
+  if(!designerPicker) return;
+  designerPicker.syncFromInput();
+}
+// office-picker.js#foldTr ile BİREBİR aynı Türkçe katlama — bu sayfadaki isim karşılaştırmaları da
+// kutunun kullandığı ANAHTARLA yapılsın diye (aksi halde kutu iki adı aynı sayarken sayfa farklı
+// sayardı). trLower tek başına yetmez: "ç"/"c", "ş"/"s", "ğ"/"g" ayrımını korur.
+function foldTrLocal(value){
+  return String(value == null ? '' : value)
+    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
+    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
+    .toLowerCase()
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/ö/g, 'o')
+    .trim();
 }
 // "Projede Kullanılan Markalar / Ürünler" kutusu — Marka ve Ürün AÇILIR MENÜ (kullanıcı isteği,
 // 2026-09-01 madde 7). Serbest metin + autocomplete yerine <select> kullanılmasının nedeni: kutuya
@@ -1547,6 +1589,18 @@ officePicker = createOfficePicker(document.getElementById('p-office-picker'), {
   searchLabel: 'Firma ara ya da yeni firma adı yaz...',
   allowCustom: true,
   onChange: onOfficePickerChange,
+});
+// Mimar kutusu (kullanıcı isteği, 2026-09-15 beşinci tur madde 2) — Firma kutusuyla AYNI bileşen ve
+// AYNI seçenekler, yalnızca kaynağı kişiler (bkz. office-picker.js#createArchitectPicker).
+// allowCustom açık: sitede kaydı olmayan bir mimar adı da künyeye yazılabilir (eski serbest metin
+// kutusunun kaybolmaması gereken tek yeteneği); ad künyeye yazıldığı gibi kaydedilir, kişi kaydı
+// olmadığından tıklanabilir profil çipi oluşmaz ama isim künyede ve /proje filtrelerinde görünür
+// (bkz. migrations/0120_project_designer_names_raw.sql).
+designerPicker = createArchitectPicker(document.getElementById('p-designer-picker'), {
+  input: document.getElementById('p-designer'),
+  placeholder: 'Kişi seç veya yaz',
+  searchLabel: 'Kişi ara ya da yeni isim yaz...',
+  allowCustom: true,
 });
 
 function mediaItemSrc(item){
@@ -2190,6 +2244,7 @@ async function splitDesignerNamesIntoBoxes(names, slug){
   document.getElementById('p-designer').value = names.filter(n => !isOffice(n)).join(', ');
   document.getElementById('p-office').value = names.filter(n => isOffice(n)).join(', ');
   syncOfficePicker();
+  syncDesignerPicker();
 }
 
 async function prefillForEdit(){
@@ -2245,6 +2300,7 @@ async function prefillForEdit(){
       document.getElementById('p-designer').value = (item.designer || []).join(', ');
       document.getElementById('p-office').value = item.office.join(', ');
       syncOfficePicker();
+      syncDesignerPicker();
     } else {
       await splitDesignerNamesIntoBoxes(item.designer || [], item.slug);
     }
@@ -2348,6 +2404,7 @@ async function prefillForClaim(){
     document.getElementById('p-designer').value = designers.filter(d => d.type === 'architect').map(d => d.name).join(', ');
     document.getElementById('p-office').value = designers.filter(d => d.type === 'office').map(d => d.name).join(', ');
     syncOfficePicker();
+    syncDesignerPicker();
   }
   document.getElementById('p-desc').value = merged.description || '';
   document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
@@ -2442,7 +2499,9 @@ async function prefillOwnOfficeForNewProject(){
     if(res.ok) data = await res.json();
   }catch{}
   if(!data) return;
-  const foldKey = (s) => String(s || '').trim().toLocaleLowerCase('tr');
+  // foldKey ARTIK foldTrLocal: toLocaleLowerCase('tr') "Ayça"/"Ayca" ayrımını KORUDUĞUNDAN aynı
+  // kişi iki yazımla iki kez listelenebiliyordu (bkz. aynı isteğin 3. maddesi).
+  const foldKey = foldTrLocal;
   const uniqueNames = (list) => {
     const seen = new Set();
     const out = [];
@@ -2473,6 +2532,7 @@ async function prefillOwnOfficeForNewProject(){
   const founderNames = uniqueNames(founderLists.flat());
   if(!founderNames.length || designerInput.value.trim()) return;
   designerInput.value = founderNames.join(', ');
+  syncDesignerPicker();
 }
 prefillOwnOfficeForNewProject();
 
@@ -2513,6 +2573,7 @@ async function applyAiResult(data){
   document.getElementById('p-designer').value = (data.designer_names || []).join(', ');
   document.getElementById('p-office').value = (data.office_names || []).join(', ');
   syncOfficePicker();
+  syncDesignerPicker();
   document.getElementById('p-desc').value = data.description || '';
   document.getElementById('p-credit-text').value = data.photo_credit_text || '';
   document.getElementById('p-credit-url').value = data.photo_credit_url || '';
@@ -2970,6 +3031,8 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     // Gizli input form.reset() ile SIFIRLANMAZ (value ataması varsayılan değeri de değiştirir).
     document.getElementById('p-office').value = '';
     syncOfficePicker();
+    document.getElementById('p-designer').value = '';
+    syncDesignerPicker();
     brandChips = [];
     renderBrandChips();
     updateKategoriLabel();

@@ -4,7 +4,7 @@ import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute, handleSelfContentModerate } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
-import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute, fetchArchitectPool } from './routes/architect.js';
+import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectNamesRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute, fetchArchitectPool } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeNamesRoute, handleOfficeListRoute, fetchOfficePool } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute, fetchActiveProjectPoolCached } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute, fetchProductPool } from './routes/product.js';
@@ -2196,6 +2196,10 @@ async function routeApi(request, env, url, ctx) {
   // /api/projects/filters'daki AYNI çakışma önleme deseni).
   if (path === '/api/architects/search') return handleArchitectSearchRoute(request, env, url);
   if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
+  // Kişi adlarının TAMAMI (proje-ekle.html'in Mimar çoklu seçim kutusu, bkz. office-picker.js#
+  // createArchitectPicker) — /api/offices/names ile AYNI çakışma önleme gerekçesi: çoğul prefix'in
+  // altındadır ve handleSubmissionRoute'un genel eşleşmesinden ÖNCE gelmeli.
+  if (path === '/api/architects/names') return handleArchitectNamesRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   // Firma+marka adlarının TAMAMI (office-picker.js'in çoklu seçim kutusu) — /api/offices/search ile
   // AYNI çakışma önleme gerekçesi: bu da çoğul prefix'in altındadır ve genel eşleşmeden ÖNCE gelmeli.

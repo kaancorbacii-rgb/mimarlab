@@ -4,6 +4,16 @@
 // seçilebilir olsun. Burada sitede yüklü tüm firmalar ve markalar alt alta çoktan seçilebilir
 // şekilde güncellensin. En üstte de arama çubuğu olsun."
 //
+// GENELLEŞTİRİLDİ (kullanıcı isteği, 2026-09-15 beşinci tur madde 2: "proje ekle/düzenle sayfasında
+// firma seçiminde yaptığın gibi mimar seçiminde de siteye yüklü kişiler arasından çoklu seçim
+// yapılabilsin, ayrıca manuel olarak elle de giriş yapılabilsin"). Gövde (createNamePicker) artık
+// kaynağa bağlı değil; iki sarmalayıcı aynı davranışı iki uca bağlar:
+//   * createOfficePicker    -> GET /api/offices/names    (firmalar)
+//   * createArchitectPicker -> GET /api/architects/names (kişiler, bkz. src/routes/architect.js)
+// Mimar kutusu için ikinci bir dosya AÇILMADI: istek birebir "firma seçiminde yaptığın gibi" idi ve
+// iki kopya, çoklu seçim/arama/elle ekleme/Türkçe katlamayla tekilleştirme davranışının zamanla
+// ayrışacağı tek yer olurdu.
+//
 // İKİ ÇAĞIRAN, TEK KAYNAK — profession-shared.js/awards-shared.js ile AYNI desen:
 //   * kisi-ekle.html            (Firmalar / Markalar bölümü, eski #m-office serbest metin kutusu)
 //   * js/components/auth-modal.js (Hesabım > Profili Düzenle, eski #am-edit-office tekil <select>)
@@ -20,19 +30,25 @@
 // SIZIYOR (bkz. proje notu: ".hero/.btn kuralları modala sızar") — kendi sınıf adlarıyla gelmek,
 // iki bağlamda da aynı görünmesinin tek güvenilir yolu.
 (function () {
-  const OPTIONS_URL = '/api/offices/names';
-  let optionsPromise = null;
+  const OFFICE_OPTIONS_URL = '/api/offices/names';
+  // KİŞİ kaynağı (kullanıcı isteği, 2026-09-15 beşinci tur madde 2: "firma seçiminde yaptığın gibi
+  // mimar seçiminde de siteye yüklü kişiler arasından çoklu seçim yapılabilsin, ayrıca manuel
+  // olarak elle de giriş yapılabilsin") — bkz. src/routes/architect.js#handleArchitectNamesRoute.
+  const ARCHITECT_OPTIONS_URL = '/api/architects/names';
+  // URL başına TEK istek — aynı sayfada iki kutu (Mimar + Firma) yaşadığından önbellek artık tek
+  // bir değişken değil, kaynak adresine göre anahtarlı bir harita.
+  const optionsPromises = new Map();
 
-  // Tüm firma+marka adları — modülün ömrü boyunca TEK istek (kutu her açıldığında yeniden
+  // Bir kaynaktaki tüm adlar — modülün ömrü boyunca TEK istek (kutu her açıldığında yeniden
   // çekilmez; auth-modal.js#allOfficeNamesPromise'in AYNI gerekçesi).
-  function loadOfficeOptions() {
-    if (!optionsPromise) {
-      optionsPromise = fetch(OPTIONS_URL)
+  function loadOptions(url) {
+    if (!optionsPromises.has(url)) {
+      optionsPromises.set(url, fetch(url)
         .then(r => (r.ok ? r.json() : { items: [] }))
         .then(d => (d.items || []).filter(i => i && i.name))
-        .catch(() => []);
+        .catch(() => []));
     }
-    return optionsPromise;
+    return optionsPromises.get(url);
   }
 
   // src/routes/office.js#foldTr ile AYNI Türkçe casefold — "İSTANBUL"/"istanbul"/"Istanbul" hepsi
@@ -135,8 +151,15 @@
   //                      + Hesabım) sitede kayıtlı firmalara bağlanmak içindir, orada serbest metin
   //                      firma talebi/üyelik zincirini (bkz. claimedProfiles.js#ensurePendingOfficeClaims)
   //                      karşılığı olmayan bir adla doldururdu.
-  function createOfficePicker(mount, opts) {
+  //
+  // GENEL AD KUTUSU (2026-09-15, beşinci tur): gövde artık kaynağa bağlı değil — opts.optionsUrl
+  // hangi uçtan besleneceğini söyler. İki hazır sarmalayıcısı var: createOfficePicker (firmalar) ve
+  // createArchitectPicker (kişiler). Mimar kutusu için ayrı bir bileşen YAZILMADI çünkü istek
+  // birebir "firma seçiminde yaptığın gibi" idi; iki kopya, davranışın (çoklu seçim, arama, elle
+  // ekleme, Türkçe katlamayla tekilleştirme) zamanla ayrışacağı TEK yer olurdu.
+  function createNamePicker(mount, opts) {
     const options = opts || {};
+    const optionsUrl = options.optionsUrl || OFFICE_OPTIONS_URL;
     // Etiketler "Firma veya marka" -> "Firma" (kullanıcı isteği, 2026-09-14 madde 2 ve 4): marka
     // kavramı sitede kaldırıldı, ürün üreten kayıtlar artık "Üretim ve Satış" hizmet alanlı
     // FİRMALAR (bkz. office-kind.js). Kutunun beslendiği uç (/api/offices/search) DEĞİŞMEDİ —
@@ -287,7 +310,7 @@
       if (addBtn) addBtn.click();
     });
 
-    const ready = loadOfficeOptions().then(list => {
+    const ready = loadOptions(optionsUrl).then(list => {
       items = list;
       loaded = true;
       renderList();
@@ -391,6 +414,31 @@
     return out;
   }
 
+  // Firma kutusu — üç çağıranı var: kisi-ekle.html, js/components/auth-modal.js, proje-ekle.html.
+  function createOfficePicker(mount, opts) {
+    return createNamePicker(mount, { ...(opts || {}), optionsUrl: OFFICE_OPTIONS_URL });
+  }
+
+  // KİŞİ (Mimar) kutusu — bugün TEK çağıranı proje-ekle.html'dir (kullanıcı isteği, 2026-09-15
+  // beşinci tur madde 2). Varsayılan etiketleri firma sürümünden ayrıdır; gerisi (allowCustom,
+  // input senkronu, onChange) AYNI sözleşmedir.
+  //
+  // AYNI AD İKİ KEZ YAZILAMAZ (aynı isteğin 3. maddesi: "bir projede aynı isim mimar kutucuğuna
+  // 2 kere yazılamasın ... Türkçe ve İngilizce karakterler farklı olduğu için yazılabilmiş ama
+  // bunu da engelle") — bu kutunun tekilleştirmesi ZATEN foldTr üzerinden çalışıyor, yani
+  // "Ayça Akkaya Kul" ile "Ayca Akkaya Kul" tek anahtara düşer ve ikincisi seçime hiç katılmaz.
+  // Serbest metin girişi de aynı kapıdan geçer (bkz. renderList#canAddTyped ve api.set).
+  function createArchitectPicker(mount, opts) {
+    return createNamePicker(mount, {
+      placeholder: 'Kişi seç',
+      searchLabel: 'Kişi ara...',
+      ...(opts || {}),
+      optionsUrl: ARCHITECT_OPTIONS_URL,
+    });
+  }
+
+  window.createNamePicker = createNamePicker;
   window.createOfficePicker = createOfficePicker;
+  window.createArchitectPicker = createArchitectPicker;
   window.mergeOfficeMembershipNames = mergeOfficeMembershipNames;
 })();

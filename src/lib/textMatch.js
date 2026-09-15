@@ -52,6 +52,35 @@ export function foldTr(s) {
   return trLower(s).replace(COMBINING_MARKS_G, '').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
+// KÜNYE AD LİSTESİ TEKİLLEŞTİRME (kullanıcı isteği, 2026-09-15 beşinci tur madde 3: "bir projede
+// aynı isim mimar kutucuğuna 2 kere yazılamasın. Örneğin ... Türkçe ve İngilizce karakterler farklı
+// olduğu için yazılabilmiş ama bunu da engelle").
+//
+// KÖK NEDEN (canlıda görülen durum — "Messe Tekstil Showroom Ofisi"): künyede hem "Ayça Akkaya Kul"
+// hem "Ayca Akkaya Kul", hem "Önder Kul" hem "Onder Kul" duruyordu. İlk yazımlar `architects`te
+// eşleşip profil çipine dönüşüyor, ikinci (ASCII) yazımlar hiçbir kayda bağlanamadığı için
+// "unregistered" ham ad rozeti olarak AYNI künyede ikinci kez çiziliyordu. Ne formda ne sunucuda
+// bu ikisini aynı ad sayan bir kapı vardı: tekilleştirmelerin hepsi birebir metin ya da
+// toLowerCase() karşılaştırmasıydı.
+//
+// ÇÖZÜM: anahtar foldTr — aynı katlama sitenin her yerinde "aynı ad" tanımıdır (name_fold generated
+// kolonu, arama, filtre ayrımı). İLK yazım korunur: kullanıcının/canonical kaydın yazdığı biçim
+// künyede olduğu gibi kalır, yalnızca sonradan gelen eş-katlamalı kopyalar düşer.
+export function dedupeNamesTr(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of (Array.isArray(list) ? list : [])) {
+    if (typeof raw !== 'string') continue;
+    const name = toNfc(raw).trim();
+    if (!name) continue;
+    const key = foldTr(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 // KİŞİ ADI BAŞ HARFİ (kullanıcı isteği, 2026-09-10 dokuzuncu tur madde 1: "Kişi sayfasında kişi
 // isim ve soyismi otomatik olarak büyük harfle başlasın. örneğin kaan çorbacı yazılsa bile Kaan
 // Çorbacı olsun.").

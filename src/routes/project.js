@@ -487,7 +487,22 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     // kutudan geldiyse (rawNames.architects/rawNames.offices) doğrudan o başlığa yazılır. Yalnızca
     // bu düzeltmeden ÖNCE kaydedilmiş (isLegacy=true, designer/office birleşik) satırlarda eski
     // isOfficeName() anahtar kelime tahminine düşülür — geriye dönük bozmama amaçlı, TEK istisna.
-    const knownNames = new Set(designerDetails.map(d => d.name));
+    // knownNames ANAHTARI foldTr (kullanıcı bildirimi, 2026-09-15 beşinci tur madde 3 ve ekran
+    // görüntüsü — "Messe Tekstil Showroom Ofisi"): karşılaştırma BİREBİR METİNLE yapılırken künyede
+    // aynı kişi iki kez çiziliyordu — "Ayça Akkaya Kul" eşleşip profil çipi oluyor, ham listedeki
+    // ASCII yazımı "Ayca Akkaya Kul" ise hiçbir kayda bağlanamadığı için AYNI künyeye ikinci kez,
+    // bu kez tıklanamaz "unregistered" rozeti olarak ekleniyordu. Katlama sitenin her yerindeki
+    // "aynı ad" tanımıdır (name_fold, arama, filtre ayrımı), burada da o kullanılır.
+    //
+    // YAZMA tarafı bunu ayrıca engelliyor (submissionTypes.js#nameArrayFields, canonicalSync.js#
+    // syncProject) — ama o kapı yalnızca BUNDAN SONRA kaydedilen künyeleri temizler; D1'de hâlihazırda
+    // duran mükerrer adlar ancak proje yeniden kaydedildiğinde düşerdi. Bu okuma kapısı onları da
+    // ilk görüntülemede künyeden kaldırır.
+    const foldedKnownNames = new Set(designerDetails.map(d => foldTr(d.name)));
+    const knownNames = {
+      has: (name) => foldedKnownNames.has(foldTr(name)),
+      add: (name) => foldedKnownNames.add(foldTr(name)),
+    };
     if (rawNames.isLegacy) {
       for (const name of [...rawNames.architects, ...rawNames.offices]) {
         if (!name || knownNames.has(name)) continue;

@@ -213,6 +213,49 @@ export async function handleArchitectSearchRoute(request, env, url) {
   });
 }
 
+// GET /api/architects/names — sitedeki TÜM kişilerin adları, tek istekte. office-picker.js'in
+// (createArchitectPicker) TEK veri kaynağı; /api/offices/names'in birebir kişi karşılığıdır ve
+// aynı gerekçeyle ayrı bir uçtur (bkz. handleOfficeNamesRoute).
+//
+// KULLANICI İSTEĞİ, 2026-09-15 (beşinci tur madde 2): "Proje ekle/düzenle sayfasında firma
+// seçiminde yaptığın gibi mimar seçiminde de siteye yüklü kişiler arasından çoklu seçim
+// yapılabilsin, ayrıca manuel olarak elle de giriş yapılabilsin."
+//
+// NEDEN fetchArchitectPool DEĞİL: o havuz /kisi DİZİNİNİN havuzudur ve `directory_listed = 1` ile
+// 'Bilinmiyor' placeholder'ını dışarıda bırakır. Künyeye eklenebilirlik dizinde görünmekten
+// BAĞIMSIZDIR — /api/architects/search de tam bu gerekçeyle directory_listed'ı hiç filtrelemez
+// (bkz. o fonksiyonun yorumu, migrations/0081). Bu kutu o autocomplete'in çoklu-seçim hâli
+// olduğundan AYNI kümeyi listelemek zorunda; havuz kullanılsaydı bugüne dek yazılabilen bazı
+// isimler kutudan sessizce düşerdi.
+//
+// Görünürlük kapısı arama ucuyla BİREBİR aynı: silinmemiş + (gizlenmemiş VEYA önizleme) — yani
+// blurlu (preview) kişiler de önerilir (kullanıcı isteği, 2026-09-11), tam arşiv hariç kalır.
+// Adlar Türkçe katlamayla TEKİLLEŞTİRİLİR: aynı ada sahip iki kayıt (bkz. proje notu "Duplicate
+// name key limitation") kutuda iki özdeş satır olarak görünmemeli — seçim zaten ADLA taşınıyor,
+// iki satırın birbirinden farkı olmazdı.
+export async function handleArchitectNamesRoute(request, env, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const { results } = await env.DB.prepare(
+      `SELECT a.name AS name FROM architects a
+        WHERE a.deleted_at IS NULL AND (a.hidden_at IS NULL OR a.preview_at IS NOT NULL) AND a.name != 'Bilinmiyor'
+        ORDER BY a.name`
+    ).all();
+    const seen = new Set();
+    const items = [];
+    for (const row of results) {
+      const name = String(row.name || '').trim();
+      if (!name) continue;
+      const key = foldTr(name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({ name });
+    }
+    items.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    return { items };
+  });
+}
+
 // GET /api/architects/schools — uye-ol.html (kayıt formu) / kisi-ekle.html'deki "Üniversite"
 // otomatik tamamlama kutusu için canonical D1'deki tüm mimarların KAYITLI OLDUĞU okulların
 // tekilleştirilmiş listesini döner (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 —
