@@ -2749,9 +2749,14 @@ const AuthModal = (function () {
         firmaOptionsPromise = Promise.resolve();
         return firmaOptionsPromise;
       }
+      // allowCustom — kisi-ekle.html'deki AYNI kutu ve AYNI gerekçe (kullanıcı isteği, 2026-09-15
+      // yedinci tur madde 3). İki yüzey ayrışmamalı: aynı "Kişi Bilgileri" formu bir sayfada
+      // serbest metne açık, modalde kapalı olsaydı kutunun davranışı nereden açıldığına bağlı
+      // olurdu (bkz. 2026-09-15 dördüncü turdaki "düğme adı sayfaya göre değişiyor" bulgusu).
       firmaPicker = createOfficePicker(mount, {
-        placeholder: 'Firma seç',
-        searchLabel: 'Firma ara...',
+        placeholder: 'Firma seç veya yaz',
+        searchLabel: 'Firma ara ya da yeni firma adı yaz...',
+        allowCustom: true,
       });
       firmaOptionsPromise = firmaPicker.ready;
       return firmaOptionsPromise;

@@ -851,10 +851,21 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
 // noktalarının hiçbiri değişmedi; yalnızca kutuyu input'la hizalayan officePicker.syncFromInput()
 // çağrıları eklendi.
 // Etiket "Firma veya marka seç" -> "Firma seç" (kullanıcı isteği, 2026-09-14 madde 2).
+// allowCustom AÇILDI (kullanıcı isteği, 2026-09-15 yedinci tur madde 3: "Kişi ekle/düzenle
+// sayfasında da firma seç kısmında manuel olarak farklı bir firma ismi de yazılabilsin").
+// Kutu 2026-09-15 üçüncü turda bilinçli olarak KAPALI bırakılmıştı; o turdaki gerekçe ("serbest
+// metin, firma talebi/üyelik zincirini karşılığı olmayan bir adla doldurur") CANLI KODDA
+// DOĞRULANDI ve geçerli değil: her iki zincir de eşleşmeyen adı sessizce ATLIYOR —
+// claimedProfiles.js#ensurePendingOfficeClaims `if (!canonical) continue;` ile talep satırı
+// AÇMIYOR, canonicalSync.js#syncArchitect ise eşleşmeyen adı office_founders'a bağlamayıp
+// migration_name_conflicts'e iz bırakıyor. Yani kaydı olmayan bir firma adı yalnızca kişinin
+// künyesinde METİN olarak durur; yetki/üyelik üretmez. Bu, proje-ekle.html'in Firma kutusunun
+// zaten çalıştığı davranışın aynısıdır.
 const officePicker = createOfficePicker(document.getElementById('m-office-picker'), {
   input: document.getElementById('m-office'),
-  placeholder: 'Firma seç',
-  searchLabel: 'Firma ara...',
+  placeholder: 'Firma seç veya yaz',
+  searchLabel: 'Firma ara ya da yeni firma adı yaz...',
+  allowCustom: true,
 });
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite ----------

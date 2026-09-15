@@ -680,6 +680,22 @@ else
 fi
 rm -f /tmp/preflight_acctbtn
 
+# 2026-09-15 yedinci tur: dört formun da "siteye yüklü kayıtlardan çoklu seçim + listede yoksa elle
+# yazma" kutularına geçişi (office-picker.js) — firma-ekle Kurucular/Ekip (ve ikisinin masaüstü/
+# tablette yan yana 2 sütun olması), urun-ekle Firma (TEK seçim, şema gereği) + Tasarımcı,
+# kisi-ekle/Hesabım firma kutusunda serbest metin, proje-ekle Fotoğrafçı (kişi + firma TEK liste) ve
+# Kaynak ipucundaki agregatör cümlesinin silinmesi. Kutuların ORTAK sözleşmesi de burada kilitlenir:
+# her biri eski görünür kutunun kimliğini type="hidden" input olarak korur ve o input'a yazan HER
+# nokta kutuyu senkronlar — bozulursa kullanıcının gördüğü çipler ile gönderilen değer ayrışır.
+# Bkz. scripts/test-2026-09-15-form-pickers.mjs.
+if node scripts/test-2026-09-15-form-pickers.mjs >/tmp/preflight_pickers 2>&1; then
+  ok "form seçim kutuları (kurucu/ekip/firma/tasarımcı/fotoğrafçı) testleri geçti ($(grep -c '^  ok ' /tmp/preflight_pickers) test)"
+else
+  bad "form seçim kutuları testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_pickers >&2
+fi
+rm -f /tmp/preflight_pickers
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

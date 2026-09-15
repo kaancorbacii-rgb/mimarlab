@@ -263,24 +263,16 @@
   .map-clear-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px;}
   .map-clear-btn{background:none; border:none; padding:0; font-size:11.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;}
   .map-clear-btn:hover{color:var(--ink);}
-  /* ---------- AUTOCOMPLETE (Mimar, Ofis) ---------- */
-  .ac-field{position:relative;}
-  .ac-suggestions{
-    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
-    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
-    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
-  }
-  .ac-suggestions.show{display:block;}
-  .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
-  .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
-  .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+  /* AUTOCOMPLETE (.ac-field/.ac-suggestions/.ac-suggestion) KURALLARI KALDIRILDI — bu sayfadaki
+     üç serbest metin kutusu da (Mimar, Firma, Fotoğrafçı) çoktan seçmeli kutulara geçti ve o
+     kutular kendi .op-* stillerini getiriyor (bkz. office-picker.js#injectStyles). Geriye tek bir
+     `class="ac-*"` elemanı kalmadı; kalan #ac-*-field kimlikleri yalnızca birer çıpa. */
 
   /* ---------- MARKA/ÜRÜN CHIP LİSTESİ ---------- */
   .brand-add-row{display:flex; gap:10px; align-items:flex-start;}
-  .brand-add-row .ac-field{flex:1; min-width:0;}
   /* Marka/Ürün açılır menüleri (kullanıcı isteği, 2026-09-01 madde 7) — görünümleri sayfadaki
      diğer form alanlarıyla (input/textarea) AYNI olsun diye .form-field input kuralının aynı
-     değerlerini taşır; .ac-field ile aynı esneme davranışı. (.brand-other-input seçicisi 2026-09-04'te
+     değerlerini taşır ve satırda aynı şekilde esner. (.brand-other-input seçicisi 2026-09-04'te
      düştü: serbest metinli "Diğer" seçeneği kaldırıldı, o kutu artık DOM'da yok.) */
   .brand-add-row .brand-select{
     flex:1; min-width:0; width:100%; box-sizing:border-box;
@@ -730,17 +722,25 @@
              "Fotoğrafçı veya Kaynak" yerine sadece "Fotoğrafçı" oldu: kaynak artık kendi
              kutusunda. -->
         <div class="form-row">
-          <div class="form-field ac-field" id="ac-credit-field">
-            <label for="p-credit-text" id="p-credit-text-label">Fotoğrafçı <span class="req" aria-hidden="true">*</span></label>
-            <input type="text" id="p-credit-text" name="photoCreditText" autocomplete="off">
-            <div class="ac-suggestions" id="ac-credit-suggestions"></div>
-            <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
-                 öneriler MİMARLAB'daki gerçek fotoğrafçı profillerinden gelir (bkz. src/routes/
-                 project.js#handlePhotographerSearchRoute) ve profilli bir isim seçilirse proje o
-                 kişinin popup'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz. migrations/
-                 0080_project_photographers.sql). Profili olmayan isimler eskisi gibi serbest metin
-                 olarak kaydedilmeye devam eder. -->
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Öneri listesinden seçtiğin fotoğrafçılar profillerine bağlanır.</div>
+          <!-- Fotoğrafçı: Mimar/Firma kutularının AYNISI — çoktan seçmeli kutu + elle isim girişi
+               (kullanıcı isteği, 2026-09-15 yedinci tur madde 4). TEK FARK kaynağın İKİ olması:
+               "burada firmalardan da seçim olabilsin çünkü fotoğrafçı bir kişi de olabilir firmada.
+               Ama hepsi aynı listenin içinde olsun ayrı bir kutucuk olarak ayırma." — bkz.
+               office-picker.js#createPersonOrOfficePicker (kişi + firma adları tek listede).
+               Bu, sunucunun ZATEN yaptığı ayrımsızlığın forma yansıması: künyedeki "Fotoğraf"
+               satırı hem architects hem offices eşleşmelerini gösterir (bkz. src/routes/project.js#
+               photographerDetails + photographerOffices) ve profilli bir isim seçilirse proje o
+               kişinin/firmanın pop-up'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz.
+               migrations/0080_project_photographers.sql). Profili olmayan isimler eskisi gibi
+               serbest metin olarak kaydedilir.
+               #p-credit-text gizli input olarak KALIR (#p-office/#p-designer ile birebir desen):
+               gönderim, prefill ve "Kaynak'ı firmanın sitesiyle doldur" akışı onun virgüllü
+               değerini okumaya devam eder. -->
+          <div class="form-field" id="ac-credit-field">
+            <label for="p-credit-picker" id="p-credit-text-label">Fotoğrafçı <span class="req" aria-hidden="true">*</span></label>
+            <input type="hidden" id="p-credit-text" name="photoCreditText">
+            <div id="p-credit-picker"></div>
+            <div class="form-hint">Listeden birden fazla kişi ya da firma seçebilirsin. Aradığın isim listede yoksa yazıp «ekle» diyerek künyeye ekleyebilirsin. Seçtiğin kayıtlı isimler profillerine bağlanır.</div>
           </div>
           <!-- Kaynak: görselin/projenin alındığı sayfanın bağlantısı. photo_credit_url kolonu ve onu
                okuyan/yazan tüm yollar (bkz. src/lib/canonicalSync.js, projectPool.js) zaten vardı:
@@ -751,12 +751,14 @@
           <div class="form-field" id="credit-url-field">
             <label for="p-credit-url" id="p-credit-url-label">Kaynak <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="p-credit-url" name="photoCreditUrl" autocomplete="off" inputmode="url">
-            <!-- AGREGATÖR UYARISI (kullanıcı isteği, 2026-09-14): "Hiçbir projenin kaynak kısmında
-                 arkitera, archello, archdaily, divisare gibi linkler olmasın." Kural sunucuda
-                 zorlanıyor (bkz. src/lib/aggregatorSources.js — böyle bir adres canonical kayda hiç
-                 yazılmaz); buradaki cümle, girdisinin neden kaybolduğunu kullanıcının ÖNCEDEN
-                 bilmesi içindir. -->
-            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma yazarsan web sitesi buraya otomatik gelir. Yayın/arşiv siteleri (arkitera, archello, archdaily, divisare gibi) kabul edilmez — mimarlık firmasının kendi web sitesini gir ya da boş bırak.</div>
+            <!-- AGREGATÖR UYARISI METNİ KALDIRILDI (kullanıcı isteği, 2026-09-15 yedinci tur
+                 madde 4): "kaynak kutucuğunun altında yazan 'Yayın/arşiv siteleri (arkitera,
+                 archello, archdaily, divisare gibi) kabul edilmez ...' cümlelerini sil."
+                 KURALIN KENDİSİ DURUYOR ve sunucuda zorlanmaya devam ediyor (bkz.
+                 src/lib/aggregatorSources.js#planProjectSourceUrls — böyle bir adres canonical
+                 kayda HİÇ yazılmaz, hangi yoldan gelirse gelsin). Kaldırılan yalnızca bu uyarı
+                 cümlesiydi; davranış değişmedi. -->
+            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma yazarsan web sitesi buraya otomatik gelir.</div>
           </div>
         </div>
       </div>
@@ -1220,68 +1222,11 @@ const updateTurLabel = wireMultiDropdown('dd-tur', 'dd-tur-btn', 'dd-tur-btn-lab
 document.getElementById('dd-odul-options').innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" name="award" value="${escapeAttr(o)}"> ${escapeAttr(o)}</label>`).join('');
 const updateOdulLabel = wireMultiDropdown('dd-odul', 'dd-odul-btn', 'dd-odul-btn-label', 'Ödül seç');
 
-// ---------- OTOMATİK TAMAMLAMA: Mimar, Ofis ----------
-function lastCommaSegment(value){
-  const parts = value.split(',');
-  return parts[parts.length - 1].trim();
-}
-function replaceLastCommaSegment(value, replacement){
-  const idx = value.lastIndexOf(',');
-  return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
-}
-// Mimar/Firma önerileri statik data.js dizileri yerine canlı D1 aramasından (bkz.
-// src/routes/architect.js#handleArchitectSearchRoute, src/routes/office.js#handleOfficeSearchRoute)
-// beslenir — statik dizi yalnızca sayfa yüklenirken deploy edilen anlık görüntüyü içerdiğinden,
-// Admin panelinden az önce eklenmiş bir mimar/firma burada hiç görünmüyordu (bkz. kullanıcı
-// isteği). 300ms debounce ile istek atılır; yazarken gecikmeyen bir his için minimum sorgu
-// uzunluğu yok, ama boş girişte istek atılmaz.
-function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
-  opts = opts || {};
-  const input = document.getElementById(inputId);
-  const box = document.getElementById(suggestionsId);
-  let debounceTimer = null;
-  let currentQuery = '';
-  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function renderItems(items){
-    if(!items.length){ close(); return; }
-    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
-    box.classList.add('show');
-    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
-      el.addEventListener('mousedown', (e)=>{
-        e.preventDefault();
-        const item = items[i];
-        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
-        close();
-        if(opts.onPick) opts.onPick(item);
-      });
-    });
-  }
-  function fetchSuggestions(q){
-    currentQuery = q;
-    // opts.extraParams(): isteğe eklenecek EK sorgu parametreleri (ör. ürün aramasını seçili
-    // firmayla sınırlamak için "&brand=..."). Her istekte YENİDEN çağrılır — kullanıcı firmayı
-    // arada değiştirdiğinde filtre kendiliğinden güncel kalsın diye sabit bir değer alınmaz.
-    const extra = opts.extraParams ? (opts.extraParams() || '') : '';
-    fetch(`${searchUrl}?q=${encodeURIComponent(q)}${extra}`)
-      .then(res => res.ok ? res.json() : {items: []})
-      // Yanıt döndüğünde kullanıcı zaten başka bir şey yazmışsa (yarış durumu) eski sonucu
-      // gösterme — bkz. yukarıdaki nav arama kutusundaki AYNI currentQuery karşılaştırma deseni.
-      .then(data => { if(q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
-      .catch(()=>{});
-  }
-  function onInput(){
-    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
-    // opts.allowEmptyQuery(): boş kutuda da öneri getirilsin mi (ürün kutusu, bir firma seçiliyken
-    // o firmanın ürünlerini listelemek için — bkz. kullanıcı isteği 2026-09-01 madde 2).
-    const allowEmpty = opts.allowEmptyQuery ? opts.allowEmptyQuery() : false;
-    if(!q && !allowEmpty){ close(); currentQuery = ''; return; }
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
-  }
-  input.addEventListener('input', onInput);
-  input.addEventListener('focus', onInput);
-  input.addEventListener('blur', ()=> setTimeout(close, 150));
-}
+// wireAutocompleteLive (ve yalnızca onun kullandığı lastCommaSegment/replaceLastCommaSegment)
+// KALDIRILDI (kullanıcı isteği, 2026-09-15 yedinci tur): bu sayfadaki son
+// üç çağıranı da (Mimar, Firma, Fotoğrafçı) çoktan seçmeli kutulara geçti — bkz. office-picker.js.
+// Kutular tam listeyi TEK istekte alıp yerel olarak süzdüğünden tuş başına sorgu da atılmıyor.
+// Aynı yardımcının urun-ekle.html'deki kopyası ürün/proje kutuları için orada yaşamaya devam ediyor.
 // ---------- GRUP: sabit 40 seçenekli çoklu seçim (bkz. kullanıcı isteği: serbest metin/
 // autocomplete tamamen kaldırıldı, PROJECT_GROUP_OPTIONS project-taxonomy.js'ten — backend
 // doğrulaması da AYNI listeyi kullanır, bkz. src/lib/submissionTypes.js) ----------
@@ -1342,13 +1287,31 @@ async function fillSourceFromOffice(officeName){
     return true;
   }catch{ return false; }
 }
-wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search', {
-  onPick: (item) => { if(item && item.kind === 'office') fillSourceFromOffice(item.label); },
-});
-document.getElementById('p-credit-text').addEventListener('change', async () => {
-  const names = document.getElementById('p-credit-text').value.split(',').map(s => s.trim()).filter(Boolean);
-  for(const name of names){ if(await fillSourceFromOffice(name)) break; }
-});
+// Fotoğrafçı kutusu da artık çoktan seçmeli (bkz. #p-credit-picker HTML notu) — eski canlı
+// autocomplete ('/api/photographers/search') ve onun 'change' dinleyicisi kaldırıldı. "Kaynak'ı
+// firmanın web sitesiyle doldur" davranışı KORUNDU, yalnızca tetikleyicisi değişti: artık kutuya
+// YENİ eklenen adlar sırayla denenir (fillSourceFromOffice zaten kişi adlarında item:null görüp
+// atlıyor, yani ayrı bir "bu bir firma mı" kontrolü gerekmez).
+let creditPicker = null;
+let lastCreditSelection = [];
+let creditAutoFillMuted = false;
+async function onCreditPickerChange(names){
+  const before = new Set(lastCreditSelection.map(foldTrLocal));
+  lastCreditSelection = names.slice();
+  if(creditAutoFillMuted) return;
+  for(const name of names.filter(n => !before.has(foldTrLocal(n)))){
+    if(await fillSourceFromOffice(name)) break;
+  }
+}
+// #p-credit-text.value'ya doğrudan yazan her noktadan sonra çağrılır (#p-office/#p-designer ile
+// AYNI desen). Programatik yüklemelerde Kaynak otomatik doldurma SUSTURULUR: prefill/AI yolları
+// photo_credit_url'i zaten kendileri getiriyor, kutunun onu ezmesi kullanıcının kayıtlı değerini
+// kaybettirirdi.
+function syncCreditPicker(){
+  if(!creditPicker) return;
+  creditAutoFillMuted = true;
+  try{ creditPicker.syncFromInput(); } finally { creditAutoFillMuted = false; }
+}
 // Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
 // üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
 // Ekip/Kurucular bölümünü besleyen AYNI birleşik listeyi döner (bkz. src/routes/office.js#
@@ -1601,6 +1564,15 @@ designerPicker = createArchitectPicker(document.getElementById('p-designer-picke
   placeholder: 'Kişi seç veya yaz',
   searchLabel: 'Kişi ara ya da yeni isim yaz...',
   allowCustom: true,
+});
+// Fotoğrafçı kutusu — kişi VE firma adları TEK listede (bkz. #p-credit-picker HTML notu ve
+// office-picker.js#createPersonOrOfficePicker).
+creditPicker = createPersonOrOfficePicker(document.getElementById('p-credit-picker'), {
+  input: document.getElementById('p-credit-text'),
+  placeholder: 'Fotoğrafçı seç veya yaz',
+  searchLabel: 'Kişi ya da firma ara, yoksa yeni isim yaz...',
+  allowCustom: true,
+  onChange: onCreditPickerChange,
 });
 
 function mediaItemSrc(item){
@@ -2306,6 +2278,7 @@ async function prefillForEdit(){
     }
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
+    syncCreditPicker();
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';
     document.getElementById('p-publish-date').value = item.publishDate || '';
     document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (item.category || []).includes(cb.value));
@@ -2408,6 +2381,7 @@ async function prefillForClaim(){
   }
   document.getElementById('p-desc').value = merged.description || '';
   document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
+  syncCreditPicker();
   document.getElementById('p-credit-url').value = (merged.photoCredit && merged.photoCredit.url) || '';
   document.getElementById('p-publish-date').value = merged.publishDate || '';
   document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (merged.category || []).includes(cb.value));
@@ -2576,6 +2550,7 @@ async function applyAiResult(data){
   syncDesignerPicker();
   document.getElementById('p-desc').value = data.description || '';
   document.getElementById('p-credit-text').value = data.photo_credit_text || '';
+  syncCreditPicker();
   document.getElementById('p-credit-url').value = data.photo_credit_url || '';
   document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (data.category || []).includes(cb.value));
   updateKategoriLabel();
@@ -3033,6 +3008,8 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     syncOfficePicker();
     document.getElementById('p-designer').value = '';
     syncDesignerPicker();
+    document.getElementById('p-credit-text').value = '';
+    syncCreditPicker();
     brandChips = [];
     renderBrandChips();
     updateKategoriLabel();

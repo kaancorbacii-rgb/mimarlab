@@ -421,6 +421,9 @@
 <script src="image-upload.js" defer></script>
 <script src="js/components/product-variants.js" defer></script>
 <script src="catalog-taxonomy.js"></script>
+<!-- Firma / Tasarımcı çoklu seçim kutuları (bkz. office-picker.js) — defer YOK: aşağıdaki satır
+     içi script createOfficePicker/createArchitectPicker'ı doğrudan çağırıyor. -->
+<script src="office-picker.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
 <script src="js/components/rights-consent.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -465,16 +468,29 @@
           <input type="text" id="u-title" name="title" placeholder="ör. Cloud Koltuk Takımı" required>
         </div>
         <div class="form-row">
-          <div class="form-field ac-field" id="ac-brand-field">
-            <label for="u-brand">Firma <span class="req" aria-hidden="true">*</span></label>
-            <input type="text" id="u-brand" name="brand" autocomplete="off" required>
-            <div class="ac-suggestions" id="ac-brand-suggestions"></div>
+          <!-- Firma ve Tasarımcı: proje-ekle.html'deki kutuların AYNISI — siteye yüklü kayıtlardan
+               seçim + listede olmayan ad için elle giriş (kullanıcı isteği, 2026-09-15 yedinci tur
+               madde 2). İkisi de gizli input + picker deseni taşır (#p-office/#p-designer ile
+               birebir), bu yüzden gönderim/prefill/AI yollarının hiçbiri değişmedi.
+
+               FİRMA TEK SEÇİMDİR (single:true), Tasarımcı çoklu. Bu bir tercih değil, şemanın
+               gereği: bir ürünün üreticisi TEK bir kayıttır — products.brand_office_id tek kolondur
+               ve /urun marka filtresi, ürün pop-up'ının marka çipi, products.brand_name_raw ile
+               ürün→marka→proje zinciri (bkz. src/routes/project.js#fetchProjectProducts) hep o tek
+               değeri okur. Çoklu seçim, "A, B" gibi hiçbir firmayla eşleşmeyen bir marka adı üretip
+               ürünü markasız bırakırdı. Tasarımcı ise zaten virgüllü çoklu metindi, o aynen çoklu
+               kaldı. -->
+          <div class="form-field" id="ac-brand-field">
+            <label for="u-brand-picker">Firma <span class="req" aria-hidden="true">*</span></label>
+            <input type="hidden" id="u-brand" name="brand">
+            <div id="u-brand-picker"></div>
+            <div class="form-hint">Listeden ürünün firmasını seç. Firma listede yoksa adını yazıp «ekle» diyebilirsin.</div>
           </div>
-          <div class="form-field ac-field" id="ac-designer-field">
-            <label for="u-designer">Tasarımcı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-designer" name="designer" autocomplete="off">
-            <div class="ac-suggestions" id="ac-designer-suggestions"></div>
-            <div class="form-hint">Birden fazla tasarımcı gireceksen virgülle ayır.</div>
+          <div class="form-field" id="ac-designer-field">
+            <label for="u-designer-picker">Tasarımcı <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="u-designer" name="designer">
+            <div id="u-designer-picker"></div>
+            <div class="form-hint">Listeden birden fazla kişi seçebilirsin. Aradığın kişi listede yoksa adını yazıp «ekle» diyebilirsin.</div>
           </div>
         </div>
         <div class="form-row">
@@ -1320,11 +1336,13 @@ function applyPrefillItem(item){
 
   document.getElementById('u-title').value = item.title || '';
   document.getElementById('u-brand').value = item.brand || '';
+  syncBrandPicker();
   originalTitle = item.title || '';
   originalBrand = item.brand || '';
   document.getElementById('u-website').value = item.website || '';
   document.getElementById('u-year').value = item.year || '';
   document.getElementById('u-designer').value = item.designer || '';
+  syncDesignerPicker();
   document.getElementById('u-desc').value = item.description || '';
   // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
   // değeri alıp yeni Grup/Kategori taksonomisine eşleriz.
@@ -1453,6 +1471,38 @@ async function prefillForClaim(){
   applyPrefillItem(merged);
   mountProductAdminActions();
 }
+// Firma ve Tasarımcı kutuları artık serbest metin + autocomplete DEĞİL, proje-ekle.html'deki
+// kutuların aynısı olan çoktan seçmeli kutulardır (bkz. #u-brand-picker HTML notu). Bu blokla
+// birlikte iki yardımcı düştü: wireAutocompleteLive'ın Tasarımcı çağrısı ve YALNIZCA Firma
+// kutusunun kullandığı wireOfficeSuggest/loadOfficeNames/foldTrUrun üçlüsü — kutu aynı ucu
+// (/api/offices/names) office-picker.js üzerinden, modül ömrü boyunca tek istekle okuyor.
+let brandPicker = null;
+let designerPicker = null;
+// #u-brand / #u-designer .value'ya doğrudan yazan her noktadan sonra çağrılır.
+function syncBrandPicker(){ if(brandPicker) brandPicker.syncFromInput(); }
+function syncDesignerPicker(){ if(designerPicker) designerPicker.syncFromInput(); }
+// single:true — bkz. #u-brand-picker HTML notundaki şema gerekçesi (products.brand_office_id TEK
+// kolondur). allowCustom: canlı veride ürün markalarının bir bölümünün canonical bir `offices`
+// satırı YOK (bkz. src/routes/product.js#handleProductBrandSearchRoute'taki aynı gerçek bulgu) —
+// kutuyu kayıtlı adlarla sınırlamak o ürünlerin hiç kaydedilememesi demek olurdu.
+// SIRA ÖNEMLİ: kutular, aşağıdaki prefill çağrılarından ÖNCE kurulur — prefill yolları
+// syncBrandPicker()/syncDesignerPicker() çağırıyor ve bu değişkenler `let` olduğundan daha erken
+// bir erişim TDZ hatası verirdi (bugün hepsi bir await'in ardında çalışıyor, ama o sıraya
+// GÜVENMEK gereksiz bir kırılganlık olurdu).
+brandPicker = createOfficePicker(document.getElementById('u-brand-picker'), {
+  input: document.getElementById('u-brand'),
+  placeholder: 'Firma seç veya yaz',
+  searchLabel: 'Firma ara ya da yeni firma adı yaz...',
+  allowCustom: true,
+  single: true,
+});
+designerPicker = createArchitectPicker(document.getElementById('u-designer-picker'), {
+  input: document.getElementById('u-designer'),
+  placeholder: 'Kişi seç veya yaz',
+  searchLabel: 'Kişi ara ya da yeni isim yaz...',
+  allowCustom: true,
+});
+
 prefillForEdit();
 prefillForAdminEdit();
 prefillForClaim();
@@ -1571,84 +1621,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 
-wireAutocompleteLive('u-designer', 'ac-designer-suggestions', '/api/architects/search');
 
-// ---------- FİRMA ÖNERİLERİ: SİTEDE KAYITLI FİRMALARDAN ----------
-// Kullanıcı isteği, 2026-09-14 madde 2: "Firma kısmına bir şey yazılınca önerilenler firmalardan
-// oluşsun."
-//
-// KAYNAK /api/offices/names — sitedeki TÜM firma ve marka adları TEK istekte (office-picker.js'in
-// ve Hesabım'daki Firma kutusunun kullandığı AYNI uç; KV'de önbellekli havuzdan gelir, ek bir D1
-// sorgusu doğurmaz). Eskiden bu kutu /api/offices/search'e bağlıydı; iki kusuru vardı:
-//   * o uç q.length < 2 iken BOŞ döner (bkz. src/routes/office.js#handleOfficeSearchRoute) — tek
-//     harf yazan kullanıcı hiçbir öneri görmüyordu,
-//   * yanıtı 20 satırla sınırlı ve her tuşta yeni bir ağ isteği demekti.
-// Liste bir kez indiğinden eşleştirme artık İLK KARAKTERDEN itibaren, tuş başına istek olmadan
-// yapılır ve öneriler tanım gereği sitede kayıtlı firmalardır.
-//
-// Kutu SERBEST METİN olarak kalır (bir <select> DEĞİL): prod verisinde ürün markalarının bir
-// bölümünün canonical bir `offices` satırı yok (bkz. src/routes/product.js#
-// handleProductBrandSearchRoute'taki AYNI gerçek bulgu), menüye indirgemek o ürünlerin hiç
-// kaydedilememesi demek olurdu. Öneri listesi yalnızca yazmayı kolaylaştırır, seçenekleri kısıtlamaz.
-const OFFICE_NAMES_URL = '/api/offices/names';
-let officeNamesPromise = null;
-function loadOfficeNames(){
-  if(!officeNamesPromise){
-    officeNamesPromise = fetch(OFFICE_NAMES_URL)
-      .then(r => r.ok ? r.json() : { items: [] })
-      .then(d => (d.items || []).filter(i => i && i.name).map(i => ({ name: i.name, fold: foldTrUrun(i.name) })))
-      .catch(()=> []);
-  }
-  return officeNamesPromise;
-}
-// src/routes/office.js#foldTr ve office-picker.js#foldTr ile AYNI Türkçe casefold — "İSTANBUL" /
-// "istanbul" / "Istanbul" hepsi aynı anahtara düşsün diye.
-function foldTrUrun(v){
-  return String(v || '')
-    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
-    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
-    .toLowerCase()
-    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u').replace(/ö/g, 'o');
-}
-function wireOfficeSuggest(inputId, suggestionsId){
-  const input = document.getElementById(inputId);
-  const box = document.getElementById(suggestionsId);
-  if(!input || !box) return;
-  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function render(items){
-    if(!items.length){ close(); return; }
-    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.name)}</div>`).join('');
-    box.classList.add('show');
-    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
-      // mousedown + preventDefault: blur'dan ÖNCE çalışsın, aksi halde kutu kapanır ve tıklama düşer
-      // (wireAutocompleteLive'daki AYNI desen).
-      el.addEventListener('mousedown', (e)=>{ e.preventDefault(); input.value = items[i].name; close(); });
-    });
-  }
-  function onInput(){
-    const q = foldTrUrun(input.value.trim());
-    if(!q){ close(); return; }
-    loadOfficeNames().then(list => {
-      // Kullanıcı yazmaya devam ettiyse bu sonucu çizme (liste bellekte olduğundan pratikte anlık,
-      // ama ilk istek ağdan geldiğinden yarış mümkündür).
-      if(foldTrUrun(input.value.trim()) !== q) return;
-      // ÖNEK eşleşmeleri önce, sonra içinde geçenler — src/lib/searchFold.js#foldedPrefixThenSubstring
-      // ile AYNI sıralama mantığı, burada bellekteki liste üzerinde.
-      const prefix = [], substr = [];
-      for(const o of list){
-        if(o.fold.startsWith(q)) prefix.push(o);
-        else if(o.fold.includes(q)) substr.push(o);
-        if(prefix.length >= 8) break;
-      }
-      render([...prefix, ...substr].slice(0, 8));
-    });
-  }
-  input.addEventListener('input', onInput);
-  input.addEventListener('focus', onInput);
-  input.addEventListener('blur', ()=> setTimeout(close, 150));
-}
-wireOfficeSuggest('u-brand', 'ac-brand-suggestions');
 
 // ---------- KULLANILAN PROJELER: yayımlanmış projelerden seçilen chip listesi ----------
 // proje-ekle.html#brandChips ile AYNI desen (bkz. kullanıcı isteği, 2026-08-31). Fark: burada
@@ -1722,9 +1695,11 @@ document.getElementById('u-project-input').addEventListener('keydown', (e)=>{
 function applyAiResult(data){
   document.getElementById('u-title').value = data.title || '';
   document.getElementById('u-brand').value = data.brand || '';
+  syncBrandPicker();
   document.getElementById('u-website').value = data.website || '';
   document.getElementById('u-year').value = data.year || '';
   document.getElementById('u-designer').value = (data.designer_names || []).join(', ');
+  syncDesignerPicker();
   document.getElementById('u-desc').value = data.description || '';
   if(data.category){
     const group = taxonomyGroupOf(CATALOG_TAXONOMY, data.category);
@@ -1923,6 +1898,16 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
+  // Firma kutusu artık type="hidden" (bkz. #u-brand-picker HTML notu) ve gizli input'lar
+  // tarayıcının kendi `required` doğrulamasından MUAFTIR — zorunluluk burada, "En az bir kategori
+  // seç" guard'ıyla AYNI desende elle kontrol edilir. Sunucu tarafı karşılığı:
+  // src/lib/submissionTypes.js#SUBMISSION_TYPES.products.required.
+  if(!document.getElementById('u-brand').value.trim()){
+    notice.textContent = 'Firma alanını doldur.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   if(!selectedCategories.size){
     notice.textContent = 'En az bir kategori seç.';
     notice.classList.add('show');
@@ -2063,6 +2048,12 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     form.reset();
+    // Gizli input'lar form.reset() ile SIFIRLANMAZ (value ataması varsayılan değeri de değiştirir)
+    // — proje-ekle.html'deki #p-office/#p-designer ile AYNI gerekçe.
+    document.getElementById('u-brand').value = '';
+    syncBrandPicker();
+    document.getElementById('u-designer').value = '';
+    syncDesignerPicker();
     setExistingImages([]);
     renderPreviews();
     setExistingFiles([]);

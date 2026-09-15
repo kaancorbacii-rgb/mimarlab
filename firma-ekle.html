@@ -176,17 +176,9 @@
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
 
-  /* ---------- AUTOCOMPLETE (Kurucular) ---------- */
-  .ac-field{position:relative;}
-  .ac-suggestions{
-    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
-    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
-    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
-  }
-  .ac-suggestions.show{display:block;}
-  .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
-  .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
-  .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+  /* AUTOCOMPLETE (.ac-field/.ac-suggestions/.ac-suggestion) KURALLARI KALDIRILDI — Kurucular ve
+     Ekip kutuları çoktan seçmeli kutulara geçti ve kendi .op-* stillerini getiriyorlar (bkz.
+     office-picker.js#injectStyles). Geriye tek bir `class="ac-*"` elemanı kalmadı. */
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
   /* ---------- SOSYAL MEDYA (birden fazla bağlantı — bkz. kullanıcı isteği: "sosyal medya
      kutusunun yanına ekle butonu koy") — kisi-ekle.html#social-row ile AYNI desen. ---------- */
@@ -304,6 +296,9 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="office-kind.js"></script>
+<!-- Kurucular/Ekip çoklu seçim kutuları (bkz. office-picker.js#createArchitectPicker) — defer YOK:
+     aşağıdaki satır içi script bunu doğrudan çağırıyor, awards-shared/office-kind ile AYNI sebep. -->
+<script src="office-picker.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-crop.js" defer></script>
@@ -435,17 +430,29 @@
             </div>
           </div>
         </div>
-        <div class="form-field ac-field" id="ac-kurucular-field">
-          <label for="o-founders">Kurucular / Ortaklar <span class="opt">(opsiyonel)</span></label>
-          <input type="text" id="o-founders" name="founders" autocomplete="off">
-          <div class="ac-suggestions" id="ac-kurucular-suggestions"></div>
-          <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
-        </div>
-        <div class="form-field ac-field" id="ac-ekip-field">
-          <label for="o-team">Ekip <span class="opt">(opsiyonel)</span></label>
-          <input type="text" id="o-team" name="team" autocomplete="off">
-          <div class="ac-suggestions" id="ac-ekip-suggestions"></div>
-          <div class="form-hint">Firmada çalışabilecek kişileri virgülle ayırarak yaz. Kişi profili olanlar aşağıda önerilir.</div>
+        <!-- Kurucular / Ortaklar + Ekip (kullanıcı isteği, 2026-09-15 yedinci tur madde 1):
+             (a) ikisi de proje-ekle.html'deki Mimar kutusunun AYNISI — siteye yüklü kişilerden
+                 çoktan seçim + listede olmayan ad için elle giriş (office-picker.js#
+                 createArchitectPicker, allowCustom);
+             (b) "masaüstü ve tablet görünümünde ... aynı satırda yan yana 2 sütun" — bu yüzden
+                 sayfanın kendi .form-row ızgarasına alındılar (1fr 1fr, <=720px'te tek sütun,
+                 bkz. bu dosyanın media query'si), yani tablet genişliğinde yan yana kalırlar.
+             #o-founders / #o-team gizli input olarak KALIR: splitFounderNames, noteFoundersShown,
+             mergeTeamNames ve prefill yollarının tamamı onların virgüllü değerini okumaya/yazmaya
+             devam eder — yazan her nokta syncFounderPicker()/syncTeamPicker() çağırır. -->
+        <div class="form-row">
+          <div class="form-field" id="ac-kurucular-field">
+            <label for="o-founders-picker">Kurucular / Ortaklar <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="o-founders" name="founders">
+            <div id="o-founders-picker"></div>
+            <div class="form-hint">Listeden birden fazla kişi seçebilirsin. Aradığın kişi listede yoksa adını yazıp «ekle» diyerek künyeye ekleyebilirsin.</div>
+          </div>
+          <div class="form-field" id="ac-ekip-field">
+            <label for="o-team-picker">Ekip <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="o-team" name="team">
+            <div id="o-team-picker"></div>
+            <div class="form-hint">Firmada çalışan kişileri listeden seç. Kaydı olmayan biri için adını yazıp «ekle» diyebilirsin.</div>
+          </div>
         </div>
         <div class="form-field">
           <label for="o-desc">Firma Hakkında Açıklama <span class="req" aria-hidden="true">*</span></label>
@@ -830,59 +837,38 @@ function collectSocialLinks(){
 }
 document.getElementById('social-add-btn').addEventListener('click', ()=> addSocialRow());
 
-// ---------- OTOMATİK TAMAMLAMA: Kurucular ----------
-function lastCommaSegment(value){
-  const parts = value.split(',');
-  return parts[parts.length - 1].trim();
-}
-function replaceLastCommaSegment(value, replacement){
-  const idx = value.lastIndexOf(',');
-  return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
-}
-// Kurucu önerileri statik data.js architects[] dizisi yerine canlı D1 aramasından beslenir (bkz.
-// proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe — statik dizi yalnızca
-// deploy anındaki anlık görüntüyü içerdiğinden, D1'e az önce eklenmiş bir mimar burada hiç
-// görünmüyordu, bkz. gerçek bulgu: "cem tanr" yazınca Cem Tanrıkulu çıkmıyordu).
-function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
-  opts = opts || {};
-  const input = document.getElementById(inputId);
-  const box = document.getElementById(suggestionsId);
-  let debounceTimer = null;
-  let currentQuery = '';
-  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function renderItems(items){
-    if(!items.length){ close(); return; }
-    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
-    box.classList.add('show');
-    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
-      el.addEventListener('mousedown', (e)=>{
-        e.preventDefault();
-        const item = items[i];
-        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
-        close();
-        if(opts.onPick) opts.onPick(item);
-      });
-    });
-  }
-  function fetchSuggestions(q){
-    currentQuery = q;
-    fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
-      .then(res => res.ok ? res.json() : {items: []})
-      .then(data => { if(q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
-      .catch(()=>{});
-  }
-  function onInput(){
-    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
-    if(!q){ close(); currentQuery = ''; return; }
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
-  }
-  input.addEventListener('input', onInput);
-  input.addEventListener('focus', onInput);
-  input.addEventListener('blur', ()=> setTimeout(close, 150));
-}
-wireAutocompleteLive('o-founders', 'ac-kurucular-suggestions', '/api/architects/search');
-wireAutocompleteLive('o-team', 'ac-ekip-suggestions', '/api/architects/search');
+// ---------- KURUCULAR / EKİP KUTULARI ----------
+// wireAutocompleteLive (ve yalnızca onun kullandığı lastCommaSegment/replaceLastCommaSegment)
+// KALDIRILDI: bu sayfadaki iki çağıranı da (Kurucular, Ekip) çoktan seçmeli kutulara geçti.
+// Kurucular ve Ekip kutuları artık serbest metin + autocomplete DEĞİL, proje-ekle.html'deki Mimar
+// kutusunun aynısı olan çoktan seçmeli kutulardır (bkz. #o-founders-picker HTML notu). İkisi de
+// TEK bir kaynaktan (GET /api/architects/names) beslenir ve o liste modül ömrü boyunca bir kez
+// çekilir (bkz. office-picker.js#loadOptions) — iki kutu için iki istek atılmaz.
+// allowCustom: sitede kaydı olmayan bir kurucu/ekip üyesi de künyeye yazılabilir; ad kaydedildiği
+// gibi saklanır, eşleşen bir kişi kaydı yoksa office_founders bağı kurulmaz (bkz. src/lib/
+// canonicalSync.js#syncOfficeFoundersFromNames — eşleşmeyen ad sessizce atlanmaz, conflict olarak
+// loglanır) ama isim firma künyesinde görünmeye devam eder.
+let founderPicker = null;
+let teamPicker = null;
+// #o-founders / #o-team .value'ya doğrudan yazan her noktadan sonra çağrılır.
+function syncFounderPicker(){ if(founderPicker) founderPicker.syncFromInput(); }
+function syncTeamPicker(){ if(teamPicker) teamPicker.syncFromInput(); }
+founderPicker = createArchitectPicker(document.getElementById('o-founders-picker'), {
+  input: document.getElementById('o-founders'),
+  placeholder: 'Kişi seç veya yaz',
+  searchLabel: 'Kişi ara ya da yeni isim yaz...',
+  allowCustom: true,
+  // Kutudan silinen kurucular firmadan da koparılmalı (bkz. noteFoundersShown / src/lib/
+  // officeFounderCascade.js#cascadeRemovedFounders): "kullanıcıya gösterilen liste" damgası,
+  // kutu değiştikçe DEĞİL yalnızca PREFILL noktalarında alınır, bu yüzden burada onChange'de
+  // yeniden yazılmaz — o damga bilinçli olarak formun AÇILIŞ hâlini taşır.
+});
+teamPicker = createArchitectPicker(document.getElementById('o-team-picker'), {
+  input: document.getElementById('o-team'),
+  placeholder: 'Kişi seç veya yaz',
+  searchLabel: 'Kişi ara ya da yeni isim yaz...',
+  allowCustom: true,
+});
 
 function renderPreviews(){
   if(selectedFiles.length){
@@ -1138,8 +1124,10 @@ async function prefillForEdit(){
     document.getElementById('o-website').value = item.website || '';
     document.getElementById('o-desc').value = item.about || '';
     document.getElementById('o-founders').value = (item.founders || []).join(', ');
+    syncFounderPicker();
     noteFoundersShown();
     document.getElementById('o-team').value = (item.team || []).join(', ');
+    syncTeamPicker();
     try{
       const publicRes = await fetch(`/api/office/${encodeURIComponent(item.claimed_profile_key || item.name)}`);
       if(publicRes.ok){
@@ -1151,8 +1139,10 @@ async function prefillForEdit(){
         const claimedFounderNames = (founders || []).map(f => f.name).filter(Boolean);
         const claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
         document.getElementById('o-founders').value = mergeTeamNames(item.founders || [], claimedFounderNames).join(', ');
+        syncFounderPicker();
         noteFoundersShown();
         document.getElementById('o-team').value = mergeTeamNames(item.team || [], claimedTeamNames).join(', ');
+        syncTeamPicker();
       }
     }catch{}
     const catList = (item.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
@@ -1276,8 +1266,10 @@ async function prefillForClaim(){
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
   document.getElementById('o-founders').value = mergeTeamNames(merged.founders || [], claimedFounderNames).join(', ');
+  syncFounderPicker();
   noteFoundersShown();
   document.getElementById('o-team').value = mergeTeamNames(merged.team || [], claimedTeamNames).join(', ');
+  syncTeamPicker();
   // merged.cats statik/overlay/mine kaynaklarında " · " ile ayrılmış düz metin, canonical
   // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.
   const catList = Array.isArray(merged.cats) ? merged.cats : (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
@@ -1516,6 +1508,13 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     showPostSubmitClaimBox(payload.name);
     form.reset();
+    // Gizli input'lar form.reset() ile SIFIRLANMAZ (value ataması varsayılan değeri de değiştirir)
+    // — proje-ekle.html'deki #p-office/#p-designer ile AYNI gerekçe.
+    document.getElementById('o-founders').value = '';
+    syncFounderPicker();
+    noteFoundersShown();
+    document.getElementById('o-team').value = '';
+    syncTeamPicker();
     selectedIl = null; selectedIlce = null; selectedYil = null;
     document.getElementById('dd-il-btn-label').textContent = 'İl seç';
     document.getElementById('dd-ilce-btn-label').textContent = 'Önce il seç';

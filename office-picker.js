@@ -38,6 +38,8 @@
   // URL başına TEK istek — aynı sayfada iki kutu (Mimar + Firma) yaşadığından önbellek artık tek
   // bir değişken değil, kaynak adresine göre anahtarlı bir harita.
   const optionsPromises = new Map();
+  // Kutu örneklerini birbirinden ayıran sayaç (bkz. singleGroupName).
+  let pickerSeq = 0;
 
   // Bir kaynaktaki tüm adlar — modülün ömrü boyunca TEK istek (kutu her açıldığında yeniden
   // çekilmez; auth-modal.js#allOfficeNamesPromise'in AYNI gerekçesi).
@@ -49,6 +51,31 @@
         .catch(() => []));
     }
     return optionsPromises.get(url);
+  }
+
+  // BİRDEN FAZLA KAYNAK, TEK LİSTE (kullanıcı isteği, 2026-09-15 yedinci tur madde 4: "fotoğrafçı
+  // seçimi de ... kişi listesinden ya da manuel olarak yazma şeklinde olsun ... ama burada
+  // firmalardan da seçim olabilsin çünkü fotoğrafçı bir kişi de olabilir firmada. Ama hepsi aynı
+  // listenin içinde olsun ayrı bir kutucuk olarak ayırma.").
+  // Kaynaklar AYRI AYRI önbelleklenir (yukarıdaki loadOptions), yani /api/architects/names zaten
+  // Mimar kutusu için çekilmişse ikinci kez istenmez. Birleşimde Türkçe katlamayla tekilleştirme
+  // yapılır — aynı ad hem kişi hem firma olarak kayıtlıysa (bu depoda mümkün, bkz. proje notu
+  // "Duplicate name key limitation") listede TEK satır görünür; seçim zaten ADLA taşındığından
+  // iki satırın birbirinden farkı olmazdı.
+  function loadMergedOptions(urls) {
+    return Promise.all(urls.map(loadOptions)).then(lists => {
+      const seen = new Set();
+      const out = [];
+      for (const list of lists) {
+        for (const item of list) {
+          const key = foldTr(item.name);
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          out.push(item);
+        }
+      }
+      return out.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    });
   }
 
   // src/routes/office.js#foldTr ile AYNI Türkçe casefold — "İSTANBUL"/"istanbul"/"Istanbul" hepsi
@@ -159,7 +186,19 @@
   // ekleme, Türkçe katlamayla tekilleştirme) zamanla ayrışacağı TEK yer olurdu.
   function createNamePicker(mount, opts) {
     const options = opts || {};
-    const optionsUrl = options.optionsUrl || OFFICE_OPTIONS_URL;
+    // optionsUrls (dizi) verilirse kaynaklar tek listede birleşir; yoksa tek kaynak.
+    const optionsUrls = Array.isArray(options.optionsUrls) && options.optionsUrls.length
+      ? options.optionsUrls
+      : [options.optionsUrl || OFFICE_OPTIONS_URL];
+    // TEK SEÇİM (opts.single): kutunun taşıdığı alan şema gereği tek değerliyse kullanılır —
+    // bugün yalnızca urun-ekle.html'in "Firma" kutusu (products.brand_office_id TEK kolondur ve
+    // /urun marka filtresi, ürün pop-up'ının marka çipi, products.brand_name_raw hep o tek değeri
+    // okur). Seçenekler yine aynı panel/arama/elle-ekleme davranışını taşır, yalnızca yeni seçim
+    // eskisinin YERİNE geçer.
+    const single = !!options.single;
+    // Radio grubu adı ÖRNEĞE ÖZEL: sabit bir ad kullanılsaydı aynı sayfadaki iki tek-seçimli kutu
+    // tek bir radio grubu olur, birinden seçim yapmak diğerininkini sessizce iptal ederdi.
+    const singleGroupName = `op-single-${++pickerSeq}`;
     // Etiketler "Firma veya marka" -> "Firma" (kullanıcı isteği, 2026-09-14 madde 2 ve 4): marka
     // kavramı sitede kaldırıldı, ürün üreten kayıtlar artık "Üretim ve Satış" hizmet alanlı
     // FİRMALAR (bkz. office-kind.js). Kutunun beslendiği uç (/api/offices/search) DEĞİŞMEDİ —
@@ -248,22 +287,31 @@
       if (!shown.length && !addRow) { list.innerHTML = '<div class="op-empty">Sonuç bulunamadı.</div>'; return; }
       list.innerHTML = addRow + shown.map(o => `
         <label class="op-option">
-          <input type="checkbox" value="${esc(o.name)}"${keys.has(foldTr(o.name)) ? ' checked' : ''}>
+          <input type="${single ? 'radio' : 'checkbox'}"${single ? ` name="${singleGroupName}"` : ''} value="${esc(o.name)}"${keys.has(foldTr(o.name)) ? ' checked' : ''}>
           <span>${esc(o.name)}</span>
         </label>`).join('');
       const addBtn = list.querySelector('[data-add]');
       if (addBtn) {
         addBtn.addEventListener('click', () => {
           const name = addBtn.dataset.add;
-          if (!selectedKeys().has(foldTr(name))) selected.push(name);
+          if (single) selected = [name];
+          else if (!selectedKeys().has(foldTr(name))) selected.push(name);
           search.value = '';
           commit();          // liste yeniden çizilir: yeni ad artık `extras` içinde ve işaretli
           search.focus();
         });
       }
-      list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      list.querySelectorAll('input[type=checkbox], input[type=radio]').forEach(cb => {
         cb.addEventListener('change', () => {
           const key = foldTr(cb.value);
+          // Tek seçimde yeni seçim eskisinin YERİNE geçer; panel de kapanır (seçilecek ikinci bir
+          // şey yok, açık kalması yalnızca kullanıcıyı bekletirdi).
+          if (single) {
+            selected = cb.checked ? [cb.value] : [];
+            commitWithoutList();
+            field.classList.remove('open');
+            return;
+          }
           if (cb.checked) { if (!selectedKeys().has(key)) selected.push(cb.value); }
           else selected = selected.filter(n => foldTr(n) !== key);
           // Liste yeniden çizilmez (kullanıcı arka arkaya birden çok seçim yapıyor olabilir,
@@ -275,7 +323,15 @@
 
     function pushToInput() {
       if (!options.input) return;
-      options.input.value = selected.join(', ');
+      const next = selected.join(', ');
+      if (options.input.value === next) return;
+      options.input.value = next;
+      // GERÇEK BULGU (2026-09-15, yedinci tur): bağlı input artık type="hidden" ve ona programatik
+      // `.value =` ATAMASI hiçbir olay tetiklemez — o input'u dinleyen mevcut kodlar sessizce
+      // çalışmaz olurdu (ör. urun-ekle.html'deki DuplicateNameCheck, Firma kutusunu 'input'/'blur'
+      // ile izliyor). Kutu değeri her yazdığında olayı KENDİSİ yayar, böylece "gizli input +
+      // picker" deseni, yerini aldığı görünür metin kutusuyla aynı sözleşmeyi taşır.
+      options.input.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     function commitWithoutList() {
@@ -310,7 +366,7 @@
       if (addBtn) addBtn.click();
     });
 
-    const ready = loadOptions(optionsUrl).then(list => {
+    const ready = loadMergedOptions(optionsUrls).then(list => {
       items = list;
       loaded = true;
       renderList();
@@ -328,6 +384,7 @@
           seen.add(key);
           return true;
         });
+        if (single) selected = selected.slice(0, 1);
         commit();
       },
       // Virgüllü metinden yükle — architect_submissions.office'in depolama biçimi (bkz. dosya başı).
@@ -437,7 +494,23 @@
     });
   }
 
+  // KİŞİ + FİRMA, TEK LİSTE — proje-ekle.html'in "Fotoğrafçı" kutusu (kullanıcı isteği, 2026-09-15
+  // yedinci tur madde 4). Fotoğrafçı bir kişi de olabilir bir firma da olabilir ve kullanıcı hangisi
+  // olduğunu ayırmak zorunda bırakılmamalı; bu yüzden TEK kutu, iki kaynağın birleşimi (bkz.
+  // loadMergedOptions). Sunucu tarafında bu zaten böyleydi: künyedeki "Fotoğraf" satırı hem
+  // architects hem offices eşleşmelerini gösterir (bkz. src/routes/project.js#photographerDetails +
+  // photographerOffices) — kutu yalnızca o gerçeğe uydu.
+  function createPersonOrOfficePicker(mount, opts) {
+    return createNamePicker(mount, {
+      placeholder: 'Kişi ya da firma seç',
+      searchLabel: 'Kişi ya da firma ara...',
+      ...(opts || {}),
+      optionsUrls: [ARCHITECT_OPTIONS_URL, OFFICE_OPTIONS_URL],
+    });
+  }
+
   window.createNamePicker = createNamePicker;
+  window.createPersonOrOfficePicker = createPersonOrOfficePicker;
   window.createOfficePicker = createOfficePicker;
   window.createArchitectPicker = createArchitectPicker;
   window.mergeOfficeMembershipNames = mergeOfficeMembershipNames;

@@ -310,9 +310,10 @@ filtrelerde firma isimleri mimar kısmına karışmış gözüküyor."
 
 - `office-picker.js` yeni **`allowCustom`** seçeneği: arama kutusuna yazılan ve listede karşılığı
   olmayan ad "+ «...» ekle" satırıyla (ya da Enter'la) seçime katılır.
-- **YALNIZCA `proje-ekle.html` açar.** kisi-ekle ve Hesabım'daki kişi formu kapalı kalır: oradaki
-  kutu sitede kayıtlı bir firmaya BAĞLANMAK içindir (bkz. `ensurePendingOfficeClaims`), serbest metin
-  o zinciri karşılığı olmayan bir adla doldururdu.
+- **ARTIK ÜÇ YÜZEYDE DE AÇIK** (2026-09-15 yedinci tur — aşağıdaki başlık): kisi-ekle ve Hesabım'ın
+  kişi formu bu turda kapalı bırakılmıştı; gerekçe ("serbest metin, `ensurePendingOfficeClaims`
+  zincirini karşılığı olmayan bir adla doldurur") canlı kodda doğrulandı ve GEÇERSİZ çıktı: o
+  fonksiyon `if (!canonical) continue;` ile eşleşmeyen ada talep satırı AÇMIYOR.
 - Girilen ad künyeye yazıldığı gibi kaydedilir; firma kaydı olmadığından tıklanabilir bir profil
   çipi oluşmaz ama isim künyede ve /proje filtrelerinde görünür (yukarıdaki madde).
 
@@ -409,3 +410,54 @@ için yazılabilmiş ama bunu da engelle."
      kapıları yalnızca bundan sonrasını temizler; D1'de hâlihazırda duran mükerrer adlar bu kapı
      sayesinde ilk görüntülemede künyeden düşer.
 - Testler: `scripts/test-2026-09-15-account-button-and-designer-picker.mjs` (preflight'a bağlı).
+
+
+## Form seçim kutuları: dört form da aynı bileşende (2026-09-15, yedinci tur)
+
+Kullanıcı isteği (dört madde, hepsi aynı cümleye dayanıyor — "aynı proje sayfasındaki gibi"):
+firma-ekle'deki Kurucular/Ekip, urun-ekle'deki Firma/Tasarımcı ve proje-ekle'deki Fotoğrafçı
+kutuları da siteye yüklü kayıtlardan **çoklu seçim** + listede yoksa **elle yazma** olsun;
+kisi-ekle'nin firma kutusuna da elle isim girilebilsin.
+
+- **ORTAK SÖZLEŞME**: her kutu, yerini aldığı görünür metin kutusunun kimliğini bir
+  `type="hidden"` input olarak KORUR (`#o-founders`, `#o-team`, `#u-brand`, `#u-designer`,
+  `#p-credit-text` — `#p-office`/`#p-designer` ile birebir aynı desen) ve **o input'a yazan HER
+  nokta kutuyu senkronlar**. Böylece gönderim/prefill/AI yollarının hiçbiri değişmedi. Sözleşme
+  bozulursa kullanıcının gördüğü çipler ile gönderilen değer sessizce ayrışır — preflight bunu
+  dosya başına, her yazma noktası için ayrı ayrı arıyor
+  (`scripts/test-2026-09-15-form-pickers.mjs`).
+- **GİZLİ INPUT İKİ TUZAK GETİRİR, ikisi de kapatıldı**:
+  1. Programatik `.value =` ATAMASI hiçbir olay tetiklemez — o input'u dinleyen mevcut kodlar
+     sessizce çalışmaz olurdu (gerçek örnek: `urun-ekle.html#DuplicateNameCheck`, Firma kutusunu
+     `input`/`blur` ile izliyor). `office-picker.js#pushToInput` artık her yazmada
+     `new Event('input', {bubbles:true})` yayar.
+  2. `type="hidden"` inputlar tarayıcının `required` doğrulamasından MUAFTIR. urun-ekle'deki Firma
+     zorunluluğu bu yüzden submit handler'da elle kontrol edilir (proje-ekle'nin Fotoğrafçı
+     guard'ıyla aynı desen). Sunucu tarafı karşılık: `submissionTypes.js#required`.
+- **`office-picker.js` iki yetenek kazandı**:
+  * `optionsUrls` (dizi) — kaynaklar TEK listede birleşir, `foldTr` ile tekilleşir. Kaynaklar ayrı
+    ayrı önbelleklendiğinden (`optionsPromises` Map'i) aynı uç iki kutu için iki kez çekilmez.
+    Sarmalayıcı: **`createPersonOrOfficePicker`** (kişi + firma).
+  * `single` — seçimi TEK değerle sınırlar (radio, "+ ekle" satırı ve programatik `set` dahil).
+- **urun-ekle'de Firma TEK seçimdir, Tasarımcı çoklu.** Bu bir tercih değil şema gereği: bir ürünün
+  üreticisi tek kayıttır (`products.brand_office_id` TEK kolon) ve /urun marka filtresi, ürün
+  pop-up'ının marka çipi, `products.brand_name_raw` üzerinden kurulan ürün→marka→proje zinciri
+  (bkz. `project.js#fetchProjectProducts`) hep o tek değeri okur. Çoklu seçim "A, B" gibi hiçbir
+  firmayla eşleşmeyen bir marka adı üretip ürünü markasız bırakırdı.
+- **Fotoğrafçı kutusu TEK listedir** (kullanıcı isteği: "ayrı bir kutucuk olarak ayırma"): kişi +
+  firma adları birlikte listelenir. Bu, sunucunun zaten yaptığı ayrımsızlığın forma yansımasıdır —
+  künyedeki "Fotoğraf" satırı hem `architects` hem `offices` eşleşmelerini gösterir (bkz.
+  `project.js#photographerDetails` + `photographerOffices`). "Kaynak'ı seçilen firmanın web
+  sitesiyle doldur" davranışı korundu, yalnızca tetikleyicisi kutuya YENİ eklenen adlar oldu;
+  prefill/AI yollarında susturulur ki kayıtlı `photo_credit_url` ezilmesin.
+- **firma-ekle'de Kurucular + Ekip yan yana**: ayrı bir kural yazılmadı, ikisi sayfanın KENDİ
+  `.form-row` ızgarasına alındı (`1fr 1fr`, `<=720px` tek sütun) — yani masaüstü ve tablette yan
+  yana, mobilde alt alta.
+- **Kaynak ipucundaki agregatör cümlesi silindi** (kullanıcı isteği). **Kuralın kendisi DURUYOR**:
+  arkitera/archello/archdaily/divisare gibi bir adres canonical kayda hâlâ hiç yazılmaz
+  (`canonicalSync.js` -> `aggregatorSources.js#dropAggregatorSourceUrl`). Kaldırılan yalnızca
+  uyarı metniydi.
+- **Ölü kod düştü**: proje-ekle ve firma-ekle'deki `wireAutocompleteLive` (+ yalnızca onun
+  kullandığı `lastCommaSegment`/`replaceLastCommaSegment`) ile urun-ekle'deki
+  `wireOfficeSuggest`/`loadOfficeNames`/`foldTrUrun` çağrısız kaldı ve silindi. urun-ekle'de
+  `wireAutocompleteLive` KALDI — "Kullanılan Projeler" kutusu onu kullanmaya devam ediyor.

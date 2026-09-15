@@ -209,8 +209,16 @@ await test('proje-ekle.html: seçimde ve elle yazımda Kaynak /api/office/:key w
   const html = read('../proje-ekle.html');
   assert.match(html, /async function fillSourceFromOffice\(officeName\)/);
   assert.match(html, /fetch\(`\/api\/office\/\$\{encodeURIComponent\(name\)\}`\)/);
-  assert.match(html, /onPick: \(item\) => \{ if\(item && item\.kind === 'office'\) fillSourceFromOffice\(item\.label\); \}/);
-  assert.match(html, /getElementById\('p-credit-text'\)\.addEventListener\('change'/);
+  // TETİKLEYİCİ DEĞİŞTİ, DAVRANIŞ DEĞİŞMEDİ (2026-09-15 yedinci tur): Fotoğrafçı kutusu serbest
+  // metin + autocomplete olmaktan çıkıp çoktan seçmeli kutuya geçti (bkz. proje-ekle.html#
+  // p-credit-picker), bu yüzden eski `onPick` ve 'change' dinleyicileri yok. Kaynak'ı firmanın web
+  // sitesiyle doldurma artık kutuya YENİ eklenen adlar üzerinden çalışır — fillSourceFromOffice
+  // kişi adlarında item:null görüp atladığından ayrı bir "bu bir firma mı" kontrolü gerekmez.
+  assert.match(html, /async function onCreditPickerChange\(names\)/);
+  assert.match(html, /if\(await fillSourceFromOffice\(name\)\) break;/);
+  assert.match(html, /onChange: onCreditPickerChange/);
+  // Programatik yüklemelerde (prefill/AI) susturulur: o yollar photo_credit_url'i zaten getiriyor.
+  assert.match(html, /creditAutoFillMuted = true;/);
   // Kullanıcının kendi yazdığı Kaynak ezilmez: yalnızca boş ya da data-autofilled kutu yazılır,
   // elle dokununca bayrak kalkar.
   assert.match(html, /creditUrlInput\.dataset\.autofilled === '1'/);

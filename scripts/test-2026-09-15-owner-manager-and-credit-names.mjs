@@ -16,7 +16,9 @@
 //      birleştiriyor.
 //
 //   3. "proje ekle sayfasında firma seçim kısmına manuel olarak da sitede kayıtlı olmasa dahi firma
-//      ismi girilebilsin." — office-picker.js'e allowCustom seçeneği; YALNIZCA proje-ekle açar.
+//      ismi girilebilsin." — office-picker.js'e allowCustom seçeneği. (O turda seçenek YALNIZCA
+//      proje-ekle'de açılmıştı; 2026-09-15 yedinci turda kullanıcı isteğiyle kisi-ekle ve Hesabım
+//      kişi formunda da açıldı — bkz. aşağıdaki madde 3 testi.)
 //
 //   4. "hesabım, koleksiyonum ve aktivitelerim sayfalarındaki marka butonlarını kaldır."
 import assert from 'node:assert/strict';
@@ -165,10 +167,19 @@ test('picker allowCustom seçeneğini destekliyor', () => {
   assert.ok(/if \(e\.key !== 'Enter'\) return;[\s\S]{0,400}addBtn\.click\(\)/.test(officePicker), 'Enter ile ekleme yok');
 });
 
-test('YALNIZCA proje-ekle açıyor (kişi künyesi kutusu kapalı)', () => {
+// KURAL DEĞİŞTİ (kullanıcı isteği, 2026-09-15 yedinci tur madde 3): "Kişi ekle/düzenle sayfasında
+// da firma seç kısmında manuel olarak farklı bir firma ismi de yazılabilsin." Bu tur, kutunun
+// kisi-ekle + Hesabım'da KAPALI tutulmasını doğruluyordu; o kapının gerekçesi ("serbest metin,
+// firma talebi/üyelik zincirini karşılığı olmayan bir adla doldurur") canlı kodda doğrulandı ve
+// geçerli DEĞİL: her iki zincir de eşleşmeyen adı atlıyor (claimedProfiles.js#
+// ensurePendingOfficeClaims -> `if (!canonical) continue;`, canonicalSync.js#syncArchitect ->
+// eşleşmeyen ad office_founders'a yazılmaz, conflict olarak loglanır). Test artık karşıt kuralı,
+// yani kutunun ÜÇ yüzeyde de açık olduğunu kilitliyor — bir yüzeyin geride kalması, aynı formun
+// nereden açıldığına göre farklı davranması demek olurdu.
+test('serbest metin girişi üç yüzeyde de açık (proje-ekle, kisi-ekle, Hesabım)', () => {
   assert.match(projeEkle, /allowCustom: true/, 'proje-ekle allowCustom vermiyor');
-  assert.ok(!/allowCustom/.test(read('kisi-ekle.html')), 'kisi-ekle serbest metne açılmış');
-  assert.ok(!/allowCustom/.test(authModal), 'Hesabım kişi formu serbest metne açılmış');
+  assert.match(read('kisi-ekle.html'), /allowCustom: true/, 'kisi-ekle firma kutusu kapalı kalmış');
+  assert.match(authModal, /allowCustom: true/, 'Hesabım kişi formundaki firma kutusu kapalı kalmış');
 });
 
 section('madde 4 — hesabım / koleksiyonum / aktivitelerim: marka düğmesi yok');
