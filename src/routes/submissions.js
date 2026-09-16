@@ -8,6 +8,7 @@ import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, cascadeRemovedOfficesFromArchitect, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { ensurePendingOfficeClaims, canEditOfficeViaFounderLink, canEditOfficeAsCreator, canEditArchitectAsCreator, canEditArchitectViaOfficeMembership, isArchitectOwnedByAnotherUser } from '../lib/claimedProfiles.js';
 import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
+import { planOfficePeopleWithhold, planArchitectOfficesWithhold, createMembershipClaims } from '../lib/membershipClaims.js';
 import { projectEditGraceState } from '../lib/projectEditGrace.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
@@ -310,6 +311,41 @@ async function isOwnArchitectRecord(env, user, row) {
   return !!claim;
 }
 
+// ÜYELİK KAPISI — TEK ÇAĞRI NOKTASI (kullanıcı isteği, 2026-09-16 yedinci tur madde 5/6).
+// Gönderi satırı yazılmadan ÖNCE çağrılır ve `row`u YERİNDE düzeltir: onay bekleyen adlar
+// gönderiye HİÇ yazılmaz (bkz. src/lib/membershipClaims.js dosya başı — "boş kalsın" şartının
+// tek doğru yeri burasıdır, çünkü firma pop-up'ı adları GÖNDERİ METNİNDEN de okuyor).
+// Döndürdüğü plan, INSERT/UPDATE'ten SONRA createMembershipClaims'e verilir (submission_id gerekir).
+async function withholdPendingMemberships(env, user, typeKey, row) {
+  if (typeKey === 'offices') {
+    // DİKKAT: normalizeSubmission dizi alanlarını JSON METNİ olarak bırakır (bkz.
+    // submissionTypes.js#arrayFields — değerler doğrudan SQL'e bind ediliyor), bu yüzden burada
+    // ayrıştırılıp yeniden yazılırlar. Diziymiş gibi filter() çağırmak sessizce hiçbir şey
+    // süzmezdi ve kapı görünürde çalışıp gerçekte kapanmazdı.
+    const parse = (v) => { if (Array.isArray(v)) return v; try { return JSON.parse(v || '[]') || []; } catch { return []; } };
+    const founders = parse(row.founders);
+    const team = parse(row.team);
+    const plan = await planOfficePeopleWithhold(env, user, row.name, { founders, team });
+    if (!plan.withheld.length) return null;
+    const blocked = new Set(plan.withheld.map(w => `${w.slot}:${foldTr(w.name)}`));
+    row.founders = JSON.stringify(founders.filter(n => !blocked.has(`founders:${foldTr(n)}`)));
+    row.team = JSON.stringify(team.filter(n => !blocked.has(`team:${foldTr(n)}`)));
+    return { source: 'office', submissionType: 'offices', items: plan.withheld };
+  }
+  if (typeKey === 'architects') {
+    const officeNames = String(row.office || '').split(',').map(v => v.trim()).filter(Boolean);
+    const plan = await planArchitectOfficesWithhold(env, user, row.name, officeNames);
+    if (!plan.withheld.length) return null;
+    const blocked = new Set(plan.withheld.map(w => foldTr(w.name)));
+    row.office = officeNames.filter(n => !blocked.has(foldTr(n))).join(', ') || null;
+    return {
+      source: 'architect', submissionType: 'architects',
+      items: plan.withheld.map(w => ({ ...w, architectName: w.architectName || row.name })),
+    };
+  }
+  return null;
+}
+
 async function createSubmission(request, env, user, typeKey) {
   // Hiçbir gönderi tipinde (products/materials dahil, bkz. kullanıcı isteği: rozet şartı kaldırıldı)
   // aylık bir üst sınır yok — oturum açmış tek bir hesabın kısa vadede admin moderasyon kuyruğunu
@@ -418,6 +454,7 @@ async function createSubmission(request, env, user, typeKey) {
   const config = SUBMISSION_TYPES[typeKey];
   const row = normalizeSubmission(typeKey, body);
   if (typeKey === 'projects' && body.claimed_slug) row.slug = body.claimed_slug; // normalizeSubmission slug'ı title'dan yeniden üretir, statik projeyle eşleşen slug'ı koru
+  const membershipPlan = await withholdPendingMemberships(env, user, typeKey, row);
   const id = newId();
   const now = Date.now();
   // Admin'in kendi gönderisi/düzenlemesi başka bir onaycıya muhtaç değil — admin zaten onaycının
@@ -448,6 +485,10 @@ async function createSubmission(request, env, user, typeKey) {
   await env.DB.prepare(
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
+
+  // Onay bekleyen üyelikler: satır yazıldıktan SONRA (submission_id gerekiyor). Profilin kendisi
+  // yayına girer, yalnızca bekleyen ad künyede görünmez — kullanıcı isteğinin ta kendisi.
+  if (membershipPlan) await createMembershipClaims(env, user, { ...membershipPlan, submissionId: id });
 
   // Bu, önceden arşivlenmiş (bkz. handleContentAction/handleProjectAction) bir statik kaydın
   // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
@@ -792,6 +833,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // src/lib/canonicalSync.js#syncProject'te yapılır (aşağıdaki syncApprovedSubmissionToCanonical
   // çağrısı) — burası yalnızca bu taslak satırın kendi bookkeeping'i.
   const row = normalizeSubmission(typeKey, body);
+  const membershipPlan = await withholdPendingMemberships(env, user, typeKey, row);
 
   const now = Date.now();
   // P1 GÜVENLİK DÜZELTMESİ (denetim, 2026-09-05) — burası koşulsuz `'approved'` idi ve bu, TÜM
@@ -829,6 +871,8 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   await env.DB.prepare(
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
+
+  if (membershipPlan) await createMembershipClaims(env, user, { ...membershipPlan, submissionId: id });
 
   // Galeriden çıkarılan/üzerine yeni yükleme ile değiştirilen görsellerin eski R2 nesnelerini
   // temizle (bkz. src/lib/canonicalSync.js#cleanupReplacedR2Media) — D1 yazısı BAŞARILI olduktan

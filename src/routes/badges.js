@@ -4,6 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { BADGE_RANK, getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge } from '../lib/badgeAccess.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
+import { foldTr } from '../lib/textMatch.js';
 
 // Fiyatlar TL/ay cinsinden (aylık abonelik); ödeme yöntemi havale/EFT (bkz. satin-al.html) —
 // kredi/banka kartı (iyzico, bkz. src/routes/payments.js) henüz UI'da aktif değil. Havale
@@ -27,10 +28,13 @@ export const BADGE_PRICES = {
   gold: { self: 99, office: 199 },
 };
 
+// Fiyat kademesi: firma profili için tier.office, KİŞİ profili için tier.self. Kolon adı 'self'
+// olarak KALDI (fiyat tablosunun şekli değişmedi) ama anlamı artık "tek bir kişi profili" —
+// hedef tipi 'self' 2026-09-16 yedinci turda kaldırıldı (bkz. normalizeTarget).
 export function getBadgePrice(badgeType, targetType) {
   const tier = BADGE_PRICES[badgeType];
   if (!tier) return undefined;
-  return targetType === 'self' ? tier.self : tier.office;
+  return targetType === 'office' ? tier.office : tier.self;
 }
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır
@@ -75,6 +79,12 @@ export async function handleBadgesRoute(request, env, url) {
 
   if (segments.length === 2 && request.method === 'POST') return createBadgeRequest(request, env, user);
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') return listMyBadges(env, user);
+  // ROZET ALINABİLİR HEDEFLER (kullanıcı isteği, 2026-09-16 yedinci tur madde 7) — Rozet Al
+  // ekranının hedef listelerinin TEK kaynağı. Liste, satın alma kapısının TA KENDİSİNDEN
+  // (userManagedOfficeNames / userManagedArchitectNames) türetilir: ekran kendi kuralını
+  // hesaplamaz, yoksa "listede görünen ama sunucunun reddettiği" bir hedef ortaya çıkardı
+  // (danismanlik.html#ALLOWED_HOST_SLUGS ile AYNI gerekçe).
+  if (segments.length === 3 && segments[2] === 'targets' && request.method === 'GET') return listBadgeTargets(env, user);
   if (segments.length === 3 && request.method === 'DELETE') return deleteRejectedBadgeRequest(env, user, segments[2]);
   return errorJson('Bulunamadı', 404);
 }
@@ -84,22 +94,66 @@ export async function handleBadgesRoute(request, env, url) {
 // (henüz onaylanmamış) bir talebi o hedef için varsa yeni seçimiyle değiştirilir. Farklı hedefler
 // (kendisi + her ayrı marka) birbirinden bağımsızdır — kendisi için rozet alması bir markaya
 // otomatik yansımaz, bkz. handlePublicBadges.
+// HEDEF ARTIK HER ZAMAN BİR PROFİLDİR (kullanıcı isteği, 2026-09-16 yedinci tur madde 7: "Bir
+// kullanıcı rozeti sadece kişi profilleri ya da firma profilleri için alabilsin, kullanıcı
+// hesapları için rozet alınamasın").
+// 'self' KALDIRILDI: o hedef HESABA (users satırına) rozet veriyordu ve profilde ancak dolaylı
+// olarak (kullanıcının onaylı architect claim'i üzerinden, bkz. computeBadgesPayload) görünüyordu.
+// Yerine 'architect' geldi ve KİŞİ KÜNYESİNİN ADIYLA anahtarlanır — 'office' ile birebir aynı
+// desen. Bu, "Hesap üyeliği ile kişi profili AYRIDIR" kuralının rozet tarafındaki karşılığıdır.
+// ESKİ 'self' SATIRLARI SİLİNMEDİ ve okunmaya devam eder (bkz. computeBadgesPayload) — yalnızca
+// YENİ talep açılamaz.
 export function normalizeTarget(body) {
-  const targetType = body.targetType === 'office' ? 'office' : 'self';
-  const targetKey = targetType === 'office' ? (body.targetKey || '').trim() : null;
-  if (targetType === 'office' && !targetKey) return null;
+  const targetType = body.targetType === 'office' ? 'office' : (body.targetType === 'architect' ? 'architect' : null);
+  if (!targetType) return null;
+  const targetKey = (body.targetKey || '').trim();
+  if (!targetKey) return null;
   return { targetType, targetKey };
 }
 
-// 'office' hedefli bir rozet, satın alan kullanıcının o markayı zaten onaylı şekilde
-// sahiplendiğini doğrular — aksi halde handlePublicBadges'te zaten hiçbir yere görünmeyecek
-// (ölü) bir satın alma yapılmış olurdu, bkz. src/routes/payments.js#startCheckout aynı kontrolü kullanır.
-export async function verifyOfficeTargetOwnership(env, userId, target) {
-  if (target.targetType !== 'office') return true;
-  const row = await env.DB.prepare(
-    `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ? AND status = 'approved'`
-  ).bind(userId, target.targetKey).first();
-  return !!row;
+// KULLANICININ ONAYLI SAHİPLENDİĞİ FİRMA ADLARI — rozet hedefi kapısının tek temeli.
+export async function userManagedOfficeNames(env, userId) {
+  const { results } = await env.DB.prepare(
+    `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND status = 'approved'`
+  ).bind(userId).all();
+  return (results || []).map(r => r.profile_key).filter(Boolean);
+}
+
+// Yönetilen firmalardaki KİŞİLER (kullanıcı isteği, 2026-09-16 yedinci tur madde 7: "Kullanıcı
+// sadece sitede yönetici olduğu firmaya ve bu firmadaki kişilere rozet alabilsin").
+// Kaynak office_founders — firmanın TEK YAPISAL kişi bağı (bkz. src/routes/office.js#
+// buildOfficePeople: Kurucular/Ortaklar VE Ekip listelerinin ikisi de bu tablodan türer, yalnızca
+// göreve göre ayrılır) + architects.office_id (kişinin "birincil firma" alanı). Künyenin
+// Kurucular/Ekip kutusuna SERBEST METİN olarak yazılmış, canonical bir kişi kaydı OLMAYAN adlar
+// bilerek kapsam dışı: rozet ADLA anahtarlı bir profile verilir, karşılığı olmayan bir ada verilen
+// rozet hiçbir yerde görünmezdi (ölü satın alma).
+export async function userManagedArchitectNames(env, userId) {
+  const officeNames = await userManagedOfficeNames(env, userId);
+  if (!officeNames.length) return [];
+  const placeholders = officeNames.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT DISTINCT ar.name FROM architects ar
+       JOIN offices o ON o.deleted_at IS NULL AND o.name IN (${placeholders})
+     WHERE ar.deleted_at IS NULL
+       AND (EXISTS (SELECT 1 FROM office_founders f WHERE f.office_id = o.id AND f.architect_id = ar.id)
+            OR ar.office_id = o.id)`
+  ).bind(...officeNames).all();
+  return (results || []).map(r => r.name).filter(Boolean);
+}
+
+// Rozet hedefi kapısı — satın alma (createBadgeRequest) ve kart ödemesi (payments.js#startCheckout)
+// AYNI fonksiyonu çağırır, yani iki yol ayrışamaz.
+//   'office'    — kullanıcının o firmayı onaylı şekilde sahiplenmesi gerekir (2026-09-01'den beri
+//                 geçerli kural, DEĞİŞMEDİ).
+//   'architect' — kişi, kullanıcının yönettiği firmalardan birinin kişisi olmalı (madde 7).
+// Eşleşme foldTr ile: rozet anahtarı canonical addır, kullanıcının gönderdiği yazım (büyük/küçük
+// harf, Türkçe karakter) farklı olabilir — sitenin her yerindeki "aynı ad" tanımı budur.
+export async function verifyBadgeTargetOwnership(env, userId, target) {
+  const names = target.targetType === 'office'
+    ? await userManagedOfficeNames(env, userId)
+    : await userManagedArchitectNames(env, userId);
+  const key = foldTr(target.targetKey || '');
+  return names.some(n => foldTr(n) === key);
 }
 
 // Kullanıcının onaylı sahiplendiği HER profilde (kendisi + firmaları) O AN GÖRÜNEN rozet.
@@ -146,10 +200,15 @@ export async function getBlockingRank(env, userId, target) {
   const active = await env.DB.prepare(
     `SELECT badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
   ).bind(userId, target.targetType, target.targetKey, now).first();
-  const profileBadges = await getProfileBadgesForUser(env, userId);
-  const profileBadgeType = target.targetType === 'office'
-    ? (profileBadges.offices[target.targetKey] || null)
-    : profileBadges.self;
+  // Hedef PROFİLDE o an görünen rozet (2026-09-16 yedinci tur madde 7): hedef artık her zaman bir
+  // profil olduğundan karar doğrudan profil rozeti haritasından okunur. Eski hâl 'self' hedefi için
+  // getProfileBadgesForUser().self'e bakıyordu — yani KULLANICININ kendi künyesindeki rozete; artık
+  // hedef başka bir kişi (yönettiği firmanın bir üyesi) olabildiğinden o kaynak yanlış profili
+  // okurdu. computeBadgesPayload, satın alınan + admin_badges'i zaten birleştiren TEK kaynaktır.
+  const payload = await computeBadgesPayload(env);
+  const bucket = target.targetType === 'office' ? payload.office : payload.architect;
+  const list = bucket && bucket[target.targetKey];
+  const profileBadgeType = (list && list.length) ? list[0] : null;
   const activeRank = active ? (BADGE_RANK[active.badge_type] || 0) : 0;
   const profileRank = profileBadgeType ? (BADGE_RANK[profileBadgeType] ?? Infinity) : 0;
   return Math.max(activeRank, profileRank);
@@ -160,6 +219,27 @@ export async function getBlockingRank(env, userId, target) {
 // ya da ucu doğrudan çağıran bir istemcinin yine de 'pending' talep açmasını engeller. Satış
 // yeniden açıldığında true yapılmalı — ama havale değil, kart akışı (payments.js) kurulmalı.
 export const BADGE_SALES_OPEN = false;
+
+// Her hedefin O AN GÖRÜNEN rozeti de döner: "zaten bu rozetin var" panelinin kaynağı da bu uç
+// olur, böylece ekranın engellediği rozet ile sunucunun (getBlockingRank) engellediği rozet AYNI
+// veriden gelir. Eskiden o panel kişi hedefleri için hiçbir kaynağa sahip değildi
+// (/api/badges/mine#profileBadges yalnızca KULLANICININ KENDİ sahiplendiği profilleri taşır,
+// yönettiği firmadaki BAŞKA kişileri taşımaz).
+async function listBadgeTargets(env, user) {
+  const [officeNames, architectNames, payload] = await Promise.all([
+    userManagedOfficeNames(env, user.id),
+    userManagedArchitectNames(env, user.id),
+    computeBadgesPayload(env),
+  ]);
+  const shape = (names, bucket) => names.map(key => {
+    const list = bucket && bucket[key];
+    return { key, badge: (list && list.length) ? list[0] : null };
+  });
+  return json({
+    offices: shape(officeNames, payload.office),
+    architects: shape(architectNames, payload.architect),
+  });
+}
 
 async function createBadgeRequest(request, env, user) {
   if (!BADGE_SALES_OPEN) return errorJson('Rozet satışı şu an açık değil.', 403);
@@ -179,8 +259,10 @@ async function createBadgeRequest(request, env, user) {
   if (!target) return errorJson('Geçersiz hedef.');
   const price = getBadgePrice(badgeType, target.targetType);
   if (price === undefined) return errorJson('Geçersiz rozet türü.');
-  if (!(await verifyOfficeTargetOwnership(env, user.id, target))) {
-    return errorJson('Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.');
+  if (!(await verifyBadgeTargetOwnership(env, user.id, target))) {
+    return errorJson(target.targetType === 'office'
+      ? 'Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.'
+      : 'Rozet yalnızca yönettiğin firmalardaki kişi profilleri için alınabilir.');
   }
 
   const now = Date.now();
@@ -283,13 +365,31 @@ export async function handlePublicBadges(request, env, url) {
 
 async function computeBadgesPayload(env) {
   const now = Date.now();
-  const [{ results }, { results: adminResults }] = await Promise.all([
+  const [{ results }, { results: directResults }, { results: adminResults }] = await Promise.all([
     env.DB.prepare(
       `SELECT c.profile_type, c.profile_key, b.badge_type
        FROM profile_claims c
        JOIN badge_requests b ON b.user_id = c.user_id AND b.status = 'active' AND (b.expires_at IS NULL OR b.expires_at > ?) AND b.badge_type != 'destekci'
          AND ((b.target_type = 'self' AND c.profile_type = 'architect') OR (b.target_type = 'office' AND c.profile_type = 'office' AND b.target_key = c.profile_key))
        WHERE c.status = 'approved'`
+    ).bind(now).all(),
+    // KİŞİ HEDEFLİ ROZETLER, SAHİPLENME JOIN'İ OLMADAN (kullanıcı isteği, 2026-09-16 yedinci tur
+    // madde 7: "Kullanıcı sadece ... yönetici olduğu firmaya ve bu firmadaki kişilere rozet
+    // alabilsin").
+    // NEDEN AYRI SORGU: yukarıdaki JOIN, rozetin SATIN ALANIN onaylı sahiplendiği bir profile
+    // ait olmasını şart koşar. Bu yeni akışta satın alan kişi TANIMI GEREĞİ hedefin sahibi
+    // değildir (firma yöneticisi, firmasındaki BİR BAŞKASI için alır) — o JOIN hiç eşleşmez ve
+    // rozet hiçbir yerde görünmeyen ölü bir satın almaya dönüşürdü.
+    // Yetki kapısı satın alma anındadır (verifyBadgeTargetOwnership); burada anahtar doğrudan
+    // hedefin ADIDIR — admin_badges ile AYNI desen. Kabul edilen ödünleşme: yönetici yetkisi
+    // sonradan iptal edilse bile satın alınmış rozet süresi dolana kadar (expires_at) profilde
+    // kalır. Alternatifi, herkese açık ve ÖNBELLEKSİZ olan bu uçta satır başına bir üyelik
+    // sorgusu koşturmaktı. ESKİ 'self' satırları yukarıdaki sorguda AYNEN okunmaya devam eder
+    // (davranış değişmedi) — 'office' de öyle.
+    env.DB.prepare(
+      `SELECT target_key AS profile_key, badge_type FROM badge_requests
+        WHERE target_type = 'architect' AND status = 'active'
+          AND (expires_at IS NULL OR expires_at > ?) AND badge_type != 'destekci'`
     ).bind(now).all(),
     // Admin'in sahiplenme/satın alma olmadan doğrudan verdiği rozetler (bkz. schema.sql#admin_badges) —
     // yukarıdaki satın alınan rozetlerle AYNI çıktı şekline birleştirilir, statik/sahipsiz bir
@@ -303,14 +403,16 @@ async function computeBadgesPayload(env) {
   // profile_claims farklı kullanıcılardan farklı aktif rozetler getirebilir, o durumda bile tek
   // kazanan olmalı.
   const purchased = { architect: {}, office: {} };
-  for (const row of results) {
-    const bucket = purchased[row.profile_type];
-    if (!bucket) continue;
-    const current = bucket[row.profile_key];
-    if (!current || (BADGE_RANK[row.badge_type] || 0) > (BADGE_RANK[current] || 0)) {
-      bucket[row.profile_key] = row.badge_type;
-    }
-  }
+  const addPurchased = (profileType, profileKey, badgeType) => {
+    const bucket = purchased[profileType];
+    if (!bucket || !profileKey) return;
+    const current = bucket[profileKey];
+    if (!current || (BADGE_RANK[badgeType] || 0) > (BADGE_RANK[current] || 0)) bucket[profileKey] = badgeType;
+  };
+  for (const row of results) addPurchased(row.profile_type, row.profile_key, row.badge_type);
+  // Kişi hedefli satın almalar (bkz. directResults) AYNI "profil başına en yüksek kademe" kuralına
+  // girer — iki kaynak tek kovada birleşir, yani bir profilde asla iki rozet görünmez.
+  for (const row of directResults) addPurchased('architect', row.profile_key, row.badge_type);
 
   const out = { architect: {}, office: {} };
   for (const type of ['architect', 'office']) {

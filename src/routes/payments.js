@@ -4,7 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
-import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership, getBlockingRank, BADGE_SALES_OPEN } from './badges.js';
+import { getBadgePrice, normalizeTarget, verifyBadgeTargetOwnership, getBlockingRank, BADGE_SALES_OPEN } from './badges.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 // Alıcı alanı doğrulamaları rozet ve danışmanlık ödemelerinde ORTAK — bkz. src/lib/iyzicoBuyer.js.
@@ -61,8 +61,12 @@ async function startCheckout(request, env, url) {
   // Iyzico tutarını da seçime göre doğrula").
   const price = getBadgePrice(badgeType, target.targetType);
   if (price === undefined) return errorJson('Geçersiz rozet türü.');
-  if (!(await verifyOfficeTargetOwnership(env, user.id, target))) {
-    return errorJson('Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.');
+  // AYNI KAPI (bkz. badges.js#verifyBadgeTargetOwnership): kart ödemesi ile havale yolu aynı
+  // yetkiyi sorar, ayrışamazlar.
+  if (!(await verifyBadgeTargetOwnership(env, user.id, target))) {
+    return errorJson(target.targetType === 'office'
+      ? 'Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.'
+      : 'Rozet yalnızca yönettiğin firmalardaki kişi profilleri için alınabilir.');
   }
 
   const name = (body.name || '').trim().slice(0, 100);

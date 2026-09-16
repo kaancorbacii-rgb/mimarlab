@@ -206,18 +206,29 @@
   <div class="page-head">
     <div class="eyebrow">Rozet Satın Al</div>
     <h1>Bir kademe seç</h1>
-    <p>Rozetler aylık kiralanır. Kendin için ayrı, firman için ayrı rozet alabilirsin.</p>
+    <p>Rozetler aylık kiralanır. Yönettiğin firma için ayrı, firmandaki kişiler için ayrı rozet alabilirsin.</p>
   </div>
 
   <div class="checkout-wrap">
     <div class="form-section" id="target-section">
+      <!-- HEDEF HER ZAMAN BİR PROFİL (kullanıcı isteği, 2026-09-16 yedinci tur madde 7: "Bir kullanıcı
+           rozeti sadece kişi profilleri ya da firma profilleri için alabilsin, kullanıcı hesapları
+           için rozet alınamasın. Kullanıcı sadece sitede yönetici olduğu firmaya ve bu firmadaki
+           kişilere rozet alabilsin.").
+           "Kendim için" (target_type='self' — HESABA rozet) KALDIRILDI. İki liste de SUNUCUDAN gelir
+           (GET /api/badges/targets) ve o uç, satın alma kapısının TA KENDİSİNİ okur
+           (badges.js#verifyBadgeTargetOwnership) — ekran kendi kuralını hesaplamaz. -->
       <h2>Kimin için?</h2>
-      <p class="section-hint">Kendi hesabın için mi, yoksa sahiplendiğin bir firma profili için mi rozet almak istiyorsun?</p>
-      <label class="target-option"><input type="radio" name="badge-target" id="target-self" value="self" checked> Kendim için</label>
-      <label class="target-option"><input type="radio" name="badge-target" id="target-office" value="office"> Bir firmam için</label>
-      <div id="target-office-wrap" style="display:none; margin-top:10px;">
+      <p class="section-hint">Rozet bir profile alınır: yönettiğin bir firma ya da o firmadaki bir kişi.</p>
+      <label class="target-option"><input type="radio" name="badge-target" id="target-office" value="office" checked> Bir firmam için</label>
+      <label class="target-option"><input type="radio" name="badge-target" id="target-architect" value="architect"> Firmamdaki bir kişi için</label>
+      <div id="target-office-wrap" style="margin-top:10px;">
         <select class="target-office-select" id="target-office-select"></select>
         <p id="target-office-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Rozet alabilmen için önce bir firma profilini sahiplenip onaylatman gerekiyor. <a href="/firma" style="color:var(--walnut); font-weight:600;">Firmanı bul</a>.</p>
+      </div>
+      <div id="target-architect-wrap" style="display:none; margin-top:10px;">
+        <select class="target-office-select" id="target-architect-select"></select>
+        <p id="target-architect-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Yönettiğin firmalarda kayıtlı bir kişi profili yok. Kişileri firma künyesinin Kurucular/Ekip kutusundan ekleyebilirsin.</p>
       </div>
     </div>
 
@@ -288,11 +299,11 @@ let selectedTier = BADGE_TIERS.find(t => t.type === params.get('tier')) ? params
 // renderTierGrid/renderSummary aşağıda selectedTargetType'ı okur — script'in geri kalanındaki
 // "Kimin için?" bloğundan ÖNCE tanımlanmalı (let'in temporal dead zone'u yüzünden, aksi halde
 // hemen aşağıdaki ilk renderTierGrid() çağrısı ReferenceError fırlatırdı).
-let selectedTargetType = 'self';
+let selectedTargetType = 'office';
 let selectedTargetKey = null;
 
 function priceForTier(tier){
-  return selectedTargetType === 'self' ? tier.selfPrice : tier.officePrice;
+  return selectedTargetType === 'office' ? tier.officePrice : tier.selfPrice;
 }
 function formatTRY(n){
   return n.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
@@ -331,15 +342,16 @@ renderSummary();
 // seçiliyse (bkz. target radio grubu) o hedefin durumunu gösterir — artık tek bir global "zaten
 // rozetin var" durumu yok, her hedef bağımsız (bkz. src/routes/badges.js).
 let myBadges = [];
-let myProfileBadges = { self: null, offices: {} };
-
+// myProfileBadges KALDIRILDI (2026-09-16 yedinci tur madde 7): hedef başına görünen rozet artık
+// /api/badges/targets'tan gelir (bkz. badgeTargetBadge) — o uç, hedef listesiyle AYNI yanıtta
+// rozeti de taşıdığı için liste ile panel ayrışamaz. /api/badges/mine#profileBadges yalnızca
+// kullanıcının KENDİ sahiplendiği profilleri taşıyordu, firmasındaki kişileri taşımıyordu.
 async function loadMyBadges(){
   try{
     const res = await fetch('/api/badges/mine');
     if(res.ok){
       const data = await res.json();
       myBadges = data.items || [];
-      myProfileBadges = data.profileBadges || { self: null, offices: {} };
     }
   }catch{}
   updateExistingBadgePanel();
@@ -355,9 +367,10 @@ function updateExistingBadgePanel(){
   // gerçek bulgu: bu panel yalnızca myBadges'e (kullanıcının KENDİ badge_requests satırlarına)
   // bakıyordu, bu iki kaynaktan gelen bir rozeti hiç görmüyor, kullanıcı zaten sahip olduğu bir
   // rozeti tekrar satın almaya çalışabiliyordu.
-  const profileBadgeType = selectedTargetType === 'office'
-    ? (selectedTargetKey ? myProfileBadges.offices[selectedTargetKey] : null)
-    : myProfileBadges.self;
+  // Kaynak /api/badges/targets (bkz. badgeTargets) — hedef başına o an GÖRÜNEN rozet. Eski hâl
+  // /api/badges/mine#profileBadges'i okuyordu; o yalnızca KULLANICININ KENDİ sahiplendiği
+  // profilleri taşır, yönettiği firmadaki BAŞKA kişileri taşımaz (madde 7 ile gelen yeni hedef).
+  const profileBadgeType = selectedTargetKey ? (badgeTargetBadge.get(selectedTargetType + ':' + selectedTargetKey) || null) : null;
   // Bir aktif rozet varsa yalnızca DAHA YÜKSEK bir kademe seçildiğinde satın almaya izin ver
   // (yükseltme); aynı ya da daha düşük bir kademe seçiliyse mevcut rozetin süresi dolana kadar
   // engelle (bkz. src/routes/payments.js#startCheckout aynı kuralı sunucu tarafında da uygular).
@@ -380,7 +393,8 @@ function updateExistingBadgePanel(){
   const tier = BADGE_TIERS.find(t => t.type === blocking.badge_type);
   summarySection.style.display = 'none';
   alreadyHasSection.style.display = 'block';
-  const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
+  // Hedef artık HER ZAMAN adlandırılmış bir profildir (madde 7) — etiket her iki tipte de yazılır.
+  const targetLabel = selectedTargetKey ? ` (${selectedTargetKey})` : '';
   document.getElementById('already-has-title').textContent =
     `${tier ? tier.label : blocking.badge_type} Rozetin${targetLabel} ${blocking.admin ? 'aktif' : (BADGE_STATUS_LABELS[blocking.status] || blocking.status.toLowerCase())}`;
   document.getElementById('already-has-text').textContent = blocking === pendingBadge
@@ -396,46 +410,58 @@ loadMyBadges();
 // radyo "Bir firmam için"e geçtiğinde çağrılıyordu — radyo işleyicisi selectedTargetKey'i HENÜZ BOŞ
 // olan select'ten okuyup (=> null) paneli hemen hesaplıyor, liste sonradan dolduğunda ise paneli
 // BİR DAHA hiç güncellemiyordu; firmanın rozeti bilinse bile panel "rozet yok" halinde donuyordu.
-let claimedOfficesReady = null;
-async function loadClaimedOffices(){
-  const select = document.getElementById('target-office-select');
-  const empty = document.getElementById('target-office-empty');
-  try{
-    const res = await fetch('/api/claims/mine');
-    const items = res.ok ? (await res.json()).items || [] : [];
-    const offices = items.filter(c => c.profile_type === 'office' && c.status === 'approved');
-    if(!offices.length){
-      select.style.display = 'none';
-      empty.style.display = 'block';
-      return;
-    }
-    select.style.display = '';
-    empty.style.display = 'none';
-    select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.profile_key)}">${escapeHtml(o.profile_key)}</option>`).join('');
-    if(selectedTargetType === 'office') selectedTargetKey = select.value || null;
-  }catch{
+let badgeTargetsReady = null;
+// hedef -> o an görünen rozet (bkz. updateExistingBadgePanel).
+const badgeTargetBadge = new Map();
+function fillTargetSelect(type, list){
+  const select = document.getElementById(`target-${type}-select`);
+  const empty = document.getElementById(`target-${type}-empty`);
+  if(!list.length){
     select.style.display = 'none';
     empty.style.display = 'block';
+    return;
   }
+  select.style.display = '';
+  empty.style.display = 'none';
+  select.innerHTML = list.map(t => `<option value="${escapeAttr(t.key)}">${escapeHtml(t.key)}</option>`).join('');
+  list.forEach(t => { if(t.badge) badgeTargetBadge.set(`${type}:${t.key}`, t.badge); });
+}
+async function loadBadgeTargets(){
+  try{
+    const res = await fetch('/api/badges/targets');
+    const data = res.ok ? await res.json() : { offices: [], architects: [] };
+    fillTargetSelect('office', data.offices || []);
+    fillTargetSelect('architect', data.architects || []);
+  }catch{
+    fillTargetSelect('office', []);
+    fillTargetSelect('architect', []);
+  }
+  syncSelectedTargetKey();
   updateExistingBadgePanel();
 }
-claimedOfficesReady = loadClaimedOffices();
-document.getElementById('target-office-select').addEventListener('change', (e)=>{
-  selectedTargetKey = e.target.value || null;
-  updateExistingBadgePanel();
+function syncSelectedTargetKey(){
+  const select = document.getElementById(`target-${selectedTargetType}-select`);
+  selectedTargetKey = (select && select.value) || null;
+}
+badgeTargetsReady = loadBadgeTargets();
+['office', 'architect'].forEach(type=>{
+  document.getElementById(`target-${type}-select`).addEventListener('change', (e)=>{
+    if(selectedTargetType !== type) return;
+    selectedTargetKey = e.target.value || null;
+    updateExistingBadgePanel();
+  });
 });
 document.querySelectorAll('input[name="badge-target"]').forEach(radio=>{
   radio.addEventListener('change', ()=>{
     selectedTargetType = radio.value;
     document.getElementById('target-office-wrap').style.display = selectedTargetType === 'office' ? '' : 'none';
-    if(selectedTargetType === 'office'){
-      selectedTargetKey = document.getElementById('target-office-select').value || null;
-      if(claimedOfficesReady) claimedOfficesReady.then(()=>{ if(selectedTargetType === 'office') updateExistingBadgePanel(); });
-    } else {
-      selectedTargetKey = null;
-    }
-    // "Kendim için" <-> "Bir firmam için" arasında geçince kart/özet/havale fiyatları da
-    // güncellensin (bkz. kullanıcı isteği: "Radio değiştiğinde kart fiyatlarını dinamik güncelle").
+    document.getElementById('target-architect-wrap').style.display = selectedTargetType === 'architect' ? '' : 'none';
+    syncSelectedTargetKey();
+    // Liste henüz gelmediyse geldiğinde panel kendini tazeler (loadBadgeTargets sonunda
+    // updateExistingBadgePanel çağırır) — 2026-09-01 madde 3'teki AYNI yarış.
+    if(badgeTargetsReady) badgeTargetsReady.then(()=>{ syncSelectedTargetKey(); updateExistingBadgePanel(); });
+    // Firma <-> kişi arasında geçince kart/özet fiyatları da güncellenir (fiyat kademesi hedef
+    // tipine bağlı, bkz. src/routes/badges.js#getBadgePrice).
     renderTierGrid();
     renderSummary();
     updateExistingBadgePanel();

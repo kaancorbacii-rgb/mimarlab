@@ -1254,6 +1254,20 @@ const AuthModal = (function () {
             <label for="am-account-name" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ad Soyad</label>
             <input type="text" id="am-account-name" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
           </div>
+          <!-- E-POSTA, SALT OKUNUR (kullanıcı isteği, 2026-09-16 yedinci tur madde 3: "Profili
+               düzenle butonuna tıklayınca açılan popuptaki bir kutucukta kullanıcının e-posta
+               adresi de yazsın ama bu değiştirilemesin").
+               readonly, disabled DEĞİL: disabled bir input seçilemez/kopyalanamaz ve ekran
+               okuyucular onu atlar; readonly ise gösterir, kopyalanabilir tutar ve yazmayı engeller.
+               name özniteliği YOK ve PATCH gövdesine HİÇ konmaz (bkz. am-account-save-btn) — sunucu
+               tarafı karşılığı da zaten kapalı: auth.js#updateUserProfileFields'in izinli alan
+               listesinde 'email' YOKTUR, yani istemci gönderse bile yazılmaz. E-posta değişimi ayrı bir
+               doğrulama akışı ister (adres doğrulanmadan hesabın kimliği kayardı). -->
+          <div style="margin-bottom:14px;">
+            <label for="am-account-email" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">E-posta</label>
+            <input type="email" id="am-account-email" readonly autocomplete="email" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper-alt); font-family:inherit; font-size:13.5px; color:var(--ink-soft); cursor:default;">
+            <p class="auth-hint">E-posta adresin değiştirilemez.</p>
+          </div>
           <div style="margin-bottom:18px;">
             <label for="am-account-username" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Kullanıcı Adı</label>
             <input type="text" id="am-account-username" autocomplete="username" autocapitalize="none" spellcheck="false" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
@@ -2337,26 +2351,29 @@ const AuthModal = (function () {
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
   // görünümle her zaman birebir aynı kalır.
   let amPublicBadges = { architect: {}, office: {} };
-  // Ad Soyad satırındaki rozet (bkz. kullanıcı isteği: "Hesabım kısmında Profil Bilgileri
-  // kutusunda ismin yanında da rozet gözüksün ... hem ismin yanında hem de mimar profili varsa
-  // onun yanında rozet gözüksün"). Kaynak önceliği: kullanıcının onaylı bir Mimar profili varsa
-  // o profilde görünen NİHAİ rozet (amPublicBadges — satın alınan + admin_badges override'ını
-  // zaten birleştirir, bkz. renderClaimsList#rowBadgeType ile AYNI kaynak, böylece isim satırı ile
-  // mimar satırındaki rozet HER ZAMAN birebir aynı kalır); onaylı bir Mimar profili yoksa
-  // kullanıcının kendi satın aldığı/kendisine ('self') tanımlı aktif rozete (amBadgeItems) düşülür
-  // — aksi halde profili olmayan bir kullanıcının rozeti hiçbir yerde görünmezdi.
-  function myEffectiveBadgeType() {
-    const architectClaim = amClaimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
-    if (architectClaim) {
-      const list = amPublicBadges.architect && amPublicBadges.architect[architectClaim.profile_key];
-      if (list && list.length) return list[0];
-    }
-    const selfBadge = amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active' && b.badge_type !== 'destekci');
-    return selfBadge ? selfBadge.badge_type : null;
+  // KİŞİ KÜNYESİNİN ROZETLERİ — "Kişi Bilgileri" kutusundaki Ad Soyad satırının TEK kaynağı
+  // (kullanıcı isteği, 2026-09-16 yedinci tur madde 1).
+  //
+  // KÖK NEDEN, ESKİ myEffectiveBadgeType'ti: o fonksiyon HESABIN rozetini hesaplıyordu — onaylı bir
+  // profile_claims('architect') satırı ARIYOR, yoksa kullanıcının kendi badge_requests('self')
+  // satırına düşüyordu. İki sonucu vardı:
+  //   (a) kişi künyesine sahiplik ATAMADAN değil KAYDI EKLEMEKTEN geliyorsa
+  //       (architects.claimed_by_user_id — bkz. "Kaydı ekleyen, o kaydın yöneticisidir") claim
+  //       satırı hiç olmadığından rozet HİÇ görünmüyordu;
+  //   (b) kutunun 2.+ sayfaları (yönettiği firmanın kişileri) hiç rozet çizmiyordu — o dal adı
+  //       düz metin olarak basıyordu.
+  // Artık kaynak, firma satırıyla BİREBİR AYNI: amPublicBadges — profilde FİİLEN görünen rozet
+  // haritası, ADLA anahtarlı (satın alınan + admin_badges sunucuda zaten birleştirilmiş). Yani
+  // kutudaki rozet ile kişi pop-up'ındaki rozet asla ayrışamaz. Hesap rozeti kavramı bu satırdan
+  // tamamen kalktı — 2026-09-16 yedinci tur madde 7 de aynı yöne gidiyor (rozet yalnızca KİŞİ/FİRMA
+  // profilleri için alınabilir, hesaplar için alınamaz).
+  function personProfileBadgesHtml(name) {
+    const list = (name && amPublicBadges.architect && amPublicBadges.architect[name]) || [];
+    return list.map(accountBadgeIconHtml).join('');
   }
   // "Bu kullanıcının HERHANGİ bir rozeti var mı?" — Dışa Aktar gibi rozet kapılı özelliklerin
-  // yetki kaynağı. myEffectiveBadgeType()'tan farkı: o, isim yanında GÖSTERİLECEK TEK rozeti
-  // seçer (yalnızca architect claim'ine bakar), bu ise firma rozetini de sayar.
+  // yetki kaynağı. personProfileBadgesHtml'den farkı: o, TEK BİR kişi künyesinin yanında
+  // GÖSTERİLECEK rozetleri çizer, bu ise kullanıcının firma rozetini de sayar.
   // Neden önemli: bir firmanın rozetini ortaklardan yalnızca BİRİ satın alır; diğer ortakların
   // kendi badge_requests satırı yoktur ama rozet profillerinde görünür. Aynı şekilde admin'in
   // elle verdiği rozetler admin_badges'tedir. amPublicBadges her ikisini de içerir (public rozet
@@ -2417,7 +2434,6 @@ const AuthModal = (function () {
     // Ad artık HESABIN adı değil, KİŞİ künyesinin adı (kullanıcı isteği, 2026-09-14 madde 3/7) —
     // hesabın ad soyadı başlık satırında (#am-dash-title) ve kendi pop-up'ında düzenlenir.
     const name = (amPersonRecord && amPersonRecord.name) || '—';
-    const badgeType = accountUser ? myEffectiveBadgeType() : null;
     // Hesaba bir kişi profili bağlıysa ad, o profilin pop-up'ına gider (kullanıcı isteği,
     // 2026-09-08 madde 3) — Firma satırındaki bağlantıyla AYNI desen ve AYNI stil; temiz URL'yi
     // pop-up'a çeviren js/components/lazy-modals.js olduğundan burada ekstra bir şey gerekmez.
@@ -2425,7 +2441,7 @@ const AuthModal = (function () {
     const nameHtml = slug
       ? `<a href="/kisi/${encodeURIComponent(slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(name)}</a>`
       : escapeHtml(name);
-    nameEl.innerHTML = `${nameHtml}${badgeType ? accountBadgeIconHtml(badgeType) : ''}`;
+    nameEl.innerHTML = `${nameHtml}${personProfileBadgesHtml(amPersonRecord && amPersonRecord.name)}`;
   }
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
@@ -2623,8 +2639,8 @@ const AuthModal = (function () {
     //
     // NEDEN YALNIZCA İSTATİSTİKLER: diğer açılır kutuların KAPALI başlığı da veriye bağlıdır ve
     // ertelenirse görünür bir şey kaybolur — Arşivim başlıktaki sayıyı ("Arşivim (1)") gösterir,
-    // Bildirimler/Mesajlar başlıktaki okunmadı noktasını (bkz. refreshDashAlertDots), Rozetlerim'in
-    // verisi ise Ad Soyad satırındaki rozeti besler (bkz. myEffectiveBadgeType). İstatistikler'in
+    // Bildirimler/Mesajlar başlıktaki okunmadı noktasını (bkz. refreshDashAlertDots), Rozetlerim
+    // ise kullanıcının rozet kapılı yetkilerini (bkz. amHasAnyBadge). İstatistikler'in
     // kapalı başlığında hiçbir veri yoktur; üstelik /api/analytics/summary bu uçların en pahalısı ve
     // Altın Rozet'i olmayan üyede zaten 401/403 dönüyor — yani her Hesabım açılışında boşa giden
     // bir istekti.
@@ -3321,9 +3337,13 @@ const AuthModal = (function () {
       } else {
         const nameEl = document.getElementById('am-fact-name');
         if (nameEl) {
-          nameEl.innerHTML = rec && rec.slug
+          // Rozet BU DALDA DA çizilir (madde 1): kutunun 2.+ sayfaları yönetilen firmanın
+          // kişileridir ve onların rozeti de kişi pop-up'ında görünüyor — kaynak AYNI
+          // (personProfileBadgesHtml), yani iki yüzey ayrışamaz.
+          const nameHtml = rec && rec.slug
             ? `<a href="/kisi/${encodeURIComponent(rec.slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(rec.name || '')}</a>`
             : escapeHtml((rec && rec.name) || '—');
+          nameEl.innerHTML = `${nameHtml}${personProfileBadgesHtml(rec && rec.name)}`;
         }
       }
       const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '—'; };
@@ -3695,6 +3715,92 @@ const AuthModal = (function () {
         });
     }
 
+    // ÜYELİK TALEBİ ONAY POP-UP'I (kullanıcı isteği, 2026-09-16 yedinci tur madde 5/6) —
+    // openPhotoClaimPrompt ile BİREBİR aynı iskelet/akış (aynı overlay, aynı Onayla/Reddet, aynı
+    // hata metinleri). Yeni bir onay deseni icat EDİLMEDİ.
+    function membershipClaimIdFromLink(link) {
+      return link && link.startsWith('membership-claim:') ? link.slice('membership-claim:'.length) : null;
+    }
+    function openMembershipClaimPrompt(claimId) {
+      let ov = document.getElementById('am-membership-claim-prompt');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'am-membership-claim-prompt';
+        ov.className = 'profile-edit-overlay';
+        document.getElementById('am-panel').appendChild(ov);
+        ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+      }
+      ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px;">
+        <p style="font-size:13px; color:var(--ink-soft); margin:0;">Yükleniyor…</p></div>`;
+      ov.classList.add('open');
+      fetch(`/api/membership-claims/${encodeURIComponent(claimId)}`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('x')))
+        .then(data => {
+          const it = data.item;
+          const decided = it.status !== 'pending';
+          const statusText = it.status === 'approved' ? 'Bu talep onaylandı.'
+            : it.status === 'rejected' ? 'Bu talep reddedildi.' : '';
+          const explain = it.source === 'office'
+            ? `<b>${escapeHtml(it.architectName)}</b> kişisi <b>${escapeHtml(it.officeName)}</b> firmasının künyesine eklenmek istiyor. Bu kişi <b>${escapeHtml(it.deciderOfficeName)}</b> firmasında görünüyor.`
+            : `<b>${escapeHtml(it.architectName)}</b> kişi künyesine <b>${escapeHtml(it.officeName)}</b> firması eklenmek istiyor.`;
+          ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px; max-height:82vh; overflow-y:auto;">
+            <h2 style="font-size:16px; font-weight:700; margin:0 0 10px;">Firma üyeliği onayı</h2>
+            <p style="font-size:13px; line-height:1.6; margin:0 0 10px;">${explain}</p>
+            <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 16px;">
+              ${statusText ? escapeHtml(statusText) : 'Onaylarsan kişi firmanın künyesinde (Kurucular/Ekip) görünür. Onaylanmadan hiçbir şey eklenmez.'}
+            </p>
+            <p class="am-mc-msg" style="display:none; font-size:12.5px; margin:0 0 12px;"></p>
+            ${(!decided && it.canDecide) ? `<div style="display:flex; gap:10px;">
+              <button type="button" class="dash-edit-btn am-mc-approve" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Onayla</button>
+              <button type="button" class="dash-edit-btn am-mc-reject" style="margin-left:0;">Reddet</button>
+            </div>` : `<button type="button" class="dash-edit-btn am-mc-close" style="margin-left:0;">Kapat</button>`}
+          </div>`;
+          const msg = ov.querySelector('.am-mc-msg');
+          const closeBtn = ov.querySelector('.am-mc-close');
+          if (closeBtn) closeBtn.addEventListener('click', () => ov.classList.remove('open'));
+          const decide = async (approve, btn) => {
+            const buttons = ov.querySelectorAll('.dash-edit-btn');
+            buttons.forEach(b => { b.disabled = true; });
+            btn.textContent = approve ? 'Onaylanıyor…' : 'Reddediliyor…';
+            try {
+              const res = await fetch(`/api/membership-claims/${encodeURIComponent(claimId)}/decide`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ decision: approve ? 'approve' : 'reject' }),
+              });
+              const out = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                msg.textContent = out.error || 'İşlem tamamlanamadı.';
+                msg.style.color = '#B84C4C';
+                msg.style.display = '';
+                buttons.forEach(b => { b.disabled = false; });
+                btn.textContent = approve ? 'Onayla' : 'Reddet';
+                return;
+              }
+              msg.textContent = approve ? 'Onaylandı. Kişi artık firmanın künyesinde görünüyor.' : 'Talep reddedildi.';
+              msg.style.color = 'var(--walnut)';
+              msg.style.display = '';
+              btn.parentElement.remove();
+            } catch {
+              msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+              msg.style.color = '#B84C4C';
+              msg.style.display = '';
+              buttons.forEach(b => { b.disabled = false; });
+              btn.textContent = approve ? 'Onayla' : 'Reddet';
+            }
+          };
+          const yes = ov.querySelector('.am-mc-approve');
+          const no = ov.querySelector('.am-mc-reject');
+          if (yes) yes.addEventListener('click', () => decide(true, yes));
+          if (no) no.addEventListener('click', () => decide(false, no));
+        })
+        .catch(() => {
+          ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:420px;">
+            <p style="font-size:13px; margin:0 0 16px;">Bu talep kaydı bulunamadı — kaldırılmış olabilir.</p>
+            <button type="button" class="dash-edit-btn am-mc-close" style="margin-left:0;">Kapat</button></div>`;
+          ov.querySelector('.am-mc-close').addEventListener('click', () => ov.classList.remove('open'));
+        });
+    }
+
     // Bildirimden gelen /hesabim?dizin=1 bağlantısı — Hesabım açıldığında soruyu doğrudan sor.
     function maybeOpenDirectoryPrompt() {
       try {
@@ -3738,6 +3844,7 @@ const AuthModal = (function () {
     function openAmAccountEditPopup() {
       document.getElementById('am-account-name').value = (accountUser && accountUser.name) || '';
       document.getElementById('am-account-username').value = (accountUser && accountUser.username) || '';
+      document.getElementById('am-account-email').value = (accountUser && accountUser.email) || '';
       document.getElementById('am-account-save-msg').textContent = '';
       // "default olarak kapalı görünüm" (kullanıcı isteği, 2026-09-14 ikinci tur madde 4): Şifre
       // Değiştir / Hesabımı Sil bölümleri pop-up'ın HER açılışında kapalı başlar — wireCollapsibles
@@ -5157,6 +5264,8 @@ const AuthModal = (function () {
       if (hotspotTagId) return { run: () => openHotspotTagPrompt(hotspotTagId) };
       const photoClaimId = photoClaimIdFromLink(item.link);
       if (photoClaimId) return { run: () => openPhotoClaimPrompt(photoClaimId) };
+      const membershipClaimId = membershipClaimIdFromLink(item.link);
+      if (membershipClaimId) return { run: () => openMembershipClaimPrompt(membershipClaimId) };
       if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) return { run: () => openDirectoryPrompt() };
       const infoView = NOTIF_INFO_VIEW[item.type];
       if (infoView) {

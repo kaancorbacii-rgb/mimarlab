@@ -39,6 +39,7 @@ import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { handleHotspotTagsRoute } from './routes/hotspotTags.js';
 import { handlePhotoClaimsRoute } from './routes/photoClaims.js';
+import { handleMembershipClaimsRoute } from './routes/membershipClaims.js';
 import { handleMessagesRoute } from './routes/messages.js';
 import { handleOfficeJobsRoute } from './routes/officeJobs.js';
 import { handleAiRoute } from './routes/ai.js';
@@ -2348,6 +2349,8 @@ async function routeApi(request, env, url, ctx) {
   // AYNI gerekçeyle kendi kök yolunda: /api/projects öneki aşağıda handleSubmissionRoute'un genel
   // eşleşmesine düşüyor. /access dışında tamamen oturum korumalı.
   if (path.startsWith('/api/photo-claims')) return handlePhotoClaimsRoute(request, env, url);
+  // Kişi ↔ firma üyeliği onay kuyruğu (kullanıcı isteği, 2026-09-16 yedinci tur madde 5/6).
+  if (path.startsWith('/api/membership-claims')) return handleMembershipClaimsRoute(request, env, url);
   if (path.startsWith('/api/messages')) return handleMessagesRoute(request, env, url);
   // Firma/marka İş / Staj İlanları (kullanıcı isteği, 2026-09-11) — bkz. src/routes/officeJobs.js.
   // /api/offices öneki DEĞİL (o önek aşağıda gönderi CRUD'una düşer), bu yüzden ayrı bir yol.

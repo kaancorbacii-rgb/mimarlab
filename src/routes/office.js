@@ -998,7 +998,19 @@ export async function buildOfficePayload(env, key) {
     // firmanın projelerini en yeniden en eskiye sıralı taşıyor (bkz. yukarıdaki sort) ve her kart
     // coverImage() ile ilk görselini içeriyor, yani [0].images[0] tam olarak "son projenin ilk
     // görseli"dir. Havuz sorgusundaki SQL sıralaması ile bu JS sıralaması aynı veriyi kullanır.
-    logo: o.logo_url, cover: o.cover_url || (relatedProjects[0] && relatedProjects[0].images && relatedProjects[0].images[0]) || null, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
+    logo: o.logo_url, cover: o.cover_url || (relatedProjects[0] && relatedProjects[0].images && relatedProjects[0].images[0]) || null,
+    // cover_url — HAM KOLON, `cover`'dan AYRI (kullanıcı isteği, 2026-09-16 yedinci tur madde 2:
+    // "Firma popuplarında kapak görseli olmasına rağmen düzenle butonuna tıkladığımız zaman kapak
+    // görseli kısmı ... boş gözüküyor").
+    // KÖK NEDEN: firma-ekle.html'in ?claim= ön-doldurması BİLEREK `cover_url`ü okuyor
+    // (`cover` TÜREVDİR: cover_url boşsa son projenin ilk görseline düşer ve o değeri forma
+    // "yüklenmiş kapak" gibi yazmak, kullanıcı hiçbir şey yüklemediği hâlde kapağı kalıcı olarak
+    // sabitlerdi) — ama bu yanıt cover_url'ü HİÇ DÖNDÜRMÜYORDU, yani `merged.cover_url` her zaman
+    // undefined'dı ve gerçek bir kapak yüklenmiş olsa bile kutu boş açılıyordu. ?edit=<id> yolu
+    // gönderi satırını okuduğu için (item.cover_url) ETKİLENMİYORDU — hata yalnızca claim
+    // yolundaydı, ekran görüntüsündeki adres de tam olarak /firma-ekle?claim=mimarlab.
+    cover_url: o.cover_url || null,
+    awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html

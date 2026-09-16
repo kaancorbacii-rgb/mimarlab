@@ -1038,17 +1038,24 @@ const InfoModal = (function () {
     <div class="page-head">
       <div class="eyebrow">Rozet Satın Al</div>
       <h1>Bir kademe seç</h1>
-      <p>Rozetler aylık kiralanır. Kendin için ayrı, firman için ayrı rozet alabilirsin.</p>
+      <p>Rozetler aylık kiralanır. Yönettiğin firma için ayrı, firmandaki kişiler için ayrı rozet alabilirsin.</p>
     </div>
     <div class="checkout-wrap">
       <div class="form-section" id="im-target-section">
+        <!-- HEDEF HER ZAMAN BİR PROFİL (kullanıcı isteği, 2026-09-16 yedinci tur madde 7) —
+             satin-al.html'deki AYNI kutu ve AYNI kaynak (GET /api/badges/targets). "Kendim için"
+             (HESABA rozet) kaldırıldı; iki yüzey ayrışmamalı. -->
         <h2>Kimin için?</h2>
-        <p class="section-hint">Kendi hesabın için mi, yoksa sahiplendiğin bir firma profili için mi rozet almak istiyorsun?</p>
-        <label class="target-option"><input type="radio" name="im-badge-target" id="im-target-self" value="self" checked> Kendim için</label>
-        <label class="target-option"><input type="radio" name="im-badge-target" id="im-target-office" value="office"> Bir firmam için</label>
-        <div id="im-target-office-wrap" style="display:none; margin-top:10px;">
+        <p class="section-hint">Rozet bir profile alınır: yönettiğin bir firma ya da o firmadaki bir kişi.</p>
+        <label class="target-option"><input type="radio" name="im-badge-target" id="im-target-office" value="office" checked> Bir firmam için</label>
+        <label class="target-option"><input type="radio" name="im-badge-target" id="im-target-architect" value="architect"> Firmamdaki bir kişi için</label>
+        <div id="im-target-office-wrap" style="margin-top:10px;">
           <select class="target-office-select" id="im-target-office-select"></select>
           <p id="im-target-office-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Rozet alabilmen için önce bir firma profilini sahiplenip onaylatman gerekiyor. <a href="/firma" style="color:var(--walnut); font-weight:600;">Firmanı bul</a>.</p>
+        </div>
+        <div id="im-target-architect-wrap" style="display:none; margin-top:10px;">
+          <select class="target-office-select" id="im-target-architect-select"></select>
+          <p id="im-target-architect-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Yönettiğin firmalarda kayıtlı bir kişi profili yok. Kişileri firma künyesinin Kurucular/Ekip kutusundan ekleyebilirsin.</p>
         </div>
       </div>
 
@@ -1139,11 +1146,11 @@ const InfoModal = (function () {
 
     const params = new URLSearchParams(window.location.search);
     let selectedTier = BADGE_TIERS.find(t => t.type === params.get('tier')) ? params.get('tier') : BADGE_TIERS[0].type;
-    let selectedTargetType = 'self';
+    let selectedTargetType = 'office';
     let selectedTargetKey = null;
 
     function priceForTier(tier) {
-      return selectedTargetType === 'self' ? tier.selfPrice : tier.officePrice;
+      return selectedTargetType === 'office' ? tier.officePrice : tier.selfPrice;
     }
     function formatTRY(n) { return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'; }
 
@@ -1169,14 +1176,15 @@ const InfoModal = (function () {
     renderTierGrid();
 
     let myBadges = [];
-    let myProfileBadges = { self: null, offices: {} };
+    // myProfileBadges KALDIRILDI — bkz. satin-al.html'deki AYNI not (madde 7): hedef başına
+    // görünen rozet /api/badges/targets'tan gelir (imBadgeTargetBadge).
+    const imBadgeTargetBadge = new Map();
     async function loadMyBadges() {
       try {
         const res = await fetch('/api/badges/mine');
         if (res.ok) {
           const data = await res.json();
           myBadges = data.items || [];
-          myProfileBadges = data.profileBadges || { self: null, offices: {} };
         }
       } catch {}
       updateExistingBadgePanel();
@@ -1190,9 +1198,7 @@ const InfoModal = (function () {
       // Hedef profilde O AN GÖRÜNEN rozet (bkz. src/routes/badges.js#getProfileBadgesForUser) —
       // admin'in verdiği rozeti de, firmayı sahiplenen BAŞKA bir ortağın satın aldığı rozeti de
       // kapsar; sunucu tarafı satın alma kontrolü (getBlockingRank) BİREBİR aynı kaynağı kullanır.
-      const profileBadgeType = selectedTargetType === 'office'
-        ? (selectedTargetKey ? myProfileBadges.offices[selectedTargetKey] : null)
-        : myProfileBadges.self;
+      const profileBadgeType = selectedTargetKey ? (imBadgeTargetBadge.get(selectedTargetType + ':' + selectedTargetKey) || null) : null;
       const activeRank = activeBadge ? (BADGE_RANK[activeBadge.badge_type] || 0) : 0;
       const profileRank = profileBadgeType ? (BADGE_RANK[profileBadgeType] ?? Infinity) : 0;
       const blockingRank = Math.max(activeRank, profileRank);
@@ -1218,7 +1224,7 @@ const InfoModal = (function () {
       payNextBtn.style.display = 'none';
       showPaymentStep(false);
       alreadyHasSection.style.display = 'block';
-      const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
+      const targetLabel = selectedTargetKey ? ` (${selectedTargetKey})` : '';
       document.getElementById('im-already-has-title').textContent =
         `${tier ? tier.label : blocking.badge_type} Rozetin${targetLabel} ${blocking.admin ? 'aktif' : (BADGE_STATUS_LABELS[blocking.status] || blocking.status.toLowerCase())}`;
       document.getElementById('im-already-has-text').textContent = blocking === pendingBadge
@@ -1234,46 +1240,56 @@ const InfoModal = (function () {
     // dolduğunda ise paneli BİR DAHA hiç güncellemiyordu — yani firmanın rozeti bilinse bile panel
     // "rozet yok" halinde donuyordu. İki düzeltme: (1) liste dolduktan sonra panel yeniden
     // hesaplanır, (2) liste mount anında önden yüklenir, böylece radyoya basıldığı anda anahtar hazır.
-    let claimedOfficesReady = null;
-    async function loadClaimedOffices() {
-      const select = document.getElementById('im-target-office-select');
-      const empty = document.getElementById('im-target-office-empty');
-      try {
-        const res = await fetch('/api/claims/mine');
-        const items = res.ok ? (await res.json()).items || [] : [];
-        const offices = items.filter(c => c.profile_type === 'office' && c.status === 'approved');
-        if (!offices.length) {
-          select.style.display = 'none';
-          empty.style.display = 'block';
-          return;
-        }
-        select.style.display = '';
-        empty.style.display = 'none';
-        select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.profile_key)}">${escapeHtml(o.profile_key)}</option>`).join('');
-        if (selectedTargetType === 'office') selectedTargetKey = select.value || null;
-      } catch {
+    let badgeTargetsReady = null;
+    function imFillTargetSelect(type, list) {
+      const select = document.getElementById(`im-target-${type}-select`);
+      const empty = document.getElementById(`im-target-${type}-empty`);
+      if (!select || !empty) return;
+      if (!list.length) {
         select.style.display = 'none';
         empty.style.display = 'block';
+        return;
       }
+      select.style.display = '';
+      empty.style.display = 'none';
+      select.innerHTML = list.map(t => `<option value="${escapeAttr(t.key)}">${escapeHtml(t.key)}</option>`).join('');
+      list.forEach(t => { if (t.badge) imBadgeTargetBadge.set(`${type}:${t.key}`, t.badge); });
+    }
+    function imSyncSelectedTargetKey() {
+      const select = document.getElementById(`im-target-${selectedTargetType}-select`);
+      selectedTargetKey = (select && select.value) || null;
+    }
+    async function loadBadgeTargets() {
+      try {
+        const res = await fetch('/api/badges/targets');
+        const data = res.ok ? await res.json() : { offices: [], architects: [] };
+        imFillTargetSelect('office', data.offices || []);
+        imFillTargetSelect('architect', data.architects || []);
+      } catch {
+        imFillTargetSelect('office', []);
+        imFillTargetSelect('architect', []);
+      }
+      imSyncSelectedTargetKey();
       updateExistingBadgePanel();
     }
-    claimedOfficesReady = loadClaimedOffices();
-    document.getElementById('im-target-office-select').addEventListener('change', (e) => {
-      selectedTargetKey = e.target.value || null;
-      updateExistingBadgePanel();
+    badgeTargetsReady = loadBadgeTargets();
+    ['office', 'architect'].forEach(type => {
+      const select = document.getElementById(`im-target-${type}-select`);
+      if (select) select.addEventListener('change', (e) => {
+        if (selectedTargetType !== type) return;
+        selectedTargetKey = e.target.value || null;
+        updateExistingBadgePanel();
+      });
     });
     document.querySelectorAll('input[name="im-badge-target"]').forEach(radio => {
       radio.addEventListener('change', () => {
         selectedTargetType = radio.value;
         document.getElementById('im-target-office-wrap').style.display = selectedTargetType === 'office' ? '' : 'none';
-        if (selectedTargetType === 'office') {
-          selectedTargetKey = document.getElementById('im-target-office-select').value || null;
-          // Önden yüklenen liste henüz gelmediyse geldiğinde panel kendini tazeler (loadClaimedOffices
-          // sonunda updateExistingBadgePanel çağırır); geldiyse bu await anında çözülür.
-          if (claimedOfficesReady) claimedOfficesReady.then(() => { if (selectedTargetType === 'office') updateExistingBadgePanel(); });
-        } else {
-          selectedTargetKey = null;
-        }
+        document.getElementById('im-target-architect-wrap').style.display = selectedTargetType === 'architect' ? '' : 'none';
+        imSyncSelectedTargetKey();
+        // Önden yüklenen liste henüz gelmediyse geldiğinde panel kendini tazeler (loadBadgeTargets
+        // sonunda updateExistingBadgePanel çağırır); geldiyse bu then anında çözülür.
+        if (badgeTargetsReady) badgeTargetsReady.then(() => { imSyncSelectedTargetKey(); updateExistingBadgePanel(); });
         renderTierGrid();
         updateExistingBadgePanel();
         renderPaymentSummary();
@@ -1295,7 +1311,7 @@ const InfoModal = (function () {
     let payMethod = null;
 
     function targetLabelText() {
-      return selectedTargetType === 'office' ? (selectedTargetKey || 'Firmam') : 'Kendim';
+      return selectedTargetKey || (selectedTargetType === 'office' ? 'Firmam' : 'Kişi');
     }
 
     function renderPaymentSummary() {

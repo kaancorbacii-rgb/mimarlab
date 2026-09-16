@@ -382,8 +382,19 @@ const OfficeModal = (function () {
   // hesap üyeliği, Kurucular/Ekip kutusundaki serbest metin ad eşleşmesi — bkz. src/routes/
   // office.js#buildOfficePeople). Slug'sız üye (hiçbir kişi profiliyle eşleşmeyen ad) aynı kare
   // kartı alır ama tıklanamaz; hesap fotoğrafı yoksa baş harfler.
+  // EKİP KARTLARINDA DA ROZET (kullanıcı isteği, 2026-09-16 yedinci tur madde 1: "MİMARLAB Robotu
+  // kişisine admin tarafından doğrulanmış üye rozeti verilmesine rağmen ... popuplarda ... rozet
+  // gözükmüyor").
+  // KÖK NEDEN: rozet ÜÇ yerde çizilir ve bu kart onu hiç sormuyordu — Kurucular/Ortaklar kartı
+  // (renderFoundersGrid) verifiedBadgeHtml çağırıyor, başlık (om-verified-badge-wrap) çağırıyor,
+  // Ekip kartı ÇAĞIRMIYORDU. Kurucular ile Ekip aynı kaynaktan (office_founders) besleniyor ve
+  // yalnızca göreve göre ayrılıyor (bkz. src/routes/office.js#buildOfficePeople), yani rozetin
+  // birinde görünüp diğerinde görünmemesinin hiçbir gerekçesi yoktu.
+  // Rozet ADLA anahtarlıdır (badge-shared.js#verifiedBadgeHtml -> dynamicBadges[type][name]),
+  // bu yüzden kartın kişi kaydı olmasa (slug taşımasa) bile doğru çalışır.
   function teamCardHtml(person) {
-    return cardHtml(person.slug ? `/kisi/${encodeURIComponent(person.slug)}` : null, person.name, person.photo, person.role);
+    return cardHtml(person.slug ? `/kisi/${encodeURIComponent(person.slug)}` : null, person.name, person.photo, person.role,
+      verifiedBadgeHtml('architect', person.name, person.badges, 14));
   }
 
   // Mevcut veri "İl / İlçe" sırasıyla girilmiş (ör. "İstanbul / Beyoğlu") — künyede "İlçe, İl"
@@ -732,7 +743,13 @@ const OfficeModal = (function () {
     renderFoundersGrid();
 
     document.getElementById('om-team-section').style.display = team.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('om-team-grid'), team, teamCardHtml);
+    // renderTeamGrid — renderFoundersGrid ile AYNI gerekçe: /api/public/badges ASENKRON gelir, ilk
+    // çizimde rozet haritası henüz boş olabilir. Rozetler gelince İKİ ızgara da tazelenir (bkz.
+    // renderVerifiedBadges); yalnızca kurucular tazelendiği için Ekip kartı rozetsiz kalıyordu.
+    function renderTeamGrid() {
+      RelatedStrip.render(document.getElementById('om-team-grid'), team, teamCardHtml);
+    }
+    renderTeamGrid();
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     // Izgara + sayaç + harita TEK yerden çizilir — bkz. js/components/architect-modal.js#
@@ -971,6 +988,7 @@ const OfficeModal = (function () {
       // bkz. kullanıcı isteği: mavi rozet kurucu/ortak kartlarında da görünmeli — isim bazlı
       // dynamicBadges önbelleğine bağlı olduğundan başlıktaki rozetle AYNI anda tazelenir.
       renderFoundersGrid();
+      renderTeamGrid();
       renderMessageIcon();
     }
     renderVerifiedBadges();

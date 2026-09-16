@@ -780,6 +780,23 @@ else
 fi
 rm -f /tmp/preflight_20260916f
 
+# 2026-09-16 YEDİNCİ TUR (yedi madde): kişi künyesinin rozeti firma pop-up'ının Ekip kartında ve
+# Hesabım > Kişi Bilgileri'nde de görünür (kaynak artık HESAP rozeti değil KİŞİ künyesinin rozeti);
+# /api/office/:key HAM cover_url döndürür (firma-ekle ?claim= kapak kutusu boş açılıyordu);
+# "Profili Düzenle" pop-up'ında salt okunur e-posta; KİŞİ ↔ FİRMA ÜYELİK ONAY KUYRUĞU
+# (profile_membership_claims — başka firmada görünen bir kişiyi firmaya eklemek ya da yöneticisi
+# olan bir firmayı kişiye eklemek artık o firmanın yöneticisinin/adminin onayını bekler ve onaya
+# kadar künyede GÖRÜNMEZ); rozet yalnızca kişi/firma PROFİLLERİ için ve yalnızca yönetilen firma +
+# o firmadaki kişiler için alınabilir ('self' hedefi kaldırıldı).
+# Bkz. scripts/test-2026-09-16-membership-claims-and-profile-badges.mjs.
+if node scripts/test-2026-09-16-membership-claims-and-profile-badges.mjs >/tmp/preflight_20260916g 2>&1; then
+  ok "2026-09-16 yedinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916g) test)"
+else
+  bad "2026-09-16 yedinci tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260916g >&2
+fi
+rm -f /tmp/preflight_20260916g
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

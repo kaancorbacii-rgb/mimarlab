@@ -1340,3 +1340,133 @@ kaydedebilsinler ... Kaydettiklerim kısımında Görsel diye filtre butonu aç.
 Testler: `scripts/test-2026-09-16-photo-visibility-pickers-and-image-saves.mjs` (34 test,
 preflight'a bağlı). Migration YOK, SSR sürüm bumpı YOK (kabuklara script etiketi eklenmedi/
 kaldırılmadı).
+
+## Kişi ↔ firma üyeliği ONAYA BAĞLANDI, rozet yalnızca profillere (2026-09-16, yedinci tur)
+
+Kullanıcı isteği (yedi madde): (1) "MİMARLAB Robotu kişisine admin tarafından doğrulanmış üye rozeti
+verilmesine rağmen ... popuplarda ve hesabım sayfasında Kişi Bilgileri kutusunda ad soyadın yanında
+rozet gözükmüyor. Bu sorunu kökten çöz.", (2) "Firma popuplarında kapak görseli olmasına rağmen
+düzenle butonuna tıkladığımız zaman kapak görseli kısmı ... boş gözüküyor. Bu sorunu kökten çöz.",
+(3) "Profili düzenle butonuna tıklayınca açılan popuptaki bir kutucukta kullanıcının e-posta adresi
+de yazsın ama bu değiştirilemesin.", (4) kaydı ekleyen yönetici olsun ama aynı adla ikinci kayıt
+açılamasın ("bu özellik zaten vardı"), (5) firmaya BAŞKA bir firmada görünen bir kişi eklenirse o
+firmanın yöneticisine + admine bildirim gitsin, onaya kadar kişi kısmı boş kalsın, (6) kişiye
+YÖNETİCİSİ OLAN bir firma eklenirse aynı akış, onaya kadar firma kısmı boş kalsın, (7) "Bir kullanıcı
+rozeti sadece kişi profilleri ya da firma profilleri için alabilsin, kullanıcı hesapları için rozet
+alınamasın. Kullanıcı sadece sitede yönetici olduğu firmaya ve bu firmadaki kişilere rozet alabilsin."
+
+**migrations/0123_profile_membership_claims.sql — KOD DEPLOY'UNDAN ÖNCE UYGULANMALIDIR**
+(`.github/workflows/migrate.yml`). Tablo yoksa talep satırı açılamaz; kapı o pencerede GÜVENLİ yönde
+davranır (ad künyeye yazılmaz) ama talep oluşmaz — `createMembershipClaims` hatayı yutar, gönderi
+yazımı 500'e DÜŞMEZ.
+
+### 1. Kişi künyesinin rozeti — İKİ AYRI kök neden
+- **Firma pop-up'ında Ekip kartı**: rozet üç yerde çizilir ve `office-modal.js#teamCardHtml` onu HİÇ
+  sormuyordu (başlık ve Kurucular/Ortaklar kartı soruyordu). Kurucular ile Ekip **AYNI kaynaktan**
+  (`office_founders`) beslenip yalnızca göreve göre ayrıldığı için (bkz. `office.js#buildOfficePeople`)
+  rozetin birinde görünüp diğerinde görünmemesinin hiçbir gerekçesi yoktu. Artık kart
+  `verifiedBadgeHtml('architect', person.name, person.badges, 14)` çağırıyor ve **`renderTeamGrid`**,
+  `renderFoundersGrid` ile birlikte `renderVerifiedBadges`'ten tazeleniyor — `/api/public/badges`
+  ASENKRON geldiği için bu şart (ilk çizimde harita boş olabilir).
+- **Hesabım > Kişi Bilgileri**: kaynak **HESABIN** rozetiydi (`myEffectiveBadgeType` — onaylı
+  `profile_claims('architect')` arıyor, yoksa kullanıcının kendi `badge_requests('self')` satırına
+  düşüyordu). İki sonucu vardı: (a) kişi künyesine sahiplik ATAMADAN değil **kaydı eklemekten**
+  geliyorsa (`architects.claimed_by_user_id`) claim satırı hiç olmadığından rozet HİÇ görünmüyordu,
+  (b) kutunun 2.+ sayfaları (yönetilen firmanın kişileri) adı düz metin basıyor, rozet hiç
+  çizmiyordu. Artık TEK kaynak **`personProfileBadgesHtml`** → `amPublicBadges.architect[<ad>]`,
+  yani **Firma satırıyla birebir aynı desen** (o satır 2026-09-02'den beri böyle okuyor). Kutudaki
+  rozet ile kişi pop-up'ındaki rozet artık ayrışamaz. `myEffectiveBadgeType` SİLİNDİ — hesap rozeti
+  kavramı bu satırdan tamamen kalktı, madde 7 de aynı yöne gidiyor.
+
+### 2. Firma kapak görseli — `/api/office/:key` HAM kolonu döndürmüyordu
+- `firma-ekle.html#prefillForClaim` **bilerek** `merged.cover_url` okuyor: `cover` TÜREVDİR
+  (`cover_url` boşsa son projenin ilk görseline düşer, bkz. `office.js#latestProjectCover`) ve o
+  türev değeri forma "yüklenmiş kapak" gibi yazmak, kullanıcı hiçbir şey yüklemediği hâlde kapağı
+  kalıcı olarak sabitlerdi. **Ama yanıt `cover_url`ü HİÇ döndürmüyordu**, yani `merged.cover_url`
+  her zaman `undefined`'dı ve gerçek kapak yüklenmiş olsa bile kutu boş açılıyordu.
+- Düzeltme: payload artık `cover` (türev, görüntüleme) **ve** `cover_url` (ham kolon, form) alanlarını
+  AYRI AYRI taşıyor. `?edit=<id>` yolu gönderi satırını okuduğu için (`item.cover_url`) hiç
+  etkilenmemişti — hata yalnızca claim yolundaydı.
+
+### 3. Salt okunur e-posta
+- "Profili Düzenle" pop-up'ına `#am-account-email` (`readonly`) eklendi. `readonly`, `disabled`
+  DEĞİL: disabled bir input seçilemez/kopyalanamaz ve ekran okuyucular atlar. `name` özniteliği YOK
+  ve PATCH gövdesine hiç konmaz; sunucu karşılığı da zaten kapalı —
+  `auth.js#updateUserProfileFields`'in izinli alan listesinde `email` YOKTUR.
+
+### 4. Kaydı ekleyen yöneticidir + aynı adla ikinci kayıt YOK
+- Zaten yürürlükteydi, bu turda yalnızca KELEPÇELENDİ: `submissions.js#createSubmission` ->
+  `isDuplicateCanonicalName` (409, mevcut profilin slug'ıyla) ve `claimed_by_user_id` kapıları
+  (`canEditOfficeAsCreator` / `canEditArchitectAsCreator` / `fetchOwnCreatedOfficeRows`).
+
+### 5 + 6. KİŞİ ↔ FİRMA ÜYELİK ONAY KUYRUĞU (yeni)
+- **Tablo `profile_membership_claims`** (`migrations/0123`), `project_photo_claims` /
+  `product_hotspot_tags` kuyruklarının KARDEŞİ: aynı durum sözlüğü, aynı "karar kümesi = bildirim
+  kümesi" kuralı, aynı `membership-claim:<id>` bildirim→pop-up bağlantısı. Karar veren firma TEK
+  kolonda (`decider_office_name`): madde 5'te kişinin ZATEN göründüğü DİĞER firma, madde 6'da
+  eklenmek istenen firmanın kendisi — böylece `canDecideMembership` tek kurala iner.
+- **KAPI GÖNDERİ YAZIMINDA, canonicalSync'te DEĞİL** (`submissions.js#withholdPendingMemberships`,
+  `createSubmission` + `updateOwnSubmission`). Gerekçe "boş kalsın" şartının ta kendisi: firma
+  pop-up'ının Kurucular/Ekip listeleri İKİ kaynaktan beslenir — yapısal bağ (`office_founders`) VE
+  **gönderi satırındaki serbest metin adlar** (`office.js#fetchRawFounderNames/fetchRawTeamNames`).
+  Yalnızca bağı engellemek YETMEZDİ: ad gönderi metninden okunup pop-up'ta yine görünürdü. Adı
+  gönderiye hiç yazmayarak iki yol birden kapanır.
+- **TUZAK**: `normalizeSubmission` dizi alanlarını **JSON METNİ** olarak bırakır (değerler doğrudan
+  SQL'e bind ediliyor). Diziymiş gibi `filter()` çağırmak sessizce hiçbir şey süzmez ve kapı
+  görünürde çalışıp gerçekte kapanmazdı — kutular `JSON.parse`/`JSON.stringify` ile ele alınır.
+  Kişi tarafındaki `office` ise düz (virgüllü) metindir.
+- **VAR OLAN ÜYELİK GERİ ÇEKİLMEZ** (`membershipExists`): istek "eklemek istediği zaman" diyor. Aksi
+  halde bir firmanın mevcut üyesi kendi künyesini (ör. yalnızca açıklamasını) düzenlediğinde firma
+  adı künyeden SESSİZCE düşer ve yeniden onay beklerdi — 2026-09-08'deki firma-tarafı kapısının
+  `pendingIds` ile koruduğu AYNI şey.
+- **MUAFİYETLER**: admin (kuyruğun onaylayıcısı); madde 6'da firmanın yöneticisi (onaylayacak kişi
+  kendisi); madde 5'te kişinin göründüğü DİĞER firmayı da yöneten kullanıcı. Sitede kaydı olmayan
+  serbest metin ad kapı DIŞI (bağ da üretemez). Firma sitede henüz YOKSA (ilk gönderi) kapı yok —
+  bağ kurulacak firma daha oluşmadı, o künye admin moderasyonundan geçer.
+- **madde 6'da DARALTMA YOK, GENİŞLETME YOK**: firmanın yöneticisi YOKSA davranış DEĞİŞMEDİ — bağ
+  yine `canonicalSync#splitAdminApprovedOffices` kapısına tabidir (admin onayı). İstek "zaten bir
+  yöneticisi varsa" diyor.
+- **ONAY ÜÇ YERE YAZAR** (`membershipClaims.js#applyMembershipClaim`): (1) TASLAK — `canonicalSync`
+  künyeyi gönderi satırından BAŞTAN yazdığı için yalnızca canonical'a yazmak bir sonraki kaydetmede
+  SESSİZ VERİ KAYBI olurdu (hotspotTags/photoClaims'teki AYNI tuzak); (2) yapısal bağ
+  (`office_founders`, `INSERT OR IGNORE` — mükerrer onay fikirsiz); (3) kişi tarafında birincil firma
+  (`architects.office_id`) **YALNIZCA BOŞSA** — dolu bir değeri ezmek kişinin kendi seçtiği birincil
+  firmayı sessizce değiştirirdi. Ardından **İKİ profilin** detay önbelleği purge edilir (bağ hem
+  firma hem kişi pop-up'ını değiştirir ve o uçlar fingerprint TAŞIMAZ).
+- Bildirim alıcıları = karar kümesi, TEK fonksiyondan (`officeManagerIds` → `fetchOfficeManagers` +
+  `OFFICE_EDIT_POSITIONS`, yani "Hesabım > Yetkili Kullanıcılar" kümesiyle birebir aynı) + TÜM
+  adminler. Onay pop-up'ı `auth-modal.js#openMembershipClaimPrompt` — `openPhotoClaimPrompt` ile
+  birebir aynı iskelet; yeni bir onay deseni icat EDİLMEDİ.
+- `createMembershipClaims` **best-effort**: gönderi yazımı BAŞARIYLA tamamlandıktan sonra çalışır ve
+  onu asla 500'e düşürmez (`createNotification`'daki AYNI gerekçe).
+
+### 7. Rozet yalnızca KİŞİ/FİRMA profilleri için
+- **`'self'` hedefi KALDIRILDI** (`badges.js#normalizeTarget`): o hedef HESABA rozet veriyordu ve
+  profilde ancak dolaylı olarak (kullanıcının onaylı architect claim'i üzerinden) görünüyordu.
+  Yerine **`'architect'`** geldi ve KİŞİ KÜNYESİNİN ADIYLA anahtarlanır — `'office'` ile birebir aynı
+  desen. Bu, "Hesap üyeliği ile kişi profili AYRIDIR" kuralının rozet tarafındaki karşılığıdır.
+- **ESKİ `'self'` SATIRLARI SİLİNMEDİ ve okunmaya devam eder** (`computeBadgesPayload`'ın ilk
+  sorgusu) — yalnızca YENİ talep açılamaz. `'office'` yolunun davranışı da DEĞİŞMEDİ.
+- **Kişi hedefli satın almalar sahiplenme JOIN'İ OLMADAN okunur** (ayrı sorgu): satın alan kişi
+  tanımı gereği hedefin sahibi değildir (firma yöneticisi, firmasındaki BİR BAŞKASI için alır), o
+  JOIN hiç eşleşmez ve rozet hiçbir yerde görünmeyen ölü bir satın almaya dönüşürdü. Yetki kapısı
+  satın alma anındadır; anahtar doğrudan hedefin ADIDIR (`admin_badges` ile AYNI desen). Kabul edilen
+  ödünleşme: yönetici yetkisi sonradan iptal edilse bile satın alınmış rozet `expires_at`'e kadar
+  profilde kalır — alternatifi, herkese açık ve ÖNBELLEKSİZ olan `/api/public/badges`'te satır başına
+  bir üyelik sorgusu koşturmaktı.
+- **KAPI TEK** (`verifyBadgeTargetOwnership`): `'office'` → onaylı `profile_claims('office')`
+  (2026-09-01'den beri geçerli kural, değişmedi); `'architect'` → kişi, kullanıcının yönettiği
+  firmalardan birinin ÜYESİ olmalı (`office_founders` + `architects.office_id`). Eşleşme `foldTr` ile.
+  Havale (`badges.js#createBadgeRequest`) ve kart (`payments.js#startCheckout`) AYNI fonksiyonu
+  çağırır. Serbest metin adlar (canonical kaydı olmayan) kapsam dışı — o ada verilen rozet hiçbir
+  yerde görünmezdi.
+- **Hedef listeleri SUNUCUDAN** (`GET /api/badges/targets`) ve o uç kapının TA KENDİSİNİ okur; ayrıca
+  hedef başına O AN GÖRÜNEN rozeti de döner, yani "zaten bu rozetin var" paneli ile sunucunun
+  (`getBlockingRank`) engellediği rozet AYNI veriden gelir. İKİ yüzey de güncellendi
+  (`satin-al.html` + `info-modal.js#mountRozetAl`); "Kendim için" seçeneği ikisinden de kalktı ve
+  `myProfileBadges` okuması düştü (o alan yalnızca kullanıcının KENDİ sahiplendiği profilleri
+  taşıyordu, firmasındaki kişileri taşımıyordu).
+
+Testler: `scripts/test-2026-09-16-membership-claims-and-profile-badges.mjs` (31 test, preflight'a
+bağlı) — üyelik kapısının ve rozet kapısının tamamı GERÇEK SQLite fikstürü üzerinde ölçülür
+(`schema.sql` + 0079; `name_fold` ÜRETİLMİŞ kolon olduğundan INSERT'lerde verilmez).
