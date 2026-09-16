@@ -89,11 +89,15 @@ await test('createYearPicker: TEK seçim, statik liste, elle yazma açık', () =
   assert.match(picker, /parseProjectDateYear/, 'gerekçe yorumda kaynağıyla birlikte durmalı');
 });
 
-await test('liste MÖ ile başlar ve 1..bugün gider (proje)', () => {
+await test('liste 1..bugün kapsar, MÖ seçeneği vardır (proje)', () => {
+  // SIRA bu turda ARTAN'dı; 2026-09-16 SEKİZİNCİ turda kullanıcı isteğiyle AZALAN'a çevrildi
+  // ("açılan tarihler günümüzden geçmişe doğru olsun") ve MÖ listenin SONUNA taşındı. Sıranın
+  // kelepçesi artık orada: scripts/test-2026-09-16-team-badges-lightbox-icons-and-account-speed.mjs.
+  // Burada KAPSAM ve üst sınırın sabit olmaması ölçülmeye devam ediyor.
   const fn = picker.match(/function yearOptionList[\s\S]*?\n  \}/)[0];
   assert.match(fn, /const now = new Date\(\)\.getFullYear\(\)/, 'üst sınır SABİT olmamalı');
-  assert.match(fn, /const out = bc \? \[YEAR_BC_OPTION\] : \[\]/);
-  assert.match(fn, /for \(let y = from; y <= now; y\+\+\)/);
+  assert.match(fn, /if \(bc\) out\.push\(YEAR_BC_OPTION\);/);
+  assert.match(fn, /y >= from/, 'alt sınır from olmalı');
   assert.match(picker, /const YEAR_BC_OPTION = 'MÖ'/);
 });
 

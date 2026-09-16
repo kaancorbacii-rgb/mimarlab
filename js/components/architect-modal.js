@@ -773,9 +773,18 @@ const ArchitectModal = (function () {
     // kart ama tıklanamaz.
     const teammates = payload.teammates || [];
     document.getElementById('am-team-section').style.display = teammates.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('am-team-grid'), teammates, t =>
-      cardHtml(t.slug ? `/kisi/${encodeURIComponent(t.slug)}` : null, t.name, t.photo, t.role)
-    );
+    // Rozet, Ortaklar kartındakiyle BİREBİR AYNI çağrıdır (kullanıcı isteği, 2026-09-16 sekizinci
+    // tur): iki liste de buildOfficePeople'ın AYNI kaynağından (office_founders) gelip yalnızca
+    // göreve göre ayrıldığından (bkz. src/routes/office.js#buildOfficePeople) rozetin birinde
+    // görünüp diğerinde görünmemesinin hiçbir gerekçesi yoktu. renderTeamGrid AYRI bir fonksiyon:
+    // /api/public/badges ASENKRON gelir, ilk çizimde harita boş olabilir -> renderVerifiedBadges
+    // onu da tazeler (renderOfficeGrid/renderColleaguesGrid ile AYNI desen).
+    function renderTeamGrid() {
+      RelatedStrip.render(document.getElementById('am-team-grid'), teammates, t =>
+        cardHtml(t.slug ? `/kisi/${encodeURIComponent(t.slug)}` : null, t.name, t.photo, t.role, verifiedBadgeHtml('architect', t.name, t.badges, 14))
+      );
+    }
+    renderTeamGrid();
 
     // Sarmalayıcı yalnızca en az bir sütun doluysa görünür (aksi halde boş bir bant + üst çizgi
     // kalırdı); ortadaki kısa dik çizgi ise yalnızca İKİSİ de doluyken çizilir.
@@ -1027,6 +1036,7 @@ const ArchitectModal = (function () {
       // isim bazlı dynamicBadges önbelleğine bağlı olduğundan başlıktaki rozetle AYNI anda tazelenir.
       renderOfficeGrid();
       renderColleaguesGrid();
+      renderTeamGrid();
       renderRelatedArchitectsGrid();
       renderMessageIcon();
     }

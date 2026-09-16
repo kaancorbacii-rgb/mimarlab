@@ -1470,3 +1470,101 @@ yazımı 500'e DÜŞMEZ.
 Testler: `scripts/test-2026-09-16-membership-claims-and-profile-badges.mjs` (31 test, preflight'a
 bağlı) — üyelik kapısının ve rozet kapısının tamamı GERÇEK SQLite fikstürü üzerinde ölçülür
 (`schema.sql` + 0079; `name_fold` ÜRETİLMİŞ kolon olduğundan INSERT'lerde verilmez).
+
+## Ekip rozeti, gece modu lightbox ikonları, Hesabım hızı ve azalan yıl listesi (2026-09-16, sekizinci tur)
+
+Kullanıcı isteği (dört madde): (1) "Kişi popupındaki ekip arkadaşları kısmında da rozet gözükmüyor
+bu sorunu düzelt.", (2) "Gece görünümünde lightboxlardaki kaydet tümünü göster ve kapat butonlarının
+icon renklerini beyaz yap.", (3) "Hesabım sayfasındaki Firma Bilgileri ve Kişi Bilgileri kutuları
+çok yavaş yükleniyorlar, buna bir çözüm bul. Daha hızlı yüklensinler.", (4) "Proje ekle/düzenle
+sayfasında Tarih başlığının altındaki Başlangıç kutucuğunda opsiyonel yazmasın. Ayrıca açılan
+tarihler günümüzden geçmişe doğru olsun. Ürün sayfasındaki Yıl kutucuğunda da tarihler günümüzden
+eskiye doğru olsun."
+
+### 1. "Ekip Arkadaşları" kartında da rozet
+- **AYNI SINIF HATA, yedinci turdaki `office-modal.js#teamCardHtml` ile birebir**: kart geri-çağrısı
+  `verifiedBadgeHtml`'i HİÇ sormuyordu. Komşu **Ortaklar** ızgarası soruyordu — oysa iki liste
+  `buildOfficePeople`'ın AYNI kaynağından (`office_founders`) gelip yalnızca GÖREVE göre ayrılıyor
+  (bkz. `office.js#buildOfficePeople` -> `FOUNDER_POSITIONS`), yani rozetin birinde görünüp
+  diğerinde görünmemesinin hiçbir gerekçesi yoktu.
+- Çizim **`renderTeamGrid()`** adlı ayrı bir fonksiyona alındı ve `renderVerifiedBadges()`
+  `renderOfficeGrid`/`renderColleaguesGrid` ile birlikte onu da çağırıyor. Bu ŞART:
+  `/api/public/badges` ASENKRON gelir, ilk çizimde `dynamicBadges` haritası boş olabilir — satır
+  olmadan rozet yalnızca önbellek zaten dolu olduğunda görünürdü (kişi A'dan B'ye gezinmede
+  tesadüfen çalışır, ilk açılışta çalışmaz).
+- **Sunucu tarafı DEĞİŞMEDİ**: `structuredTeam` satırları `badges` anahtarı taşımaz (`founders`
+  `badges: []` taşır), ikisi de `verifiedBadgeHtml`'in statik yedeğine düşer — asıl kaynak ad bazlı
+  `dynamicBadges` önbelleğidir.
+
+### 2. Lightbox ikonları gece görünümünde de beyaz
+- **KÖK NEDEN TEMA TOKEN'I**: ikonlar `color:var(--paper)` taşıyordu; `--paper` açık temada
+  `#EDF0F3`, **gece temasında `#12171F`**. Lightbox zemini ise HER temada koyudur
+  (`rgba(27,42,61,0.92)`) — yani gece modunda koyu zemin üstüne koyu ikon çiziliyordu.
+- Çözüm: bu kurallarda renk artık **SABİT `#EDF0F3`** (açık temanın `--paper` değeri). Aynı
+  dosyalardaki `.lightbox-counter` (`#fff`), `.gallery-nav` (`#fff`) ve `gallery.js#.lightbox-credit`
+  (`rgba(237,240,243,0.92)`) bu yüzden ZATEN sabit değer taşıyordu; `image-lightbox.js` de
+  `#EDF0F3` kullanıyordu — kural o iki örneğe hizalandı, yeni bir desen icat edilmedi.
+- **Kapsam**: kapat (`.lightbox-close`), "Tümünü Gör" (`.lightbox-grid-toggle`), kaydet
+  (`gallery.js#.lightbox-save-btn`) **ve oklar** (`.lightbox-nav`) — oklar istekte adı geçmiyordu
+  ama AYNI kök nedenle gece modunda görünmez oluyordu, aynı turda düzeltildi.
+  Kural **DÖRT kopyada** yaşıyor (paylaşılan stylesheet yok): `css/project-detail.css`,
+  `css/architect-detail.css`, `css/product-detail.css`, `en-iyi-100.html` + `gallery.js` (kaydet).
+  `.pm-map-lightbox-close` (harita lightbox'ı) da aynı kapsamda.
+- **SSR sürüm bumpı GEREKMEDİ**: detay kabukları CSS'i `<link>` ile çeker (revalidate edilir) ve
+  `/en-iyi-100` `LIST_PAGE_CACHE_HEADERS` (max-age=60/s-maxage=300) ile servis edilir, sürümlenmiş
+  Cache API anahtarıyla DEĞİL.
+- Ölçüldü (Chromium, gerçek CSS dosyası): `data-theme="dark"` -> dört düğme de
+  `rgb(237,240,243)`; açık temada sonuç BİREBİR eskisi gibi.
+
+### 3. Hesabım'ın Firma/Kişi Bilgileri kutuları — ÜÇ ayrı gecikme kaynağı
+- **(a) SUNUCU: `/api/claims/mine` yedi bağımsız sorguyu ARDI ARDINA await ediyordu.** Üçü kendi
+  içinde de zincirliydi (`fetchOfficeFounderLinks` 3 dalga, `fetchOwnOfficeRoles` 2,
+  `fetchOwnCreatedOfficeRows` 2) — **toplam ~13 SIRALI D1 gidiş-dönüşü**, hiçbiri diğerinin
+  sonucunu kullanmadığı hâlde. Artık tek `Promise.all`; kritik yolu en uzun dal (3 dalga) belirler.
+  Ölçüldü (gerçek yardımcılar, gidiş-dönüş başına sabit gecikmeyle sahte D1): **13 dalga -> 4 dalga**.
+  * `fetchOwnArchitectRows` ÜÇ yoldan, `revokedOfficeKeysForUser` İKİ yoldan çağrılıyor; sıralıyken
+    her biri ayrı gecikme ekliyordu, paralelde aynı dalgada koşuyorlar. **Yardımcıların içine memo
+    KOYULMADI**: modül ömürlü bir önbellek Workers'ta isolate'lar arası yaşar ve bayat YETKİ verisi
+    servis edebilirdi.
+  * **İki `profile_claims` sorgusu BİRE indi**: `status != removed` (liste) ile `status = removed`
+    (`dismissed`) aynı satır kümesinin tümleyenleriydi — tek SELECT + JS'te ayırma.
+- **(b) İSTEMCİ: aynı uç iki kez çekiliyordu.** `/api/architects/mine` İKİ kez
+  (`fetchOwnSelfSubmission` + `fetchArchitectRecordForSync`) ve `/api/architect/:key` İKİ kez
+  (`fetchClaimedArchitect` + `fetchArchitectRecordForSync`) — çağıranlar farklı SÜZGEÇ uyguladığı
+  için her biri kendi isteğini atıyordu. Artık **HAM yanıt paylaşılır** (`fetchMyArchitectSubmissions`,
+  anahtar başına `fetchArchitectItem`), süzgeç çağıranda kalır. `invalidatePersonCaches()` bu iki
+  memoyu da düşürür — aksi halde eski üç memo boşalsa bile hepsi yine bayat veriden beslenirdi.
+  Ayrıca `fetchArchitectRecordForSync` iki isteği artık PARALEL başlatıyor (birbirine bağlı değiller).
+- **(c) İSTEMCİ: `/api/office/:key` istekleri kişi künyesi await'inin ARKASINDA bekliyordu.**
+  `loadFirmInfo` sırası "claims/mine -> architect/:key -> office/:key" şeklinde ÜÇ SIRALI
+  gidiş-dönüştü; oysa anahtarların hepsi ZATEN elde (claim'ler + `officeLinks` + `ownOffices`, üçü de
+  `/api/claims/mine`'ın AYNI yanıtından) ve o await'e bağlı olan yalnızca DÖRDÜNCÜ kaynak (kişi
+  künyesinin `office` alanı). Artık istekler await ile paralel ısıtılır.
+  * **ISITMA KÜMESİ BİLEREK DAR**: yalnızca ZATEN çekilecek anahtarlar — `canManageFirmEntry`'nin
+    AYNI koşulundan geçen firmalar + 1. sayfanın firması. Tüm anahtarları ısıtmak, hiç açılmayacak
+    sayfalar için YENİ istekler doğururdu (`ensureFirmOffice` argümansız çağrıldığında yalnızca AÇIK
+    sayfanın künyesini çeker).
+  * **GİRDİ SIRASI ve ÇİZİM ANI DEĞİŞMEDİ**: ısıtma yalnızca `firmOfficeCache`'i doldurur, aşağıdaki
+    `ensureFirmOffice` çağrıları onu hazır bulur (anahtar başına tek uçuş guard'ı sayesinde istek
+    ikiye çıkmaz).
+
+### 4. Tarih/Yıl kutuları: yer tutucu + AZALAN sıra
+- `proje-ekle.html`'deki yer tutucu düz **"Başlangıç"**. **Davranış değişmedi**: Tarih alanı
+  ZORUNLUDUR (`Tarih *` + submit guard'ı "Bir tarih gir.") ama `formatDateRow` start VEYA end'den
+  biri doluysa yeter — "(opsiyonel)" bunu anlatmaya çalışıyor ve etiketle çelişiyordu.
+- `office-picker.js#yearOptionList` artık **AZALAN** üretir (`for (let y = now; y >= from; y--)`);
+  altıncı turda ARTAN'dı ve gerçekte kullanılan yıllar listenin en DİBİNDE kalıyordu. **Kapsam
+  DEĞİŞMEDİ** (proje 1..bugün, ürün 1299..bugün; üst sınır hâlâ `new Date().getFullYear()`).
+- **"MÖ" artık listenin SON öğesi**: azalan sıralamada en eski değer sona düşer ve MÖ, `from`'dan
+  da eskisini ifade eder — başta durması sırayı bozardı.
+- **Sıra bozulmuyor** çünkü statik `items` yolu `loadMergedOptions`'ın `localeCompare` sıralamasını
+  HİÇ kullanmaz (altıncı turda bilerek böyle kuruldu — "10" aksi halde "2"den önce gelirdi).
+  `allOptions()` seçili-ama-listede-olmayan değerleri (`extras`, ör. canlı künyedeki "MÖ 5500-3500")
+  başa koymaya devam eder.
+- Sıra kelepçesi altıncı turun test dosyasından bu turun dosyasına TAŞINDI (o dosyada kapsam ve
+  "üst sınır sabit değil" ölçümü kaldı).
+
+Testler: `scripts/test-2026-09-16-team-badges-lightbox-icons-and-account-speed.mjs` (31 test,
+preflight'a bağlı). Madde 3'ün ölçümü GERÇEK yardımcıları sahte bir D1 üzerinde koşturur ve eski
+(sıralı) kurgu ile yeni (paralel) kurguyu YAN YANA zamanlar — kurala değil gerçek süreye bakar.
+Migration YOK, SSR sürüm bumpı YOK.

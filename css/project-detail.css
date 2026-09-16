@@ -166,7 +166,7 @@
   .pm-map-lightbox.open{display:flex;}
   .pm-map-lightbox-frame{width:min(1100px, 92vw); height:min(720px, 82vh); border-radius:14px; overflow:hidden; background:var(--paper-alt);}
   .pm-map-lightbox-frame iframe{width:100%; height:100%; border:0; display:block;}
-  .pm-map-lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+  .pm-map-lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:#EDF0F3; opacity:0.8; z-index:2;}
   .pm-map-lightbox-close:hover{opacity:1;}
   /* Yorumlar da ilk açılışta kapalı (bkz. kullanıcı isteği, .pm-feedback-card İLE AYNI <details>/
      <summary> deseni) — comments-title artık <h2> değil doğrudan clickable <summary>. */
@@ -267,9 +267,18 @@
   .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
   .lightbox.open{display:flex;}
   .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
-  .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+  /* Lightbox ikonlarının rengi SABİT açık tondur (#EDF0F3 = açık temanın --paper değeri), temaya
+     BAĞLANMAZ (kullanıcı isteği, 2026-09-16 sekizinci tur: "gece görünümünde lightboxlardaki
+     kaydet/tümünü göster/kapat butonlarının icon renklerini beyaz yap"). KÖK NEDEN: .lightbox
+     zemini HER temada koyudur (rgba(27,42,61,0.92)), ama var(--paper) gece temasında #12171F'e
+     çözülüyordu — yani koyu zemin üstüne koyu ikon. Aynı dosyadaki .lightbox-counter (#fff),
+     .gallery-nav (#fff) ve js/components/gallery.js#.lightbox-credit (rgba(237,240,243,0.92))
+     bu yüzden zaten sabit değer taşıyor; bu tur kalan üç buton da (kapat, "Tümünü Gör", kaydet)
+     + oklar aynı kurala alındı. İkinci kopyalar: css/architect-detail.css, css/product-detail.css,
+     en-iyi-100.html, js/components/gallery.js (kaydet düğmesi). */
+  .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:#EDF0F3; opacity:0.8; z-index:2;}
   .lightbox-close:hover{opacity:1;}
-  .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+  .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:#EDF0F3; opacity:0.6;}
   .lightbox-nav:hover{opacity:1;}
   .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
   .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
@@ -285,7 +294,7 @@
      metinsiz/ikon-only stile sahip (bkz. kullanıcı isteği: minimalist, X ile aynı boyut/renk). */
   .lightbox-grid-toggle{
     position:absolute; top:24px; right:78px; background:none; border:none;
-    color:var(--paper); opacity:0.8; z-index:2;
+    color:#EDF0F3; opacity:0.8; z-index:2;
   }
   .lightbox-grid-toggle:hover{opacity:1;}
   .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}

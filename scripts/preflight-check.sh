@@ -797,6 +797,23 @@ else
 fi
 rm -f /tmp/preflight_20260916g
 
+# 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
+# (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
+# "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında
+# #12171F'e çözülüyordu, oysa lightbox zemini her temada koyu — dört CSS kopyası + gallery.js);
+# Hesabım'ın Firma/Kişi Bilgileri kutuları HIZLANDI (/api/claims/mine'ın ~13 sıralı D1 dalgası tek
+# Promise.all'a indi, /api/architects/mine ve /api/architect/:key artık tek yerden çekilip
+# paylaşılıyor, /api/office/:key ısıtması kişi künyesi await'inden ÖNCE başlıyor); proje-ekle
+# "Başlangıç" kutusunda "(opsiyonel)" yazmıyor ve yıl listeleri AZALAN (bugün -> geçmiş, MÖ sonda).
+# Bkz. scripts/test-2026-09-16-team-badges-lightbox-icons-and-account-speed.mjs.
+if node scripts/test-2026-09-16-team-badges-lightbox-icons-and-account-speed.mjs >/tmp/preflight_20260916h 2>&1; then
+  ok "2026-09-16 sekizinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916h) test)"
+else
+  bad "2026-09-16 sekizinci tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260916h >&2
+fi
+rm -f /tmp/preflight_20260916h
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

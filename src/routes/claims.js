@@ -99,10 +99,72 @@ async function myClaims(env, user) {
   // yapınca butonu görüyor, formu dolduruyor ve kaydederken 403 yiyor. Doğru değer sunucudan gelmeli.
   // status='removed' — kullanıcı bu firmayı Hesabım kutusundan KENDİSİ kaldırdı (bkz.
   // dismissOfficeLink). Satır yetkinin iptal kaydı olarak DURUR ama kutuda bir daha görünmez.
-  const { results } = await env.DB.prepare(
-    `SELECT profile_type, profile_key, status, office_position AS officePosition FROM profile_claims
-      WHERE user_id = ? AND status != ? ORDER BY updated_at DESC`
-  ).bind(user.id, OFFICE_MANAGER_DISMISSED).all();
+  //
+  // PARALEL — HEPSİ TEK DALGADA (kullanıcı isteği, 2026-09-16 sekizinci tur madde 3: "Hesabım
+  // sayfasındaki Firma Bilgileri ve Kişi Bilgileri kutuları çok yavaş yükleniyorlar"). ÖLÇÜLEN KÖK
+  // NEDEN: bu fonksiyon yedi bağımsız sorguyu ARDI ARDINA await ediyordu ve üçü kendi içinde de
+  // zincirliydi (fetchOfficeFounderLinks 3 dalga, fetchOwnOfficeRoles 2, fetchOwnCreatedOfficeRows 2)
+  // — toplam ~12 SIRALI D1 gidiş-dönüşü. Hiçbiri diğerinin sonucunu KULLANMIYOR (yalnızca aşağıdaki
+  // per-item slug/image araması profile_claims satırlarına bağlı ve ondan SONRA koşar), yani zincir
+  // tamamen gereksizdi. Artık tek Promise.all: en uzun dal (3 dalga) toplam süreyi belirler.
+  // YAN FAYDA: fetchOwnArchitectRows ÜÇ yoldan çağrılıyor (doğrudan + iki yardımcının içinden) ve
+  // revokedOfficeKeysForUser İKİ yoldan; sıralıyken bunlar ayrı ayrı gecikme ekliyordu, paralelde
+  // aynı dalgada koşuyorlar. Yardımcıların içine önbellek KOYULMADI: modül ömürlü bir memo
+  // Workers'ta isolate'lar arası yaşar ve bayat yetki verisi servis edebilirdi.
+  //
+  // İKİ profile_claims SORGUSU BİRE İNDİ: "status != removed" (aşağıdaki results) ile
+  // "status = removed" (dismissed) AYNI satır kümesinin tümleyenleriydi — tek SELECT ile çekilip
+  // JS'te ayrılıyorlar.
+  const [allClaimsRes, officeLinks, officeRoles, own, ownOffices, pendingOwnOfficesRes] = await Promise.all([
+    env.DB.prepare(
+      `SELECT profile_type, profile_key, status, office_position AS officePosition FROM profile_claims
+        WHERE user_id = ? ORDER BY updated_at DESC`
+    ).bind(user.id).all(),
+    // officeLinks — kullanıcının KİŞİ profilinin office_founders üzerinden bağlı olduğu firmalar
+    // (kullanıcı isteği, 2026-09-08: firma kullanıcıyı Kurucular kutusuna eklediğinde Hesabım'daki
+    // "Firma / Marka Bilgileri" kutusunda da görünsün). Bkz. src/lib/claimedProfiles.js#
+    // fetchOfficeFounderLinks — kişi kaydını bulmanın İKİ yolunu da (onaylı talep + ad eşleşmesi)
+    // kapsar, bu yüzden istemcinin eskiden yaptığı "yalnızca onaylı talebi olanda çalışan" türetme
+    // ortadan kalkar.
+    fetchOfficeFounderLinks(env, user, OFFICE_EDIT_POSITIONS),
+    // KÜNYEDEKİ GÖREV (kullanıcı bildirimi, 2026-09-12) — Hesabım'daki "Görevin" satırı artık
+    // dondurulmuş claim görevini değil, pop-up'ların gösterdiği GÜNCEL künye görevini okur; üç ekran
+    // tek alandan (architects.position) besleniyor ve birlikte değişiyor. Bkz. fetchOwnOfficeRoles.
+    fetchOwnOfficeRoles(env, user),
+    // architectProfile — hesabın KİŞİ profili (kullanıcı isteği, 2026-09-08 madde 3: Hesabım'daki
+    // "Ad Soyad" satırı, firma satırı gibi, o profilin pop-up'ına gitsin). officeLinks ile AYNI
+    // yardımcıdan gelir, yani sahipliğin İKİ yolunu da kapsar: onaylı talep ÖNCE, yoksa hesabın
+    // adıyla eşleşen kendi kaydı (bkz. fetchOwnArchitectRows).
+    fetchOwnArchitectRows(env, user),
+    // ownOffices — KULLANICININ SİTEYE KENDİ EKLEDİĞİ FİRMALAR (kullanıcı isteği, 2026-09-15 madde 1).
+    // officeLinks'ten AYRI bir alan olması BİLİNÇLİ: officeLinks "bu kişi bu firmada görevli" demektir
+    // ve kişi künyesinin Firma kutusunu da besler (bkz. office-picker.js#mergeOfficeMembershipNames) —
+    // bir firmayı siteye eklemiş olmak orada çalışmak anlamına gelmez, o kutuya sızmamalı.
+    //   * canonical: onaylanmış (offices.claimed_by_user_id) kayıtlar — künye düzenlenebilir,
+    //   * pending: henüz admin onayından geçmemiş KENDİ gönderisi — kutuda "Durum: Onay bekliyor"
+    //     satırıyla görünür (kullanıcı kaydı eklediği anda kutunun belirmesi isteğin ikinci yarısı),
+    //     düzenleme Eklediklerim'den kendi taslağı üzerinden yapılır.
+    fetchOwnCreatedOfficeRows(env, user),
+    // claimed_profile_key IS NULL — var olan bir firmayı SAHİPLENME akışıyla açılmış taslaklar burada
+    // "benim eklediğim firma" sayılmaz, onların yolu profile_claims'tir.
+    env.DB.prepare(
+      `SELECT name, status FROM office_submissions
+        WHERE owner_user_id = ? AND status = 'pending' AND (claimed_profile_key IS NULL OR claimed_profile_key = '')
+        ORDER BY updated_at DESC LIMIT 20`
+    ).bind(user.id).all(),
+  ]);
+  const allClaimRows = allClaimsRes.results || [];
+  const results = allClaimRows.filter(r => r.status !== OFFICE_MANAGER_DISMISSED);
+  // Kullanıcının kendi kaldırdığı (removed) firmalar kurucu bağı üzerinden geri sızmamalı.
+  const dismissed = new Set(
+    allClaimRows
+      .filter(r => r.profile_type === 'office' && r.status === OFFICE_MANAGER_DISMISSED)
+      .map(r => foldTr(r.profile_key))
+  );
+  const roleFor = (key) => officeRoles.get(foldTr(key)) || null;
+  const ownArchitect = own.claimed[0] || own.selfNamed[0] || null;
+  const ownOfficeFold = new Set(ownOffices.map(o => foldTr(o.name)));
+  const pendingOwnOffices = pendingOwnOfficesRes.results || [];
   // slug: hesabim.html/auth-modal.js'in "Düzenle" linkini profile_key (bare isim, boşluk/TR karakter
   // içerebilir — bkz. kullanıcı isteği 2026-08-17: "?claim= şeklinde bozuk bir URL çıkıyor") yerine
   // temiz bir slug'la kurabilmesi için — yalnızca onaylı taleplerde anlamlı (canonical satır ancak
@@ -117,47 +179,6 @@ async function myClaims(env, user) {
     const row = await env.DB.prepare(`SELECT slug, ${imageCol} AS image FROM ${table} WHERE name = ? AND deleted_at IS NULL`).bind(r.profile_key).first();
     return { ...r, slug: row ? row.slug : null, image: row ? row.image : null };
   }));
-  // officeLinks — kullanıcının KİŞİ profilinin office_founders üzerinden bağlı olduğu firmalar
-  // (kullanıcı isteği, 2026-09-08: firma kullanıcıyı Kurucular kutusuna eklediğinde Hesabım'daki
-  // "Firma / Marka Bilgileri" kutusunda da görünsün). Bkz. src/lib/claimedProfiles.js#
-  // fetchOfficeFounderLinks — kişi kaydını bulmanın İKİ yolunu da (onaylı talep + ad eşleşmesi)
-  // kapsar, bu yüzden istemcinin eskiden yaptığı "yalnızca onaylı talebi olanda çalışan" türetme
-  // ortadan kalkar.
-  const officeLinks = await fetchOfficeFounderLinks(env, user, OFFICE_EDIT_POSITIONS);
-  // KÜNYEDEKİ GÖREV (kullanıcı bildirimi, 2026-09-12) — Hesabım'daki "Görevin" satırı artık
-  // dondurulmuş claim görevini değil, pop-up'ların gösterdiği GÜNCEL künye görevini okur; üç ekran
-  // tek alandan (architects.position) besleniyor ve birlikte değişiyor. Bkz. fetchOwnOfficeRoles.
-  const officeRoles = await fetchOwnOfficeRoles(env, user);
-  const roleFor = (key) => officeRoles.get(foldTr(key)) || null;
-  // Kullanıcının kendi kaldırdığı (removed) firmalar kurucu bağı üzerinden geri sızmamalı.
-  const dismissed = new Set(
-    (await env.DB.prepare(
-      `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND status = ?`
-    ).bind(user.id, OFFICE_MANAGER_DISMISSED).all()).results?.map(r => foldTr(r.profile_key)) || []
-  );
-  // architectProfile — hesabın KİŞİ profili (kullanıcı isteği, 2026-09-08 madde 3: Hesabım'daki
-  // "Ad Soyad" satırı, firma satırı gibi, o profilin pop-up'ına gitsin). officeLinks ile AYNI
-  // yardımcıdan gelir, yani sahipliğin İKİ yolunu da kapsar: onaylı talep ÖNCE, yoksa hesabın
-  // adıyla eşleşen kendi kaydı (bkz. fetchOwnArchitectRows).
-  const own = await fetchOwnArchitectRows(env, user);
-  const ownArchitect = own.claimed[0] || own.selfNamed[0] || null;
-  // ownOffices — KULLANICININ SİTEYE KENDİ EKLEDİĞİ FİRMALAR (kullanıcı isteği, 2026-09-15 madde 1).
-  // officeLinks'ten AYRI bir alan olması BİLİNÇLİ: officeLinks "bu kişi bu firmada görevli" demektir
-  // ve kişi künyesinin Firma kutusunu da besler (bkz. office-picker.js#mergeOfficeMembershipNames) —
-  // bir firmayı siteye eklemiş olmak orada çalışmak anlamına gelmez, o kutuya sızmamalı.
-  //   * canonical: onaylanmış (offices.claimed_by_user_id) kayıtlar — künye düzenlenebilir,
-  //   * pending: henüz admin onayından geçmemiş KENDİ gönderisi — kutuda "Durum: Onay bekliyor"
-  //     satırıyla görünür (kullanıcı kaydı eklediği anda kutunun belirmesi isteğin ikinci yarısı),
-  //     düzenleme Eklediklerim'den kendi taslağı üzerinden yapılır.
-  // claimed_profile_key IS NULL — var olan bir firmayı SAHİPLENME akışıyla açılmış taslaklar burada
-  // "benim eklediğim firma" sayılmaz, onların yolu profile_claims'tir.
-  const ownOffices = await fetchOwnCreatedOfficeRows(env, user);
-  const ownOfficeFold = new Set(ownOffices.map(o => foldTr(o.name)));
-  const { results: pendingOwnOffices } = await env.DB.prepare(
-    `SELECT name, status FROM office_submissions
-      WHERE owner_user_id = ? AND status = 'pending' AND (claimed_profile_key IS NULL OR claimed_profile_key = '')
-      ORDER BY updated_at DESC LIMIT 20`
-  ).bind(user.id).all();
   return json({
     items: items
       .filter(r => !(r.profile_type === 'office' && dismissed.has(foldTr(r.profile_key))))

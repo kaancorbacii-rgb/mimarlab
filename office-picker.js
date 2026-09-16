@@ -560,9 +560,16 @@
   // seçeneğinden başlat ve 1'den günümüze kadar getir" + "Ürün ekle sayfasındaki yıl kutucuğunda
   // da aynı mantık olsun ama oradaki tarihleri 1299'dan başlat").
   //   from    — listenin başladığı yıl (proje: 1, ürün: 1299)
-  //   bc      — true ise listenin İLK öğesi "MÖ" olur (yalnızca proje tarafında)
-  // SIRA ARTAN: istek "MÖ seçeneğinden başlat ve 1'den günümüze kadar getir" diyor. Arama kutusu
-  // zaten açık olduğundan ("2024" yazmak tek satıra indirir) uzun liste bir sorun değil.
+  //   bc      — true ise listenin SON öğesi "MÖ" olur (yalnızca proje tarafında; bkz. aşağıdaki
+  //             AZALAN sıra notu — sekizinci turda liste tersine döndüğü için "MÖ" de sona geçti)
+  // SIRA AZALAN — GÜNÜMÜZDEN GEÇMİŞE (kullanıcı isteği, 2026-09-16 sekizinci tur madde 4: "açılan
+  // tarihler günümüzden geçmişe doğru olsun ... Ürün sayfasındaki Yıl kutucuğunda da tarihler
+  // günümüzden eskiye doğru olsun"). Altıncı turda liste ARTAN'dı (MÖ, 1, 2, ... bugün), yani
+  // gerçekte kullanılan yılların hepsi listenin en DİBİNDE kalıyordu. Kapsam (from ... bugün)
+  // DEĞİŞMEDİ, yalnızca yön döndü.
+  // "MÖ" artık listenin SON öğesidir: azalan sıralamada en eski değer en sona düşer — MÖ, from'dan
+  // da eskisini ifade ettiğinden başta durması sırayı bozardı.
+  // Arama kutusu zaten açık olduğundan ("2024" yazmak tek satıra indirir) uzun liste bir sorun değil.
   // single: TEK seçim — "2 kutucukta da sadece birer tane tarih seçilebilsin".
   // allowCustom AÇIK ve BU BİR VERİ KORUMASIDIR, kolaylık değil: canlı veride "MÖ 5500-3500",
   // "19. yy", "4-5. yüzyıl" gibi künyeler var (bkz. src/routes/project.js#parseProjectDateYear) ve
@@ -572,8 +579,9 @@
   const YEAR_BC_OPTION = 'MÖ';
   function yearOptionList(from, bc) {
     const now = new Date().getFullYear();
-    const out = bc ? [YEAR_BC_OPTION] : [];
-    for (let y = from; y <= now; y++) out.push(String(y));
+    const out = [];
+    for (let y = now; y >= from; y--) out.push(String(y));
+    if (bc) out.push(YEAR_BC_OPTION);
     return out;
   }
   function createYearPicker(mount, opts) {

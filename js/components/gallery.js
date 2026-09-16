@@ -76,8 +76,10 @@ function injectGalleryBarStyles(){
        o ikisi sayfa CSS'inde right:32px ve right:78px tasiyor, bu yuzden ucuncu yuva right:124px.
        Sinif card-save-btn DEGIL (bkz. save-widget.js#wireSaveButton notu): o sinifin sayfa
        CSS'lerindeki kart kurallari (position:absolute; top:10px; right:10px) burayi bozardi.
-       Renk .lightbox-close ile ayni: var(--paper), opacity 0.8. Kaydedilmis durumda dolu ikon +
-       tam opaklik — izgara kartlarindaki .card-save-btn.saved ile ayni gorsel dil. */
+       Renk .lightbox-close ile ayni: SABIT #EDF0F3 + opacity 0.8 (bkz. css/project-detail.css'teki
+       ayni kural ve oradaki gerekce — lightbox zemini her temada koyu oldugundan renk temaya
+       BAGLANAMAZ). Kaydedilmis durumda dolu ikon + tam opaklik: izgara kartlarindaki
+       .card-save-btn.saved ile ayni gorsel dil. */
     .lightbox .lightbox-save-btn{
       position:absolute; top:24px; right:124px; z-index:2;
       /* KUTU, .lightbox-close/.lightbox-grid-toggle ile BİREBİR AYNI: 38x31 ve 8px'lik aralık
@@ -87,7 +89,7 @@ function injectGalleryBarStyles(){
       width:38px; height:31px; box-sizing:border-box; padding:0; margin:0;
       display:inline-flex; align-items:center; justify-content:center;
       background:none; border:none;
-      color:var(--paper); opacity:0.8; cursor:pointer;
+      color:#EDF0F3; opacity:0.8; cursor:pointer;
     }
     .lightbox .lightbox-save-btn:hover{opacity:1;}
     .lightbox .lightbox-save-btn.saved{opacity:1;}

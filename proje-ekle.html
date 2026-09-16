@@ -1051,7 +1051,12 @@ function renderDateRows(){
   // input'un değerinden geri yüklenir.
   createYearPicker(container.querySelector('.p-date-start-picker'), {
     input: container.querySelector('.p-date-start'),
-    from: 1, bc: true, placeholder: 'Başlangıç (opsiyonel)',
+    // Yer tutucu düz "Başlangıç" (kullanıcı isteği, 2026-09-16 sekizinci tur madde 4:
+    // "Başlangıç kutucuğunda opsiyonel yazmasın"). DAVRANIŞ DEĞİŞMEDİ, yalnızca metin: Tarih alanı
+    // ZORUNLUDUR (bkz. yukarıdaki "Tarih *" etiketi + submit guard'ı "Bir tarih gir."), ama
+    // formatDateRow start VEYA end'den biri doluysa yeter — "(opsiyonel)" bunu anlatmaya çalışıyordu
+    // ve "Tarih *" etiketiyle çelişiyordu.
+    from: 1, bc: true, placeholder: 'Başlangıç',
   });
   createYearPicker(container.querySelector('.p-date-end-picker'), {
     input: container.querySelector('.p-date-end'),

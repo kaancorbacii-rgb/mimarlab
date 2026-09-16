@@ -2786,10 +2786,9 @@ const AuthModal = (function () {
       if (!claim) return Promise.resolve(null);
       if (claimedArchitectKey !== claim.profile_key) {
         claimedArchitectKey = claim.profile_key;
-        claimedArchitectPromise = fetch(`/api/architect/${encodeURIComponent(claim.profile_key)}`)
-          .then(r => (r.ok ? r.json() : null))
-          .then(d => (d && d.item) || null)
-          .catch(() => null);
+        // Aynı uç refreshArchitectSyncState tarafından da çekiliyor; istek anahtar başına TEK
+        // (bkz. fetchArchitectItem).
+        claimedArchitectPromise = fetchArchitectItem(claim.profile_key);
       }
       return claimedArchitectPromise;
     }
@@ -3145,35 +3144,62 @@ const AuthModal = (function () {
       grid.addEventListener('pointercancel', finish);
     }
 
+    // PAYLAŞILAN İKİ SÖZ (kullanıcı isteği, 2026-09-16 sekizinci tur madde 3: "Firma Bilgileri ve
+    // Kişi Bilgileri kutuları çok yavaş yükleniyorlar"). ÖLÇÜLEN: Hesabım açılışında /api/architects/mine
+    // İKİ kez (fetchOwnSelfSubmission + fetchArchitectRecordForSync) ve /api/architect/:key İKİ kez
+    // (fetchClaimedArchitect + fetchArchitectRecordForSync) çekiliyordu — çağıranlar farklı süzgeçler
+    // uyguladığı için her biri kendi isteğini atıyordu. Artık HAM yanıt paylaşılır, süzgeç çağıranda
+    // kalır (fetchMyClaims'teki AYNI memo deseni ve AYNI gerekçe).
+    let myArchSubmissionsPromise = null;
+    function fetchMyArchitectSubmissions() {
+      if (!myArchSubmissionsPromise) {
+        myArchSubmissionsPromise = fetch('/api/architects/mine')
+          .then(r => (r.ok ? r.json() : null))
+          .then(d => (d && Array.isArray(d.items)) ? d.items : [])
+          .catch(() => []);
+      }
+      return myArchSubmissionsPromise;
+    }
+    // Anahtar başına tek istek. Dönen değer HAM item (null olabilir) — çağıranın kendi doğrulaması
+    // (ör. fetchArchitectRecordForSync'in "item.name === profileKey" kontrolü) yerinde kalır.
+    let architectItemPromises = {};
+    function fetchArchitectItem(profileKey) {
+      if (!(profileKey in architectItemPromises)) {
+        architectItemPromises[profileKey] = fetch(`/api/architect/${encodeURIComponent(profileKey)}`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(d => (d && d.item) || null)
+          .catch(() => null);
+      }
+      return architectItemPromises[profileKey];
+    }
+
     async function fetchArchitectRecordForSync(profileKey) {
       let merged = { name: '', dob: '', school: '', profession: '', position: '', office: '', awards: [], about: '', social_links: [], photo_url: '', portfolio: [] };
+      // PARALEL: canonical kayıt ile kullanıcının taslak listesi birbirine BAĞLI DEĞİL, ama eskiden
+      // ardı ardına await ediliyordu — Kişi Bilgileri kutusu bu yüzden iki gidiş-dönüş bekliyordu.
+      const [itemP, subsP] = [fetchArchitectItem(profileKey), fetchMyArchitectSubmissions()];
       try {
-        const res = await fetch(`/api/architect/${encodeURIComponent(profileKey)}`);
-        if (res.ok) {
-          const data = await res.json();
-          const item = data.item;
-          if (item && item.name === profileKey) {
-            merged = {
-              name: item.name || '', dob: item.dob || '', school: item.school || '',
-              profession: item.profession || '', position: item.role || '', office: item.office || '',
-              awards: item.awards || [], about: item.about || '', social_links: item.social_links || [],
-              photo_url: item.photo || '', portfolio: item.portfolio || [],
-            };
-          }
+        const item = await itemP;
+        if (item && item.name === profileKey) {
+          merged = {
+            name: item.name || '', dob: item.dob || '', school: item.school || '',
+            profession: item.profession || '', position: item.role || '', office: item.office || '',
+            awards: item.awards || [], about: item.about || '', social_links: item.social_links || [],
+            photo_url: item.photo || '', portfolio: item.portfolio || [],
+          };
         }
       } catch {}
       let editId = null;
       try {
-        const mineRes = await fetch('/api/architects/mine');
-        if (mineRes.ok) {
-          const mineData = await mineRes.json();
+        const mineItems = await subsP;
+        {
           // /api/architects/mine created_at DESC sıralı döner ve owner_user_id'nin BİRDEN FAZLA
           // architect_submissions satırı olabilir — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine
           // updated_at'i EN YENİ olanı seçilir (bkz. kisi-ekle.html#prefillForClaim'deki AYNI
           // gerçek bulgu: Profilini Düzenle'de eklenen sosyal medya linkleri kisi-ekle.html'de
           // görünmüyordu — bu editId, o iki taslaktan biri diğerinden GÜNCEL olsa bile ilk (en eski
           // oluşturulan) eşleşeni bulup ona yazıyordu).
-          const claimMatches = (mineData.items || []).filter(m => m.claimed_profile_key === profileKey);
+          const claimMatches = mineItems.filter(m => m.claimed_profile_key === profileKey);
           const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
           if (mine) {
             editId = mine.id;
@@ -3203,10 +3229,7 @@ const AuthModal = (function () {
       if (!ownSelfSubmissionPromise) {
         ownSelfSubmissionPromise = (async () => {
           try {
-            const res = await fetch('/api/architects/mine');
-            if (!res.ok) return null;
-            const data = await res.json();
-            const own = (data.items || []).filter(m => !m.claimed_profile_key);
+            const own = (await fetchMyArchitectSubmissions()).filter(m => !m.claimed_profile_key);
             if (!own.length) return null;
             // AD TERCİHİ KALDIRILDI (kullanıcı isteği, 2026-09-14 ikinci tur madde 3: "Hesabın adı
             // soyadıyla kişi popupının adının soyadının bir alakası olmasın"). Burada önce hesabın
@@ -4494,6 +4517,11 @@ const AuthModal = (function () {
       claimedArchitectKey = null;
       claimedArchitectPromise = null;
       ownSelfSubmissionPromise = null;
+      // Paylaşılan HAM yanıt memoları da düşmeli (bkz. fetchMyArchitectSubmissions /
+      // fetchArchitectItem) — aksi halde yukarıdaki üç memo boşaltılsa bile hepsi yine bayat
+      // veriyi döndüren bu iki sözden beslenirdi.
+      myArchSubmissionsPromise = null;
+      architectItemPromises = {};
     }
 
     async function loadMyClaims() {
@@ -4553,6 +4581,28 @@ const AuthModal = (function () {
       }
       for (const c of officeClaims.filter(c => c.status !== 'approved')) {
         pushEntry(c.profile_key, { status: c.status, approved: false, slug: c.slug || c.profile_key, officeRole: c.officeRole || null });
+      }
+      // ERKEN ISITMA (kullanıcı isteği, 2026-09-16 sekizinci tur madde 3: "Firma Bilgileri ve Kişi
+      // Bilgileri kutuları çok yavaş yükleniyorlar"). /api/office/:key istekleri eskiden AŞAĞIDAKİ
+      // await'ten SONRA başlıyordu, yani iki kutu da "claims/mine -> architect/:key -> office/:key"
+      // şeklinde ÜÇ SIRALI gidiş-dönüş bekliyordu. Oysa bu anahtarların hepsi ZATEN elde (claim'ler,
+      // officeLinks ve ownOffices — üçü de /api/claims/mine'ın AYNI yanıtından); o await'e bağlı olan
+      // yalnızca DÖRDÜNCÜ kaynak, kişi künyesinin `office` alanı. Artık istekler await ile PARALEL
+      // başlıyor; girdilerin kurulma SIRASI ve kutuların çizim anı DEĞİŞMEDİ (ısıtma yalnızca
+      // firmOfficeCache'i doldurur, aşağıdaki ensureFirmOffice çağrıları onu hazır bulur).
+      // KÜME BİLEREK DAR: yalnızca aşağıda ZATEN çekilecek anahtarlar ısıtılır — yetkili olunan
+      // firmalar (canManageFirmEntry'nin AYNI koşulu) + 1. sayfanın firması. Tüm anahtarları ısıtmak
+      // hiç açılmayacak sayfalar için YENİ istekler doğururdu (ensureFirmOffice yalnızca AÇIK
+      // sayfanın künyesini çeker).
+      {
+        const warm = [];
+        for (const c of officeClaims) {
+          if (c.status === 'approved' && OFFICE_EDIT_POSITIONS.has(c.officePosition || '')) warm.push(c.profile_key);
+        }
+        if (officeClaims.length) warm.push((officeClaims.find(c => c.status === 'approved') || officeClaims[0]).profile_key);
+        for (const l of myOfficeLinks) if (l.canEdit) warm.push(l.name);
+        for (const o of myOwnOffices) if (o.canEdit) warm.push(o.name);
+        warm.forEach(k => ensureFirmOffice(k));
       }
       // fetchClaimedArchitect / fetchOwnSelfSubmission ikisi de belleklenmiş TEK istektir (bkz. o
       // fonksiyonlar) — prefillFirmaSelect zaten aynı yanıtı kullanıyor, burada ek bir ağ isteği
