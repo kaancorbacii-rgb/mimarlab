@@ -1130,3 +1130,76 @@ butonlar ve en altta önceki sonraki butonları olsun."
 Testler: `scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs` (44 test, preflight'a
 bağlı) — üçüncü turun (g) ve (a) maddeleri bu turda TERSİNE çevrildiği için o iki kelepçe
 güncellendi.
+
+## Mobil yerleşim düzeltmeleri + künye talebinde ADMIN KISAYOLU KALDIRILDI (2026-09-16, beşinci tur)
+
+Kullanıcı isteği (üç madde): (1) "Mobil görünümde fotoğraflarını bul butonu kötü bir şekilde
+duruyor. Mobilde bunu sol kenara yapıştır ve başlıkla arasını biraz aç. Ayrıca bu butona tıklayıp
+bir proje seçince admin ve firma yöneticisine bildirim gitsin. Bildirimi onaylanmadan fotoğrafçı
+kişisi proje künyesine eklenmesin. Ancak admin ya da firma yöneticisi bildirimi onaylarsa künyeye
+eklensin.", (2) "mobil görünümde lightboxlardaki fotoğrafçı etiketi butonun üzerine geliyor.
+Fotoğrafçı ismini tam fotoğrafın altında al. Ayrıca ürün etiketle butonu da X ve tümünü göre
+butonuyla aynı hizada olsun.", (3) "proje ekle/düzenle sayfasında mobil görünümde Projede Kullanılan
+Ürünler kutusunda iki kutucuğu yan yana değil alt alta koy."
+
+### 1. ADMIN KISAYOLU KALDIRILDI — her künye talebi onaya düşer
+- **KÖK NEDEN, dördüncü turun kendi kelepçesinde saklıydı**: `photoClaims.js#createClaim`,
+  `hotspotTags.js`'ten devralınan "admin hesaplarından yapılanların onaya düşmesine gerek yok"
+  kısayolunu taşıyordu — talebi ANINDA uyguluyor, `'approved'` kaydediyor ve **bildirim bloğuna hiç
+  ulaşmıyordu**. Dördüncü turun testi bu dalı "onay kuyruğu atlatılamaz" başlığı altında DOĞRULUYOR
+  sanıyordu. Oysa bu akış, ürün etiketlemenin aksine, talebi açan kişiden **profilin yöneticisi
+  olmayı** istiyor (`architectManagerGate`) — yani kısayol "bazı" değil **TÜM admin taleplerini**
+  kapsıyordu. Kullanıcının gördüğü davranış tam olarak buydu: "bildirim gitmedi, ad kendiliğinden
+  eklendi".
+- **Kaldırılan tek şey o dal**: her talep artık `'${PENDING}'` açılır ve bildirim koşulsuz gider.
+  Alıcılar DEĞİŞMEDİ (`officeManagerUserIds` + `adminUserIds`, karar kümesiyle AYNI kaynak).
+  `createClaim` içinde `applyPhotoClaim` çağrısı **KALMADI** — künyeye tek yazma noktası karar ucu
+  (`decideClaim`). Artık kullanılmayan `claimRow` ara nesnesi de düştü; INSERT `image_url`'i zaten
+  açıkça NULL yazıyor.
+- **Adminler hız sınırından MUAF KALDI** ama gerekçesi değişti: eskiden "talebi kuyruğa hiç
+  düşmüyor" idi, artık "kuyruğu boşaltan taraf onlar ve talep bir yazma değil bir öneri".
+- **İstemcide TEK mesaj**: `photo-finder.js`'teki `data.status === 'approved'` dalı ölü kod olacaktı,
+  kaldırıldı. Kullanıcı her durumda "talebin onaya gönderildi" görür.
+
+### 2. Mobilde "Fotoğraflarını Bul" kendi satırında, sol kenarda
+- Kural `css/architect-detail.css`'in yeni `@media (max-width:560px)` bloğunda:
+  `#am-find-photos-slot{display:block; margin-top:10px;}` + `.rt-add-btn{margin-left:0;}`.
+- **Eski davranış TESADÜFİ idi** (Chromium 390px'te ölçüldü): başlık iki satıra sarıyor, düğme
+  üçüncü satıra düşüyordu ama **başlık metninin uzunluğuna bağlı olarak** — ve 34px girintili,
+  başlığa 20px yakın. `display:block` bunu kesinleştirir; `margin-left:0`,
+  `claim-correction-box.js`'in `.rt-add-btn{margin-left:10px}` girintisini siler (o kural satır İÇİ
+  hap düğme için doğru, kendi satırındaki düğmede sol kenardan kayma olurdu).
+- Seçici **id + class** taşıdığı için enjekte edilen `<style>`'ın cascade sırasından bağımsız kazanır.
+- Ölçüm sonrası: 390px'te düğme `left:34` = bölümün sol kenarı, başlık satırının 8px altında;
+  1200px'te hiçbir şey değişmedi (düğme hâlâ başlığın yanında, aynı `top`).
+
+### 3. Mobilde lightbox — etiket fotoğrafın altında, hap düğme X ile aynı hizada
+- **Fotoğrafçı etiketi AKIŞA girer**: `<=560px`'te `.lightbox{flex-direction:column}` ve
+  `.lightbox-credit{position:static; right:auto; bottom:auto; margin:8px 0 0; text-align:center}`.
+  Ölçüldü: etiket sağ-altta (`bottom:22px`) duruyordu, `.lightbox-next`'in TAM YÜKSEKLİKTEKİ dokunma
+  şeridiyle çakışıyordu ve görüntünün alt kenarından ~240px aşağıdaydı — yani fotoğrafın "altında"
+  değil ekranın dibindeydi. Akıştaki tek diğer çocuk görüntünün kendisi (kapat/oklar/ızgara/alt
+  çubuk hepsi `absolute`), bu yüzden sütun yönü başka hiçbir şeyi etkilemez.
+- **`.lightbox.open.has-credit > img{max-height:calc(100% - 34px)}`**: etiket akışa girdiğine göre
+  görüntü tam boyu doldurursa etiket ekran dışına taşardı. Sınıf **her karede canlı** yazılır
+  (`paintCredit`) — künye görsel başına değişebiliyor (bkz. `image_credits`), yalnızca açılışta
+  yazılsaydı künyesiz bir karede görüntü boşuna 34px kısa kalırdı.
+- **Hap düğme X ile AYNI KUTU**: `.lightbox-tag-btn` mobilde `top:24px; left:32px; height:31px;
+  padding:0 12px; box-sizing:border-box` + `align-items:center`. Yalnızca `top`'u eşitlemek
+  YETMEZDİ — hap kendi dolgusuyla 26px, ikon butonları 31px yüksekliğinde, yani merkezleri ~3px
+  kayardı. Referans kutular `css/project-detail.css`'te (`.lightbox-close`, `.lightbox-grid-toggle`:
+  `top:24px`, sağdan 32px), hap simetrik olarak soldan 32px.
+- Masaüstü görünümü DEĞİŞMEDİ (1200px'te ölçüldü): düğme alt çubukta, etiket sağ-altta.
+
+### 4. proje-ekle: "Projede Kullanılan Ürünler" kutuları mobilde alt alta
+- `@media (max-width:720px)` (sayfanın yerleşim breakpoint'i):
+  `.brand-add-row{flex-direction:column; align-items:stretch;}`.
+- **`align-items:stretch` ŞART**: satırın masaüstü değeri `flex-start`, yani column eksende çocuklar
+  kendi içerik genişliğinde kalır ve kutular sola yapışık, farklı genişliklerde görünürdü. "+ Ekle"
+  düğmesi de tam genişliğe geçer — kendi satırındaki bir düğmenin içerik genişliğinde kalması aynı
+  ayrışık görünümü verirdi. Ölçüldü (390px): üç çocuk da 300px genişlikte, alt alta; 1200px'te satır
+  düzeni aynen duruyor.
+
+Testler: `scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs` (49 test, preflight'a
+bağlı) — dördüncü turun iki kelepçesi bu turda güncellendi (admin dalını DOĞRULAYAN assertion artık
+dalın YOKLUĞUNU arıyor; mobil hap düğme kuralının ölçüleri değişti).

@@ -548,6 +548,15 @@
     fieldset.form-field .form-row{grid-template-columns:1fr 1fr; gap:10px;}
     .date-range-row input[type=text]{padding-left:6px; padding-right:4px; font-size:12px;}
     .date-range-row-btn{padding:11px 8px; font-size:11px;}
+    /* "Projede Kullanılan Ürünler": mobilde Ürün Firması + Ürün kutuları ALT ALTA (kullanıcı
+       isteği, 2026-09-16 beşinci tur: "mobil görünümde Projede Kullanılan Ürünler kutusunda iki
+       kutucuğu yan yana değil alt alta koy"). Yan yana dururken her ikisi de satırın yarısına
+       düşüyordu ve firma adı ile ürün adı (ikisi de uzun olabilir) kutuya sığmıyordu.
+       align-items:stretch ŞART: satırın masaüstü değeri flex-start olduğundan çocuklar column
+       eksende kendi içeriklerinin genişliğinde kalır, yani kutular sola yapışık ve farklı
+       genişliklerde olurdu. "+ Ekle" düğmesi de tam genişliğe geçer — kendi satırındaki bir
+       düğmenin içerik genişliğinde kalması aynı ayrışık görünümü verirdi. */
+    .brand-add-row{flex-direction:column; align-items:stretch;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }

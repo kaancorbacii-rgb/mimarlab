@@ -284,12 +284,10 @@ const PhotoFinder = (function () {
         setSelected(target);
         return;
       }
-      // Admin'de sunucu talebi ANINDA uygular (bkz. photoClaims.js#createClaim) — mesaj bu iki
-      // durumu ayırır, aksi halde admin "onay bekliyor" sanırdı. Onay ALINMADAN künyeye hiçbir şey
-      // yazılmaz (kullanıcı isteği) — mesaj da bunu söyler.
-      showMsg(data.status === 'approved'
-        ? `“${target.title}” künyesine eklendi. Sayfayı yenilediğinde görünecek.`
-        : `“${target.title}” için talebin onaya gönderildi. Firma yöneticisi ya da MİMARLAB onayladığında künyeye eklenecek.`, 'ok');
+      // TEK mesaj: sunucu artık HİÇBİR talebi anında uygulamıyor (2026-09-16 beşinci tur — admin
+      // kısayolu kaldırıldı, bkz. photoClaims.js#createClaim), yani "künyeye eklendi" dalı ölü bir
+      // kod olurdu. Onay ALINMADAN künyeye hiçbir şey yazılmaz; mesaj da tam bunu söyler.
+      showMsg(`“${target.title}” için talebin onaya gönderildi. Firma yöneticisi ya da MİMARLAB onayladığında künyeye eklenecek.`, 'ok');
       // Gönderilen proje işaretlenir ve seçim düşer: satırlar yeniden açılır ama aynı projeye
       // ikinci bir talep gönderilemez (setSelected o slug'da düğmeyi pasif tutar).
       submittedSlugs.add(target.slug);

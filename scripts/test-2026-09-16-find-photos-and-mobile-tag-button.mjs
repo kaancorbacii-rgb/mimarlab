@@ -50,6 +50,20 @@
 //         (claimDelegatedEdit / canEditArchitectViaOfficeMembership) İKİ TARAFTAN DA çıkarıldı —
 //         bir firma yetkilisi, ekibindeki bir kişinin ADINA künye talebi açamamalı.
 //     (j) ONAY ALINMADAN KÜNYEYE HİÇBİR ŞEY YAZILMAZ — zaten öyleydi; test bunu açıkça kelepçeler.
+//
+// BEŞİNCİ TUR (aynı gün) — DÖRT DEĞİŞİKLİK, hepsi aynı yüzeylerin üzerine:
+//     (k) [j MADDESİ ASLINDA EKSİKMİŞ] createClaim'de hotspotTags.js'ten devralınan bir "admin'de
+//         anında uygula" kısayolu vardı: bildirim göndermeden künyeye yazıyordu. Bu akışta talebi
+//         AÇAN kişi profilin yöneticisi olmak zorunda (architectManagerGate), yani kısayol TÜM
+//         admin taleplerini kapsıyordu ve kullanıcı bunu "bildirim gitmedi, ad kendiliğinden
+//         eklendi" olarak bildirdi. Kısayol KALDIRILDI — her talep 'pending' açılır.
+//     (l) Mobilde "Fotoğraflarını Bul" KENDİ SATIRINDA, sol kenarda (css/architect-detail.css,
+//         <=560px). Eskiden sarma başlık metninin uzunluğuna bağlı TESADÜFİ bir sonuçtu ve düğme
+//         başlığa 20px yakın, 34px girintili duruyordu.
+//     (m) Mobilde lightbox'taki fotoğrafçı etiketi AKIŞA girer (position:static), yani tam
+//         fotoğrafın altında ortalanır; eskiden sağ-altta .lightbox-next'in dokunma şeridiyle
+//         çakışıyordu. "Ürün Etiketle" hap düğmesi de X / "Tümünü Gör" ile AYNI kutuyu alır.
+//     (n) proje-ekle'de "Projede Kullanılan Ürünler" kutuları mobilde ALT ALTA.
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 
@@ -72,6 +86,9 @@ const authModal = read('js/components/auth-modal.js');
 const lazyModals = read('js/components/lazy-modals.js');
 const ssrCache = read('src/lib/ssrCache.js');
 const projeHtml = read('proje.html');
+const projeEkle = read('proje-ekle.html');
+const architectCss = read('css/architect-detail.css');
+const projectCss = read('css/project-detail.css');
 const top100Html = read('en-iyi-100.html');
 
 // ==========================================================================================
@@ -98,12 +115,46 @@ await test('sayaç/buton hâlâ ALTTA ORTADA (masaüstü görünümü değişmed
   assert.match(barRule, /padding:0 12px 24px/, 'alt boşluk eski bottom:24px ile aynı olmalı');
 });
 
-await test('mobilde buton SOL ÜST köşede', () => {
+await test('mobilde buton SOL ÜST köşede, X ve "Tümünü Gör" ile AYNI HİZADA', () => {
   const mq = gallery.match(/@media \(max-width:560px\)\{[\s\S]*?\n    \}/)[0];
-  assert.match(mq, /\.lightbox-tag-btn\{position:absolute; top:12px; left:14px;\}/);
-  // Sağ üst köşe DOLU: .lightbox-close (top:24px/right:32px, mobilde 12px/14px) ve onun solunda
-  // .lightbox-grid-toggle. Sol üst kasıtlı seçim.
+  // Sağ üst köşe DOLU: .lightbox-close ve onun solunda .lightbox-grid-toggle. Sol üst kasıtlı.
+  assert.match(mq, /\.lightbox-tag-btn\{\s*position:absolute; top:24px; left:32px;/);
+  // Kullanıcı isteği (2026-09-16 beşinci tur madde 2): "ürün etiketle butonu da X ve tümünü göre
+  // butonuyla aynı hizada olsun". O iki ikon butonu top:24px + 31px yüksekliğindedir ve sağ
+  // kenardan 32px içeridedir; hap düğmenin kendi dolgusu 26px verdiğinden yalnızca top'u
+  // eşitlemek merkezleri ~3px kaydırırdı — kutu ÖLÇÜSÜ de eşitlenmeli.
+  assert.match(mq, /\.lightbox-tag-btn\{[\s\S]*?height:31px; padding:0 12px; box-sizing:border-box;/);
+  assert.match(mq, /\.lightbox-tag-btn\{[\s\S]*?align-items:center;/,
+    'dikey dolgu sıfırlandığına göre metin 31px kutuda align-items ile ortalanmalı');
+  // Referans kutular gallery.js'te DEĞİL sayfa/modal CSS'indedir (motor paylaşılır, stiller her
+  // yüzeyde kendi dosyasında durur — bkz. o dosyalardaki AYNI not).
+  assert.match(projectCss, /\.lightbox-close\{position:absolute; top:24px; right:32px;/);
+  assert.match(projectCss, /\.lightbox-grid-toggle\{[\s\S]*?top:24px;/);
   assert.match(mq, /padding-bottom:18px/, 'mobil alt boşluk korunmalı');
+});
+
+await test('mobilde fotoğrafçı etiketi AKIŞA girer — tam fotoğrafın ALTINDA', () => {
+  const mq = gallery.match(/@media \(max-width:560px\)\{[\s\S]*?\n    \}/)[0];
+  // Kullanıcı isteği (2026-09-16 beşinci tur madde 2): "mobil görünümde lightboxlardaki fotoğrafçı
+  // etiketi butonun üzerine geliyor. Fotoğrafçı ismini tam fotoğrafın altında al". Ölçüldü:
+  // etiket sağ-altta duruyordu, .lightbox-next'in tam yükseklikteki şeridiyle çakışıyordu ve
+  // görüntünün alt kenarından ~240px aşağıdaydı.
+  assert.match(mq, /\.lightbox\{flex-direction:column;\}/,
+    'etiketin akışa girmesi için lightbox mobilde sütun yönlü olmalı');
+  assert.match(mq, /\.lightbox-credit\{[\s\S]*?position:static; right:auto; bottom:auto;/);
+  assert.match(mq, /\.lightbox-credit\{[\s\S]*?text-align:center;/);
+  // Etiket akışa girdiğine göre görüntünün max-height'ı onun yüksekliği kadar azalmalı, aksi
+  // halde görüntü tam boyu doldurur ve etiket ekranın dışına taşar.
+  assert.match(mq, /\.lightbox\.open\.has-credit > img\{max-height:calc\(100% - 34px\);\}/);
+});
+
+await test('has-credit sınıfı HER karede canlı güncellenir (gömülü değil)', () => {
+  // Künye görsel başına değişebiliyor (bkz. image_credits, 2026-09-16 ikinci tur madde 1), yani
+  // sınıf yalnızca açılışta yazılsaydı künyesiz bir karede görüntü hâlâ 34px kısa kalırdı.
+  assert.match(gallery, /lightbox\.classList\.toggle\('has-credit', !!name\)/,
+    'paintCredit her karede sınıfı güncellemeli');
+  assert.match(gallery, /lightbox\.classList\.toggle\('has-credit', !!credit\)/,
+    'ilk çizimde de sınıf yazılmalı');
 });
 
 await test('ızgara modunda çubuk (ve içindeki buton) hâlâ tamamen gizli', () => {
@@ -289,8 +340,30 @@ await test('künyeye yazılacak ad CANONICAL satırdan okunur, istemciden DEĞİ
 await test('ONAY KUYRUĞU ATLATILAMAZ: POST status\'ü istemciden okumaz', () => {
   const fn = photoClaims.match(/async function createClaim[\s\S]*?\n\}/)[0];
   assert.ok(!/body\.status/.test(fn), 'status gövdeden okunuyor — üye kendi talebini onaylayabilirdi');
-  assert.match(fn, /if \(isAdmin\(user\)\) \{[\s\S]*?'approved'/);
   assert.match(fn, /'\$\{PENDING\}'/);
+  // 2026-09-16 BEŞİNCİ tur (kullanıcı isteği: "Bildirimi onaylanmadan fotoğrafçı kişisi proje
+  // künyesine eklenmesin. Ancak admin ya da firma yöneticisi bildirimi onaylarsa künyeye
+  // eklensin"): hotspotTags.js'ten devralınan "admin'de anında uygula" kısayolu KALDIRILDI.
+  // Bu akışta talebi açan kişi profilin YÖNETİCİSİ olmak zorunda (architectManagerGate), yani o
+  // kısayol TÜM adminlerin taleplerini bildirimsiz ve onaysız uyguluyordu.
+  assert.ok(!/isAdmin\(user\)\)\s*\{/.test(fn),
+    'createClaim içinde admin kısayolu geri gelmiş — talep kuyruğa düşmeden uygulanır');
+  assert.ok(!/await applyPhotoClaim\(/.test(fn),
+    'createClaim künyeye YAZMAMALI; tek yazma noktası karar ucudur (decideClaim)');
+  assert.ok(!/'approved'/.test(fn), 'createClaim hiçbir talebi approved açmamalı');
+});
+
+await test('HER talep bildirim gönderir (admin de dahil)', () => {
+  const fn = photoClaims.match(/async function createClaim[\s\S]*?\n\}/)[0];
+  // Bildirim bloğu artık koşulsuz: kısayol dururken admin talebi buraya HİÇ ulaşmıyordu ve
+  // kullanıcı "bildirim gitmedi, ad kendiliğinden eklendi" diye bildirdi.
+  assert.match(fn, /officeManagerUserIds\(env, project\.id\)/);
+  assert.match(fn, /adminUserIds\(env\)/);
+  assert.match(fn, /photo-claim:\$\{id\}/);
+  // İstemci de tek mesaj yazar — "künyeye eklendi" dalı ölü kod olurdu.
+  assert.ok(!/data\.status === 'approved'/.test(photoFinder),
+    'istemcide approved dalı kaldı — sunucu artık o durumu hiç döndürmüyor');
+  assert.match(photoFinder, /talebin onaya gönderildi/);
 });
 
 await test('zaten künyede olan profil için talep AÇILMAZ', () => {
@@ -302,7 +375,9 @@ await test('zaten künyede olan profil için talep AÇILMAZ', () => {
 
 await test('talep bir KAREYE bağlanmaz (image_url her zaman NULL)', () => {
   const fn = photoClaims.match(/async function createClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /image_url: null/);
+  // INSERT kolonu açıkça NULL yazar (satır artık bir ara nesneden geçmiyor — admin kısayolu
+  // kaldırılınca applyPhotoClaim'e verilecek claimRow gereksiz kaldı, 2026-09-16 beşinci tur).
+  assert.match(fn, /VALUES \(\?, \?, NULL, \?, NULL, \?, '\$\{PENDING\}', \?\)/);
   assert.ok(!/body\.imageUrl/.test(photoClaims), 'imageUrl hâlâ gövdeden okunuyor');
 });
 
@@ -437,6 +512,37 @@ await test('karar butonları YALNIZCA yetkiliye çizilir', () => {
   const fn = authModal.match(/function openPhotoClaimPrompt[\s\S]*?\n    \}\n/)[0];
   assert.match(fn, /\$\{\(!decided && data\.canDecide\) \?/,
     'talebi açan kişi Onayla/Reddet görmemeli');
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-16 BEŞİNCİ TUR — mobil yerleşim düzeltmeleri.
+// ---------------------------------------------------------------------------
+
+await test('"Fotoğraflarını Bul" mobilde KENDİ SATIRINDA, sol kenarda', () => {
+  // Kullanıcı isteği: "Mobil görünümde fotoğraflarını bul butonu kötü bir şekilde duruyor.
+  // Mobilde bunu sol kenara yapıştır ve başlıkla arasını biraz aç."
+  const mq = architectCss.match(/@media \(max-width:560px\)\{[\s\S]*?#am-find-photos-slot[\s\S]*?\n      \}/);
+  assert.ok(mq, 'kural css/architect-detail.css içindeki mobil blokta olmalı (modal + sayfa TEK kaynak)');
+  assert.match(mq[0], /#am-find-photos-slot\{display:block; margin-top:10px;\}/,
+    'display:block satırı KESİN yapar — sarma başlık metninin uzunluğuna bağlı kalmamalı');
+  // claim-correction-box.js .rt-add-btn'e margin-left:10px veriyor (satır İÇİ hap düğme için
+  // doğru); kendi satırındaki düğmede bu sol kenardan kayma olurdu.
+  assert.match(mq[0], /#am-find-photos-slot \.rt-add-btn\{margin-left:0;\}/);
+  assert.match(claimBox, /\.rt-add-btn\{[\s\S]*?margin-left:10px/,
+    'ezilen kural kaybolduysa bu override ölü koda dönüşür');
+});
+
+await test('proje-ekle: "Projede Kullanılan Ürünler" kutuları mobilde ALT ALTA', () => {
+  // Kullanıcı isteği: "mobil görünümde Projede Kullanılan Ürünler kutusunda iki kutucuğu yan yana
+  // değil alt alta koy."
+  assert.match(projeEkle, /\.brand-add-row\{display:flex; gap:10px; align-items:flex-start;\}/,
+    'masaüstü satır düzeni değişmemeli');
+  const mq = projeEkle.match(/@media \(max-width:720px\)\{[\s\S]*?\n  \}/g)
+    .find(b => b.includes('.brand-add-row'));
+  assert.ok(mq, 'kural sayfanın yerleşim breakpoint\'inde (<=720px) olmalı');
+  assert.match(mq, /\.brand-add-row\{flex-direction:column; align-items:stretch;\}/);
+  // align-items:stretch ŞART: satırın masaüstü değeri flex-start, yani column eksende çocuklar
+  // kendi içerik genişliğinde kalır ve kutular farklı genişliklerde görünürdü.
 });
 
 console.log(`\n${passed} geçti, ${failed} başarısız`);

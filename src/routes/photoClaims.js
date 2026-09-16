@@ -349,11 +349,17 @@ async function resolveClaimArchitect(env, user, architectKey) {
   return { row };
 }
 
-// POST /api/photo-claims { projectSlug, architectSlug } — yeni künye talebi. Admin'de anında
-// uygulanır (hotspotTags.js'teki AYNI kullanıcı kuralı: "Admin hesaplarından yapılanların onaya
-// düşmesine gerek yok").
+// POST /api/photo-claims { projectSlug, architectSlug } — yeni künye talebi. HER talep 'pending'
+// açılır ve karar kümesine (firma yöneticileri + adminler) bildirim gider; ONAYLANMADAN künyeye
+// hiçbir şey yazılmaz. Adminin talebi de kuyruğa düşer — 2026-09-16 beşinci turuna kadar burada
+// hotspotTags.js'ten devralınan bir "admin'de anında uygula" kısayolu vardı, ama bu akışta talebi
+// açan kişi profilin YÖNETİCİSİ (admin dahil) olmak zorunda olduğundan (architectManagerGate) o
+// kısayol pratikte TÜM adminlerin taleplerini bildirimsiz ve onaysız uyguluyordu — kullanıcı
+// isteği bunun TERSİ: "Bildirimi onaylanmadan fotoğrafçı kişisi proje künyesine eklenmesin.
+// Ancak admin ya da firma yöneticisi bildirimi onaylarsa künyeye eklensin."
 async function createClaim(request, env, user) {
-  // KUYRUK SPAM'İ KAPISI (bkz. tasarım notu 1). Adminler muaf: onların talebi kuyruğa hiç düşmez.
+  // KUYRUK SPAM'İ KAPISI (bkz. tasarım notu 1). Adminler muaf: kuyruğu boşaltan taraf onlar ve
+  // talebin kendisi zaten bir yazma DEĞİL, bir öneridir.
   if (!isAdmin(user) && !(await checkRateLimit(env, 'photo-claim', user.id, CLAIM_HOURLY_LIMIT, 60 * 60 * 1000))) {
     return errorJson(`Saatte en fazla ${CLAIM_HOURLY_LIMIT} fotoğraf talebi gönderebilirsin. Biraz sonra tekrar dene.`, 429);
   }
@@ -384,19 +390,6 @@ async function createClaim(request, env, user) {
   const now = Date.now();
   const id = newId();
   // image_url HER ZAMAN NULL — talep bir kareye değil projenin künyesine bağlanır (bkz. dosya başı).
-  const claimRow = { project_slug: project.slug, image_url: null, claimed_name: claimedName };
-
-  // ADMIN: onaya hiç düşmez — doğrudan uygulanır ve 'approved' olarak kaydedilir (denetim izi:
-  // kimin, ne zaman eklediği kayıtlı kalır).
-  if (isAdmin(user)) {
-    const applied = await applyPhotoClaim(env, claimRow);
-    if (!applied.ok) return errorJson(applied.error);
-    await env.DB.prepare(
-      `INSERT INTO project_photo_claims (id, project_slug, image_url, claimed_name, note, created_by_user_id, status, decided_by_user_id, decided_at, created_at)
-       VALUES (?, ?, NULL, ?, NULL, ?, 'approved', ?, ?, ?)`
-    ).bind(id, project.slug, claimedName, user.id, user.id, now, now).run();
-    return json({ ok: true, status: 'approved' });
-  }
 
   try {
     await env.DB.prepare(

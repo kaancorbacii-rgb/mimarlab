@@ -83,14 +83,47 @@ function injectGalleryBarStyles(){
     }
     @media (max-width:560px){
       .lightbox-bottombar{gap:8px; padding-bottom:18px;}
-      .lightbox-tag-btn{font-size:12px; padding:6px 12px;}
       /* Kullanici istegi (2026-09-16 ucuncu tur madde 1): mobilde buton SOL UST kosede.
          Cubuk artik transformsuz ve tum alani kapladigi icin (bkz. yukarisi) absolute konum
-         dogrudan lightbox'in kosesine cozulur. Sag ust kose DOLU (.lightbox-close 12px/14px ve
-         .lightbox-grid-toggle onun solunda), sol ust kose bostu. Buton flex satirindan cikinca
-         sayac altta TEK BASINA ortalanmis kalir — istenen de bu. */
-      .lightbox-tag-btn{position:absolute; top:12px; left:14px;}
+         dogrudan lightbox'in kosesine cozulur. Sol ust kose bos; sag ust kosede X ve onun
+         solunda "Tumunu Gor" var.
+         OLCULER OLCULDU (Chromium 390px): .lightbox-close ve .lightbox-grid-toggle kutulari
+         top:24px, yukseklik 31px, sag kenardan 32px iceride. Kullanici istegi (2026-09-16
+         BESINCI tur madde 2): "urun etiketle butonu da X ve tumunu gore butonuyla ayni hizada
+         olsun" — bu yuzden pill AYNI kutuyu alir: top:24px + height:31px + simetrik 32px
+         ic bosluk. Yalnizca top hizalamak YETMEZDI: pill 26px, ikon butonlari 31px yuksek,
+         yani ustten hizalamak merkezleri ~3px kaydirirdi. Padding dikeyde sifirlanip yerine
+         align-items:center konur ki metin 31px'lik kutuda ortalansin. */
+      .lightbox-tag-btn{
+        position:absolute; top:24px; left:32px;
+        height:31px; padding:0 12px; box-sizing:border-box;
+        display:inline-flex; align-items:center; font-size:12px;
+      }
       .lightbox-tag-hint{font-size:12px; padding:7px 13px; top:64px;}
+      /* FOTOGRAFCI ETIKETI TAM FOTOGRAFIN ALTINDA (kullanici istegi, 2026-09-16 besinci tur
+         madde 2: "mobil gorunumde lightboxlardaki fotografci etiketi butonun uzerine geliyor.
+         Fotografci ismini tam fotografin altinda al").
+         OLCULDU (Chromium 390px): etiket sag-altta (bottom:22px/right:22px) duruyordu ve
+         .lightbox-next'in tam yukseklikteki dokunma seridiyle CAKISIYORDU; ayrica goruntunun
+         alt kenari 492px'te bitiyor, etiket ise 734px'te — yani fotografin "altinda" degil
+         ekranin dibindeydi.
+         COZUM: lightbox mobilde SUTUN yonlu bir flex olur ve etiket akisa girer (position:static),
+         boylece goruntunun hemen altinda ortalanir. Akistaki tek diger cocuk goruntunun kendisi
+         (kapat/oklar/izgara/alt cubuk hepsi absolute), yani sutun yonu baska hicbir seyi
+         etkilemez. */
+      .lightbox{flex-direction:column;}
+      .lightbox-credit{
+        position:static; right:auto; bottom:auto; margin:8px 0 0;
+        max-width:calc(100% - 24px); text-align:center;
+      }
+      /* Goruntuye, etiketin yuksekligi kadar yer acilir — aksi halde max-height:100% ile
+         goruntu tum alani kaplar ve etiket tasar. YALNIZCA etiket VARSA (has-credit, bkz.
+         paintCredit): etiketsiz projede goruntu 34px kisalmasin. Secici .lightbox.open > img:
+         dogrudan-cocuk isareti SART, cunku sayfa CSS'indeki ".lightbox img" izgara kucuk
+         resimlerini de esliyor
+         (bkz. css/project-detail.css#.lightbox.grid-mode > img'deki AYNI gerekce); .open ise
+         ozgullugu yukseltir, yani enjekte sirasi ne olursa olsun kazanir. */
+      .lightbox.open.has-credit > img{max-height:calc(100% - 34px);}
     }
   `;
   document.head.appendChild(style);
@@ -248,6 +281,8 @@ function initDetailGallery(opts){
   }
   creditEl.textContent = credit ? `© ${credit}` : '';
   creditEl.hidden = !credit;
+  // bkz. paintCredit#has-credit — ilk durum burada kurulur, her görselde orada tazelenir.
+  lightbox.classList.toggle('has-credit', !!credit);
   // is-locked sınıfı: HotspotTagger.hasAccess() geri çağrısı style.display'i geri açabildiğinden
   // hidden özniteliği yerine CSS sınıfı (display:none !important) kullanılır.
   if(tagBtn) tagBtn.classList.toggle('is-locked', locked);
@@ -321,6 +356,10 @@ function initDetailGallery(opts){
     const name = (st.credits && st.credits[url]) || st.credit || '';
     el.textContent = name ? `© ${name}` : '';
     el.hidden = !name;
+    // has-credit — mobilde etiket AKIŞA girdiğinden (bkz. o media sorgusu) görüntüye onun
+    // yüksekliği kadar yer açılması gerekir; etiketi OLMAYAN karede görüntü kısalmasın diye
+    // sınıf görsel başına toggle edilir (etiket de görsel başına değişiyor).
+    lightbox.classList.toggle('has-credit', !!name);
   }
 
   // Büyütülmüş görselin işaretçileri. Katman lightbox'ın (position:fixed, yani konumlandırılmış bir

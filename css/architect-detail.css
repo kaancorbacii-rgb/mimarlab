@@ -256,3 +256,18 @@
         .lightbox-grid{padding:60px 14px 24px;}
         .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
       }
+
+      /* "Fotoğraflarını Bul" MOBİLDE BAŞLIĞIN ALTINDA, SOL KENARDA (kullanıcı isteği, 2026-09-16
+         beşinci tur: "Mobil görünümde fotoğraflarını bul butonu kötü bir şekilde duruyor. Mobilde
+         bunu sol kenara yapıştır ve başlıkla arasını biraz aç").
+         Ölçüldü (Chromium, 390px): başlık "Fotoğrafladığı Projeler" + sayaç iki satıra sarıyor ve
+         düğme kendiliğinden üçüncü satıra düşüyor ama başlık metninin sol kenarına 34px'lik bir
+         girintiyle ve yalnızca 20px aşağıda — yani sarma TESADÜFİ, metnin uzunluğuna bağlı.
+         display:block bunu KESİN hâle getirir (her zaman kendi satırı), margin-left:0 ise
+         claim-correction-box.js'in .rt-add-btn{margin-left:10px} girintisini siler; o kural satır
+         İÇİ bir hap düğme için doğru, kendi satırındaki bir düğme için sol kenardan kayma olurdu.
+         Seçici id + class taşıdığı için enjekte edilen <style>'ın sırasından bağımsız kazanır. */
+      @media (max-width:560px){
+        #am-find-photos-slot{display:block; margin-top:10px;}
+        #am-find-photos-slot .rt-add-btn{margin-left:0;}
+      }
