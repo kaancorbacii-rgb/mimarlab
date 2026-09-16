@@ -726,6 +726,22 @@ else
 fi
 rm -f /tmp/preflight_20260916
 
+# 2026-09-16 İKİNCİ TUR (üç madde): (1) proje-ekle'de görsel başına fotoğrafçı seçimi — künyeye
+# birden fazla ad yazıldıysa hangi kareyi kimin çektiği seçilebiliyor ve lightbox'ın "© ..."
+# etiketi artık HER görselde tazeleniyor (eskiden init'te bir kez yazılıp galeri boyunca sabit
+# kalıyordu); (2) lightbox'ta "Fotoğraf bana ait" — talep projenin künyesindeki firmaların
+# yöneticilerine + adminlere bildirim olarak düşer, onaylanınca ad HEM image_credits'e (lightbox)
+# HEM photo_credit_text'e (künye) HEM de projenin taslağına yazılır; (3) giriş ekranındaki şifre
+# kutusunun sağına göz işareti (tek modül, iki yüzey).
+# Bkz. scripts/test-2026-09-16-photo-credits-and-password-reveal.mjs.
+if node scripts/test-2026-09-16-photo-credits-and-password-reveal.mjs >/tmp/preflight_20260916b 2>&1; then
+  ok "2026-09-16 ikinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916b) test)"
+else
+  bad "2026-09-16 ikinci tur testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_20260916b >&2
+fi
+rm -f /tmp/preflight_20260916b
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

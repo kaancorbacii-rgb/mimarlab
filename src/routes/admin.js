@@ -5,7 +5,7 @@ import { updateUserProfileFields } from './auth.js';
 import { listSaved } from './saved.js';
 import { myRatings } from './ratings.js';
 import { myComments } from './comments.js';
-import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, taxonomyFieldError, sanitizeImageHotspots } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, taxonomyFieldError, sanitizeImageHotspots, sanitizeImageCredits } from '../lib/submissionTypes.js';
 import { createNotification, notifySubmissionApproved, notifySubmissionRejected } from '../lib/notify.js';
 // Google Meet gateway'i (kullanıcı isteği, 2026-09-08) — bkz. src/lib/consultationMeet.js.
 import { createMeetForConsultation } from '../lib/consultationMeet.js';
@@ -712,13 +712,17 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
         if (!(field in body)) continue;
         let value = body[field];
         if (config.arrayFields.includes(field)) value = JSON.stringify(Array.isArray(value) ? value : []);
-        // objectFields (bkz. src/lib/submissionTypes.js — şu an yalnızca projects.imageHotspots):
-        // arrayFields ile AYNI gerekçe, JSON metne çevrilmeden bind edilirse D1 tip hatası verirdi.
-        // Bu uç, proje-ekle.html'in "admin başkasının gönderisini düzenliyor" yolunda kullanılıyor
-        // (bkz. o dosyadaki isAdminEditingOther) — o yoldan kaydedilen işaretçiler aksi halde hiç
-        // yazılamazdı.
+        // objectFields (bkz. src/lib/submissionTypes.js — projects.imageHotspots ve
+        // projects.imageCredits): arrayFields ile AYNI gerekçe, JSON metne çevrilmeden bind
+        // edilirse D1 tip hatası verirdi. Bu uç, proje-ekle.html'in "admin başkasının gönderisini
+        // düzenliyor" yolunda kullanılıyor (bkz. o dosyadaki isAdminEditingOther) — o yoldan
+        // kaydedilen işaretçiler/görsel bazlı fotoğrafçılar aksi halde hiç yazılamazdı.
+        // TEMİZLEYİCİ ALAN BAŞINA SEÇİLİR: ham nesneyi olduğu gibi yazmak, admin yolunu
+        // normalizeSubmission'ın uyguladığı sınırlardan (koordinat kırpma, ad uzunluğu, görsel
+        // sayısı) muaf tutardı — bu iki sütun serbest bir JSON deposuna dönüşmemeli.
         else if ((config.objectFields || []).includes(field)) {
           const clean = field === 'imageHotspots' ? sanitizeImageHotspots(value)
+            : field === 'imageCredits' ? sanitizeImageCredits(value)
             : ((value && typeof value === 'object' && !Array.isArray(value)) ? value : {});
           value = Object.keys(clean).length ? JSON.stringify(clean) : null;
         }

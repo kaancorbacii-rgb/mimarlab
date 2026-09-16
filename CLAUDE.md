@@ -858,3 +858,106 @@ hiçbir görünümde olmasın."
 - **Tek uzun çip kutuyu genişletmez**: `.am-mgr-chip{max-width:100%; min-width:0}` +
   `.am-mgr-chip-name{overflow:hidden; text-overflow:ellipsis}` — metin kırpılır, X
   (`flex-shrink:0`) kırpılmaz.
+
+## Görsel başına fotoğrafçı, "Fotoğraf bana ait" ve şifre göz işareti (2026-09-16, ikinci tur)
+
+### 1. Lightbox'ta görsel başına fotoğrafçı
+Kullanıcı isteği: "Proje ekle/düzenle sayfasında eğer fotoğrafçı kısmına birden fazla fotoğrafçı
+yazıldıysa fotoğrafların üstüne tıklanınca açılan lightboxta hangi fotoğrafı hangi fotoğrafçının
+çektiği seçilebilsin."
+
+- **Yeni kolonlar** `projects.image_credits` / `project_submissions.imageCredits`
+  (`migrations/0122_project_image_credits.sql` — **kod deploy'undan ÖNCE uygulanmalı**,
+  `canonicalSync`'in INSERT'i kolonu açıkça sayıyor). Aynı DDL `schema.sql`'e de yansıtıldı: yerel
+  testlerin bir kısmı (ör. `test-2026-09-14-aggregator-source-links.mjs`) GERÇEK SQLite fikstürünü
+  o dosyadan kuruyor ve yansıtılmazsa preflight "no such column" ile kırmızı döner. Biçim `image_hotspots` ile BİREBİR aynı:
+  görsel URL'sine göre anahtarlı JSON (`{ "<url>": "Ad" }`). **İndeks DEĞİL URL** — proje-ekle'de
+  görseller sürükle-bırak ile sıralanabildiğinden indeks tabanlı eşleme her sıralamada sessizce
+  yanlış fotoğrafçıyı gösterirdi (0076'nın AYNI gerekçesi).
+- **`photo_credit_text` PARÇALANMADI**: o kolon PROJENİN künyesidir (virgüllü tüm adlar,
+  `project_photographers` kenarını besler, arama/SEO gövdesi onu okur). Yeni kolon onun ALT
+  KIRILIMI: "künyedeki hangi ad, hangi kareyi çekti".
+- **EŞLEMESİ OLMAYAN KARE KÜNYENİN TAMAMINA DÜŞER** (`gallery.js#paintCredit`:
+  `st.credits[url] || st.credit`) — kolonu hiç yazılmamış TÜM mevcut projelerin görünümünü
+  değiştirmeyen tek davranış. Kısmen doldurulmuş bir projede seçilmemiş kareler de boş kalmaz.
+- **GERÇEK DÜZELTME**: "© ..." etiketi eskiden `initDetailGallery`'de BİR kez yazılıp galeri
+  boyunca sabit kalıyordu; artık `showLightboxImage` her karede `paintCredit`i çağırıyor. Durum
+  `state`ten CANLI okunur (dinleyiciler yalnızca ilk çağrıda bağlanıyor — gömülü değer N. projede
+  1. projenin künyesini yazardı).
+- **Form**: menü YALNIZCA künyede iki ya da daha fazla ad varken çizilir (`renderPreviews`'te
+  `showCredit`), seçenekler `#p-credit-text`ten türer (ikinci bir liste yok), seçim mediaItems
+  öğesinde taşınır (sıralama onu da götürür), kırpma onu korur. **`<select>` bir `<button>`
+  DEĞİL**: sürükleme (`pointerdown`) ve işaretleme editörü (`click`) korumaları
+  `closest('button, select')` oldu — aksi halde menüye basmak kutucuğu sürüklüyor ve editörü
+  açıyordu.
+- **Künyeden çıkarılmış ad İKİ kapıda süzülür**: kutu değiştiğinde `pruneImageCredits`, kaydetme
+  anında `collectImageCredits` (prefill sonrası kutu hiç dokunulmamış olabilir). Aksi halde
+  lightbox sitede hiçbir yerde yazmayan bir adı gösterirdi.
+- **Liste yükü şişmez**: `shapeProjectItem` alanı yalnızca gerçekten eşleme varsa ekler ve
+  `coverOnly`de yalnızca kapağınkini taşır (`imageHotspots` ile AYNI kapsam). Kolon liste
+  sorgularında hiç SELECT edilmiyor (kart yüzeyinde lightbox yok).
+
+### 2. "Fotoğraf bana ait" — künye talebi + onay kuyruğu
+Kullanıcı isteği: "Proje popuplarındaki lightboxta 'Fotoğraf bana ait' butonu olsun ve bu butona
+tıklayınca görseldeki ismin değişmesi için firma yöneticilerine ve admine bildirim gitsin. Firma
+yöneticileri veya admin bildirimi onaylarsa fotoğrafçı bilgisi lightboxa ve proje künyesine
+eklensin."
+
+- **`src/routes/photoClaims.js` + `project_photo_claims` tablosu**, `src/routes/hotspotTags.js` ve
+  `migrations/0091`in KARDEŞİ: aynı uç isimleri (`/access`, POST, `/:id`, `/:id/decide`,
+  `/pending`), aynı durum sözlüğü, aynı "admin onaya düşmez" kısayolu, aynı `photo-claim:<id>`
+  bildirim→pop-up bağlantısı (`auth-modal.js#openPhotoClaimPrompt`). Ayrı dosya olmasının gerekçesi:
+  etiketlenen şey bir ÜRÜN değil bir AD, karar verenler markanın sahibi değil PROJENİN FİRMA
+  YÖNETİCİLERİ, yazma hedefi `image_hotspots` değil `photo_credit_text` + `image_credits`.
+- **BİLDİRİM ALICILARI = KARAR KÜMESİ, tek fonksiyondan** (`officeManagerUserIds` + adminler).
+  İki liste ayrı hesaplanırsa biri diğerinde olmayan kullanıcıya "onayına sunuldu" bildirimi gider
+  ve o kişi butona bastığında 403 alırdı. Yöneticinin tanımı da TEK kaynaktan okunur
+  (`claimedProfiles.js#fetchOfficeManagers` + `projectClaimAccess.js#OFFICE_EDIT_POSITIONS`) —
+  yani "Hesabım > Yetkili Kullanıcılar" listesindeki kümeyle birebir aynı. **Projeyi ekleyen üye ve
+  künyedeki MİMARLAR bilerek dışarıda** (kullanıcı isteği "firma yöneticilerine ve admine" diyor);
+  eklenecekse tek yer `officeManagerUserIds`tır.
+- **ONAY KUYRUĞU ATLATILAMAZ**: POST `status`'ü istemciden HİÇ okumaz, yalnızca role bakar
+  (bkz. proje notu `[[project_submission_moderation_bypass_2026_09_05]]`). Karar TAMAMEN AYRI bir
+  uçtur ve kendi yetki kontrolü var.
+- **Onay ÜÇ yere yazar**: `projects.image_credits` (lightbox), `projects.photo_credit_text` (künye)
+  ve varsa projenin `project_submissions` taslağı. Taslak ŞART: `canonicalSync#syncProject` bu iki
+  alanı taslaktan BAŞTAN yazıyor, yani yalnızca canonical'a yazmak projenin bir sonraki
+  kaydedilişinde SESSİZ VERİ KAYBI olurdu (hotspotTags.js tasarım notu 4 — AYNI tuzak). Ad sitede
+  bir kişi kaydıyla eşleşiyorsa `project_photographers` kenarı da kurulur (`findOneByName` —
+  canonicalSync ile AYNI kural, ayrışırsa aynı ad bir yolda çipe, diğerinde metne dönerdi).
+- **`purgeSsrDetailCache` ŞART**: `invalidatePublicCache` yalnızca sabit liste yollarını temizler;
+  `/api/project/:slug` `caches.default`ta s-maxage ile durur ve fingerprint TAŞIMAZ — onay veren
+  kişi "onayladım ama görünmüyor" diye bakakalırdı (hotspotTags.js'teki AYNI gerçek bulgu).
+- **Kapsam iki seçenek**: tek kare (`image_url` dolu) ya da projenin tamamı (`image_url` NULL =
+  "künyeye ekle, kareye bağlama"). Kısmi UNIQUE indekste `COALESCE(image_url, '')` ŞART —
+  SQLite'ta NULL'lar UNIQUE'i tetiklemez, proje geneli talepler sınırsız tekrarlanabilirdi.
+- **Künyeye yazılacak ad DÜZENLENEBİLİR** ve hesap adıyla önden dolar: bir fotoğrafçı stüdyo adıyla
+  anılmayı seçebilir — hesap adı ile künyede görünmek istenen ad AYNI ŞEY DEĞİLDİR (bkz. "Hesap
+  üyeliği ile kişi profili AYRIDIR").
+- İstemci: `js/components/photo-claim.js` (hotspot-tagger.js'in kardeşi), buton `gallery.js`'in alt
+  çubuğunda "Ürün Etiketle"nin yanında — GİZLİ doğar, yalnızca `/api/photo-claims/access` "evet"
+  derse açılır, kilitli (önizleme) projede gizlenir. `proje.html` + `en-iyi-100.html` kabuklarına
+  script etiketi eklendi, `lazy-modals.js` deps'ine girdi ve **`SSR_CACHE_VERSION` v140** oldu
+  (v116'daki AYNI tuzak).
+
+### 3. Giriş ekranında şifre göz işareti
+Kullanıcı isteği: "Giriş yap ekranında şifre kutucuğunun en sağında bir göz işareti olsun ve buna
+tıklayınca şifre açık gözüksün."
+
+- **TEK modül**: `js/components/password-reveal.js`. Giriş ekranı İKİ yerde yaşıyor (bağımsız sayfa
+  `giris-yap.html` + pop-up `auth-modal.js#loginTemplate`); iki kopya yazılsaydı düğmenin
+  ölçüsü/davranışı zamanla ayrışırdı.
+- **input'un KENDİSİ değişmez**: id/name/required/DOM yeri korunur, yalnızca ETRAFINA bir
+  `.pw-reveal-wrap` eklenir. Şart: formu gönderen kodlar input'a id ile ulaşıyor ve tarayıcının
+  şifre yöneticisi de aynı düğüme bakıyor — input'u yeniden OLUŞTURMAK ikisini de bozardı.
+  Genişliğe dokunulmaz, yerine sağ padding artar (uzun şifre düğmenin altına girmez).
+- **Düğme `type="button"`** (varsayılan "submit" formu GÖNDERİRDİ) ve `wire()` aynı input'a iki kez
+  takmaz (pop-up şablonunu her açılışta yeniden basabilir).
+- **SIRALAMA TUZAĞI yapısal olarak kapalı**: bağımsız sayfa yalnızca `data-password-reveal`
+  işaretini koyar, bağlama zamanı modülün kendi `sweep()`'i (DOMContentLoaded) — sayfanın satır içi
+  script'i defer'li modülden ÖNCE koştuğu için orada yazılacak bir `PasswordReveal.wire()` çağrısı
+  "not defined" ile patlardı. Pop-up modülü TEMBEL yükler (yüklenemezse giriş akışı bozulmaz).
+- Kapsam BİLEREK yalnızca GİRİŞ ekranı: modül "sayfadaki her şifre kutusunu" kendiliğinden
+  bağlamaz, çağıran hangi kutuyu istediğini açıkça söyler.
+
+Testler: `scripts/test-2026-09-16-photo-credits-and-password-reveal.mjs` (49 test, preflight'a bağlı).

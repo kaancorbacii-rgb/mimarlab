@@ -206,6 +206,21 @@ export function shapeProjectItem(row, opts) {
     const cover = p.images[0];
     hotspots = (cover && allHotspots[cover]) ? { [cover]: allHotspots[cover] } : {};
   }
+  // Görsel başına fotoğrafçı (kullanıcı isteği, 2026-09-16 ikinci tur madde 1 — bkz. migrations/
+  // 0122_project_image_credits.sql). imageHotspots ile AYNI desen: alan yalnızca GERÇEKTEN eşleme
+  // varsa yüke eklenir (bugün bunu taşıyan proje sayısı bir avuç, taşımayan yüzlerce kayıt alanı
+  // hiç görmez) ve LİSTE yolunda (coverOnly) yalnızca kapak görselininki taşınır.
+  //
+  // KOLON LİSTE SORGULARINDA SEÇİLMEZ (bkz. fetchActiveProjectPool / fetchProjectPageRows — ikisi
+  // de kolonları TEK TEK sayar): row.image_credits o yolda undefined gelir, parseHotspots boş nesne
+  // döner ve alan yüke hiç girmez. Bu BİLİNÇLİ — kart/liste yüzeylerinde lightbox yok, görsel
+  // bazlı fotoğrafçı adının okuyucusu yok. Tekil detay sorgusu `SELECT p.*` olduğundan orada gelir.
+  const allCredits = parseHotspots(row.image_credits);
+  let imageCredits = allCredits;
+  if (coverOnly) {
+    const cover = p.images[0];
+    imageCredits = (cover && allCredits[cover]) ? { [cover]: allCredits[cover] } : {};
+  }
   return {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
     location: p.location, locationDetail: p.location_detail, lat: p.lat ?? null, lng: p.lng ?? null,
@@ -235,6 +250,11 @@ export function shapeProjectItem(row, opts) {
     // liste her alanı diziye çözer (hata durumunda []), bu alan ise bir nesne. Ham metin yukarıda
     // tek yerde ve güvenli biçimde çözülür.
     ...(Object.keys(hotspots).length ? { imageHotspots: hotspots } : {}),
+    // Görsel başına fotoğrafçı adı (bkz. yukarıdaki hesap). Lightbox'ın sağ alt köşesindeki
+    // "© ..." etiketi bu haritayı okur ve anahtarı olmayan kare künyenin TAMAMINA düşer (bkz.
+    // js/components/gallery.js#showLightboxImage) — yani kolonu hiç yazılmamış tüm mevcut
+    // projelerin görünümü DEĞİŞMEZ.
+    ...(Object.keys(imageCredits).length ? { imageCredits } : {}),
     buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
     conceptCategory: p.concept_category || null,
     awards: p.awards || [],

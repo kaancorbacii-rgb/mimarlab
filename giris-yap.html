@@ -221,6 +221,7 @@
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
+<script src="js/components/password-reveal.js" defer></script>
 
   <div id="site-header-mount" data-nav-active=""></div>
   <script src="js/components/site-chrome.js"></script>
@@ -258,7 +259,11 @@
         </div>
         <div class="auth-field">
           <label for="login-password">Şifre</label>
-          <input type="password" id="login-password" name="password" placeholder="••••••••" required>
+          <!-- data-password-reveal (kullanıcı isteği, 2026-09-16 ikinci tur madde 3): kutunun en
+               sağına göz işaretini js/components/password-reveal.js koyar. İşaret özniteliği,
+               satır içi script ile defer'li modül arasındaki çalışma SIRASI tuzağını kapatır
+               (bkz. o dosyanın sonundaki sweep() notu). -->
+          <input type="password" id="login-password" name="password" placeholder="••••••••" required data-password-reveal>
         </div>
         <p class="auth-forgot"><a href="/sifremi-unuttum">Şifremi unuttum</a></p>
         <button class="auth-submit" type="submit">Giriş Yap</button>

@@ -57,7 +57,7 @@ export const SUBMISSION_TYPES = {
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
       'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory', 'awards', 'publishDate',
-      'lat', 'lng', 'imageHotspots',
+      'lat', 'lng', 'imageHotspots', 'imageCredits',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
@@ -76,7 +76,11 @@ export const SUBMISSION_TYPES = {
     // anahtarlanmış bir harita ({url: [{x,y,slug,title}]}, bkz. migrations/0076_project_image_
     // hotspots.sql). arrayFields'e konulsaydı normalizeSubmission onu `[nesne]` diye tek elemanlı bir
     // diziye sarardı; bu yüzden ayrı bir tür gerekiyor (bkz. normalizeSubmission/parseSubmissionRow).
-    objectFields: ['imageHotspots'],
+    // imageCredits — imageHotspots'un AYNI türü (görsel URL'sine göre anahtarlı NESNE), değer bu kez
+    // bir dizi değil düz bir AD dizesi: { "<görsel url>": "Fotoğrafçı Adı" } (bkz. migrations/
+    // 0122_project_image_credits.sql). Kullanıcı isteği, 2026-09-16 ikinci tur madde 1: künyeye
+    // birden fazla fotoğrafçı yazıldığında hangi kareyi kimin çektiği seçilebilsin.
+    objectFields: ['imageHotspots', 'imageCredits'],
     // Kullanıcı isteği (2026-09-02): "Proje ekle/düzenle sayfasında Tür, tip, grup, Fotoğrafçı veya
     // Kaynak zorunlu olsun." Form etiketleriyle alan adlarının eşleşmesi: Tür=discipline,
     // Tip=category, Grup=type, Fotoğrafçı veya Kaynak=photoCreditText (bkz. proje-ekle.html#
@@ -570,6 +574,34 @@ export function sanitizeImageHotspots(raw) {
   return out;
 }
 
+// imageCredits'in GÜVENLİ hâli — sanitizeImageHotspots ile AYNI sözleşme ("temizle ve devam et",
+// hata döndürmez) ve AYNI üst sınır (MAX_HOTSPOT_IMAGES): görsel URL'sine göre anahtarlı, değeri
+// düz bir AD dizesi olan bir harita (bkz. migrations/0122_project_image_credits.sql).
+//
+// NEDEN BURADA AD DOĞRULANMAZ (künyedeki fotoğrafçılardan biri olmak zorunda değil): künye
+// (photoCreditText) ile bu harita AYNI gövdede gelir ve normalizeSubmission alanları TEK TEK,
+// birbirinden bağımsız işler — burada photoCreditText'e bakmak bu fonksiyonu alan sırasına bağımlı
+// kılardı. Kapı İSTEMCİDE (proje-ekle.html seçenekleri yalnızca künyedeki adlardan üretir) ve
+// OKUMA anında (gallery.js boş/bilinmeyen değeri künyenin tamamına düşürür) duruyor; buradaki iş
+// yalnızca "bu sütun serbest bir JSON deposuna dönüşmesin".
+//
+// Boş dize ATILIR, null YAZILMAZ: "bu kare için fotoğrafçı seçilmedi" durumunun tek temsili
+// anahtarın HİÇ OLMAMASIDIR — aksi halde okuma tarafında iki ayrı "boş" hâli (yok / '') ayırt
+// etmek zorunda kalırdı.
+const MAX_IMAGE_CREDIT_LEN = 200;
+export function sanitizeImageCredits(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const url of Object.keys(raw).slice(0, MAX_HOTSPOT_IMAGES)) {
+    const value = raw[url];
+    if (typeof value !== 'string') continue;
+    const name = value.trim().slice(0, MAX_IMAGE_CREDIT_LEN);
+    if (!name) continue;
+    out[url] = name;
+  }
+  return out;
+}
+
 export function normalizeSubmission(type, body) {
   const config = SUBMISSION_TYPES[type];
   const row = {};
@@ -644,6 +676,7 @@ export function normalizeSubmission(type, body) {
       // nesneye indirgenir — bu alanları hiç göndermeyen çağıranlar (AI ile otomatik ekleme,
       // admin panelinin kısa düzenleme formu vb.) için güvenli varsayılan.
       value = field === 'imageHotspots' ? sanitizeImageHotspots(value)
+        : field === 'imageCredits' ? sanitizeImageCredits(value)
         : ((value && typeof value === 'object' && !Array.isArray(value)) ? value : {});
       value = Object.keys(value).length ? JSON.stringify(value) : null;
     } else {

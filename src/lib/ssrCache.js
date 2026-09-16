@@ -168,7 +168,13 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // kabuğu üretici firmaları da içeriyor. Gövde satırların updated_at'i değişmeden değiştiğinden
 // bump ŞART (v107'deki AYNI tuzak: edge'de duran eski kabuk /marka/ bağlantıları basmaya devam
 // ederdi). Aynı sürümde ana sayfa/404/arama kabuklarından /marka bağlantıları düştü.
-export const SSR_CACHE_VERSION = 'v139';
+// v140 (kullanıcı isteği, 2026-09-16 ikinci tur madde 2): proje.html ve en-iyi-100.html
+// kabuklarına js/components/photo-claim.js script etiketi eklendi — büyütülmüş proje görselindeki
+// "Fotoğraf bana ait" formu bu dosyada. v116'daki AYNI tuzak (o tur hotspot-tagger.js içindi):
+// sürüm artırılmazsa daha önce ziyaret edilmiş /proje/:slug sayfaları s-maxage boyunca bu script'i
+// hiç yüklemeyen eski kabuğu sunar; buton görünür ama basıldığında (PhotoClaimer tanımsız
+// olduğundan, bkz. gallery.js'teki typeof koruması) sessizce hiçbir şey yapmazdı.
+export const SSR_CACHE_VERSION = 'v140';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

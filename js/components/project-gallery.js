@@ -44,6 +44,16 @@ const ProjectGallery = (function () {
       // credit (madde 4): lightbox'ın sağ altında "© Fotoğrafçı". Künyedeki eşleşmiş fotoğrafçı
       // profilleri (photographerDetails) önce, yoksa serbest metin fotoğraf kredisi.
       credit: photographerCredit(item),
+      // credits (kullanıcı isteği, 2026-09-16 ikinci tur madde 1): GÖRSEL BAŞINA fotoğrafçı —
+      // { <görsel url>: 'Ad' }. Kaynağı projects.image_credits (bkz. migrations/
+      // 0122_project_image_credits.sql), API'den geldiği gibi geçilir. Kaydı olmayan kare yukarıdaki
+      // `credit`e (künyenin tamamına) düşer, yani bu alanı hiç taşımayan projelerin görünümü
+      // DEĞİŞMEZ (bkz. gallery.js#paintCredit).
+      credits: item.imageCredits || {},
+      // photoClaim (madde 2): lightbox'ta "Fotoğraf bana ait". `tagging` ile AYNI kapı — önizleme
+      // (kilitli) projede gallery.js butonu zaten gizler, ve slug'ı olmayan bir kayıt için talep
+      // açılamaz (sunucu projeyi slug ile bulur).
+      photoClaim: item.slug ? { projectSlug: item.slug } : null,
       title: item.title,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`,
       ids: mergedIds,

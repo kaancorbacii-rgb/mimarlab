@@ -1306,3 +1306,41 @@ ALTER TABLE architects ADD COLUMN projects_promoted_at TEXT;
 -- buradan okunur.
 ALTER TABLE projects ADD COLUMN designer_names_raw TEXT;
 ALTER TABLE projects ADD COLUMN office_names_raw TEXT;
+
+-- 0122 — GÖRSEL BAŞINA fotoğrafçı adı (JSON nesnesi, görsel URL'sine göre anahtarlı, bkz.
+-- migrations/0122_project_image_credits.sql). image_hotspots ile BİREBİR aynı anahtarlama ve aynı
+-- gerekçe: indeks DEĞİL URL, çünkü proje-ekle.html'de görseller sürükle-bırak ile yeniden
+-- sıralanabiliyor. photo_credit_text (projenin TÜM künyesi) PARÇALANMADI — bu kolon onun alt
+-- kırılımı: "künyedeki hangi ad, hangi kareyi çekti". Eşlemesi olmayan kare künyenin tamamına
+-- düşer (bkz. js/components/gallery.js#paintCredit), yani kolonu hiç yazılmamış projelerin
+-- görünümü değişmez.
+ALTER TABLE projects ADD COLUMN image_credits TEXT;
+ALTER TABLE project_submissions ADD COLUMN imageCredits TEXT;
+
+-- ===================== project_photo_claims (0122) =====================
+-- "Fotoğraf bana ait" künye talepleri (kullanıcı isteği, 2026-09-16 ikinci tur madde 2).
+-- project_hotspot_tags (0091) ile AYNI desen ve aynı üç gerekçe (denetlenebilir karar, birden
+-- fazla talebin birbirini ezmemesi, proje yeniden kaydedildiğinde bekleyen talebin kaybolmaması).
+-- Onaylanana kadar hiçbir şey görünmez; onay anında ad HEM projects.image_credits'e HEM
+-- projects.photo_credit_text'e HEM de projenin project_submissions taslağına yazılır.
+-- Okuyucu/yazıcı: src/routes/photoClaims.js.
+CREATE TABLE IF NOT EXISTS project_photo_claims (
+  id TEXT PRIMARY KEY,
+  project_slug TEXT NOT NULL,
+  image_url TEXT,
+  claimed_name TEXT NOT NULL,
+  note TEXT,
+  created_by_user_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'pending',
+  decided_by_user_id TEXT REFERENCES users(id),
+  decided_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ppc_status_created ON project_photo_claims(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ppc_project ON project_photo_claims(project_slug);
+CREATE INDEX IF NOT EXISTS idx_ppc_creator ON project_photo_claims(created_by_user_id);
+-- COALESCE(image_url, '') ŞART: SQLite'ta NULL'lar UNIQUE kısıtını hiç tetiklemez, yani projenin
+-- tamamı için açılmış (image_url NULL) talepler sınırsız tekrarlanabilirdi.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ppc_pending_unique
+  ON project_photo_claims(project_slug, COALESCE(image_url, ''), created_by_user_id)
+  WHERE status = 'pending';

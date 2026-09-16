@@ -927,7 +927,32 @@ const AuthModal = (function () {
     });
   }
 
+  // js/components/password-reveal.js — şifre kutusunun sağındaki göz işareti (kullanıcı isteği,
+  // 2026-09-16 ikinci tur madde 3). TEMBEL yüklenir: bu modül HER sayfada yüklü ve giriş pop-up'ı
+  // yalnızca kullanıcı açtığında basılıyor, yani script'i her sayfanın ilk yükünde taşımak
+  // karşılıksız bir istek olurdu (bkz. ensureInfoModalLoaded'daki AYNI desen ve AYNI onerror
+  // gerekçesi: yüklenemezse söz TEKRAR denenebilir kalmalı).
+  let passwordRevealLoad = null;
+  function ensurePasswordRevealLoaded() {
+    if (typeof PasswordReveal !== 'undefined') return Promise.resolve();
+    if (!passwordRevealLoad) {
+      passwordRevealLoad = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/js/components/password-reveal.js';
+        script.onload = () => resolve();
+        script.onerror = () => { script.remove(); passwordRevealLoad = null; reject(new Error('password-reveal yüklenemedi')); };
+        document.head.appendChild(script);
+      });
+    }
+    return passwordRevealLoad;
+  }
+
   function wireLogin() {
+    // Göz işareti: yüklenemezse kutu ESKİSİ GİBİ çalışmaya devam eder (yalnızca düğme olmaz) —
+    // giriş akışı buna bağlanmaz.
+    ensurePasswordRevealLoaded()
+      .then(() => PasswordReveal.wire(document.getElementById('am-login-password')))
+      .catch(() => {});
     document.getElementById('am-goto-signup').addEventListener('click', () => swap('signup'));
     document.getElementById('am-login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -3562,6 +3587,110 @@ const AuthModal = (function () {
         });
     }
 
+    // ---------- "FOTOĞRAF BANA AİT" ONAYI (kullanıcı isteği, 2026-09-16 ikinci tur madde 2) ----------
+    // Bir üye proje pop-up'ının lightbox'ında "Fotoğraf bana ait"e bastığında, projenin künyesindeki
+    // FİRMALARIN YÖNETİCİLERİNE + tüm adminlere `photo_claim` tipinde, link'i "photo-claim:<id>"
+    // olan bir bildirim düşer (bkz. src/routes/photoClaims.js#createClaim). O satıra tıklanınca
+    // burası açılır: talebi (proje, görsel, künyeye yazılacak ad) gösterir ve Onayla/Reddet sunar.
+    // Onaylanana kadar ad hiçbir yerde görünmez — karar yetkisi sunucuda AYRICA doğrulanır (bkz. o
+    // dosyadaki canDecide), buradaki buton yalnızca bir arayüz kolaylığıdır.
+    // Yukarıdaki openHotspotTagPrompt ile BİREBİR aynı desen (aynı overlay iskeleti, aynı
+    // Onayla/Reddet akışı, aynı hata metinleri) — iki onay pop-up'ı ayrışmasın.
+    function photoClaimIdFromLink(link) {
+      return link && link.startsWith('photo-claim:') ? link.slice('photo-claim:'.length) : null;
+    }
+    function openPhotoClaimPrompt(claimId) {
+      let ov = document.getElementById('am-photo-claim-prompt');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'am-photo-claim-prompt';
+        ov.className = 'profile-edit-overlay';
+        document.getElementById('am-panel').appendChild(ov);
+        ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+      }
+      ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px;">
+        <p style="font-size:13px; color:var(--ink-soft); margin:0;">Yükleniyor…</p></div>`;
+      ov.classList.add('open');
+      fetch(`/api/photo-claims/${encodeURIComponent(claimId)}`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('x')))
+        .then(data => {
+          const it = data.item;
+          const decided = it.status !== 'pending';
+          const statusText = it.status === 'approved' ? 'Bu talep onaylandı.'
+            : it.status === 'rejected' ? 'Bu talep reddedildi.' : '';
+          // Talep tek bir kareye bağlıysa o kare gösterilir — onay veren kişi HANGİ fotoğraf için
+          // karar verdiğini görmeden karar veremezdi. Talep projenin tamamı içinse (imageUrl boş,
+          // bkz. migrations/0122'deki image_url notu) gösterilecek tek bir kare yoktur.
+          const preview = it.imageUrl
+            ? `<div style="border-radius:12px; overflow:hidden; background:var(--paper-alt); margin:0 0 14px;">
+                <img src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.imageUrl, 640) : it.imageUrl)}" alt="" style="display:block; width:100%; height:auto;">
+              </div>`
+            : '';
+          ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px; max-height:82vh; overflow-y:auto;">
+            <h2 style="font-size:16px; font-weight:700; margin:0 0 10px;">Fotoğraf künyesi talebi</h2>
+            ${preview}
+            <p style="font-size:13px; line-height:1.6; margin:0 0 6px;">
+              Künyeye yazılacak ad: <b>${escapeHtml(it.claimedName || '')}</b>
+            </p>
+            ${it.project && it.project.credit ? `<p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;">Şu anki künye: ${escapeHtml(it.project.credit)}</p>` : ''}
+            <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 16px;">
+              ${escapeHtml(it.createdBy || 'Bir üye')}, ${it.project ? `“${escapeHtml(it.project.title)}”` : 'bir'} projesinin ${it.imageUrl ? 'bu fotoğrafının' : 'fotoğraflarının tamamının'} kendisine ait olduğunu bildirdi.
+              ${statusText ? escapeHtml(statusText) : 'Onaylarsan bu ad proje künyesinde ve büyütülmüş görselde görünür olur.'}
+            </p>
+            <p class="am-pc-msg" style="display:none; font-size:12.5px; margin:0 0 12px;"></p>
+            ${(!decided && data.canDecide) ? `<div style="display:flex; gap:10px;">
+              <button type="button" class="dash-edit-btn am-pc-approve" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Onayla</button>
+              <button type="button" class="dash-edit-btn am-pc-reject" style="margin-left:0;">Reddet</button>
+            </div>` : `<button type="button" class="dash-edit-btn am-pc-close" style="margin-left:0;">Kapat</button>`}
+          </div>`;
+          const msg = ov.querySelector('.am-pc-msg');
+          const closeBtn = ov.querySelector('.am-pc-close');
+          if (closeBtn) closeBtn.addEventListener('click', () => ov.classList.remove('open'));
+          const decide = async (approve, btn) => {
+            const buttons = ov.querySelectorAll('.dash-edit-btn');
+            buttons.forEach(b => { b.disabled = true; });
+            btn.textContent = approve ? 'Onaylanıyor…' : 'Reddediliyor…';
+            try {
+              const res = await fetch(`/api/photo-claims/${encodeURIComponent(claimId)}/decide`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approve }),
+              });
+              const out = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                msg.textContent = out.error || 'İşlem tamamlanamadı.';
+                msg.style.color = '#B84C4C';
+                msg.style.display = '';
+                buttons.forEach(b => { b.disabled = false; });
+                btn.textContent = approve ? 'Onayla' : 'Reddet';
+                return;
+              }
+              msg.textContent = approve
+                ? 'Onaylandı. Ad artık proje künyesinde görünüyor.'
+                : 'Talep reddedildi.';
+              msg.style.color = 'var(--walnut)';
+              msg.style.display = '';
+              btn.parentElement.remove();
+            } catch {
+              msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+              msg.style.color = '#B84C4C';
+              msg.style.display = '';
+              buttons.forEach(b => { b.disabled = false; });
+              btn.textContent = approve ? 'Onayla' : 'Reddet';
+            }
+          };
+          const yes = ov.querySelector('.am-pc-approve');
+          const no = ov.querySelector('.am-pc-reject');
+          if (yes) yes.addEventListener('click', () => decide(true, yes));
+          if (no) no.addEventListener('click', () => decide(false, no));
+        })
+        .catch(() => {
+          ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:420px;">
+            <p style="font-size:13px; margin:0 0 16px;">Bu talep kaydı bulunamadı — kaldırılmış olabilir.</p>
+            <button type="button" class="dash-edit-btn am-pc-close" style="margin-left:0;">Kapat</button></div>`;
+          ov.querySelector('.am-pc-close').addEventListener('click', () => ov.classList.remove('open'));
+        });
+    }
+
     // Bildirimden gelen /hesabim?dizin=1 bağlantısı — Hesabım açıldığında soruyu doğrudan sor.
     function maybeOpenDirectoryPrompt() {
       try {
@@ -5020,6 +5149,8 @@ const AuthModal = (function () {
       if (consultationId) return { run: () => ensureConsultationDetailModalLoaded().then(() => ConsultationDetailModal.open(consultationId)) };
       const hotspotTagId = hotspotTagIdFromLink(item.link);
       if (hotspotTagId) return { run: () => openHotspotTagPrompt(hotspotTagId) };
+      const photoClaimId = photoClaimIdFromLink(item.link);
+      if (photoClaimId) return { run: () => openPhotoClaimPrompt(photoClaimId) };
       if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) return { run: () => openDirectoryPrompt() };
       const infoView = NOTIF_INFO_VIEW[item.type];
       if (infoView) {

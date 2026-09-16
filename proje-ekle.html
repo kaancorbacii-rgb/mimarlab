@@ -349,6 +349,21 @@
     position:absolute; right:4px; bottom:4px; background:var(--accent); color:#fff;
     font-size:9px; font-weight:700; padding:2px 6px; border-radius:100px; pointer-events:none;
   }
+  /* ---------- GÖRSEL BAŞINA FOTOĞRAFÇI (kullanıcı isteği, 2026-09-16 ikinci tur madde 1) ----------
+     "Fotoğrafçı kısmına birden fazla fotoğrafçı yazıldıysa ... hangi fotoğrafı hangi fotoğrafçının
+     çektiği seçilebilsin." Menü YALNIZCA künyede İKİ ya da daha fazla ad varken çizilir (tek
+     fotoğrafçıda seçilecek bir şey yok, kutu yalnızca yer kaplardı — bkz. renderPreviews).
+     Kapak rozeti (sol alt) ve işaretçi sayacı (sağ alt) 4px'te durduğundan menü onların ÜSTÜNE,
+     26px'e konur — üçü aynı hizada olsaydı üst üste binerlerdi. */
+  .image-preview-item .image-credit{
+    position:absolute; left:4px; right:4px; bottom:26px;
+    height:22px; box-sizing:border-box; padding:0 4px;
+    font-family:inherit; font-size:10px; font-weight:600; line-height:1;
+    color:#fff; background:rgba(27,42,61,0.82); border:none; border-radius:6px;
+    cursor:pointer; appearance:none; -webkit-appearance:none;
+  }
+  .image-preview-item .image-credit:hover{background:var(--ink);}
+  .image-preview-item .image-credit option{color:var(--ink); background:var(--paper-card);}
   .hs-overlay{
     display:none; position:fixed; inset:0; z-index:300; background:rgba(15,19,26,0.9);
     align-items:center; justify-content:center; padding:24px;
@@ -1623,11 +1638,16 @@ function mediaItemSrc(item){
 // migrations/0076_project_image_hotspots.sql) — düzenleme modunda API'den geldiği gibi geçirilir,
 // yeni/AI akışında hiç verilmez. mediaItems'ta her görselin işaretçileri KENDİ öğesinde taşınır ki
 // sürükle-bırak sıralaması onları da beraberinde götürsün.
-function setExistingImages(urls, hotspotsByUrl){
+function setExistingImages(urls, hotspotsByUrl, creditsByUrl){
   mediaItems.forEach(item => { if(item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
   const hs = hotspotsByUrl || {};
+  // creditsByUrl: görsel başına fotoğrafçı adı (bkz. migrations/0122_project_image_credits.sql).
+  // hotspotsByUrl ile AYNI gerekçeyle mediaItems'ta her görselin KENDİ öğesinde taşınır —
+  // sürükle-bırak sıralaması onu da beraberinde götürsün (URL anahtarlaması tam bunun içindir).
+  const cr = creditsByUrl || {};
   mediaItems = (urls || []).map(url => ({
     key: 'm' + (mediaKeySeq++), kind:'existing', url,
+    credit: typeof cr[url] === 'string' ? cr[url] : '',
     // API zenginleştirilmiş nesneler döner (marka/görsel dahil, bkz. src/routes/project.js#
     // enrichImageHotspots) — formda yalnızca konum + slug + başlık gerekiyor, gerisi atılır.
     // brand: yalnızca GET /api/project/:slug'ın zenginleştirdiği veride var (bkz. src/routes/
@@ -1637,13 +1657,52 @@ function setExistingImages(urls, hotspotsByUrl){
   }));
 }
 
+// Künyeye yazılmış fotoğrafçı adları — TEK kaynak #p-credit-text'in virgüllü değeridir (kutunun
+// KENDİ iç durumu DEĞİL: gönderim, prefill ve AI yolları hep o gizli input'u okuyup yazıyor, bkz.
+// o kutunun HTML notu). foldTrLocal ile tekilleştirilir — sitenin her yerindeki "aynı ad" tanımı
+// (bkz. CLAUDE.md "Bir projede aynı ad künyeye İKİ KEZ yazılamaz").
+function photographerNames(){
+  const raw = (document.getElementById('p-credit-text').value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for(const n of raw){
+    const k = foldTrLocal(n);
+    if(!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(n);
+  }
+  return out;
+}
+
+// Künyeden çıkarılmış bir ada bağlı kalan seçimleri temizler. ŞART: kullanıcı bir fotoğrafçıyı
+// kutudan silerse o ad künyede artık yok, ama mediaItems'ta kalan seçim kaydedilmeye devam eder ve
+// lightbox sitede HİÇ YAZMAYAN bir adı gösterirdi. Eşleşme foldTrLocal ile (yazım farkı seçimi
+// sessizce düşürmesin).
+function pruneImageCredits(){
+  const allowed = new Set(photographerNames().map(foldTrLocal));
+  mediaItems.forEach(item => {
+    if(item.credit && !allowed.has(foldTrLocal(item.credit))) item.credit = '';
+  });
+}
+
 function renderPreviews(){
+  // Menü yalnızca İKİ ya da daha fazla fotoğrafçı varken çizilir (bkz. .image-credit CSS notu):
+  // tek fotoğrafçıda tüm kareler zaten ona ait, seçilecek bir şey yok.
+  const creditOptions = photographerNames();
+  const showCredit = creditOptions.length > 1;
   previewGrid.innerHTML = mediaItems.map((item, i) => {
     const isCover = i === 0;
     const isLast = i === mediaItems.length - 1;
     const hsCount = (item.hotspots || []).length;
+    const creditSelect = showCredit
+      ? `<select class="image-credit" data-credit-index="${i}" aria-label="Bu fotoğrafın fotoğrafçısı">
+          <option value=""${item.credit ? '' : ' selected'}>Fotoğrafçı: tümü</option>
+          ${creditOptions.map(n => `<option value="${escapeAttr(n)}"${foldTrLocal(n) === foldTrLocal(item.credit || '') ? ' selected' : ''}>${escapeAttr(n)}</option>`).join('')}
+        </select>`
+      : '';
     return `<div class="image-preview-item" data-key="${escapeAttr(item.key)}">
       <img src="${escapeAttr(mediaItemSrc(item))}" alt="">
+      ${creditSelect}
       <button type="button" class="image-move-btn image-move-left" data-move-index="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
       <button type="button" class="image-move-btn image-move-right" data-move-index="${i}" data-dir="1" aria-label="Sağa taşı"${isLast ? ' disabled' : ''}>›</button>
       ${isCover ? '<span class="cover-badge">Kapak</span>' : `<button type="button" class="cover-set-btn" data-cover-index="${i}">Kapak Yap</button>`}
@@ -1678,7 +1737,28 @@ function renderPreviews(){
       renderPreviews();
     });
   });
+  // Fotoğrafçı menüsü: seçim doğrudan mediaItems'a yazılır ve renderPreviews TEKRAR ÇAĞRILMAZ —
+  // aksi halde açık menü kapanır, odak kaybolur ve kullanıcı her seçimde ızgaranın yeniden
+  // basılmasını görürdü. Değer yalnızca <option>'ın kendi 'selected' işareti olarak değişiyor,
+  // yani DOM ile mediaItems zaten senkron kalır.
+  previewGrid.querySelectorAll('[data-credit-index]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const i = parseInt(sel.dataset.creditIndex);
+      if(mediaItems[i]) mediaItems[i].credit = sel.value || '';
+    });
+  });
 }
+
+// Fotoğrafçı kutusu her değiştiğinde menüler yeniden kurulur: kutu artık gizli bir input +
+// office-picker paneli olduğundan değer her yazıldığında 'input' olayı YAYILIR (bkz.
+// office-picker.js#pushToInput — programatik `.value =` atamasının hiçbir olay tetiklememesi
+// tuzağı orada kapatıldı). Prefill yolları bu olayı tetiklemez (değer aynıysa pushToInput erken
+// döner) ama onların hepsi #p-credit-text'i yazdıktan SONRA renderPreviews() çağırıyor, yani menü
+// oradan da doğru kurulur.
+document.getElementById('p-credit-text').addEventListener('input', ()=>{
+  pruneImageCredits();
+  renderPreviews();
+});
 
 // Basılı tutup sürükleyerek sıralama (bkz. kullanıcı isteği: "görseller üzerlerine basılı tutulup
 // kaydırılarak da sıraları değiştirilebilsin") — sol/sağ ok butonları (yukarısı) korunur, bu sadece
@@ -1705,7 +1785,10 @@ previewGrid.addEventListener('pointerdown', (e)=>{
   // sürükleme sonrası beklenen click hiç gelmezse (ör. pointercancel) bayrak takılı kalıp sonraki
   // GERÇEK tıklamayı yutardı.
   dragJustFinished = false;
-  if(e.target.closest('button')) return;
+  // select de muaf: fotoğrafçı menüsü (bkz. renderPreviews) bir <button> DEĞİL, bu yüzden eski
+  // `closest('button')` koruması onu yakalamıyordu — menüye basmak basılı-tutma sayacını
+  // başlatıyor ve kutucuk sürüklenmeye başlıyordu.
+  if(e.target.closest('button, select')) return;
   const tile = e.target.closest('.image-preview-item');
   if(!tile) return;
   clearDragPending();
@@ -2043,7 +2126,9 @@ function closeHotspotEditor(){
 
 previewGrid.addEventListener('click', (e)=>{
   if(dragJustFinished){ dragJustFinished = false; return; }
-  if(e.target.closest('button')) return;
+  // select de muaf (bkz. pointerdown'daki AYNI gerekçe): menüye tıklamak, görselin işaretleme
+  // editörünü AÇMAMALI.
+  if(e.target.closest('button, select')) return;
   const tile = e.target.closest('.image-preview-item');
   if(!tile) return;
   const idx = [...previewGrid.children].indexOf(tile);
@@ -2156,7 +2241,10 @@ document.getElementById('hs-crop').addEventListener('click', async ()=>{
   const i = mediaItems.indexOf(item);
   if(i < 0) return;
   if(item.objectUrl) URL.revokeObjectURL(item.objectUrl);
-  mediaItems[i] = { key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file), hotspots: item.hotspots || [] };
+  // credit: KIRPMA GÖRSELİN KENDİSİNİ DEĞİL PİKSELLERİNİ değiştirir — fotoğrafçısı aynı kişidir,
+  // yani hotspots ile AYNI gerekçeyle taşınır (aksi halde kırpan kullanıcı seçimini sessizce
+  // kaybederdi).
+  mediaItems[i] = { key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file), hotspots: item.hotspots || [], credit: item.credit || '' };
   renderPreviews();
   showHotspotImage(i);
 });
@@ -2329,8 +2417,9 @@ async function prefillForEdit(){
     updateOdulLabel();
     brandChips = (item.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
     renderBrandChips();
-    // item.imageHotspots: bu taslağın kendi kaydettiği işaretçiler (bkz. parseSubmissionRow#objectFields).
-    setExistingImages(item.images || [], item.imageHotspots || {});
+    // item.imageHotspots / item.imageCredits: bu taslağın kendi kaydettiği işaretçiler ve görsel
+    // başına fotoğrafçı seçimleri (bkz. parseSubmissionRow#objectFields — ikisi de objectFields).
+    setExistingImages(item.images || [], item.imageHotspots || {}, item.imageCredits || {});
     renderPreviews();
     mountProjectAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -2436,7 +2525,8 @@ async function prefillForClaim(){
   renderBrandChips();
   // merged.imageHotspots: GET /api/project/:slug'ın zenginleştirilmiş hâli (bkz. src/routes/
   // project.js#enrichImageHotspots) — setExistingImages yalnızca x/y/slug/title'ı alır.
-  setExistingImages(merged.images || [], merged.imageHotspots || {});
+  // merged.imageCredits: projects.image_credits olduğu gibi (bkz. projectPool.js#shapeProjectItem).
+  setExistingImages(merged.images || [], merged.imageHotspots || {}, merged.imageCredits || {});
   renderPreviews();
   mountProjectAdminActions();
 }
@@ -2846,6 +2936,25 @@ function collectImageHotspots(){
   return out;
 }
 
+// Görsel başına fotoğrafçının sunucuya gidecek hâli: { <nihai görsel url>: 'Ad' } (bkz.
+// migrations/0122_project_image_credits.sql). collectImageHotspots ile AYNI sözleşme — YALNIZCA
+// collectImages()'tan SONRA çağrılabilir, çünkü yeni yüklenen görsellerin url'i o çağrıdan önce
+// henüz yok.
+//
+// KÜNYEDEN DÜŞMÜŞ AD GÖNDERİLMEZ: pruneImageCredits kutu değiştiğinde bunu zaten yapıyor, ama
+// kaydetme yolu o olaydan bağımsız çalışabilir (ör. prefill sonrası kutu hiç dokunulmadan
+// künyeden ad silinmişse) — bu yüzden süzgeç burada BİR DAHA uygulanır.
+function collectImageCredits(){
+  const allowed = new Set(photographerNames().map(foldTrLocal));
+  const out = {};
+  for(const item of mediaItems){
+    if(!item.finalUrl || !item.credit) continue;
+    if(!allowed.has(foldTrLocal(item.credit))) continue;
+    out[item.finalUrl] = item.credit;
+  }
+  return out;
+}
+
 document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
@@ -2947,6 +3056,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     images,
     // bkz. collectImageHotspots — collectImages()'tan SONRA çağrılmalı (nihai url'lere ihtiyaç var).
     imageHotspots: collectImageHotspots(),
+    imageCredits: collectImageCredits(),
   };
   // Yalnızca admin'e görünen alan (bkz. yukarıdaki meReady#p-publish-date-row) — sunucu tarafı da
   // admin olmayan gönderen için bunu ayrıca siler (bkz. src/routes/submissions.js), currentUserRole

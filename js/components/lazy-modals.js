@@ -226,6 +226,9 @@
       //   rating-widget.js — mountRateButton (typeof ile korunur; Puanla düğmesi için).
       //   image-hotspots.js + hotspot-tagger.js + gallery.js — galeri/lightbox/ürün işaretçileri
       //     (gallery.js ikisini KORUMASIZ kullanır).
+      //   photo-claim.js — lightbox'taki "Fotoğraf bana ait" formu (kullanıcı isteği, 2026-09-16
+      //     ikinci tur madde 2). gallery.js onu `typeof` ile KORUR, ama yüklenmezse buton görünür
+      //     ve basıldığında sessizce hiçbir şey yapmazdı — hotspot-tagger.js ile AYNI gerekçe.
       //   project-gallery/meta/actions/comments/related/products — ProjectModal.renderItem'ın
       //     KORUMASIZ çağırdığı bölüm modülleri (ProjectGallery.render vb.).
       //   analytics-beacon.js — görüntülenme sayacı (window.MimarlabAnalytics, korunur).
@@ -233,6 +236,7 @@
       //     (ProductModal zaten kendi deps'inde de listeler; burada olması zararsız tekilleşir).
       deps: [...ENTITY_UI_DEPS, 'il-ilce-data.js', 'rating-widget.js', 'js/components/image-hotspots.js',
         'js/components/gallery.js', 'js/components/project-gallery.js', 'js/components/hotspot-tagger.js',
+        'js/components/photo-claim.js',
         'js/components/project-meta.js', 'js/components/project-actions.js', 'js/components/project-comments.js',
         'js/analytics-beacon.js', 'js/components/image-lightbox.js', 'js/components/project-related.js',
         'js/components/project-products.js', 'js/components/product-variants.js'],

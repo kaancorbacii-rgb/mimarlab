@@ -1247,6 +1247,13 @@ async function syncProject(env, row, opts = {}) {
   // korunuyor, ikisi birlikte dokunulmadan kalır.
   const imageHotspots = row.imageHotspots && Object.keys(row.imageHotspots).length
     ? JSON.stringify(row.imageHotspots) : null;
+  // Görsel başına fotoğrafçı (bkz. migrations/0122_project_image_credits.sql). imageHotspots ile
+  // BİREBİR AYNI koşulda (images = ? ile birlikte) yazılır ve AYNI iki gerekçe geçerli: anahtar
+  // görsel URL'si olduğundan görsel listesi güncellenmeden anahtarlar anlamsız kalır, ve images'i
+  // hiç göndermeyen çağıranlar (admin panelinin kısa düzenleme formu, AI akışı) mevcut eşlemeyi
+  // sessizce SİLMEMELİ.
+  const imageCredits = row.imageCredits && Object.keys(row.imageCredits).length
+    ? JSON.stringify(row.imageCredits) : null;
   // publishDate: yalnızca admin tarafından yazılabilir (bkz. src/routes/submissions.js'teki AYNI
   // rol kontrolü, kullanıcı isteği: "yalnızca admin proje ekle/düzenle sayfasından proje
   // gönderilerinin yayınlanma tarihlerini değiştirebilsin"). "YYYY-MM-DD" tarih girişi, created_at
@@ -1300,6 +1307,10 @@ async function syncProject(env, row, opts = {}) {
       // işaretçiyi de silmişse burada NULL yazılır (aksi halde silinen bir işaretçi geri gelirdi).
       sets.splice(-1, 0, 'image_hotspots = ?');
       vals.push(imageHotspots);
+      // bkz. yukarısı — görsel başına fotoğrafçı da AYNI koşulda yazılır. Kullanıcı son seçimi de
+      // temizlemişse burada NULL yazılır (aksi halde kaldırılan bir eşleme geri gelirdi).
+      sets.splice(-1, 0, 'image_credits = ?');
+      vals.push(imageCredits);
     }
     // Başlık değiştiyse slug da değişir (bkz. kullanıcı isteği: "ismi değişirse URL'si de değişmeli"
     // — mimar/firma yeniden adlandırmasında zaten var olan davranışın proje karşılığı, bkz.
@@ -1335,11 +1346,11 @@ async function syncProject(env, row, opts = {}) {
     // "bu proje ne zaman yayınlandı" demektir — damga onu ezip admin'in seçtiği sırayı bozardı.
     const relistNew = opts.publish !== false && !publishDate;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, image_hotspots, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, relisted_at, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${relistNew ? NOW_ISO_SQL : 'NULL'}, 'submission', ?, ?)`
+      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, image_hotspots, image_credits, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, relisted_at, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${relistNew ? NOW_ISO_SQL : 'NULL'}, 'submission', ?, ?)`
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
-      row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images, imageHotspots,
+      row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images, imageHotspots, imageCredits,
       row.photoCreditText || null, photoCreditUrl || null, sourceUrl || null, row.ai_generated ? 1 : 0,
       row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
       row.lat ?? null, row.lng ?? null,
