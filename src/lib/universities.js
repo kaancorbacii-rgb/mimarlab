@@ -29,6 +29,28 @@ export function canonicalSchoolName(name) {
   return SCHOOL_ALIASES[s] || s;
 }
 
+// ÇOKLU ÜNİVERSİTE (kullanıcı isteği, 2026-09-16 altıncı tur madde 4: "Kişi ekle sayfasındaki
+// üniversiteler de çoktan seçmeli olsun. Kişi isterse birden fazla seçebilsin").
+// architects.school ŞEMA OLARAK DEĞİŞMEDİ — tek bir TEXT kolon, çoklu değer virgülle ayrılır.
+// Bu, bu depoda zaten kullanılan biçimdir: architects.profession ("Mimar, Fotoğrafçı") ve
+// architect_submissions.office aynı şekilde taşınır ve okuyan her yüzey parçalarına ayırır. Tek
+// değerli ESKİ satırlar bu biçimin geçerli bir örneğidir, yani veri taşıması GEREKMEDİ.
+// Her parça canonicalSchoolName'den geçer (yanlış yazımlar filtrede ayrı seçenek olmasın) ve
+// tekilleştirme büyük/küçük harf duyarsız yapılır (Türkçe locale) — ilk yazım korunur.
+export function schoolNameList(raw) {
+  const out = [];
+  const seen = new Set();
+  for (const part of String(raw || '').split(',')) {
+    const name = canonicalSchoolName(part);
+    if (!name) continue;
+    const key = name.toLocaleLowerCase('tr');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 export const TR_UNIVERSITIES = [
 
   // ---- Devlet üniversiteleri ----

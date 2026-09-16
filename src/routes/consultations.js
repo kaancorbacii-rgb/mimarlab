@@ -15,7 +15,7 @@ import { isValidTcKimlik, normalizeGsm } from '../lib/iyzicoBuyer.js';
 // zincirinde (office.js/auth.js) payments.js yoktur.
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
-import { canonicalSchoolName } from '../lib/universities.js';
+import { schoolNameList } from '../lib/universities.js';
 import { positionOf, professionLabelList } from './architect.js';
 // DANIŞMAN KADROSU ARTIK D1'DE (kullanıcı isteği, 2026-09-15) — bkz. src/lib/consultants.js.
 import {
@@ -261,7 +261,10 @@ export async function fetchConsultantList(env) {
       position: positionOf(a.position),
       positionRaw: a.position || null,
       professions: professionLabelList(a.profession),
-      school: canonicalSchoolName(a.school) || null,
+      // ÇOKLU ÜNİVERSİTE (2026-09-16 altıncı tur madde 4) — kişi havuzuyla AYNI şekil
+      // (bkz. src/routes/architect.js#fetchArchitectPool). /danismanlik sayfasının Üniversite
+      // filtresi bu diziyi okur; tek okullu eski kayıtlar tek elemanlı dizi olur.
+      schools: schoolNameList(a.school),
       // Kişi kartındakiyle AYNI birleşim (kendi ödülleri + bağlı firmanın ödülleri) — bkz.
       // src/routes/architect.js#fetchArchitectPool.
       awards: [...new Set([...ownAwards, ...officeAwards])],

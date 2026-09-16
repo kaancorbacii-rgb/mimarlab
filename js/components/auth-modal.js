@@ -111,11 +111,10 @@ const AuthModal = (function () {
     }
     #am-panel .am-check-group label{display:flex; align-items:center; gap:6px; margin:0; font-size:13px; font-weight:500; cursor:pointer;}
     #am-panel .am-check-group input{width:auto; margin:0; padding:0;}
-    #am-panel .auth-field.ac-field{position:relative;}
-    #am-panel .ac-suggestions{display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25; background:var(--paper-card); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;}
-    #am-panel .ac-suggestions.show{display:block;}
-    #am-panel .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
-    #am-panel .ac-suggestion:hover, #am-panel .ac-suggestion.active{background:var(--paper-alt);}
+    /* .ac-* KURALLARI KALDIRILDI (2026-09-16 altıncı tur madde 4): bu pop-up'taki son otomatik
+       tamamlama kutusu (kişi formundaki Üniversite) çoklu seçim paneline geçti ve panel kendi
+       .op-* stillerini getiriyor (bkz. office-picker.js#injectStyles). kisi-ekle.html'de yapılan
+       AYNI temizlik. */
     #am-panel .auth-check{display:flex; align-items:flex-start; gap:9px; margin-bottom:14px; font-size:12.5px; line-height:1.55; color:var(--ink-soft);}
     #am-panel .auth-check input{width:16px; height:16px; margin-top:1px; flex-shrink:0; accent-color:var(--walnut);}
     #am-panel .auth-check a{color:var(--walnut); font-weight:600;}
@@ -1352,10 +1351,15 @@ const AuthModal = (function () {
               <option value="">Seç... (opsiyonel)</option>
             </select>
           </div>
-          <div class="auth-field ac-field" id="am-edit-school-field" style="margin-bottom:0;">
+          <!-- ÜNİVERSİTE ÇOKTAN SEÇMELİ (kullanıcı isteği, 2026-09-16 altıncı tur madde 4).
+               kisi-ekle.html'deki AYNI kutu ve AYNI bileşen (office-picker.js#createSchoolPicker) —
+               bu iki yüzey AYNI kişi kaydını besliyor, ayrışmamaları gerekir (bkz. Firma kutusunun
+               hemen aşağıdaki AYNI gerekçesi). Gizli input #am-edit-school KORUNUR: kaydetme
+               (am-dash-save-btn) ve prefill yolları onun değerini okumaya/yazmaya devam eder. -->
+          <div class="auth-field" id="am-edit-school-field" style="margin-bottom:0;">
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Üniversite</label>
-            <input type="text" id="am-edit-school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
-            <div class="ac-suggestions" id="am-edit-school-suggestions"></div>
+            <input type="hidden" id="am-edit-school">
+            <div id="am-edit-school-picker"></div>
           </div>
           <div>
             <label id="am-edit-profession-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek * <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
@@ -1897,6 +1901,11 @@ const AuthModal = (function () {
                  item_type='gundem' ile yazılıyor (bkz. src/routes/saved.js#ITEM_TYPES), yani filtre
                  mantığında (colMatchesCatalogFilter) hiçbir değişiklik gerekmedi. -->
             <button type="button" class="saved-filter-btn" data-filter="gundem">Gündem</button>
+            <!-- Görsel (kullanıcı isteği, 2026-09-16 altıncı tur madde 7: "Kaydettiklerim kısımında
+                 Görsel diye filtre butonu aç ve kaydedilen görseller burada gözüksün"). Lightbox'tan
+                 kaydedilen kareler saved_items'a item_type='image' ile yazılıyor, yani filtre
+                 mantığında (colMatchesCatalogFilter) değişiklik GEREKMEDİ — Gündem'deki AYNI desen. -->
+            <button type="button" class="saved-filter-btn" data-filter="image">Görsel</button>
           </div>
           <div id="am-col-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-col-saved-pagination"></div>
@@ -2146,7 +2155,10 @@ const AuthModal = (function () {
   // istemcide türetilen görüntüleme tipi (bkz. mountCollections#loadFollowFeed).
   // 'brand' ARTIK ÜRETİLMİYOR (kullanıcı isteği, 2026-09-14 madde 4 — marka kavramı kaldırıldı,
   // her ofis satırı 'office' tipinde geliyor); anahtar listeden çıkarıldı.
-  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', gundem: 'Gündem' };
+  // 'image' — lightbox'tan kaydedilen GÖRSELLER (kullanıcı isteği, 2026-09-16 altıncı tur madde 7;
+  // bkz. src/routes/saved.js#ITEM_TYPES). Pano öğelerinde ZATEN 'Görsel' etiketi vardı (kind ===
+  // 'image', panoya elle eklenen serbest görsel) — bu, saved_items tarafındaki karşılığı.
+  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', gundem: 'Gündem', image: 'Görsel' };
   // Paylaştıklarım satırının alt metnindeki kanal etiketi — js/components/share-button.js'in
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
@@ -2651,34 +2663,17 @@ const AuthModal = (function () {
     // önizleme BUNDAN BAĞIMSIZDI ve durur: o kutu kişi künyesinin fotoğrafını gösterir, bkz.
     // renderPersonEditAvatar.)
 
-    // Üniversite otomatik tamamlama — kişi künyesi formundaki Üniversite kutusuna canlı öneri
-    // (kaynak: /api/architects/schools). Üye Ol formunda ARTIK yok (bkz. kullanıcı isteği,
-    // 2026-09-14 madde 1: üniversite kutusu hesap kaydından kaldırıldı).
-    (function wireAmEditSchoolAutocomplete(){
-      const input = document.getElementById('am-edit-school');
-      const box = document.getElementById('am-edit-school-suggestions');
-      let items = [];
-      fetch('/api/architects/schools').then(r => r.ok ? r.json() : { items: [] }).then(d => { items = d.items || []; }).catch(() => {});
-      function closeBox() { box.classList.remove('show'); box.innerHTML = ''; }
-      function renderBox() {
-        const q = trLower(input.value.trim());
-        if (!q) { closeBox(); return; }
-        // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili
-        // olanlar çıksın") — liste artık Türkiye'deki tüm üniversiteleri taşıdığından (bkz.
-        // /api/architects/schools) saf "içinde geçiyor mu" sıralaması "Yıldız" yazan birine önce
-        // "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler atılmaz, arkaya alınır.
-        const starts = items.filter(it => trLower(it).startsWith(q));
-        const matches = starts.concat(items.filter(it => !trLower(it).startsWith(q) && trLower(it).includes(q))).slice(0, 8);
-        if (!matches.length) { closeBox(); return; }
-        box.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeHtml(it)}</div>`).join('');
-        box.classList.add('show');
-        box.querySelectorAll('.ac-suggestion').forEach((el, i) => {
-          el.addEventListener('mousedown', (e) => { e.preventDefault(); input.value = matches[i]; closeBox(); });
-        });
-      }
-      input.addEventListener('input', renderBox);
-      input.addEventListener('focus', renderBox);
-      input.addEventListener('blur', () => setTimeout(closeBox, 150));
+    // ÜNİVERSİTE KUTUSU — çoklu seçim + elle yazma (kullanıcı isteği, 2026-09-16 altıncı tur
+    // madde 4). Eski tek satırlık otomatik tamamlama (wireAmEditSchoolAutocomplete) KALDIRILDI:
+    // kaynak liste AYNI uçtan geliyor (/api/architects/schools), yalnızca arayüz kisi-ekle.html
+    // ile aynı bileşene geçti. Kutu bulunamazsa (bu modül office-picker.js olmadan doğrudan bir
+    // <script> ile yüklenmişse) form geri kalanı çalışmaya devam eder — Firma kutusundaki AYNI
+    // korumalı kontrol.
+    let schoolPicker = null;
+    (function wireAmEditSchoolPicker(){
+      const mount = document.getElementById('am-edit-school-picker');
+      if (!mount || typeof createSchoolPicker === 'undefined') return;
+      schoolPicker = createSchoolPicker(mount, { input: document.getElementById('am-edit-school') });
     })();
 
     // opts.shared: yalnızca İLK mount'ta (bkz. aşağıdaki loadUser({ shared: true })) sayfa açılışındaki
@@ -3427,6 +3422,9 @@ const AuthModal = (function () {
       ensureDobYearOptions();
       document.getElementById('am-edit-dob').value = rec && rec.dob ? String(rec.dob).slice(0, 4) : '';
       document.getElementById('am-edit-school').value = (rec && rec.school) || '';
+      // Gizli input'a programatik yazma kutuyu kendiliğinden güncellemez (bkz. office-picker.js#
+      // pushToInput notu) — sözleşme gereği yazan HER nokta kutuyu senkronlar.
+      if (schoolPicker) schoolPicker.syncFromInput();
       // Pop-up'taki meslek onay kutuları SLUG ile çalışır, kişi kaydı ETİKET taşır — çeviri
       // profession-shared.js'in tek kaynağından yapılır (bkz. PROFESSION_LABELS).
       setProfessionChecks('am-edit-profession', professionSlugsFromLabels(rec && rec.profession));
@@ -4010,7 +4008,9 @@ const AuthModal = (function () {
       const awards = awardsDropdown ? awardsDropdown.getChecked() : [];
       const about = document.getElementById('am-edit-about').value;
       const socialLinks = collectAmSocialLinks();
-      if (isInvalidSchoolValue(school)) { msg.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; return; }
+      // Kutu artık ÇOKLU (virgüllü) — kural her PARÇA için ayrı ayrı uygulanır (kisi-ekle.html'deki
+      // AYNI kontrol), aksi halde "Yıldız Teknik Üniversitesi, YTÜ" toplamda geçerli sayılırdı.
+      if (school.split(',').map(v => v.trim()).filter(Boolean).some(isInvalidSchoolValue)) { msg.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; return; }
       // Kullanıcı isteği (2026-09-02): meslek artık ZORUNLU (kisi-ekle.html ile aynı kural).
       if (!profession) { msg.textContent = 'Meslek seçmelisin.'; return; }
       // Profili YAYIMLAMAK (kişi dizininde görünmek) için ek zorunlu alanlar — kullanıcı isteği

@@ -70,6 +70,29 @@ function injectGalleryBarStyles(){
       padding:5px 10px; border-radius:6px; max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
     .lightbox.grid-mode .lightbox-credit{display:none;}
+    /* "KAYDET" — sag ust kosedeki butonlarin SOLUNDA (kullanici istegi, 2026-09-16 altinci tur
+       madde 7: "Proje ve urun lightboxlarinda sag ustteki butonlarin sol yanlarina kaydet butonu
+       da ekle"). Olculer .lightbox-close/.lightbox-grid-toggle ile AYNI (top:24px, 31px yuksek);
+       o ikisi sayfa CSS'inde right:32px ve right:78px tasiyor, bu yuzden ucuncu yuva right:124px.
+       Sinif card-save-btn DEGIL (bkz. save-widget.js#wireSaveButton notu): o sinifin sayfa
+       CSS'lerindeki kart kurallari (position:absolute; top:10px; right:10px) burayi bozardi.
+       Renk .lightbox-close ile ayni: var(--paper), opacity 0.8. Kaydedilmis durumda dolu ikon +
+       tam opaklik — izgara kartlarindaki .card-save-btn.saved ile ayni gorsel dil. */
+    .lightbox .lightbox-save-btn{
+      position:absolute; top:24px; right:124px; z-index:2;
+      /* KUTU, .lightbox-close/.lightbox-grid-toggle ile BİREBİR AYNI: 38x31 ve 8px'lik aralık
+         (olculdu: close right:32..70, grid 78..116, kaydet 124..162). Yalnizca top'u eslemek
+         YETMEZDI — ikon-only bir dugme 20px yuksek kalir ve merkezi ~5px yukari kayardi
+         (2026-09-16 besinci turda .lightbox-tag-btn'de olculen AYNI tuzak). */
+      width:38px; height:31px; box-sizing:border-box; padding:0; margin:0;
+      display:inline-flex; align-items:center; justify-content:center;
+      background:none; border:none;
+      color:var(--paper); opacity:0.8; cursor:pointer;
+    }
+    .lightbox .lightbox-save-btn:hover{opacity:1;}
+    .lightbox .lightbox-save-btn.saved{opacity:1;}
+    .lightbox .lightbox-save-btn.saved svg{fill:currentColor;}
+    .lightbox.grid-mode .lightbox-save-btn{display:none;}
     /* Kilitli (önizleme) galeri: küçük resimler tıklanabilir görünmesin. */
     .gallery-locked a.gallery-item{cursor:default;}
     .lightbox-tag-btn.is-locked{display:none !important;}
@@ -166,6 +189,11 @@ function initDetailGallery(opts){
   // mevcut projelerin görünümünü DEĞİŞMEDEN bırakan tek davranış — eşleme kısmen doldurulmuş bir
   // projede de seçilmemiş kareler künyenin tamamını göstermeye devam eder, boş kalmaz.
   const creditsByUrl = (opts && opts.credits) || {};
+  // saveTarget (kullanici istegi, 2026-09-16 altinci tur madde 7): lightbox'ta GORSELIN KENDISINI
+  // kaydetme. { title, href } — kaydedilen satirin basligi ve "tikladiginda nereye gider" adresi;
+  // kaydin ANAHTARI ise gorselin kendi url'sidir (bkz. paintSaveBtnForImage). Alan verilmezse
+  // buton hic olusmaz, yani bu opts'u gecmeyen cagiranlar (bugun yok) eskisi gibi calisir.
+  const saveTarget = (opts && opts.saveTarget) || null;
 
   const galleryEl = document.getElementById(ids.gallery || 'detail-gallery');
   const galleryPrevBtn = document.getElementById(ids.galleryPrev || 'gallery-prev');
@@ -192,6 +220,32 @@ function initDetailGallery(opts){
     lightboxGridToggle.className = 'lightbox-grid-toggle';
     lightbox.insertBefore(lightboxGridToggle, lightboxClose || lightbox.firstChild);
   }
+  // ---------- "KAYDET" (madde 7) ----------
+  // Sag ust kosedeki X ve "Tumunu Gor"un SOLUNDA ucuncu bir yuva. Element lightbox'in DOGRUDAN
+  // cocugu (alt cubugun degil): alt cubuk izgara modunda gizlenir ve konumlandirmasi tamamen
+  // farklidir; ayrica bu buton kavramsal olarak o iki ikon butonun kardesidir.
+  // Kalicidir (lightbox gibi) — sonraki initDetailGallery cagrilarinda yeniden yaratilmaz, yalnizca
+  // dataset'i tazelenir (bkz. paintSaveBtnForImage).
+  let lightboxSaveBtn = lightbox.querySelector('.lightbox-save-btn');
+  if(!lightboxSaveBtn){
+    injectGalleryBarStyles();
+    lightboxSaveBtn = document.createElement('button');
+    lightboxSaveBtn.type = 'button';
+    lightboxSaveBtn.className = 'lightbox-save-btn';
+    lightboxSaveBtn.setAttribute('aria-label', 'Kaydet');
+    // Izgara kartlarindaki Kaydet ikonuyla AYNI yer imi (bkz. index.html#FORYOU_SAVE_ICON).
+    lightboxSaveBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
+    // HEDEF SECICI (Kaydedilenler / Pano) — proje ve urun pop-up'larinin basligindaki Kaydet
+    // butonuyla AYNI akis (bkz. save-widget.js#openSaveChooser, kullanici istegi: "aynı diğer
+    // sayfalardaki kaydet butonu gibi popup açılsın ve ... Panolarıma mı Kaydettiklerime mi
+    // kaydedilsin diye sorsun").
+    lightboxSaveBtn.dataset.saveChooser = '1';
+    lightboxSaveBtn.dataset.type = 'image';
+    lightbox.insertBefore(lightboxSaveBtn, lightboxGridToggle);
+  }
+  // Kilitli (onizleme) galeride lightbox zaten acilmaz; saveTarget yoksa buton anlamsizdir.
+  lightboxSaveBtn.style.display = (saveTarget && !locked) ? '' : 'none';
+
   let lightboxGrid = lightbox.querySelector('.lightbox-grid');
   if(!lightboxGrid){
     lightboxGrid = document.createElement('div');
@@ -271,6 +325,7 @@ function initDetailGallery(opts){
   state.locked = locked;
   state.credit = credit;
   state.credits = creditsByUrl;
+  state.saveTarget = saveTarget;
   // Fotoğraf kredisi etiketi — lightbox DOM'unda kalıcı, metni showLightboxImage her görselde
   // (state'ten) tazeler. Kilitli galeride lightbox zaten açılmaz, etiket önemsizdir.
   let creditEl = lightbox.querySelector('.lightbox-credit');
@@ -341,6 +396,7 @@ function initDetailGallery(opts){
     else { lightboxImg.removeAttribute('srcset'); lightboxImg.removeAttribute('sizes'); }
     if(lightboxCounter) lightboxCounter.textContent = `${st.lightboxIndex + 1} / ${st.images.length}`;
     paintCredit(img);
+    paintSaveBtnForImage(img);
     mountLightboxHotspots(img, openHotspotIndex);
   }
 
@@ -360,6 +416,32 @@ function initDetailGallery(opts){
     // yüksekliği kadar yer açılması gerekir; etiketi OLMAYAN karede görüntü kısalmasın diye
     // sınıf görsel başına toggle edilir (etiket de görsel başına değişiyor).
     lightbox.classList.toggle('has-credit', !!name);
+  }
+
+  // Kaydet butonunun HEDEFI HER GORSELDE DEGISIR: kaydedilen sey projenin/urunun kendisi degil
+  // GORSELIN KENDISIDIR (kullanici istegi: "Kullanıcılar sadece görsel de kaydedebilsinler").
+  // ANAHTAR GORSELIN URL'SI — indeks DEGIL: proje-ekle'de gorseller siralanabiliyor ve indeks
+  // tabanli bir anahtar her siralamada baska bir kareye isaret ederdi (image_hotspots/image_credits
+  // ile AYNI gerekce, bkz. migrations/0076 ve 0122).
+  // item_image de AYNI ham url: Kaydettiklerim satiri onu site kokune gore cozer (safeUrl).
+  // wireSaveButton her cagrida yeniden BOYAR ama dinleyiciyi bir kez takar (idempotent).
+  function paintSaveBtnForImage(url){
+    const st = galleryEl._pmGalleryState;
+    const btn = lightbox.querySelector('.lightbox-save-btn');
+    if(!btn) return;
+    // save-widget.js olmadan buton HİÇBİR ŞEY yapmaz (tıklama yalnızca /api/saved akışını oradan
+    // alır) — o dosya yüklenmemişse işlevsiz bir düğme göstermek yerine gizlenir. Kontrol init'te
+    // DEĞİL burada: init bir modal açılışında koşuyor olabilir, save-widget ise <script defer>
+    // sırasına göre biraz sonra yüklenir; bu fonksiyon ise her lightbox açılışında yeniden çalışır.
+    if(!st || !st.saveTarget || typeof wireSaveButton !== 'function'){ btn.style.display = 'none'; return; }
+    btn.style.display = '';
+    btn.dataset.type = 'image';
+    btn.dataset.key = url;
+    btn.dataset.image = url;
+    btn.dataset.title = st.saveTarget.title || '';
+    btn.dataset.meta = st.saveTarget.meta || '';
+    btn.dataset.href = st.saveTarget.href || '';
+    wireSaveButton(btn);
   }
 
   // Büyütülmüş görselin işaretçileri. Katman lightbox'ın (position:fixed, yani konumlandırılmış bir

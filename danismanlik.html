@@ -551,7 +551,9 @@ const openGroups = new Set();
 function valuesOf(item, key){
   if(key === 'position') return item.position ? [item.position] : [];
   if(key === 'dob') return item.dob ? [String(item.dob)] : [];
-  if(key === 'school') return item.school ? [item.school] : [];
+  // ÇOKLU ÜNİVERSİTE (2026-09-16 altıncı tur madde 4): uç artık `schools` dizisi döndürüyor
+  // (bkz. src/routes/consultations.js#fetchConsultantList) — professions/awards ile AYNI şekil.
+  if(key === 'school') return item.schools || [];
   if(key === 'profession') return item.professions || [];
   if(key === 'award') return item.awards || [];
   return [];

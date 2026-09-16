@@ -517,9 +517,16 @@
           </div>
         </div>
         <div class="form-row">
+          <!-- YIL LİSTEDEN SEÇİLİR (kullanıcı isteği, 2026-09-16 altıncı tur madde 2: "Ürün ekle
+               sayfasındaki yıl kutucuğunda da aynı mantık olsun ama oradaki tarihleri 1299'dan
+               başlat"). MÖ seçeneği BURADA YOK — istek yalnızca proje tarafı için "MÖ seçeneğinden
+               başlat" diyor; bir ürünün üretim yılı için anlamı da olmazdı.
+               Sözleşme sayfadaki Firma/Tasarımcı kutularıyla AYNI: görünür input'un kimliği
+               type="hidden" olarak KORUNUR (#u-year) ve ona yazan her nokta kutuyu senkronlar. -->
           <div class="form-field">
-            <label for="u-year">Yıl <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-year" name="year" placeholder="ör. 2022" inputmode="numeric">
+            <label for="u-year-picker">Yıl <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="u-year" name="year">
+            <div id="u-year-picker"></div>
           </div>
           <div class="form-field">
             <label for="u-website">Ürün / Firma Websitesi <span class="opt">(opsiyonel)</span></label>
@@ -584,7 +591,10 @@
            yayımlanmış projeler arasından yapılır (GET /api/projects/search, bkz. src/routes/
            project.js#handleProjectSearchRoute) — chip, projenin SLUG'ını taşır. -->
       <div class="form-section">
-        <h2>Kullanılan Projeler <span class="opt">(opsiyonel)</span></h2>
+        <!-- Başlık "Kullanıldığı Projeler" (kullanıcı isteği, 2026-09-16 altıncı tur madde 5).
+             Aşağıdaki ipuçtaki "Kullanılan Projeler" alıntısı BİLEREK duruyor: o, ÜRÜN SAYFASININ
+             bölüm adıdır (bkz. js/components/product-modal.js#pr-projects-title) ve değişmedi. -->
+        <h2>Kullanıldığı Projeler <span class="opt">(opsiyonel)</span></h2>
         <p class="section-hint">Bu ürünün kullanıldığı projeleri ekle — birden fazla proje seçebilirsin. Yalnızca MİMARLAB'da yayımlanmış projeler eklenebilir; kutuya yazmaya başla ve açılan listeden seç. Seçtiğin proje bu ürünün sayfasında "Kullanılan Projeler" olarak, ürün de o projenin sayfasında "Kullanılan Ürünler" olarak görünür.</p>
         <div class="form-field">
           <div class="brand-add-row">
@@ -1360,6 +1370,7 @@ function applyPrefillItem(item){
   originalBrand = item.brand || '';
   document.getElementById('u-website').value = item.website || '';
   document.getElementById('u-year').value = item.year || '';
+  yearPicker.syncFromInput();
   document.getElementById('u-designer').value = item.designer || '';
   syncDesignerPicker();
   document.getElementById('u-desc').value = item.description || '';
@@ -1497,6 +1508,11 @@ async function prefillForClaim(){
 // (/api/offices/names) office-picker.js üzerinden, modül ömrü boyunca tek istekle okuyor.
 let brandPicker = null;
 let designerPicker = null;
+// YIL kutusu (madde 2) — Firma/Tasarımcı kutularıyla AYNI bileşen, yalnızca kaynağı statik bir yıl
+// listesi. `let` DEĞİL `var` benzeri bir erken erişim gerekmiyor: prefill yolları
+// yearPicker.syncFromInput() çağırıyor ve kutu aşağıda, prefill'lerden ÖNCE kurulur (brandPicker
+// için yazılmış AYNI "SIRA ÖNEMLİ" gerekçesi).
+let yearPicker = { syncFromInput(){} };
 // #u-brand / #u-designer .value'ya doğrudan yazan her noktadan sonra çağrılır.
 function syncBrandPicker(){ if(brandPicker) brandPicker.syncFromInput(); }
 function syncDesignerPicker(){ if(designerPicker) designerPicker.syncFromInput(); }
@@ -1520,6 +1536,13 @@ designerPicker = createArchitectPicker(document.getElementById('u-designer-picke
   placeholder: 'Kişi seç veya yaz',
   searchLabel: 'Kişi ara ya da yeni isim yaz...',
   allowCustom: true,
+});
+// from:1299 — kullanıcı isteği ("oradaki tarihleri 1299'dan başlat"). bc verilmez: ürün yılında
+// MÖ seçeneği yok (bkz. #u-year HTML notu).
+yearPicker = createYearPicker(document.getElementById('u-year-picker'), {
+  input: document.getElementById('u-year'),
+  from: 1299,
+  placeholder: 'Yıl seç (opsiyonel)',
 });
 
 prefillForEdit();
@@ -1717,6 +1740,7 @@ function applyAiResult(data){
   syncBrandPicker();
   document.getElementById('u-website').value = data.website || '';
   document.getElementById('u-year').value = data.year || '';
+  yearPicker.syncFromInput();
   document.getElementById('u-designer').value = (data.designer_names || []).join(', ');
   syncDesignerPicker();
   document.getElementById('u-desc').value = data.description || '';

@@ -51,6 +51,14 @@ const ProjectGallery = (function () {
       // DEĞİŞMEZ (bkz. gallery.js#paintCredit).
       credits: item.imageCredits || {},
       title: item.title,
+      // saveTarget (kullanıcı isteği, 2026-09-16 altıncı tur madde 7): lightbox'taki "Kaydet"
+      // GÖRSELİN KENDİSİNİ kaydeder (anahtar = görselin url'si, bkz. gallery.js#
+      // paintSaveBtnForImage); buradaki alanlar yalnızca kaydedilen satırın başlığı/alt satırı ve
+      // "tıklayınca nereye gider" adresidir. title/meta/href, proje pop-up'ının başlığındaki
+      // Kaydet butonuyla BİREBİR AYNI değerler (bkz. js/components/project-actions.js) — iki
+      // kaydetme yolu Kaydettiklerim'de aynı görünsün.
+      // Kilitli (önizleme) projede buton gallery.js'te gizlenir.
+      saveTarget: item.slug ? { title: item.title || '', meta: item.location || '', href: `/proje/${encodeURIComponent(item.slug)}` } : null,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`,
       ids: mergedIds,
     });

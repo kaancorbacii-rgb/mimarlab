@@ -13,7 +13,14 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 // bir kaydetme altyapısı kurmaz — mevcut saved_items tablosunu ve mevcut /api/saved uçlarını aynen
 // kullanır, yalnızca yeni bir item_type olarak katılır. Böylece "Benim Alanım > Kaydedilenler"
 // listesi, panolar (collection_items) ve save-widget.js'in buton durumu hiç değiştirilmeden çalışır.
-export const ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office', 'gundem']);
+// 'image' EKLENDİ (kullanıcı isteği, 2026-09-16 altıncı tur madde 7: "Proje ve ürün
+// lightboxlarında sağ üstteki butonların sol yanlarına kaydet butonu da ekle. Kullanıcılar sadece
+// görsel de kaydedebilsinler ... Kaydettiklerim kısımında Görsel diye filtre butonu aç").
+// 'gundem' ile AYNI desen: YENİ bir altyapı kurulmaz — aynı saved_items tablosu, aynı /api/saved
+// uçları, aynı save-widget.js buton durumu, aynı pano akışı (collections.js bu Set'i İÇE AKTARIR,
+// yani "Panolarıma kaydet" yolu kendiliğinden çalışır).
+// item_key = GÖRSELİN URL'Sİ (indeks değil — bkz. gallery.js#paintSaveBtnForImage).
+export const ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office', 'gundem', 'image']);
 
 // saved_items görsel/başlık alanlarını kaydedildiği andaki haliyle tutar (bkz. createSaved) — hedef
 // sonradan gizlenir/silinirse bu satır D1'de bozulmadan kalır ve "Kaydettiklerim" bunu göstermeye
@@ -87,6 +94,11 @@ export async function listSaved(env, user) {
       return shapeSavedTargetInfo(r.item_type, productRows.get(r.item_key) || null);
     }
     if (r.item_type === 'gundem') return shapeSavedTargetInfo('gundem', gundemRows.get(r.item_key) || null);
+    // 'image' — canonical bir SATIRI YOKTUR (item_key bir görsel url'si, bkz. ITEM_TYPES notu),
+    // yani "hedefi hâlâ yayında mı" sorusu bu tip için tanımsızdır. Aşağıdaki `if (!canonicalType)`
+    // dalı da aynı sonucu verirdi ama bu tip artık BEKLENEN bir tip, o dal ise "beklenmedik/eski
+    // item_type" güvenlik ağıdır — karar açıkça yazılır.
+    if (r.item_type === 'image') return { live: true, buildStatus: null };
     const canonicalType = CANONICAL_TYPE_BY_ITEM[r.item_type];
     if (!canonicalType) return { live: true, buildStatus: null }; // beklenmedik/eski bir item_type — satırı gizleme
     return findCanonicalRowByNaturalKey(env, canonicalType, r.item_key).then(row => shapeSavedTargetInfo(r.item_type, row));
@@ -124,6 +136,12 @@ async function createSaved(request, env, user) {
   const itemType = body.type;
   const itemKey = (body.key || '').trim();
   if (!ITEM_TYPES.has(itemType) || !itemKey) return errorJson('Geçersiz istek.');
+  // UZUNLUK KAPISI (2026-09-16 altıncı tur madde 7): item_key eskiden yalnızca bir slug/anahtardı,
+  // artık bir GÖRSEL URL'Sİ de olabiliyor (item_type='image') — yani istemciden gelen serbest bir
+  // metin. Diğer alanlar gibi KIRPMAK burada YANLIŞ olurdu: silme ucu anahtarı BİREBİR eşleştiriyor
+  // (DELETE /api/saved/:type/:key), kırpılmış bir satır istemcinin gönderdiği tam anahtarla bir daha
+  // asla silinemezdi. Bu yüzden reddedilir. Sınır item_href ile aynı (500).
+  if (itemKey.length > 500) return errorJson('Geçersiz istek.');
 
   const existing = await env.DB.prepare(
     'SELECT id FROM saved_items WHERE user_id = ? AND item_type = ? AND item_key = ?'

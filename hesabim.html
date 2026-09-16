@@ -499,6 +499,10 @@
           <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
           <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
           <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+          <!-- Görsel (kullanıcı isteği, 2026-09-16 altıncı tur madde 7) — Koleksiyonum pop-up'ındaki
+               AYNI kutuya da eklendi (bkz. js/components/auth-modal.js#am-col-saved-filter); iki
+               yüzey aynı /api/saved listesini gösteriyor, ayrışmamaları gerekir. -->
+          <button type="button" class="saved-filter-btn" data-filter="image">Görsel</button>
         </div>
         <div id="dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="saved-pagination"></div>
@@ -546,7 +550,10 @@ const EDIT_PAGE_BY_TYPE = {
   offices: '/firma-ekle', projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle',
   architects: '/kisi-ekle',
 };
-const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma' };
+// 'image' — lightbox'tan kaydedilen görseller (2026-09-16 altıncı tur madde 7). 'gundem' bu
+// kopyada zaten yoktu (etiket yoksa satır tip adı olmadan çizilir), o eksik bilinçli değil ama bu
+// turun kapsamı da değil.
+const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', gundem: 'Gündem', image: 'Görsel' };
 const PAGE_SIZE_DASH = 10;
 // Bildirimler/Paylaştığım İçerikler/Kaydettiklerim/Beğendiklerim/Yorumlarım kutularının paylaştığı
 // basit sayfalama — ilk/son sayfa her zaman ayrı buton, aradakiler kayan bir pencereyle ve gereken

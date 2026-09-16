@@ -35,6 +35,13 @@
   // mimar seçiminde de siteye yüklü kişiler arasından çoklu seçim yapılabilsin, ayrıca manuel
   // olarak elle de giriş yapılabilsin") — bkz. src/routes/architect.js#handleArchitectNamesRoute.
   const ARCHITECT_OPTIONS_URL = '/api/architects/names';
+  // ÜNİVERSİTE kaynağı (kullanıcı isteği, 2026-09-16 altıncı tur madde 4: "Kişi ekle sayfasındaki
+  // üniversiteler de çoktan seçmeli olsun. Kişi isterse birden fazla seçebilsin, listeye kendi de
+  // manuel olarak bir üniversite yazabilsin") — sitedeki DÖRT üniversite kutusunun ZATEN ortak
+  // kaynağı (bkz. src/routes/architect.js#handleArchitectSchoolsRoute: YÖK listesi + D1'de gerçekten
+  // girilmiş okulların birleşimi). O uç adları DÜZ METİN dizisi olarak döner, bu yüzden loadOptions
+  // string öğeleri de kabul eder (aşağısı).
+  const SCHOOL_OPTIONS_URL = '/api/architects/schools';
   // URL başına TEK istek — aynı sayfada iki kutu (Mimar + Firma) yaşadığından önbellek artık tek
   // bir değişken değil, kaynak adresine göre anahtarlı bir harita.
   const optionsPromises = new Map();
@@ -47,7 +54,10 @@
     if (!optionsPromises.has(url)) {
       optionsPromises.set(url, fetch(url)
         .then(r => (r.ok ? r.json() : { items: [] }))
-        .then(d => (d.items || []).filter(i => i && i.name))
+        // DÜZ METİN ÖĞELER de kabul edilir: /api/architects/schools yanıtı {items:["A","B"]}
+        // biçiminde (bkz. SCHOOL_OPTIONS_URL). Ad/firma uçları {items:[{name,...}]} döndürmeye
+        // devam ediyor; normalizasyon burada yapılır ki gövdenin tamamı tek bir şekil görsün.
+        .then(d => (d.items || []).map(i => (typeof i === 'string' ? { name: i } : i)).filter(i => i && i.name))
         .catch(() => []));
     }
     return optionsPromises.get(url);
@@ -262,7 +272,19 @@
         : placeholder;
     }
 
+    // PANEL AÇILMADAN LİSTE BASILMAZ (2026-09-16 altıncı tur madde 2 — ölçülerek eklendi).
+    // Liste DOM'a tek innerHTML yazımıyla girer ama seçenek başına iki eleman (label + input)
+    // oluşuyor: yıl kutusunda 2027 seçenek = ~4000 eleman, proje-ekle'de İKİ yıl kutusu var.
+    // Ölçüm (Chromium, 390px): kapalı panellerin listesini basmak renderDateRows()'u 46 ms'ye
+    // çıkarıyordu ve sayfa açılışına ~8000 gereksiz düğüm ekliyordu — kullanıcı kutuyu hiç
+    // açmadan. Bayrak, ilk açılışa kadar çizimi tamamen erteler; açıldıktan sonra renderList
+    // eskisi gibi HER seçimde/aramada çalışır (kutu içeriği canlı kalır).
+    let listOpened = false;
     function renderList() {
+      if (!listOpened) return;
+      renderListNow();
+    }
+    function renderListNow() {
       if (!loaded) { list.innerHTML = '<div class="op-empty">Yükleniyor…</div>'; return; }
       const q = foldTr(search.value.trim());
       const keys = selectedKeys();
@@ -351,7 +373,8 @@
       document.querySelectorAll('.op-field.open').forEach(f => f.classList.remove('open'));
       if (willOpen) {
         field.classList.add('open');
-        renderList();
+        listOpened = true;
+        renderListNow();
         search.focus();
       }
     });
@@ -366,7 +389,14 @@
       if (addBtn) addBtn.click();
     });
 
-    const ready = loadMergedOptions(optionsUrls).then(list => {
+    // STATİK LİSTE (opts.items): kaynağı bir uç OLMAYAN kutular için — bugün yalnızca yıl kutuları
+    // (bkz. createYearPicker). İki farkı var ve ikisi de kasıtlı: (1) hiç fetch yapılmaz, (2) sıra
+    // ÇAĞIRANIN verdiği sıradır — loadMergedOptions'ın localeCompare sıralaması yıllarda yanlış
+    // olurdu ("10", "2"den önce gelir).
+    const staticItems = Array.isArray(options.items)
+      ? options.items.map(i => (typeof i === 'string' ? { name: i } : i)).filter(i => i && i.name)
+      : null;
+    const ready = (staticItems ? Promise.resolve(staticItems) : loadMergedOptions(optionsUrls)).then(list => {
       items = list;
       loaded = true;
       renderList();
@@ -509,7 +539,58 @@
     });
   }
 
+  // ÜNİVERSİTE kutusu (madde 4). allowCustom AÇIK: kullanıcı isteği "listeye kendi de manuel
+  // olarak bir üniversite yazabilsin" — yurt dışı kurumları ve YÖK listesinde olmayan okullar bu
+  // yoldan girilir (uç zaten D1'de girilmiş okulları da döndürdüğü için bir sonraki kullanıcıya
+  // liste öğesi olarak görünürler). Seçim ÇOKLUDUR (single verilmez): architects.school virgüllü
+  // tek bir metindir ve okuyan her yüzey (kişi pop-up'ı künyesi, /kisi Üniversite filtresi,
+  // /api/architects/schools) o biçimi parçalarına ayırır.
+  function createSchoolPicker(mount, opts) {
+    return createNamePicker(mount, {
+      placeholder: 'Üniversite seç veya yaz',
+      searchLabel: 'Üniversite ara ya da yaz...',
+      allowCustom: true,
+      ...(opts || {}),
+      optionsUrl: SCHOOL_OPTIONS_URL,
+    });
+  }
+
+  // YIL kutusu (kullanıcı isteği, 2026-09-16 altıncı tur madde 2: "tarih kısmında tarih listeden
+  // seçilebilir olsun. 2 kutucukta da sadece birer tane tarih seçilebilsin. Tarihleri MÖ
+  // seçeneğinden başlat ve 1'den günümüze kadar getir" + "Ürün ekle sayfasındaki yıl kutucuğunda
+  // da aynı mantık olsun ama oradaki tarihleri 1299'dan başlat").
+  //   from    — listenin başladığı yıl (proje: 1, ürün: 1299)
+  //   bc      — true ise listenin İLK öğesi "MÖ" olur (yalnızca proje tarafında)
+  // SIRA ARTAN: istek "MÖ seçeneğinden başlat ve 1'den günümüze kadar getir" diyor. Arama kutusu
+  // zaten açık olduğundan ("2024" yazmak tek satıra indirir) uzun liste bir sorun değil.
+  // single: TEK seçim — "2 kutucukta da sadece birer tane tarih seçilebilsin".
+  // allowCustom AÇIK ve BU BİR VERİ KORUMASIDIR, kolaylık değil: canlı veride "MÖ 5500-3500",
+  // "19. yy", "4-5. yüzyıl" gibi künyeler var (bkz. src/routes/project.js#parseProjectDateYear) ve
+  // kutu bunları listede bulamazdı. createNamePicker seçili-ama-listede-olmayan değerleri zaten
+  // seçenek olarak KORUR (bkz. allOptions/extras), yani var olan bir kaydı düzenleyen kullanıcı
+  // tarihini kaybetmez; allowCustom aynı biçimi YENİ kayıtlarda da yazılabilir tutar.
+  const YEAR_BC_OPTION = 'MÖ';
+  function yearOptionList(from, bc) {
+    const now = new Date().getFullYear();
+    const out = bc ? [YEAR_BC_OPTION] : [];
+    for (let y = from; y <= now; y++) out.push(String(y));
+    return out;
+  }
+  function createYearPicker(mount, opts) {
+    const o = opts || {};
+    return createNamePicker(mount, {
+      placeholder: 'Yıl seç',
+      searchLabel: 'Yıl ara ya da yaz...',
+      allowCustom: true,
+      ...o,
+      single: true,
+      items: yearOptionList(o.from || 1, !!o.bc),
+    });
+  }
+
   window.createNamePicker = createNamePicker;
+  window.createSchoolPicker = createSchoolPicker;
+  window.createYearPicker = createYearPicker;
   window.createPersonOrOfficePicker = createPersonOrOfficePicker;
   window.createOfficePicker = createOfficePicker;
   window.createArchitectPicker = createArchitectPicker;

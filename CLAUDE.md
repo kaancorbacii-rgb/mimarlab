@@ -1203,3 +1203,140 @@ butonuyla aynı hizada olsun.", (3) "proje ekle/düzenle sayfasında mobil gör�
 Testler: `scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs` (49 test, preflight'a
 bağlı) — dördüncü turun iki kelepçesi bu turda güncellendi (admin dalını DOĞRULAYAN assertion artık
 dalın YOKLUĞUNU arıyor; mobil hap düğme kuralının ölçüleri değişti).
+
+## Onaylanan künye kişi pop-up'ında, liste kutuları ve lightbox'ta "Kaydet" (2026-09-16, altıncı tur)
+
+Kullanıcı isteği (yedi madde): (1) "Fotoğraflarını Bul çalışıyor sorun yok ama böyle bir talep
+onaylanır ve fotoğrafçı künyeye eklenirse kişi popupındaki 'Fotoğrafladığı Projeler' kısmında da
+proje gözüksün.", (2) "Proje ekle/düzenle sayfasında da tarih kısmında tarih listeden seçilebilir
+olsun. 2 kutucukta da sadece birer tane tarih seçilebilsin. Tarihleri MÖ seçeneğinden başlat ve
+1'den günümüze kadar getir. Ürün ekle sayfasındaki yıl kutucuğunda da aynı mantık olsun ama oradaki
+tarihleri 1299'dan başlat.", (3) "sadece adminin görebildiği yayın tarihi kısmını projeyi
+gönder/arşivle butonlarının altına al.", (4) "Kişi ekle sayfasındaki üniversiteler de çoktan seçmeli
+olsun. Kişi isterse birden fazla seçebilsin, listeye kendi de manuel olarak bir üniversite
+yazabilsin.", (5) "'Kullanılan Projeler' başlığını 'Kullanıldığı Projeler' olarak güncelle.",
+(6) "Admin panelindeki 'Yayındaki İçerikler' kısmını kaldır.", (7) "Proje ve ürün lightboxlarında
+sağ üstteki butonların sol yanlarına kaydet butonu da ekle. Kullanıcılar sadece görsel de
+kaydedebilsinler ... Kaydettiklerim kısımında Görsel diye filtre butonu aç."
+
+### 1. Onaylanan fotoğraf künyesi kişi pop-up'ında — KÖK NEDEN ÖNBELLEK, VERİ DEĞİL
+- Zincir zaten tamdı: `photoClaims.js#applyPhotoClaim` onayda `project_photographers` kenarını
+  kuruyor ve `architect.js#buildArchitectPayload` "Fotoğrafladığı Projeler" bölümünü TAM OLARAK o
+  tablodan okuyor. Eksik olan tek şey **kişi detay önbelleğinin temizlenmesi**: `/api/architect/:slug`
+  (ve `/kisi/:slug` SSR gövdesi) `caches.default`ta s-maxage ile durur ve **fingerprint TAŞIMAZ**,
+  yani onaydan sonra açılan pop-up bayat listeyi göstermeye devam ediyordu. Bu, `hotspotTags.js` ve
+  aynı dosyanın PROJE tarafı için 2026-09-16 ikinci turda zaten belgelenmiş tuzağın **kişi
+  tarafıdır** — o tur yalnızca `purgeSsrDetailCache('project', ...)` çağırıyordu.
+- Eklenen tek satır `purgeSsrDetailCache('architect', match.row.name, env)`. **Anahtar CANONICAL
+  AD**: architect/office tipleri anahtarı ADDAN slugify eder (`ssrCache.js#SLUGIFY_TYPES`), ve
+  talepteki ad bir yeniden adlandırmadan sonra ESKİ yazım olabilir.
+- **Kenar artık koşulsuz kurulur**: `INSERT OR IGNORE INTO project_photographers` eskiden
+  `if (!alreadyCredited)` dalının içindeydi. INSERT zaten fikirsiz olduğundan koşulun faydası yoktu;
+  zararı vardı — künyede adı YAZAN ama kenarı hiç kurulmamış bir kayıt (künye elle yazılmışsa
+  `syncProject` eşleşme bulamamış olabilir) onayla onarılamıyordu.
+
+### 2. Tarih/yıl kutuları listeden seçilir
+- **Yeni sarmalayıcı `office-picker.js#createYearPicker({from, bc})`** — gövde AYNI
+  `createNamePicker`. İki yeni yetenek: **`items`** (statik liste; hiç fetch yok ve sıra ÇAĞIRANIN
+  verdiği sıra — `loadMergedOptions`'ın `localeCompare`'ı yıllarda "10"u "2"den önce koyardı) ve
+  `loadOptions`'ın artık DÜZ METİN öğeleri de kabul etmesi (`/api/architects/schools` `{items:["A"]}`
+  döndürüyor).
+- Liste: proje tarafında **`MÖ` + 1 … bugün** (`bc: true`), ürün tarafında **1299 … bugün**. Üst
+  sınır `new Date().getFullYear()` — sabit yazılmadı. `single: true` ("2 kutucukta da sadece birer
+  tane tarih seçilebilsin").
+- **`allowCustom` AÇIK ve BU BİR VERİ KORUMASIDIR, kolaylık değil**: canlı künyelerde "MÖ
+  5500-3500", "19. yy", "4-5. yüzyıl" gibi değerler var (bkz. `project.js#parseProjectDateYear`).
+  `createNamePicker` seçili-ama-listede-olmayan değerleri zaten seçenek olarak KORUR
+  (`allOptions`/`extras`), yani var olan bir kaydı düzenleyen kullanıcı tarihini kaybetmez.
+- Sözleşme sayfadaki diğer kutularla aynı: görünür input'un yerini `type="hidden"` bir input alır
+  (`.p-date-start`/`.p-date-end`, `#u-year`) ve kutu her yazmada `input` olayı yayar — `pendingDate`'i
+  besleyen iki dinleyici ve `#u-year`'ı okuyan gönderim/prefill yolları DEĞİŞMEDİ.
+- **LİSTE PANEL AÇILMADAN DOM'A BASILMAZ** (ölçülerek eklendi, TÜM kutular için geçerli):
+  yıl kutusunda 2027 seçenek = ~4000 eleman ve proje-ekle'de İKİ kutu var. Chromium/390px ölçümü —
+  `renderDateRows()` **46 ms → 3 ms**, sayfa düğüm sayısı **12.635 → 475**. `listOpened` bayrağı ilk
+  açılışa kadar çizimi erteler; sonrasında davranış eskisi gibi (her seçim/aramada yeniden çizim).
+
+### 3. Yayın Tarihi kutusu en altta
+- `#p-publish-date-row` Görseller bölümünün altından **"Projeyi Gönder" + Arşivle/Sil satırının
+  ALTINA** taşındı. Taşınan yalnızca DOM yeri: id, `name="publishDate"`, admin görünürlük kapısı ve
+  `payload.publishDate` aynen duruyor. Kutu `<form>`'un İÇİNDE kalır — dışına alınsaydı
+  `name` taşıyan bir alan form verisinden düşerdi (bu sayfa değeri id ile okusa da sessiz bir tuzak).
+
+### 4. Üniversite çoklu seçim + elle yazma
+- **`architects.school` ŞEMA OLARAK DEĞİŞMEDİ** — tek TEXT kolon, çoklu değer **virgülle** ayrılır.
+  Bu, bu depoda zaten kullanılan biçim: `architects.profession` ("Mimar, Fotoğrafçı") ve
+  `architect_submissions.office` aynı şekilde taşınır. Tek değerli ESKİ satırlar bu biçimin geçerli
+  bir örneği, yani **veri taşıması GEREKMEDİ**.
+- Tek kaynak `src/lib/universities.js#schoolNameList` (trim + `canonicalSchoolName` + TR duyarsız
+  tekilleştirme). Okuyan DÖRT yüzey de parçalar: havuz (`fetchArchitectPool` -> `schools` dizisi),
+  filtre (`schoolParams.some(...)`, grup içi OR), sayaçlar (her okul AYRI sayılır) ve
+  `/api/architects/schools` (bölünmezse "A, B" listeye TEK uydurma seçenek olarak girerdi).
+- **ESKİ KV HAVUZU KORUNUR**: havuz 30 dakikaya kadar KV'de yaşıyor (`POOL_CACHE_TTL_SECONDS`), yani
+  deploy anında `schools` alanı OLMAYAN bir havuz okunuyor olabilir. `architect.js#schoolListOf` o
+  pencerede tek değerli `school` metnini tek elemanlı diziye çevirir — filtre/sayaçlar da çalışmaya
+  devam eder (`professions`'taki koruma yalnızca boş diziye düşüyordu).
+- Kişi pop-up künyesi her okulu AYRI `/kisi?school=` bağlantısı yapar (`profession` satırıyla
+  BİREBİR aynı desen). `/danismanlik` filtresi de `schools` dizisini okur.
+- Kutu **İKİ yüzeyde de** aynı bileşen: `kisi-ekle.html#m-school-picker` ve Hesabım modalindeki kişi
+  formu (`am-edit-school-picker`). Doğrulama (`isInvalidSchoolValue`, kısaltma reddi) artık her
+  PARÇA için ayrı çalışır — aksi halde "Yıldız Teknik Üniversitesi, YTÜ" toplamda geçerli sayılırdı.
+- **Ölü kod düştü**: `kisi-ekle.html`'deki `wireAutocomplete`/`wireAutocompleteLive` (+ yalnızca
+  ikincisinin kullandığı `lastCommaSegment`/`replaceLastCommaSegment`) ve `auth-modal.js`'teki
+  `wireAmEditSchoolAutocomplete` çağrısız kaldı; iki dosyadaki `.ac-*` CSS'leri de.
+- **Hesap tarafı DOKUNULMADI**: `hesabim.html#edit-school` ve `auth.js#updateUserProfileFields`
+  HESABIN `users.school` alanıdır (bkz. "Hesap üyeliği ile kişi profili AYRIDIR") — istek kişi
+  formunu sayıyor.
+
+### 5. urun-ekle başlığı "Kullanıldığı Projeler"
+- Yalnızca FORM başlığı. Kutunun ipucundaki "Kullanılan Projeler" alıntısı BİLEREK duruyor: o, ÜRÜN
+  SAYFASININ bölüm adıdır (`product-modal.js#pr-projects-title`) ve değişmedi.
+
+### 6. Admin "Yayındaki İçerikler" sekmesi kaldırıldı
+- Sekme, bölüm, `loadContent`/`toggleContentEditForm`/`CONTENT_EDITABLE_FIELDS` ve yalnızca o kartta
+  kullanılan `loadFeaturedProjectSlugs`/`toggleFeaturedProject` `admin.html`'den çıktı.
+- **SUNUCU UÇLARI DURUYOR** (`GET /api/admin/submissions?status=approved`, `PATCH`/`DELETE`
+  `/api/admin/submissions/:type/:id`) — Arşiv ve Bekleyen Gönderiler sekmeleri aynı uçları kullanmaya
+  devam ediyor; kaldırılan tek şey EKRANDI (2026-09-16 ilk turdaki "Migrasyon Çakışmaları" ile AYNI
+  desen).
+- **"Öne Çıkar" ile hiçbir yetenek kaybedilmedi**: `featured_project_slugs` ayarının gerçek arayüzü
+  ANA SAYFA sekmesindeki karusel seçicisidir (`HOME_CAROUSELS`).
+
+### 7. Lightbox'ta "Kaydet" — GÖRSELİN KENDİSİ kaydedilir
+- **Yeni `saved_items` tipi `'image'`** (`saved.js#ITEM_TYPES`), `'gundem'` ile AYNI desen: YENİ bir
+  altyapı kurulmadı — aynı tablo, aynı `/api/saved` uçları, aynı `save-widget.js` buton durumu ve
+  **pano yolu kendiliğinden** (`collections.js` bu Set'i İÇE AKTARIR). Migration GEREKMEDİ.
+- **ANAHTAR GÖRSELİN URL'Sİ, indeks DEĞİL**: proje-ekle'de görseller sürükle-bırak ile
+  sıralanabiliyor ve indeks tabanlı bir anahtar her sıralamada başka bir kareye işaret ederdi
+  (`image_hotspots`/`image_credits` ile AYNI gerekçe). `item_key` artık istemciden gelen serbest bir
+  metin olduğundan **500 karakter üstü REDDEDİLİR** — kırpmak yanlış olurdu, silme ucu anahtarı
+  birebir eşleştiriyor ve kırpılmış satır bir daha silinemezdi.
+- `listSaved`'de `'image'` için açık dal: canonical bir SATIRI yoktur, "hedefi hâlâ yayında mı"
+  sorusu bu tip için tanımsızdır.
+- **Buton `.card-save-btn` SINIFINI TAŞIMAZ**: o sınıfın sayfa CSS'lerindeki KART kuralları
+  (`position:absolute; top:10px; right:10px`) lightbox'ta yanlış yere oturturdu. Bunun için
+  `save-widget.js`'in gövdesi tek-buton bir API'ye alındı (**`wireSaveButton(btn, type)`**);
+  `wireSaveButtons(type)` onu ızgara kartları için döngüyle çağırır, `gallery.js` kendi düğmesi için
+  doğrudan. Yeniden boyama da genişletildi: **`repaintAllSaveBtns()`** artık
+  `.card-save-btn, .lightbox-save-btn` seçicisini kullanıyor, aksi halde kaydetme/panoya ekleme
+  sonrası lightbox düğmesinin rengi güncellenmeden kalırdı.
+- **KUTU, X ve "Tümünü Gör" ile BİREBİR AYNI** (ölçüldü, Chromium): `top:24px`, 38×31, sağdan üç
+  yuva — `.lightbox-close` 32, `.lightbox-grid-toggle` 78, `.lightbox-save-btn` **124** (8px aralık).
+  Yalnızca `top`'u eşitlemek YETMEZDİ: ikon-only bir düğme 20px yüksek kalır ve merkezi ~5px kayardı
+  (2026-09-16 beşinci turda `.lightbox-tag-btn`'de ölçülen AYNI tuzak). Mobil için ayrı kural
+  GEREKMEDİ — o iki buton mobilde de aynı yerde.
+- **Hedef anahtarı HER KAREDE tazelenir** (`paintSaveBtnForImage`, `showLightboxImage`'tan çağrılır);
+  aksi halde buton 1. karenin anahtarında kalırdı. Hedef seçici (Kaydedilenler/Pano) AYNI akıştır
+  (`dataset.saveChooser`), yeni bir kaydetme yolu AÇILMADI.
+- Buton **kilitli (önizleme) galeride** ve **`save-widget.js` yüklenmemiş sayfalarda** (ör. /arama)
+  gizlenir — işlevsiz bir düğme göstermek yerine. Kontrol init'te DEĞİL boyama anında: init bir modal
+  açılışında koşuyor olabilir, save-widget ise `<script defer>` sırasına göre biraz sonra yüklenir.
+- Kaydettiklerim'de **"Görsel" filtresi İKİ yüzeyde de** (Koleksiyonum pop-up'ı + `hesabim.html`).
+  Filtre mantığı (`colMatchesCatalogFilter`) DEĞİŞMEDİ — Gündem'deki AYNI desen.
+- **TERS TIRNAK TUZAĞINA BU TURDA DA DÜŞÜLDÜ**: enjekte edilen CSS şablonundaki bir yoruma
+  `` `.card-save-btn` `` yazmak şablon dizesini kapatıp yeniden açtı — `node --check` GEÇTİ ama dosya
+  çalışma zamanında bozuktu. Beşinci turda eklenen "şablonda ters tırnak YOK" kelepçesi yakaladı
+  (bkz. proje notu `[[feedback_no_backtick_in_style_template_literals]]`).
+
+Testler: `scripts/test-2026-09-16-photo-visibility-pickers-and-image-saves.mjs` (34 test,
+preflight'a bağlı). Migration YOK, SSR sürüm bumpı YOK (kabuklara script etiketi eklenmedi/
+kaldırılmadı).

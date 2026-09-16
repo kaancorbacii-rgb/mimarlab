@@ -600,7 +600,13 @@ const ArchitectModal = (function () {
     // sadece "Meslek: Mimar"). Bu iki alan başka yerlerde (meslektaş kartları, DEPT_TO_PROFESSION
     // fallback'i, üstteki başlık satırı) hâlâ kullanıldığından DB'de DEĞİŞTİRİLMEZ, sadece bu
     // künye satırlarının derlenişinden çıkarılır.
-    if (a.school) infoFacts.push(metaRow('cap', `<strong>Üniversite:</strong> ${kisiFilterLink('school', a.school)}`));
+    // ÇOKLU ÜNİVERSİTE (kullanıcı isteği, 2026-09-16 altıncı tur madde 4) — a.profession'ın
+    // ALTINDAKİ satırla BİREBİR AYNI desen: architects.school virgülle ayrılmış TEK bir metindir
+    // ("A Üniversitesi, B Üniversitesi") ve /kisi'nin school filtresi tek tek okul adlarıyla
+    // eşleştiğinden (bkz. src/routes/architect.js#schoolListOf) her parça AYRI bir bağlantı olur.
+    // Tek okullu eski kayıtlarda çıktı BİREBİR eskisi gibidir.
+    const schools = String(a.school || '').split(',').map(v => v.trim()).filter(Boolean);
+    if (schools.length) infoFacts.push(metaRow('cap', `<strong>Üniversite:</strong> ${schools.map(v => kisiFilterLink('school', v)).join(', ')}`));
     const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
     // a.profession çoklu meslekte virgülle ayrılmış TEK bir metin ("Mimar, Fotoğrafçı") — /kisi'nin
     // profession filtresi tek tek etiketlerle eşleştiğinden (bkz. src/routes/architect.js#

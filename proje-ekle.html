@@ -176,7 +176,12 @@
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
   .date-range-row{display:flex; gap:6px; align-items:center; margin-bottom:8px;}
   .date-range-row:last-child{margin-bottom:0;}
-  .date-range-row input[type=text]{flex:1 1 0; min-width:0; padding-left:8px; padding-right:6px; font-size:13px;}
+  /* Kutu mount'ları eskiden burada duran input[type=text]'lerin YERİNİ alır (bkz. renderDateRows) —
+     satırdaki esneme/daralma davranışı birebir korunur. Gizli input'lar görsel yer kaplamaz. */
+  .date-range-row .p-date-start-picker, .date-range-row .p-date-end-picker{flex:1 1 0; min-width:0;}
+  /* Kutunun kendi düğmesi satırın puntosunu/dolgusunu alır — .op-btn'in varsayılanı 14px, satır
+     üç öğeyi yan yana taşıdığından 13px'te kalması gerekiyor (mobilde 12px, aşağısı). */
+  .date-range-row .op-btn{padding-left:8px; padding-right:6px; font-size:13px;}
   .date-range-row-btn{
     flex-shrink:0; padding:11px 10px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:12px; font-weight:600; color:var(--ink);
@@ -546,7 +551,7 @@
     .form-wrap{padding:20px 18px 70px;}
     .form-row{grid-template-columns:1fr; gap:0;}
     fieldset.form-field .form-row{grid-template-columns:1fr 1fr; gap:10px;}
-    .date-range-row input[type=text]{padding-left:6px; padding-right:4px; font-size:12px;}
+    .date-range-row .op-btn{padding-left:6px; padding-right:4px; font-size:12px;}
     .date-range-row-btn{padding:11px 8px; font-size:11px;}
     /* "Projede Kullanılan Ürünler": mobilde Ürün Firması + Ürün kutuları ALT ALTA (kullanıcı
        isteği, 2026-09-16 beşinci tur: "mobil görünümde Projede Kullanılan Ürünler kutusunda iki
@@ -853,14 +858,6 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
-      <div class="form-row" id="p-publish-date-row" style="display:none;">
-        <div class="form-field">
-          <label for="p-publish-date">Yayın Tarihi <span class="opt">(yalnızca admin)</span></label>
-          <input type="date" id="p-publish-date" name="publishDate">
-          <div class="form-hint">Projenin listelerdeki/gönderilerdeki yerini bu tarih belirler. Boş bırakılırsa eklenme tarihine göre sıralanır.</div>
-        </div>
-      </div>
-
       <div class="form-field" id="ai-consent-field" style="display:none;">
         <label class="check-pill" style="width:100%; box-sizing:border-box;">
           <input type="checkbox" id="ai-consent-checkbox">
@@ -885,6 +882,22 @@
       <div class="form-danger-row" id="p-danger-row" style="display:none;">
         <button type="button" class="form-danger-btn" id="p-archive-btn">Arşivle</button>
         <button type="button" class="form-danger-btn form-danger-btn-delete" id="p-delete-btn">Sil</button>
+      </div>
+
+      <!-- YAYIN TARİHİ EN ALTTA (kullanıcı isteği, 2026-09-16 altıncı tur madde 3: "sadece adminin
+           görebildiği yayın tarihi kısmını projeyi gönder/arşivle butonlarının altına al"). Kutu
+           eskiden Görseller bölümünün hemen ALTINDA, yani Telif Beyanı ve "Projeyi Gönder"in
+           ÜSTÜNDEYDİ — normal bir üyenin hiç görmediği bir alan formun akışını orada kesiyordu.
+           TAŞINAN YALNIZCA DOM YERİ: id, name, görünürlük kapısı (#p-publish-date-row'u yalnızca
+           admin açar) ve gönderim yolu (payload.publishDate) aynen duruyor. <form>'un İÇİNDE kalır
+           — dışına çıksaydı input form verisinden düşerdi (bu sayfa değeri id ile okusa da,
+           name="publishDate" taşıyan bir alanı formun dışına almak sessiz bir tuzak olurdu). -->
+      <div class="form-row" id="p-publish-date-row" style="display:none;">
+        <div class="form-field">
+          <label for="p-publish-date">Yayın Tarihi <span class="opt">(yalnızca admin)</span></label>
+          <input type="date" id="p-publish-date" name="publishDate">
+          <div class="form-hint">Projenin listelerdeki/gönderilerdeki yerini bu tarih belirler. Boş bırakılırsa eklenme tarihine göre sıralanır.</div>
+        </div>
       </div>
       <div class="form-loading" id="form-loading">Yükleniyor...</div>
       <div class="form-notice" id="form-notice"></div>
@@ -1014,16 +1027,36 @@ function renderDateRows(){
       `).join('')}
     </div>
   ` : '';
+  // TARİH ARTIK LİSTEDEN SEÇİLİR (kullanıcı isteği, 2026-09-16 altıncı tur madde 2: "tarih kısmında
+  // tarih listeden seçilebilir olsun. 2 kutucukta da sadece birer tane tarih seçilebilsin.
+  // Tarihleri MÖ seçeneğinden başlat ve 1'den günümüze kadar getir").
+  // SÖZLEŞME, sayfadaki diğer kutularla (Mimar/Firma/Fotoğrafçı/Ürün firması) BİREBİR AYNI: görünür
+  // metin kutusunun yerini type="hidden" bir input + kutu alır ve kutu her yazmada o input'a
+  // 'input' olayı yayar (bkz. office-picker.js#pushToInput) — yani aşağıdaki iki dinleyici,
+  // pendingDate'i besleyen TEK yol olarak DEĞİŞMEDEN kalır.
   container.innerHTML = `
     <div class="date-range-row">
-      <input type="text" class="p-date-start" placeholder="Başlangıç (opsiyonel)" value="${escapeAttr(pendingDate.start)}">
-      <input type="text" class="p-date-end" placeholder="Bitiş" value="${escapeAttr(pendingDate.end)}">
+      <input type="hidden" class="p-date-start" value="${escapeAttr(pendingDate.start)}">
+      <div class="p-date-start-picker"></div>
+      <input type="hidden" class="p-date-end" value="${escapeAttr(pendingDate.end)}">
+      <div class="p-date-end-picker"></div>
       <button type="button" class="date-range-row-btn" id="p-date-add-btn">+ Ekle</button>
     </div>
     ${listHtml}
   `;
   container.querySelector('.p-date-start').addEventListener('input', (e) => { pendingDate.start = e.target.value; });
   container.querySelector('.p-date-end').addEventListener('input', (e) => { pendingDate.end = e.target.value; });
+  // Kutular her renderDateRows()'ta yeniden kurulur (kap innerHTML ile baştan yazılıyor). Bu ucuz:
+  // liste STATİK (hiç fetch yok, bkz. office-picker.js#createYearPicker) ve seçim, bağlı gizli
+  // input'un değerinden geri yüklenir.
+  createYearPicker(container.querySelector('.p-date-start-picker'), {
+    input: container.querySelector('.p-date-start'),
+    from: 1, bc: true, placeholder: 'Başlangıç (opsiyonel)',
+  });
+  createYearPicker(container.querySelector('.p-date-end-picker'), {
+    input: container.querySelector('.p-date-end'),
+    from: 1, bc: true, placeholder: 'Bitiş',
+  });
   container.querySelector('#p-date-add-btn').addEventListener('click', () => {
     const formatted = formatDateRow(pendingDate);
     if(formatted) committedDates.push(formatted);

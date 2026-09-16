@@ -49,6 +49,15 @@ function paintSaveBtn(btn){
   btn.classList.toggle('saved', savedKeys.has(mapKey) || boardKeys.has(mapKey));
 }
 
+// Sayfadaki TÜM Kaydet düğmelerini yeniden boyar. `.card-save-btn` seçicisi tek başına YETMEZ:
+// lightbox'taki Kaydet düğmesi o sınıfı bilerek taşımıyor (bkz. wireSaveButton notu), yani
+// kaydetme/panoya ekleme sonrası rengi güncellenmeden kalırdı. Ek seçici olarak eklenir —
+// tıklanan düğmeyi ayrıca boyamak yeterli olmazdı: aynı görsel iki yerde de (ızgara kartı +
+// lightbox) görünebiliyor.
+function repaintAllSaveBtns(){
+  document.querySelectorAll('.card-save-btn, .lightbox-save-btn').forEach(paintSaveBtn);
+}
+
 // ---------------------------------------------------------------------------------------------
 // KAYDET HEDEF SEÇİCİ (kullanıcı isteği, 2026-09-01 madde 5) — proje ve ürün POPUP'larındaki Kaydet
 // butonu artık doğrudan kaydetmez, önce iki seçenekli küçük bir popup açar: (1) Kaydedilenler
@@ -183,7 +192,7 @@ async function toggleSavedItem(btn){
     });
     savedKeys.add(mapKey);
   }
-  document.querySelectorAll('.card-save-btn').forEach(paintSaveBtn);
+  repaintAllSaveBtns();
 }
 
 async function addToCollection(collectionId, btn){
@@ -197,7 +206,7 @@ async function addToCollection(collectionId, btn){
   // Panoya girdiği an buton "kaydedildi" rengine döner (bkz. boardKeys/paintSaveBtn) — sayfadaki
   // AYNI içeriğin tüm kopyaları (ızgara kartı + popup header'ı) birlikte boyanır.
   boardKeys.add(p.type + ':' + p.key);
-  document.querySelectorAll('.card-save-btn').forEach(paintSaveBtn);
+  repaintAllSaveBtns();
   return data;
 }
 
@@ -318,53 +327,62 @@ function escapeChooserAttr(s){ return escapeChooserText(s).replace(/"/g, '&quot;
 // bundan farklı bir türdeyse (ör. urun.html'de ürün+malzeme kartları karışık render edilir), şablon
 // butonun kendi data-type'ını önceden basar — burada zaten set edilmiş bir data-type ezilmez.
 function wireSaveButtons(type){
-  document.querySelectorAll('.card-save-btn').forEach(btn=>{
-    if(!btn.dataset.type) btn.dataset.type = type;
-    paintSaveBtn(btn);
-    // gerçek bulgu (denetim, 2026-08-24): wireSaveButtons() hem sayfa yüklenişinde (ızgara için) hem
-    // proje/mimar/firma/ürün modalı her açıldığında (bkz. project-actions.js/architect-modal.js/
-    // office-modal.js/product-modal.js) tekrar çağrılıyordu — arkadaki ızgara DOM'dan hiç kaldırılmadığı
-    // için her çağrı AYNI kalıcı butonlara BİR listener DAHA ekliyordu. N modal açılışından sonra
-    // arkadaki ızgaradaki bir "Kaydet" tıklaması N+1 kez tetiklenip aynı /api/saved isteğini o kadar
-    // kez atıyordu. Diğer paylaşılan script'lerdeki AYNI "wired" bayrağı deseni (bkz. site-chrome.js
-    // #dataset.navSuggestWired) burada da uygulanır.
-    if(btn.dataset.saveWired) return;
-    btn.dataset.saveWired = '1';
-    btn.addEventListener('click', async (e)=>{
-      e.preventDefault();
-      e.stopPropagation();
-      if(!currentUser){ window.location.href = '/giris'; return; }
-      // kullanıcı isteği (2026-09-01 madde 5): proje/ürün popup'ının Kaydet butonu doğrudan
-      // kaydetmez, önce "Kaydedilenler / Pano" seçicisini açar (bkz. openSaveChooser). Bayrağı
-      // taşımayan tüm kart butonları eski tek-tık davranışını KORUR.
-      if(btn.dataset.saveChooser){ openSaveChooser(btn); return; }
-      const btnType = btn.dataset.type;
-      const key = btn.dataset.key;
-      const mapKey = btnType + ':' + key;
-      btn.disabled = true;
-      try{
-        if(savedKeys.has(mapKey)){
-          await fetch(`/api/saved/${btnType}/${encodeURIComponent(key)}`, { method: 'DELETE' });
-          savedKeys.delete(mapKey);
-        } else {
-          await fetch('/api/saved', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: btnType, key,
-              title: btn.dataset.title || '',
-              meta: btn.dataset.meta || '',
-              image: btn.dataset.image || '',
-              href: btn.dataset.href || '',
-            }),
-          });
-          savedKeys.add(mapKey);
-        }
-        paintSaveBtn(btn);
-      } finally {
-        btn.disabled = false;
+  document.querySelectorAll('.card-save-btn').forEach(btn=> wireSaveButton(btn, type));
+}
+
+// TEK BUTON (2026-09-16 altıncı tur madde 7): lightbox'taki "Kaydet" düğmesi `.card-save-btn`
+// SINIFINI TAŞIMAZ — o sınıfın sayfa CSS'lerindeki kart kuralları (position:absolute; top/right)
+// lightbox'ta yanlış yere oturtur ve gallery.js'in kendi kuralıyla çakışırdı. Bunun yerine
+// gövde tek-buton bir fonksiyona alındı; wireSaveButtons onu ızgara kartları için döngüyle çağırır,
+// gallery.js kendi düğmesi için DOĞRUDAN çağırır.
+// ÇAĞRI İDEMPOTENT: dataset.saveWired bayrağı dinleyiciyi bir kez takar, boyama her çağrıda
+// yenilenir — lightbox'ta düğmenin data-key'i HER GÖRSELDE değiştiğinden bu şart.
+function wireSaveButton(btn, type){
+  if(!btn.dataset.type && type) btn.dataset.type = type;
+  paintSaveBtn(btn);
+  // gerçek bulgu (denetim, 2026-08-24): wireSaveButtons() hem sayfa yüklenişinde (ızgara için) hem
+  // proje/mimar/firma/ürün modalı her açıldığında (bkz. project-actions.js/architect-modal.js/
+  // office-modal.js/product-modal.js) tekrar çağrılıyordu — arkadaki ızgara DOM'dan hiç kaldırılmadığı
+  // için her çağrı AYNI kalıcı butonlara BİR listener DAHA ekliyordu. N modal açılışından sonra
+  // arkadaki ızgaradaki bir "Kaydet" tıklaması N+1 kez tetiklenip aynı /api/saved isteğini o kadar
+  // kez atıyordu. Diğer paylaşılan script'lerdeki AYNI "wired" bayrağı deseni (bkz. site-chrome.js
+  // #dataset.navSuggestWired) burada da uygulanır.
+  if(btn.dataset.saveWired) return;
+  btn.dataset.saveWired = '1';
+  btn.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(!currentUser){ window.location.href = '/giris'; return; }
+    // kullanıcı isteği (2026-09-01 madde 5): proje/ürün popup'ının Kaydet butonu doğrudan
+    // kaydetmez, önce "Kaydedilenler / Pano" seçicisini açar (bkz. openSaveChooser). Bayrağı
+    // taşımayan tüm kart butonları eski tek-tık davranışını KORUR.
+    if(btn.dataset.saveChooser){ openSaveChooser(btn); return; }
+    const btnType = btn.dataset.type;
+    const key = btn.dataset.key;
+    const mapKey = btnType + ':' + key;
+    btn.disabled = true;
+    try{
+      if(savedKeys.has(mapKey)){
+        await fetch(`/api/saved/${btnType}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        savedKeys.delete(mapKey);
+      } else {
+        await fetch('/api/saved', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: btnType, key,
+            title: btn.dataset.title || '',
+            meta: btn.dataset.meta || '',
+            image: btn.dataset.image || '',
+            href: btn.dataset.href || '',
+          }),
+        });
+        savedKeys.add(mapKey);
       }
-    });
+      paintSaveBtn(btn);
+    } finally {
+      btn.disabled = false;
+    }
   });
 }
 
@@ -389,7 +407,7 @@ async function initSavedWidget(){
       }
     }catch{}
   }
-  document.querySelectorAll('.card-save-btn').forEach(paintSaveBtn);
+  repaintAllSaveBtns();
 }
 // Sayfa scriptleri, currentUser'ı okumadan önce bunu await edebilir.
 const savedWidgetReady = initSavedWidget();

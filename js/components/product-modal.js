@@ -162,6 +162,11 @@ const ProductModal = (function () {
   let mountedOnce = false;
   let currentSlug = null;
   let currentItem = null;
+  // Aktif ürünün ANAHTARI (slug ya da legacy key) — renderItem'ın `key` argümanı. renderDetailBody
+  // onu argüman olarak ALMIYOR (varyant değişiminde de aynı gövde yeniden çiziliyor), ama
+  // lightbox'taki Kaydet butonunun hedef adresi (/urun/<key>) ona bağlı (2026-09-16 altıncı tur
+  // madde 7). Modül düzeyinde tutulur, böylece iki çağıranın ikisinde de doğru.
+  let currentKey = null;
   let openedViaPush = false;
   // bkz. js/components/project-modal.js'teki AYNI alan/gerekçe (ModalShell.popupChainRealBase).
   let chainRealBase = true;
@@ -557,6 +562,12 @@ const ProductModal = (function () {
     const favicon = (typeof catalogBrandFavicon === 'function') ? catalogBrandFavicon(p.brand) : null;
     initDetailGallery({
       images, title: p.title,
+      // saveTarget (kullanıcı isteği, 2026-09-16 altıncı tur madde 7: "Proje ve ürün
+      // lightboxlarında ... kaydet butonu da ekle") — proje galerisindeki AYNI alan/anlam:
+      // kaydedilen şey görselin kendisi, buradaki değerler yalnızca Kaydettiklerim satırının
+      // başlığı/alt satırı ve adresi. Üçü de ürün pop-up'ının başlığındaki Kaydet butonuyla
+      // BİREBİR AYNI (bkz. aşağıdaki saveBtn.dataset).
+      saveTarget: currentKey ? { title: p.title || '', meta: [p.category, p.brand].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(currentKey)}` } : null,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(p.brand || p.title)}">
         ${favicon ? `<img src="${escapeAttr(favicon)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
         <span>${escapeHtml(initials(p.brand || p.title))}</span>
@@ -569,6 +580,7 @@ const ProductModal = (function () {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
     ModalShell.clearPreviewNote(); // ... önizleme notu da (bkz. renderNotFound'un 'preview' dalı)
     currentItem = p;
+    currentKey = key;
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';

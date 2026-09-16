@@ -176,17 +176,10 @@
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
 
-  /* ---------- AUTOCOMPLETE (Varsa Marka Adı) ---------- */
-  .ac-field{position:relative;}
-  .ac-suggestions{
-    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
-    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
-    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
-  }
-  .ac-suggestions.show{display:block;}
-  .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
-  .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
-  .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+  /* .ac-* KURALLARI KALDIRILDI (2026-09-16 altıncı tur madde 4): bu sayfadaki son otomatik
+     tamamlama kutusu (Üniversite) çoklu seçim paneline geçti ve panel kendi .op-* stillerini
+     getiriyor (bkz. office-picker.js#injectStyles). Geriye tek bir class="ac-*" elemanı kalmadı —
+     proje-ekle.html'de 2026-09-15 yedinci turda yapılan AYNI temizlik. */
 
   .image-drop{display:block; border:2px dashed var(--line); border-radius:14px; padding:30px; text-align:center; color:var(--ink-soft); cursor:pointer; transition:border-color .15s ease, background .15s ease;}
   .image-drop:hover, .image-drop.dragover{border-color:var(--brass); background:var(--paper-alt);}
@@ -378,10 +371,18 @@
               </div>
             </div>
           </div>
-          <div class="form-field ac-field" id="ac-school-field">
-            <label for="m-school">Üniversite <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="m-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
-            <div class="ac-suggestions" id="ac-school-suggestions"></div>
+          <!-- ÜNİVERSİTE ÇOKTAN SEÇMELİ (kullanıcı isteği, 2026-09-16 altıncı tur madde 4: "Kişi ekle
+               sayfasındaki üniversiteler de çoktan seçmeli olsun. Kişi isterse birden fazla
+               seçebilsin, listeye kendi de manuel olarak bir üniversite yazabilsin").
+               SÖZLEŞME, sayfadaki diğer dört kutuyla BİREBİR AYNI (bkz. CLAUDE.md "Form seçim
+               kutuları: dört form da aynı bileşende"): görünür metin kutusunun kimliği
+               type="hidden" input olarak KORUNUR (#m-school) ve o input'a yazan HER nokta kutuyu
+               senkronlar. Böylece gönderim (payload.school) ve TÜM prefill yolları değişmedi.
+               name="school" de korunur. -->
+          <div class="form-field">
+            <label for="m-school-picker">Üniversite <span class="opt">(opsiyonel)</span></label>
+            <input type="hidden" id="m-school" name="school">
+            <div id="m-school-picker"></div>
           </div>
         </div>
         <div class="form-row">
@@ -608,6 +609,11 @@ function trLower(s){
 }
 // src/lib/submissionTypes.js#isInvalidSchoolValue ile AYNI kural — kısaltmaları (YTÜ, İTÜ, ODTÜ,
 // MSGSÜ gibi) reddetmek için sunucudakiyle birebir aynı mantık istemci tarafında da tekrarlanır.
+// Virgüllü üniversite metnini parçalarına ayırır (architects.school'un depolama biçimi — bkz.
+// #m-school kutusunun üstündeki not). src/routes/architect.js#schoolNameList ile AYNI kural.
+function splitSchoolNames(v){
+  return String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+}
 function isInvalidSchoolValue(v){
   v = (v || '').trim();
   if(!v) return false;
@@ -764,87 +770,11 @@ function collectSocialLinks(){
 }
 document.getElementById('social-add-btn').addEventListener('click', ()=> addSocialRow());
 
-// ---------- OTOMATİK TAMAMLAMA: Varsa Marka Adı ----------
-function wireAutocomplete(inputId, suggestionsId, getItems){
-  const input = document.getElementById(inputId);
-  const box = document.getElementById(suggestionsId);
-  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function renderSuggestions(){
-    const q = trLower(input.value.trim());
-    if(!q){ close(); return; }
-    // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili olanlar
-    // çıksın") — liste artık ~200 üniversite taşıdığından, saf "içinde geçiyor mu" sıralaması
-    // "Yıldız" yazan birine önce "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler
-    // atılmaz, yalnızca arkaya alınır.
-    const all = getItems();
-    const starts = all.filter(it => trLower(it.label).startsWith(q));
-    const contains = all.filter(it => !trLower(it.label).startsWith(q) && trLower(it.label).includes(q));
-    const items = starts.concat(contains).slice(0, 8);
-    if(!items.length){ close(); return; }
-    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
-    box.classList.add('show');
-    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
-      el.addEventListener('mousedown', (e)=>{
-        e.preventDefault();
-        input.value = items[i].label;
-        close();
-      });
-    });
-  }
-  input.addEventListener('input', renderSuggestions);
-  input.addEventListener('focus', renderSuggestions);
-  input.addEventListener('blur', ()=> setTimeout(close, 150));
-}
-// Firma önerileri statik data.js offices[] dizisi yerine canlı D1 aramasından beslenir (bkz.
-// proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe — statik dizi yalnızca
-// deploy anındaki anlık görüntüyü içerdiğinden, D1'e az önce eklenmiş bir firma burada hiç
-// görünmüyordu, bkz. gerçek bulgu: "BİRİM Design" arama kutusunda çıkmıyordu).
-function lastCommaSegment(value){
-  const parts = value.split(',');
-  return parts[parts.length - 1].trim();
-}
-function replaceLastCommaSegment(value, replacement){
-  const idx = value.lastIndexOf(',');
-  return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
-}
-function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
-  opts = opts || {};
-  const input = document.getElementById(inputId);
-  const box = document.getElementById(suggestionsId);
-  let debounceTimer = null;
-  let currentQuery = '';
-  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function renderItems(items){
-    if(!items.length){ close(); return; }
-    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
-    box.classList.add('show');
-    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
-      el.addEventListener('mousedown', (e)=>{
-        e.preventDefault();
-        const item = items[i];
-        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
-        close();
-        if(opts.onPick) opts.onPick(item);
-      });
-    });
-  }
-  function fetchSuggestions(q){
-    currentQuery = q;
-    fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
-      .then(res => res.ok ? res.json() : {items: []})
-      .then(data => { if(q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
-      .catch(()=>{});
-  }
-  function onInput(){
-    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
-    if(!q){ close(); currentQuery = ''; return; }
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
-  }
-  input.addEventListener('input', onInput);
-  input.addEventListener('focus', onInput);
-  input.addEventListener('blur', ()=> setTimeout(close, 150));
-}
+// ÖLÜ KOD DÜŞTÜ (2026-09-16 altıncı tur madde 4): wireAutocomplete/wireAutocompleteLive ve
+// yalnızca ikincisinin kullandığı lastCommaSegment/replaceLastCommaSegment bu sayfada
+// ÇAĞRISIZ kaldı — son çağıran Üniversite kutusuydu ve o da çoklu seçim paneline geçti
+// (bkz. aşağıdaki createSchoolPicker). Firma kutusu 2026-09-06'da, Marka kutusu
+// 2026-09-14'te (marka kavramı kaldırıldı) aynı yolu çoktan bırakmıştı.
 // Firma kutusu ARTIK canlı autocomplete DEĞİL, tüm firmaları listeleyen bir çoklu seçim paneli
 // (kullanıcı isteği, 2026-09-06 madde 4) — bkz. office-picker.js. #m-office gizli input olarak
 // kalır ve seçimleri virgüllü metin biçiminde taşır, bu yüzden aşağıdaki prefill*/collect
@@ -868,15 +798,15 @@ const officePicker = createOfficePicker(document.getElementById('m-office-picker
   allowCustom: true,
 });
 
-// ---------- OTOMATİK TAMAMLAMA: Üniversite ----------
-// /api/architects/schools artık Türkiye'deki TÜM üniversiteleri (src/lib/universities.js) ve
-// architects.school'daki gerçek değerleri BİRLEŞTİRİLMİŞ olarak döndürür (bkz. kullanıcı isteği,
-// 2026-09-01 ve o uçtaki gerekçe) — birleştirme sunucuda yapılır, çünkü aynı kutu sitede dört
-// yerde var. wireAutocomplete getItems()'i her tuş vuruşunda YENİDEN çağırdığından, fetch geç
-// tamamlansa bile liste kendiliğinden güncellenir.
-let UNIVERSITY_SUGGESTIONS = [];
-fetch('/api/architects/schools').then(r => r.ok ? r.json() : {items:[]}).then(d => { UNIVERSITY_SUGGESTIONS = (d.items || []).map(s => ({label: s})); }).catch(()=>{});
-wireAutocomplete('m-school', 'ac-school-suggestions', () => UNIVERSITY_SUGGESTIONS);
+// ---------- ÜNİVERSİTE KUTUSU (çoklu seçim + elle yazma) ----------
+// wireAutocomplete/UNIVERSITY_SUGGESTIONS KALDIRILDI: kaynak liste AYNI uçtan
+// (/api/architects/schools — YÖK listesi + D1'de gerçekten girilmiş okullar) geliyor, yalnızca
+// arayüz tek satırlık bir otomatik tamamlamadan çoklu seçim kutusuna geçti (bkz. office-picker.js
+// #createSchoolPicker). Kutu kendi önbelleğini tutar (optionsPromises), yani sayfa başına yine
+// TEK istek atılır.
+const schoolPicker = createSchoolPicker(document.getElementById('m-school-picker'), {
+  input: document.getElementById('m-school'),
+});
 
 function renderPreviews(){
   if(selectedFiles.length){
@@ -1284,6 +1214,7 @@ async function prefillForEdit(){
     originalName = item.name || '';
     if(item.dob){ selectedDob = parseInt(String(item.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
     document.getElementById('m-school').value = item.school || '';
+    schoolPicker.syncFromInput();
     meslekDropdown.setChecked(professionLabelList(item.profession));
     // Firma/marka kutusu — kaydın kendi `office` metni TEK kaynak DEĞİL (bkz. office-picker.js#
     // mergeOfficeMembershipNames'teki gerçek bulgu: "MİMARLAB Robotu"nun taslağında office NULL'du,
@@ -1419,6 +1350,7 @@ async function prefillForClaim(){
   }
   if(merged.dob){ selectedDob = parseInt(String(merged.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
   document.getElementById('m-school').value = merged.school || '';
+  schoolPicker.syncFromInput();
   meslekDropdown.setChecked(professionLabelList(merged.profession));
   // `mine` eşleştiyse bu taslak oturumdaki hesabın kendi sahiplenilmiş profili demek (admin başkasının
   // profilini düzenlerken /api/architects/mine admin'in kendi satırlarını döndürür, eşleşmez). editId
@@ -1608,7 +1540,10 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(isInvalidSchoolValue(document.getElementById('m-school').value)){
+  // Kutu artık ÇOKLU (virgüllü) — kural her PARÇA için ayrı ayrı uygulanır, aksi halde
+  // "Yıldız Teknik Üniversitesi, YTÜ" gibi bir değer uzunluk kontrolünü toplamda geçip kısaltmayı
+  // içeri sokardı.
+  if(splitSchoolNames(document.getElementById('m-school').value).some(isInvalidSchoolValue)){
     notice.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});

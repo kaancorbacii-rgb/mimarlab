@@ -384,7 +384,6 @@
     <div class="admin-wrap">
       <div class="admin-tabs" id="admin-tabs">
         <button class="admin-tab active" data-tab="pending">Bekleyen Gönderiler<span class="admin-tab-dot" data-dot="pending"></span></button>
-        <button class="admin-tab" data-tab="content">Yayındaki İçerikler</button>
         <button class="admin-tab" data-tab="archive">Arşiv</button>
         <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
@@ -408,12 +407,15 @@
         <div id="pending-list"></div>
       </div>
 
-      <div class="admin-section" id="section-content">
-        <div class="admin-subtabs" id="content-subtabs"></div>
-        <div id="content-list"></div>
-        <div class="dash-pagination" id="content-pagination"></div>
-      </div>
-
+      <!-- "Yayındaki İçerikler" SEKMESİ KALDIRILDI (kullanıcı isteği, 2026-09-16 altıncı tur
+           madde 6). Sekme, bölüm, loadContent/toggleContentEditForm/CONTENT_EDITABLE_FIELDS ve
+           yalnızca o kartta kullanılan loadFeaturedProjectSlugs/toggleFeaturedProject hep gitti.
+           SUNUCU UÇLARI DURUYOR (GET /api/admin/submissions?status=approved, PATCH ve DELETE
+           /api/admin/submissions/:type/:id) — Arşiv ve Bekleyen Gönderiler sekmeleri aynı uçları
+           kullanmaya devam ediyor, kaldırılan tek şey EKRANDI (2026-09-16 ilk turdaki "Migrasyon
+           Çakışmaları" sekmesiyle AYNI desen).
+           "Öne Çıkar" düğmesiyle hiçbir yetenek kaybedilmedi: featured_project_slugs ayarının
+           gerçek arayüzü ANA SAYFA sekmesindeki karusel seçicisidir (bkz. HOME_CAROUSELS). -->
       <div class="admin-section" id="section-archive">
         <div class="admin-subtabs" id="archive-subtabs"></div>
         <!-- Arama çubuğu (kullanıcı isteği, 2026-09-10 madde 3) — arşiv listesi zaten TAMAMI
@@ -423,9 +425,9 @@
         <input type="search" id="archive-search" placeholder="Arşivde ara (başlık, konum, marka…)"
                style="width:100%; max-width:420px; padding:9px 12px; margin-bottom:14px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
         <div id="archive-list"></div>
-        <!-- Sayfalama (kullanıcı isteği, 2026-09-10): bir sayfada en fazla 30 gönderi. Yayındaki
-             İçerikler sekmesindeki #content-pagination ile AYNI kap/desen — renderDashPagination
-             tek yerden çizer, ayrı bir sayfalama tasarımı icat EDİLMEZ. -->
+        <!-- Sayfalama (kullanıcı isteği, 2026-09-10): bir sayfada en fazla 30 gönderi. Kap/desen
+             Bekleyen Gönderiler ve Üyeler sekmeleriyle AYNI — renderDashPagination tek yerden
+             çizer, ayrı bir sayfalama tasarımı icat EDİLMEZ. -->
         <div class="dash-pagination" id="archive-pagination"></div>
       </div>
 
@@ -723,9 +725,6 @@ const EDIT_PAGE_BY_TYPE = {
 };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'all';
-let contentType = 'all';
-let contentPage = 1;
-const CONTENT_PAGE_SIZE = 10;
 
 // hesabim.html'deki dashPageWindowSize/dashPageList/renderDashPagination ile BİREBİR aynı desen
 // (bkz. kullanıcı isteği: "yayındaki içerikler kısmını sayfalara ayır, bir sayfada en fazla 10 içerik olsun").
@@ -874,7 +873,7 @@ function renderSubtabs(container, activeType, onSelect, extraTypes){
   });
 }
 
-// pendingType/contentType 'all' olduğunda 7 tipin tamamı paralel olarak çekilir, her öğe kendi
+// pendingType 'all' olduğunda 7 tipin tamamı paralel olarak çekilir, her öğe kendi
 // tipiyle (__type) etiketlenip created_at'e göre birleştirilir — admin.js tarafında ayrı bir
 // "tüm tipler" endpoint'i yok, bu yüzden birleştirme istemci tarafında yapılıyor.
 async function fetchAllTypes(status){
@@ -984,130 +983,6 @@ async function loadPending(){
   });
 }
 
-async function loadContent(resetPage){
-  if(resetPage) contentPage = 1;
-  renderSubtabs(document.getElementById('content-subtabs'), contentType, (t)=>{ contentType = t; loadContent(true); });
-  const list = document.getElementById('content-list');
-  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  document.getElementById('content-pagination').innerHTML = '';
-  let items;
-  if(contentType === 'all'){
-    items = await fetchAllTypes('approved');
-  } else {
-    const data = await api(`/api/admin/submissions?type=${contentType}&status=approved`);
-    items = (data.items || []).map(item => ({...item, __type: contentType}));
-  }
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu tipte yayında içerik yok.</div>'; return; }
-  const totalPages = Math.max(1, Math.ceil(items.length / CONTENT_PAGE_SIZE));
-  if(contentPage > totalPages) contentPage = totalPages;
-  const pageItems = items.slice((contentPage - 1) * CONTENT_PAGE_SIZE, contentPage * CONTENT_PAGE_SIZE);
-  renderDashPagination('content-pagination', contentPage, totalPages, (p)=>{ contentPage = p; loadContent(); });
-
-  // Öne Çıkar rozetini/buton metnini doğru göstermek için — yalnızca sayfada proje varsa (gereksiz
-  // istek yapmamak için) featured_project_slugs ayarı önceden okunur (bkz. src/lib/siteSettings.js,
-  // GET /api/admin/settings zaten KV-önbellekli, hafif).
-  const featuredSlugs = pageItems.some(it => it.__type === 'projects') ? await loadFeaturedProjectSlugs() : [];
-
-  list.innerHTML = pageItems.map(item => `
-    <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
-      <div class="admin-card-head">
-        <div class="admin-card-body">
-          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy" decoding="async">` : ''}
-          <div>
-            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}${item.__type === 'projects' && featuredSlugs.includes(item.slug) ? ' <span class="admin-badge badge-neutral">Öne Çıkan</span>' : ''}</div>
-            ${claimBadgeHtml(item)}
-            <div class="admin-card-meta">${escapeHtml(itemMeta(item.__type, item))}</div>
-            ${itemDetails(item.__type, item)}
-          </div>
-        </div>
-        <div class="admin-actions">
-          <button class="admin-btn" data-action="edit">Düzenle</button>
-          ${item.__type === 'projects' ? `<button class="admin-btn" data-action="feature">${featuredSlugs.includes(item.slug) ? 'Öne Çıkanlardan Çıkar' : 'Öne Çıkar'}</button>` : ''}
-          <button class="admin-btn danger" data-action="unpublish">Yayından Kaldır</button>
-        </div>
-      </div>
-      <div class="content-edit-form" style="display:none; margin-top:14px;"></div>
-    </div>
-  `).join('');
-
-  list.querySelectorAll('[data-action="unpublish"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const card = btn.closest('.admin-card');
-      const id = card.dataset.id;
-      const type = card.dataset.type;
-      if(!confirm('Bu içeriği yayından kaldırmak istediğine emin misin?')) return;
-      btn.disabled = true;
-      await api(`/api/admin/submissions/${type}/${id}`, { method: 'DELETE' });
-      loadContent();
-    });
-  });
-  list.querySelectorAll('[data-action="edit"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const card = btn.closest('.admin-card');
-      const item = pageItems.find(it => String(it.id) === card.dataset.id && it.__type === card.dataset.type);
-      if(item) toggleContentEditForm(card, item);
-    });
-  });
-  list.querySelectorAll('[data-action="feature"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const card = btn.closest('.admin-card');
-      const item = pageItems.find(it => String(it.id) === card.dataset.id && it.__type === card.dataset.type);
-      if(!item || !item.slug) return;
-      btn.disabled = true;
-      await toggleFeaturedProject(item.slug);
-      loadContent();
-    });
-  });
-}
-
-// Yayındaki İçerikler sekmesinden hızlı düzenleme — yalnızca serbest metin alanları (bkz. plan
-// notu: taksonomi/dizi alanları BİLEREK burada YOK, tam düzenleme hâlâ Arşiv sekmesi → mevcut
-// ekle/düzenle formu akışından yapılır). Mevcut PATCH /api/admin/submissions/:type/:id endpoint'i
-// hiç değişmeden kullanılır (bu alanlar zaten submissionTypes.js#fields listelerinde).
-const CONTENT_EDITABLE_FIELDS = {
-  projects: [{ key: 'title', label: 'Başlık' }, { key: 'description', label: 'Açıklama', textarea: true }],
-  architects: [{ key: 'name', label: 'İsim' }, { key: 'about', label: 'Hakkında', textarea: true }],
-  offices: [{ key: 'name', label: 'İsim' }, { key: 'about', label: 'Hakkında', textarea: true }],
-  products: [{ key: 'title', label: 'Başlık' }, { key: 'description', label: 'Açıklama', textarea: true }],
-  materials: [{ key: 'title', label: 'Başlık' }, { key: 'description', label: 'Açıklama', textarea: true }],
-};
-function toggleContentEditForm(card, item){
-  const box = card.querySelector('.content-edit-form');
-  if(box.style.display !== 'none'){ box.style.display = 'none'; box.innerHTML = ''; return; }
-  const fields = CONTENT_EDITABLE_FIELDS[item.__type] || [];
-  box.innerHTML = `
-    <div class="admin-form" style="margin:0;">
-      ${fields.map(f => `<div class="admin-field"><label>${f.label}</label>${f.textarea ? `<textarea data-field="${f.key}">${escapeHtml(item[f.key] || '')}</textarea>` : `<input type="text" data-field="${f.key}" value="${escapeAttr(item[f.key] || '')}">`}</div>`).join('')}
-      <div class="admin-actions">
-        <button class="admin-btn primary" data-action="save-edit">Kaydet</button>
-        <button class="admin-btn" data-action="cancel-edit">Vazgeç</button>
-      </div>
-    </div>
-  `;
-  box.style.display = 'block';
-  box.querySelector('[data-action="cancel-edit"]').addEventListener('click', ()=>{ box.style.display = 'none'; box.innerHTML = ''; });
-  box.querySelector('[data-action="save-edit"]').addEventListener('click', async (e)=>{
-    e.target.disabled = true;
-    const body = {};
-    fields.forEach(f => { body[f.key] = box.querySelector(`[data-field="${f.key}"]`).value; });
-    await api(`/api/admin/submissions/${item.__type}/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    loadContent();
-  });
-}
-
-// Öne Çıkan Projeler (bkz. src/lib/siteSettings.js#featured_project_slugs, index.html'in ana sayfa
-// carousel'inde istemci tarafı sıralama için okuduğu AYNI ayar) — admin panelden ayrı bir seçim
-// arayüzü yerine, Yayındaki İçerikler kartındaki tek bir butonla ayarın kendisine slug ekler/çıkarır.
-async function loadFeaturedProjectSlugs(){
-  const s = await api('/api/admin/settings');
-  return (s.featured_project_slugs || '').split(',').map(v => v.trim()).filter(Boolean);
-}
-async function toggleFeaturedProject(slug){
-  const current = await loadFeaturedProjectSlugs();
-  const next = current.includes(slug) ? current.filter(v => v !== slug) : [...current, slug];
-  await api('/api/admin/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ featured_project_slugs: next.join(', ') }) });
-}
-
 // "Arşiv" sekmesi: proje/mimar/firma/ürün detay sayfalarındaki (yalnızca admin görür) "Arşivle"
 // butonuyla canlıdan kaldırılmış kayıtlar (bkz. src/routes/legacyContent.js#handleProjectAction/
 // handleContentAction) — hem statik kayıtların taslak kopyaları hem üye gönderileri status='archived'
@@ -1128,8 +1003,8 @@ const ARCHIVE_API_TYPE = { projects: 'projects', architects: 'architects', offic
 let archiveType = 'projects';
 let archiveSearch = '';
 // Sayfalama (kullanıcı isteği, 2026-09-10): arşiv listesi tek istekte TAMAMEN istemciye
-// geldiğinden (bkz. loadArchive) dilimleme burada yapılır — Yayındaki İçerikler sekmesindeki
-// contentPage/CONTENT_PAGE_SIZE ile AYNI desen, aynı renderDashPagination çizici.
+// geldiğinden (bkz. loadArchive) dilimleme burada yapılır — Üyeler sekmesindeki sayfalamayla
+// AYNI desen, aynı renderDashPagination çizici.
 let archivePage = 1;
 const ARCHIVE_PAGE_SIZE = 30;
 
@@ -2913,7 +2788,6 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
     document.getElementById('section-' + tab.dataset.tab).classList.add('active');
     if(tab.dataset.tab === 'pending') loadPending();
-    if(tab.dataset.tab === 'content') loadContent();
     if(tab.dataset.tab === 'archive') loadArchive();
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();

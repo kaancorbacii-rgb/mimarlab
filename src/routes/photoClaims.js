@@ -200,13 +200,16 @@ async function applyPhotoClaim(env, claim) {
   // profilinden açıldığı için eşleşme pratikte HER ZAMAN bulunur; yine de `if (match.row)` korunur
   // — profil bu arada silinmiş/yeniden adlandırılmış olabilir ve o durumda künyedeki düz metin,
   // hiçbir şey yazmamaktan iyidir.
-  if (!alreadyCredited) {
-    const match = await findOneByName(env, 'architects', name);
-    if (match.row) {
-      await env.DB.prepare(
-        `INSERT OR IGNORE INTO project_photographers (project_id, architect_id) VALUES (?, ?)`
-      ).bind(project.id, match.row.id).run();
-    }
+  // KENAR HER ZAMAN DENENİR (2026-09-16 altıncı tur): eskiden bu blok `if (!alreadyCredited)`
+  // koşuluna bağlıydı, yani künyede ADI ZATEN YAZAN ama kenarı hiç kurulmamış bir kayıtta (canlıda
+  // mümkün: künye düz metin olarak elle yazılmışsa `syncProject` eşleşme bulamamış olabilir)
+  // onay künye metnine hiçbir şey eklemediği gibi kenarı da kurmuyordu. INSERT OR IGNORE zaten
+  // fikirsiz (idempotent), bu yüzden koşulun korunmasının hiçbir faydası yoktu.
+  const match = await findOneByName(env, 'architects', name);
+  if (match.row) {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO project_photographers (project_id, architect_id) VALUES (?, ?)`
+    ).bind(project.id, match.row.id).run();
   }
 
   // (c) Taslak(lar) — bkz. tasarım notu 4. Eşleştirme hotspotTags.js#applyHotspot ile BİREBİR aynı
@@ -228,9 +231,19 @@ async function applyPhotoClaim(env, claim) {
   // 5 dakikalık s-maxage ile durur ve listFingerprint TAŞIMAZ, yani HIT yolunda tazelik
   // DOĞRULANMAZ: onay veren kişi "onayladım ama görünmüyor" diye bakakalırdı. Bkz.
   // hotspotTags.js#applyHotspot'taki AYNI gerçek bulgu ve purgeSsrDetailCache gerekçesi.
+  //
+  // KİŞİ DETAYI DA PURGE EDİLİR (kullanıcı isteği, 2026-09-16 altıncı tur madde 1: "böyle bir talep
+  // onaylanır ve fotoğrafçı künyeye eklenirse kişi popupındaki 'Fotoğrafladığı Projeler' kısmında
+  // da proje gözüksün"). KÖK NEDEN ÖNBELLEKTİ, VERİ DEĞİL: kenar (b) yukarıda zaten kuruluyor ve
+  // architect.js#buildArchitectPayload o bölümü TAM OLARAK `project_photographers`'tan okuyor —
+  // ama `/api/architect/:slug` (ve /kisi/:slug SSR gövdesi) caches.default'ta s-maxage ile durur ve
+  // fingerprint TAŞIMAZ, yani onaydan sonra açılan pop-up bayat listeyi göstermeye devam ediyordu.
+  // Anahtar ADDAN slugify edilir (bkz. ssrCache.js#SLUGIFY_TYPES), bu yüzden canonical satırın adı
+  // verilir — talepteki ad (`name`) yeniden adlandırma sonrası eski yazım olabilir.
   await Promise.all([
     invalidatePublicCache(env),
     purgeSsrDetailCache('project', project.slug, env),
+    match.row ? purgeSsrDetailCache('architect', match.row.name, env) : Promise.resolve(),
   ]);
   return { ok: true, projectSlug: project.slug };
 }

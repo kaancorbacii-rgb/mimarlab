@@ -10,7 +10,7 @@ import { serializePublicEntity, coverImage } from '../lib/serializePublicEntity.
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
-import { TR_UNIVERSITIES, canonicalSchoolName } from '../lib/universities.js';
+import { TR_UNIVERSITIES, canonicalSchoolName, schoolNameList } from '../lib/universities.js';
 import { isArchitectProfileClaimed } from '../lib/claimedProfiles.js';
 import { buildOfficePeople } from './office.js';
 // "Danışmanlık Al" düğmesi artık SABİT BİR SLUG'A bağlı değil (kullanıcı isteği, 2026-09-15):
@@ -94,7 +94,7 @@ export async function fetchArchitectPool(env) {
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
       // preview: bkz. src/lib/projectPool.js#shapeProjectItem'daki AYNI alan/gerekçe.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: canonicalSchoolName(a.school) || null, awards, projectCount: row.project_count || 0, badges: [], ...(row.preview_at ? { preview: true } : {}) };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), schools: schoolNameList(a.school), awards, projectCount: row.project_count || 0, badges: [], ...(row.preview_at ? { preview: true } : {}) };
     });
   });
 }
@@ -260,6 +260,17 @@ export async function handleArchitectNamesRoute(request, env, url) {
   });
 }
 
+// Havuz satırının üniversite listesi. Yeni havuz `schools` dizisini taşır; KV'de deploy anında
+// duran ESKİ havuz ise tek değerli `school` metnini taşıyor olabilir (bkz. publicCache.js#
+// POOL_CACHE_TTL_SECONDS) — o pencerede de filtre ve sayaçlar çalışmaya devam etsin diye ikisi de
+// okunur. Eski değer tek bir okul adı olduğundan bölmeye gerek yok, ama canonicalSchoolName'den
+// geçirilir ki iki kaynak AYNI yazımı üretsin.
+function schoolListOf(a) {
+  if (Array.isArray(a.schools)) return a.schools;
+  const legacy = canonicalSchoolName(a.school);
+  return legacy ? [legacy] : [];
+}
+
 // GET /api/architects/schools — uye-ol.html (kayıt formu) / kisi-ekle.html'deki "Üniversite"
 // otomatik tamamlama kutusu için canonical D1'deki tüm mimarların KAYITLI OLDUĞU okulların
 // tekilleştirilmiş listesini döner (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 —
@@ -287,12 +298,15 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
     ).all();
     const items = [...TR_UNIVERSITIES];
     const seen = new Set(items.map(s => s.toLocaleLowerCase('tr')));
+    // Kolon artık ÇOKLU değer taşıyabiliyor (virgüllü, bkz. universities.js#schoolNameList) —
+    // bölünmezse "A Üniversitesi, B Üniversitesi" listeye TEK bir uydurma seçenek olarak girerdi.
     for (const row of results) {
-      const name = canonicalSchoolName(row.school);
-      const key = name.toLocaleLowerCase('tr');
-      if (!name || seen.has(key)) continue;
-      seen.add(key);
-      items.push(name);
+      for (const name of schoolNameList(row.school)) {
+        const key = name.toLocaleLowerCase('tr');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push(name);
+      }
     }
     items.sort((a, b) => a.localeCompare(b, 'tr'));
     return { items };
@@ -377,12 +391,12 @@ export async function handleArchitectListRoute(request, env, url) {
       // (a.professions || []) — bkz. aşağıdaki professionCounts'taki AYNI gerekçe: deploy anında
       // KV'de duran ESKİ havuz (bu alan eklenmeden önce yazılmış) bu alanı taşımaz.
       if (professionParams.length && !professionParams.some(p => (a.professions || []).includes(p))) return false;
-      // (a.school || '') — professions'takiyle AYNI "deploy anında KV'de bu alanı taşımayan ESKİ
-      // havuz okunuyor olabilir" koruması. O pencerede school filtresi hiçbir kişiyi eşleştirmez;
-      // ama sayaçlar da aynı havuzdan geldiği için grup kisi.html'de zaten hiç çizilmez, yani
-      // yalnızca eski/paylaşılmış bir ?school= linki geçici olarak boş sonuç verir (kendiliğinden
-      // düzelir, havuz TTL'i dolunca alan gelir).
-      if (schoolParams.length && !schoolParams.includes(a.school || '')) return false;
+      // schoolListOf(a) — ÇOKLU ÜNİVERSİTE (2026-09-16 altıncı tur madde 4): alan artık bir DİZİ
+      // (professions ile birebir aynı desen), grup içi mantık OR. Fonksiyon aynı zamanda
+      // "deploy anında KV'de duran ESKİ havuz" korumasıdır: o havuz `schools` yerine tek değerli
+      // `school` taşır ve bu okuma onu tek elemanlı bir diziye çevirir, yani filtre/sayaçlar o
+      // pencerede de doğru çalışır (professions'ta bu koruma yalnızca boş diziye düşüyordu).
+      if (schoolParams.length && !schoolParams.some(sc => schoolListOf(a).includes(sc))) return false;
       if (searchQuery && !foldTr(a.name).includes(searchQuery)) return false;
       return true;
     }
@@ -434,8 +448,10 @@ export async function handleArchitectListRoute(request, env, url) {
       if (a.position && POSITIONS.has(a.position)) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
       // Okul adları serbest metin ama canlıda ölçüldü: 313 kişi / 66 farklı okul, büyük-küçük harf
       // varyantı YOK (COUNT(DISTINCT school) === COUNT(DISTINCT LOWER(school))) — bu yüzden ekstra
-      // bir normalizasyon katmanı eklenmedi, değerler havuzda zaten trim'lenmiş hâlde duruyor.
-      if (a.school) schoolCounts[a.school] = (schoolCounts[a.school] || 0) + 1;
+      // bir normalizasyon katmanı eklenmedi; tekilleştirme/kanonikleştirme schoolNameList'te
+      // (havuz yazımında) yapılır. Bir kişi birden fazla okul taşıyabildiğinden (madde 4) her okul
+      // AYRI sayılır — ödüller/meslekler ile aynı davranış.
+      schoolListOf(a).forEach(sc => { schoolCounts[sc] = (schoolCounts[sc] || 0) + 1; });
       // (a.professions || []) — GERÇEK BULGU (yerelde 500 ile yaşandı): havuz KV'de 30 dakikaya
       // kadar önbelleklenir (bkz. publicCache.js#POOL_CACHE_TTL_SECONDS), yani deploy anında
       // BU ALANIN HENÜZ OLMADIĞI eski bir havuz nesnesi hâlâ okunuyor olabilir. Çıplak
@@ -459,7 +475,7 @@ export async function handleArchitectListRoute(request, env, url) {
     // school da (awards/projectCount/professions gibi) YALNIZCA filtre/sayaç için havuzda
     // duruyor — kisi.html kartı okulu hiç render etmiyor, bu yüzden kart yüküne sızmasın diye
     // burada ayıklanır (bkz. Faz 4A Projection Optimization yorumu).
-    const items = ordered.slice(start, start + limit).map(({ awards, projectCount, professions, school, ...rest }) => rest);
+    const items = ordered.slice(start, start + limit).map(({ awards, projectCount, professions, school, schools, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,

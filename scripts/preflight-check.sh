@@ -763,6 +763,23 @@ else
 fi
 rm -f /tmp/preflight_20260916c
 
+# 2026-09-16 ALTINCI TUR (yedi madde): onaylanan fotoğraf künyesi artık KİŞİ pop-up'ının
+# "Fotoğrafladığı Projeler" bölümünde de görünür (kök neden kişi detay ÖNBELLEĞİYDİ, veri değil);
+# proje/ürün tarih-yıl kutuları listeden seçilir (MÖ + 1..bugün / 1299..bugün, TEK seçim);
+# admin'e özel Yayın Tarihi kutusu Gönder/Arşivle'nin altına indi; Üniversite kutusu çoklu seçim +
+# elle yazma (architects.school virgüllü çoklu değer oldu, filtre/sayaç/uç hepsi parçalıyor);
+# urun-ekle başlığı "Kullanıldığı Projeler"; admin "Yayındaki İçerikler" sekmesi kaldırıldı
+# (sunucu uçları duruyor); proje/ürün lightbox'ında "Kaydet" ile GÖRSELİN KENDİSİ kaydedilebiliyor
+# (saved_items item_type='image', Kaydettiklerim'de "Görsel" filtresi).
+# Bkz. scripts/test-2026-09-16-photo-visibility-pickers-and-image-saves.mjs.
+if node scripts/test-2026-09-16-photo-visibility-pickers-and-image-saves.mjs >/tmp/preflight_20260916f 2>&1; then
+  ok "2026-09-16 altıncı tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916f) test)"
+else
+  bad "2026-09-16 altıncı tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260916f >&2
+fi
+rm -f /tmp/preflight_20260916f
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i
