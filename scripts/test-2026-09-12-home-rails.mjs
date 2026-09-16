@@ -56,7 +56,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { handleClaimsRoute } from '../src/routes/claims.js';
 import { sha256Hex } from '../src/lib/crypto.js';
-import { HOME_SLOT_COUNT } from '../src/lib/homeCarousels.js';
+import { HOME_SLOT_COUNTS } from '../src/lib/homeCarousels.js';
 
 let passed = 0, failed = 0;
 async function test(name, fn) {
@@ -98,16 +98,28 @@ await test('≤560px bloğunda .footer-newsletter-btn padding\'i SIFIRLANIR (ok 
   assert.match(chrome, /\.footer-newsletter-btn-icon\{flex-shrink:0;\}/);
 });
 
-console.log('\nmadde 3 — karusel slot sayısı 6 (dört dosya hizalı)');
+// 2026-09-16 madde 1: proje/kişi/firma 6 -> 9, ÜRÜN (ve Gündem) 6'da kaldı. Sabit artık iki
+// değerli, bu yüzden hizalama kelepçesi de iki değeri birden ölçer — biri geride kalırsa ya
+// karusel ile admin önizlemesi ayrışır ya da gömülü veri karuselin beklediğinden az kayıt taşır.
+console.log('\nmadde 3 — karusel slot sayıları (dört dosya hizalı)');
 
-await test('index.html / src/index.js / homeCarousels.js / admin.html aynı slot sayısını taşır', () => {
+await test('index.html / src/index.js / homeCarousels.js / admin.html aynı slot sayılarını taşır', () => {
   const idx = Number(indexHtml.match(/const PROJECT_CAROUSEL_SLOTS = (\d+);/)[1]);
+  const idxSmall = Number(indexHtml.match(/const SMALL_CAROUSEL_SLOTS = (\d+);/)[1]);
   const srv = Number(serverIndex.match(/const HOME_SLOTS = (\d+);/)[1]);
+  const srvSmall = Number(serverIndex.match(/const HOME_SMALL_SLOTS = (\d+);/)[1]);
   const adm = Number(adminHtml.match(/const HOME_CAROUSEL_SLOTS = (\d+);/)[1]);
-  assert.equal(idx, 6, 'index.html#PROJECT_CAROUSEL_SLOTS');
-  assert.equal(srv, 6, 'src/index.js#HOME_SLOTS');
-  assert.equal(HOME_SLOT_COUNT, 6, 'homeCarousels.js#HOME_SLOT_COUNT');
-  assert.equal(adm, 6, 'admin.html#HOME_CAROUSEL_SLOTS');
+  const admSmall = Number(adminHtml.match(/const HOME_CAROUSEL_SLOTS_SMALL = (\d+);/)[1]);
+  assert.equal(idx, 9, 'index.html#PROJECT_CAROUSEL_SLOTS');
+  assert.equal(srv, 9, 'src/index.js#HOME_SLOTS');
+  assert.equal(adm, 9, 'admin.html#HOME_CAROUSEL_SLOTS');
+  assert.equal(HOME_SLOT_COUNTS.projects, 9, 'homeCarousels.js#HOME_SLOT_COUNTS.projects');
+  assert.equal(HOME_SLOT_COUNTS.architects, 9, 'homeCarousels.js#HOME_SLOT_COUNTS.architects');
+  assert.equal(HOME_SLOT_COUNTS.offices, 9, 'homeCarousels.js#HOME_SLOT_COUNTS.offices');
+  assert.equal(idxSmall, 6, 'index.html#SMALL_CAROUSEL_SLOTS');
+  assert.equal(srvSmall, 6, 'src/index.js#HOME_SMALL_SLOTS');
+  assert.equal(admSmall, 6, 'admin.html#HOME_CAROUSEL_SLOTS_SMALL');
+  assert.equal(HOME_SLOT_COUNTS.products, 6, 'homeCarousels.js#HOME_SLOT_COUNTS.products');
 });
 
 console.log('\nmadde 4 — ana sayfa şeritleri kaldırıldı');
@@ -139,17 +151,26 @@ await test('şerit JS\'i tamamen gitti (var olmayan DOM\'u arayan kod kalmadı)'
   assert.ok(!serverIndex.includes('HOME_RAIL_SLOTS'), 'src/index.js hâlâ şerit slotu taşıyor');
 });
 
-await test('liste uçları yeniden TAM karusel slotu kadar çekiyor (şerit için +6 yok)', () => {
+await test('liste uçları TAM karusel slotu kadar çekiyor (şerit için +6 yok)', () => {
   assert.match(indexHtml, /const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;/);
+  assert.match(indexHtml, /const SMALL_LIST_FETCH_LIMIT = SMALL_CAROUSEL_SLOTS;/);
   assert.match(serverIndex, /const HOME_LIST_LIMIT = HOME_SLOTS;/);
-  for (const ep of ['architects', 'offices', 'products']) {
+  assert.match(serverIndex, /const HOME_SMALL_LIST_LIMIT = HOME_SMALL_SLOTS;/);
+  for (const ep of ['architects', 'offices']) {
     assert.ok(indexHtml.includes(`pick('${ep}', '/api/${ep}?limit=' + HOME_LIST_FETCH_LIMIT`), `index.html ${ep} ucu eski limiti kullanıyor`);
     assert.ok(serverIndex.includes(`/api/${ep}?limit=\${HOME_LIST_LIMIT}`), `src/index.js ${ep} ucu eski limiti kullanıyor`);
   }
+  // ÜRÜN + GÜNDEM küçük limiti kullanır — büyük limite kaydıklarında ana sayfada 9 kart çıkardı.
+  assert.ok(indexHtml.includes("pick('products', '/api/products?limit=' + SMALL_LIST_FETCH_LIMIT"), 'index.html ürün ucu büyük limiti kullanıyor');
+  assert.ok(indexHtml.includes("pick('gundem', '/api/gundem?limit=' + SMALL_LIST_FETCH_LIMIT"), 'index.html gündem ucu büyük limiti kullanıyor');
+  assert.ok(serverIndex.includes('/api/products?limit=${HOME_SMALL_LIST_LIMIT}'), 'src/index.js ürün ucu büyük limiti kullanıyor');
+  assert.ok(serverIndex.includes('/api/gundem?limit=${HOME_SMALL_LIST_LIMIT}'), 'src/index.js gündem ucu büyük limiti kullanıyor');
 });
 
-await test('karusel yanıtın ilk 6\'sını çizer (şerit kuyruğu kalmadı)', () => {
+await test('karusel yanıtın ilk slot kadarını çizer (şerit kuyruğu kalmadı)', () => {
   assert.match(indexHtml, /const head = \(list\) => notPreview\(list\)\.slice\(0, PROJECT_CAROUSEL_SLOTS\);/);
+  assert.match(indexHtml, /urunSlider\.render\(notPreview\(productRes\.items\)\.slice\(0, SMALL_CAROUSEL_SLOTS\)\)/);
+  assert.match(indexHtml, /gundemSlider\.render\(\(gundemRes\.items \|\| \[\]\)\.slice\(0, SMALL_CAROUSEL_SLOTS\)\)/);
   assert.ok(!indexHtml.includes('const tail = '), 'şeridi besleyen tail() hâlâ duruyor');
 });
 

@@ -54,7 +54,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { HOME_SLOT_COUNT } from '../src/lib/homeCarousels.js';
+import { HOME_SLOT_COUNTS } from '../src/lib/homeCarousels.js';
 
 let passed = 0, failed = 0;
 function test(name, fn) {
@@ -258,23 +258,29 @@ test('beş karusel de kuruldu ve HTML\'deki track/ok id\'leriyle eşleşiyor', (
   assert.ok(indexHtml.includes('id="slider-track"') && indexHtml.includes('id="proje-slider"'));
 });
 
-test('slot sayısı 6 ve ÜST sınır: eksik kayıt yer tutucuyla doldurulmaz', () => {
-  assert.equal(Number(indexHtml.match(/const PROJECT_CAROUSEL_SLOTS = (\d+);/)[1]), 6);
-  assert.equal(Number(serverIndex.match(/const HOME_SLOTS = (\d+);/)[1]), 6);
-  assert.equal(HOME_SLOT_COUNT, 6);
+// 2026-09-16 madde 1: proje/kişi/firma 9, ürün/gündem 6. "ÜST sınır" kuralı DEĞİŞMEDİ.
+test('slot sayıları (9 / 6) ve ÜST sınır: eksik kayıt yer tutucuyla doldurulmaz', () => {
+  assert.equal(Number(indexHtml.match(/const PROJECT_CAROUSEL_SLOTS = (\d+);/)[1]), 9);
+  assert.equal(Number(serverIndex.match(/const HOME_SLOTS = (\d+);/)[1]), 9);
+  assert.equal(HOME_SLOT_COUNTS.architects, 9);
+  assert.equal(Number(indexHtml.match(/const SMALL_CAROUSEL_SLOTS = (\d+);/)[1]), 6);
+  assert.equal(Number(serverIndex.match(/const HOME_SMALL_SLOTS = (\d+);/)[1]), 6);
+  assert.equal(HOME_SLOT_COUNTS.products, 6);
   // Tek yol: slice(0, SLOTS). Eksik olanı tamamlayan bir dolgu/`while`/`padEnd` OLMAMALI.
   assert.match(indexHtml, /const head = \(list\) => notPreview\(list\)\.slice\(0, PROJECT_CAROUSEL_SLOTS\);/);
-  assert.match(indexHtml, /gundemSlider\.render\(\(gundemRes\.items \|\| \[\]\)\.slice\(0, PROJECT_CAROUSEL_SLOTS\)\)/);
-  assert.equal(Number(indexHtml.match(/const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;/) ? 6 : 0), 6);
+  assert.match(indexHtml, /gundemSlider\.render\(\(gundemRes\.items \|\| \[\]\)\.slice\(0, SMALL_CAROUSEL_SLOTS\)\)/);
+  assert.ok(indexHtml.includes('const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;'));
+  assert.ok(indexHtml.includes('const SMALL_LIST_FETCH_LIMIT = SMALL_CAROUSEL_SLOTS;'));
   assert.match(serverIndex, /const HOME_LIST_LIMIT = HOME_SLOTS;/);
+  assert.match(serverIndex, /const HOME_SMALL_LIST_LIMIT = HOME_SMALL_SLOTS;/);
 });
 
 test('FİRMA kutusu saf markaları dışlayan ucu kullanır, GÜNDEM kendi ucunu', () => {
   // İstemci (gömülü veri yoksa devreye giren yedek fetch yolu)
   assert.ok(indexHtml.includes("pick('offices', '/api/offices?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1')"), 'firma ucu yok');
-  assert.ok(indexHtml.includes("pick('gundem', '/api/gundem?limit=' + HOME_LIST_FETCH_LIMIT)"), 'gündem ucu yok');
+  assert.ok(indexHtml.includes("pick('gundem', '/api/gundem?limit=' + SMALL_LIST_FETCH_LIMIT)"), 'gündem ucu yok');
   // Sunucu (gömülü veri)
-  assert.ok(serverIndex.includes('`/api/gundem?limit=${HOME_LIST_LIMIT}`'), 'sunucu gündem ucunu çekmiyor');
+  assert.ok(serverIndex.includes('`/api/gundem?limit=${HOME_SMALL_LIST_LIMIT}`'), 'sunucu gündem ucunu çekmiyor');
   // Gündem'in admin seçimi YOK: pin= eklenmemeli (en sıcak önbellek anahtarı korunur).
   assert.ok(!serverIndex.includes("pinFor('brands')") && !serverIndex.includes("pinFor('gundem')"), 'gündem için olmayan bir seçim anahtarı okunuyor');
   assert.match(indexHtml, /const settingKey = HOME_SETTINGS_KEY\[key\];/, 'pinQuery anahtarsız kategoriyi açıkça ele almıyor');

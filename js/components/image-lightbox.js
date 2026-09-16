@@ -64,9 +64,18 @@
     }
   }
 
+  // Göreli yollar SABİT SİTE KÖKÜNE göre çözülür (kullanıcı isteği, 2026-09-16 madde 7 — bkz.
+  // js/components/architect-modal.js#SITE_ROOT'taki AYNI kök neden). `data-lightbox-src` bazı
+  // çağıranlarda HAM D1 değeridir ("logos-thumb/eaa.jpg" — bkz. office-modal.js#paintLogo) ve
+  // pop-up ana sayfadan açıldığında adres pushState ile "/firma/<slug>"a döndüğünden, tarayıcı
+  // `imgEl.src = "logos-thumb/..."` atamasını "/firma/logos-thumb/..." diye çözüp 404 veriyordu.
+  function siteUrl(u) {
+    try { return new URL(u, window.location.origin + '/').href; } catch (e) { return u; }
+  }
+
   function paint() {
     var it = items[index] || {};
-    imgEl.src = it.src || '';
+    imgEl.src = it.src ? siteUrl(it.src) : '';
     imgEl.alt = it.alt || it.caption || '';
     captionEl.textContent = it.caption || '';
     captionEl.style.display = it.caption ? '' : 'none';

@@ -280,6 +280,13 @@
     background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;
   }
   .brand-add-row .brand-select:disabled{opacity:.55;}
+  /* Ürün firması kutusu artık bir <select> değil, office-picker.js panelini taşıyan bir sarmalayıcı
+     (bkz. #p-brand-picker). Kendi çerçevesi/dolgusu YOK — onları .op-btn zaten çiziyor; sarmalayıcı
+     yalnızca satırda aynı esnemeyi ve panelin konumlanacağı kapsayıcıyı sağlar. */
+  .brand-add-row .brand-select-picker{padding:0; border:none; background:none; position:relative;}
+  /* Seçim TEK olduğundan düğmenin etiketi zaten firmayı yazar — altındaki çip satırı yalnızca
+     satırı uzatır ve "Projede Kullanılan Ürünler" chip listesiyle karışırdı. */
+  .brand-add-row .brand-select-picker .op-chips{display:none;}
   .brand-add-btn{
     flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
     padding:0 18px; height:42px; font-weight:600; font-size:13px; white-space:nowrap;
@@ -781,9 +788,20 @@
                canonicalSync o adla okuyor (bkz. src/lib/submissionTypes.js) — yeniden adlandırma
                kaydetme yolunu da değiştirmek olurdu, istenen yalnızca EKRANDAKİ dildi. -->
           <div class="brand-add-row">
-            <select id="p-brand-select" class="brand-select" aria-label="Ürün firması">
-              <option value="">Ürün firması seç</option>
-            </select>
+            <!-- ÜRÜN FİRMASI: <select> -> arama kutulu tek seçimlik panel (kullanıcı isteği,
+                 2026-09-16 madde 2: "Ürün firması seç butonunda ürünü olmasa bile tüm firmalar
+                 listelensin. Listenin en başında arama butonu olsun, aynı Firma başlığında firma
+                 seçermiş gibi olsun"). Kaynak /api/products/brands DEĞİL /api/offices/names: o uç
+                 yalnızca ÜRÜNÜ OLAN markaları döndürüyordu, istek ise "ürünü olmasa bile tüm
+                 firmalar". Yukarıdaki "Firma" kutusuyla AYNI bileşen (office-picker.js), yalnızca
+                 single:true — bir chip'e tek firma yazılır.
+                 #p-brand-select <input type="hidden"> olarak KALIR: bu kutuyu okuyan/yazan her
+                 nokta (syncProductField, addBrandChip, görsel etiketleme) onun `.value`'sunu
+                 kullanmaya devam eder, yani sözleşme değişmedi. -->
+            <div class="brand-select brand-select-picker">
+              <input type="hidden" id="p-brand-select">
+              <div id="p-brand-picker"></div>
+            </div>
             <select id="p-product-select" class="brand-select" aria-label="Ürün" disabled>
               <option value="">Önce firma seç</option>
             </select>
@@ -1391,10 +1409,13 @@ function foldTrLocal(value){
 // (kullanıcı seçtikten sonra metni değiştirebiliyordu). Menüde geçersiz bir değer üretmek mümkün
 // değil.
 //
-// Marka listesi /api/products/brands'ten TEK SEFERDE çekilir (marka sayısı iki haneli, bkz. o
-// ucun LIMIT notu); ürün listesi ise seçilen markaya göre /api/products/search?brand=... ile
-// doldurulur — yani "bir marka seçince ürün kutucuğunda sadece o markaya ait ürünler" isteğinin
-// doğrudan karşılığı.
+// FİRMA KUTUSU 2026-09-16'da <select>'ten office-picker.js paneline geçti (madde 2): kaynak artık
+// /api/products/brands DEĞİL /api/offices/names — o uç yalnızca ÜRÜNÜ OLAN markaları döndürüyordu,
+// istek ise "ürünü olmasa bile tüm firmalar listelensin ... en başında arama". Ürün listesi ise
+// seçilen firmaya göre /api/products/search?brand=... ile doldurulmaya DEVAM eder — yani "bir firma
+// seçince ürün kutucuğunda sadece o firmaya ait ürünler" davranışı değişmedi; ürünü olmayan bir
+// firma seçilirse menü "Bu firmanın kayıtlı ürünü yok" der ve yalnızca firma chip'i eklenir
+// (zaten geçerli bir giriş, bkz. addBrandChip).
 //
 // Serbest metinli "Diğer" seçeneği KALDIRILDI (kullanıcı isteği, 2026-09-04 madde 4). Sitede
 // karşılığı olmayan bir ad zaten hiçbir ürüne bağlanamıyordu (src/lib/canonicalSync.js#
@@ -1402,19 +1423,16 @@ function foldTrLocal(value){
 // artık kutunun tek işi kayıtlı marka/ürün seçmek. Ürün seçmek ZORUNLU DEĞİL — yalnızca marka
 // seçip "+ Ekle"ye basmak geçerli bir giriştir (bkz. addBrandChip).
 const brandSelect = document.getElementById('p-brand-select');
+// Kutu nesnesi aşağıda (diğer üç kutuyla birlikte) kurulur; buradaki fonksiyonlar ona ihtiyaç
+// duyduğunda `null` kontrolüyle davranırlar.
+let brandPicker = null;
 const productSelect = document.getElementById('p-product-select');
 
 function optionHtml(value, label){
   return `<option value="${escapeAttr(value)}">${escapeAttr(label)}</option>`;
 }
-fetch('/api/products/brands')
-  .then(res => res.ok ? res.json() : {items: []})
-  .then(data => {
-    const names = (data.items || []).map(it => it.label).filter(Boolean);
-    brandSelect.innerHTML = optionHtml('', 'Ürün firması seç')
-      + names.map(n => optionHtml(n, n)).join('');
-  })
-  .catch(()=>{});
+// Kutunun kendisi aşağıda, diğer üç kutuyla birlikte kurulur (bkz. brandPicker) — office-picker.js
+// o noktada yüklü ve #p-brand-picker DOM'da.
 
 // Seçilen markanın ürünleri — aynı marka için ikinci kez ağ isteği atılmaz (kullanıcı menüler
 // arasında gidip gelebiliyor).
@@ -1449,7 +1467,10 @@ function syncProductField(){
     productSelect.disabled = !titles.length;
   });
 }
-brandSelect.addEventListener('change', syncProductField);
+// Gizli input'a yazan her yol (kutunun kendi pushToInput'u dahil) `input` olayı yayar — böylece
+// menü senkronu, kutunun onChange'ine ek olarak programatik bir `.value` yazımında da çalışır
+// (bkz. office-picker.js#pushToInput'taki AYNI sözleşme).
+brandSelect.addEventListener('input', syncProductField);
 
 const BRAND_ADD_HINT_DEFAULT = 'Sadece firma seçimleri de yapabilirsin, ürün seçmek zorunlu değil.';
 function setBrandAddHint(msg){
@@ -1518,20 +1539,27 @@ function removeBrandChipForProduct(hotspot){
 // yapabilirsin") — yalnızca marka seçilip eklenirse chip'in product'ı null kalır ve künyede marka
 // adıyla görünür.
 function addBrandChip(){
-  const brand = brandSelect.value;
+  const brand = brandSelect.value.trim();
   if(!brand){
     setBrandAddHint('Önce listeden bir firma seç.');
-    brandSelect.focus();
+    focusBrandPicker();
     return;
   }
   const product = productSelect.value.trim();
   const exists = brandChips.some(c => trLower(c.brand || '') === trLower(brand)
     && trLower(c.product || '') === trLower(product));
   if(!exists) brandChips.push({ brand: brand, product: product || null });
-  brandSelect.value = '';
-  syncProductField();
+  // Seçimi SIFIRLA: gizli input'a doğrudan yazmak kutunun kendi durumunu güncellemez (çip/etiket
+  // eski firmada kalırdı) — api.set() hem durumu hem input'u birlikte temizler ve `input` olayıyla
+  // syncProductField'ı da tetikler.
+  if(brandPicker) brandPicker.set([]); else { brandSelect.value = ''; syncProductField(); }
   renderBrandChips();
-  brandSelect.focus();
+  focusBrandPicker();
+}
+// Gizli input odaklanamaz (type="hidden") — kullanıcının gitmesi gereken yer kutunun düğmesi.
+function focusBrandPicker(){
+  const btn = document.querySelector('#p-brand-picker .op-btn');
+  if(btn) btn.focus();
 }
 document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
 
@@ -1573,6 +1601,18 @@ creditPicker = createPersonOrOfficePicker(document.getElementById('p-credit-pick
   searchLabel: 'Kişi ya da firma ara, yoksa yeni isim yaz...',
   allowCustom: true,
   onChange: onCreditPickerChange,
+});
+// "Projede Kullanılan Ürünler" > Ürün firması (kullanıcı isteği, 2026-09-16 madde 2). Yukarıdaki
+// Firma kutusuyla AYNI bileşen/uç, iki farkla:
+//   * single:true — bu kutu tek firma taşır (seçilen firma, yanındaki Ürün menüsünü belirler).
+//   * allowCustom YOK — kutunun tek işi SİTEDE KAYITLI bir firma seçmek (2026-09-04 madde 4'ten
+//     beri geçerli kural): karşılığı olmayan bir ad hiçbir ürüne bağlanamaz
+//     (src/lib/canonicalSync.js#resolveProjectProductLinks markasız girdiyi atlar).
+brandPicker = createOfficePicker(document.getElementById('p-brand-picker'), {
+  input: brandSelect,
+  single: true,
+  placeholder: 'Ürün firması seç',
+  searchLabel: 'Firma ara...',
 });
 
 function mediaItemSrc(item){

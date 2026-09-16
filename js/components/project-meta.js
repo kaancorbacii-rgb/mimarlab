@@ -43,19 +43,33 @@ const ProjectMeta = (function () {
   // kullanmak bu <base>'i BYPASS ediyordu: legacy_static kaynaklı, başında "/" olmayan bir logo_url
   // (ör. offices.logo_url = "logos-thumb/arkiv/buda-mimarlik.jpg", D1'de doğru/beklenen format — bkz.
   // badge-shared.js#logoUrl'in de aynı ham değeri kullanması) /proje/:slug sayfasında
-  // "/proje/logos-thumb/..." gibi YANLIŞ bir mutlak URL'e çözülüp 404 veriyordu. document.baseURI
+  // "/proje/logos-thumb/..." gibi YANLIŞ bir mutlak URL'e çözülüp 404 veriyordu. Sabit site kökü
   // <base> tag'ini hesaba katar, tarayıcının ham `src="..."` attribute'unu HTML parse ederken yaptığı
   // çözümlemeyle AYNI sonucu üretir.
+  // SİTE KÖKÜ — göreli yolların çözüm tabanı. document.baseURI DEĞİL (gerçek bulgu, kullanıcı
+  // isteği 2026-09-16 madde 7: "Bazen bir kişi profili açıldığında ... kişi fotoğrafı kırık olarak
+  // popup açılıyor ama sayfayı yenileyince düzeliyor"):
+  //   * D1'deki bazı görsel yolları köke göreli ve BAŞINDA EĞİK ÇİZGİ YOKTUR ("mimarlar/x.jpg",
+  //     "logos-thumb/y.jpg", "miras/z.webp" — legacy_static kaynaklı kayıtlar).
+  //   * `<base href="/">` taşıyan sayfalarda (kisi/firma/proje/urun/gundem...) baseURI kök olduğu
+  //     için bunlar doğru çözülüyordu. Ama pop-up ana sayfadan/aramadan da AYNI belgede açılıyor ve
+  //     açılırken adres pushState ile "/kisi/<slug>"a dönüyor; o belgelerde <base> OLMADIĞINDAN
+  //     document.baseURI da o anda "/kisi/<slug>" oluyor ve "mimarlar/x.jpg" -> "/kisi/mimarlar/x.jpg"
+  //     gibi var olmayan bir adrese çözülüyordu. Sayfa yenilenince sunucu <base href="/"> taşıyan
+  //     belgeyi servis ettiği için sorun "kendiliğinden" düzeliyordu — bildirilen davranış tam da bu.
+  // Köke sabitlemek `<base href="/">` olan sayfalarda BİREBİR aynı sonucu verir (orada baseURI
+  // zaten origin + "/"), olmayan sayfalarda ise kırılmayı kökten kaldırır.
+  const SITE_ROOT = window.location.origin + '/';
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, document.baseURI);
+      const parsed = new URL(u, SITE_ROOT);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch { /* geçersiz URL — boş dön */ }
     return '';
   }
   window.safeUrl = window.safeUrl || safeUrl;
 
-  // DIŞ (harici) bağlantılar için safeUrl'in KARŞITI: değer ASLA document.baseURI'ye göre
+  // DIŞ (harici) bağlantılar için safeUrl'in KARŞITI: değer ASLA site köküne göre
   // çözülmez. src/lib/externalUrl.js#externalHttpUrl'in İSTEMCİ KOPYASIDIR (bu dosya klasik bir
   // <script>, ES modülü değil — import edemez); davranışları aynı kalmalı, biri değişirse diğeri de.
   //
@@ -335,8 +349,8 @@ const ProjectMeta = (function () {
     if (item.description) data.description = item.description;
     if (item.images && item.images.length) {
       // gerçek bulgu (2026-08-13): item.images D1'de 767 projede başında "/" olmadan saklanıyor
-      // (ör. "miras/dolunay-villa-1.webp") — document.baseURI kullan (bkz. yukarıdaki safeUrl).
-      try { data.image = item.images.map(img => new URL(img, document.baseURI).href); } catch { /* göreli çözümlenemeyen — atla */ }
+      // (ör. "miras/dolunay-villa-1.webp") — SITE_ROOT kullan (bkz. yukarıdaki safeUrl notu).
+      try { data.image = item.images.map(img => new URL(img, SITE_ROOT).href); } catch { /* göreli çözümlenemeyen — atla */ }
     }
     if (item.location) data.locationCreated = { '@type': 'Place', address: item.location };
     const creators = (item.designerDetails || []).map(d => ({ '@type': d.type === 'architect' ? 'Person' : 'Organization', name: d.name }));

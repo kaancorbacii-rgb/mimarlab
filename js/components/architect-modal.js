@@ -318,12 +318,25 @@ const ArchitectModal = (function () {
   // BİREBİR aynı desen, bu modül proje modalıyla import paylaşamadığından burada tekrarlanır.
   const DESC_TRUNCATE_AT = 320;
   // gerçek bulgu (regresyon, 2026-08-13): bkz. project-meta.js#safeUrl'deki AYNI düzeltme —
-  // window.location.href yerine document.baseURI kullanılır, kisi.html'deki <base href="/">
-  // dikkate alınır (legacy_static kaynaklı, başında "/" olmayan photo_url değerleri artık doğru
-  // mutlak yola çözülür).
+  // taban artık SABİT SİTE KÖKÜDÜR (aşağıdaki SITE_ROOT notu) — legacy_static kaynaklı, başında
+  // "/" olmayan photo_url değerleri hangi sayfadan açılırsa açılsın doğru mutlak yola çözülür.
+  // SİTE KÖKÜ — göreli yolların çözüm tabanı. document.baseURI DEĞİL (gerçek bulgu, kullanıcı
+  // isteği 2026-09-16 madde 7: "Bazen bir kişi profili açıldığında ... kişi fotoğrafı kırık olarak
+  // popup açılıyor ama sayfayı yenileyince düzeliyor"):
+  //   * D1'deki bazı görsel yolları köke göreli ve BAŞINDA EĞİK ÇİZGİ YOKTUR ("mimarlar/x.jpg",
+  //     "logos-thumb/y.jpg", "miras/z.webp" — legacy_static kaynaklı kayıtlar).
+  //   * `<base href="/">` taşıyan sayfalarda (kisi/firma/proje/urun/gundem...) baseURI kök olduğu
+  //     için bunlar doğru çözülüyordu. Ama pop-up ana sayfadan/aramadan da AYNI belgede açılıyor ve
+  //     açılırken adres pushState ile "/kisi/<slug>"a dönüyor; o belgelerde <base> OLMADIĞINDAN
+  //     document.baseURI da o anda "/kisi/<slug>" oluyor ve "mimarlar/x.jpg" -> "/kisi/mimarlar/x.jpg"
+  //     gibi var olmayan bir adrese çözülüyordu. Sayfa yenilenince sunucu <base href="/"> taşıyan
+  //     belgeyi servis ettiği için sorun "kendiliğinden" düzeliyordu — bildirilen davranış tam da bu.
+  // Köke sabitlemek `<base href="/">` olan sayfalarda BİREBİR aynı sonucu verir (orada baseURI
+  // zaten origin + "/"), olmayan sayfalarda ise kırılmayı kökten kaldırır.
+  const SITE_ROOT = window.location.origin + '/';
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, document.baseURI);
+      const parsed = new URL(u, SITE_ROOT);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
@@ -492,8 +505,8 @@ const ArchitectModal = (function () {
     const data = { '@context': 'https://schema.org', '@type': 'Person', name: a.name, url: window.location.href };
     if (a.role) data.jobTitle = a.role;
     // aynı <base href="/"> gerekçesi (bkz. yukarıdaki safeUrl yorumu) — JSON-LD'de de göreli
-    // photo_url'ler window.location.href yerine document.baseURI'ye göre çözülmeli.
-    if (a.photo) { try { data.image = new URL(a.photo, document.baseURI).href; } catch {} }
+    // photo_url'ler SITE_ROOT'a göre çözülmeli (bkz. yukarıdaki safeUrl notu).
+    if (a.photo) { try { data.image = new URL(a.photo, SITE_ROOT).href; } catch {} }
     if (a.school) data.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
     if (displayOffice) {
       data.worksFor = { '@type': 'Organization', name: displayOffice.name };

@@ -495,9 +495,14 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="u-group">Grup</label>
-            <select id="u-group" aria-describedby="u-group-hint"></select>
-            <div class="form-hint" id="u-group-hint">Grubu seç, altındaki kategorilerden seç — birden fazla grup ve kategori seçebilirsin.</div>
+            <!-- Grup ZORUNLU ve kategoriden ÖNCE gelir (kullanıcı isteği, 2026-09-16 madde 4:
+                 "Grup seçimi zorunlu olsun, önce grup seçtikten sonra kategori seçilebilsin").
+                 Eskiden menü ilk gruba KİLİTLİ açılıyordu (yer tutucu seçenek yoktu), yani
+                 kullanıcı hiç dokunmadan "Mobilya" seçmiş sayılıyor ve kategori menüsü de o
+                 grubun kategorileriyle doluyordu. -->
+            <label for="u-group">Grup <span class="req" aria-hidden="true">*</span></label>
+            <select id="u-group" aria-describedby="u-group-hint" required></select>
+            <div class="form-hint" id="u-group-hint">Önce grubu seç; kategori menüsü o grubun kategorileriyle açılır. Birden fazla grup ve kategori seçebilirsin.</div>
           </div>
           <!-- Kategori AÇILIR MENÜ (kullanıcı isteği, 2026-09-14 madde 2: "Ürün ekle sayfasında
                kategori başlığı altındaki seçenekler açılır menü şeklinde olsun"). Çoklu seçim
@@ -715,7 +720,18 @@ const categoryChips = document.getElementById('u-category-chips');
 const selectedCategories = new Set();
 const categorySelect = { get value(){ return selectedCategories.values().next().value || ''; }, set value(v){ setSelectedCategories(v ? [v] : []); } };
 const CATEGORY_PLACEHOLDER = 'Kategori seç…';
+const CATEGORY_NO_GROUP = 'Önce grup seç';
 function populateCategoryOptions(group){
+  // GRUP SEÇİLMEDEN KATEGORİ SEÇİLEMEZ (kullanıcı isteği, 2026-09-16 madde 4): grup boşken menü
+  // yalnızca yönlendirici yer tutucuyu taşır ve `disabled` olur. Seçili kategoriler SİLİNMEZ —
+  // chip listesi olduğu gibi durur (düzenleme akışında grup geçici olarak boşalırsa kullanıcının
+  // seçimi sessizce kaybolmamalı).
+  if(!group){
+    categoryDropdown.innerHTML = `<option value="">${escapeAttr(CATEGORY_NO_GROUP)}</option>`;
+    categoryDropdown.value = '';
+    categoryDropdown.disabled = true;
+    return;
+  }
   // value="" yer tutucu: menü her seçimden sonra buraya döner, dolayısıyla `change` olayı bir
   // sonraki seçimde de tetiklenir (seçili değer sabit kalsaydı aynı kategoriyi tekrar seçmek
   // sessizce hiçbir şey yapmazdı).
@@ -724,6 +740,7 @@ function populateCategoryOptions(group){
       `<option value="${escapeAttr(c)}"${selectedCategories.has(c) ? ' disabled' : ''}>${escapeAttr(c)}${selectedCategories.has(c) ? ' ✓' : ''}</option>`
     ).join('');
   categoryDropdown.value = '';
+  categoryDropdown.disabled = false;
 }
 function renderCategoryChips(){
   categoryChips.innerHTML = [...selectedCategories].map(c =>
@@ -749,7 +766,9 @@ categoryChips.addEventListener('click', (e)=>{
   populateCategoryOptions(groupSelect.value);
   renderCategoryChips();
 });
-groupSelect.innerHTML = Object.keys(CATALOG_TAXONOMY).map(g => `<option value="${escapeAttr(g)}">${escapeAttr(g)}</option>`).join('');
+// Yer tutucu İLK seçenek ve varsayılan: grup seçimi artık bilinçli bir eylem (bkz. madde 4).
+groupSelect.innerHTML = `<option value="">Grup seç…</option>` +
+  Object.keys(CATALOG_TAXONOMY).map(g => `<option value="${escapeAttr(g)}">${escapeAttr(g)}</option>`).join('');
 populateCategoryOptions(groupSelect.value);
 groupSelect.addEventListener('change', ()=> populateCategoryOptions(groupSelect.value));
 
@@ -1904,6 +1923,15 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   // src/lib/submissionTypes.js#SUBMISSION_TYPES.products.required.
   if(!document.getElementById('u-brand').value.trim()){
     notice.textContent = 'Firma alanını doldur.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  // GRUP ZORUNLU (kullanıcı isteği, 2026-09-16 madde 4). <select required> tarayıcı
+  // doğrulamasını da tetikler ama submit handler preventDefault ile başladığından mesajı burada
+  // da veriyoruz — "En az bir kategori seç" guard'ıyla AYNI desen.
+  if(!groupSelect.value){
+    notice.textContent = 'Grup seç.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;

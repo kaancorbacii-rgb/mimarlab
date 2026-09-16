@@ -123,11 +123,22 @@ function createClaimCorrectionBox(config){
   // daveti anlamsız — kimliği zaten doğrulanmış demektir. badge-shared.js#dynamicBadges (satın
   // alınıp onaylanmış gerçek rozetler) VE config.getStaticBadges (seed/statik rozet) birlikte
   // kontrol edilir, tıpkı verifiedBadgeHtml'in kendisi gibi.
-  async function hasActiveBadge(profileKey){
+  async function activeBadgesOf(profileKey){
     if(typeof badgesReadyPromise !== 'undefined') await badgesReadyPromise;
     const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges[config.profileType] && dynamicBadges[config.profileType][profileKey]) || [];
     const staticBadges = config.getStaticBadges ? (config.getStaticBadges() || []) : [];
-    return (dynamic.length ? dynamic : staticBadges).length > 0;
+    return dynamic.length ? dynamic : staticBadges;
+  }
+  async function hasActiveBadge(profileKey){
+    return (await activeBadgesOf(profileKey)).length > 0;
+  }
+  // İZ BIRAKAN (bkz. badge-shared.js#BADGE_LABELS) — vefat etmiş mimarlar/kapanmış kurumlar için
+  // admin'in verdiği rozet. FİRMA tarafında davet kutusunu YALNIZCA bu rozet kapatır (kullanıcı
+  // isteği, 2026-09-16 madde 8): "sahiplenme" daveti orada anlamsız, çünkü sahiplenecek bir
+  // kurum/kişi yok. Diğer firma rozetleri kutuyu kapatmaz — aşağıdaki `badged` notundaki gerekçe
+  // onlar için aynen geçerli.
+  async function hasIzBirakanBadge(profileKey){
+    return (await activeBadgesOf(profileKey)).includes('iz-birakan');
   }
 
   // src/routes/office.js#foldTr ile AYNI Türkçe casefold — profil adı ile gönderi adını
@@ -235,11 +246,14 @@ function createClaimCorrectionBox(config){
       if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
     }catch{}
     // badged — rozetli (doğrulanmış/altın) bir KİŞİ profilinde davet kutusu gizlenir; kimliği zaten
-    // doğrulanmış demektir. FİRMA/MARKA'da bu kural BİLEREK uygulanmaz: bir firma rozeti admin
-    // tarafından da verilebiliyor (bkz. src/routes/admin.js#admin_badges), yani rozet tek başına
-    // "bu firmanın onaylı bir yetkilisi var" demek DEĞİL — orada kutuyu yalnızca yukarıdaki
-    // alreadyClaimed (gerçek bir onaylı profile_claims satırı) gizler.
-    const badged = config.profileType === 'architect' ? await hasActiveBadge(profileKey) : false;
+    // doğrulanmış demektir. FİRMA/MARKA'da bu kural HER ROZET için BİLEREK uygulanmaz: bir firma
+    // rozeti admin tarafından da verilebiliyor (bkz. src/routes/admin.js#admin_badges), yani rozet
+    // tek başına "bu firmanın onaylı bir yetkilisi var" demek DEĞİL — orada kutuyu normalde
+    // yalnızca yukarıdaki alreadyClaimed (gerçek bir onaylı profile_claims satırı) gizler.
+    // TEK İSTİSNA: "İz Bırakan" (kullanıcı isteği, 2026-09-16 madde 8) — bkz. hasIzBirakanBadge.
+    const badged = config.profileType === 'architect'
+      ? await hasActiveBadge(profileKey)
+      : await hasIzBirakanBadge(profileKey);
     if(config.isStale && config.isStale()) return;
 
     if(!currentUser){

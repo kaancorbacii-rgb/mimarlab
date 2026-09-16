@@ -169,12 +169,12 @@ section('madde 1 — proje-ekle: ürün dili ve kaldırılan panel');
 
 const projeEkle = read('proje-ekle.html');
 
-test('başlık ve iki menü etiketi istenen metinlerde', () => {
+test('başlık ve iki kutu etiketi istenen metinlerde', () => {
   assert.match(projeEkle, /<h2>Projede Kullanılan Ürünler /);
-  assert.match(projeEkle, /<option value="">Ürün firması seç<\/option>/);
+  // FİRMA kutusu 2026-09-16 madde 2'de <select>'ten office-picker paneline geçti — etiket artık
+  // menünün yer tutucu <option>'ı değil, kutunun `placeholder`'ı. ÜRÜN menüsü <select> KALDI.
+  assert.match(projeEkle, /placeholder: 'Ürün firması seç'/);
   assert.match(projeEkle, /<option value="">Önce firma seç<\/option>/);
-  // JS tarafındaki kopyalar da aynı olmalı (menüyü fetch sonrası o dolduruyor).
-  assert.match(projeEkle, /optionHtml\('', 'Ürün firması seç'\)/);
   assert.match(projeEkle, /optionHtml\('', 'Önce firma seç'\)/);
 });
 test('"Seçilen markaların ürünlerini seç" paneli TAMAMEN kaldırıldı', () => {

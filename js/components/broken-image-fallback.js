@@ -37,10 +37,23 @@
     return words.map(function (w) { return w.charAt(0).toLocaleUpperCase('tr'); }).join('');
   }
 
+  // Kendi `onerror`'unu taşıyan <img> BU YEDEĞİN DIŞINDADIR (kullanıcı isteği, 2026-09-16 madde 7).
+  // GERÇEK BULGU: kişi/firma pop-up'ının başlık avatarı, baş harfleri yazan renkli dairenin İÇİNE
+  // basılan bir <img>'dir ve kendi `onerror = () => img.remove()` yedeğini taşır — görsel
+  // düştüğünde geriye temiz bir baş harf dairesi kalmalıdır. Ama `error` olayı önce BELGE ÜZERİNDE
+  // yakalanıyor ve buradaki genel yedek, img'i alt metninden baş harf üreten bir kutuyla
+  // değiştiriyordu; alt boş olduğu için kutu "—" yazıyor ve dairenin yanında duruyordu — bildirilen
+  // "kırık fotoğraf" görüntüsü tam olarak buydu. Render noktası ne yapacağını zaten söylediyse
+  // kararı ona bırakıyoruz; yedek, hiçbir şey söylemeyen ~30 render noktası için kalıyor.
+  function hasOwnErrorHandler(img) {
+    return typeof img.onerror === 'function' || img.dataset.mlFallback === 'off';
+  }
+
   function handle(e) {
     var img = e.target;
     if (!img || img.tagName !== 'IMG') return;
     if (img.dataset.mlFallbackDone === '1') return;
+    if (hasOwnErrorHandler(img)) { img.dataset.mlFallbackDone = '1'; return; }
     // Boş/eksik src'de tarayıcı da error atar — orada yapacak bir şey yok.
     if (!img.getAttribute('src')) return;
     img.dataset.mlFallbackDone = '1';
@@ -66,6 +79,8 @@
   function verifyThenFallback(img) {
     var src = img.getAttribute('src');
     if (!src || img.dataset.mlFallbackChecked === '1') return;
+    // Kendi yedeği olan görselde taramanın da işi yok (bkz. hasOwnErrorHandler).
+    if (hasOwnErrorHandler(img)) { img.dataset.mlFallbackChecked = '1'; return; }
     img.dataset.mlFallbackChecked = '1';
     var probe = new Image();
     probe.onerror = function () { handle({ target: img }); };

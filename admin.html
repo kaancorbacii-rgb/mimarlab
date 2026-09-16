@@ -260,6 +260,10 @@
   /* ---------- Üyeler > kullanıcı detay paneli (bkz. kullanıcı isteği: admin bir üyeye tıklayınca
      o kişinin Hesabım sayfasındaki bilgileri görüp düzenleyebilsin) ---------- */
   .users-list-row{cursor:pointer;}
+  /* Üye sırası (bkz. loadUsers#userNo) — adın SOLUNDA, sabit genişlikte ki dört haneye çıktığında
+     adlar kaymasın. */
+  .users-list-no{display:inline-block; min-width:2.6em; color:var(--ink-soft); font-variant-numeric:tabular-nums; font-weight:600;}
+  .users-list-no::after{content:'.';}
   .users-list-row:hover{border-color:var(--walnut);}
   .ud-overlay{display:none; position:fixed; inset:0; z-index:200; background:rgba(15,20,28,0.55); padding:40px 20px; overflow-y:auto;}
   .ud-overlay.show{display:block;}
@@ -392,7 +396,6 @@
         <button class="admin-tab" data-tab="users">Üyeler<span class="admin-tab-dot dot-new" data-dot="users"></span></button>
         <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
         <button class="admin-tab" data-tab="brokenimages">Kırık Görseller</button>
-        <button class="admin-tab" data-tab="conflicts">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="conflicts"></span></button>
         <button class="admin-tab" data-tab="seo">SEO</button>
         <button class="admin-tab" data-tab="home">Ana Sayfa</button>
         <button class="admin-tab" data-tab="settings">Site Ayarları</button>
@@ -526,33 +529,6 @@
         </div>
         <div id="brokenimages-progress" style="margin-bottom:10px; font-size:13px; color:var(--ink-soft);"></div>
         <div id="brokenimages-list"></div>
-      </div>
-
-      <!-- denetim bulgusu (2026-08-22): src/routes/migrationConflicts.js GET/PATCH
-           /api/admin/migration-conflicts önceden tam çalışır durumdaydı ama hiçbir admin ekranından
-           tüketilmiyordu — production'da 1017 pending kayıt bu ekran olmadan görünmüyordu. Bu sekme
-           yalnızca RAPORLAR/işaretler (bkz. migrationConflicts.js dosya başı yorumu — gerçek
-           disambiguation admin'in mevcut mimar/ofis düzenleme araçlarıyla elle yapılır), hiçbir
-           kaydı otomatik resolve etmez. -->
-      <div class="admin-section" id="section-conflicts">
-        <div id="conflicts-summary" style="margin-bottom:14px; font-size:13px; color:var(--ink-soft);"></div>
-        <div class="admin-actions" style="margin-bottom:14px; gap:8px;">
-          <select id="conflicts-status-filter">
-            <option value="pending" selected>Beklemede</option>
-            <option value="resolved">Çözüldü</option>
-            <option value="ignored">Yok Sayıldı</option>
-            <option value="">Tümü</option>
-          </select>
-          <select id="conflicts-type-filter">
-            <option value="">Tüm türler</option>
-            <option value="architect">Kişi</option>
-            <option value="office">Firma</option>
-            <option value="office_founder">Ofis Kurucusu</option>
-            <option value="project_designer">Proje Tasarımcısı</option>
-          </select>
-          <button class="admin-btn" id="conflicts-refresh">Yenile</button>
-        </div>
-        <div id="conflicts-list"></div>
       </div>
 
       <div class="admin-section" id="section-seo">
@@ -1974,11 +1950,18 @@ async function loadUsers(){
     items = all.filter(u => `${u.name || ''} ${u.username || ''} ${u.email || ''} ${u.school || ''} ${u.dept || ''}`.toLocaleLowerCase('tr').includes(q));
     if(!items.length){ list.innerHTML = `<div class="admin-empty">"${escapeHtml(usersSearch)}" ile eşleşen üye yok.</div>`; return; }
   }
+  // ÜYE NUMARASI (kullanıcı isteği, 2026-09-16 madde 5: "kullanıcıların yanında sayı yazsın, en
+  // alttaki kullanıcıya 1'den başla. Her yeni kullanıcıda sayı artarak devam etsin"). Liste
+  // sunucudan `created_at DESC` gelir (bkz. src/routes/admin.js#handleUsersAdmin), yani en alttaki
+  // satır EN ESKİ üyedir -> numara = toplam - sıra.
+  // Numara TAM LİSTEDEN hesaplanır, filtrelenmişten DEĞİL: aksi halde arama kutusuna bir şey
+  // yazınca aynı üye başka bir numara alır ve sayı "kaçıncı üye" olmaktan çıkardı.
+  const userNo = new Map(all.map((u, i) => [u.id, all.length - i]));
   list.innerHTML = items.map(u => `
     <div class="admin-card users-list-row" data-id="${escapeAttr(u.id)}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${escapeHtml(u.name)} ${u.role === 'admin' ? '<span class="admin-badge badge-approved">Admin</span>' : ''}</div>
+          <div class="admin-card-title"><span class="users-list-no">${userNo.get(u.id) || ''}</span>${escapeHtml(u.name)} ${u.role === 'admin' ? '<span class="admin-badge badge-approved">Admin</span>' : ''}</div>
           <div class="admin-card-meta">${u.username ? '@' + escapeHtml(u.username) + ' · ' : ''}${escapeHtml(u.email)} ${u.dob ? '· doğ. ' + escapeHtml(String(u.dob).slice(0,4)) : ''} ${u.school ? '· ' + escapeHtml(u.school) : ''} · ${new Date(u.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
       </div>
@@ -2269,7 +2252,6 @@ async function refreshAdminSummary(){
       'consultant-applications': data.pendingConsultantApplications > 0,
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
-      conflicts: data.pendingMigrationConflicts > 0,
       users: data.newUsers > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
@@ -2376,32 +2358,34 @@ document.getElementById('seo-robots-save').addEventListener('click', async ()=>{
 //     yazılmadı. Yayındaki İçerikler sekmesindeki "Öne Çıkar" düğmesi AYNI `featured_project_slugs`
 //     anahtarına yazmaya devam eder, iki arayüz birbirini görür.
 // ---------------------------------------------------------------------------------------------
-// 9 -> 6 (kullanıcı isteği, 2026-09-12: karusel başına 6 gönderi). src/lib/homeCarousels.js#
-// HOME_SLOT_COUNT ile AYNI olmalı — sunucu seçimi zaten o sınırla kırpar, arayüz de aynı sayıda
-// slot çizmeli. Karuselin göstermediği sonraki 6 kayıt ana sayfada "Son ..." şeritlerine düşer
-// (bkz. index.html#createRail), yani seçim bu şeritlerin içeriğini de dolaylı olarak belirler.
-const HOME_CAROUSEL_SLOTS = 6;
+// Slot sayısı KARUSEL BAŞINA (kullanıcı isteği, 2026-09-16 madde 1: proje/kişi/firma 6 -> 9;
+// ürün 6'da kaldı). src/lib/homeCarousels.js#HOME_SLOT_COUNTS ile AYNI olmalı — sunucu seçimi
+// zaten o sınırla kırpar, arayüz de aynı sayıda slot çizmeli.
+const HOME_CAROUSEL_SLOTS = 9;        // proje/kişi/firma
+const HOME_CAROUSEL_SLOTS_SMALL = 6;  // ürün
 // fetchLimit: ana sayfanın o uç için çektiği pencere (bkz. index.html#PROJECT_CAROUSEL_FETCH_LIMIT —
-// proje karuseli kapak görseli olmayanları eleyebildiği için 24 çeker, diğerleri tam 6).
+// proje karuseli kapak görseli olmayanları eleyebildiği için 24 çeker, diğerleri tam slot kadar).
+// slots: o karuselin ana sayfada çizdiği slot sayısı.
 const HOME_CAROUSELS = [
-  { key: 'projects',   label: 'Projeler',           settingKey: 'featured_project_slugs',   api: '/api/projects',   fetchLimit: 24, coverRequired: true,
+  { key: 'projects',   label: 'Projeler',           settingKey: 'featured_project_slugs',   api: '/api/projects',   fetchLimit: 24, coverRequired: true, slots: HOME_CAROUSEL_SLOTS,
     title: (it) => it.title, image: (it) => (it.images && it.images[0]) || '', sub: (it) => it.location || (it.designer || []).join(', ') || '' },
-  { key: 'architects', label: 'Kişiler',            settingKey: 'featured_architect_slugs', api: '/api/architects', fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false,
+  { key: 'architects', label: 'Kişiler',            settingKey: 'featured_architect_slugs', api: '/api/architects', fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false, slots: HOME_CAROUSEL_SLOTS,
     title: (it) => it.name,  image: (it) => it.photo || '', sub: (it) => it.office || it.positionRaw || '' },
-  { key: 'offices',    label: 'Firmalar & Markalar', settingKey: 'featured_office_slugs',   api: '/api/offices',    fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false,
+  { key: 'offices',    label: 'Firmalar & Markalar', settingKey: 'featured_office_slugs',   api: '/api/offices',    fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false, slots: HOME_CAROUSEL_SLOTS,
     title: (it) => it.name,  image: (it) => it.logo || '', sub: (it) => it.loc || '' },
-  { key: 'products',   label: 'Ürünler',            settingKey: 'featured_product_slugs',   api: '/api/products',   fetchLimit: HOME_CAROUSEL_SLOTS, coverRequired: false,
+  { key: 'products',   label: 'Ürünler',            settingKey: 'featured_product_slugs',   api: '/api/products',   fetchLimit: HOME_CAROUSEL_SLOTS_SMALL, coverRequired: false, slots: HOME_CAROUSEL_SLOTS_SMALL,
     title: (it) => it.title, image: (it) => it.image || '', sub: (it) => it.brand || '' },
 ];
 const homeCarouselState = {};
 
 // src/lib/homeCarousels.js#parseFeaturedSlugs ile AYNI normalizasyon (boşluk kırp, tekrarı at,
 // slot sayısını aşma) — sunucu zaten aynısını uygular, arayüz de aynı sınırı göstermeli.
-function parseHomeSlugs(raw){
+function parseHomeSlugs(raw, limit){
+  const max = limit || HOME_CAROUSEL_SLOTS;
   const out = [];
   String(raw || '').split(',').forEach(part => {
     const slug = part.trim();
-    if(slug && !out.includes(slug) && out.length < HOME_CAROUSEL_SLOTS) out.push(slug);
+    if(slug && !out.includes(slug) && out.length < max) out.push(slug);
   });
   return out;
 }
@@ -2411,7 +2395,7 @@ async function loadHomeCarousels(){
   box.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
   const s = await api('/api/admin/settings');
   HOME_CAROUSELS.forEach(c => {
-    const slugs = parseHomeSlugs(s[c.settingKey]);
+    const slugs = parseHomeSlugs(s[c.settingKey], c.slots);
     homeCarouselState[c.key] = { slugs, saved: slugs.join(','), items: null, options: null, menuOpen: false, msg: '' };
   });
   box.innerHTML = HOME_CAROUSELS.map(c => `
@@ -2420,7 +2404,7 @@ async function loadHomeCarousels(){
         <h3>${escapeHtml(c.label)}</h3>
         <span class="hc-count" data-role="count">—</span>
       </div>
-      <p class="hc-hint">Ana sayfada görünecek ${HOME_CAROUSEL_SLOTS} slot. Seçilenleri sürükleyerek sıralayabilirsin.</p>
+      <p class="hc-hint">Ana sayfada görünecek ${c.slots} slot. Seçilenleri sürükleyerek sıralayabilirsin.</p>
       <div class="hc-slots" data-role="slots"><div class="admin-empty" style="padding:20px;">Yükleniyor…</div></div>
       <div class="hc-picker">
         <button type="button" class="hc-toggle" data-role="toggle">İçerik seç <span class="hc-toggle-caret">▼</span></button>
@@ -2484,7 +2468,7 @@ function renderHomeCarouselSlots(c){
   const resolved = st.slugs.filter(sl => bySlug.has(sl));
   // Seçilmemişlerden kalan slotlar — sunucunun döndürdüğü sıra zaten "seçililer önce" olduğundan
   // burada yalnızca seçilileri düşürüp kalan boşluğu doldurmak yeterli.
-  const auto = items.filter(it => !st.slugs.includes(it.slug)).slice(0, HOME_CAROUSEL_SLOTS - resolved.length);
+  const auto = items.filter(it => !st.slugs.includes(it.slug)).slice(0, c.slots - resolved.length);
 
   let no = 0;
   const rows = [];
@@ -2506,7 +2490,7 @@ function renderHomeCarouselSlots(c){
       </div>`);
   });
   auto.forEach(item => { no += 1; rows.push(homeSlotRowHtml(c, item, no, false)); });
-  while(no < HOME_CAROUSEL_SLOTS){
+  while(no < c.slots){
     no += 1;
     rows.push(`<div class="hc-slot is-empty"><span class="hc-slot-no">${no}</span> Bu bölümde yeterli yayında içerik yok.</div>`);
   }
@@ -2514,7 +2498,7 @@ function renderHomeCarouselSlots(c){
 
   const dirty = st.slugs.join(',') !== st.saved;
   card.querySelector('[data-role="count"]').textContent =
-    `${resolved.length} seçili · ${Math.max(0, HOME_CAROUSEL_SLOTS - resolved.length)} otomatik`;
+    `${resolved.length} seçili · ${Math.max(0, c.slots - resolved.length)} otomatik`;
   const msgEl = card.querySelector('[data-role="msg"]');
   msgEl.textContent = dirty ? 'Kaydedilmedi' : st.msg;
   msgEl.className = dirty ? 'ud-save-msg hc-dirty' : 'ud-save-msg';
@@ -2558,7 +2542,7 @@ function renderHomeCarouselOptions(c){
 function toggleHomeCarouselSlug(c, slug){
   const st = homeCarouselState[c.key];
   if(st.slugs.includes(slug)) st.slugs = st.slugs.filter(v => v !== slug);
-  else if(st.slugs.length >= HOME_CAROUSEL_SLOTS) { alert(`Bir karuselde en fazla ${HOME_CAROUSEL_SLOTS} içerik seçebilirsin.`); return; }
+  else if(st.slugs.length >= c.slots) { alert(`Bir karuselde en fazla ${c.slots} içerik seçebilirsin.`); return; }
   else st.slugs = [...st.slugs, slug];
   st.msg = '';
   refreshHomeCarouselPreview(c); // yeni seçim havuzda kaçıncı sırada olursa olsun önizlemeye girsin
@@ -2917,69 +2901,10 @@ document.getElementById('brokenimages-clean-all').addEventListener('click', asyn
   for(const item of [...brokenItems]) await cleanBrokenItem(item, null);
 });
 
-// ---------- Migrasyon Çakışmaları sekmesi (bkz. src/routes/migrationConflicts.js) ----------
-// Yalnızca RAPORLAR/işaretler — hiçbir kaydı otomatik resolve etmez, "adayları" (varsa) salt bilgi
-// amaçlı gösterir. Gerçek disambiguation admin'in mevcut mimar/ofis düzenleme ekranlarında elle
-// yapılır (bkz. modülün kendi dosya başı yorumu).
-const CONFLICT_TYPE_LABELS = {
-  architect: 'Kişi',
-  office: 'Firma',
-  office_founder: 'Ofis Kurucusu',
-  project_designer: 'Proje Tasarımcısı',
-};
-const CONFLICT_STATUS_BADGE = { pending: 'badge-pending', resolved: 'badge-approved', ignored: 'badge-rejected' };
-const CONFLICT_STATUS_LABEL = { pending: 'Beklemede', resolved: 'Çözüldü', ignored: 'Yok Sayıldı' };
-
-async function loadMigrationConflicts(){
-  const summary = document.getElementById('conflicts-summary');
-  const list = document.getElementById('conflicts-list');
-  const status = document.getElementById('conflicts-status-filter').value;
-  const entityType = document.getElementById('conflicts-type-filter').value;
-  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const qs = new URLSearchParams();
-  if(status) qs.set('status', status);
-  if(entityType) qs.set('entityType', entityType);
-  const data = await api(`/api/admin/migration-conflicts?${qs.toString()}`);
-  const items = data.items || [];
-  const counts = data.counts || {};
-  summary.textContent = `${counts.pending || 0} beklemede, ${counts.resolved || 0} çözüldü, ${counts.ignored || 0} yok sayıldı.`;
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu filtreyle eşleşen kayıt yok.</div>'; return; }
-
-  list.innerHTML = items.map(it => `
-    <div class="admin-card" data-id="${escapeAttr(it.id)}">
-      <div class="admin-card-head">
-        <div class="admin-card-body">
-          <div>
-            <div class="admin-card-title">${escapeHtml(it.conflict_key)} <span class="admin-badge badge-neutral">${CONFLICT_TYPE_LABELS[it.entity_type] || escapeHtml(it.entity_type)}</span> <span class="admin-badge ${CONFLICT_STATUS_BADGE[it.status] || 'badge-pending'}">${CONFLICT_STATUS_LABEL[it.status] || it.status}</span></div>
-            <div class="admin-card-meta">${it.context ? escapeHtml(it.context) : 'İlişkili kayıt yok'}${it.candidates && it.candidates.length ? ' · Aday: ' + it.candidates.map(c => escapeHtml(c.name || c)).join(', ') : ' · Eşleşen aday bulunamadı'}</div>
-          </div>
-        </div>
-        <div class="admin-actions">
-          ${it.status !== 'resolved' ? '<button class="admin-btn" data-action="resolve">Çözüldü İşaretle</button>' : ''}
-          ${it.status !== 'ignored' ? '<button class="admin-btn" data-action="ignore">Yok Say</button>' : ''}
-          ${it.status !== 'pending' ? '<button class="admin-btn" data-action="reopen">Beklemeye Al</button>' : ''}
-        </div>
-      </div>
-    </div>
-  `).join('');
-
-  list.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async ()=>{
-      const id = btn.closest('.admin-card').dataset.id;
-      const status = btn.dataset.action === 'resolve' ? 'resolved' : btn.dataset.action === 'ignore' ? 'ignored' : 'pending';
-      await api(`/api/admin/migration-conflicts/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      loadMigrationConflicts();
-      refreshAdminSummary();
-    });
-  });
-}
-document.getElementById('conflicts-refresh').addEventListener('click', loadMigrationConflicts);
-document.getElementById('conflicts-status-filter').addEventListener('change', loadMigrationConflicts);
-document.getElementById('conflicts-type-filter').addEventListener('change', loadMigrationConflicts);
+// Migrasyon Çakışmaları sekmesi KALDIRILDI (kullanıcı isteği, 2026-09-16 madde 6). Sunucu
+// tarafı (src/routes/migrationConflicts.js, GET/PATCH /api/admin/migration-conflicts) DURUYOR:
+// yalnızca raporlayan, hiçbir kaydı otomatik çözmeyen bir uç ve smoke-test onun 401 döndüğünü
+// doğrulamaya devam ediyor — kaldırılan tek şey admin panelindeki ekran.
 
 document.querySelectorAll('.admin-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
@@ -3009,7 +2934,6 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     }
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
     if(tab.dataset.tab === 'brokenimages') resetBrokenImages();
-    if(tab.dataset.tab === 'conflicts') loadMigrationConflicts();
     if(tab.dataset.tab === 'seo') loadSeo();
     if(tab.dataset.tab === 'home') loadHomeCarousels();
     if(tab.dataset.tab === 'settings') loadSiteSettings();

@@ -200,11 +200,24 @@ const ProductModal = (function () {
     el.querySelector('.detail-desc-more').addEventListener('click', () => { el.textContent = text; });
   }
 
-  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme — window.location.href yerine
-  // document.baseURI (urun.html'deki <base href="/">'yi dikkate alır).
+  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme.
+  // SİTE KÖKÜ — göreli yolların çözüm tabanı. document.baseURI DEĞİL (gerçek bulgu, kullanıcı
+  // isteği 2026-09-16 madde 7: "Bazen bir kişi profili açıldığında ... kişi fotoğrafı kırık olarak
+  // popup açılıyor ama sayfayı yenileyince düzeliyor"):
+  //   * D1'deki bazı görsel yolları köke göreli ve BAŞINDA EĞİK ÇİZGİ YOKTUR ("mimarlar/x.jpg",
+  //     "logos-thumb/y.jpg", "miras/z.webp" — legacy_static kaynaklı kayıtlar).
+  //   * `<base href="/">` taşıyan sayfalarda (kisi/firma/proje/urun/gundem...) baseURI kök olduğu
+  //     için bunlar doğru çözülüyordu. Ama pop-up ana sayfadan/aramadan da AYNI belgede açılıyor ve
+  //     açılırken adres pushState ile "/kisi/<slug>"a dönüyor; o belgelerde <base> OLMADIĞINDAN
+  //     document.baseURI da o anda "/kisi/<slug>" oluyor ve "mimarlar/x.jpg" -> "/kisi/mimarlar/x.jpg"
+  //     gibi var olmayan bir adrese çözülüyordu. Sayfa yenilenince sunucu <base href="/"> taşıyan
+  //     belgeyi servis ettiği için sorun "kendiliğinden" düzeliyordu — bildirilen davranış tam da bu.
+  // Köke sabitlemek `<base href="/">` olan sayfalarda BİREBİR aynı sonucu verir (orada baseURI
+  // zaten origin + "/"), olmayan sayfalarda ise kırılmayı kökten kaldırır.
+  const SITE_ROOT = window.location.origin + '/';
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, document.baseURI);
+      const parsed = new URL(u, SITE_ROOT);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
@@ -270,9 +283,9 @@ const ProductModal = (function () {
     const data = { '@context': 'https://schema.org', '@type': 'Product', name: p.title, url: window.location.href };
     if (p.description) data.description = p.description;
     if (p.brand) data.brand = { '@type': 'Brand', name: p.brand };
-    // ürün görselleri D1'de şu an hep mutlak (/media/...) ama tutarlılık için document.baseURI
+    // ürün görselleri D1'de şu an hep mutlak (/media/...) ama tutarlılık için SITE_ROOT
     // (bkz. project-meta.js#renderStructuredData'daki AYNI düzeltme).
-    if (p.images && p.images.length) { try { data.image = p.images.map(img => new URL(img, document.baseURI).href); } catch {} }
+    if (p.images && p.images.length) { try { data.image = p.images.map(img => new URL(img, SITE_ROOT).href); } catch {} }
     tag.textContent = JSON.stringify(data);
   }
 

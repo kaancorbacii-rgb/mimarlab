@@ -30,27 +30,35 @@ export const HOME_FEATURED_KEYS = {
   products: 'featured_product_slugs',
 };
 
-// Ana sayfada her karusel kaç slot gösterir (index.html#PROJECT_CAROUSEL_SLOTS ile AYNI).
-// 9 -> 6 (kullanıcı isteği, 2026-09-12: "carosellerde gösterilen her bir kategori için gönderi
-// sayısını 6'ya düşür"). Seçimin üst sınırı da budur: karusele giremeyecek bir slug'ı kaydetmenin
-// anlamı yok.
-export const HOME_SLOT_COUNT = 6;
+// Ana sayfada her karusel kaç slot gösterir (index.html#PROJECT_CAROUSEL_SLOTS /
+// #SMALL_CAROUSEL_SLOTS ile AYNI). Proje/Kişi/Firma 6 -> 9 (kullanıcı isteği, 2026-09-16 madde 1:
+// "Ana sayfadaki caroseldeki proje, kişi ve firma sayısını 9'a çıkar"); ÜRÜN 6'da KALDI — istek
+// onu saymıyor. Seçimin üst sınırı da budur: karusele giremeyecek bir slug'ı kaydetmenin anlamı yok.
+export const HOME_SLOT_COUNTS = { projects: 9, architects: 9, offices: 9, products: 6 };
+// Karusel bilinmeyen/anahtarsız olduğunda (ör. `pin=` parametresi ayrıştırılırken uç hangi
+// karusel olduğunu bilmez) uygulanan ÜST sınır — en büyük slot sayısı.
+export const HOME_SLOT_COUNT = Math.max(...Object.values(HOME_SLOT_COUNTS));
+
+export function slotCountFor(key) {
+  return HOME_SLOT_COUNTS[key] || HOME_SLOT_COUNT;
+}
 
 // "a, b, c" -> ['a','b','c']. Boş/tekrarlı girdiler düşer, slot sayısıyla sınırlanır — admin
-// kutusuna 50 slug yapıştırsa bile ilk 6'dan fazlası zaten karusele giremez.
-export function parseFeaturedSlugs(raw) {
+// kutusuna 50 slug yapıştırsa bile slot sayısından fazlası zaten karusele giremez.
+export function parseFeaturedSlugs(raw, limit = HOME_SLOT_COUNT) {
   const out = [];
   for (const part of String(raw || '').split(',')) {
     const slug = part.trim();
     if (slug && !out.includes(slug)) out.push(slug);
-    if (out.length >= HOME_SLOT_COUNT) break;
+    if (out.length >= limit) break;
   }
   return out;
 }
 
-// Ayar nesnesinden (getSiteSettings çıktısı) dört karuselin seçimini okur.
+// Ayar nesnesinden (getSiteSettings çıktısı) dört karuselin seçimini okur. Sınır KARUSEL BAŞINA:
+// ürün karuseli 6 slot gösterdiğinden 7. seçim oraya hiç giremez.
 export function featuredSlugsFromSettings(settings, key) {
-  return parseFeaturedSlugs(settings && settings[HOME_FEATURED_KEYS[key]]);
+  return parseFeaturedSlugs(settings && settings[HOME_FEATURED_KEYS[key]], slotCountFor(key));
 }
 
 // `pin=` parametresini okur (liste handler'ları için). parseFeaturedSlugs ile AYNI normalizasyon.

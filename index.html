@@ -806,21 +806,25 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // KENDİSİNDE) — varsayılan sıralaması `id DESC` (son eklenen ilk), ayrıca istemci tarafında bir
 // interleave/RECENT_WINDOW_MS hesabına gerek kalmadı. GERÇEK BULGU: en yeni satır (id DESC'te ilk)
 // bazen görselsiz bir taslak/test kaydı olabiliyor (bkz. yukarıdaki projectSlideHtml öncesi görsel
-// filtresi) — bu yüzden 6'dan daha büyük bir tampon (24) çekilip görseli olanlar arasından ilk 6'sı
-// alınır, tam olarak eski `projectsWithImages.slice(0,6)` davranışının karşılığı.
+// filtresi) — bu yüzden slot sayısından çok daha büyük bir tampon (24) çekilip görseli olanlar
+// arasından ilk PROJECT_CAROUSEL_SLOTS kadarı alınır.
 const PROJECT_CAROUSEL_FETCH_LIMIT = 24;
-// Karusel slot sayısı 9 -> 6 (kullanıcı isteği, 2026-09-12 madde 3: "Ana sayfadaki carosellerde
-// gösterilen her bir kategori için gönderi sayısını 6'ya düşür"; üçüncü tur: "Her kategoride
-// varsa 6 yoksa olduğu kadar gönderi döngüde olsun" — yani 6 bir ÜST sınır, alt sınır değil:
-// daha az kayıt varsa karusel olduğu kadarıyla döner, boş slot/yer tutucu üretilmez).
+// Karusel slot sayısı 6 -> 9 (kullanıcı isteği, 2026-09-16 madde 1: "Ana sayfadaki caroseldeki
+// proje, kişi ve firma sayısını 9'a çıkar"). Sayı bir ÜST sınırdır, alt sınır değil (2026-09-12
+// üçüncü turdan beri geçerli kural): daha az kayıt varsa karusel olduğu kadarıyla döner, boş
+// slot/yer tutucu üretilmez.
 // Sabit ÜÇ yerde birlikte yaşar: burası, src/index.js#HOME_SLOTS (gömülü veri) ve
-// src/lib/homeCarousels.js#HOME_SLOT_COUNT (admin'in elle seçebileceği en fazla kayıt) —
+// src/lib/homeCarousels.js#HOME_SLOT_COUNTS (admin'in elle seçebileceği en fazla kayıt) —
 // bkz. scripts/test-2026-09-12-home-rails.mjs, üçünün ayrışmasını deploy'dan önce durdurur.
-const PROJECT_CAROUSEL_SLOTS = 6;
-// Kişi/Firma/Ürün/Gündem liste uçlarından TAM karusel slotu kadar kayıt çekilir. Proje ucu
-// istisnadır: kapak görseli olmayan kayıtlar elendiğinden 24'lük bir tampondan
-// (PROJECT_CAROUSEL_FETCH_LIMIT) ilk 6 GÖRSELLİ proje alınır.
+const PROJECT_CAROUSEL_SLOTS = 9;
+// ÜRÜN ve GÜNDEM karuselleri 6'DA KALDI: 2026-09-16 madde 1 yalnızca proje/kişi/firma diyor.
+// Tek sabit kullanılsaydı istenmeyen iki karusel de sessizce 9'a çıkardı.
+const SMALL_CAROUSEL_SLOTS = 6;
+// Kişi/Firma liste uçlarından TAM karusel slotu kadar kayıt çekilir; Ürün/Gündem kendi (daha
+// küçük) slotu kadar. Proje ucu istisnadır: kapak görseli olmayan kayıtlar elendiğinden 24'lük
+// bir tampondan (PROJECT_CAROUSEL_FETCH_LIMIT) ilk 9 GÖRSELLİ proje alınır.
 const HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS;
+const SMALL_LIST_FETCH_LIMIT = SMALL_CAROUSEL_SLOTS;
 
 // GÜNDEM slaydının görsel türevleri. Diğer karuseller slideImgHtml'in widths/sizes parametrelerini
 // çağrı yerinde taşır; gündem görseli çoğunlukla DIŞ bir adres olduğundan (türev üretilemez) kendi
@@ -1314,17 +1318,17 @@ function loadHomeSections(useSsr){
     pick('projects', '/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT + '&noPreview=1'),
     // Mimar/Firma mini-carousel'leri: proje.html/kisi.html/firma.html'in kendi listeleme
     // sayfalarında da kullandığı genel D1 uçları, Proje carousel'iyle AYNI slot sayısıyla
-    // (HOME_LIST_FETCH_LIMIT=12: karusel 6 + şerit 6). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
+    // (HOME_LIST_FETCH_LIMIT = PROJECT_CAROUSEL_SLOTS). sort PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (bkz.
     // src/routes/architect.js|office.js#handle*ListRoute — "Default Popularity-Based Sorting").
     pick('architects', '/api/architects?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
     // FİRMA kutusu: /api/offices SAF markaları (yalnızca üretici olan kayıtları) zaten dışlar —
     // firma.html'in kullandığı AYNI uç ve AYNI ayrım (bkz. office-kind.js#isPureBrandOffice).
     pick('offices', '/api/offices?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
     // /api/products?limit=N varsayılan sıralaması id DESC'tir (son eklenen N ürün).
-    pick('products', '/api/products?limit=' + HOME_LIST_FETCH_LIMIT + '&noPreview=1'),
+    pick('products', '/api/products?limit=' + SMALL_LIST_FETCH_LIMIT + '&noPreview=1'),
     // GÜNDEM kutusu: /api/gundem varsayılan sıralaması en yeni tarihten eskiye (bkz.
     // src/routes/gundem.js#GUNDEM_SORT). Gündem kayıtlarında `preview` kavramı YOK.
-    pick('gundem', '/api/gundem?limit=' + HOME_LIST_FETCH_LIMIT),
+    pick('gundem', '/api/gundem?limit=' + SMALL_LIST_FETCH_LIMIT),
   ]).then(([yapiRes, architectRes, officeRes, productRes, gundemRes])=>{
     if(yapiRes.failed){
       renderSliderError('Projeler şu an yüklenemedi.');
@@ -1343,7 +1347,7 @@ function loadHomeSections(useSsr){
     // edge'de duran ESKİ bir gövdeyi (ya da eski bir gömülü ml-home-data'yı) okuyan tarayıcıda da
     // blurlu kartın vitrine düşmemesini garanti eder; proje karuselindeki AYNI desen.
     const notPreview = (list) => (list || []).filter(x => x && !x.preview);
-    // head: "varsa 6, yoksa olduğu kadar" (kullanıcı isteği) — slice üst sınırdır, eksik kayıt
+    // head: "varsa 9, yoksa olduğu kadar" (kullanıcı isteği) — slice üst sınırdır, eksik kayıt
     // yer tutucuyla doldurulmaz; tek kayıt varsa karusel o kayıtta durur (createMiniSlider'ın
     // goTo'su modulo ile döndüğünden tek slaytlı bir karusel de sorunsuz çalışır).
     const head = (list) => notPreview(list).slice(0, PROJECT_CAROUSEL_SLOTS);
@@ -1354,10 +1358,10 @@ function loadHomeSections(useSsr){
     else firmaSlider.render(head(officeRes.items));
 
     if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
-    else urunSlider.render(head(productRes.items));
+    else urunSlider.render(notPreview(productRes.items).slice(0, SMALL_CAROUSEL_SLOTS));
 
     if(gundemRes.failed) gundemSlider.renderError('Gündem içerikleri şu an yüklenemedi.');
-    else gundemSlider.render((gundemRes.items || []).slice(0, PROJECT_CAROUSEL_SLOTS));
+    else gundemSlider.render((gundemRes.items || []).slice(0, SMALL_CAROUSEL_SLOTS));
   });
   });
 }

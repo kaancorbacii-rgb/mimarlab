@@ -736,3 +736,101 @@ veya ürünü olmayan blurlu firmaları arşive al." + "Aynı şekilde blurlu ki
     denetlemenin yolu budur.
 - Testler: `scripts/test-2026-09-15-archive-empty-preview-profiles.mjs` (35 test, preflight'a bağlı)
   — her kapı İKİ TİP için de tek tek kelepçelenir.
+
+## Karusel slotları, form kutuları ve KIRIK PROFİL FOTOĞRAFI (2026-09-16, sekiz madde)
+
+### 1. Ana sayfa karuselleri: proje/kişi/firma 9, ürün/gündem 6
+Kullanıcı isteği: "Ana sayfadaki caroseldeki proje, kişi ve firma sayısını 9'a çıkar."
+- Slot sabiti artık İKİ DEĞERLİ ve DÖRT dosyada birlikte yaşıyor: `index.html#PROJECT_CAROUSEL_SLOTS`
+  (9) + `#SMALL_CAROUSEL_SLOTS` (6), `src/index.js#HOME_SLOTS`/`#HOME_SMALL_SLOTS` (gömülü veri),
+  `src/lib/homeCarousels.js#HOME_SLOT_COUNTS` (admin seçiminin üst sınırı, KARUSEL BAŞINA) ve
+  `admin.html#HOME_CAROUSEL_SLOTS`/`_SMALL` (önizleme). Tek sabit bırakılsaydı istenmeyen iki
+  karusel (ürün, gündem) de sessizce 9'a çıkardı. Hizalamayı
+  `scripts/test-2026-09-12-home-rails.mjs` + `-home-bento.mjs` kelepçeliyor.
+- `parseFeaturedSlugs(raw, limit)` artık limit alır; `featuredSlugsFromSettings` limiti
+  `slotCountFor(key)`'den okur. `pinnedSlugsFromUrl` anahtarı bilmediğinden ÜST sınırı (9) uygular.
+
+### 2. proje-ekle > Ürün firması: tüm firmalar + arama
+Kullanıcı isteği: "Ürün firması seç butonunda ürünü olmasa bile tüm firmalar listelensin. Listenin
+en başında arama butonu olsun, aynı Firma başlığında firma seçermiş gibi olsun."
+- **Kaynak değişti**: `/api/products/brands` (yalnızca ÜRÜNÜ OLAN markalar) -> `/api/offices/names`
+  (firma+marka AYRIMSIZ tüm adlar). Kutu artık `office-picker.js#createOfficePicker`, `single: true`.
+- **`allowCustom` KAPALI** (sayfadaki diğer üç kutunun aksine): bu kutunun tek işi sitede KAYITLI
+  bir firma seçmek — 2026-09-04 madde 4'ten beri geçerli kural, karşılığı olmayan ad hiçbir ürüne
+  bağlanamaz (`canonicalSync.js#resolveProjectProductLinks`).
+- **Sözleşme korundu**: `#p-brand-select` `type="hidden"` input olarak KALDI. Dinleyici `change`
+  DEĞİL **`input`** (gizli input `change` yaymaz; `office-picker.js#pushToInput` `input` yayar) ve
+  "+ Ekle"nin sıfırlaması `brandPicker.set([])` üzerinden yapılır — doğrudan `.value = ''` kutunun
+  etiketini/çipini eski firmada bırakırdı.
+- Ürün menüsü (`/api/products/search?brand=`) DEĞİŞMEDİ: ürünü olmayan firmada "Bu firmanın kayıtlı
+  ürünü yok" der ve yalnızca firma chip'i eklenir (zaten geçerli bir giriş).
+
+### 3. kisi-ekle: Firmalar kutusu Sosyal Medya'nın üstüne alındı (yalnızca sıra; içerik aynı).
+
+### 4. urun-ekle: Grup ZORUNLU, kategori grup seçilene kadar kapalı
+- Grup menüsü eskiden yer tutucusuzdu ve İLK GRUBA KİLİTLİ açılıyordu — kullanıcı hiç dokunmadan
+  bir grup seçmiş sayılıyordu. Artık `<option value="">Grup seç…</option>` + `required`.
+- Grup boşken kategori `<select>` `disabled` ve "Önce grup seç" yazar. **Seçili kategoriler
+  SİLİNMEZ** (chip listesi durur): düzenleme akışında grup geçici boşalırsa seçim kaybolmamalı.
+- Submit guard'ı kategori guard'ından ÖNCE (`'Grup seç.'`).
+
+### 5. Admin > Üyeler: satır numarası
+- Liste sunucudan `created_at DESC` gelir, yani en ALTTAKİ satır en ESKİ üyedir -> numara =
+  `all.length - i`. **Numara TAM listeden hesaplanır, filtrelenmişten DEĞİL** — aksi halde arama
+  kutusuna yazınca aynı üye başka bir numara alır ve sayı "kaçıncı üye" olmaktan çıkardı.
+
+### 6. Admin > Migrasyon Çakışmaları sekmesi kaldırıldı
+- Sekme, bölüm, JS ve `pendingMigrationConflicts` nokta eşlemesi `admin.html`'den çıktı.
+- **Sunucu ucu DURUYOR** (`src/routes/migrationConflicts.js`, GET/PATCH
+  `/api/admin/migration-conflicts`) ve `smoke-test.sh` onun 401 döndüğünü doğrulamaya devam ediyor —
+  kaldırılan tek şey ekrandı.
+
+### 7. KIRIK PROFİL FOTOĞRAFI — İKİ kök neden (kişi VE firma pop-up'ında)
+Kullanıcı isteği: "Bazen bir kişi profili açıldığında ... kişi fotoğrafı kırık olarak popup
+açılıyor ama sayfayı yenileyince düzeliyor ... Aynı sorun firma popuplarında da var mı bak."
+- **(a) ÇÖZÜM TABANI (asıl kök neden, kaynaktan doğrulandı).** D1'deki bazı görsel yolları köke
+  göreli ve BAŞINDA EĞİK ÇİZGİ YOKTUR (`mimarlar/x.jpg`, `logos-thumb/y.jpg` — legacy_static).
+  `safeUrl` bunları `document.baseURI`'ye göre çözüyordu. `<base href="/">` taşıyan sayfalarda
+  (kisi/firma/proje/urun/gundem/pano/en-iyi-100) baseURI kök demekti ve doğru çalışıyordu — ama
+  pop-up ana sayfadan ve /arama'dan da AYNI belgede açılıyor ve açılırken adres
+  `history.pushState` ile `/kisi/<slug>`a dönüyor (bkz. `architect-modal.js`); `<base>` OLMAYAN o
+  belgelerde `document.baseURI` de o anda `/kisi/<slug>` oluyor ve yol
+  `/kisi/mimarlar/x.jpg`e çözülüp 404 veriyordu. **Sayfa yenilenince sunucu `<base href="/">`
+  taşıyan belgeyi servis ettiği için sorun kendiliğinden "düzeliyordu"** — bildirilen davranış
+  tam olarak bu.
+  * Düzeltme: `safeUrl`'ün tabanı artık SABİT SİTE KÖKÜ (`SITE_ROOT = window.location.origin + '/'`).
+    `<base href="/">` olan sayfalarda BİREBİR aynı sonucu verir; olmayanlarda kırılmayı kaldırır.
+    YEDİ kopyanın hepsi güncellendi: `architect-modal.js`, `office-modal.js`, `product-modal.js`,
+    `project-meta.js`, `social-links.js`, `auth-modal.js`, `auth-nav.js` (+ aynı modüllerdeki
+    JSON-LD `image`/`logo` alanları).
+  * **FİRMA tarafı**: logo `<img>`'i `cdnImg`'e HAM değeri verdiğinden src'si sağlamdı, ama
+    BÜYÜTME yolu (`data-lightbox-src`) ham göreli değeri taşıyor ve `image-lightbox.js` onu
+    doğrudan `imgEl.src`'ye atıyordu — aynı yanlış çözümleme. Lightbox artık `siteUrl()` ile
+    köke göre çözer.
+- **(b) GÖRÜNEN KUSUR.** Başlık avatarı, baş harfleri yazan renkli dairenin İÇİNE basılan ve kendi
+  `onerror = () => img.remove()` yedeğini taşıyan bir `<img>`'dir; görsel düşünce geriye TEMİZ bir
+  baş harf dairesi kalmalı. Ama `broken-image-fallback.js` `error`'ı BELGE ÜZERİNDE (capture)
+  yakalayıp img'i alt metninden baş harf üreten bir kutuyla değiştiriyordu; `alt` boş olduğundan
+  kutu **"—"** yazıyor ve dairenin yanında duruyordu — ekran görüntüsündeki "kırık fotoğraf" buydu.
+  * Düzeltme: `hasOwnErrorHandler(img)` — kendi `onerror`'unu taşıyan (ya da
+    `data-ml-fallback="off"`) görseller genel yedeğin DIŞINDA. Render noktası ne yapacağını zaten
+    söylediyse karar onundur; yedek, hiçbir şey söylemeyen ~30 render noktası için duruyor. Hem
+    canlı `error` dinleyicisi hem geç tarama (`sweep`/`verifyThenFallback`) aynı kapıdan geçer.
+
+### 8. "İz Bırakan" rozetli firmada İş/Staj ilanları ve sahiplenme daveti YOK
+Kullanıcı isteği: "Bir firmaya admin tarafından iz bırakan rozeti verilmişse o firmada İş / Staj
+ilanları ve Bu firma sana mı ait? butonu olmasın."
+- Rozet vefat etmiş mimarlar/kapanmış kurumlar için veriliyor (bkz. `badge-shared.js#BADGE_LABELS`)
+  — böyle bir kayıtta ilan da sahiplenme daveti de anlamsız.
+- İş/Staj: `office-modal.js#renderJobs` önce kutuyu GİZLER, `badgesReadyPromise`'i bekler
+  (`/api/public/badges` asenkron gelir; beklenmezse kutu bir an görünüp kaybolurdu) ve rozet varsa
+  hiç açmaz.
+- "Bu firma sana mı ait?": `claim-correction-box.js`'te FİRMA dalı artık `hasIzBirakanBadge`'e
+  bakıyor. **Diğer firma rozetleri kutuyu KAPATMAZ** — 2026-09-10'dan beri geçerli gerekçe aynen
+  duruyor: firma rozeti admin tarafından da verilebiliyor, yani rozet tek başına "bu firmanın
+  onaylı bir yetkilisi var" demek değil.
+- **Sahibi/yetkilisi kutuyu KAYBETMEZ**: gizleme `!isProfileOwner && badged` koşuluna bağlı, yani
+  Düzenle/Sil/Arşivle aksiyonları yerinde kalır.
+
+Testler: `scripts/test-2026-09-16-carousels-pickers-and-broken-photos.mjs` (21 test, preflight'a
+bağlı).

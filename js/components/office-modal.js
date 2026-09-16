@@ -393,11 +393,24 @@ const OfficeModal = (function () {
     return m ? `${m[2].trim()}, ${m[1].trim()}` : loc;
   }
 
-  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme — window.location.href yerine
-  // document.baseURI (firma.html'deki <base href="/">'yi dikkate alır).
+  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme.
+  // SİTE KÖKÜ — göreli yolların çözüm tabanı. document.baseURI DEĞİL (gerçek bulgu, kullanıcı
+  // isteği 2026-09-16 madde 7: "Bazen bir kişi profili açıldığında ... kişi fotoğrafı kırık olarak
+  // popup açılıyor ama sayfayı yenileyince düzeliyor"):
+  //   * D1'deki bazı görsel yolları köke göreli ve BAŞINDA EĞİK ÇİZGİ YOKTUR ("mimarlar/x.jpg",
+  //     "logos-thumb/y.jpg", "miras/z.webp" — legacy_static kaynaklı kayıtlar).
+  //   * `<base href="/">` taşıyan sayfalarda (kisi/firma/proje/urun/gundem...) baseURI kök olduğu
+  //     için bunlar doğru çözülüyordu. Ama pop-up ana sayfadan/aramadan da AYNI belgede açılıyor ve
+  //     açılırken adres pushState ile "/kisi/<slug>"a dönüyor; o belgelerde <base> OLMADIĞINDAN
+  //     document.baseURI da o anda "/kisi/<slug>" oluyor ve "mimarlar/x.jpg" -> "/kisi/mimarlar/x.jpg"
+  //     gibi var olmayan bir adrese çözülüyordu. Sayfa yenilenince sunucu <base href="/"> taşıyan
+  //     belgeyi servis ettiği için sorun "kendiliğinden" düzeliyordu — bildirilen davranış tam da bu.
+  // Köke sabitlemek `<base href="/">` olan sayfalarda BİREBİR aynı sonucu verir (orada baseURI
+  // zaten origin + "/"), olmayan sayfalarda ise kırılmayı kökten kaldırır.
+  const SITE_ROOT = window.location.origin + '/';
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, document.baseURI);
+      const parsed = new URL(u, SITE_ROOT);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
@@ -496,8 +509,8 @@ const OfficeModal = (function () {
     if (o.loc) data.address = { '@type': 'PostalAddress', addressLocality: o.loc };
     const logo = logoUrl(o);
     // gerçek bulgu (2026-08-13): o.logo (=logoUrl(o)) D1'de 597 kayıtta başında "/" olmadan
-    // saklanıyor (ör. "logos-thumb/eaa.jpg") — document.baseURI kullan (bkz. yukarıdaki safeUrl).
-    if (logo) { try { data.logo = new URL(logo, document.baseURI).href; } catch {} }
+    // saklanıyor (ör. "logos-thumb/eaa.jpg") — SITE_ROOT kullan (bkz. yukarıdaki safeUrl notu).
+    if (logo) { try { data.logo = new URL(logo, SITE_ROOT).href; } catch {} }
     if (o.website && safeUrl(o.website)) data.sameAs = [safeUrl(o.website)];
     tag.textContent = JSON.stringify(data);
   }
@@ -1088,6 +1101,20 @@ const OfficeModal = (function () {
     return (typeof cdnImg === 'function') ? cdnImg(url, 800) : url;
   }
 
+  // "İZ BIRAKAN" ROZETLİ FİRMADA İŞ/STAJ KUTUSU YOK (kullanıcı isteği, 2026-09-16 madde 8: "Bir
+  // firmaya admin tarafından iz bırakan rozeti verilmişse o firmada İş / Staj ilanları ve Bu firma
+  // sana mı ait? butonu olmasın"). Rozet vefat etmiş mimarlar/kapanmış kurumlar için veriliyor
+  // (bkz. badge-shared.js#BADGE_LABELS) — böyle bir kayıtta ilan da sahiplenme daveti de anlamsız.
+  // Rozet listesi /api/public/badges'ten ASENKRON gelir; kutunun bir an görünüp kaybolmaması için
+  // ÖNCE beklenir (badgesReadyPromise, claim-correction-box.js#activeBadgesOf ile AYNI kapı).
+  // "Bu firma sana mı ait?" tarafı claim-correction-box.js#hasIzBirakanBadge'de kapatılır.
+  async function hasIzBirakanBadge(o) {
+    if (typeof badgesReadyPromise !== 'undefined') await badgesReadyPromise;
+    const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.office && dynamicBadges.office[o.name]) || [];
+    const badges = dynamic.length ? dynamic : (o.badges || []);
+    return badges.includes('iz-birakan');
+  }
+
   async function renderJobs(o) {
     const card = document.getElementById('om-jobs-card');
     const body = document.getElementById('om-jobs-body');
@@ -1095,10 +1122,13 @@ const OfficeModal = (function () {
     if (!card || !body) return;
     const seq = ++jobsSeq;
     // Bir önceki firmanın ilanları yeni firmada bir an bile görünmesin — şablon tek sefer mount edilir.
-    card.style.display = '';
+    card.style.display = 'none';
     card.open = false;
     body.innerHTML = '';
     if (countEl) countEl.textContent = '';
+    if (await hasIzBirakanBadge(o)) return;
+    if (seq !== jobsSeq || currentItem !== o) return;
+    card.style.display = '';
     let data = { items: [], canManage: false };
     try {
       const res = await fetch(`/api/office-jobs?office=${encodeURIComponent(jobsOfficeKey(o))}`, { cache: 'no-store', credentials: 'same-origin' });

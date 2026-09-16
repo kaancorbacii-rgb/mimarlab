@@ -25,10 +25,24 @@
   }
   // mimar-detay.html/ofis-detay.html'deki inline safeUrl() ile aynı — yalnızca http(s) kabul eder
   // (bkz. XSS escaping convention: stored URL'ler her zaman safeUrl'den geçirilir).
+  // SİTE KÖKÜ — göreli yolların çözüm tabanı. document.baseURI DEĞİL (gerçek bulgu, kullanıcı
+  // isteği 2026-09-16 madde 7: "Bazen bir kişi profili açıldığında ... kişi fotoğrafı kırık olarak
+  // popup açılıyor ama sayfayı yenileyince düzeliyor"):
+  //   * D1'deki bazı görsel yolları köke göreli ve BAŞINDA EĞİK ÇİZGİ YOKTUR ("mimarlar/x.jpg",
+  //     "logos-thumb/y.jpg", "miras/z.webp" — legacy_static kaynaklı kayıtlar).
+  //   * `<base href="/">` taşıyan sayfalarda (kisi/firma/proje/urun/gundem...) baseURI kök olduğu
+  //     için bunlar doğru çözülüyordu. Ama pop-up ana sayfadan/aramadan da AYNI belgede açılıyor ve
+  //     açılırken adres pushState ile "/kisi/<slug>"a dönüyor; o belgelerde <base> OLMADIĞINDAN
+  //     document.baseURI da o anda "/kisi/<slug>" oluyor ve "mimarlar/x.jpg" -> "/kisi/mimarlar/x.jpg"
+  //     gibi var olmayan bir adrese çözülüyordu. Sayfa yenilenince sunucu <base href="/"> taşıyan
+  //     belgeyi servis ettiği için sorun "kendiliğinden" düzeliyordu — bildirilen davranış tam da bu.
+  // Köke sabitlemek `<base href="/">` olan sayfalarda BİREBİR aynı sonucu verir (orada baseURI
+  // zaten origin + "/"), olmayan sayfalarda ise kırılmayı kökten kaldırır.
+  const SITE_ROOT = window.location.origin + '/';
   function safeUrl(u) {
     if (!u) return '';
     try {
-      const parsed = new URL(u, document.baseURI);
+      const parsed = new URL(u, SITE_ROOT);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';

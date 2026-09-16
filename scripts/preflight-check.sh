@@ -711,6 +711,21 @@ else
 fi
 rm -f /tmp/preflight_icon_pay_order
 
+# KULLANICI İSTEĞİ, 2026-09-16 (sekiz madde): proje-ekle'deki "Ürün firması" kutusunun tüm firmaları
+# listeleyen aramalı panele geçmesi, kisi-ekle'de Firmalar/Sosyal Medya sırası, urun-ekle'de Grup'un
+# zorunlu olması, admin > Üyeler satır numarası, Migrasyon Çakışmaları sekmesinin kaldırılması,
+# KIRIK PROFİL FOTOĞRAFI (safeUrl'ün çözüm tabanı document.baseURI'den sabit site köküne geçti +
+# kendi onerror'u olan <img> genel yedeğin dışında kaldı) ve "İz Bırakan" rozetli firmada İş/Staj
+# kutusu ile sahiplenme davetinin kapanması.
+# Bkz. scripts/test-2026-09-16-carousels-pickers-and-broken-photos.mjs.
+if node scripts/test-2026-09-16-carousels-pickers-and-broken-photos.mjs >/tmp/preflight_20260916 2>&1; then
+  ok "2026-09-16 turu testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916) test)"
+else
+  bad "2026-09-16 turu testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_20260916 >&2
+fi
+rm -f /tmp/preflight_20260916
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

@@ -1359,11 +1359,15 @@ function withListPageCacheHeaders(response) {
 // ve index.html o bölümü eskisi gibi istemcide çeker — sayfa ASLA bu yüzden düşmez.
 // ---------------------------------------------------------------------------------------------
 const HOME_PROJECT_FETCH_LIMIT = 24; // index.html#PROJECT_CAROUSEL_FETCH_LIMIT ile aynı
-const HOME_SLOTS = 6;                // index.html#PROJECT_CAROUSEL_SLOTS ile aynı (9 -> 6, kullanıcı isteği 2026-09-12 madde 3)
+const HOME_SLOTS = 9;                // index.html#PROJECT_CAROUSEL_SLOTS ile aynı (6 -> 9, kullanıcı isteği 2026-09-16 madde 1)
+// ÜRÜN ve GÜNDEM 6'da KALDI: 2026-09-16 madde 1 yalnızca "proje, kişi ve firma" karusellerini
+// 9'a çıkarttı. Tek bir sabit kullanılsaydı istenmeyen iki karusel de sessizce büyürdü.
+const HOME_SMALL_SLOTS = 6;          // index.html#SMALL_CAROUSEL_SLOTS ile aynı
 // Gömülü veri, bölüm başına TAM karusel slotu kadar kayıt taşır (bkz.
-// index.html#HOME_LIST_FETCH_LIMIT — ayrışmamalı). "Varsa 6, yoksa olduğu kadar": uç daha az
+// index.html#HOME_LIST_FETCH_LIMIT — ayrışmamalı). "Varsa N, yoksa olduğu kadar": uç daha az
 // kayıt döndürürse bölüm o kadarıyla gömülür, istemci eksik slotu doldurmaz.
 const HOME_LIST_LIMIT = HOME_SLOTS;
+const HOME_SMALL_LIST_LIMIT = HOME_SMALL_SLOTS;
 const HOME_DATA_TIMEOUT_MS = 2000;
 // index.html'deki <img sizes> değerleriyle BİREBİR aynı — preload'un kullanılabilmesi için şart.
 // Değerler bento yerleşiminin kutu genişliklerinden gelir (beş sütunlu grid, kapsayıcı en fazla
@@ -1412,13 +1416,13 @@ async function loadHomeData(env, ctx) {
       internalApiJson(env, ctx, withPinParam(`/api/projects?limit=${HOME_PROJECT_FETCH_LIMIT}&noPreview=1`, pinFor('projects'))),
       internalApiJson(env, ctx, withPinParam(`/api/architects?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('architects'))),
       internalApiJson(env, ctx, withPinParam(`/api/offices?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('offices'))),
-      internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_LIST_LIMIT}&noPreview=1`, pinFor('products'))),
+      internalApiJson(env, ctx, withPinParam(`/api/products?limit=${HOME_SMALL_LIST_LIMIT}&noPreview=1`, pinFor('products'))),
       // GÜNDEM karuseli (kullanıcı isteği, 2026-09-12 üçüncü tur). Admin seçimi YOK (bkz.
       // src/lib/homeCarousels.js#HOME_FEATURED_KEYS — dört anahtar), o yüzden withPinParam'dan
       // geçmez: URL'e dokunulmaması en sıcak önbellek anahtarını korur.
       // MARKA karuseli (?brands=1 ile çekilen altıncı kutu) KALDIRILDI — kullanıcı isteği,
       // 2026-09-14 madde 3. Ana sayfa artık o ucu hiç çağırmaz.
-      internalApiJson(env, ctx, `/api/gundem?limit=${HOME_LIST_LIMIT}`),
+      internalApiJson(env, ctx, `/api/gundem?limit=${HOME_SMALL_LIST_LIMIT}`),
     ]);
     let projectItems = null;
     if (projects && Array.isArray(projects.items)) {
@@ -1432,7 +1436,7 @@ async function loadHomeData(env, ctx) {
         .filter(p => p && !p.preview && Array.isArray(p.images) && p.images[0])
         .slice(0, HOME_LIST_LIMIT);
     }
-    const items = (res) => (res && Array.isArray(res.items)) ? res.items.slice(0, HOME_LIST_LIMIT) : null;
+    const items = (res, limit) => (res && Array.isArray(res.items)) ? res.items.slice(0, limit || HOME_LIST_LIMIT) : null;
     // t: üretim anı (ms) — index.html bununla gömülü verinin yaşını ölçer (bkz. oradaki arka plan yenilemesi).
     // v: 5 — gövde şekli yeniden değişti: MARKA bölümü çıkarıldı (beş bölüm).
     // Tarayıcı önbelleğinde duran ESKİ bir belge v:4 bekler ve bu gövdeyi yok sayıp listeleri
@@ -1440,7 +1444,7 @@ async function loadHomeData(env, ctx) {
     const data = {
       v: 5, t: Date.now(),
       projects: projectItems, architects: items(architects), offices: items(offices),
-      products: items(products), gundem: items(gundem),
+      products: items(products, HOME_SMALL_SLOTS), gundem: items(gundem, HOME_SMALL_SLOTS),
     };
     return (data.projects || data.architects || data.offices || data.products || data.gundem) ? data : null;
   })();
