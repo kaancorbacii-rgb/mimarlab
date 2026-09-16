@@ -172,8 +172,12 @@
 
   .profile-fact{display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13px;}
   .profile-fact:last-child{border-bottom:none;}
-  .profile-fact-label{color:var(--ink-soft); flex:0 0 110px;}
-  .profile-fact-value{font-weight:600;}
+  /* min-width:0 + overflow-wrap: bkz. js/components/auth-modal.js'teki AYNI düzeltme/gerekçe
+     (kullanıcı isteği, 2026-09-16: "kutu dışına taşma hiçbir görünümde olmasın"). Bu sayfada
+     "Yetkili Kullanıcılar" çipleri YOK ama kurallar ve kutu modeli birebir aynı, yani uzun bir
+     değer (firma adı, üniversite) burada da satırı kartın dışına iterdi. */
+  .profile-fact-label{color:var(--ink-soft); flex:0 0 110px; min-width:0;}
+  .profile-fact-value{font-weight:600; min-width:0; flex:1 1 auto; overflow-wrap:anywhere;}
 
   .saved-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft);}
   .saved-row:last-child{border-bottom:none;}

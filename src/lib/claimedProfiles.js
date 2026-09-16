@@ -686,7 +686,7 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
   // anahtarlanmış olabilir (bkz. canEditOfficeViaFounderLink'teki AYNI OR).
   const [claimRes, founderRes] = await Promise.all([
     env.DB.prepare(
-      `SELECT u.id AS userId, u.name AS name, c.office_position AS position
+      `SELECT u.id AS userId, u.name AS name, u.username AS username, c.office_position AS position
          FROM profile_claims c
          JOIN users u ON u.id = c.user_id
         WHERE c.profile_type = 'office' AND c.status = 'approved'
@@ -697,7 +697,7 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
       // NOT EXISTS — yetkisi ELLE KALDIRILMIŞ kurucu bağı listeye girmez (bkz.
       // isOfficeManagerRevoked: claim yolunda status='approved' süzgeci bunu zaten yapıyor,
       // kurucu bağında iptal kaydı ayrıca sorulmak zorunda).
-      `SELECT u.id AS userId, u.name AS name, a.position AS position
+      `SELECT u.id AS userId, u.name AS name, u.username AS username, a.position AS position
          FROM office_founders f
          JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
          JOIN architects a ON a.id = f.architect_id AND a.deleted_at IS NULL
@@ -724,7 +724,9 @@ export async function fetchOfficeManagers(env, officeName, officeEditPositions) 
     for (const r of rows) {
       if (!r || !r.name || seen.has(r.userId)) continue;
       seen.add(r.userId);
-      out.push({ userId: r.userId, name: r.name, position: r.position || null, source });
+      // username: çip ARTIK bunu yazar (kullanıcı isteği, 2026-09-16). `name` KORUNUR — yetkiyi
+      // kaldıran uç (DELETE ?name=) hâlâ ad soyadla eşleştiriyor, yani çipin X'i onu taşımalı.
+      out.push({ userId: r.userId, name: r.name, username: r.username || null, position: r.position || null, source });
     }
   }
   out.sort((a, b) => a.name.localeCompare(b.name, 'tr'));

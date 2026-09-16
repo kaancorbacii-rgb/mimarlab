@@ -368,19 +368,28 @@ const AuthModal = (function () {
     }
     #am-panel .profile-fact{display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13px;}
     #am-panel .profile-fact:last-child{border-bottom:none;}
-    #am-panel .profile-fact-label{color:var(--ink-soft); flex:0 0 110px;}
-    #am-panel .profile-fact-value{font-weight:600;}
+    /* min-width:0 — KUTU DIŞINA TAŞMANIN KÖK NEDENİ (kullanıcı isteği, 2026-09-16: "kutu dışına
+       taşma hiçbir görünümde olmasın"). Flex öğelerinin varsayılan min-width'i 'auto', yani
+       max-content: etiket 110px'in ALTINA inemiyor, değer sütunu da içeriğinden dar olamıyordu.
+       İkisi birden satırı kartın genişliğinin ötesine itiyordu — .am-mgr-wrap'ın flex-wrap'ı
+       devreye bile giremiyordu, çünkü sarılacak genişliği belirleyen kapsayıcı zaten içeriğe
+       göre büyümüştü. (Bu blok bir template literal içinde: ters tırnak KULLANMAYIN.) */
+    #am-panel .profile-fact-label{color:var(--ink-soft); flex:0 0 110px; min-width:0;}
+    #am-panel .profile-fact-value{font-weight:600; min-width:0; flex:1 1 auto; overflow-wrap:anywhere;}
     #am-panel .profile-fact-avatar{width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; display:block;}
     /* "Yetkili Kullanıcılar" satırı (kullanıcı isteği, 2026-09-12): her yetkili bir çip, çipin
        içinde yetkiyi kaldıran X; satırın sonunda e-postayla yetkili ekleyen + düğmesi. Satır
        YALNIZCA isteği yapanın kendisi de o firmanın yetkilisi olduğunda çizilir (uç yetkisize
        403 döner, bkz. src/routes/claims.js#officeManagers). */
-    #am-panel .am-mgr-wrap{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
-    #am-panel .am-mgr-chip{display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px; border-radius:100px; background:var(--paper-alt); font-size:12px; font-weight:600;}
-    #am-panel .am-mgr-chip-role{color:var(--ink-soft); font-weight:500;}
-    #am-panel .am-mgr-x{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; padding:0; border:none; border-radius:50%; background:rgba(124,75,75,0.14); color:var(--rust); font-size:12px; line-height:1;}
+    #am-panel .am-mgr-wrap{display:flex; flex-wrap:wrap; gap:6px; align-items:center; max-width:100%; min-width:0;}
+    /* max-width + min-width:0: tek bir çip satırdan genişse (çok uzun bir kullanıcı adı) ÇİPİN
+       KENDİSİ kırpılır, kutuyu genişletmez — flex-wrap yalnızca çipler ARASINDA sarar, çipin
+       İÇİNDEKİ metni kısaltmaz. */
+    #am-panel .am-mgr-chip{display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px; border-radius:100px; background:var(--paper-alt); font-size:12px; font-weight:600; max-width:100%; min-width:0;}
+    #am-panel .am-mgr-chip-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    #am-panel .am-mgr-x{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; flex-shrink:0; padding:0; border:none; border-radius:50%; background:rgba(124,75,75,0.14); color:var(--rust); font-size:12px; line-height:1;}
     #am-panel .am-mgr-x:hover{background:var(--rust); color:var(--paper-card);}
-    #am-panel .am-mgr-add{display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:100px; border:1px dashed var(--line); background:none; color:var(--ink-soft); font-size:12px; font-weight:600;}
+    #am-panel .am-mgr-add{display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:100px; border:1px dashed var(--line); background:none; color:var(--ink-soft); font-size:12px; font-weight:600; max-width:100%; white-space:nowrap;}
     #am-panel .am-mgr-add:hover{color:var(--ink); border-color:var(--ink-soft);}
     #am-panel .am-mgr-form{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; width:100%;}
     #am-panel .am-mgr-form input{flex:1 1 180px; min-width:0; height:30px; padding:0 10px; border:1px solid var(--line); border-radius:100px; background:var(--paper-card); color:var(--ink); font-family:inherit; font-size:12px;}
@@ -4404,13 +4413,28 @@ const AuthModal = (function () {
         });
     }
 
-    // "Yetkili Kullanıcılar" satırının işaretlemesi. Kullanıcıdan gelen her değer (ad, görev)
+    // "Yetkili Kullanıcılar" satırının işaretlemesi. Kullanıcıdan gelen her değer
     // escapeHtml/escapeAttr'dan geçer — satır renderFirmPage'de ham HTML olarak basılıyor.
+    //
+    // ÇİP ARTIK @KULLANICI ADI YAZAR, ad soyad DEĞİL (kullanıcı isteği, 2026-09-16: "Yetkili
+    // Kullanıcıların isimleri değil kullanıcı adları yazsın, ayrıca yanlarında yönetici yazmasına
+    // gerek yok"). Kullanıcı adı hesabın TEKİL tanıtıcısıdır (bkz. CLAUDE.md "Hesap üyeliği ile
+    // kişi profili AYRIDIR": iki hesap aynı ad soyadı taşıyabilir, `users.username` taşıyamaz) —
+    // yani çip artık hangi hesabın yetkili olduğunu belirsizliğe yer bırakmadan gösterir.
+    // GÖREV ETİKETİ (`(Yönetici)`) KALDIRILDI; `position` yanıtta DURUYOR, bu satır artık okumuyor.
+    //
+    // X HÂLÂ ADI TAŞIR: yetkiyi kaldıran uç ad soyadla eşleştiriyor (DELETE
+    // /api/claims/office-managers?name=…, bkz. src/routes/claims.js#revokeOfficeManager) — ekranda
+    // görünen değer değişti, silme anahtarı değişmedi. Kolonu boş eski hesapta ad soyada düşülür
+    // (aksi halde çip bomboş görünürdü).
     function managersRowHtml(managers) {
-      const chips = managers.map(m => `
-        <span class="am-mgr-chip">${escapeHtml(m.name)}${m.position ? ` <span class="am-mgr-chip-role">(${escapeHtml(m.position)})</span>` : ''}
-          <button type="button" class="am-mgr-x" data-mgr-name="${escapeAttr(m.name)}" title="Yetkiyi kaldır" aria-label="${escapeAttr(m.name + ' yetkisini kaldır')}">✕</button>
-        </span>`).join('');
+      const chips = managers.map(m => {
+        const shown = m.username ? '@' + m.username : m.name;
+        return `
+        <span class="am-mgr-chip"><span class="am-mgr-chip-name">${escapeHtml(shown)}</span>
+          <button type="button" class="am-mgr-x" data-mgr-name="${escapeAttr(m.name)}" data-mgr-label="${escapeAttr(shown)}" title="Yetkiyi kaldır" aria-label="${escapeAttr(shown + ' yetkisini kaldır')}">✕</button>
+        </span>`;
+      }).join('');
       return `<span class="am-mgr-wrap">${chips}
         <button type="button" class="am-mgr-add" data-role="mgr-add">+ Yetkili ekle</button>
       </span>
@@ -4436,14 +4460,18 @@ const AuthModal = (function () {
       box.querySelectorAll('[data-mgr-name]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const name = btn.dataset.mgrName;
-          if (!confirm(`${name} adlı kullanıcının bu firmadaki yönetim yetkisi kaldırılsın mı?\n\nKişi firma/marka künyesinden (Kurucular, Ekip) SİLİNMEZ — yalnızca içerikleri düzenleme yetkisi biter.`)) return;
+          // ONAY/SONUÇ METNİ ÇİPTE YAZANI kullanır (data-mgr-label = @kullanıcı adı), silme
+          // isteği ise ADI (data-mgr-name) — uç ad soyadla eşleştiriyor. İkisi ayrı tutulmazsa
+          // kullanıcı çipte "@x" görüp onay kutusunda başka bir ad okurdu.
+          const label = btn.dataset.mgrLabel || name;
+          if (!confirm(`${label} kullanıcısının bu firmadaki yönetim yetkisi kaldırılsın mı?\n\nKişi firma/marka künyesinden (Kurucular, Ekip) SİLİNMEZ — yalnızca içerikleri düzenleme yetkisi biter.`)) return;
           btn.disabled = true;
           setMsg('Kaldırılıyor…');
           try {
             const res = await fetch(`/api/claims/office-managers?key=${encodeURIComponent(key)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
             const data = await res.json().catch(() => null);
             if (!res.ok) { setMsg((data && data.error) || 'Yetki kaldırılamadı.', 'err'); btn.disabled = false; return; }
-            setMsg(`${name} artık bu firmanın içeriklerini yönetemez.`, 'ok');
+            setMsg(`${label} artık bu firmanın içeriklerini yönetemez.`, 'ok');
             refresh();
           } catch {
             setMsg('Bağlantı hatası, tekrar dene.', 'err');

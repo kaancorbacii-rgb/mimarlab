@@ -250,5 +250,81 @@ await test('rozet sahibi/yetkilisi kutuyu kaybetmez (Düzenle/Sil hâlâ orada)'
   assert.match(claimBox, /if\(!isProfileOwner && badged\) card\.style\.display = 'none';/);
 });
 
+// ------------------------------------------------------------------------------------------
+// İKİNCİ TUR — Hesabım > "Yetkili Kullanıcılar" çipleri
+//
+// (1) Çip ad soyad DEĞİL @kullanıcı adı yazar ve görev etiketi ("(Yönetici)") kalktı.
+//     Kullanıcı adı hesabın TEKİL tanıtıcısıdır (iki hesap aynı ad soyadı taşıyabilir), yani
+//     çip artık hangi hesabın yetkili olduğunu belirsizliğe yer bırakmadan gösterir.
+// (2) KUTU DIŞINA TAŞMA. Kök neden `.profile-fact`in flex öğelerinin min-width'i: varsayılan
+//     `auto` (= max-content) olduğundan değer sütunu içeriğinden dar OLAMIYOR ve satır kartın
+//     dışına taşıyordu — .am-mgr-wrap'ın flex-wrap'ı devreye bile giremiyordu, çünkü sarılacak
+//     genişliği belirleyen kapsayıcı zaten içeriğe göre büyümüştü.
+const authModal = read('js/components/auth-modal.js');
+const hesabimHtml = read('hesabim.html');
+
+console.log('\nikinci tur — Yetkili Kullanıcılar: kullanıcı adı + taşma');
+
+await test('çip @kullanıcı adı yazar; görev etiketi ve sınıfı tamamen kalktı', () => {
+  assert.match(authModal, /const shown = m\.username \? '@' \+ m\.username : m\.name;/,
+    'çip hâlâ ad soyad yazıyor (ya da kullanıcı adsız hesapta yedeği yok)');
+  assert.match(authModal, /<span class="am-mgr-chip-name">\$\{escapeHtml\(shown\)\}<\/span>/);
+  // Etiket VE onu biçimlendiren kural birlikte gitmeli — kalan kural ölü ağırlık olurdu.
+  assert.ok(!authModal.includes('am-mgr-chip-role'), 'görev etiketi/sınıfı hâlâ duruyor');
+  assert.ok(!/\$\{escapeHtml\(m\.position\)\}/.test(authModal), 'çip hâlâ görevi basıyor');
+});
+
+await test('X\'in silme anahtarı AD SOYAD olarak kaldı (uç onunla eşleştiriyor)', () => {
+  // Gösterilen değer değişti, silme anahtarı DEĞİŞMEDİ: DELETE ?name=<ad soyad>.
+  assert.match(authModal, /data-mgr-name="\$\{escapeAttr\(m\.name\)\}"/);
+  assert.match(read('src/routes/claims.js'), /async function revokeOfficeManager\(/);
+  // Onay kutusu/sonuç metni ÇİPTE YAZANI söyler; ayrışsalardı kullanıcı çipte "@x" görüp
+  // onay kutusunda başka bir ad okurdu.
+  assert.match(authModal, /data-mgr-label="\$\{escapeAttr\(shown\)\}"/);
+  assert.match(authModal, /const label = btn\.dataset\.mgrLabel \|\| name;/);
+  assert.match(authModal, /confirm\(`\$\{label\} kullanıcısının bu firmadaki yönetim yetkisi/);
+  assert.match(authModal, /setMsg\(`\$\{label\} artık bu firmanın içeriklerini yönetemez\.`/);
+  // İstek hâlâ ADI gönderir.
+  assert.match(authModal, /office-managers\?key=\$\{encodeURIComponent\(key\)\}&name=\$\{encodeURIComponent\(name\)\}/);
+});
+
+await test('sunucu kullanıcı adını döner, e-posta/kullanıcı id\'sini HÂLÂ döndürmez', () => {
+  const claims = read('src/routes/claims.js');
+  assert.match(claims, /name: m\.name, username: m\.username, position: m\.position, source: m\.source/);
+  assert.ok(!/email: m\./.test(claims) && !/userId: m\.userId/.test(claims),
+    'yanıt e-posta ya da kullanıcı id\'si taşıyor');
+  // İki SELECT de kolonu çekmeli: biri atlanırsa o yoldan gelen yetkilinin çipi ada düşerdi.
+  const lib = read('src/lib/claimedProfiles.js');
+  const fn = lib.slice(lib.indexOf('export async function fetchOfficeManagers('));
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert.equal(body.split('u.username AS username').length - 1, 2, 'iki sorgudan biri username çekmiyor');
+  assert.match(body, /username: r\.username \|\| null/);
+});
+
+await test('taşma kapatıldı: .profile-fact öğelerinde min-width:0 (İKİ yüzeyde de)', () => {
+  for (const [label, src] of [['auth-modal.js', authModal], ['hesabim.html', hesabimHtml]]) {
+    const labelRule = src.match(/\.profile-fact-label\{[^}]*\}/);
+    const valueRule = src.match(/\.profile-fact-value\{[^}]*\}/);
+    assert.ok(labelRule && valueRule, `${label}: .profile-fact kuralları bulunamadı`);
+    assert.match(labelRule[0], /min-width:0/, `${label}: etiket sütunu 110px'in altına inemiyor`);
+    assert.match(valueRule[0], /min-width:0/, `${label}: değer sütunu içeriğinden dar olamıyor`);
+    assert.match(valueRule[0], /overflow-wrap:anywhere/, `${label}: uzun tek parça değer satırı taşırır`);
+  }
+});
+
+await test('çipler kartın içinde sarar; tek uzun çip kutuyu genişletmez', () => {
+  const wrap = authModal.match(/\.am-mgr-wrap\{[^}]*\}/)[0];
+  assert.match(wrap, /flex-wrap:wrap/);
+  assert.match(wrap, /max-width:100%/);
+  assert.match(wrap, /min-width:0/);
+  const chip = authModal.match(/\.am-mgr-chip\{[^}]*\}/)[0];
+  assert.match(chip, /max-width:100%/, 'tek çip kutudan geniş olabilir');
+  assert.match(chip, /min-width:0/);
+  // Çipin metni kırpılır, X kırpılmaz.
+  assert.match(authModal, /\.am-mgr-chip-name\{[^}]*text-overflow:ellipsis[^}]*\}/);
+  assert.match(authModal.match(/\.am-mgr-x\{[^}]*\}/)[0], /flex-shrink:0/,
+    'X büzülürse çipin içinde kaybolur');
+});
+
 console.log(`\n${passed} geçti, ${failed} başarısız`);
 process.exit(failed ? 1 : 0);

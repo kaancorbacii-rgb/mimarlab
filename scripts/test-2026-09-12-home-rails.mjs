@@ -198,12 +198,14 @@ function d1(db) {
 }
 
 const OFFICE = 'Yetki Mimarlık';
+// Üçüncü alan: users.username (2026-09-16 — çip artık bunu yazar). 'u-founder' BİLEREK
+// kullanıcı adsız: kolonu boş eski hesaplarda çip ad soyada düşmeli (bkz. managersRowHtml).
 const USERS = [
-  ['u-kurucu', 'Kurucu Kişi'],
-  ['u-yonetici', 'Yönetici Kişi'],
-  ['u-ekip', 'Ekip Üyesi Kişi'],     // onaylı claim ama YETKİSİZ pozisyon
-  ['u-founder', 'Kurucu Bağı Kişi'], // claim'i KİŞİ profilinde; firmaya office_founders ile bağlı
-  ['u-yabanci', 'Yabancı Kişi'],
+  ['u-kurucu', 'Kurucu Kişi', 'kurucukisi'],
+  ['u-yonetici', 'Yönetici Kişi', 'yoneticikisi'],
+  ['u-ekip', 'Ekip Üyesi Kişi', 'ekipuyesikisi'],  // onaylı claim ama YETKİSİZ pozisyon
+  ['u-founder', 'Kurucu Bağı Kişi', null],         // claim'i KİŞİ profilinde; office_founders ile bağlı
+  ['u-yabanci', 'Yabancı Kişi', 'yabancikisi'],
 ];
 
 async function freshEnv() {
@@ -213,8 +215,8 @@ async function freshEnv() {
   // canlı D1'in gerisinde; diğer testlerdeki AYNI satır).
   db.exec(read('migrations/0079_search_fold_columns.sql'));
   const now = Date.now();
-  for (const [id, name] of USERS) {
-    db.prepare(`INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, 'x', 'user', ?)`).run(id, `${id}@example.com`, name, now);
+  for (const [id, name, username] of USERS) {
+    db.prepare(`INSERT INTO users (id, email, name, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, 'x', 'user', ?)`).run(id, `${id}@example.com`, name, username, now);
     db.prepare(`INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`).run(await sha256Hex(`tok-${id}`), id, now, now + 3600_000);
   }
   db.prepare(`INSERT INTO offices (id, slug, name, source) VALUES (1, 'yetki-mimarlik', ?, 'legacy_static')`).run(OFFICE);
@@ -246,8 +248,13 @@ await test('yetkili kullanıcı listeyi görür: yalnızca YETKİLİ pozisyonlar
   assert.deepEqual(items.find(i => i.name === 'Yönetici Kişi').position, 'Yönetici');
   assert.ok(!items.some(i => i.name === 'Kurucu Kişi'), 'isteyen kendi adını görmemeli');
   assert.ok(!items.some(i => i.name === 'Ekip Üyesi Kişi'), 'Ekip Üyesi yetkili değil, listeye girmemeli');
+  // KULLANICI ADI (2026-09-16): çipte GÖSTERİLEN değer. `name` DURUYOR ama artık yalnızca X'in
+  // taşıdığı silme anahtarıdır (DELETE ?name= ad soyadla eşleştiriyor).
+  assert.equal(items.find(i => i.name === 'Yönetici Kişi').username, 'yoneticikisi');
+  // Kolonu boş eski hesapta null gelir — çip o durumda ad soyada düşer (bkz. managersRowHtml).
+  assert.equal(items.find(i => i.name === 'Kurucu Bağı Kişi').username, null);
   // E-posta/kullanıcı id'si asla dönmez (source = yetkinin nereden geldiği: 'claim' | 'founder').
-  assert.deepEqual([...new Set(items.flatMap(i => Object.keys(i)))].sort(), ['name', 'position', 'source']);
+  assert.deepEqual([...new Set(items.flatMap(i => Object.keys(i)))].sort(), ['name', 'position', 'source', 'username']);
 });
 
 await test('kurucu bağıyla yetkili olan da listeyi görür (claim yolu olmadan)', async () => {

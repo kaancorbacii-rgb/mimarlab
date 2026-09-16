@@ -834,3 +834,27 @@ ilanları ve Bu firma sana mı ait? butonu olmasın."
 
 Testler: `scripts/test-2026-09-16-carousels-pickers-and-broken-photos.mjs` (21 test, preflight'a
 bağlı).
+
+### 9. Yetkili Kullanıcılar çipleri: @kullanıcı adı + taşma kapatıldı (2026-09-16, ikinci tur)
+Kullanıcı isteği: "Hesabım sayfasındaki Yetkili Kullanıcıların isimleri değil kullanıcı adları
+yazsın, ayrıca yanlarında yönetici yazmasına gerek yok. Ekteki görseldeki gibi kutu dışına taşma
+hiçbir görünümde olmasın."
+
+- **Çip artık `@username` yazar**: `users.username` hesabın TEKİL tanıtıcısıdır (bkz. "Hesap
+  üyeliği ile kişi profili AYRIDIR" — iki hesap aynı ad soyadı taşıyabilir, kullanıcı adı
+  taşıyamaz), yani çip hangi hesabın yetkili olduğunu belirsizliğe yer bırakmadan gösterir.
+  Kolonu boş eski hesapta ad soyada düşülür. Görev etiketi (`(Yönetici)`) ve `.am-mgr-chip-role`
+  kuralı tamamen kalktı; `position` yanıtta DURUYOR, bu satır artık okumuyor.
+- **`name` YANITTA KALDI ve X onu taşır**: yetkiyi kaldıran uç ad soyadla eşleştiriyor
+  (`DELETE /api/claims/office-managers?name=…`). Ekranda görünen değer değişti, silme anahtarı
+  değişmedi. E-posta/kullanıcı id'si hâlâ DÖNMEZ — test bunu anahtar kümesiyle kelepçeliyor.
+- **TAŞMANIN KÖK NEDENİ `.profile-fact`in flex öğelerinin `min-width`iydi**, `.am-mgr-wrap`ın
+  `flex-wrap`i değil: flex öğelerinin varsayılan `min-width:auto` (= max-content) değeri, değer
+  sütununun içeriğinden dar olmasını ENGELLİYOR ve satırı kartın dışına itiyordu — sarılacak
+  genişliği belirleyen kapsayıcı zaten içeriğe göre büyüdüğü için `flex-wrap` devreye bile
+  giremiyordu. `min-width:0` (etiket + değer) + `overflow-wrap:anywhere` bunu kapatır.
+  Kural İKİ yüzeyde de var: `js/components/auth-modal.js` (modal) ve `hesabim.html` (bağımsız
+  sayfa) — ikincide çip yok ama kutu modeli birebir aynı, yani uzun bir değer orada da taşardı.
+- **Tek uzun çip kutuyu genişletmez**: `.am-mgr-chip{max-width:100%; min-width:0}` +
+  `.am-mgr-chip-name{overflow:hidden; text-overflow:ellipsis}` — metin kırpılır, X
+  (`flex-shrink:0`) kırpılmaz.

@@ -185,7 +185,7 @@ async function myClaims(env, user) {
 // da hiç ilgisi olmayan bir hesap) 403 döner ve istemci satırı hiç çizmez. Yetki kararı
 // SUNUCUNUN kendi kapılarıyla birebir aynı iki yoldan okunur (onaylı talep + dondurulmuş görev,
 // ya da kurucu bağı) — yani "listeyi görebilenler" ile "künyeyi kaydedebilenler" aynı kümedir.
-// Yanıt yalnızca ad soyad ve görev taşır; e-posta/kullanıcı id'si DÖNMEZ.
+// Yanıt yalnızca ad soyad, kullanıcı adı ve görev taşır; e-posta/kullanıcı id'si DÖNMEZ.
 // İsteği yapan bu firmanın yetkilisi mi (ÜÇ ucun da ortak kapısı: listele / yetki ver / kaldır).
 // Kendi talebin: onay ANINDA dondurulmuş görev (canlı position DEĞİL — bkz. myClaims'teki
 // uzun gerekçe: ikisi ayrıştığında kullanıcı ya kilitlenir ya da yetkisi varmış gibi görünür).
@@ -206,7 +206,10 @@ async function officeManagers(env, url, user) {
   const managers = await fetchOfficeManagers(env, key, OFFICE_EDIT_POSITIONS);
   // "DİĞER hesaplar" — isteği yapan kişi listede kendini görmez (kendi görevi zaten hemen
   // üstteki "Görevin" satırında yazıyor).
-  return json({ items: managers.filter(m => m.userId !== user.id).map(m => ({ name: m.name, position: m.position, source: m.source })) });
+  // username — çipte GÖSTERİLEN değer (kullanıcı isteği, 2026-09-16: "isimleri değil kullanıcı
+  // adları yazsın"). `name` gönderilmeye DEVAM eder ama artık yalnızca X'in taşıdığı anahtardır
+  // (DELETE ?name= ad soyadla eşleştiriyor); e-posta/kullanıcı id'si hâlâ DÖNMEZ.
+  return json({ items: managers.filter(m => m.userId !== user.id).map(m => ({ name: m.name, username: m.username, position: m.position, source: m.source })) });
 }
 
 // Yetki verildiğinde/kaldırıldığında, o firmanın TEKİL detay ucu + SSR HTML'i ve liste
