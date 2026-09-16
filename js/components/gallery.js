@@ -24,10 +24,23 @@ function injectGalleryBarStyles(){
   const style = document.createElement('style');
   style.id = 'gallery-bottombar-styles';
   style.textContent = `
+    /* KUTU LIGHTBOX'IN TAMAMINI KAPLAR, ama SAYAC/BUTON hala altta ortada (kullanici istegi,
+       2026-09-16 ucuncu tur madde 1: mobilde "Urun Etiketle" SOL UST kosede olsun).
+       NEDEN inset:0 — eski kural "bottom:24px; left:50%; transform:translateX(-50%)" idi ve
+       TRANSFORM TASIYAN BIR ATA, position:fixed cocuklar icin de kapsayici blok olur; yani
+       cubugun icindeki butona ne fixed ne absolute ile ekranin ust kosesi verilebiliyordu
+       (ikisi de cubugun kendi ~30px'lik kutusuna gore cozuluyordu). Cubuk artik tum alani
+       kaplayan, transformsuz bir kapsayici: icindeki her oge (bkz. mobilde .lightbox-tag-btn)
+       lightbox'in HERHANGI bir kosesine konumlandirilabilir.
+       pointer-events:none SART: tam alani kapladigi icin aksi halde gorselin uzerindeki
+       tiklamalari (isaretci/etiketleme) ve "bosluga tikla, kapat" davranisini yutardi. Cocuklar
+       tiklanabilirligi geri alir. */
     .lightbox-bottombar{
-      position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
-      display:flex; align-items:center; gap:10px; max-width:calc(100% - 24px);
+      position:absolute; inset:0; z-index:2; pointer-events:none;
+      display:flex; align-items:flex-end; justify-content:center; gap:10px;
+      padding:0 12px 24px;
     }
+    .lightbox-bottombar > *{pointer-events:auto;}
     /* Sayacin kendi mutlak konumlandirmasi (sayfa CSS'inde) cubugun icinde notrlenir.
        flex:0 0 auto + white-space:nowrap SART (yerel testte goruldu): sayac mutlak konumlandirmayken
        kendi icerigi kadar genisliyordu, flex satirina girince kucultulebilir bir oge oldu ve dar
@@ -46,18 +59,6 @@ function injectGalleryBarStyles(){
     .lightbox-tag-btn[disabled]{opacity:0.6; cursor:default;}
     /* Isaretleme modu acikken buton durumu belli olsun. */
     .lightbox-tag-btn.armed{background:var(--accent, #E08A3E);}
-    /* "Fotograf bana ait" (kullanici istegi, 2026-09-16 ikinci tur madde 2) — alt cubukta
-       "Urun Etiketle"nin YANINDA ve onunla BIREBIR ayni olcu/seffaflikta. Ayri bir sinif, ayni
-       kurallar: iki butonun gorunumu ayrisirsa alt cubuk dagilmis gorunurdu. */
-    .lightbox-claim-btn{
-      flex:0 0 auto; border:none; cursor:pointer; white-space:nowrap;
-      color:#fff; font-size:13px; font-weight:600;
-      font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
-    }
-    .lightbox-claim-btn:hover{background:rgba(27,42,61,0.85);}
-    .lightbox-claim-btn[disabled]{opacity:0.6; cursor:default;}
-    .lightbox-claim-btn.is-locked{display:none !important;}
     /* Izgara ("Tumunu Gor") modunda tekli gorsel gizli — alt cubuk da onunla birlikte gider,
        aksi halde izgaranin uzerinde islevsiz bir "Urun Etiketle" butonu asili kalirdi. */
     .lightbox.grid-mode .lightbox-bottombar{display:none;}
@@ -81,9 +82,14 @@ function injectGalleryBarStyles(){
       background:rgba(27,42,61,0.82); padding:8px 16px; border-radius:100px; backdrop-filter:blur(3px);
     }
     @media (max-width:560px){
-      .lightbox-bottombar{gap:8px; bottom:18px;}
+      .lightbox-bottombar{gap:8px; padding-bottom:18px;}
       .lightbox-tag-btn{font-size:12px; padding:6px 12px;}
-      .lightbox-claim-btn{font-size:12px; padding:6px 12px;}
+      /* Kullanici istegi (2026-09-16 ucuncu tur madde 1): mobilde buton SOL UST kosede.
+         Cubuk artik transformsuz ve tum alani kapladigi icin (bkz. yukarisi) absolute konum
+         dogrudan lightbox'in kosesine cozulur. Sag ust kose DOLU (.lightbox-close 12px/14px ve
+         .lightbox-grid-toggle onun solunda), sol ust kose bostu. Buton flex satirindan cikinca
+         sayac altta TEK BASINA ortalanmis kalir — istenen de bu. */
+      .lightbox-tag-btn{position:absolute; top:12px; left:14px;}
       .lightbox-tag-hint{font-size:12px; padding:7px 13px; top:64px;}
     }
   `;
@@ -127,11 +133,6 @@ function initDetailGallery(opts){
   // mevcut projelerin görünümünü DEĞİŞMEDEN bırakan tek davranış — eşleme kısmen doldurulmuş bir
   // projede de seçilmemiş kareler künyenin tamamını göstermeye devam eder, boş kalmaz.
   const creditsByUrl = (opts && opts.credits) || {};
-  // photoClaim — "Fotoğraf bana ait" (madde 2), tagging ile BİREBİR AYNI desen: yalnızca proje
-  // galerisinde verilir ({ projectSlug }), ürün galerisi bu alanı hiç geçmez ve orada buton hiç
-  // oluşturulmaz. Yetkinin KENDİSİ burada sorulmaz — buton yalnızca oturum varsa görünür
-  // (PhotoClaimer.hasAccess) ve gerçek kapı sunucudadır (src/routes/photoClaims.js).
-  const photoClaim = (opts && opts.photoClaim) || null;
 
   const galleryEl = document.getElementById(ids.gallery || 'detail-gallery');
   const galleryPrevBtn = document.getElementById(ids.galleryPrev || 'gallery-prev');
@@ -210,26 +211,13 @@ function initDetailGallery(opts){
   // Galeri başka bir sahibe (ör. ürün modalı) geçtiyse önceki projeden kalan buton kaldırılır.
   if(!tagging && tagBtn){ tagBtn.remove(); tagBtn = null; }
 
-  // "Fotoğraf bana ait" — yukarıdaki "Ürün Etiketle" bloğuyla BİREBİR aynı yaşam döngüsü: buton
-  // DOM'da kalıcıdır (lightbox elemanı swap'lar arasında yeniden oluşturulmaz), GİZLİ doğar ve
-  // yalnızca sunucu "evet" derse açılır. Varsayılanın gizli olması ŞART: aksi halde yanıt
-  // gecikirse OTURUMSUZ ziyaretçiler butonu bir an için görürdü.
-  let claimBtn = lightboxBar.querySelector('.lightbox-claim-btn');
-  if(photoClaim && !claimBtn){
-    injectGalleryBarStyles();
-    claimBtn = document.createElement('button');
-    claimBtn.type = 'button';
-    claimBtn.className = 'lightbox-claim-btn';
-    claimBtn.textContent = 'Fotoğraf bana ait';
-    claimBtn.style.display = 'none';
-    lightboxBar.appendChild(claimBtn);
-    if(typeof PhotoClaimer !== 'undefined'){
-      PhotoClaimer.hasAccess().then(function(ok){
-        if(ok && claimBtn.parentElement) claimBtn.style.display = '';
-      });
-    }
-  }
-  if(!photoClaim && claimBtn){ claimBtn.remove(); claimBtn = null; }
+  // KALDIRILDI (kullanıcı isteği, 2026-09-16 üçüncü tur madde 2): lightbox'taki "Fotoğraf bana
+  // ait" butonu. Akışın KENDİSİ yaşıyor ama artık kişi pop-up'ındaki "Fotoğraflarını Bul"
+  // düğmesinden başlıyor (bkz. js/components/photo-finder.js) — orada kullanıcı bir GÖRSEL değil
+  // bir PROJE seçiyor. Eski butondan kalan bir DOM düğümü varsa (aynı lightbox elemanı swap'lar
+  // arasında korunuyor) temizlenir.
+  const staleClaimBtn = lightboxBar.querySelector('.lightbox-claim-btn');
+  if(staleClaimBtn) staleClaimBtn.remove();
 
   // Bu fonksiyon proje-detay.html/urun-detay.html'de sayfa başına yalnızca BİR kez çağrılırdı; proje
   // modalı (bkz. project-modal.js#swap) ise AYNI DOM üzerinde projeden projeye tekrar tekrar çağırır.
@@ -250,7 +238,6 @@ function initDetailGallery(opts){
   state.locked = locked;
   state.credit = credit;
   state.credits = creditsByUrl;
-  state.photoClaim = photoClaim;
   // Fotoğraf kredisi etiketi — lightbox DOM'unda kalıcı, metni showLightboxImage her görselde
   // (state'ten) tazeler. Kilitli galeride lightbox zaten açılmaz, etiket önemsizdir.
   let creditEl = lightbox.querySelector('.lightbox-credit');
@@ -264,9 +251,6 @@ function initDetailGallery(opts){
   // is-locked sınıfı: HotspotTagger.hasAccess() geri çağrısı style.display'i geri açabildiğinden
   // hidden özniteliği yerine CSS sınıfı (display:none !important) kullanılır.
   if(tagBtn) tagBtn.classList.toggle('is-locked', locked);
-  // Kilitli (önizleme) projede lightbox hiç açılmaz, ama buton alt çubukta DOM'da kalıcı olduğundan
-  // "Ürün Etiketle" ile AYNI şekilde gizlenir — aksi halde bir sonraki kilitli projede görünürdü.
-  if(claimBtn) claimBtn.classList.toggle('is-locked', locked);
   galleryEl.classList.toggle('gallery-locked', locked);
   state.galleryIndex = 0;
   state.lightboxIndex = 0;
@@ -478,17 +462,12 @@ function initDetailGallery(opts){
     }, 100);
   });
 
-  // PhotoClaimer formu lightbox'ın İÇİNE mount ediliyor (HotspotTagger ile aynı desen); lightbox
-  // kapanırken/ızgaraya geçilirken açık kalırsa bir sonraki açılışta yetim bir kutu olarak
-  // görünürdü.
-  const closeClaimForm = ()=>{ if(typeof PhotoClaimer !== 'undefined') PhotoClaimer.close(); };
-  if(lightboxClose) lightboxClose.addEventListener('click', ()=>{ setArmed(false); closeClaimForm(); lightbox.classList.remove('open'); });
+  if(lightboxClose) lightboxClose.addEventListener('click', ()=>{ setArmed(false); lightbox.classList.remove('open'); });
   if(lightboxPrevBtn) lightboxPrevBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1); });
   if(lightboxNextBtn) lightboxNextBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1); });
   lightboxGridToggle.addEventListener('click', (e)=>{
     e.stopPropagation();
     setArmed(false);
-    closeClaimForm();
     setGridMode(!lightbox.classList.contains('grid-mode'));
   });
 
@@ -498,22 +477,6 @@ function initDetailGallery(opts){
   if(tagBtnEl) tagBtnEl.addEventListener('click', (e)=>{
     e.stopPropagation();
     setArmed(!isArmed());
-  });
-  // "Fotoğraf bana ait" — buton da DOM'da kalıcı olduğundan dinleyici burada bir kez bağlanır,
-  // aktif proje/görsel state'ten CANLI okunur (bkz. yukarıdaki AYNI gerekçe). İşaretleme modu
-  // açıksa önce kapatılır: iki mod aynı anda açık kalmamalı.
-  const claimBtnEl = lightbox.querySelector('.lightbox-claim-btn');
-  if(claimBtnEl) claimBtnEl.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    const st = galleryEl._pmGalleryState;
-    const ctx = st && st.photoClaim;
-    if(!ctx || typeof PhotoClaimer === 'undefined') return;
-    setArmed(false);
-    PhotoClaimer.open({
-      hostEl: lightbox,
-      projectSlug: ctx.projectSlug,
-      imageUrl: st.images[st.lightboxIndex] || '',
-    });
   });
   // Görselin üzerine tıklama/dokunma — YALNIZCA işaretleme modu açıkken bir anlam taşır. capture
   // fazında dinlenir: ImageHotspots kendi katmanını lightbox'a ekliyor ve orada da tıklama
@@ -563,9 +526,6 @@ function initDetailGallery(opts){
     // yalnızca modu kapatır — dokunmatikte "ürünün yerine dokun" hedefini ıskalamak çok kolay ve
     // ıskalamanın bedeli tüm fotoğrafın kapanması olmamalı.
     if(isArmed()){ setArmed(false); return; }
-    // Açık künye formunda da AYNI koruma: formun yanındaki karanlık boşluğa dokunmak tüm fotoğrafı
-    // kapatmak yerine yalnızca formu kapatır.
-    if(typeof PhotoClaimer !== 'undefined' && PhotoClaimer.isOpen()){ PhotoClaimer.close(); return; }
     lightbox.classList.remove('open');
   });
   // gerçek bulgu: e.stopPropagation() TEK BAŞINA burada işe yaramıyordu — proje modalı (bkz.
@@ -594,12 +554,7 @@ function initDetailGallery(opts){
     // İşaretleme modu açıkken Escape ÖNCE o modu kapatır (lightbox'ı değil) — kullanıcı yanlışlıkla
     // moda girdiyse fotoğrafı kaybetmeden geri dönebilsin.
     if(e.key === 'Escape' && isArmed()){ e.stopPropagation(); setArmed(false); return; }
-    // Açık "Fotoğraf bana ait" formunda Escape ÖNCE formu kapatır (lightbox'ı değil) — işaretleme
-    // modundaki AYNI gerekçe: kullanıcı yanlışlıkla açtıysa fotoğrafı kaybetmeden geri dönebilsin.
-    if(e.key === 'Escape' && typeof PhotoClaimer !== 'undefined' && PhotoClaimer.isOpen()){
-      e.stopPropagation(); PhotoClaimer.close(); return;
-    }
-    if(e.key === 'Escape'){ e.stopPropagation(); setArmed(false); closeClaimForm(); lightbox.classList.remove('open'); return; }
+    if(e.key === 'Escape'){ e.stopPropagation(); setArmed(false); lightbox.classList.remove('open'); return; }
     // Izgara modundayken sol/sağ ok tuşları slayt gezinmesini TETİKLEMEMELİ — tekli görsel zaten
     // gizli, gezinme yalnızca kafa karıştırırdı (bkz. dokunmatik/wheel'deki AYNI koruma aşağıda).
     if(lightbox.classList.contains('grid-mode')) return;
@@ -628,7 +583,7 @@ function initDetailGallery(opts){
     // takibi hiç başlatılmaz; kaydırmak isteyen kullanıcı görselin herhangi bir yerinden (daire
     // dışından) başlatabilir. Aynı koruma "Ürün Etiketle" formu (.ht-form) için de geçerli: form
     // içindeki dokunuşlar swipe'a dönüşmemeli.
-    if(e.target.closest && e.target.closest('.ih-dot, .ih-card, .ht-form, .pc-form, .lightbox-tag-hint')) return;
+    if(e.target.closest && e.target.closest('.ih-dot, .ih-card, .ht-form, .lightbox-tag-hint')) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     touchActive = true;

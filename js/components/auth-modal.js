@@ -3587,11 +3587,13 @@ const AuthModal = (function () {
         });
     }
 
-    // ---------- "FOTOĞRAF BANA AİT" ONAYI (kullanıcı isteği, 2026-09-16 ikinci tur madde 2) ----------
-    // Bir üye proje pop-up'ının lightbox'ında "Fotoğraf bana ait"e bastığında, projenin künyesindeki
-    // FİRMALARIN YÖNETİCİLERİNE + tüm adminlere `photo_claim` tipinde, link'i "photo-claim:<id>"
-    // olan bir bildirim düşer (bkz. src/routes/photoClaims.js#createClaim). O satıra tıklanınca
-    // burası açılır: talebi (proje, görsel, künyeye yazılacak ad) gösterir ve Onayla/Reddet sunar.
+    // ---------- "FOTOĞRAFLARINI BUL" ONAYI (kullanıcı isteği, 2026-09-16 üçüncü tur madde 3) ----------
+    // Bir üye kişi pop-up'ındaki "Fotoğraflarını Bul" ile bir PROJE seçtiğinde, o projenin
+    // künyesindeki FİRMALARIN YÖNETİCİLERİNE + tüm adminlere `photo_claim` tipinde, link'i
+    // "photo-claim:<id>" olan bir bildirim düşer (bkz. src/routes/photoClaims.js#createClaim). O
+    // satıra tıklanınca burası açılır: talebi (proje + künyeye eklenecek ad) gösterir ve
+    // Onayla/Reddet sunar. GİRİŞ NOKTASI değişti (eskiden lightbox'taki "Fotoğraf bana ait"),
+    // onay ekranının sözleşmesi aynı kaldı.
     // Onaylanana kadar ad hiçbir yerde görünmez — karar yetkisi sunucuda AYRICA doğrulanır (bkz. o
     // dosyadaki canDecide), buradaki buton yalnızca bir arayüz kolaylığıdır.
     // Yukarıdaki openHotspotTagPrompt ile BİREBİR aynı desen (aynı overlay iskeleti, aynı
@@ -3618,24 +3620,28 @@ const AuthModal = (function () {
           const decided = it.status !== 'pending';
           const statusText = it.status === 'approved' ? 'Bu talep onaylandı.'
             : it.status === 'rejected' ? 'Bu talep reddedildi.' : '';
-          // Talep tek bir kareye bağlıysa o kare gösterilir — onay veren kişi HANGİ fotoğraf için
-          // karar verdiğini görmeden karar veremezdi. Talep projenin tamamı içinse (imageUrl boş,
-          // bkz. migrations/0122'deki image_url notu) gösterilecek tek bir kare yoktur.
-          const preview = it.imageUrl
+          // Projenin KAPAK görseli — onay veren kişi hangi proje için karar verdiğini metinden
+          // önce görselden tanır. Talep artık tek bir kareye bağlı DEĞİL (bkz. photoClaims.js
+          // dosya başı), o yüzden gösterilen şey projenin kapağıdır.
+          const cover = it.project && it.project.image;
+          const preview = cover
             ? `<div style="border-radius:12px; overflow:hidden; background:var(--paper-alt); margin:0 0 14px;">
-                <img src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.imageUrl, 640) : it.imageUrl)}" alt="" style="display:block; width:100%; height:auto;">
+                <img src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(cover, 640) : cover)}" alt="" style="display:block; width:100%; height:auto;">
               </div>`
             : '';
           ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px; max-height:82vh; overflow-y:auto;">
             <h2 style="font-size:16px; font-weight:700; margin:0 0 10px;">Fotoğraf künyesi talebi</h2>
             ${preview}
             <p style="font-size:13px; line-height:1.6; margin:0 0 6px;">
-              Künyeye yazılacak ad: <b>${escapeHtml(it.claimedName || '')}</b>
+              ${it.project ? `<b>${escapeHtml(it.project.title)}</b>` : ''}${it.project && it.project.location ? ` · ${escapeHtml(it.project.location)}` : ''}
             </p>
-            ${it.project && it.project.credit ? `<p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;">Şu anki künye: ${escapeHtml(it.project.credit)}</p>` : ''}
+            <p style="font-size:13px; line-height:1.6; margin:0 0 6px;">
+              Künyeye eklenecek ad: <b>${escapeHtml(it.claimedName || '')}</b>
+            </p>
+            ${it.project && it.project.credit ? `<p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;">Şu anki fotoğraf künyesi: ${escapeHtml(it.project.credit)}</p>` : ''}
             <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 16px;">
-              ${escapeHtml(it.createdBy || 'Bir üye')}, ${it.project ? `“${escapeHtml(it.project.title)}”` : 'bir'} projesinin ${it.imageUrl ? 'bu fotoğrafının' : 'fotoğraflarının tamamının'} kendisine ait olduğunu bildirdi.
-              ${statusText ? escapeHtml(statusText) : 'Onaylarsan bu ad proje künyesinde ve büyütülmüş görselde görünür olur.'}
+              ${escapeHtml(it.createdBy || 'Bir üye')}, bu projenin fotoğraflarının çekildiğini bildirdi.
+              ${statusText ? escapeHtml(statusText) : 'Onaylarsan bu ad projenin fotoğraf künyesine eklenir.'}
             </p>
             <p class="am-pc-msg" style="display:none; font-size:12.5px; margin:0 0 12px;"></p>
             ${(!decided && data.canDecide) ? `<div style="display:flex; gap:10px;">
@@ -3665,7 +3671,7 @@ const AuthModal = (function () {
                 return;
               }
               msg.textContent = approve
-                ? 'Onaylandı. Ad artık proje künyesinde görünüyor.'
+                ? 'Onaylandı. Ad artık projenin fotoğraf künyesinde görünüyor.'
                 : 'Talep reddedildi.';
               msg.style.color = 'var(--walnut)';
               msg.style.display = '';

@@ -4,35 +4,59 @@ import { newId } from '../lib/crypto.js';
 import { createNotification } from '../lib/notify.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
-import { sanitizeImageCredits } from '../lib/submissionTypes.js';
 import { foldTr } from '../lib/textMatch.js';
+import { likePattern } from '../lib/searchFold.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { findOneByName, splitPhotographerNames } from '../lib/canonicalSync.js';
 import { fetchOfficeManagers } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
+import { verifyClaimedProfileKey, DELEGATED_ACCESS } from './submissions.js';
 
 // ============================================================================================
-// "FOTOĞRAF BANA AİT" — FOTOĞRAFÇI KÜNYESİ TALEBİ + ONAY AKIŞI (kullanıcı isteği, 2026-09-16
-// ikinci tur madde 2)
+// "FOTOĞRAFLARINI BUL" — FOTOĞRAFÇI KÜNYESİ TALEBİ + ONAY AKIŞI
 // ============================================================================================
-// "Proje popuplarındaki lightboxta 'Fotoğraf bana ait' butonu olsun ve bu butona tıklayınca
-// görseldeki ismin değişmesi için firma yöneticilerine ve admine bildirim gitsin. Firma
-// yöneticileri veya admin bildirimi onaylarsa fotoğrafçı bilgisi lightboxa ve proje künyesine
-// eklensin."
+// Kullanıcı isteği, 2026-09-16 ÜÇÜNCÜ tur madde 3: "Kişi popuplarında Fotoğraflarım başlığının
+// yanında 'Fotoğraflarını Bul' butonu olsun ve buna tıklayınca sitedeki yüklü tüm projelerden
+// kullanıcı bir projeyi seçebilsin. Bu seçim seçilen projenin firmasını yöneticisine ve admine
+// bildirim olarak gitsin. Firma yöneticisi veya admin bu bildirime onay verirse proje künyesine
+// fotoğrafçı otomatik olarak eklensin."
+//
+// GİRİŞ NOKTASI DEĞİŞTİ (aynı gün, ikinci tur -> üçüncü tur): akış önce lightbox'taki "Fotoğraf
+// bana ait" butonundan başlıyordu ve kullanıcı bir GÖRSEL sahipleniyordu; o buton kullanıcı isteği
+// (üçüncü tur madde 2) ile KALDIRILDI. Artık talep kişi pop-up'ından açılıyor ve bir PROJE
+// sahiplenilir. Bunun üç yapısal sonucu var:
+//   * Talep artık tek bir kareye bağlanmaz — `project_photo_claims.image_url` kolonu DURUYOR ama
+//     bu akış onu HİÇ YAZMAZ (kısmi UNIQUE indeks COALESCE(image_url,'') kullandığından kural
+//     kendiliğinden "kullanıcı başına proje başına tek bekleyen talep" hâline gelir).
+//   * Onay artık YALNIZCA künyeye yazar (projects.photo_credit_text + project_photographers) —
+//     görsel bazlı `image_credits` eşlemesi bu akışta hiç oluşmaz. O kolon ve onu yazan
+//     proje-ekle akışı (ikinci tur madde 1) DEĞİŞMEDEN duruyor.
+//   * Künyeye yazılacak ad İSTEMCİDEN GELMEZ: kullanıcı bir KİŞİ PROFİLİ üzerinden talep açar ve
+//     ad o profilin canonical `name`'inden okunur. Serbest metin kabul edilseydi herhangi bir üye
+//     istediği adı bir projenin künyesine önerebilirdi.
 //
 // Bu dosya src/routes/hotspotTags.js'in KARDEŞİDİR ve onun desenini birebir izler (aynı uç
 // isimleri, aynı 'pending'/'approved'/'rejected' sözlüğü, aynı "admin onaya düşmez" kısayolu,
 // aynı bildirim→pop-up bağlantı biçimi). Ayrı bir dosya olmasının gerekçesi: etiketlenen şey bir
-// ÜRÜN değil bir AD, karar verenler ürünün markası değil PROJENİN FİRMA YÖNETİCİLERİ ve yazma
-// hedefi image_hotspots değil photo_credit_text + image_credits.
+// ÜRÜN değil bir KİŞİ PROFİLİ, karar verenler ürünün markası değil PROJENİN FİRMA YÖNETİCİLERİ ve
+// yazma hedefi image_hotspots değil photo_credit_text + project_photographers.
 //
 // TASARIM KARARLARI (ve NEDEN):
 //
-// 1) KİM TALEP AÇABİLİR — giriş yapmış HER kullanıcı. hotspotTags.js tasarım notu 1'deki AYNI
-//    gerekçe: talep KENDİLİĞİNDEN yayına girmediği için yetkiyi daraltmanın bir faydası yok, ama
-//    talep bir HESABA bağlanamazsa ne karar bildirimi gönderilebilir ne kötüye kullanım
-//    izlenebilir — bu yüzden oturum şartı korunur (401). Kuyruk spam'ine karşı kullanıcı başına
-//    saatlik tavan (CLAIM_HOURLY_LIMIT): her bekleyen talep TÜM adminlere birer bildirim üretir.
+// 1) KİM TALEP AÇABİLİR — bir KİŞİ PROFİLİ ADINA yetkili olan kullanıcı. Kapı, o profili
+//    düzenleme yetkisinin TA KENDİSİDİR: `submissions.js#verifyClaimedProfileKey` (admin, onaylı
+//    profile_claims, firma yetkilisi delegasyonu, kaydı siteye kendi ekleyen). İkinci bir kopya
+//    YAZILMADI — kişi pop-up'ındaki düğme de AYNI kararı okuyor
+//    (claim-correction-box.js#isAuthorizedEditor -> /api/claims/status), yani düğme ile sunucu
+//    kapısı ayrışamaz.
+//
+//    NEDEN "giriş yapmış herkes" DEĞİL (hotspotTags.js'teki kapının aksine): orada etiketlenen şey
+//    herkese açık bir üründür ve öneri yanlışsa yalnızca reddedilir. Burada talep, BAŞKA birinin
+//    kişi profilini bir projenin künyesine yazmayı önerir; profille hiç ilgisi olmayan bir hesabın
+//    bunu yapması, onay kuyruğunu başkası adına konuşan taleplerle doldururdu.
+//
+//    Kuyruk spam'ine karşı kullanıcı başına saatlik tavan (CLAIM_HOURLY_LIMIT): her bekleyen talep
+//    TÜM adminlere birer bildirim üretir.
 //
 // 2) KİM KARAR VERİR — admin VEYA projenin künyesindeki firmaların YÖNETİCİLERİ. Karar kümesi ile
 //    BİLDİRİM ALICILARI TEK BİR fonksiyondan (decisionRecipients) türer; iki liste ayrı ayrı
@@ -49,18 +73,24 @@ import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 //    (decide) TAMAMEN AYRI bir uçtur ve kendi yetki kontrolü var. Bkz. hotspotTags.js tasarım
 //    notu 3 ve proje notu [[project_submission_moderation_bypass_2026_09_05]].
 //
-// 4) ONAYLANINCA NEREYE YAZILIR — kullanıcı isteği iki hedef sayıyor ("lightboxa ve proje
-//    künyesine"), bu yüzden İKİSİ birden yazılır:
-//      * projects.image_credits[<görsel>] = ad   -> lightbox'ın "© ..." etiketi (madde 1),
-//      * projects.photo_credit_text             -> künyedeki "Fotoğraf" satırı,
+// 4) ONAYLANINCA NEREYE YAZILIR — kullanıcı isteği tek hedef sayıyor ("proje künyesine fotoğrafçı
+//    otomatik olarak eklensin"):
+//      * projects.photo_credit_text  -> künyedeki "Fotoğraf" satırı,
+//      * project_photographers       -> künyedeki adın TIKLANABİLİR profil çipi olması için
+//        (bkz. src/routes/project.js#fetchPhotographerDetails; kenar kurulmazsa ad düz metin
+//        kalırdı). Eşleşme kuralı canonicalSync#syncProject'teki ile AYNI (findOneByName) — iki yol
+//        ayrışırsa aynı ad bir yolda çipe, diğerinde metne dönerdi.
 //    ve AYRICA varsa projenin project_submissions taslağı. Yalnızca canonical'a yazmak SESSİZ VERİ
 //    KAYBI olurdu: proje sahibi projesini bir daha kaydettiğinde canonicalSync#syncProject
-//    canonical satırın bu iki alanını taslaktan BAŞTAN yazar ve onaylanmış ad iz bırakmadan
+//    canonical satırın photo_credit_text'ini taslaktan BAŞTAN yazar ve onaylanmış ad iz bırakmadan
 //    silinirdi (bkz. hotspotTags.js tasarım notu 4 — AYNI tuzak).
-//    Ad sitede bir KİŞİ kaydıyla eşleşiyorsa project_photographers kenarı da kurulur, aksi halde
-//    künyedeki ad tıklanamaz düz metin olarak kalırdı (bkz. src/routes/project.js#
-//    fetchPhotographerDetails). Eşleşme kuralı canonicalSync#syncProject'teki ile AYNI
-//    (findOneByName) — iki yol ayrışırsa aynı ad bir yolda çipe, diğerinde metne dönerdi.
+//
+// 5) PROJE SEÇİCİSİNİN LİSTESİ ayrı ve OTURUMA BAĞLI bir uçtan gelir (GET .../projects) —
+//    /api/projects/search'e DOKUNULMADI: o uç herkese açık, önbellekli ve 2 karakterin altındaki
+//    sorguları bilinçli olarak D1'e hiç göndermiyor (bkz. o fonksiyonun D1 maliyet notu), yani
+//    "sorgusuz açılışta listeyi doldur" davranışı oraya eklenemezdi. Desen
+//    hotspotTags.js#listTaggableProducts ile BİREBİR aynı: herkese açık aramanın yetkiye duyarlı,
+//    ASLA önbelleklenmeyen karşılığı.
 // ============================================================================================
 
 const PENDING = 'pending';
@@ -70,22 +100,25 @@ const PENDING = 'pending';
 // doldurmasını engeller.
 const CLAIM_HOURLY_LIMIT = 10;
 
-// Künyeye yazılacak adın üst sınırı — sanitizeImageCredits'in kendi sınırıyla (200) AYNI olmak
-// zorunda: ad İKİ alana birden yazılıyor (photo_credit_text ve image_credits) ve biri diğerinden
-// farklı kırpılırsa lightbox ile künye sessizce ayrışırdı.
+// Künyeye yazılacak adın üst sınırı. Ad artık istemciden gelmiyor (canonical architects.name'den
+// okunuyor, bkz. dosya başı) — sınır yine de duruyor: bozuk/aşırı uzun bir canonical ad
+// photo_credit_text'i şişirmesin.
 const MAX_NAME_LEN = 200;
+
+// Proje seçicisinin tek seferde döndürdüğü en fazla satır (bkz. tasarım notu 5).
+const PROJECT_PICKER_LIMIT = 40;
 
 function isAdmin(user) { return !!user && user.role === 'admin'; }
 
-function parseJsonObject(raw) {
-  try {
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch { return {}; }
-}
-
 function parseImages(raw) {
   try { const arr = raw ? JSON.parse(raw) : []; return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+
+// Kapak görseli — proje seçicisinin satır küçük resmi ve onay pop-up'ının önizlemesi (bkz.
+// hotspotTags.js#firstImage ile AYNI desen).
+function firstImage(imagesJson) {
+  const arr = parseImages(imagesJson);
+  return arr.length ? (arr[0] || null) : null;
 }
 
 async function adminUserIds(env) {
@@ -133,21 +166,13 @@ async function canDecide(env, user, projectId) {
 // ---------------------------------------------------------------------------------------------
 async function applyPhotoClaim(env, claim) {
   const project = await env.DB.prepare(
-    `SELECT id, slug, legacy_key, images, image_credits, photo_credit_text
+    `SELECT id, slug, legacy_key, photo_credit_text
        FROM projects WHERE slug = ? AND deleted_at IS NULL`
   ).bind(claim.project_slug).first();
   if (!project) return { ok: false, error: 'Proje artık yayında değil.' };
 
   const name = String(claim.claimed_name || '').trim().slice(0, MAX_NAME_LEN);
   if (!name) return { ok: false, error: 'Künyeye yazılacak bir ad yok.' };
-
-  const images = parseImages(project.images);
-  // Görsel hâlâ projenin galerisinde mi? Proje sahibi bu arada o kareyi kaldırmış olabilir — o
-  // durumda ad hiçbir zaman görünmeyecek bir URL'ye yazılırdı (hotspotTags.js#applyHotspot'taki
-  // AYNI kontrol). image_url NULL olan talep (künyenin tamamı) bu kontrolün DIŞINDA.
-  if (claim.image_url && images.length && !images.includes(claim.image_url)) {
-    return { ok: false, error: 'Bu görsel projenin galerisinde artık yok.' };
-  }
 
   // (a) Künye metni — ad zaten varsa DOKUNULMAZ. Karşılaştırma foldTr ile: "Ayça"/"Ayca" bu depoda
   // AYNI addır (bkz. CLAUDE.md "Bir projede aynı ad künyeye İKİ KEZ yazılamaz") ve birebir metin
@@ -156,20 +181,15 @@ async function applyPhotoClaim(env, claim) {
   const alreadyCredited = existingNames.some(n => foldTr(n) === foldTr(name));
   const creditText = alreadyCredited ? (project.photo_credit_text || '') : [...existingNames, name].join(', ');
 
-  // (b) Görsel bazlı eşleme — yalnızca tek bir kare talep edildiyse. sanitizeImageCredits, yazılan
-  // haritayı normalizeSubmission'ın uyguladığı AYNI sınırlardan geçirir (form dışı bu yol da o
-  // sınırların dışında kalmamalı).
-  const credits = parseJsonObject(project.image_credits);
-  if (claim.image_url) credits[claim.image_url] = name;
-  const cleanCredits = sanitizeImageCredits(credits);
-  const creditsJson = Object.keys(cleanCredits).length ? JSON.stringify(cleanCredits) : null;
-
   await env.DB.prepare(
-    `UPDATE projects SET photo_credit_text = ?, image_credits = ?, updated_at = datetime('now') WHERE id = ?`
-  ).bind(creditText || null, creditsJson, project.id).run();
+    `UPDATE projects SET photo_credit_text = ?, updated_at = datetime('now') WHERE id = ?`
+  ).bind(creditText || null, project.id).run();
 
-  // (c) Tıklanabilir fotoğrafçı çipi — ad sitede bir KİŞİ kaydıyla eşleşiyorsa kenar kurulur.
-  // Kural canonicalSync#syncProject'teki ile AYNI (bkz. tasarım notu 4).
+  // (b) Tıklanabilir fotoğrafçı çipi — ad sitede bir KİŞİ kaydıyla eşleşiyorsa kenar kurulur.
+  // Kural canonicalSync#syncProject'teki ile AYNI (bkz. tasarım notu 4). Talep her zaman bir kişi
+  // profilinden açıldığı için eşleşme pratikte HER ZAMAN bulunur; yine de `if (match.row)` korunur
+  // — profil bu arada silinmiş/yeniden adlandırılmış olabilir ve o durumda künyedeki düz metin,
+  // hiçbir şey yazmamaktan iyidir.
   if (!alreadyCredited) {
     const match = await findOneByName(env, 'architects', name);
     if (match.row) {
@@ -179,23 +199,19 @@ async function applyPhotoClaim(env, claim) {
     }
   }
 
-  // (d) Taslak(lar) — bkz. tasarım notu 4. Eşleştirme hotspotTags.js#applyHotspot ile BİREBİR aynı
+  // (c) Taslak(lar) — bkz. tasarım notu 4. Eşleştirme hotspotTags.js#applyHotspot ile BİREBİR aynı
   // iki yoldan yapılır (claimed_slug ya da legacy_key="submission:<id>") ve birden fazla taslak
   // aynı projeye bağlı olabileceğinden HEPSİ güncellenir.
   const marker = /^submission:(.+)$/.exec(project.legacy_key || '');
   const drafts = await env.DB.prepare(
-    `SELECT id, photoCreditText, imageCredits FROM project_submissions
+    `SELECT id, photoCreditText FROM project_submissions
       WHERE claimed_slug IN (?, ?) OR (? IS NOT NULL AND id = ?)`
   ).bind(project.slug, project.legacy_key || '', marker ? marker[1] : null, marker ? marker[1] : '').all();
   for (const draft of (drafts.results || [])) {
     const draftNames = splitPhotographerNames(draft.photoCreditText);
-    const draftHas = draftNames.some(n => foldTr(n) === foldTr(name));
-    const draftText = draftHas ? (draft.photoCreditText || '') : [...draftNames, name].join(', ');
-    const draftCredits = parseJsonObject(draft.imageCredits);
-    if (claim.image_url) draftCredits[claim.image_url] = name;
-    const draftClean = sanitizeImageCredits(draftCredits);
-    await env.DB.prepare('UPDATE project_submissions SET photoCreditText = ?, imageCredits = ? WHERE id = ?')
-      .bind(draftText || null, Object.keys(draftClean).length ? JSON.stringify(draftClean) : null, draft.id).run();
+    if (draftNames.some(n => foldTr(n) === foldTr(name))) continue;
+    await env.DB.prepare('UPDATE project_submissions SET photoCreditText = ? WHERE id = ?')
+      .bind([...draftNames, name].join(', '), draft.id).run();
   }
 
   // invalidatePublicCache() TEK BAŞINA YETMEZ — /api/project/:slug detay yanıtı caches.default'ta
@@ -218,19 +234,16 @@ export async function handlePhotoClaimsRoute(request, env, url) {
 
   const user = await getSessionUser(request, env);
 
-  // GET .../access — YALNIZCA "bu ziyaretçiye 'Fotoğraf bana ait' butonu gösterilsin mi" sorusunu
-  // yanıtlar (bkz. js/components/gallery.js). Oturumsuz istekte 401 DEĞİL {canClaim:false} döner:
-  // giriş yapmamış ziyaretçi için "hayır" doğru ve beklenen yanıttır, 401 ise her proje
-  // sayfasında gereksiz bir konsol hatası üretirdi. Hiçbir yetki VERMEZ — gerçek kapı
-  // createClaim'deki oturum kontrolüdür. `name` de döner: kutu, künyeye yazılacak adı kullanıcının
-  // hesap adıyla ÖNDEN DOLDURUR (düzenlenebilir — bkz. migrations/0122'deki claimed_name notu).
-  if (segments.length === 3 && segments[2] === 'access' && request.method === 'GET') {
-    if (!user) return json({ canClaim: false, name: '' });
-    return json({ canClaim: true, name: user.name || '' });
-  }
-
+  // /access UCU KALDIRILDI (kullanıcı isteği, 2026-09-16 üçüncü tur madde 2): tek çağıranı
+  // lightbox'taki "Fotoğraf bana ait" butonunun görünürlük sorusuydu ve o buton kaldırıldı. Yeni
+  // giriş noktasının (kişi pop-up'ındaki "Fotoğraflarını Bul") görünürlüğü AYRI bir uç istemez —
+  // claim-correction-box.js o kararı /api/claims/status'tan ZATEN okuyor (bkz. tasarım notu 1),
+  // ikinci bir yetki ucu iki cevabın ayrışabileceği tek yer olurdu.
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
+  if (segments.length === 3 && segments[2] === 'projects' && request.method === 'GET') {
+    return listClaimableProjects(env, url);
+  }
   if (segments.length === 3 && segments[2] === 'pending' && request.method === 'GET') {
     return listPending(env, user);
   }
@@ -246,8 +259,61 @@ export async function handlePhotoClaimsRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
-// POST /api/photo-claims — yeni künye talebi. Admin'de anında uygulanır (hotspotTags.js'teki AYNI
-// kullanıcı kuralı: "Admin hesaplarından yapılanların onaya düşmesine gerek yok").
+// GET /api/photo-claims/projects?q=... — "Fotoğraflarını Bul" seçicisinin proje listesi (bkz.
+// tasarım notu 5). Sorgusuz açılışta EN YENİ projeler döner ("sitedeki yüklü tüm projelerden
+// kullanıcı bir projeyi seçebilsin" — kullanıcı önce bir şey görmeli, boş bir kutu değil).
+// Oturum ZORUNLU (router'daki kapı) ve yanıt ASLA önbelleklenmez — herkese açık, önbellekli
+// karşılığı /api/projects/search'tür ve ona dokunulmadı.
+async function listClaimableProjects(env, url) {
+  const q = foldTr((url.searchParams.get('q') || '').trim());
+  const params = [];
+  let where = 'p.deleted_at IS NULL AND p.hidden_at IS NULL';
+  if (q) {
+    // title_fold — foldTr()'nin SQL karşılığını hesaplayan generated column, index'li (bkz.
+    // migrations/0079). % ve _ kullanıcı girdisinde joker anlamı kazanmasın diye kaçışlanır
+    // (hotspotTags.js#listTaggableProducts ile AYNI likePattern kullanımı).
+    where += " AND p.title_fold LIKE ? ESCAPE '\\'";
+    params.push(likePattern(q));
+  }
+  // Sıralama, /proje listesinin anahtarıyla AYNI (bkz. src/lib/projectPool.js) — kullanıcı
+  // seçicide de sitede gördüğü sırayı görsün, "en yeni üstte".
+  const { results } = await env.DB.prepare(
+    `SELECT p.slug, p.title, p.location, p.project_date, p.images
+       FROM projects p
+      WHERE ${where}
+      ORDER BY COALESCE(p.relisted_at, p.publish_date, p.created_at) DESC, p.id DESC
+      LIMIT ${PROJECT_PICKER_LIMIT}`
+  ).bind(...params).all();
+  return json({
+    items: (results || []).map(r => ({
+      slug: r.slug,
+      title: r.title,
+      sub: [r.location, r.project_date].filter(Boolean).join(' · '),
+      image: firstImage(r.images),
+    })),
+  });
+}
+
+// Talebin açılacağı KİŞİ PROFİLİ. Kapı verifyClaimedProfileKey'dir (bkz. tasarım notu 1) — o
+// fonksiyon hata durumunda kullanıcıya gösterilecek bir Response döner, başarıda null.
+// Döndürür: { error: Response } | { row: {id, name, slug} }
+async function resolveClaimArchitect(env, user, architectKey) {
+  const err = await verifyClaimedProfileKey(env, user, 'architects', architectKey, DELEGATED_ACCESS);
+  if (err) return { error: err };
+  // Ad İSTEMCİDEN DEĞİL canonical satırdan okunur (bkz. dosya başı). Anahtar name/slug/legacy_key
+  // olabilir — canonicalRowExistsByKey (verifyClaimedProfileKey'in kapısı) üçünü de eşliyor, bu
+  // sorgu onunla BİREBİR aynı üç kolona bakar ki kapıdan geçen her anahtar burada da bulunsun.
+  const row = await env.DB.prepare(
+    `SELECT id, name, slug FROM architects
+      WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
+  ).bind(architectKey, architectKey, architectKey).first();
+  if (!row || !row.name) return { error: errorJson('Kişi profili bulunamadı.', 404) };
+  return { row };
+}
+
+// POST /api/photo-claims { projectSlug, architectSlug } — yeni künye talebi. Admin'de anında
+// uygulanır (hotspotTags.js'teki AYNI kullanıcı kuralı: "Admin hesaplarından yapılanların onaya
+// düşmesine gerek yok").
 async function createClaim(request, env, user) {
   // KUYRUK SPAM'İ KAPISI (bkz. tasarım notu 1). Adminler muaf: onların talebi kuyruğa hiç düşmez.
   if (!isAdmin(user) && !(await checkRateLimit(env, 'photo-claim', user.id, CLAIM_HOURLY_LIMIT, 60 * 60 * 1000))) {
@@ -255,25 +321,32 @@ async function createClaim(request, env, user) {
   }
   const body = await readJson(request);
   const projectSlug = String(body.projectSlug || '').trim();
-  // imageUrl BOŞ GEÇİLEBİLİR: talep tek bir kare için değil, projenin künyesinin tamamı için de
-  // açılabilir (bkz. migrations/0122'deki image_url notu).
-  const imageUrl = String(body.imageUrl || '').trim();
-  const claimedName = String(body.name || user.name || '').trim().slice(0, MAX_NAME_LEN);
-  const note = String(body.note || '').trim().slice(0, 600);
-  if (!projectSlug) return errorJson('Eksik bilgi.');
-  if (!claimedName) return errorJson('Künyeye yazılacak adı gir.');
+  const architectKey = String(body.architectSlug || '').trim();
+  if (!projectSlug || !architectKey) return errorJson('Eksik bilgi.');
+
+  // YETKİ + AD, TEK yerden (bkz. tasarım notu 1 ve resolveClaimArchitect). Gövde ayrıştırmasından
+  // hemen sonra, hiçbir yazma tetiklenmeden.
+  const architect = await resolveClaimArchitect(env, user, architectKey);
+  if (architect.error) return architect.error;
+  const claimedName = String(architect.row.name).trim().slice(0, MAX_NAME_LEN);
 
   const project = await env.DB.prepare(
-    `SELECT id, slug, title, images FROM projects
+    `SELECT id, slug, title, photo_credit_text FROM projects
       WHERE slug = ? AND deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)`
   ).bind(projectSlug).first();
   if (!project) return errorJson('Proje bulunamadı.', 404);
-  const images = parseImages(project.images);
-  if (imageUrl && !images.includes(imageUrl)) return errorJson('Bu görsel bu projeye ait değil.');
+
+  // ZATEN KÜNYEDE Mİ? Onay kuyruğuna hiçbir şeyi değiştirmeyecek bir talep düşmesin — onay anında
+  // applyPhotoClaim de bu adı zaten atlıyor (alreadyCredited), yani karar veren kişi "onayladım
+  // ama bir şey olmadı" derdi. Karşılaştırma foldTr ile (sitenin her yerindeki "aynı ad" tanımı).
+  if (splitPhotographerNames(project.photo_credit_text).some(n => foldTr(n) === foldTr(claimedName))) {
+    return errorJson('Bu projenin fotoğraf künyesinde bu profil zaten var.');
+  }
 
   const now = Date.now();
   const id = newId();
-  const claimRow = { project_slug: project.slug, image_url: imageUrl || null, claimed_name: claimedName };
+  // image_url HER ZAMAN NULL — talep bir kareye değil projenin künyesine bağlanır (bkz. dosya başı).
+  const claimRow = { project_slug: project.slug, image_url: null, claimed_name: claimedName };
 
   // ADMIN: onaya hiç düşmez — doğrudan uygulanır ve 'approved' olarak kaydedilir (denetim izi:
   // kimin, ne zaman eklediği kayıtlı kalır).
@@ -282,16 +355,16 @@ async function createClaim(request, env, user) {
     if (!applied.ok) return errorJson(applied.error);
     await env.DB.prepare(
       `INSERT INTO project_photo_claims (id, project_slug, image_url, claimed_name, note, created_by_user_id, status, decided_by_user_id, decided_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?)`
-    ).bind(id, project.slug, imageUrl || null, claimedName, note || null, user.id, user.id, now, now).run();
+       VALUES (?, ?, NULL, ?, NULL, ?, 'approved', ?, ?, ?)`
+    ).bind(id, project.slug, claimedName, user.id, user.id, now, now).run();
     return json({ ok: true, status: 'approved' });
   }
 
   try {
     await env.DB.prepare(
       `INSERT INTO project_photo_claims (id, project_slug, image_url, claimed_name, note, created_by_user_id, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, '${PENDING}', ?)`
-    ).bind(id, project.slug, imageUrl || null, claimedName, note || null, user.id, now).run();
+       VALUES (?, ?, NULL, ?, NULL, ?, '${PENDING}', ?)`
+    ).bind(id, project.slug, claimedName, user.id, now).run();
   } catch (err) {
     // migrations/0122'deki kısmi UNIQUE indeks — bu kullanıcının bu görsel için bekleyen bir
     // talebi zaten var.
@@ -313,7 +386,7 @@ async function createClaim(request, env, user) {
     await createNotification(
       env, uid, 'photo_claim',
       'Fotoğraf künyesi talebi onay bekliyor',
-      `${user.name || 'Bir üye'}, “${project.title}” projesinin ${imageUrl ? 'bir görselinin' : 'fotoğraflarının'} kendisine ait olduğunu bildirdi ve künyeye “${claimedName}” yazılmasını istiyor. Onaylarsan bu ad künyede ve büyütülmüş görselde görünür olur.`,
+      `${user.name || 'Bir üye'}, “${project.title}” projesinin fotoğraflarının “${claimedName}” tarafından çekildiğini bildirdi. Onaylarsan bu ad projenin fotoğraf künyesine eklenir.`,
       `photo-claim:${id}`
     );
   }
@@ -327,7 +400,7 @@ async function getClaim(env, user, id) {
   const claim = await env.DB.prepare('SELECT * FROM project_photo_claims WHERE id = ?').bind(id).first();
   if (!claim) return errorJson('Bulunamadı', 404);
   const project = await env.DB.prepare(
-    'SELECT id, slug, title, location, photo_credit_text FROM projects WHERE slug = ? AND deleted_at IS NULL'
+    'SELECT id, slug, title, location, images, photo_credit_text FROM projects WHERE slug = ? AND deleted_at IS NULL'
   ).bind(claim.project_slug).first();
   // Talebi AÇAN kişi de görebilir (kendi talebinin durumunu görmek için) ama karar yetkisi ayrı
   // bir bayrakla söylenir (hotspotTags.js#getTag ile AYNI desen).
@@ -338,13 +411,16 @@ async function getClaim(env, user, id) {
     item: {
       id: claim.id,
       status: claim.status,
-      imageUrl: claim.image_url || null,
       claimedName: claim.claimed_name,
-      note: claim.note || '',
       createdAt: claim.created_at,
       createdBy: creator?.name || '',
+      // image — projenin KAPAK görseli (talebin kendisi bir kareye bağlı değil, bkz. dosya başı).
+      // Onay veren kişi hangi proje için karar verdiğini metinden önce görselden tanır.
       project: project
-        ? { slug: project.slug, title: project.title, location: project.location || '', credit: project.photo_credit_text || '' }
+        ? {
+            slug: project.slug, title: project.title, location: project.location || '',
+            credit: project.photo_credit_text || '', image: firstImage(project.images),
+          }
         : null,
     },
     canDecide: mayDecide,
@@ -362,7 +438,7 @@ async function getClaim(env, user, id) {
 // 200 satırı okuyup elemek güvenli ve tek kurallı olan yol.
 async function listPending(env, user) {
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.project_slug, c.image_url, c.claimed_name, c.note, c.created_at,
+    `SELECT c.id, c.project_slug, c.claimed_name, c.created_at,
             pr.id AS project_id, pr.title AS project_title
        FROM project_photo_claims c
        LEFT JOIN projects pr ON pr.slug = c.project_slug AND pr.deleted_at IS NULL

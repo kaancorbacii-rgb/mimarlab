@@ -146,9 +146,16 @@ const ArchitectModal = (function () {
          boş kalıp yalnızca bu bölüm görünür.
          Başlıktaki çentik + grup çipleri (kullanıcı isteği, 2026-09-04): yukarıdaki "Projeler"
          bölümüyle BİREBİR aynı filtre (künyedeki "Grup" = projects.type), bkz. js/components/
-         project-group-filter.js — bu bölümde harita olmadığından yalnızca ızgara + sayaç süzülür. -->
+         project-group-filter.js — bu bölümde harita olmadığından yalnızca ızgara + sayaç süzülür.
+         #am-find-photos-slot — YETKİLİ kullanıcıya "Fotoğraflarını Bul" (kullanıcı isteği,
+         2026-09-16 üçüncü tur madde 3). Yuvayı claim-correction-box.js#renderFindPhotosButton
+         doldurur; yetki Düzenle/Proje Ekle butonlarıyla AYNI kaynaktan gelir (isAuthorizedEditor),
+         yani üçü ayrışamaz. O fonksiyon bölümün display'ini de AÇAR: düğmenin tam hedef kitlesi
+         henüz hiçbir künyede fotoğrafçı olarak görünmeyen kişidir ve bölüm (aşağıdaki
+         photographedData.length kuralı gereği) o durumda gizli olurdu — düğmeye ulaşmanın hiçbir
+         yolu kalmazdı. -->
     <div class="related-section" id="am-photographed-section" style="display:none;">
-      <h2 class="related-title" id="am-photographed-title">Fotoğrafladığı Projeler<span id="am-photographed-count"></span><button type="button" class="pgf-toggle" id="am-photographed-filter-toggle" style="display:none;"></button></h2>
+      <h2 class="related-title" id="am-photographed-title">Fotoğrafladığı Projeler<span id="am-photographed-count"></span><button type="button" class="pgf-toggle" id="am-photographed-filter-toggle" style="display:none;"></button><span id="am-find-photos-slot"></span></h2>
       <div class="pgf-chips" id="am-photographed-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="am-photographed-grid"></div>
     </div>
@@ -830,7 +837,15 @@ const ArchitectModal = (function () {
     // "Projeler" bölümüyle BİREBİR aynı kart/sayaç deseni, yalnızca farklı veri kaynağı
     // (src/routes/architect.js#photographedProjects, project_photographers kenarından).
     const photographedData = payload.photographedProjects || [];
+    // Bölüm önce VERİYE göre kapanır/açılır; yetkili kullanıcıda claim-correction-box.js#
+    // renderFindPhotosButton onu (kendi yetki kararı çıktıktan SONRA) tekrar açar. Sıra ÖNEMLİ:
+    // burada koşulsuz 'none' yazılması, profilden profile geçildiğinde önceki kişinin açık
+    // bırakılmış bölümünün yeni (fotoğrafsız, yetkisiz) profilde asılı kalmasını engeller.
     document.getElementById('am-photographed-section').style.display = photographedData.length ? '' : 'none';
+    // Yuva da her profilde SIFIRLANIR: düğme paylaşılan DOM'da yaşıyor ve yetki kararı asenkron
+    // geldiğinden, temizlenmezse yetkisiz bir profilde bir önceki profilin düğmesi görünür kalırdı
+    // (o düğme de ESKİ kişinin anahtarını taşıyordu — yanlış profil adına talep açardı).
+    { const s = document.getElementById('am-find-photos-slot'); if (s) s.innerHTML = ''; }
     // Izgara + sayaç TEK yerden çizilir; grup filtresi seçim değiştikçe bunu süzülmüş listeyle
     // yeniden çağırır — "Projeler" bölümündeki AYNI desen, yalnızca harita yok.
     function paintPhotographedProjects(list) {
@@ -885,6 +900,12 @@ const ArchitectModal = (function () {
       getStaticBadges: () => a.badges,
       editUrlBase: '/kisi-ekle',
       addProjectSlotId: 'am-add-project-slot',
+      // "Fotoğraflarını Bul" (kullanıcı isteği, 2026-09-16 üçüncü tur madde 3) — bkz. şablondaki
+      // #am-find-photos-slot notu. findPhotosSectionId VERİLMEK ZORUNDA: düğmeyi çizen fonksiyon
+      // bölümü de açar, aksi halde fotoğrafı olmayan bir profilde düğme gizli bir bölümün içinde
+      // kalırdı.
+      findPhotosSlotId: 'am-find-photos-slot',
+      findPhotosSectionId: 'am-photographed-section',
       listUrl: '/kisi',
       contentType: 'architects',
       getModerationTarget: () => ({ key: a.name }),

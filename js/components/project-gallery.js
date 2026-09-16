@@ -50,10 +50,6 @@ const ProjectGallery = (function () {
       // `credit`e (künyenin tamamına) düşer, yani bu alanı hiç taşımayan projelerin görünümü
       // DEĞİŞMEZ (bkz. gallery.js#paintCredit).
       credits: item.imageCredits || {},
-      // photoClaim (madde 2): lightbox'ta "Fotoğraf bana ait". `tagging` ile AYNI kapı — önizleme
-      // (kilitli) projede gallery.js butonu zaten gizler, ve slug'ı olmayan bir kayıt için talep
-      // açılamaz (sunucu projeyi slug ile bulur).
-      photoClaim: item.slug ? { projectSlug: item.slug } : null,
       title: item.title,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`,
       ids: mergedIds,

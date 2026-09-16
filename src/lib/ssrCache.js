@@ -174,7 +174,14 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // sürüm artırılmazsa daha önce ziyaret edilmiş /proje/:slug sayfaları s-maxage boyunca bu script'i
 // hiç yüklemeyen eski kabuğu sunar; buton görünür ama basıldığında (PhotoClaimer tanımsız
 // olduğundan, bkz. gallery.js'teki typeof koruması) sessizce hiçbir şey yapmazdı.
-export const SSR_CACHE_VERSION = 'v140';
+// v141 (kullanıcı isteği, 2026-09-16 üçüncü tur madde 2): proje.html ve en-iyi-100.html
+// kabuklarından js/components/photo-claim.js script etiketi KALDIRILDI (lightbox'taki "Fotoğraf
+// bana ait" butonu kalktı; akış artık kişi pop-up'ındaki "Fotoğraflarını Bul"dan başlıyor ve
+// modül photo-finder.js olarak lazy-modals zincirinden geliyor). v114'teki AYNI tuzak — bir
+// script etiketinin KALDIRILMASI da sürüm gerektirir: artırılmazsa daha önce ziyaret edilmiş
+// /proje/:slug sayfaları s-maxage boyunca eski kabuğu sunmaya devam eder ve artık var olmayan
+// photo-claim.js için 404 üreten bir istek atardı.
+export const SSR_CACHE_VERSION = 'v141';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

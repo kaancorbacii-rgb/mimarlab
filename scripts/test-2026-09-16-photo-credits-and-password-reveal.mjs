@@ -15,24 +15,13 @@
 //     (d) Künyeden ÇIKARILMIŞ bir ada bağlı seçim ne kaydedilir ne gösterilir — aksi halde lightbox
 //         sitede hiçbir yerde yazmayan bir adı gösterirdi.
 //
-// MADDE 2 — "Proje popuplarındaki lightboxta 'Fotoğraf bana ait' butonu olsun ve bu butona
-//   tıklayınca görseldeki ismin değişmesi için firma yöneticilerine ve admine bildirim gitsin.
-//   Firma yöneticileri veya admin bildirimi onaylarsa fotoğrafçı bilgisi lightboxa ve proje
-//   künyesine eklensin."
-//   KELEPÇELENEN BEŞ SÖZLEŞME:
-//     (a) ONAY KUYRUĞU ATLATILAMAZ: POST status'ü İSTEMCİDEN OKUMAZ (bkz. proje notu
-//         [[project_submission_moderation_bypass_2026_09_05]] — gönderi PATCH'i koşulsuz
-//         'approved' yazdığı için üye onay kuyruğunu tamamen atlayabiliyordu).
-//     (b) BİLDİRİM ALICILARI = KARAR KÜMESİ, tek fonksiyondan. Ayrışırlarsa bildirimi alan kişi
-//         butona bastığında 403 alır.
-//     (c) Onay İKİ hedefe birden yazar (kullanıcı isteğinin iki cümlesi): image_credits (lightbox)
-//         VE photo_credit_text (künye).
-//     (d) TASLAK da güncellenir: canonicalSync bu iki alanı taslaktan BAŞTAN yazdığından, yalnızca
-//         canonical'a yazmak projenin bir sonraki kaydedilişinde SESSİZ VERİ KAYBI olurdu (bkz.
-//         hotspotTags.js tasarım notu 4 — AYNI tuzak, orada da ölçülmüştü).
-//     (e) Detay ÖNBELLEĞİ purge edilir: /api/project/:slug caches.default'ta s-maxage ile durur ve
-//         fingerprint TAŞIMAZ, yani invalidatePublicCache TEK BAŞINA yetmez — onay veren kişi
-//         "onayladım ama görünmüyor" diye bakakalırdı (hotspotTags.js'teki AYNI gerçek bulgu).
+// MADDE 2 (lightbox'taki "Fotoğraf bana ait" butonu) AYNI GÜN GERİ ALINDI — kullanıcı isteği,
+//   ÜÇÜNCÜ tur madde 2: "Lightboxlardaki 'Fotoğraf bana ait' butonunu kaldır." Akışın KENDİSİ
+//   yaşıyor ama giriş noktası kişi pop-up'ındaki "Fotoğraflarını Bul" oldu; onay kuyruğunun tüm
+//   sözleşmeleri (kuyruk atlatılamaz, bildirim alıcıları = karar kümesi, taslak da güncellenir,
+//   detay önbelleği purge edilir) artık
+//   scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs'te kelepçelenir. Bu dosyada
+//   yalnızca hâlâ geçerli olan MADDE 1 ve MADDE 3 kalır.
 //
 // MADDE 3 — "Giriş yap ekranında şifre kutucuğunun en sağında bir göz işareti olsun ve buna
 //   tıklayınca şifre açık gözüksün." Giriş ekranı İKİ yüzeyde yaşıyor (bağımsız sayfa + pop-up);
@@ -56,7 +45,6 @@ const photoClaims = read('src/routes/photoClaims.js');
 const indexJs = read('src/index.js');
 const gallery = read('js/components/gallery.js');
 const projectGallery = read('js/components/project-gallery.js');
-const photoClaimJs = read('js/components/photo-claim.js');
 const projeEkle = read('proje-ekle.html');
 const authModal = read('js/components/auth-modal.js');
 const girisYap = read('giris-yap.html');
@@ -146,9 +134,11 @@ await test('paintCredit durumu STATE\'ten CANLI okur (kapanışa gömülmez)', (
   assert.match(gallery, /state\.credits = creditsByUrl;/);
 });
 
-await test('project-gallery.js iki yeni alanı da geçirir', () => {
+await test('project-gallery.js görsel başına fotoğrafçı haritasını geçirir', () => {
   assert.match(projectGallery, /credits: item\.imageCredits \|\| \{\}/);
-  assert.match(projectGallery, /photoClaim: item\.slug \? \{ projectSlug: item\.slug \} : null/);
+  // photoClaim alanı ÜÇÜNCÜ turda kaldırıldı (buton kalktı) — geri gelirse lightbox'ta yeniden
+  // "Fotoğraf bana ait" butonu doğardı.
+  assert.ok(!/photoClaim/.test(projectGallery), 'photoClaim geri gelmiş — buton kullanıcı isteğiyle kaldırıldı');
 });
 
 // ==========================================================================================
@@ -203,188 +193,8 @@ await test('düzenleme akışı kayıtlı seçimleri geri yükler (İKİ prefill
   assert.match(projeEkle, /setExistingImages\(merged\.images \|\| \[\], merged\.imageHotspots \|\| \{\}, merged\.imageCredits \|\| \{\}\)/);
 });
 
-// ==========================================================================================
-console.log('\nmadde 2 — "Fotoğraf bana ait": şema, kapı ve onay');
-
-await test('migration: onay kuyruğu tablosu + mükerrer bekleyen talebi engelleyen indeks', () => {
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS project_photo_claims/);
-  assert.match(migration, /status TEXT NOT NULL DEFAULT 'pending'/);
-  const idx = migration.match(/CREATE UNIQUE INDEX IF NOT EXISTS idx_ppc_pending_unique[\s\S]*?;/)[0];
-  assert.match(idx, /WHERE status = 'pending'/,
-    'kısmi olmasaydı reddedilen bir talep bir daha hiç açılamazdı');
-  assert.match(idx, /COALESCE\(image_url, ''\)/,
-    "SQLite'ta NULL'lar UNIQUE'i tetiklemez — proje geneli talepler sınırsız tekrarlanabilirdi");
-});
-
-await test('ONAY KUYRUĞU ATLATILAMAZ: POST status\'ü istemciden okumaz', () => {
-  const fn = photoClaims.match(/async function createClaim[\s\S]*?\n\}/)[0];
-  assert.ok(!/body\.status/.test(fn), 'status gövdeden okunuyor — üye kendi talebini onaylayabilirdi');
-  // Admin dalı 'approved', diğer herkes PENDING — karar rolden türer.
-  assert.match(fn, /if \(isAdmin\(user\)\) \{[\s\S]*?'approved'/);
-  assert.match(fn, /VALUES \(\?, \?, \?, \?, \?, \?, '\$\{PENDING\}', \?\)/);
-});
-
-await test('karar verme AYRI bir uç ve kendi yetki kontrolü var', () => {
-  assert.match(photoClaims, /async function decideClaim/);
-  const fn = photoClaims.match(/async function decideClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /if \(!\(await canDecide\(env, user, project \? project\.id : null\)\)\)/);
-  assert.match(fn, /return errorJson\('Bu talebi onaylama yetkin yok\.', 403\)/);
-  assert.match(fn, /if \(claim\.status !== PENDING\) return errorJson/, 'karara bağlanmış talep ikinci kez uygulanabilirdi');
-});
-
-await test('BİLDİRİM ALICILARI = KARAR KÜMESİ (tek fonksiyon)', () => {
-  // Ayrı ayrı hesaplanırsa biri diğerinde olmayan bir kullanıcıya "onayına sunuldu" bildirimi
-  // gider ve o kişi butona bastığında 403 alır.
-  assert.match(photoClaims, /async function officeManagerUserIds/);
-  const decide = photoClaims.match(/async function canDecide[\s\S]*?\n\}/)[0];
-  assert.match(decide, /officeManagerUserIds\(env, projectId\)\)\.has\(user\.id\)/);
-  const create = photoClaims.match(/async function createClaim[\s\S]*?\n\}/)[0];
-  assert.match(create, /await officeManagerUserIds\(env, project\.id\)/);
-  assert.match(create, /await adminUserIds\(env\)/, 'kullanıcı isteği: "firma yöneticilerine VE admine"');
-});
-
-await test('yönetici tanımı TEK kaynaktan okunur (fetchOfficeManagers + OFFICE_EDIT_POSITIONS)', () => {
-  assert.match(photoClaims, /import \{ fetchOfficeManagers \} from '\.\.\/lib\/claimedProfiles\.js'/);
-  assert.match(photoClaims, /import \{ OFFICE_EDIT_POSITIONS \} from '\.\.\/lib\/projectClaimAccess\.js'/);
-  // Kuralın ikinci bir kopyası (elle profile_claims sorgusu) YAZILMAMIŞ olmalı.
-  assert.ok(!/FROM profile_claims/.test(photoClaims),
-    'yönetici kuralının ikinci bir kopyası açılmış — "Yetkili Kullanıcılar" listesiyle ayrışır');
-});
-
-await test('onay İKİ hedefe birden yazar: lightbox (image_credits) + künye (photo_credit_text)', () => {
-  const fn = photoClaims.match(/async function applyPhotoClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /UPDATE projects SET photo_credit_text = \?, image_credits = \?/,
-    'kullanıcı isteğinin iki cümlesi ("lightboxa ve proje künyesine") iki hedefi birden gerektirir');
-  // Zaten künyede olan ad ikinci kez YAZILMAZ; karşılaştırma foldTr ile ("Ayça"/"Ayca" aynı ad).
-  assert.match(fn, /existingNames\.some\(n => foldTr\(n\) === foldTr\(name\)\)/);
-});
-
-await test('TASLAK da güncellenir (aksi halde sonraki kaydetmede sessiz veri kaybı)', () => {
-  const fn = photoClaims.match(/async function applyPhotoClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /FROM project_submissions/);
-  assert.match(fn, /UPDATE project_submissions SET photoCreditText = \?, imageCredits = \?/,
-    'canonicalSync bu iki alanı taslaktan BAŞTAN yazıyor — yalnızca canonical\'a yazmak onaylanan adı iz bırakmadan silerdi');
-  // Birden fazla taslak aynı projeye bağlı olabilir (proje sahiplenmesi + admin düzenlemesi).
-  assert.match(fn, /for \(const draft of \(drafts\.results \|\| \[\]\)\)/);
-});
-
-await test('onaylanan ad sitede profili varsa TIKLANABİLİR olur (aynı eşleşme kuralı)', () => {
-  const fn = photoClaims.match(/async function applyPhotoClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /findOneByName\(env, 'architects', name\)/,
-    'canonicalSync#syncProject ile AYNI kural olmalı — ayrışırsa aynı ad bir yolda çipe, diğerinde metne dönerdi');
-  assert.match(fn, /INSERT OR IGNORE INTO project_photographers/);
-});
-
-await test('detay ÖNBELLEĞİ purge edilir (invalidatePublicCache TEK BAŞINA yetmez)', () => {
-  const fn = photoClaims.match(/async function applyPhotoClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /purgeSsrDetailCache\('project', project\.slug, env\)/,
-    '/api/project/:slug fingerprint taşımaz: onay veren kişi "onayladım ama görünmüyor" derdi');
-  assert.match(fn, /invalidatePublicCache\(env\)/);
-});
-
-await test('görsel projenin galerisinde değilse onay uygulanmaz', () => {
-  const fn = photoClaims.match(/async function applyPhotoClaim[\s\S]*?\n\}/)[0];
-  assert.match(fn, /Bu görsel projenin galerisinde artık yok/,
-    'proje sahibi kareyi kaldırmışsa ad hiç görünmeyecek bir URL\'ye yazılırdı');
-});
-
-await test('kuyruk spam\'ine karşı hız sınırı var, adminler muaf', () => {
-  assert.match(photoClaims, /CLAIM_HOURLY_LIMIT/);
-  assert.match(photoClaims, /if \(!isAdmin\(user\) && !\(await checkRateLimit\(env, 'photo-claim', user\.id, CLAIM_HOURLY_LIMIT/);
-});
-
-await test('/access oturumsuz istekte 200 + canClaim:false döner (401 DEĞİL)', () => {
-  // 401 her proje sayfasında gereksiz bir konsol hatası üretirdi; "hayır" doğru ve beklenen yanıt.
-  assert.match(photoClaims, /if \(!user\) return json\(\{ canClaim: false, name: '' \}\);/);
-  // Diğer TÜM uçlar oturum ister.
-  assert.match(photoClaims, /if \(!user\) return errorJson\('Bu işlem için giriş yapmalısın\.', 401\);/);
-});
-
-await test('uç kendi kök yolunda kayıtlı (/api/projects önekinin altında DEĞİL)', () => {
-  assert.match(indexJs, /import \{ handlePhotoClaimsRoute \} from '\.\/routes\/photoClaims\.js'/);
-  assert.match(indexJs, /if \(path\.startsWith\('\/api\/photo-claims'\)\) return handlePhotoClaimsRoute/);
-});
-
-// ==========================================================================================
-console.log('\nmadde 2 — istemci: buton, form ve onay pop-up\'ı');
-
-await test('buton GİZLİ doğar ve yalnızca sunucu "evet" derse açılır', () => {
-  // Varsayılan "görünür" olsaydı, yanıt gecikirse OTURUMSUZ ziyaretçiler butonu bir an görürdü.
-  const block = gallery.match(/if\(photoClaim && !claimBtn\)\{[\s\S]*?\n  \}/)[0];
-  assert.match(block, /claimBtn\.style\.display = 'none';/);
-  assert.match(block, /PhotoClaimer\.hasAccess\(\)\.then/);
-});
-
-await test('kilitli (önizleme) projede buton gizlenir', () => {
-  assert.match(gallery, /if\(claimBtn\) claimBtn\.classList\.toggle\('is-locked', locked\);/);
-  assert.match(gallery, /\.lightbox-claim-btn\.is-locked\{display:none !important;\}/);
-});
-
-await test('galeri başka bir sahibe geçtiğinde buton kaldırılır', () => {
-  // Ürün galerisi (product-modal.js) photoClaim'i hiç geçmez — orada buton hiç oluşmamalı.
-  assert.match(gallery, /if\(!photoClaim && claimBtn\)\{ claimBtn\.remove\(\); claimBtn = null; \}/);
-});
-
-await test('aktif proje/görsel STATE\'ten CANLI okunur', () => {
-  const l = gallery.match(/if\(claimBtnEl\) claimBtnEl\.addEventListener\('click'[\s\S]*?\n  \}\);/)[0];
-  assert.match(l, /const st = galleryEl\._pmGalleryState;/);
-  assert.match(l, /imageUrl: st\.images\[st\.lightboxIndex\] \|\| ''/,
-    'kapanışa gömülen slug N. projede 1. projenin talebini açardı');
-});
-
-await test('açık form Escape/arka plan/ızgara ile kapanır, lightbox kapanmaz', () => {
-  assert.match(gallery, /PhotoClaimer\.isOpen\(\)\)\{\s*\n\s*e\.stopPropagation\(\); PhotoClaimer\.close\(\); return;/);
-  assert.match(gallery, /if\(typeof PhotoClaimer !== 'undefined' && PhotoClaimer\.isOpen\(\)\)\{ PhotoClaimer\.close\(\); return; \}/);
-  assert.match(gallery, /closeClaimForm\(\);\s*\n?\s*setGridMode/);
-  // Form üzerindeki dokunuş swipe'a dönüşmemeli (işaretleme formuyla AYNI koruma).
-  assert.match(gallery, /'\.ih-dot, \.ih-card, \.ht-form, \.pc-form, \.lightbox-tag-hint'/);
-});
-
-await test('form künyeye yazılacak adı hesap adıyla ÖNDEN doldurur ama kilitlemez', () => {
-  // Hesap adı ile künyede görünmek istenen ad AYNI ŞEY DEĞİLDİR (stüdyo adı) — bkz. CLAUDE.md
-  // "Hesap üyeliği ile kişi profili AYRIDIR".
-  assert.match(photoClaimJs, /value="\$\{esc\(defaultName\)\}"/);
-  assert.match(photoClaimJs, /defaultName = \(d && d\.name\) \|\| '';/);
-});
-
-await test('kapsam seçimi: tek kare mi, projenin tamamı mı', () => {
-  assert.match(photoClaimJs, /name="pc-scope" value="image"/);
-  assert.match(photoClaimJs, /name="pc-scope" value="all"/);
-  // Sunucu ayrımı imageUrl'in BOŞ olup olmamasıyla okur.
-  assert.match(photoClaimJs, /imageUrl: wholeProject \? '' : \(opts\.imageUrl \|\| ''\)/);
-});
-
-await test('form içindeki tıklama host\'un "boşluğa tıklandı" dinleyicisine kabarmaz', () => {
-  // Dinleyici formun KENDİSİNDE — `closest('.pc-form')` koruması, kendi handler'ında DOM'dan
-  // kaldırılan bir öğede kopuk e.target yüzünden null dönerdi (hotspot-tagger.js'teki gerçek bulgu).
-  assert.match(photoClaimJs, /form\.addEventListener\('click', \(e\) => e\.stopPropagation\(\)\);/);
-});
-
-await test('bildirim satırı onay pop-up\'ını açar (photo-claim:<id>)', () => {
-  assert.match(photoClaims, /`photo-claim:\$\{id\}`/);
-  assert.match(authModal, /function photoClaimIdFromLink\(link\) \{/);
-  assert.match(authModal, /link\.startsWith\('photo-claim:'\)/);
-  assert.match(authModal, /const photoClaimId = photoClaimIdFromLink\(item\.link\);\s*\n\s*if \(photoClaimId\) return \{ run: \(\) => openPhotoClaimPrompt\(photoClaimId\) \};/);
-});
-
-await test('onay pop-up\'ı karar butonlarını YALNIZCA yetkiliye çizer', () => {
-  const fn = authModal.match(/function openPhotoClaimPrompt[\s\S]*?\n    \}\n/)[0];
-  assert.match(fn, /\$\{\(!decided && data\.canDecide\) \?/,
-    'yetkisiz kullanıcı (talebi açan kişi) Onayla/Reddet görmemeli');
-  assert.match(fn, /am-pc-approve/);
-  assert.match(fn, /am-pc-reject/);
-});
-
-await test('script etiketi İKİ kabukta da var + SSR sürümü artırıldı', () => {
-  assert.match(projeHtml, /<script src="js\/components\/photo-claim\.js" defer><\/script>/);
-  assert.match(top100Html, /<script src="js\/components\/photo-claim\.js" defer><\/script>/);
-  assert.match(lazyModals, /'js\/components\/photo-claim\.js'/,
-    'pop-up başka bir sayfadan tembel yüklendiğinde modül gelmezdi');
-  // Sürüm artırılmazsa daha önce ziyaret edilmiş /proje/:slug sayfaları eski kabuğu sunar ve
-  // buton görünür ama basıldığında (PhotoClaimer tanımsız) sessizce hiçbir şey yapmaz.
-  const v = ssrCache.match(/export const SSR_CACHE_VERSION = '(v\d+)';/)[1];
-  assert.ok(Number(v.slice(1)) >= 140, `SSR_CACHE_VERSION ${v} — photo-claim.js eklendi, artırılmalı`);
-});
+// MADDE 2'nin testleri bu dosyadan ÇIKARILDI — bkz. yukarıdaki başlık notu: buton kaldırıldı,
+// akış scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs'e taşındı.
 
 // ==========================================================================================
 console.log('\nmadde 3 — giriş ekranında şifre göz işareti');

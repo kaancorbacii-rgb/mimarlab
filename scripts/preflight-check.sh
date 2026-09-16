@@ -742,6 +742,24 @@ else
 fi
 rm -f /tmp/preflight_20260916b
 
+# 2026-09-16 ÜÇÜNCÜ TUR (üç madde): (1) mobilde lightbox'taki "Ürün Etiketle" sol üst köşede —
+# alt çubuk artık TRANSFORMSUZ ve tüm alanı kaplıyor (transform taşıyan ata, fixed/absolute
+# çocuklar için de kapsayıcı blok olduğundan butona üst köşe verilemiyordu), bu yüzden
+# pointer-events:none ZORUNLU; (2) lightbox'taki "Fotoğraf bana ait" butonu ve ondan kalan ölü kod
+# (photo-claim.js, script etiketleri, /access ucu) kaldırıldı; (3) kişi pop-up'ında
+# "Fotoğraflarını Bul" — kullanıcı bir PROJE seçiyor, talep firma yöneticileri + adminlere
+# bildirim olarak düşüyor ve onay künyeye + project_photographers kenarına + projenin taslağına
+# yazıyor. Yetki kapısı submissions.js#verifyClaimedProfileKey'den IMPORT edilir (ikinci kopya yok)
+# ve künyeye yazılacak ad canonical architects.name'den okunur, istemciden DEĞİL.
+# Bkz. scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs.
+if node scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs >/tmp/preflight_20260916c 2>&1; then
+  ok "2026-09-16 üçüncü tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916c) test)"
+else
+  bad "2026-09-16 üçüncü tur testleri BAŞARISIZ:"
+  tail -25 /tmp/preflight_20260916c >&2
+fi
+rm -f /tmp/preflight_20260916c
+
 # Hesabım > Profili Düzenle'de yüklenen profil fotoğrafının KİŞİ kaydına da yazılması (kullanıcı
 # bildirimi, 2026-09-14: "sisteme yüklüyoruz lakin kaydet dediğimizde halen eski foto görünüyor").
 # O Kaydet İKİ yazma yapar (users + architects) ve ikincisi panel açılışındaki ESKİ URL'i

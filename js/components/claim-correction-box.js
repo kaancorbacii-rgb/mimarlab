@@ -436,6 +436,36 @@ function createClaimCorrectionBox(config){
     slot.firstChild.addEventListener('click', (e) => { e.stopPropagation(); });
   }
 
+  // "FOTOĞRAFLARINI BUL" (kullanıcı isteği, 2026-09-16 üçüncü tur madde 3) — renderAddProjectButton
+  // ile BİREBİR aynı desen ve AYNI yetki kaynağı (isAuthorizedEditor). Ayrı bir yetki hesabı
+  // yapılmadı: üç düğme (Düzenle / Proje Ekle / Fotoğraflarını Bul) tek fonksiyondan beslendiği
+  // için biri görünürken öteki kaybolamaz, ve sunucu kapısı da AYNI kararı verir (bkz.
+  // src/routes/photoClaims.js tasarım notu 1 -> submissions.js#verifyClaimedProfileKey).
+  //
+  // BÖLÜMÜ AÇMAK DA BU FONKSİYONUN İŞİ: düğmenin yaşadığı "Fotoğrafladığı Projeler" bölümü,
+  // kişinin HİÇ fotoğrafı yoksa gizlidir (bkz. architect-modal.js#paintPhotographedProjects) —
+  // oysa bu düğmenin tam hedef kitlesi henüz künyede hiç görünmeyen fotoğrafçıdır. Bölüm
+  // açılmazsa düğmeye ulaşmanın hiçbir yolu olmazdı. Yetkisiz ziyaretçide bölüm eskisi gibi
+  // gizli kalır (burada hiçbir şey yazılmaz).
+  function renderFindPhotosButton(){
+    const slotId = config.findPhotosSlotId;
+    if(!slotId) return;
+    const slot = document.getElementById(slotId);
+    if(!slot) return;
+    if(!isAuthorizedEditor()){ slot.innerHTML = ''; return; }
+    slot.innerHTML = '<button type="button" class="rt-add-btn" id="cc-find-photos-btn">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.2" y1="16.2" x2="21" y2="21"/></svg>'
+      + 'Fotoğraflarını Bul</button>';
+    const btn = slot.firstChild;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if(typeof PhotoFinder === 'undefined') return;
+      PhotoFinder.open({ architectKey: config.getClaimLinkKey(), architectName: config.getProfileKey() });
+    });
+    const section = config.findPhotosSectionId ? document.getElementById(config.findPhotosSectionId) : null;
+    if(section) section.style.display = '';
+  }
+
   async function init(){
     injectStyles();
     // İki sahiplik yolu PARALEL sorgulanır (claim durumu + kullanıcının kendi gönderileri) —
@@ -450,8 +480,9 @@ function createClaimCorrectionBox(config){
     if(config.isStale && config.isStale()) return;
     renderProfileEditButton();
     renderAddProjectButton();
+    renderFindPhotosButton();
     loadCorrectionCard();
   }
 
-  return { init, loadClaimCard, loadCorrectionCard, renderProfileEditButton, renderAddProjectButton, isOwner: () => isProfileOwner };
+  return { init, loadClaimCard, loadCorrectionCard, renderProfileEditButton, renderAddProjectButton, renderFindPhotosButton, isOwner: () => isProfileOwner };
 }

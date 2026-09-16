@@ -961,3 +961,99 @@ tıklayınca şifre açık gözüksün."
   bağlamaz, çağıran hangi kutuyu istediğini açıkça söyler.
 
 Testler: `scripts/test-2026-09-16-photo-credits-and-password-reveal.mjs` (49 test, preflight'a bağlı).
+
+## Mobilde "Ürün Etiketle", "Fotoğraf bana ait"in kaldırılması ve "Fotoğraflarını Bul" (2026-09-16, üçüncü tur)
+
+### 1. Mobilde lightbox'taki "Ürün Etiketle" SOL ÜST köşede
+Kullanıcı isteği: "Mobil görünümde proje lightboxlarındaki ürün etiketle butonu sol üst köşede
+olsun."
+
+- **KÖK ZORLUK, CSS'in az bilinen bir kuralı**: alt çubuk (`.lightbox-bottombar`)
+  `bottom:24px; left:50%; transform:translateX(-50%)` ile konumlanıyordu ve **TRANSFORM TAŞIYAN BİR
+  ATA, `position:fixed` çocuklar için de kapsayıcı blok olur**. Yani çubuğun içindeki butona ne
+  `fixed` ne `absolute` ile ekranın üst köşesi verilebiliyordu — ikisi de çubuğun kendi ~30px'lik
+  kutusuna göre çözülüyordu.
+- **Çözüm çubuğu YENİDEN KONUMLANDIRMAK**: çubuk artık `inset:0` ile lightbox'ın TAMAMINI kaplayan,
+  **transformsuz** bir kapsayıcı; sayaç + buton hâlâ `align-items:flex-end; justify-content:center;
+  padding:0 12px 24px` ile altta ortada (masaüstü görünümü DEĞİŞMEDİ). Artık çubuğun her çocuğu
+  lightbox'ın herhangi bir köşesine konumlandırılabilir.
+- **`pointer-events:none` ZORUNLU** (`> *` ile çocuklarda `auto`): çubuk tüm alanı kapladığı için
+  aksi halde görselin üzerindeki işaretçi/etiketleme tıklamalarını ve "boşluğa tıkla, kapat"
+  davranışını yutardı.
+- Mobilde (`<=560px`) buton `position:absolute; top:12px; left:14px`. **SOL üst bilinçli seçim**:
+  sağ üst köşe dolu (`.lightbox-close` + solunda `.lightbox-grid-toggle`). Buton flex satırından
+  çıkınca sayaç altta tek başına ortalanmış kalır.
+- **Kural gallery.js'te TEK yerde** — ürün pop-up'ının lightbox'ı da aynı sınıfları/`initDetailGallery`'yi
+  kullanıyor, ama `tagging` geçmediği için orada buton hiç oluşmuyor.
+- **TERS TIRNAK TUZAĞINA BU TURDA BİR KEZ DAHA DÜŞÜLDÜ**: enjekte edilen CSS şablonuna yazılan bir
+  yorumda `` `fixed` `` kullanmak şablon dizesini kapatıp dosyayı sözdizimi hatasına düşürdü (bkz.
+  proje notu `[[feedback_no_backtick_in_style_template_literals]]`). Test artık şablonun içinde ters
+  tırnak OLMADIĞINI ayrıca arıyor.
+
+### 2. Lightbox'taki "Fotoğraf bana ait" KALDIRILDI
+Kullanıcı isteği: "Lightboxlardaki 'Fotoğraf Bana Ait' butonunu kaldır."
+
+- Buton AYNI GÜN (ikinci tur madde 2) eklenmişti. **Akışın SUNUCU tarafı yaşıyor** —
+  `src/routes/photoClaims.js` + `project_photo_claims` tablosu duruyor, yalnızca giriş noktası
+  madde 3 oldu.
+- Kaldırılanlar: `gallery.js`'teki buton/stil/state/dinleyici ve Escape·arka plan·ızgara kancaları,
+  `project-gallery.js#photoClaim`, `js/components/photo-claim.js` (dosya SİLİNDİ),
+  `proje.html`/`en-iyi-100.html` script etiketleri, `lazy-modals.js` bağımlılığı ve
+  `GET /api/photo-claims/access` ucu (tek çağıranı butonun görünürlük sorusuydu).
+- **Script etiketinin KALDIRILMASI da SSR sürümü gerektirir** (`SSR_CACHE_VERSION` v141) — v114'teki
+  AYNI tuzak: artırılmazsa daha önce ziyaret edilmiş `/proje/:slug` sayfaları s-maxage boyunca eski
+  kabuğu sunar ve artık var olmayan dosya için 404 üreten bir istek atar.
+- `image_credits` (ikinci tur madde 1, görsel başına fotoğrafçı) **DEĞİŞMEDEN duruyor**: onu yazan
+  proje-ekle akışı ve lightbox'ın `paintCredit`'i aynen çalışıyor. Onay akışı artık o kolona hiç
+  dokunmuyor.
+
+### 3. Kişi pop-up'ında "Fotoğraflarını Bul"
+Kullanıcı isteği: "Kişi popuplarında Fotoğraflarım başlığının yanında 'Fotoğraflarını Bul' butonu
+olsun ve buna tıklayınca sitedeki yüklü tüm projelerden kullanıcı bir projeyi seçebilsin. Bu seçim
+seçilen projenin firmasını yöneticisine ve admine bildirim olarak gitsin. Firma yöneticisi veya
+admin bu bildirime onay verirse proje künyesine fotoğrafçı otomatik olarak eklensin."
+
+- **Düğme yeri**: "Fotoğrafladığı Projeler" başlığındaki `#am-find-photos-slot` yuvası
+  (`architect-modal.js`), yuvayı `claim-correction-box.js#renderFindPhotosButton` doldurur —
+  `renderAddProjectButton` ile BİREBİR aynı desen.
+- **YETKİ TEK KAYNAK, İKİ UÇTA**: istemcide `isAuthorizedEditor()` (Düzenle + Proje Ekle ile AYNI
+  fonksiyon, yani üçü ayrışamaz), sunucuda `submissions.js#verifyClaimedProfileKey` —
+  o fonksiyon ve `DELEGATED_ACCESS` bu tur **export edildi** ve `photoClaims.js`'e IMPORT ediliyor.
+  İkinci bir kopya yazılmadı. (Bu depoda routes→routes import yaygın, bkz. `admin.js`, `ai.js`.)
+- **"Giriş yapmış herkes" DEĞİL** (hotspotTags.js'teki kapının aksine): orada etiketlenen şey
+  herkese açık bir üründür; burada talep BAŞKA birinin kişi profilini bir künyeye yazmayı önerir.
+- **DÜĞMENİN YAŞADIĞI BÖLÜM AÇILIR**: "Fotoğrafladığı Projeler" bölümü kişinin hiç fotoğrafı yoksa
+  gizlidir — oysa düğmenin tam hedef kitlesi o kişidir. `renderFindPhotosButton` yetki çıktıktan
+  SONRA bölümü de açar (`findPhotosSectionId`). Yetkisiz ziyaretçide bölüm eskisi gibi gizli kalır.
+- **YUVA HER PROFİLDE SIFIRLANIR** (`architect-modal.js#renderItem`): düğme paylaşılan DOM'da
+  yaşıyor ve yetki kararı ASENKRON geliyor; temizlenmezse yetkisiz bir profilde önceki profilin
+  düğmesi görünür kalırdı — ve o düğme ESKİ kişinin anahtarını taşıdığı için YANLIŞ profil adına
+  talep açardı.
+- **AD İSTEMCİDEN GELMEZ**: sunucuya yalnızca kişi profilinin anahtarı gider, künyeye yazılacak ad
+  canonical `architects.name`'den okunur (`photoClaims.js#resolveClaimArchitect`). Serbest metin
+  kabul edilseydi herhangi bir üye istediği adı bir projenin künyesine önerebilirdi.
+- **PROJE SEÇİCİSİ AYRI VE OTURUMA BAĞLI BİR UÇTAN**: `GET /api/photo-claims/projects?q=`
+  (`listClaimableProjects`). **`/api/projects/search`'e DOKUNULMADI**: o uç herkese açık,
+  önbellekli ve 2 karakterin altındaki sorguları bilinçli olarak D1'e hiç göndermiyor — yani
+  "sorgusuz açılışta listeyi doldur" davranışı oraya eklenemezdi. Desen
+  `hotspotTags.js#listTaggableProducts` ile aynı. Sıralama `/proje` listesinin anahtarıyla AYNI
+  (`COALESCE(relisted_at, publish_date, created_at) DESC`), arama `title_fold LIKE` + `likePattern`.
+- **ZATEN KÜNYEDE OLAN PROFİL için talep AÇILMAZ**: `applyPhotoClaim` o adı zaten atlıyor
+  (`alreadyCredited`), yani kuyruğa hiçbir şeyi değiştirmeyecek bir satır düşer ve karar veren kişi
+  "onayladım ama bir şey olmadı" derdi.
+- **Talep bir KAREYE bağlanmaz**: `project_photo_claims.image_url` kolonu duruyor ama bu akış onu
+  HİÇ YAZMAZ — kısmi UNIQUE indeks `COALESCE(image_url,'')` kullandığından kural kendiliğinden
+  "kullanıcı başına proje başına tek bekleyen talep" hâline gelir. Yeni migration GEREKMEDİ.
+- **ONAY ÜÇ YERE YAZAR**: `projects.photo_credit_text` (künye), `project_photographers` (künyedeki
+  adın tıklanabilir profil çipi olması için — kenar kurulmazsa düz metin kalırdı; eşleşme
+  `findOneByName` ile, canonicalSync ile AYNI kural) ve varsa projenin `project_submissions`
+  taslağı (canonicalSync künyeyi taslaktan BAŞTAN yazdığından, yalnızca canonical'a yazmak bir
+  sonraki kaydetmede SESSİZ VERİ KAYBI olurdu). Ardından `purgeSsrDetailCache` — `invalidatePublicCache`
+  tek başına yetmez (`/api/project/:slug` fingerprint taşımaz).
+- İstemci: `js/components/photo-finder.js` (silinen `photo-claim.js`'in yerine), `lazy-modals.js`'in
+  **architect** modülü deps'inde (düğmeyi çizen `claim-correction-box.js`'in yanında). Onay
+  pop-up'ı `auth-modal.js#openPhotoClaimPrompt` — artık projenin KAPAK görselini gösterir.
+
+Testler: `scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs` (37 test, preflight'a
+bağlı). İkinci turun dosyasındaki "madde 2" blokları buraya TAŞINDI (o tur kaldırıldı); o dosyada
+hâlâ geçerli olan madde 1 ve madde 3 kalıyor.
