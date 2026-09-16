@@ -8,9 +8,9 @@ import { foldTr } from '../lib/textMatch.js';
 import { likePattern } from '../lib/searchFold.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { findOneByName, splitPhotographerNames } from '../lib/canonicalSync.js';
-import { fetchOfficeManagers } from '../lib/claimedProfiles.js';
+import { fetchOfficeManagers, canEditArchitectAsCreator } from '../lib/claimedProfiles.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
-import { verifyClaimedProfileKey, DELEGATED_ACCESS } from './submissions.js';
+import { canonicalRowExistsByKey, resolveCanonicalName } from '../lib/canonicalRead.js';
 
 // ============================================================================================
 // "FOTOĞRAFLARINI BUL" — FOTOĞRAFÇI KÜNYESİ TALEBİ + ONAY AKIŞI
@@ -43,17 +43,27 @@ import { verifyClaimedProfileKey, DELEGATED_ACCESS } from './submissions.js';
 //
 // TASARIM KARARLARI (ve NEDEN):
 //
-// 1) KİM TALEP AÇABİLİR — bir KİŞİ PROFİLİ ADINA yetkili olan kullanıcı. Kapı, o profili
-//    düzenleme yetkisinin TA KENDİSİDİR: `submissions.js#verifyClaimedProfileKey` (admin, onaylı
-//    profile_claims, firma yetkilisi delegasyonu, kaydı siteye kendi ekleyen). İkinci bir kopya
-//    YAZILMADI — kişi pop-up'ındaki düğme de AYNI kararı okuyor
-//    (claim-correction-box.js#isAuthorizedEditor -> /api/claims/status), yani düğme ile sunucu
-//    kapısı ayrışamaz.
+// 1) KİM TALEP AÇABİLİR — YALNIZCA o kişi profilinin KENDİ yöneticisi ve admin (kullanıcı isteği,
+//    2026-09-16 DÖRDÜNCÜ tur: "Kişi popupında sadece kişi popupının yöneticisi ve admin bu butonu
+//    görebilsin"). Kapı `architectManagerGate`: admin VEYA o profil için onaylı bir
+//    profile_claims('architect') VEYA kaydı siteye kendi ekleyen (claimed_by_user_id —
+//    bkz. claimedProfiles.js#canEditArchitectAsCreator).
+//
+//    NEDEN `submissions.js#verifyClaimedProfileKey` DEĞİL (üçüncü turda o kullanılıyordu): o kapı
+//    BİLEREK DAHA GENİŞ — dördüncü bir yol olarak FİRMA YETKİLİSİ DELEGASYONUNU da kabul eder
+//    (canEditArchitectViaOfficeMembership: bir firmanın yetkilisi, künyesindeki BAŞKA kişilerin
+//    profillerini de düzenleyebilir). Kullanıcı isteği tam olarak o yolu kapatıyor: bir firma
+//    yetkilisi, ekibindeki bir kişinin adına "bu projenin fotoğraflarını o çekti" talebi
+//    AÇAMAMALI. Bu yüzden burada AYRI ve DAHA DAR bir kapı var — aynı kuralın kopyası değil,
+//    BİLİNÇLİ olarak farklı bir kural.
+//
+//    İSTEMCİ AYNI DARALTMAYI YAPAR: claim-correction-box.js#isProfileManager (Düzenle/Proje Ekle
+//    butonlarının kullandığı isAuthorizedEditor'ın delegasyon yolu ÇIKARILMIŞ hâli). İki taraf
+//    ayrışırsa düğmeyi gören kullanıcı 403 alırdı; test ikisini birlikte kelepçeler.
 //
 //    NEDEN "giriş yapmış herkes" DEĞİL (hotspotTags.js'teki kapının aksine): orada etiketlenen şey
-//    herkese açık bir üründür ve öneri yanlışsa yalnızca reddedilir. Burada talep, BAŞKA birinin
-//    kişi profilini bir projenin künyesine yazmayı önerir; profille hiç ilgisi olmayan bir hesabın
-//    bunu yapması, onay kuyruğunu başkası adına konuşan taleplerle doldururdu.
+//    herkese açık bir üründür ve öneri yanlışsa yalnızca reddedilir. Burada talep, bir kişi
+//    profilini bir projenin künyesine yazmayı önerir.
 //
 //    Kuyruk spam'ine karşı kullanıcı başına saatlik tavan (CLAIM_HOURLY_LIMIT): her bekleyen talep
 //    TÜM adminlere birer bildirim üretir.
@@ -294,15 +304,43 @@ async function listClaimableProjects(env, url) {
   });
 }
 
-// Talebin açılacağı KİŞİ PROFİLİ. Kapı verifyClaimedProfileKey'dir (bkz. tasarım notu 1) — o
-// fonksiyon hata durumunda kullanıcıya gösterilecek bir Response döner, başarıda null.
+// "BU KULLANICI BU KİŞİ PROFİLİNİN YÖNETİCİSİ Mİ?" — bu akışın TEK yetki kapısı (bkz. tasarım
+// notu 1: verifyClaimedProfileKey'den BİLEREK daha dar, firma yetkilisi delegasyonu YOK).
+// Üç yol: admin / onaylı profile_claims('architect') / kaydı siteye kendi ekleyen.
+async function architectManagerGate(env, user, architectName) {
+  if (isAdmin(user)) return true;
+  if (!user || !architectName) return false;
+  // Onay ANINDA dondurulmuş satır (canlı bir pozisyon/ad değil) — kişi tarafında pozisyon kısıtı
+  // YOKTUR (bkz. submissions.js#verifyClaimedProfileKey'deki AYNI ayrım: kısıt yalnızca firma
+  // tipinde var).
+  const claim = await env.DB.prepare(
+    `SELECT id FROM profile_claims
+      WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved'`
+  ).bind(user.id, architectName).first();
+  if (claim) return true;
+  // "Kaydı ekleyen, o kaydın yöneticisidir" (bkz. CLAUDE.md, 2026-09-15). Bu fonksiyon profil BAŞKA
+  // bir hesaba atanmışsa kendiliğinden false döner.
+  return canEditArchitectAsCreator(env, user, architectName);
+}
+
+// Talebin açılacağı KİŞİ PROFİLİ: anahtarı doğrular, YETKİYİ sorar ve künyeye yazılacak adı
+// canonical satırdan okur.
 // Döndürür: { error: Response } | { row: {id, name, slug} }
 async function resolveClaimArchitect(env, user, architectKey) {
-  const err = await verifyClaimedProfileKey(env, user, 'architects', architectKey, DELEGATED_ACCESS);
-  if (err) return { error: err };
-  // Ad İSTEMCİDEN DEĞİL canonical satırdan okunur (bkz. dosya başı). Anahtar name/slug/legacy_key
-  // olabilir — canonicalRowExistsByKey (verifyClaimedProfileKey'in kapısı) üçünü de eşliyor, bu
-  // sorgu onunla BİREBİR aynı üç kolona bakar ki kapıdan geçen her anahtar burada da bulunsun.
+  // Anahtar gerçek bir canonical satıra karşılık gelmeli — aksi halde (bayatlamış bir link ya da
+  // elle uydurulmuş bir anahtar) hiçbir profile bağlı olmayan bir talep açılabilirdi. Kural
+  // submissions.js#verifyClaimedProfileKey'in İLK adımıyla AYNI yardımcıdan gelir.
+  if (!(await canonicalRowExistsByKey(env, 'architects', architectKey))) {
+    return { error: errorJson('Bu profil artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.') };
+  }
+  // Yetki, profilin GÜNCEL canonical adıyla sorulur: profile_claims ADLA anahtarlanıyor ve bir
+  // yeniden adlandırmadan sonra eski ad/slug ile gelen istek aksi halde sessizce reddedilirdi
+  // (verifyClaimedProfileKey'in resolveCurrentProfileName adımıyla AYNI gerekçe).
+  const currentName = (await resolveCanonicalName(env, 'architects', architectKey)) || architectKey;
+  if (!(await architectManagerGate(env, user, currentName))) {
+    return { error: errorJson('Bu kişi profili adına talep açma yetkin yok.', 403) };
+  }
+  // Ad İSTEMCİDEN DEĞİL canonical satırdan okunur (bkz. dosya başı).
   const row = await env.DB.prepare(
     `SELECT id, name, slug FROM architects
       WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`

@@ -37,9 +37,19 @@
 //         yazdığından, yalnızca canonical'a yazmak bir sonraki kaydetmede SESSİZ VERİ KAYBI olurdu.
 //     (f) Detay ÖNBELLEĞİ purge edilir: /api/project/:slug fingerprint TAŞIMAZ, yani
 //         invalidatePublicCache TEK BAŞINA yetmez — onay veren "onayladım ama görünmüyor" derdi.
-//     (g) DÜĞMENİN YAŞADIĞI BÖLÜM AÇILIR: "Fotoğrafladığı Projeler" bölümü kişinin hiç fotoğrafı
-//         yoksa gizlidir, oysa düğmenin tam hedef kitlesi o kişidir — bölüm açılmazsa düğmeye
-//         ulaşmanın hiçbir yolu olmazdı.
+//     (g) [DÖRDÜNCÜ TURDA TERSİNE ÇEVRİLDİ] Üçüncü turda düğme, yaşadığı bölümü de AÇIYORDU.
+//         Kullanıcı isteği (dördüncü tur): "Bir kişinin fotoğrafladığı proje yoksa Fotoğrafladığı
+//         projeler ve fotoğraflarını bul butonu gözükmesin." Artık bölümün görünürlüğü YALNIZCA
+//         veriye bağlı ve düğme de AYNI listeyi okur.
+//
+// DÖRDÜNCÜ TUR (aynı gün) — ÜÇ DEĞİŞİKLİK, hepsi madde 3'ün üzerine:
+//     (h) İKİ ADIM: satıra tıklamak yalnızca SEÇER, talebi "Talep Gönder" düğmesi gönderir.
+//         Tek adımda (satıra tıkla = gönder) yanlış bir satıra dokunmak geri alınamaz bir talep
+//         açıyordu. Düğme seçim yapılana kadar PASİF, gönderilmiş bir projede yeniden PASİF.
+//     (i) YETKİ DARALDI: yalnızca profilin KENDİ yöneticisi + admin. Firma yetkilisi delegasyonu
+//         (claimDelegatedEdit / canEditArchitectViaOfficeMembership) İKİ TARAFTAN DA çıkarıldı —
+//         bir firma yetkilisi, ekibindeki bir kişinin ADINA künye talebi açamamalı.
+//     (j) ONAY ALINMADAN KÜNYEYE HİÇBİR ŞEY YAZILMAZ — zaten öyleydi; test bunu açıkça kelepçeler.
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 
@@ -146,19 +156,33 @@ await test('script etiketinin KALDIRILMASI da SSR sürümü gerektirir', () => {
 // ==========================================================================================
 console.log('\nmadde 3 — "Fotoğraflarını Bul": düğme ve yetki');
 
-await test('düğme Düzenle/Proje Ekle ile AYNI yetki fonksiyonundan beslenir', () => {
+await test('YETKİ DARALDI: yalnızca profilin KENDİ yöneticisi + admin (istemci)', () => {
+  // (i) Firma yetkilisi delegasyonu (claimDelegatedEdit) ÇIKARILDI: bir firma yetkilisi,
+  // ekibindeki bir kişinin ADINA künye talebi açamamalı.
+  const mgr = claimBox.match(/function isProfileManager\(\)\{[\s\S]*?\n  \}/)[0];
+  assert.ok(!/claimDelegatedEdit/.test(mgr),
+    'delegasyon yolu geri gelmiş — firma yetkilisi başkasının adına talep açabilir');
+  assert.match(mgr, /isProfileOwner && canEditByPosition/);
+  assert.match(mgr, /currentUser\.role === 'admin'/);
+  assert.match(mgr, /ownSubmissionId/);
   const fn = claimBox.match(/function renderFindPhotosButton\(\)\{[\s\S]*?\n  \}/)[0];
-  assert.match(fn, /if\(!isAuthorizedEditor\(\)\)\{ slot\.innerHTML = ''; return; \}/,
-    'üç düğme ayrı yetki hesaplarsa biri görünürken öteki kaybolabilir');
+  assert.match(fn, /!isProfileManager\(\)/, 'düğme hâlâ geniş isAuthorizedEditor ile çiziliyor');
   assert.match(claimBox, /renderFindPhotosButton\(\);/, 'init() düğmeyi hiç çizmiyor');
+  // Düzenle/Proje Ekle DARALTILMADI — daraltma yalnızca bu düğme içindi.
+  assert.match(claimBox, /function renderAddProjectButton\(\)\{[\s\S]*?isAuthorizedEditor\(\)/);
 });
 
-await test('düğme, yaşadığı bölümü de AÇAR (yoksa ulaşılamaz)', () => {
+await test('fotoğrafladığı proje YOKSA ne bölüm ne düğme görünür', () => {
+  // (g) Üçüncü turun "bölümü aç" davranışı GERİ ALINDI (kullanıcı isteği, dördüncü tur).
   const fn = claimBox.match(/function renderFindPhotosButton\(\)\{[\s\S]*?\n  \}/)[0];
-  assert.match(fn, /findPhotosSectionId/);
-  assert.match(fn, /if\(section\) section\.style\.display = '';/,
-    'fotoğrafı olmayan kişide bölüm gizli kalır ve düğmeye ulaşmanın yolu olmaz');
-  assert.match(architectModal, /findPhotosSectionId: 'am-photographed-section'/);
+  assert.ok(!/section\.style\.display/.test(fn), 'düğme hâlâ bölümü açıyor');
+  assert.ok(!/findPhotosSectionId/.test(claimBox), 'bölüm açma sözleşmesi hâlâ duruyor');
+  assert.match(fn, /config\.findPhotosEnabled\(\)/);
+  assert.match(fn, /if\(!enabled \|\| !isProfileManager\(\)\)\{ slot\.innerHTML = ''; return; \}/);
+  // Bölüm ve düğme AYNI tek gerçeği okur — "bölüm gizli ama düğme var" oluşamaz.
+  assert.match(architectModal, /findPhotosEnabled: \(\) => photographedData\.length > 0/);
+  assert.match(architectModal,
+    /getElementById\('am-photographed-section'\)\.style\.display = photographedData\.length \? '' : 'none'/);
 });
 
 await test('yuva kişi pop-up\'ının "Fotoğrafladığı Projeler" BAŞLIĞINDA', () => {
@@ -219,16 +243,36 @@ await test('yalnızca YAYINDA projeler listelenir', () => {
 // ==========================================================================================
 console.log('\nmadde 3 — talep: yetki, ad ve onay kuyruğu');
 
-await test('YETKİ KAPISI IMPORT EDİLİR, ikinci kopya yazılmaz', () => {
-  assert.match(photoClaims,
-    /import \{ verifyClaimedProfileKey, DELEGATED_ACCESS \} from '\.\/submissions\.js'/);
-  assert.match(submissions, /export async function verifyClaimedProfileKey/);
-  assert.match(submissions, /export const DELEGATED_ACCESS/);
+await test('SUNUCU KAPISI da daraldı: delegasyon yolu YOK', () => {
+  // (i) Üçüncü turda verifyClaimedProfileKey (DELEGATED_ACCESS ile) kullanılıyordu — o kapı
+  // BİLEREK daha geniş: dördüncü yol olarak firma yetkilisi delegasyonunu da kabul ediyor.
+  // Kullanıcı isteği tam olarak o yolu kapattığı için burada AYRI ve DAHA DAR bir kapı var.
+  // Dosya başı notu o fonksiyonu ADIYLA anıyor ("NEDEN ... DEĞİL"), bu yüzden metinsel geçiş
+  // değil IMPORT ve ÇAĞRI aranır.
+  assert.ok(!/import \{[^}]*verifyClaimedProfileKey[^}]*\} from/.test(photoClaims),
+    'geniş kapı yeniden import edilmiş — firma yetkilisi başkasının adına talep açabilir');
+  assert.ok(!/await verifyClaimedProfileKey\(/.test(photoClaims), 'geniş kapı yeniden çağrılıyor');
+  assert.ok(!/DELEGATED_ACCESS/.test(photoClaims), 'delegasyon bayrağı geri gelmiş');
+  // ...ve o geniş kapı submissions.js'te yine PRIVATE (dışa aktarılmış ölü bir yüzey bırakılmadı).
+  assert.ok(!/export async function verifyClaimedProfileKey/.test(submissions));
+  assert.ok(!/export const DELEGATED_ACCESS/.test(submissions));
+
+  const gate = photoClaims.match(/async function architectManagerGate[\s\S]*?\n\}/)[0];
+  assert.match(gate, /if \(isAdmin\(user\)\) return true;/);
+  assert.match(gate, /profile_type = 'architect' AND profile_key = \? AND status = 'approved'/);
+  assert.match(gate, /canEditArchitectAsCreator\(env, user, architectName\)/,
+    '"kaydı ekleyen yöneticidir" yolu lib\'den okunmalı, elle kopyalanmamalı');
+});
+
+await test('anahtar doğrulanır ve yetki GÜNCEL canonical adla sorulur', () => {
   const fn = photoClaims.match(/async function resolveClaimArchitect[\s\S]*?\n\}/)[0];
-  assert.match(fn, /verifyClaimedProfileKey\(env, user, 'architects', architectKey, DELEGATED_ACCESS\)/);
-  // Kuralın elle yeniden yazılmış bir kopyası OLMAMALI.
-  assert.ok(!/profile_claims WHERE user_id/.test(photoClaims),
-    'yetki kuralının ikinci bir kopyası açılmış — düğme ile sunucu ayrışabilir');
+  // Bayat/uydurma anahtar reddedilir (verifyClaimedProfileKey'in ilk adımıyla AYNI yardımcı).
+  assert.match(fn, /canonicalRowExistsByKey\(env, 'architects', architectKey\)/);
+  // profile_claims ADLA anahtarlı: yeniden adlandırmadan sonra eski slug ile gelen istek aksi
+  // halde sessizce reddedilirdi.
+  assert.match(fn, /resolveCanonicalName\(env, 'architects', architectKey\)/);
+  assert.match(fn, /architectManagerGate\(env, user, currentName\)/);
+  assert.match(fn, /'Bu kişi profili adına talep açma yetkin yok\.', 403/);
 });
 
 await test('künyeye yazılacak ad CANONICAL satırdan okunur, istemciden DEĞİL', () => {
@@ -239,7 +283,7 @@ await test('künyeye yazılacak ad CANONICAL satırdan okunur, istemciden DEĞİ
     'ad gövdeden okunuyorsa herhangi bir üye istediği adı künyeye önerebilir');
   assert.ok(!/body\.name/.test(create), 'gövdeden ad okunuyor');
   // İstemci de yalnızca profil anahtarı gönderir.
-  assert.match(photoFinder, /body: JSON\.stringify\(\{ projectSlug: btn\.dataset\.slug, architectSlug: ctx\.architectKey \}\)/);
+  assert.match(photoFinder, /body: JSON\.stringify\(\{ projectSlug: target\.slug, architectSlug: ctx\.architectKey \}\)/);
 });
 
 await test('ONAY KUYRUĞU ATLATILAMAZ: POST status\'ü istemciden okumaz', () => {
@@ -272,7 +316,7 @@ await test('BİLDİRİM ALICILARI = KARAR KÜMESİ (tek fonksiyon)', () => {
 });
 
 await test('yönetici tanımı TEK kaynaktan okunur', () => {
-  assert.match(photoClaims, /import \{ fetchOfficeManagers \} from '\.\.\/lib\/claimedProfiles\.js'/);
+  assert.match(photoClaims, /import \{ fetchOfficeManagers, canEditArchitectAsCreator \} from '\.\.\/lib\/claimedProfiles\.js'/);
   assert.match(photoClaims, /import \{ OFFICE_EDIT_POSITIONS \} from '\.\.\/lib\/projectClaimAccess\.js'/);
 });
 
@@ -322,6 +366,56 @@ await test('detay ÖNBELLEĞİ purge edilir', () => {
 
 await test('kuyruk spam\'ine karşı hız sınırı var, adminler muaf', () => {
   assert.match(photoClaims, /if \(!isAdmin\(user\) && !\(await checkRateLimit\(env, 'photo-claim', user\.id, CLAIM_HOURLY_LIMIT/);
+});
+
+// ==========================================================================================
+console.log('\ndördüncü tur — iki adım: seç, sonra "Talep Gönder"');
+
+await test('satıra tıklamak SEÇER, göndermez', () => {
+  // (h) Tek adımda yanlış bir satıra dokunmak geri alınamaz bir talep açıyordu.
+  const wire = photoFinder.match(/listEl\.querySelectorAll\('\.pf-item'\)\.forEach\(btn => \{[\s\S]*?\n    \}\);/)[0];
+  assert.ok(!/fetch\(/.test(wire), 'satır tıklaması hâlâ doğrudan istek atıyor');
+  assert.match(wire, /setSelected\(same \? null : \{ slug: btn\.dataset\.slug, title: btn\.dataset\.title \}\)/);
+  assert.match(wire, /const same = selected && selected\.slug === btn\.dataset\.slug;/,
+    'aynı satıra tekrar tıklamak seçimi kaldırmalı — yanlış dokunan kullanıcı sıkışmasın');
+});
+
+await test('"Talep Gönder" düğmesi var ve seçim yapılana kadar PASİF', () => {
+  assert.match(photoFinder, /<button type="button" class="pf-send" disabled>Talep Gönder<\/button>/);
+  assert.match(photoFinder, /sendBtn\.addEventListener\('click', submit\)/);
+  // Açılışta ve her profil değişiminde seçim sıfırlanır.
+  assert.match(photoFinder, /setSelected\(null\);/);
+});
+
+await test('seçim durumu TEK yerden yazılır (satır işareti + düğme birlikte)', () => {
+  // Ayrı ayrı güncellenirse "seçili görünen satır + pasif düğme" gibi ayrışık bir hâl doğar.
+  const fn = photoFinder.match(/function setSelected\(next\) \{[\s\S]*?\n  \}/)[0];
+  assert.match(fn, /aria-selected/);
+  assert.match(fn, /sendBtn\.disabled = !next \|\| submittedSlugs\.has\(next\.slug\)/,
+    'gönderilmiş bir projede düğme yeniden pasif olmalı (mükerrer talep)');
+});
+
+await test('gönderim TEK sefer: istek uçarken liste ve düğme kilitli', () => {
+  const fn = photoFinder.match(/async function submit\(\) \{[\s\S]*?\n  \}/)[0];
+  assert.match(fn, /if \(!ctx \|\| !selected\) return;/);
+  assert.match(fn, /buttons\.forEach\(b => \{ b\.disabled = true; \}\);/);
+  assert.match(fn, /sendBtn\.disabled = true;/);
+  assert.match(fn, /submittedSlugs\.add\(target\.slug\);/);
+  // Hata hâlinde seçim GERİ YÜKLENİR — kullanıcı aynı projeyi baştan bulmak zorunda kalmasın.
+  assert.match(fn, /setSelected\(target\);/);
+});
+
+await test('profil değişiminde seçim ve "gönderildi" geçmişi sıfırlanır', () => {
+  const fn = photoFinder.match(/function open\(opts\) \{[\s\S]*?\n  \}/)[0];
+  assert.match(fn, /selected = null;/);
+  assert.match(fn, /submittedSlugs = new Set\(\);/);
+});
+
+await test('kullanıcıya ONAY ŞARTI açıkça söylenir', () => {
+  // (j) "bildirim onaylanmadan künyeye fotoğrafçı ismi eklenmesin" — davranış zaten böyle; metin
+  // de bunu söylemeli, aksi halde kullanıcı gönderdiği anda eklendiğini sanır.
+  assert.match(photoFinder, /ONAYLANMADAN künyeye hiçbir şey eklenmez/);
+  assert.match(photoFinder, /onaya gönderildi/);
 });
 
 // ==========================================================================================

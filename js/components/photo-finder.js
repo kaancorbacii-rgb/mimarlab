@@ -67,6 +67,13 @@ const PhotoFinder = (function () {
       }
       .pf-item:hover{background:var(--paper-alt, #F2F1EE);}
       .pf-item[disabled]{opacity:0.55; cursor:default;}
+      .pf-item[aria-selected="true"]{background:var(--paper-alt, #F2F1EE); box-shadow:inset 0 0 0 1.5px var(--walnut, #8A6A4B);}
+      .pf-check{
+        flex:0 0 16px; width:16px; height:16px; border-radius:50%;
+        border:1.5px solid var(--line, #E2E0DB); display:flex; align-items:center; justify-content:center;
+      }
+      .pf-item[aria-selected="true"] .pf-check{border-color:var(--walnut, #8A6A4B); background:var(--walnut, #8A6A4B);}
+      .pf-item[aria-selected="true"] .pf-check::after{content:''; width:6px; height:6px; border-radius:50%; background:#fff;}
       .pf-thumb{
         flex:0 0 52px; width:52px; height:40px; border-radius:7px; overflow:hidden;
         background:var(--paper-alt, #F2F1EE); display:flex; align-items:center; justify-content:center;
@@ -81,11 +88,14 @@ const PhotoFinder = (function () {
       .pf-msg{margin:0 0 10px; font-size:12.5px; line-height:1.45;}
       .pf-msg.err{color:#B84C4C;}
       .pf-msg.ok{color:var(--walnut, #8A6A4B);}
-      .pf-close{
-        width:100%; height:36px; border-radius:9px; font-size:13px; font-weight:600;
+      .pf-actions{display:flex; gap:8px;}
+      .pf-actions button{
+        flex:1; height:36px; border-radius:9px; font-size:13px; font-weight:600;
         font-family:inherit; cursor:pointer; border:1px solid var(--line, #E2E0DB);
-        background:none; color:inherit;
       }
+      .pf-send{background:var(--ink, #1B2A3D); color:var(--paper-card, #fff); border-color:transparent;}
+      .pf-send[disabled]{opacity:0.5; cursor:default;}
+      .pf-close{background:none; color:inherit;}
       @media (max-width:560px){
         .pf-overlay{padding:12px;}
         .pf-panel{max-height:92vh;}
@@ -112,8 +122,13 @@ const PhotoFinder = (function () {
   let listEl = null;
   let msgEl = null;
   let ctx = null;          // { architectKey, architectName }
+  let selected = null;     // { slug, title } — satıra tıklamayla SEÇİLEN proje (henüz gönderilmedi)
+  let sendBtn = null;
   let searchTimer = null;
   let lastFocused = null;
+  // Talebi GÖNDERİLMİŞ projeler: aynı oturumda ikinci kez gönderilmesin (sunucu da mükerrer
+  // bekleyen talebi reddeder — bu yalnızca kullanıcıyı boş bir hatadan korur).
+  let submittedSlugs = new Set();
 
   function showMsg(text, kind) {
     if (!msgEl) return;
@@ -122,11 +137,24 @@ const PhotoFinder = (function () {
     msgEl.className = 'pf-msg' + (kind ? ' ' + kind : '');
   }
 
+  // Seçim DURUMU tek yerden yazılır: satırların aria-selected'ı ve "Talep Gönder"in etkinliği
+  // ayrı ayrı güncellenirse biri diğerinden ayrışır (seçili görünen bir satır + pasif düğme).
+  function setSelected(next) {
+    selected = next;
+    if (listEl) {
+      listEl.querySelectorAll('.pf-item').forEach(b => {
+        b.setAttribute('aria-selected', String(!!next && b.dataset.slug === next.slug));
+      });
+    }
+    if (sendBtn) sendBtn.disabled = !next || submittedSlugs.has(next.slug);
+  }
+
   function close() {
     if (!overlay) return;
     overlay.classList.remove('open');
     clearTimeout(searchTimer);
     ctx = null;
+    selected = null;
     document.removeEventListener('keydown', onKey, true);
     if (lastFocused && lastFocused.focus) { try { lastFocused.focus(); } catch (e) {} }
     lastFocused = null;
@@ -159,12 +187,20 @@ const PhotoFinder = (function () {
         '<div class="pf-list"></div>' +
         '<div class="pf-foot">' +
           '<p class="pf-msg" style="display:none;"></p>' +
-          '<button type="button" class="pf-close">Kapat</button>' +
+          '<div class="pf-actions">' +
+            // İKİ ADIM (kullanıcı isteği, 2026-09-16 dördüncü tur): satıra tıklamak yalnızca SEÇER,
+            // talebi bu düğme gönderir. Tek adımda (satıra tıkla = gönder) yanlış bir satıra
+            // dokunmak geri alınamaz bir talep açıyordu; düğme seçim yapılana kadar pasif.
+            '<button type="button" class="pf-send" disabled>Talep Gönder</button>' +
+            '<button type="button" class="pf-close">Kapat</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
     searchInput = overlay.querySelector('.pf-search');
     listEl = overlay.querySelector('.pf-list');
     msgEl = overlay.querySelector('.pf-msg');
+    sendBtn = overlay.querySelector('.pf-send');
+    sendBtn.addEventListener('click', submit);
     overlay.querySelector('.pf-close').addEventListener('click', close);
     // Arka plana tıklayınca kapan; panelin KENDİSİNE tıklayınca kapanmasın.
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
@@ -187,14 +223,24 @@ const PhotoFinder = (function () {
       const thumb = src
         ? `<span class="pf-thumb"><img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()"></span>`
         : `<span class="pf-thumb">${esc((it.title || '?').trim().charAt(0).toLocaleUpperCase('tr'))}</span>`;
-      return `<button type="button" class="pf-item" data-slug="${esc(it.slug)}" data-title="${esc(it.title)}">
+      return `<button type="button" class="pf-item" role="option" aria-selected="false" data-slug="${esc(it.slug)}" data-title="${esc(it.title)}">
         ${thumb}
         <span class="pf-text"><span class="pf-title">${esc(it.title)}</span>${it.sub ? `<span class="pf-sub">${esc(it.sub)}</span>` : ''}</span>
+        <span class="pf-check" aria-hidden="true"></span>
       </button>`;
     }).join('');
     listEl.querySelectorAll('.pf-item').forEach(btn => {
-      btn.addEventListener('click', () => submit(btn));
+      btn.addEventListener('click', () => {
+        // Aynı satıra tekrar tıklamak seçimi KALDIRIR — yanlış dokunan kullanıcı formu kapatmak
+        // zorunda kalmasın.
+        const same = selected && selected.slug === btn.dataset.slug;
+        showMsg('');
+        setSelected(same ? null : { slug: btn.dataset.slug, title: btn.dataset.title });
+      });
     });
+    // Liste yenilendi (arama) — önceki seçim listede hâlâ varsa işareti geri koyar, yoksa düşer.
+    if (selected && !listEl.querySelector(`.pf-item[data-slug="${CSS.escape(selected.slug)}"]`)) setSelected(null);
+    else setSelected(selected);
   }
 
   async function load(q) {
@@ -213,35 +259,47 @@ const PhotoFinder = (function () {
     }
   }
 
-  async function submit(btn) {
-    if (!ctx) return;
-    // Listedeki TÜM satırlar kilitlenir: iki projeye aynı anda talep göndermek, ikinci isteğin
-    // hız sınırına ya da mükerrer-talep hatasına çarpması demekti.
+  // "Talep Gönder" — seçili proje için talebi açar (bkz. pf-send'in yanındaki iki-adım notu).
+  async function submit() {
+    if (!ctx || !selected) return;
+    const target = selected;
+    // Listedeki TÜM satırlar + düğme kilitlenir: iki projeye aynı anda talep göndermek, ikinci
+    // isteğin hız sınırına ya da mükerrer-talep hatasına çarpması demekti.
     const buttons = listEl.querySelectorAll('.pf-item');
     buttons.forEach(b => { b.disabled = true; });
+    sendBtn.disabled = true;
+    const original = sendBtn.textContent;
+    sendBtn.textContent = 'Gönderiliyor…';
     showMsg('');
     try {
       const res = await fetch('/api/photo-claims', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectSlug: btn.dataset.slug, architectSlug: ctx.architectKey }),
+        body: JSON.stringify({ projectSlug: target.slug, architectSlug: ctx.architectKey }),
       });
       const data = await res.json().catch(() => ({}));
+      sendBtn.textContent = original;
       if (!res.ok) {
         showMsg(data.error || 'Talep gönderilemedi.', 'err');
         buttons.forEach(b => { b.disabled = false; });
+        setSelected(target);
         return;
       }
       // Admin'de sunucu talebi ANINDA uygular (bkz. photoClaims.js#createClaim) — mesaj bu iki
-      // durumu ayırır, aksi halde admin "onay bekliyor" sanırdı.
+      // durumu ayırır, aksi halde admin "onay bekliyor" sanırdı. Onay ALINMADAN künyeye hiçbir şey
+      // yazılmaz (kullanıcı isteği) — mesaj da bunu söyler.
       showMsg(data.status === 'approved'
-        ? `“${btn.dataset.title}” künyesine eklendi. Sayfayı yenilediğinde görünecek.`
-        : `“${btn.dataset.title}” için talebin onaya gönderildi. Firma yöneticisi ya da MİMARLAB onayladığında künyede görünecek.`, 'ok');
-      // Onaylanan/gönderilen satır kilitli kalır (aynı projeye ikinci talep zaten reddedilir),
-      // diğerleri açılır — kullanıcı tek oturumda birkaç projeyi sahiplenebilir.
-      buttons.forEach(b => { if (b !== btn) b.disabled = false; });
+        ? `“${target.title}” künyesine eklendi. Sayfayı yenilediğinde görünecek.`
+        : `“${target.title}” için talebin onaya gönderildi. Firma yöneticisi ya da MİMARLAB onayladığında künyeye eklenecek.`, 'ok');
+      // Gönderilen proje işaretlenir ve seçim düşer: satırlar yeniden açılır ama aynı projeye
+      // ikinci bir talep gönderilemez (setSelected o slug'da düğmeyi pasif tutar).
+      submittedSlugs.add(target.slug);
+      buttons.forEach(b => { b.disabled = false; });
+      setSelected(null);
     } catch {
+      sendBtn.textContent = original;
       showMsg('Sunucuya ulaşılamadı, tekrar dene.', 'err');
       buttons.forEach(b => { b.disabled = false; });
+      setSelected(target);
     }
   }
 
@@ -251,12 +309,17 @@ const PhotoFinder = (function () {
     if (!opts || !opts.architectKey) return;
     ensureDom();
     ctx = { architectKey: opts.architectKey, architectName: opts.architectName || '' };
+    // Seçim ve "gönderildi" işaretleri profil başına sıfırlanır — pop-up başka bir kişiye
+    // geçtiğinde önceki kişinin seçimi/geçmişi taşınmamalı.
+    selected = null;
+    submittedSlugs = new Set();
     const intro = overlay.querySelector('.pf-intro');
     intro.textContent = ctx.architectName
-      ? `Fotoğrafını çektiğin projeyi seç. Talep, projenin firma yöneticilerine ve MİMARLAB yöneticilerine gider; onaylanınca “${ctx.architectName}” projenin fotoğraf künyesine eklenir.`
-      : 'Fotoğrafını çektiğin projeyi seç. Talep, projenin firma yöneticilerine ve MİMARLAB yöneticilerine gider; onaylanınca adın projenin fotoğraf künyesine eklenir.';
+      ? `Fotoğrafını çektiğin projeyi seç ve "Talep Gönder"e bas. Talep, projenin firma yöneticilerine ve MİMARLAB yöneticilerine gider; ONAYLANMADAN künyeye hiçbir şey eklenmez. Onaylanınca “${ctx.architectName}” projenin fotoğraf künyesine eklenir.`
+      : 'Fotoğrafını çektiğin projeyi seç ve "Talep Gönder"e bas. Talep, projenin firma yöneticilerine ve MİMARLAB yöneticilerine gider; ONAYLANMADAN künyeye hiçbir şey eklenmez.';
     searchInput.value = '';
     showMsg('');
+    setSelected(null);
     lastFocused = document.activeElement;
     overlay.classList.add('open');
     document.addEventListener('keydown', onKey, true);

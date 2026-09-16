@@ -436,23 +436,39 @@ function createClaimCorrectionBox(config){
     slot.firstChild.addEventListener('click', (e) => { e.stopPropagation(); });
   }
 
-  // "FOTOĞRAFLARINI BUL" (kullanıcı isteği, 2026-09-16 üçüncü tur madde 3) — renderAddProjectButton
-  // ile BİREBİR aynı desen ve AYNI yetki kaynağı (isAuthorizedEditor). Ayrı bir yetki hesabı
-  // yapılmadı: üç düğme (Düzenle / Proje Ekle / Fotoğraflarını Bul) tek fonksiyondan beslendiği
-  // için biri görünürken öteki kaybolamaz, ve sunucu kapısı da AYNI kararı verir (bkz.
-  // src/routes/photoClaims.js tasarım notu 1 -> submissions.js#verifyClaimedProfileKey).
+  // PROFİLİN KENDİ YÖNETİCİSİ Mİ? — isAuthorizedEditor'ın DELEGASYON YOLU ÇIKARILMIŞ hâli
+  // (kullanıcı isteği, 2026-09-16 dördüncü tur: "Kişi popupında sadece kişi popupının yöneticisi ve
+  // admin bu butonu görebilsin"). claimDelegatedEdit BİLEREK dışarıda: o bayrak "bir firmanın
+  // yetkilisiyim, künyesindeki BAŞKA kişilerin profillerini de düzenleyebilirim" demektir ve o
+  // kişinin ADINA fotoğraf künyesi talebi açmak istenmiyor.
   //
-  // BÖLÜMÜ AÇMAK DA BU FONKSİYONUN İŞİ: düğmenin yaşadığı "Fotoğrafladığı Projeler" bölümü,
-  // kişinin HİÇ fotoğrafı yoksa gizlidir (bkz. architect-modal.js#paintPhotographedProjects) —
-  // oysa bu düğmenin tam hedef kitlesi henüz künyede hiç görünmeyen fotoğrafçıdır. Bölüm
-  // açılmazsa düğmeye ulaşmanın hiçbir yolu olmazdı. Yetkisiz ziyaretçide bölüm eskisi gibi
-  // gizli kalır (burada hiçbir şey yazılmaz).
+  // Düzenle/Proje Ekle butonları isAuthorizedEditor'da KALIR — bu daraltma yalnızca
+  // "Fotoğraflarını Bul" içindir. Sunucu AYNI daraltmayı kendi kapısında yapar (bkz.
+  // src/routes/photoClaims.js#architectManagerGate); ayrışırlarsa düğmeyi gören kullanıcı 403 alır.
+  function isProfileManager(){
+    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(claimOfficePosition);
+    return !!currentUser && !!((isProfileOwner && canEditByPosition) || currentUser.role === 'admin' || ownSubmissionId);
+  }
+
+  // "FOTOĞRAFLARINI BUL" (kullanıcı isteği, 2026-09-16 üçüncü tur madde 3) — renderAddProjectButton
+  // ile aynı yuva/desen, ama YETKİSİ DAHA DAR (bkz. isProfileManager).
+  //
+  // BÖLÜM AÇILMAZ (kullanıcı isteği, 2026-09-16 dördüncü tur: "Bir kişinin fotoğrafladığı proje
+  // yoksa Fotoğrafladığı projeler ve fotoğraflarını bul butonu gözükmesin"). Üçüncü turda bu
+  // fonksiyon bölümü açıyordu — gerekçe "düğmenin hedef kitlesi henüz künyede görünmeyen
+  // fotoğrafçıdır" idi; kullanıcı kararı bunun TERSİ. Bunun bilinen sonucu: hiç fotoğrafı olmayan
+  // bir kişi profilinde düğme HİÇ görünmez, yani ilk künye kaydının başka bir yoldan (proje-ekle
+  // ya da admin) gelmesi gerekir.
   function renderFindPhotosButton(){
     const slotId = config.findPhotosSlotId;
     if(!slotId) return;
     const slot = document.getElementById(slotId);
     if(!slot) return;
-    if(!isAuthorizedEditor()){ slot.innerHTML = ''; return; }
+    // findPhotosEnabled — çağıran, düğmenin yaşadığı bölümün GERÇEKTEN içerik taşıdığını söyler
+    // (kişinin fotoğrafladığı en az bir proje). Bilgi çağıranda olduğu için karar da orada verilir;
+    // bu modül bölümün görünürlüğünü artık ne okur ne yazar.
+    const enabled = !config.findPhotosEnabled || config.findPhotosEnabled();
+    if(!enabled || !isProfileManager()){ slot.innerHTML = ''; return; }
     slot.innerHTML = '<button type="button" class="rt-add-btn" id="cc-find-photos-btn">'
       + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.2" y1="16.2" x2="21" y2="21"/></svg>'
       + 'Fotoğraflarını Bul</button>';
@@ -462,8 +478,6 @@ function createClaimCorrectionBox(config){
       if(typeof PhotoFinder === 'undefined') return;
       PhotoFinder.open({ architectKey: config.getClaimLinkKey(), architectName: config.getProfileKey() });
     });
-    const section = config.findPhotosSectionId ? document.getElementById(config.findPhotosSectionId) : null;
-    if(section) section.style.display = '';
   }
 
   async function init(){

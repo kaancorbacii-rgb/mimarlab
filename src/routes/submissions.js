@@ -146,17 +146,13 @@ const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip 
 // Sabitin adı bu yüzden DELEGATED_ACCESS değil DELEGATED_ACCESS: iki yol (düzenleme + arşivleme) geçiyor.
 // Bkz. src/lib/claimedProfiles.js#canEditArchitectViaOfficeMembership'in aynı adlı bayrağı ve
 // scripts/test-office-member-profile-edit.mjs'teki üç ayrı test (düzenle / arşivle / sil).
-// export (kullanıcı isteği, 2026-09-16 üçüncü tur madde 3): src/routes/photoClaims.js "Fotoğraflarını
-// Bul" talebini açarken AYNI kapıyı kullanır (verifyClaimedProfileKey + bu bayrak). İkinci bir kopya
-// yazılsaydı istemcideki düğme (claim-correction-box.js#isAuthorizedEditor) ile sunucu kapısı
-// ayrışabilirdi — bu depoda tekrar tekrar kelepçelenen sınıf hata.
-export const DELEGATED_ACCESS = Object.freeze({ includeOwnedByOthers: true });
+const DELEGATED_ACCESS = Object.freeze({ includeOwnedByOthers: true });
 
 // opts.includeOwnedByOthers — yalnızca DÜZENLEME yollarından geçirilir; bkz.
 // src/lib/claimedProfiles.js#canEditArchitectViaOfficeMembership'in aynı adlı bayrağı
 // (kullanıcı kararı, 2026-09-14: firma yetkilisi künyesindeki kişinin profilini, o kişi profili
 // kendi adına sahiplenmiş olsa da düzenleyebilsin — ama SİLEMESİN/ARŞİVLEMESİN).
-export async function verifyClaimedProfileKey(env, user, typeKey, profileKey, opts = {}) {
+async function verifyClaimedProfileKey(env, user, typeKey, profileKey, opts = {}) {
   // claimed_profile_key canonical architects/offices satırının adı/slug'ı/legacy_key'iyle birebir
   // eşleşmeli — aksi halde (ör. bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da
   // elle uydurulmuş bir URL ile) hiçbir gerçek profile bağlı olmayan "hayalet" bir gönderi

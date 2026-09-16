@@ -1057,3 +1057,76 @@ admin bu bildirime onay verirse proje künyesine fotoğrafçı otomatik olarak e
 Testler: `scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs` (37 test, preflight'a
 bağlı). İkinci turun dosyasındaki "madde 2" blokları buraya TAŞINDI (o tur kaldırıldı); o dosyada
 hâlâ geçerli olan madde 1 ve madde 3 kalıyor.
+
+## "Fotoğraflarını Bul": iki adım + yetki daraldı; boş bölüm gizli (2026-09-16, dördüncü tur)
+
+Kullanıcı isteği: "Fotoğraflarımı bul butonundan bir proje seçildiği zaman talep gönder butonu olsun
+... bildirim onaylanmadan künyeye fotoğrafçı ismi eklenmesin. Kişi popupında sadece kişi popupının
+yöneticisi ve admin bu butonu görebilsin." + "Bir kişinin fotoğrafladığı proje yoksa Fotoğrafladığı
+projeler ve fotoğraflarını bul butonu gözükmesin."
+
+### 1. İKİ ADIM: seç, sonra "Talep Gönder"
+- `photo-finder.js`: satıra tıklamak artık YALNIZCA seçer (`aria-selected` + işaret dairesi),
+  talebi alt çubuktaki **"Talep Gönder"** gönderir. Üçüncü turda satıra tıklamak DOĞRUDAN istek
+  atıyordu — yanlış bir satıra dokunmak geri alınamaz bir talep açıyordu.
+- Düğme seçim yapılana kadar PASİF; **aynı satıra tekrar tıklamak seçimi kaldırır** (yanlış dokunan
+  kullanıcı formu kapatmak zorunda kalmasın).
+- **Seçim durumu TEK yerden yazılır** (`setSelected`): satır işareti ile düğmenin etkinliği ayrı ayrı
+  güncellenirse "seçili görünen satır + pasif düğme" gibi ayrışık bir hâl doğar.
+- Gönderim sırasında liste + düğme kilitli; başarıda slug `submittedSlugs`'a girer ve o projede düğme
+  yeniden pasif olur (mükerrer talep sunucuda da reddedilir, bu yalnızca boş bir hatadan korur).
+  Hata hâlinde seçim GERİ YÜKLENİR. Profil değişiminde ikisi de sıfırlanır.
+- **Onay şartı metne de yazıldı**: "ONAYLANMADAN künyeye hiçbir şey eklenmez" — davranış zaten
+  böyleydi (onay kuyruğu), ama kullanıcı gönderdiği anda eklendiğini sanmamalı.
+- Davranış gerçek tarayıcıda ölçüldü (Playwright + stub fetch): açılış → seçim → iptal → başka satır
+  → tek POST → mükerrere kapalı → arama seçimi düşürür.
+
+### 2. YETKİ DARALDI — yalnızca profilin KENDİ yöneticisi ve admin
+- **İstemci**: `claim-correction-box.js#isProfileManager` — `isAuthorizedEditor`'ın
+  **`claimDelegatedEdit` çıkarılmış** hâli. O bayrak "bir firmanın yetkilisiyim, künyesindeki BAŞKA
+  kişilerin profillerini de düzenleyebilirim" demektir; bir firma yetkilisinin ekibindeki kişinin
+  ADINA fotoğraf künyesi talebi açması istenmiyor. **Düzenle/Proje Ekle düğmeleri
+  `isAuthorizedEditor`'da KALDI** — daraltma yalnızca bu düğme için.
+- **Sunucu**: `photoClaims.js#architectManagerGate` — admin / onaylı `profile_claims('architect')` /
+  kaydı siteye kendi ekleyen (`canEditArchitectAsCreator`). Üçüncü turda kullanılan
+  `submissions.js#verifyClaimedProfileKey` **BİLEREK daha geniştir** (dördüncü yol olarak
+  `canEditArchitectViaOfficeMembership` delegasyonunu da kabul eder), bu yüzden artık kullanılmıyor
+  ve o fonksiyon/`DELEGATED_ACCESS` submissions.js'te yeniden PRIVATE oldu (dışa aktarılmış ölü bir
+  yüzey bırakılmadı). Bu bir kopya DEĞİL, bilinçli olarak farklı (daha dar) bir kuraldır.
+- Anahtar yine `canonicalRowExistsByKey` ile doğrulanır ve yetki **GÜNCEL canonical adla** sorulur
+  (`resolveCanonicalName`): `profile_claims` ADLA anahtarlı, bir yeniden adlandırmadan sonra eski
+  slug ile gelen istek aksi halde sessizce reddedilirdi.
+
+### 3. Fotoğrafladığı projesi olmayan kişide bölüm ve düğme YOK
+- Üçüncü turda `renderFindPhotosButton` bölümü AÇIYORDU (gerekçe: "düğmenin hedef kitlesi henüz
+  künyede görünmeyen fotoğrafçıdır"). Kullanıcı kararı bunun TERSİ — o davranış geri alındı:
+  `findPhotosSectionId` sözleşmesi kaldırıldı, bölümün görünürlüğü yalnızca
+  `photographedData.length`'e bağlı ve düğme de `findPhotosEnabled: () => photographedData.length > 0`
+  ile AYNI tek gerçeği okur, yani "bölüm gizli ama düğme var" durumu oluşamaz.
+- **BİLİNEN SONUÇ**: hiç fotoğraf künyesi olmayan bir kişi profilinde düğme HİÇ görünmez — ilk
+  künye kaydının başka bir yoldan (proje-ekle ya da admin) gelmesi gerekir.
+
+### 4. Tablet/mobil pop-up sırası — DEĞİŞİKLİK GEREKMEDİ (ölçüldü)
+Kullanıcı isteği: "Tablet ve mobil görünümde kişi ve firma popuplarında önce künye ve açıklama
+bölümleri olsun, daha sonraki satırlarda projeler vs. bölümleri gelsin. En sonda açılır-kapanır
+butonlar ve en altta önceki sonraki butonları olsun."
+
+- İstenen sıra **zaten yürürlükteydi**. Gerçek Chromium'da, gerçek CSS dosyalarıyla (modal-shell'in
+  enjekte ettiği CSS + `entity-detail.css` + `architect-detail.css`/`office-detail.css`) 700px ve
+  820px'te ölçüldü:
+  * kişi: `am-identity` → `am-social-links` → `am-detail-info` (künye + açıklama) → `am-office-pair`
+    → ... → `am-related-architects-section` → `claim-info-card`/`correction-info-card` (order:98) →
+    `am-prevnext` (99) → `am-source-disclaimer` (100).
+  * firma: `om-cover` → `om-identity` → `om-social-links` → `om-detail-info` → bölümler →
+    `om-jobs-card`/`claim`/`correction` (98) → `om-prevnext` (99) → disclaimer (100).
+- **MEKANİZMA**: `<=860px`'te `.modal-shell-left/.modal-shell-right` `display:contents` olur, tüm
+  çocuklar TEK dikey flex akışına katılır ve sıra `order` ile kurulur (98/99/100). Sol panel
+  künye+açıklamayı, sağ panel bölümleri taşıdığından DOM sırası gerisini hâlleder.
+- **TEK fark**: "önceki/sonraki en altta" isteğine karşın en altta `source-disclaimer` (order:100)
+  var — o tek satırlık kaynak ibaresi 2026-09-07'de "Önceki/Sonraki'den HEMEN SONRA" olacak şekilde
+  yine kullanıcı isteğiyle konmuştu. Önceki/Sonraki en alttaki BUTON çiftidir; ibare bir dipnot
+  olduğundan yerinde bırakıldı.
+
+Testler: `scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs` (44 test, preflight'a
+bağlı) — üçüncü turun (g) ve (a) maddeleri bu turda TERSİNE çevrildiği için o iki kelepçe
+güncellendi.

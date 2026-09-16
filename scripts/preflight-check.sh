@@ -751,6 +751,9 @@ rm -f /tmp/preflight_20260916b
 # bildirim olarak düşüyor ve onay künyeye + project_photographers kenarına + projenin taslağına
 # yazıyor. Yetki kapısı submissions.js#verifyClaimedProfileKey'den IMPORT edilir (ikinci kopya yok)
 # ve künyeye yazılacak ad canonical architects.name'den okunur, istemciden DEĞİL.
+# DÖRDÜNCÜ TUR (aynı dosyada): proje seçimi artık İKİ ADIM ("Talep Gönder" düğmesi), düğmenin
+# yetkisi YALNIZCA profilin kendi yöneticisi + admin (firma yetkilisi delegasyonu İKİ TARAFTAN da
+# çıkarıldı) ve fotoğrafladığı projesi olmayan kişide ne bölüm ne düğme görünür.
 # Bkz. scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs.
 if node scripts/test-2026-09-16-find-photos-and-mobile-tag-button.mjs >/tmp/preflight_20260916c 2>&1; then
   ok "2026-09-16 üçüncü tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260916c) test)"
