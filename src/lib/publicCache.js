@@ -722,7 +722,12 @@ export function poolCacheKey(kind) { return `pool:${kind}`; }
 // fetchPool() yalnızca KV boşsa çağrılır (pahalı JOIN+subquery sorgusu) — dönen değer, çağıranın
 // zaten filtre/sırala/sayfala için kullandığı ŞEKİLLENDİRİLMİŞ (map edilmiş) pool dizisidir, ham D1
 // satırları DEĞİL; böylece cache HIT'te satır->obje dönüşümü de atlanır.
-export async function getCachedPool(env, kind, fetchPool) {
+// opts.ttlSeconds(pool) — OPSİYONEL, havuzun KENDİ içeriğine göre daha KISA bir TTL seçmesi için
+// (2026-09-18, src/lib/photoPool.js): fotoğraf havuzu CLIP ipuçlarını tur başına sınırlı sayıda
+// görsel için hesaplar; "henüz bitmedi" diyen bir havuz 30 dk değil 60 sn yaşar ki bir sonraki
+// istek kalan görselleri tamamlasın. 60 sn'nin ALTI kabul edilmez (KV.put() 400 döner, bkz. proje
+// belleği) — değer aşağıda kelepçelenir. Seçenek verilmezse davranış BİREBİR eskisi gibidir.
+export async function getCachedPool(env, kind, fetchPool, opts) {
   if (env.FACET_CACHE) {
     const cached = await env.FACET_CACHE.get(poolCacheKey(kind), 'json');
     if (cached) return cached;
@@ -736,7 +741,12 @@ export async function getCachedPool(env, kind, fetchPool) {
   // src/lib/kvQuota.js). reserveKvWrite false dönerse yazma sessizce atlanır — bir sonraki istek
   // yalnızca tekrar D1'den okur, hiçbir kullanıcı işlemi bozulmaz.
   if (env.FACET_CACHE && await reserveKvWrite(env)) {
-    await env.FACET_CACHE.put(poolCacheKey(kind), JSON.stringify(pool), { expirationTtl: POOL_CACHE_TTL_SECONDS });
+    let ttl = POOL_CACHE_TTL_SECONDS;
+    if (opts && typeof opts.ttlSeconds === 'function') {
+      const wanted = Number(opts.ttlSeconds(pool));
+      if (Number.isFinite(wanted)) ttl = Math.min(POOL_CACHE_TTL_SECONDS, Math.max(60, Math.round(wanted)));
+    }
+    await env.FACET_CACHE.put(poolCacheKey(kind), JSON.stringify(pool), { expirationTtl: ttl });
   }
   return pool;
 }

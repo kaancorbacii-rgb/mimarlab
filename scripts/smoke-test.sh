@@ -395,6 +395,21 @@ if [[ "$foto_api" == *'"items"'* ]] && [[ "$foto_api" == *'"projectSlug"'* ]] &&
 else
   bad "/api/photos boş/eksik yanıt verdi: $(printf '%s' "$foto_api" | head -c 160)"
 fi
+# MEKAN FİLTRESİ BOŞ KALMAMALI (2026-09-18 beşinci tur). Ölçülen arıza: tek sinyal vision-LLM etiketi
+# iken ve etiketleme turu sürerken "Tuvalet & Banyo" 3 sonuç veriyordu, sayfa 200 dönmeye devam
+# ediyordu. /api/photos/stats kapsamı sayılarla verir: en az bir sinyal (LLM etiketi ya da CLIP
+# ipucu) görsellere ulaşmış OLMALI ve en sık aranan mekan boş DÖNMEMELİ.
+foto_stats=$(curl -s "$BASE_URL/api/photos/stats")
+foto_signal=$(printf '%s' "$foto_stats" | python3 -c 'import sys,json
+try:
+    d=json.load(sys.stdin); print(int(d.get("llmLabeled",0))+int(d.get("clipHinted",0)), int(d["spaces"]["Oturma Odası"]["total"]))
+except Exception: print("0 0")' 2>/dev/null)
+foto_sig_n=${foto_signal%% *}; foto_living_n=${foto_signal##* }
+if [ "${foto_sig_n:-0}" -gt 0 ] && [ "${foto_living_n:-0}" -gt 0 ]; then
+  ok "/api/photos/stats: mekan sinyali $foto_sig_n görselde, 'Oturma Odası' $foto_living_n sonuç"
+else
+  bad "/api/photos/stats: mekan filtresi BOŞ (sinyal=$foto_sig_n, Oturma Odası=$foto_living_n): $(printf '%s' "$foto_stats" | head -c 200)"
+fi
 # Menü kontrolü (kullanıcı isteği, 2026-09-17 ikinci tur madde 12: ana menü + footer'da PROJE'den
 # sonra). Menü site-chrome.js ile istemcide çizildiğinden ham HTML'de değil, dosyanın kendisinde aranır.
 chrome_js=$(curl -s "$BASE_URL/js/components/site-chrome.js")

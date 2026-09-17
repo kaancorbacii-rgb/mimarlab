@@ -1,0 +1,230 @@
+{
+ "_comment": "FOTOĞRAF sayfası — CLIP sıfır-atış (zero-shot) mekan sınıfları. Anahtar = sınıf adı: aranabilir 12 mekanın adı photo-space-taxonomy.js ile BİREBİR aynıdır; '_' ile başlayanlar ÇELDİRİCİ sınıflardır (olasılığı emer, sonuç üretmez; '_drawing' ayrıca çizimleri sayfadan dışlar). Değer = o sınıfın İngilizce alt-kavram cümleleri (CLIP İngilizce eğitildi). Bu dosya değişince scripts/build-photo-space-clip-prompts.py yeniden koşturulup src/lib/photoSpaceClipVectors.js YENİDEN ÜRETİLMELİDİR (preflight ikisinin özetini karşılaştırır).",
+ "templates": [
+  "a photo of {}.",
+  "architectural photography of {}.",
+  "a picture of {}."
+ ],
+ "classes": {
+  "Oturma Odası": [
+   "a living room",
+   "a living room with a sofa and a coffee table",
+   "a lounge seating area with sofas and armchairs",
+   "a sitting room with a fireplace",
+   "a TV room with a couch"
+  ],
+  "Mutfak": [
+   "a kitchen",
+   "a modern kitchen with cabinets and a countertop",
+   "a kitchen island with bar stools",
+   "an open kitchen and dining area in a home"
+  ],
+  "Yatak Odası": [
+   "a bedroom",
+   "a bedroom with a double bed",
+   "a hotel room with a bed",
+   "a children's bedroom"
+  ],
+  "Tuvalet & Banyo": [
+   "a bathroom",
+   "a bathroom with a sink and a mirror",
+   "a toilet",
+   "a public restroom with washbasins",
+   "a shower cabin",
+   "a bathtub",
+   "a washbasin with a faucet"
+  ],
+  "Çalışma Odası": [
+   "an office interior with desks and chairs",
+   "an open-plan office workspace",
+   "a home office with a desk",
+   "a meeting room with a conference table",
+   "a study room",
+   "a coworking space"
+  ],
+  "Koridor": [
+   "a corridor",
+   "a long hallway",
+   "an entrance hall of a home"
+  ],
+  "Merdiven": [
+   "a staircase",
+   "a spiral staircase",
+   "a stairwell",
+   "interior stairs",
+   "outdoor steps"
+  ],
+  "Balkon": [
+   "a balcony",
+   "a terrace with outdoor furniture",
+   "a rooftop terrace",
+   "a veranda"
+  ],
+  "Bahçe": [
+   "a garden",
+   "a courtyard with plants",
+   "a landscaped garden with trees and lawn",
+   "a backyard",
+   "a landscape design with plants",
+   "a park with walking paths"
+  ],
+  "Havuz": [
+   "a swimming pool",
+   "an indoor swimming pool",
+   "a pool with sun loungers",
+   "a reflecting pool",
+   "an ornamental pool with water"
+  ],
+  "Resepsiyon": [
+   "a reception desk",
+   "a hotel lobby with a reception desk",
+   "an office reception area",
+   "a lobby with seating",
+   "a clinic reception counter"
+  ],
+  "Depo": [
+   "a storage room with shelves",
+   "a warehouse interior",
+   "a garage",
+   "a parking garage",
+   "a pantry",
+   "a technical room with machinery",
+   "an archive room"
+  ],
+  "_drawing": [
+   "an architectural floor plan drawing",
+   "a site plan drawing",
+   "an architectural section drawing",
+   "an architectural elevation drawing",
+   "a technical line drawing of a building",
+   "an architectural diagram",
+   "an axonometric drawing",
+   "a hand-drawn architectural sketch"
+  ],
+  "_render": [
+   "a 3D rendering of a building",
+   "a computer generated image of an interior"
+  ],
+  "_exterior": [
+   "the exterior of a building",
+   "a building facade seen from the street",
+   "a modern house exterior",
+   "a high-rise tower",
+   "a night view of a building",
+   "a building at dusk with lights on",
+   "a mosque exterior with minarets",
+   "a historic stone building exterior",
+   "a monument",
+   "a bridge",
+   "ancient ruins"
+  ],
+  "_aerial": [
+   "an aerial view of buildings",
+   "a city skyline",
+   "a city square",
+   "a street view",
+   "a drone photo of a neighborhood"
+  ],
+  "_nature": [
+   "a sea view",
+   "a mountain landscape",
+   "a forest",
+   "a playground",
+   "a parking lot"
+  ],
+  "_worship": [
+   "the interior of a mosque prayer hall",
+   "a church interior",
+   "a dome ceiling seen from below",
+   "an ornate Ottoman interior with tiles and arches",
+   "a historic domed stone interior",
+   "the interior of a historic palace room",
+   "a mihrab niche"
+  ],
+  "_culture": [
+   "a museum exhibition hall",
+   "an art gallery interior",
+   "a library with bookshelves",
+   "an auditorium with rows of seats",
+   "a conference hall",
+   "a theater stage",
+   "a cinema hall",
+   "a television studio set"
+  ],
+  "_food": [
+   "a restaurant interior with dining tables",
+   "a cafe interior",
+   "a bar counter",
+   "a dining room with a dining table",
+   "a spice market stall",
+   "a wine cellar"
+  ],
+  "_retail": [
+   "a retail store interior",
+   "a showroom",
+   "a shopping mall interior",
+   "a car showroom",
+   "a hair salon"
+  ],
+  "_edu": [
+   "a classroom",
+   "a kindergarten playroom",
+   "a laboratory",
+   "a lecture hall"
+  ],
+  "_sport": [
+   "a gym with fitness equipment",
+   "a sports hall",
+   "a stadium",
+   "a spa with massage beds"
+  ],
+  "_health": [
+   "a hospital room",
+   "a dental clinic treatment room"
+  ],
+  "_industrial": [
+   "a factory production hall",
+   "a construction site",
+   "an airport terminal",
+   "a train station"
+  ],
+  "_large": [
+   "an atrium with a skylight",
+   "a large hall with a high ceiling",
+   "a foyer",
+   "an empty interior space with columns",
+   "a generic commercial interior"
+  ],
+  "_detail": [
+   "an architectural scale model",
+   "a close-up of a wall texture",
+   "a close-up detail of furniture",
+   "a close-up of a building facade detail",
+   "a lighting fixture",
+   "a chair",
+   "a door",
+   "a window",
+   "a ceiling",
+   "a wooden structure detail"
+  ],
+  "_people": [
+   "a portrait of a person",
+   "a group of people"
+  ],
+  "_graphic": [
+   "a logo or text graphic",
+   "a poster",
+   "a map"
+  ],
+  "_hamam": [
+   "a Turkish bath hammam interior",
+   "a historic hammam with a marble platform",
+   "a historic hammam converted into a museum"
+  ],
+  "_closet": [
+   "a walk-in closet with clothes",
+   "a retail display with shelves",
+   "a locker room"
+  ]
+ }
+}

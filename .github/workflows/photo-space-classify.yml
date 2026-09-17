@@ -23,10 +23,31 @@ name: Fotoğraf sayfası — mekan sınıflandırması (AI)
 # olanlar atlanır), yani yeni proje eklendikçe betik tekrar koşturulup yalnızca eksikler tamamlanır.
 #
 # VARSAYILAN DRY-RUN: `apply` açıkça `evet` yapılmadıkça hiçbir şey yazılmaz.
+#
+# 2026-09-18 BEŞİNCİ TUR ("en doğru ve en çok sonuç için gereken en iyi sistemi kur"):
+#   * PARALEL: betik artık `concurrency` kadar görseli aynı anda işler. Sıralı sürüm canlıda saatte
+#     ~280 görsel işliyordu (11 bin görsel ~40 saat, iş sınırı 6 saat) — filtrelerin boş kalmasının
+#     asıl nedeni buydu.
+#   * ZAMANLANMIŞ: yeni yüklenen projelerin görselleri kimse düğmeye basmadan etiketlensin diye iş
+#     ayrıca `schedule` ile koşar (yalnızca EKSİKLERİ işler; eksik yoksa tek bir D1 sorgusuyla biter).
+#     Zamanlanmış koşu her zaman `apply=evet, scope=tumu`dur. O ana kadar geçen sürede filtreleri
+#     CLIP ipucu doldurur (src/lib/photoSpaceClip.js) — yani yeni görsel hiçbir an "aranamaz" kalmaz.
+#   * `mode=olc`: scripts/photo-space-gold.json'daki gözle etiketli kümede isabet/kapsama ölçer,
+#     HİÇBİR ŞEY yazmaz. Prompt değişikliği canlıya çıkmadan önce bununla ölçülür.
 
 on:
+  # Günde dört kez, Gündem/görsel-dizin cron'larıyla çakışmayan bir dakikada. Yalnızca eksikler
+  # işlendiği için boş geçen koşu saniyeler sürer.
+  schedule:
+    - cron: '41 2,8,14,20 * * *'
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'etiketle = görselleri sınıflandır; olc = gözle etiketli kümede isabet ölç (yazmaz); dizin = CLIP dizin kapsamını raporla (yazmaz, AI çağırmaz)'
+        required: true
+        default: 'etiketle'
+        type: choice
+        options: ['etiketle', 'olc', 'dizin']
       apply:
         description: "D1'e YAZ (evet = gerçekten güncelle, hayır = yalnızca rapor)"
         required: true
@@ -56,11 +77,15 @@ on:
         required: false
         default: ''
       force:
-        description: 'Zaten etiketli görselleri de YENİDEN sınıflandır'
+        description: 'v2 etiketli görselleri de YENİDEN sınıflandır (v1 girdileri zaten yeniden işlenir)'
         required: false
         default: 'hayir'
         type: choice
         options: ['hayir', 'evet']
+      concurrency:
+        description: 'Aynı anda işlenen görsel sayısı (1-32)'
+        required: false
+        default: '10'
 
 # İki turun aynı satırları aynı anda yazmasını önler.
 concurrency:
@@ -70,10 +95,10 @@ concurrency:
 jobs:
   classify:
     runs-on: ubuntu-latest
-    # Görsel başına 1 indirme + 1 vision çağrısı (~3-8 sn). Binlerce görsellik tam tarama saatler
-    # sürer; yarıda kalırsa `offset` ile kaldığı yerden sürdürülür (betik zaten etiketli görselleri
-    # atladığı için aynı komut tekrar çalıştırılarak da tamamlanabilir).
-    timeout-minutes: 330
+    # Görsel başına 1 indirme + 1 vision çağrısı (ölçüldü: ~13 sn). Betik 320. dakikada yeni görsel
+    # almayı KENDİSİ bırakır, bitenleri yazar ve temiz çıkar; kalanlar bir sonraki koşuda işlenir
+    # (zaten etiketli görseller atlandığı için aynı komut tekrar çalıştırılarak tamamlanır).
+    timeout-minutes: 345
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -104,6 +129,8 @@ jobs:
 
       - name: Sınıflandırma
         env:
+          IN_MODE: ${{ inputs.mode }}
+          IN_CONCURRENCY: ${{ inputs.concurrency }}
           IN_APPLY: ${{ inputs.apply }}
           IN_SCOPE: ${{ inputs.scope }}
           IN_LIMIT: ${{ inputs.limit }}
@@ -116,6 +143,18 @@ jobs:
           # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak okunur
           # (deploy.yml/gundem-retitle.yml'deki AYNI script-injection savunması).
           argv=()
+          case "${IN_CONCURRENCY}" in '') ;; *[!0-9]*) echo "concurrency sayı olmalı" >&2; exit 1 ;; *) argv+=("--concurrency=${IN_CONCURRENCY}") ;; esac
+          if [ "${IN_MODE}" = "dizin" ]; then
+            node scripts/photo-space-classify-backfill.mjs --index-report 2>&1 | tee photo-space-classify-log.txt
+            exit 0
+          fi
+          if [ "${IN_MODE}" = "olc" ]; then
+            echo "Çalıştırılıyor (ÖLÇÜM, yazma yok): node scripts/photo-space-classify-backfill.mjs --eval ${argv[*]}"
+            node scripts/photo-space-classify-backfill.mjs --eval "${argv[@]}" 2>&1 | tee photo-space-classify-log.txt
+            exit 0
+          fi
+          # ZAMANLANMIŞ koşuda girdi YOKTUR: her zaman "tüm canlı projeler, yalnızca eksikler, YAZ".
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then IN_APPLY=evet; IN_SCOPE=tumu; IN_OFFSET=0; IN_MAX_IMAGES=0; IN_SLUG=''; IN_FORCE=hayir; fi
           if [ "${IN_APPLY}" = "evet" ]; then argv+=("--apply"); fi
           if [ "${IN_FORCE}" = "evet" ]; then argv+=("--force"); fi
           if [ "${IN_SCOPE}" = "tumu" ]; then
@@ -137,5 +176,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: photo-space-classify-log
-          path: photo-space-classify-log.txt
+          path: |
+            photo-space-classify-log.txt
+            photo-space-eval-result.json
           if-no-files-found: warn

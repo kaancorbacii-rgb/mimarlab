@@ -880,6 +880,22 @@ else
 fi
 rm -f /tmp/preflight_20260917f
 
+# 2026-09-18 BEŞİNCİ tur (/fotograf arama sistemi): mekan filtresi artık ÜÇ sinyalden beslenir —
+# vision-LLM etiketi v2 (sahne adımı + çeldirici etiketler; v1'in "cepheye Resepsiyon" hatası
+# yazılamaz, v1 girdileri "bakılmadı" sayılır), CLIP sıfır-atış ipucu (görsel arama dizinindeki
+# embedding'lerden ANINDA; JS uygulaması Python referansını yeniden üretmeli, üretilmiş vektör
+# modülü kaynak sınıf dosyasıyla aynı özetten olmalı) ve künye ön bilgisi (TEK BAŞINA ASLA sonuç
+# üretmez). Kademeli tek sıralama, kalıcı ipucu önbelleği + CPU bütçesi, paralel etiketleme betiği,
+# zamanlanmış workflow ve gözle etiketli değerlendirme kümesi de burada kelepçelenir.
+# Bkz. scripts/test-2026-09-18-photo-space-signals.mjs.
+if node scripts/test-2026-09-18-photo-space-signals.mjs >/tmp/preflight_20260918a 2>&1; then
+  ok "2026-09-18 fotoğraf arama sinyalleri testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260918a) test)"
+else
+  bad "2026-09-18 fotoğraf arama sinyalleri testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260918a >&2
+fi
+rm -f /tmp/preflight_20260918a
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

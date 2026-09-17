@@ -30,6 +30,12 @@ export async function loadImageIndex(env, type) {
 function invalidateMemCache(type) {
   memCache.delete(type);
 }
+// Testler için: isolate içi 10 dk'lık belleği düşürür (KV'ye doğrudan paket yazan bir fikstür, bir
+// önceki fikstürün dizinini görmesin). Üretimde çağıranı yoktur; yazma yolları zaten kendi
+// invalidateMemCache çağrısını yapar.
+export function resetImageIndexMemCache(type) {
+  if (type) memCache.delete(type); else memCache.clear();
+}
 
 // ---------------------------------------------------------------------------------------------
 // ARTIMLI EKLEME (brief madde 8/18: "yeni proje/ürün görseli eklendiğinde index otomatik

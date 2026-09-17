@@ -7,70 +7,130 @@
 // İÇİNDE hangi mekanın göründüğünü soruyor). toBase64/parseJsonLoose/VISION_CANDIDATES paylaşılır,
 // kopyalanmaz.
 //
-// 2026-09-17 İKİNCİ TUR (kullanıcı isteği madde 11: "Filtreleme özelliğini yapay zekayı
-// kullanarak geliştir"): prompt artık her etiketin TANIMINI da taşıyor (photo-space-taxonomy.js#
-// PHOTO_SPACE_TAXONOMY.description) ve etiket başına GÜVEN puanı ister — düşük güvenli tahminler
-// atılır (PRODUCT_CONFIDENCE_MIN'in visionAnalyze.js'teki AYNI gerekçesi: model "uydurmak" yerine
-// düşük puan verir, biz eleriz). Fotoğraf/çizim ayrımı da prompta açıkça yazıldı: son üç etiket
-// (plan/kesit/cephe ÇİZİMİ) bir fotoğrafa asla verilmemeli, bir çizime de mekan etiketi
-// verilmemeli.
+// ============================================================================================
+// PROMPT v2 (2026-09-18 beşinci tur, kullanıcı isteği: "arama filtreleri için en doğru ve en çok
+// sonuç için gereken en iyi sistemi kur") — KÖK NEDEN CANLI VERİDE ÖLÇÜLDÜ
+// ============================================================================================
+// v1 promptu modele YALNIZCA kullanıcının 15 etiketini veriyordu. Canlıda etiketlenen ilk 282
+// görselin neredeyse TAMAMI 2-3 etiket aldı, boş dizi HİÇ dönmedi: Ankara Cumhuriyet Müzesi'nin
+// cephe fotoğrafları "Resepsiyon + Çalışma Odası + Bahçe", Beyazıt Meydanı'nın hava fotoğrafı
+// "Bahçe + Resepsiyon" oldu. Aynı kareler, listesinde "Dış Cephe" bulunan ilk turda DOĞRU
+// etiketlenmişti — yani hata modelin görmemesi değil, kapalı listenin onu en yakın etikete
+// ZORLAMASIYDI. "Alakasız sonuç" şikâyetinin künye ikincil sonucundan sonraki İKİNCİ kaynağı buydu.
 //
-// normalizeSpaces — modelin DÖNDÜRDÜĞÜ HER ŞEY PHOTO_SPACE_OPTIONS listesine karşı süzülür;
+// v2 üç şeyi değiştirir:
+//   1. ÖNCE SAHNE TÜRÜ ("scene"): iç mekan / dış mekan / dış cephe / çizim / detay. Dış cephe ve
+//      detay karelerine mekan etiketi verilmez — model kararını iki adımda verir.
+//   2. ÇELDİRİCİ ETİKETLER (photo-space-taxonomy.js#PHOTO_SPACE_DISTRACTORS): "Dış Cephe",
+//      "Restoran / Kafe", "Sergi / Müze", "Genel İç Mekan"... Modelin "bu aranan mekanlardan biri
+//      değil" diyebileceği bir yer. Bunlar da saklanır ama hiçbir yerde aranmaz/gösterilmez.
+//   3. En fazla 2 etiket (3 değil) ve "ana konu" vurgusu.
+//
+// SAKLAMA BİÇİMİ v2: image_spaces[url] = { v: 2, scene, spaces: [{label, confidence}] }.
+// `v` alanı BİLEREK var: v1 promptunun ürettiği satırlar (düz dizi) GÜVENİLMEZDİR ve havuz onları
+// "AI henüz bakmadı" sayar (bkz. src/lib/photoPool.js#normalizeStoredSpaces); etiketleme betiği de
+// v2 olmayan her girdiyi YENİDEN işler — `--force` gerekmeden.
+//
+// normalizeSpaces — modelin DÖNDÜRDÜĞÜ HER ŞEY PHOTO_SPACE_AI_LABELS listesine karşı süzülür;
 // listede olmayan bir etiket sessizce düşer, model kendi kategorisini UYDURAMAZ.
 import { VISION_CANDIDATES, parseJsonLoose, toBase64 } from './visionAnalyze.js';
 import photoSpaceTaxonomyJs from '../../photo-space-taxonomy.js';
 
-const { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY, PHOTO_SPACE_LABELS } = photoSpaceTaxonomyJs;
+const {
+  PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY, PHOTO_SPACE_LABELS, PHOTO_SPACE_DRAWING_LABELS,
+  PHOTO_SPACE_DISTRACTORS, PHOTO_SPACE_DISTRACTOR_LABELS, PHOTO_SPACE_AI_LABELS,
+} = photoSpaceTaxonomyJs;
 
+export const SPACE_LABEL_VERSION = 2;
 // Bir etiketin kabul edilmesi için gereken en düşük güven. Modeller güveni genelde 0.6-0.95
 // bandında veriyor; 0.45 "emin değilim ama olabilir" tahminlerini eler, "ikincil ama gerçek"
 // etiketleri (ör. mutfak+yemek alanı birleşik) korur.
 export const SPACE_CONFIDENCE_MIN = 0.45;
-const MAX_SPACES = 3;
+const MAX_SPACES = 2;
+export const SPACE_SCENES = ['ic_mekan', 'dis_mekan', 'dis_cephe', 'cizim', 'detay'];
 
-const DEFINITIONS = PHOTO_SPACE_TAXONOMY.map(t => `- "${t.label}": ${t.description}`).join('\n');
+const def = (t) => `- "${t.label}": ${t.description}`;
+const SEARCHABLE_DEFS = PHOTO_SPACE_TAXONOMY.filter(t => t.kind !== 'drawing').map(def).join('\n');
+const DRAWING_DEFS = PHOTO_SPACE_TAXONOMY.filter(t => t.kind === 'drawing').map(def).join('\n');
+const DISTRACTOR_DEFS = PHOTO_SPACE_DISTRACTORS.map(def).join('\n');
 
-const PROMPT = `Bu bir mimarlık/iç mekan/peyzaj projesine ait bir GÖRSELDİR — gerçek bir fotoğraf
-ya da teknik bir çizim (plan/kesit/cephe) olabilir.
+const PROMPT = `Bu bir mimarlık / iç mimarlık / peyzaj projesine ait bir GÖRSELDİR. Görevin, görselin ANA
+KONUSU olan mekanı sınıflandırmak.
 
-GÖREV: Görselde hangi MEKAN(LAR) gösteriliyor? YALNIZCA aşağıdaki listeden seç, en olası önce,
-en fazla ${MAX_SPACES} tane. Her seçim için 0-1 arası bir güven puanı ver.
+ADIM 1 — "scene": görselin TÜRÜ. Şunlardan TAM BİRİ:
+- "ic_mekan": bir İÇ MEKANIN fotoğrafı (fotogerçekçi iç mekan render'ı da buraya)
+- "dis_mekan": bahçe, avlu, havuz, teras/balkon gibi bir AÇIK ALANIN fotoğrafı (ana konu o açık alansa)
+- "dis_cephe": bir binanın DIŞARIDAN görünümü — cephe, sokaktan bina, gece görünümü, hava/drone
+  fotoğrafı, kent silüeti, anıt, köprü, harabe
+- "cizim": plan, kesit, görünüş, vaziyet planı, diyagram, eskiz, aksonometri, pafta
+- "detay": malzeme/doku, mobilya, aydınlatma yakın çekimi; maket; insan portresi; logo/yazı
 
-ETİKETLER VE TANIMLARI:
-${DEFINITIONS}
+ADIM 2 — "spaces": aşağıdaki listelerden en fazla ${MAX_SPACES} etiket, en olası ÖNCE. Her etiket
+için 0-1 arası güven ver.
+
+ARANAN MEKANLAR:
+${SEARCHABLE_DEFS}
+
+ÇİZİM ETİKETLERİ (yalnızca scene="cizim" ise):
+${DRAWING_DEFS}
+
+DİĞER (görsel bunlardan biriyse BUNU yaz — yukarıdaki mekanlara ZORLA UYDURMA):
+${DISTRACTOR_DEFS}
 
 KURALLAR:
-- Görsel bir FOTOĞRAF ise ("Plan Çizimi"/"Kesit Çizimi"/"Cephe Çizimi") etiketlerini KULLANMA.
-- Görsel bir TEKNİK ÇİZİM ise yalnızca o üç çizim etiketinden uygun olanı ver, mekan etiketi VERME.
-- Bir binanın DIŞ CEPHESİNİN fotoğrafı (sokaktan çekilmiş bina) hiçbir etikete uymaz — boş dizi ver
-  ("Cephe Çizimi" bir fotoğraf DEĞİLDİR).
-- Yalnızca bir detay/malzeme çekimi, insan portresi ya da tanınamayan bir açı ise boş dizi ver.
-- Listede olmayan bir kelime YAZMA, tahmin UYDURMA; emin olmadığın etikete düşük güven ver.
-- İLK etiket görselin ANA KONUSU olsun (karenin çoğunu kaplayan mekan). Arka planda/kapı aralığından
-  görünen ya da karede küçük bir köşe kaplayan mekanları EKLEME — yalnızca gerçekten gösterilen mekan.
-- Kararsızsan az etiket ver; yanlış bir etiket, eksik bir etiketten daha kötüdür.
+- scene="dis_cephe" ise tek etiket "Dış Cephe"dir. Bir binanın önündeki çim ya da kaldırım onu
+  "Bahçe" YAPMAZ; binanın girişi onu "Resepsiyon" YAPMAZ; pencereleri onu "Çalışma Odası" YAPMAZ.
+- scene="detay" ise tek etiket "Detay"dır.
+- scene="cizim" ise YALNIZCA bir çizim etiketi ver, mekan etiketi VERME.
+- İLK etiket karenin ÇOĞUNU kaplayan, fotoğrafın asıl gösterdiği mekandır. Arka planda, kapı
+  aralığından ya da karenin küçük bir köşesinde görünen mekanı EKLEME.
+- İkinci etiketi YALNIZCA kare gerçekten iki mekanı birlikte gösteriyorsa ver (ör. mutfak + oturma
+  alanı tek hacimde). Emin değilsen TEK etiket ver.
+- Hiçbiri tam uymuyorsa "Genel İç Mekan" ya da uygun DİĞER etiketini seç; listede olmayan bir
+  kelime YAZMA.
+- Yanlış bir etiket, eksik bir etiketten daha kötüdür.
 
 Yalnızca şu JSON ile cevap ver, başka hiçbir metin ekleme:
-{"spaces": [{"label": string, "confidence": number}]}`;
+{"scene": string, "spaces": [{"label": string, "confidence": number}]}`;
 
-// Çıktı: [{label, confidence}] — güven de SAKLANIR (2026-09-18 üçüncü tur, kullanıcı isteği: "arama
-// kalitesini arttırmak için farklı yollar da bul"): filtre, birincil/yüksek güvenli eşleşmeleri ikincil/
-// zayıf olanların ÖNÜNE koyar (bkz. src/routes/photos.js#selectPhotos). Eski düz-string çıktı biçimi
-// hâlâ kabul edilir (güven bilinmiyor → null; whitelist yine uygulanır). Whitelist ÇİZİM etiketlerini
-// de içerir (PHOTO_SPACE_LABELS) — bir çizimi çizim olarak etiketleyebilmek, onu sonuçlardan
-// dışlamanın tek yoludur.
-function normalizeSpaces(raw) {
+// Çıktı: [{label, confidence}] — model sırasıyla, whitelist'ten geçmiş. Çeldirici etiketler de
+// KORUNUR (sıra bilgisi onlarla anlamlı: "Dış Cephe" birinci, "Bahçe" ikinci gelen bir karede Bahçe
+// BİRİNCİL DEĞİLDİR — bkz. photoPool.js#normalizeStoredSpaces, birincillik çeldiriciler ATILMADAN
+// önce belirlenir). Eski düz-string çıktı biçimi hâlâ kabul edilir (güven bilinmiyor -> null).
+export function normalizeSpaces(raw) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.spaces)) return [];
   const out = [];
   for (const s of raw.spaces) {
     const label = typeof s === 'string' ? s.trim() : (s && typeof s.label === 'string' ? s.label.trim() : '');
     const conf = typeof s === 'string' ? null : Number(s && s.confidence);
-    if (!PHOTO_SPACE_LABELS.includes(label) || out.some(o => o.label === label)) continue;
+    if (!PHOTO_SPACE_AI_LABELS.includes(label) || out.some(o => o.label === label)) continue;
     if (Number.isFinite(conf) && conf < SPACE_CONFIDENCE_MIN) continue;
     out.push({ label, confidence: Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : null });
     if (out.length >= MAX_SPACES) break;
   }
   return out;
+}
+
+// SAHNE TUTARLILIĞI — modelin iki adımı birbirini tutmuyorsa SAHNE kazanır (ölçüm: v1'in hataları
+// tam olarak "dış cephe karesine iç mekan etiketi" sınıfındaydı; sahne kararı etiket kararından
+// daha güvenilir). Çizim/dış cephe/detay sahnesinde aranabilir mekan etiketi TUTULMAZ; fotoğraf
+// sahnesinde çizim etiketi tutulmaz.
+export function reconcileScene(scene, spaces) {
+  const sc = SPACE_SCENES.includes(scene) ? scene : null;
+  if (!sc) return { scene: null, spaces };
+  const isSearchable = (l) => PHOTO_SPACE_OPTIONS.includes(l);
+  const isDrawing = (l) => PHOTO_SPACE_DRAWING_LABELS.includes(l);
+  let out = spaces;
+  if (sc === 'cizim') {
+    out = spaces.filter(s => isDrawing(s.label));
+    // Model sahneyi çizim deyip çizim TÜRÜNÜ söylemediyse: sayfadan dışlanması için biri yeter.
+    if (!out.length) out = [{ label: 'Cephe Çizimi', confidence: null }];
+  } else if (sc === 'dis_cephe' || sc === 'detay') {
+    out = spaces.filter(s => !isSearchable(s.label) && !isDrawing(s.label));
+  } else {
+    out = spaces.filter(s => !isDrawing(s.label));
+  }
+  return { scene: sc, spaces: out };
 }
 
 // classifyPhotoSpace — TEK görsel, TEK sınıflandırma. bytes: Uint8Array (R2'den/CDN'den indirilmiş
@@ -107,7 +167,8 @@ export async function classifyPhotoSpace(env, bytes, timeoutMs, mime, context) {
       const text = result && (result.response ?? result.description ?? result);
       const parsed = parseJsonLoose(typeof text === 'string' ? text : JSON.stringify(text));
       if (!parsed) { errors.push(`${cand.model}: JSON çözülemedi`); continue; }
-      return { spaces: normalizeSpaces(parsed), model: cand.model };
+      const { scene, spaces } = reconcileScene(typeof parsed.scene === 'string' ? parsed.scene.trim() : '', normalizeSpaces(parsed));
+      return { scene, spaces, model: cand.model };
     } catch (err) {
       errors.push(`${cand.model}: ${err && err.message ? err.message : err}`);
     }
@@ -115,6 +176,11 @@ export async function classifyPhotoSpace(env, bytes, timeoutMs, mime, context) {
   const e = new Error('photo-space: hiçbir model yanıt vermedi');
   e.details = errors;
   throw e;
+}
+
+// D1'e yazılacak girdi (bkz. dosya başı "SAKLAMA BİÇİMİ v2").
+export function storedSpaceEntry(result) {
+  return { v: SPACE_LABEL_VERSION, scene: result.scene || null, spaces: result.spaces || [] };
 }
 
 // ARAMA KUTUSUNDAKİ SERBEST METNİ BİR ETİKETE EŞLE (kullanıcı isteği madde 11) — kullanıcı
@@ -128,7 +194,7 @@ arama metnini aşağıdaki SABİT mekan etiketlerinden EN uygun olanına eşle. 
 null döndür — zorla eşleme yapma.
 
 ETİKETLER VE TANIMLARI:
-${DEFINITIONS}
+${SEARCHABLE_DEFS}
 
 Yalnızca JSON döndür: {"space": <etiket ya da null>}`;
 }
@@ -146,4 +212,4 @@ export function normalizeQuerySpace(parsed) {
   return v && PHOTO_SPACE_OPTIONS.includes(v) ? v : null;
 }
 
-export { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY };
+export { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY, PHOTO_SPACE_LABELS, PHOTO_SPACE_DISTRACTOR_LABELS };
