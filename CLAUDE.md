@@ -2078,3 +2078,35 @@ künyeleriyle güçlendir.
 - **Otomatik yükleme**: `IntersectionObserver` sentinel (600px önden) + düğme duruyor.
 - Testler: `test-2026-09-17-comments-identity-and-photo-page.mjs` 26 test (ikincil sonuç kapısı,
   sıralama, bağlam notu, sayfa kelepçeleri).
+
+## /fotograf dördüncü tur — otomatik yükleme yok, arama kalitesi, çizimler dışarıda (2026-09-18)
+
+Kullanıcı isteği: kaydırınca otomatik yükleme olmasın (yalnızca "Daha Fazla Göster"); filtreye göre
+bazen alakasız fotoğraflar geliyor — kaliteyi artıracak farklı yollar; lightbox'taki "künyesindeki
+bilgiye göre listelendi" metni silinsin, künyede mimar da olsun; çizim seçenekleri aramadan kalksın
+ve sonuçlarda çizim çıkmasın.
+
+- **Otomatik yükleme KALDIRILDI** (bir önceki turun IntersectionObserver'ı + sentinel); sayfa yalnızca
+  düğmeyle ilerler.
+- **Alakasız sonuçların KÖK NEDENİ künye ikincil sonucuydu** (üçüncü tur): projenin açıklamasında
+  "banyo" geçmesi o projenin TÜM etiketsiz görsellerini banyo yapıyordu — proje seviyesinde bir sinyal
+  görsel seçemez. KALDIRILDI (`keywordSpaces`/`via` de gitti). Künye artık yalnızca sınıflandırıcıya
+  BAĞLAM (photoSpaceClassify.js#buildContextNote) ve arama kutusunda eş anlamlı eşleme için.
+- **Güven SAKLANIYOR**: `image_spaces[url]` artık `[{label, confidence}]` (eski düz-string satırlar
+  `photoPool.js#normalizeStoredSpaces` ile okunmaya devam eder, güven=null). Filtre İKİ KADEMELİ
+  (`photos.js#matchTier`): (1) mekan birincil etiket (modelin "ana konu"su, listenin ilki) ya da
+  güven ≥ 0.7; (2) ikincil etiket, güven ≥ 0.55 (bilinmiyorsa kabul). Her kademede yükleme sırası
+  korunur — zayıf eşleşmeler kümenin sonuna iner, düşük güvenli ikincil etiket hiç çıkmaz.
+- **Prompt sıkılaştırıldı**: "İLK etiket görselin ANA KONUSU; arka planda/kapı aralığından görünen
+  mekanı ekleme; kararsızsan az etiket ver — yanlış etiket eksikten kötüdür."
+- **Çizimler**: taksonomide `kind:'drawing'` (Plan/Kesit/Cephe Çizimi). `PHOTO_SPACE_LABELS` (AI
+  whitelist'i, 15) ile `PHOTO_SPACE_OPTIONS` (aranabilir, 12) AYRILDI — çizim etiketi listede KALIR
+  ki AI bir çizimi çizim olarak etiketlesin; çizim etiketi taşıyan görsel havuza HİÇ GİRMEZ
+  (fotoğraf sayfası), dropdown'da ve `space-for-query` şemasında yok.
+- **Künyede Mimar**: pop-up ile aynı düşüş — mimarı girilmemiş projede firmanın kurucuları
+  (`office_founders`) "Mimar" satırında (`project.js#fetchFoundersForOffices`in havuz karşılığı);
+  bağ görünürlüğü de pop-up'ınki (önizlemedeki profil adıyla görünür).
+- Etiketleme turu (max_images=0, künye bağlamı) kuyrukta; yeni tur güvenleri de yazar, eski turların
+  düz-string etiketleri geçerli kalır. `--force` ile tam yeniden etiketleme güven verisini tamamlar.
+- Testler: `test-2026-09-17-comments-identity-and-photo-page.mjs` 26 test (kademe kuralı, çizim
+  dışlama, kurucu düşüşü, eski/yeni biçim normalize).

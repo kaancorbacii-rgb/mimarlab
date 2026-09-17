@@ -20,7 +20,7 @@
 import { VISION_CANDIDATES, parseJsonLoose, toBase64 } from './visionAnalyze.js';
 import photoSpaceTaxonomyJs from '../../photo-space-taxonomy.js';
 
-const { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY } = photoSpaceTaxonomyJs;
+const { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY, PHOTO_SPACE_LABELS } = photoSpaceTaxonomyJs;
 
 // Bir etiketin kabul edilmesi için gereken en düşük güven. Modeller güveni genelde 0.6-0.95
 // bandında veriyor; 0.45 "emin değilim ama olabilir" tahminlerini eler, "ikincil ama gerçek"
@@ -46,21 +46,28 @@ KURALLAR:
   ("Cephe Çizimi" bir fotoğraf DEĞİLDİR).
 - Yalnızca bir detay/malzeme çekimi, insan portresi ya da tanınamayan bir açı ise boş dizi ver.
 - Listede olmayan bir kelime YAZMA, tahmin UYDURMA; emin olmadığın etikete düşük güven ver.
+- İLK etiket görselin ANA KONUSU olsun (karenin çoğunu kaplayan mekan). Arka planda/kapı aralığından
+  görünen ya da karede küçük bir köşe kaplayan mekanları EKLEME — yalnızca gerçekten gösterilen mekan.
+- Kararsızsan az etiket ver; yanlış bir etiket, eksik bir etiketten daha kötüdür.
 
 Yalnızca şu JSON ile cevap ver, başka hiçbir metin ekleme:
 {"spaces": [{"label": string, "confidence": number}]}`;
 
+// Çıktı: [{label, confidence}] — güven de SAKLANIR (2026-09-18 üçüncü tur, kullanıcı isteği: "arama
+// kalitesini arttırmak için farklı yollar da bul"): filtre, birincil/yüksek güvenli eşleşmeleri ikincil/
+// zayıf olanların ÖNÜNE koyar (bkz. src/routes/photos.js#selectPhotos). Eski düz-string çıktı biçimi
+// hâlâ kabul edilir (güven bilinmiyor → null; whitelist yine uygulanır). Whitelist ÇİZİM etiketlerini
+// de içerir (PHOTO_SPACE_LABELS) — bir çizimi çizim olarak etiketleyebilmek, onu sonuçlardan
+// dışlamanın tek yoludur.
 function normalizeSpaces(raw) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.spaces)) return [];
   const out = [];
   for (const s of raw.spaces) {
-    // Hem yeni ({label, confidence}) hem eski (düz string) çıktı biçimi kabul edilir — eski
-    // biçimde güven bilinmediğinden kabul eşiği uygulanmaz (whitelist yine uygulanır).
     const label = typeof s === 'string' ? s.trim() : (s && typeof s.label === 'string' ? s.label.trim() : '');
-    const conf = typeof s === 'string' ? 1 : Number(s && s.confidence);
-    if (!PHOTO_SPACE_OPTIONS.includes(label) || out.includes(label)) continue;
+    const conf = typeof s === 'string' ? null : Number(s && s.confidence);
+    if (!PHOTO_SPACE_LABELS.includes(label) || out.some(o => o.label === label)) continue;
     if (Number.isFinite(conf) && conf < SPACE_CONFIDENCE_MIN) continue;
-    out.push(label);
+    out.push({ label, confidence: Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : null });
     if (out.length >= MAX_SPACES) break;
   }
   return out;

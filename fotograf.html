@@ -288,7 +288,6 @@
   .ph-lightbox-meta{display:flex; flex-direction:column; gap:7px; font-size:13px; color:#1B2A3D; line-height:1.45;}
   .ph-lightbox-meta strong{font-weight:600;}
   .ph-lightbox-meta a{color:#2B425F; text-decoration:underline; text-decoration-color:rgba(43,66,95,0.35);}
-  .ph-lightbox-via{font-size:11.5px; color:#7A8798;}
   .ph-lightbox-spaces{display:flex; flex-wrap:wrap; gap:6px;}
   .ph-lightbox-space-chip{
     font-size:11.5px; font-weight:600; padding:4px 11px; border-radius:100px;
@@ -387,7 +386,6 @@
     <div class="ph-empty" id="ph-empty" style="display:none;">Bu mekana ait fotoğraf bulunamadı.</div>
   </div>
   <div class="ph-loadmore-wrap">
-    <div id="ph-loadmore-sentinel" aria-hidden="true"></div>
     <button type="button" class="ph-loadmore-btn" id="ph-loadmore-btn" style="display:none;">Daha Fazla Göster</button>
   </div>
 
@@ -458,7 +456,8 @@
   function matchingOptions(query){
     const q = foldTr(query);
     if(!q) return spaceOptions();
-    const tax = (typeof PHOTO_SPACE_TAXONOMY !== 'undefined') ? PHOTO_SPACE_TAXONOMY : spaceOptions().map(l => ({ label: l, keywords: [] }));
+    // Çizim etiketleri (kind:'drawing') aramada SUNULMAZ (2026-09-18 üçüncü tur).
+    const tax = ((typeof PHOTO_SPACE_TAXONOMY !== 'undefined') ? PHOTO_SPACE_TAXONOMY : spaceOptions().map(l => ({ label: l, keywords: [] }))).filter(t => t.kind !== 'drawing');
     return tax.filter(t => foldTr(t.label).includes(q) || (t.keywords || []).some(k => foldTr(k).includes(q) || q.includes(foldTr(k)))).map(t => t.label);
   }
   function selectSpace(space){
@@ -561,14 +560,9 @@
   }
   function reload(){ exhausted = false; loadPage(true); }
   loadMoreBtn.addEventListener('click', () => loadPage(false));
-  // Sayfanın altına inince sonraki sayfa kendiliğinden yüklenir (kullanıcı isteği, 2026-09-18
-  // madde 5) — düğme yine durur (JS'siz/IO'suz ortam ve erişilebilirlik için).
-  if('IntersectionObserver' in window){
-    const io = new IntersectionObserver((entries) => {
-      if(entries.some(e => e.isIntersecting) && !exhausted && !loading && items.length) loadPage(false);
-    }, { rootMargin: '600px 0px' });
-    io.observe(document.getElementById('ph-loadmore-sentinel'));
-  }
+  // OTOMATİK YÜKLEME YOK (kullanıcı isteği, 2026-09-18 üçüncü tur: "Sayfa altına indikçe
+  // fotoğraflar otomatik olarak gözükmesin, Daha Fazla Göster butonu olsun") — bir önceki turun
+  // IntersectionObserver'ı kaldırıldı; sonraki sayfa YALNIZCA düğmeyle gelir.
 
   // ---------- Kaydet (image tipi — bkz. save-widget.js, Koleksiyonum > Görsel filtresi) ----------
   // wireSaveButton HER çağrıda yeniden BOYAR ama dinleyiciyi bir kez takar (dataset.saveWired) —
@@ -640,8 +634,7 @@
     if(item.projectLocation) rows.push(['Yer', escapeHtml(item.projectLocation)]);
     if(item.projectDate) rows.push(['Yıl', escapeHtml(item.projectDate)]);
     if((item.awards || []).length) rows.push(['Ödül', list(item.awards)]);
-    lbMeta.innerHTML = rows.map(([k, v]) => `<div><strong>${k}:</strong> ${v}</div>`).join('')
-      + (item.via === 'kunye' ? `<div class="ph-lightbox-via">Bu görsel projenin künyesindeki bilgiye göre listelendi.</div>` : '');
+    lbMeta.innerHTML = rows.map(([k, v]) => `<div><strong>${k}:</strong> ${v}</div>`).join('');
     lbSpaces.innerHTML = (item.spaces || []).map(s => `<span class="ph-lightbox-space-chip">${escapeHtml(s)}</span>`).join('');
     wirePhotoSaveBtn(lbSaveBtn, () => items[lightboxIdx]);
     wireShare();

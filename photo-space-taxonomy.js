@@ -31,13 +31,21 @@ const PHOTO_SPACE_TAXONOMY = [
   { label: 'Havuz', description: 'yüzme havuzu, süs havuzu, havuz kenarı', keywords: ['havuz', 'pool'] },
   { label: 'Resepsiyon', description: 'resepsiyon bankosu, lobi, otel/ofis/klinik giriş-karşılama alanı', keywords: ['resepsiyon', 'lobi', 'reception', 'lobby', 'karşılama'] },
   { label: 'Depo', description: 'depo, kiler, ardiye, garaj, teknik hacim, arşiv', keywords: ['depo', 'kiler', 'garaj', 'ardiye', 'storage', 'warehouse'] },
-  { label: 'Plan Çizimi', description: 'mimari PLAN çizimi (kat planı, vaziyet planı) — fotoğraf DEĞİL, teknik çizim', keywords: ['plan çizimi', 'kat planı', 'vaziyet planı', 'floor plan'] },
-  { label: 'Kesit Çizimi', description: 'mimari KESİT çizimi — fotoğraf DEĞİL, teknik çizim', keywords: ['kesit', 'section drawing'] },
-  { label: 'Cephe Çizimi', description: 'mimari CEPHE/görünüş çizimi ya da render — fotoğraf DEĞİL, teknik çizim', keywords: ['cephe çizimi', 'görünüş', 'elevation drawing', 'render'] },
+  // ÇİZİMLER (kind:'drawing') — 2026-09-18 üçüncü tur, kullanıcı isteği: "Arama butonundan çizim
+  // seçeneklerini kaldır. Ayrıca arama sonuçlarında çizimler de çıkmasın." Etiketler LİSTEDE KALIR
+  // ki AI bir çizimi çizim olarak tanıyıp ETİKETLESİN — sayfa bu etiketi taşıyan görseli hiç
+  // göstermez (bkz. src/lib/photoPool.js). Aramada seçenek olarak SUNULMAZ (PHOTO_SPACE_OPTIONS).
+  { label: 'Plan Çizimi', kind: 'drawing', description: 'mimari PLAN çizimi (kat planı, vaziyet planı) — fotoğraf DEĞİL, teknik çizim', keywords: ['plan çizimi', 'kat planı', 'vaziyet planı', 'floor plan'] },
+  { label: 'Kesit Çizimi', kind: 'drawing', description: 'mimari KESİT çizimi — fotoğraf DEĞİL, teknik çizim', keywords: ['kesit', 'section drawing'] },
+  { label: 'Cephe Çizimi', kind: 'drawing', description: 'mimari CEPHE/görünüş çizimi, render ya da 3B görselleştirme — fotoğraf DEĞİL', keywords: ['cephe çizimi', 'görünüş', 'elevation drawing', 'render'] },
 ];
-const PHOTO_SPACE_OPTIONS = PHOTO_SPACE_TAXONOMY.map(t => t.label);
+// TÜM etiketler (AI whitelist'i) vs ARANABİLİR etiketler (dropdown + filtre) — çizimler ilkinde var,
+// ikincisinde yok.
+const PHOTO_SPACE_LABELS = PHOTO_SPACE_TAXONOMY.map(t => t.label);
+const PHOTO_SPACE_DRAWING_LABELS = PHOTO_SPACE_TAXONOMY.filter(t => t.kind === 'drawing').map(t => t.label);
+const PHOTO_SPACE_OPTIONS = PHOTO_SPACE_TAXONOMY.filter(t => t.kind !== 'drawing').map(t => t.label);
 
 // Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
 // (nodejs_compat) çalışır — src/lib/photoSpaceClassify.js ve src/routes/photos.js buradan CJS
 // interop ile import eder (bkz. project-taxonomy.js/catalog-taxonomy.js'deki AYNI desen).
-if (typeof module !== 'undefined') { module.exports = { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY }; }
+if (typeof module !== 'undefined') { module.exports = { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY, PHOTO_SPACE_LABELS, PHOTO_SPACE_DRAWING_LABELS }; }

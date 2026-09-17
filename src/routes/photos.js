@@ -1,18 +1,19 @@
 // /fotograf sayfasının (kullanıcı isteği, 2026-09-17) veri uçları:
 //   GET /api/photos                      — havuzu mekan filtresine göre süzer ve sayfalar
-//   GET /api/photos/space-for-query?q=   — serbest metni bir mekan etiketine eşler (AI, madde 11)
+//   GET /api/photos/space-for-query?q=   — serbest metni bir mekan etiketine eşler (AI)
 //
-// Havuz src/lib/photoPool.js#fetchPhotoPool'dan gelir (KV-önbellekli). Bu uç süzer, sayfalar ve
-// sayfa başına proje künyesini görsele birleştirir (expand).
+// Havuz src/lib/photoPool.js#fetchPhotoPool'dan gelir (KV-önbellekli). Bu uç süzer, sıralar,
+// sayfalar ve sayfa başına proje künyesini görsele birleştirir (expand).
 //
-// ARAMA SIRALAMASI (2026-09-18, kullanıcı isteği: "tuvalet & banyo araması yaptım ama hiç görsel
-// bulamadı ... Arama motoru sonuçlarını proje künyelerini de kullanarak geliştir"):
-//   1) AI etiketi o mekanı taşıyan görseller (asıl sonuç), yükleme sırasıyla;
-//   2) ardından AI'ın HENÜZ BAKMADIĞI (spaces === null) görsellerden, projesinin KÜNYESİNDE o mekanın
-//      anahtar kelimeleri geçenler (photoPool.js#keywordSpaces) — `via: 'kunye'` işaretiyle.
-//   AI'ın bakıp "yok" dediği görseller (spaces === []) hiçbir zaman ikincil sonuca girmez.
-// Böylece etiketleme turu henüz tamamlanmamışken bile sayfa boş kalmaz ve "Daha Fazla Göster"
-// doğal olarak belirir; etiketleme ilerledikçe 1. küme büyür, 2. küme küçülür.
+// ARAMA KALİTESİ (2026-09-18 üçüncü tur, kullanıcı isteği: "bazen filtreye göre alakasız
+// fotoğraflar geliyor ... farklı yollar da bul"):
+//   * Yalnızca AI'ın GÖRSEL BAŞINA verdiği etiket sonuç üretir — proje künyesindeki anahtar kelime
+//     ikincil sonucu KALDIRILDI (proje seviyesinde bir sinyal görsel seçemiyordu, bkz. photoPool.js).
+//   * İKİ KADEME: (1) mekan görselin BİRİNCİL etiketi (modelin "ana konu" dediği, listenin ilki) ya da
+//     güveni ≥ PRIMARY_MIN; (2) ikincil etiket, güveni ≥ SECONDARY_MIN (güven bilinmiyorsa eski
+//     kayıttır, kabul). Her kademe kendi içinde YÜKLEME SIRASINI korur — yani "en yeni proje önce"
+//     ilkesi bozulmaz, yalnızca zayıf eşleşmeler kümenin sonuna iner.
+//   * Çizimler havuza hiç girmez (photoPool.js), dolayısıyla hiçbir sonuçta çıkmaz.
 import { json, errorJson } from '../lib/http.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { fetchPhotoPool } from '../lib/photoPool.js';
@@ -23,8 +24,10 @@ import { spaceQuerySystemPrompt, SPACE_QUERY_SCHEMA, normalizeQuerySpace, PHOTO_
 
 const DEFAULT_LIMIT = 60;
 const MAX_LIMIT = 120;
+export const PRIMARY_MIN = 0.7;
+export const SECONDARY_MIN = 0.55;
 
-function expand(pool, it, via) {
+function expand(pool, it) {
   const p = pool.projects[it.projectSlug] || {};
   return {
     url: it.url,
@@ -38,24 +41,31 @@ function expand(pool, it, via) {
     creditType: p.creditType || null,
     // gallery.js#paintCredit ile AYNI düşüş: görsel başına etiket yoksa projenin künyesi.
     photographer: it.photographer || p.photoCredit || null,
-    spaces: it.spaces || [],
-    ...(via ? { via } : {}),
+    spaces: (it.spaces || []).map(s => s.label),
   };
 }
 
+// Bir görselin bir mekana eşleşme kademesi: 1 (birincil/yüksek güven), 2 (ikincil), 0 (eşleşmez).
+export function matchTier(spaces, space) {
+  if (!Array.isArray(spaces)) return 0;
+  const idx = spaces.findIndex(s => s.label === space);
+  if (idx < 0) return 0;
+  const c = spaces[idx].confidence;
+  if (idx === 0 || (c != null && c >= PRIMARY_MIN)) return 1;
+  if (c == null || c >= SECONDARY_MIN) return 2;
+  return 0;
+}
+
 export function selectPhotos(pool, space) {
-  if (!space || !PHOTO_SPACE_OPTIONS.includes(space)) return pool.items.map(it => ({ it, via: null }));
-  const primary = [];
-  const secondary = [];
+  if (!space || !PHOTO_SPACE_OPTIONS.includes(space)) return pool.items.slice();
+  const tier1 = [];
+  const tier2 = [];
   for (const it of pool.items) {
-    if (Array.isArray(it.spaces)) {
-      if (it.spaces.includes(space)) primary.push({ it, via: null });
-      continue;
-    }
-    const p = pool.projects[it.projectSlug];
-    if (p && p.keywordSpaces && p.keywordSpaces.includes(space)) secondary.push({ it, via: 'kunye' });
+    const t = matchTier(it.spaces, space);
+    if (t === 1) tier1.push(it);
+    else if (t === 2) tier2.push(it);
   }
-  return primary.concat(secondary);
+  return tier1.concat(tier2);
 }
 
 export async function handlePhotosRoute(request, env, url) {
@@ -67,14 +77,13 @@ export async function handlePhotosRoute(request, env, url) {
     const selected = selectPhotos(pool, space);
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number(url.searchParams.get('limit')) || DEFAULT_LIMIT));
     const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
-    const items = selected.slice(offset, offset + limit).map(({ it, via }) => expand(pool, it, via));
+    const items = selected.slice(offset, offset + limit).map(it => expand(pool, it));
     return { items, total: selected.length, hasMore: offset + limit < selected.length, spaces: PHOTO_SPACE_OPTIONS };
   });
 }
 
-// SERBEST METİN -> ETİKET (kullanıcı isteği madde 11). İstemci önce listeyi + anahtar kelimeleri
-// kendi süzer; yalnızca hiçbiri eşleşmeyince buraya gelir. Herkese açık bir LLM ucu olduğu için
-// IP bazlı hız sınırı ŞART (comments.js#createComment ile AYNI checkRateLimit deseni).
+// SERBEST METİN -> ETİKET. İstemci önce listeyi + anahtar kelimeleri kendi süzer; yalnızca hiçbiri
+// eşleşmeyince buraya gelir. Herkese açık bir LLM ucu olduğu için IP bazlı hız sınırı ŞART.
 async function spaceForQuery(request, env, url) {
   const q = (url.searchParams.get('q') || '').trim().slice(0, 80);
   if (q.length < 2) return json({ space: null });

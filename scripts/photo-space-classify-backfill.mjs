@@ -207,11 +207,13 @@ for (const row of rows) {
         title: row.title, description: row.description,
         discipline: parseJsonArr(row.discipline), category: parseJsonArr(row.category), type: parseJsonArr(row.type),
       });
+      // [{label, confidence}] olarak YAZILIR (2026-09-18) — filtre güveni sıralamada kullanır (bkz.
+      // src/routes/photos.js#selectPhotos). Havuz eski düz-string satırları da okur.
       spacesByUrl[rawUrl] = spaces;
       changed = true;
       imagesClassified++;
-      for (const s of spaces) tally.set(s, (tally.get(s) || 0) + 1);
-      console.log(`    ${spaces.length ? spaces.join(' + ') : '(mekan yok)'}  [${model.split('/').pop()}]`);
+      for (const s of spaces) tally.set(s.label, (tally.get(s.label) || 0) + 1);
+      console.log(`    ${spaces.length ? spaces.map(s => `${s.label}${s.confidence != null ? ` (${s.confidence.toFixed(2)})` : ''}`).join(' + ') : '(mekan yok)'}  [${model.split('/').pop()}]`);
     } catch (err) {
       imagesFailed++;
       console.log(`    ! sınıflandırılamadı: ${String(err.message || err).slice(0, 120)}`);
