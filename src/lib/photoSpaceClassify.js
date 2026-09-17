@@ -70,13 +70,31 @@ function normalizeSpaces(raw) {
 // ham görsel). Adaylar sırayla denenir (bkz. VISION_CANDIDATES); hiçbiri yanıt vermezse fırlatır —
 // çağıran (scripts/photo-space-classify-backfill.mjs) bunu "atla, bir sonrakine geç" olarak ele
 // alır, tek bir görselin başarısız olması turu durdurmaz.
-export async function classifyPhotoSpace(env, bytes, timeoutMs, mime) {
+// context (2026-09-18, kullanıcı isteği: "Arama motoru sonuçlarını proje künyelerini de kullanarak
+// geliştir"): projenin KÜNYESİ ({title, discipline, category, type, description}) prompta bağlam
+// olarak eklenir — "Hamam" başlıklı projede bir ıslak hacim "Tuvalet & Banyo"ya, "Ofis" grubundaki bir
+// çalışma alanı "Çalışma Odası"na daha güvenle düşer. Bağlam KARAR DEĞİL ipucudur: model yine
+// yalnızca GÖRDÜĞÜNÜ etiketler (prompt bunu açıkça söyler), whitelist ve güven eşiği aynen uygulanır.
+export function buildContextNote(context) {
+  if (!context || typeof context !== 'object') return '';
+  const parts = [];
+  if (context.title) parts.push(`Proje adı: ${String(context.title).slice(0, 120)}`);
+  const tax = [].concat(context.discipline || [], context.category || [], context.type || []).filter(Boolean);
+  if (tax.length) parts.push(`Tür/Tip/Grup: ${tax.slice(0, 8).join(', ')}`);
+  if (context.description) parts.push(`Açıklama: ${String(context.description).replace(/\s+/g, ' ').slice(0, 400)}`);
+  if (!parts.length) return '';
+  return `\n\nBAĞLAM (projenin künyesi — yalnızca ipucu, kararı GÖRSELE göre ver; künyede "banyo" geçiyor
+diye banyo görünmeyen bir kareyi banyo etiketleme):\n${parts.join('\n')}`;
+}
+
+export async function classifyPhotoSpace(env, bytes, timeoutMs, mime, context) {
   const b64 = toBase64(bytes);
+  const prompt = PROMPT + buildContextNote(context);
   const errors = [];
   for (const cand of VISION_CANDIDATES) {
     try {
       const result = await Promise.race([
-        env.AI.run(cand.model, cand.build(b64, PROMPT, bytes, mime || 'image/jpeg')),
+        env.AI.run(cand.model, cand.build(b64, prompt, bytes, mime || 'image/jpeg')),
         new Promise((_, rej) => setTimeout(() => rej(new Error('vision timeout')), timeoutMs)),
       ]);
       const text = result && (result.response ?? result.description ?? result);

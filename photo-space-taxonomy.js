@@ -14,22 +14,26 @@
 // `description` yalnızca AI promptu içindir: modele her etiketin ne anlama geldiğini söyler
 // (ör. "Tuvalet & Banyo" hem WC hem banyo; "Resepsiyon" otel/ofis giriş bankosu). Kullanıcıya
 // gösterilmez.
+// `keywords` (2026-09-18): KÜNYE eşleşmesi için anahtar kelimeler — (a) arama kutusunda kullanıcı
+// "wc"/"salon" yazınca AI'a gitmeden etikete eşlemek, (b) AI etiketi olmayan görsellerde projenin
+// künyesinden (başlık/açıklama/tip/grup) İKİNCİL sonuç üretmek için (bkz. src/lib/photoPool.js#
+// keywordSpacesFor, src/routes/photos.js). Küçük harf, Türkçe katlanmış; alt dize eşleşir.
 const PHOTO_SPACE_TAXONOMY = [
-  { label: 'Oturma Odası', description: 'salon, oturma alanı, misafir odası; kanepe/koltuk grubu, TV ünitesi, şömine' },
-  { label: 'Mutfak', description: 'mutfak tezgahı, dolaplar, ada, ocak, mutfak-yemek birleşik alanlar' },
-  { label: 'Yatak Odası', description: 'yatak odası, çocuk odası, otel odası; yatak görünüyorsa' },
-  { label: 'Tuvalet & Banyo', description: 'banyo, tuvalet, WC, lavabo, duş, küvet' },
-  { label: 'Çalışma Odası', description: 'çalışma odası, ev ofisi, ofis çalışma alanı, masa+sandalye, açık ofis, toplantı odası' },
-  { label: 'Koridor', description: 'koridor, hol, antre, giriş holü, geçiş alanı' },
-  { label: 'Merdiven', description: 'merdiven, merdiven kovası, sahanlık; merdiven fotoğrafın ana konusuysa' },
-  { label: 'Balkon', description: 'balkon, teras, veranda, çatı terası' },
-  { label: 'Bahçe', description: 'bahçe, avlu, peyzaj, dış mekan oturma alanı, çim/bitki alanları' },
-  { label: 'Havuz', description: 'yüzme havuzu, süs havuzu, havuz kenarı' },
-  { label: 'Resepsiyon', description: 'resepsiyon bankosu, lobi, otel/ofis/klinik giriş-karşılama alanı' },
-  { label: 'Depo', description: 'depo, kiler, ardiye, garaj, teknik hacim, arşiv' },
-  { label: 'Plan Çizimi', description: 'mimari PLAN çizimi (kat planı, vaziyet planı) — fotoğraf DEĞİL, teknik çizim' },
-  { label: 'Kesit Çizimi', description: 'mimari KESİT çizimi — fotoğraf DEĞİL, teknik çizim' },
-  { label: 'Cephe Çizimi', description: 'mimari CEPHE/görünüş çizimi ya da render — fotoğraf DEĞİL, teknik çizim' },
+  { label: 'Oturma Odası', description: 'salon, oturma alanı, misafir odası; kanepe/koltuk grubu, TV ünitesi, şömine', keywords: ['oturma', 'salon', 'living', 'lounge'] },
+  { label: 'Mutfak', description: 'mutfak tezgahı, dolaplar, ada, ocak, mutfak-yemek birleşik alanlar', keywords: ['mutfak', 'kitchen'] },
+  { label: 'Yatak Odası', description: 'yatak odası, çocuk odası, otel odası; yatak görünüyorsa', keywords: ['yatak', 'bedroom', 'çocuk odası', 'otel odası', 'suit'] },
+  { label: 'Tuvalet & Banyo', description: 'banyo, tuvalet, WC, lavabo, duş, küvet, hamam', keywords: ['banyo', 'tuvalet', 'wc', 'lavabo', 'duş', 'küvet', 'hamam', 'bathroom', 'toilet', 'ıslak hacim'] },
+  { label: 'Çalışma Odası', description: 'çalışma odası, ev ofisi, ofis çalışma alanı, masa+sandalye, açık ofis, toplantı odası', keywords: ['çalışma odası', 'ofis', 'office', 'toplantı', 'workspace', 'çalışma alanı'] },
+  { label: 'Koridor', description: 'koridor, hol, antre, giriş holü, geçiş alanı', keywords: ['koridor', 'hol', 'antre', 'corridor', 'hallway'] },
+  { label: 'Merdiven', description: 'merdiven, merdiven kovası, sahanlık; merdiven fotoğrafın ana konusuysa', keywords: ['merdiven', 'stair'] },
+  { label: 'Balkon', description: 'balkon, teras, veranda, çatı terası', keywords: ['balkon', 'teras', 'veranda', 'balcony', 'terrace'] },
+  { label: 'Bahçe', description: 'bahçe, avlu, peyzaj, dış mekan oturma alanı, çim/bitki alanları', keywords: ['bahçe', 'avlu', 'peyzaj', 'garden', 'courtyard', 'landscape'] },
+  { label: 'Havuz', description: 'yüzme havuzu, süs havuzu, havuz kenarı', keywords: ['havuz', 'pool'] },
+  { label: 'Resepsiyon', description: 'resepsiyon bankosu, lobi, otel/ofis/klinik giriş-karşılama alanı', keywords: ['resepsiyon', 'lobi', 'reception', 'lobby', 'karşılama'] },
+  { label: 'Depo', description: 'depo, kiler, ardiye, garaj, teknik hacim, arşiv', keywords: ['depo', 'kiler', 'garaj', 'ardiye', 'storage', 'warehouse'] },
+  { label: 'Plan Çizimi', description: 'mimari PLAN çizimi (kat planı, vaziyet planı) — fotoğraf DEĞİL, teknik çizim', keywords: ['plan çizimi', 'kat planı', 'vaziyet planı', 'floor plan'] },
+  { label: 'Kesit Çizimi', description: 'mimari KESİT çizimi — fotoğraf DEĞİL, teknik çizim', keywords: ['kesit', 'section drawing'] },
+  { label: 'Cephe Çizimi', description: 'mimari CEPHE/görünüş çizimi ya da render — fotoğraf DEĞİL, teknik çizim', keywords: ['cephe çizimi', 'görünüş', 'elevation drawing', 'render'] },
 ];
 const PHOTO_SPACE_OPTIONS = PHOTO_SPACE_TAXONOMY.map(t => t.label);
 

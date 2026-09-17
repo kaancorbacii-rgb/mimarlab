@@ -2041,3 +2041,40 @@ sayfayı ana menü + footer'a FOTOĞRAF olarak PROJE'den sonra ekle.
 - Testler: `test-2026-09-17-comments-identity-and-photo-page.mjs` 24 test; nav sırası kelepçeleri
   (`test-2026-09-17-manager-moderation-and-nav-order.mjs`) PROJE · FOTOĞRAF · FİRMA · KİŞİ · ÜRÜN ·
   GÜNDEM olarak güncellendi.
+
+## /fotograf üçüncü tur — yapışkan arama, dropdown z-index, künye satırları, künye-destekli arama (2026-09-18)
+
+Kullanıcı isteği: arama çubuğu kaydırdıkça üstte kalsın; dropdown içeriğin arkasında kalıyor;
+lightbox'ta künye proje sayfasındaki sırayla (fotoğrafçı hariç); "tuvalet & banyo" hiç sonuç
+vermiyor; filtre yalnızca son projeleri gösteriyor ve "daha fazla" çıkmıyor; arama motorunu proje
+künyeleriyle güçlendir.
+
+- **Yapışkan arama**: pil hero'nun İÇİNDEN ÇIKTI, hemen altında kendi `.ph-search-sticky`
+  kapsayıcısında (`position:sticky; top:66px; z-index:30` — nav 40'ın altında). Sticky, kapsayıcının
+  sınırlarıyla çalışır; hero içinde kalsaydı hero ekrandan çıkınca pil de giderdi. Ölçüldü: top 255
+  → kaydırınca 66.
+- **Dropdown'ın arkada kalmasının KÖK NEDENİ** hero'daki `overflow:hidden` (dropdown hero'nun alt
+  kenarında kırpılıyor, kalan kısmı DOM'da sonra gelen kartların arkasında boyanıyordu). Kaldırıldı;
+  sticky kapsayıcının z-index'i ızgaranın üstünde. `elementFromPoint` ile doğrulandı.
+- **Havuz şekli değişti** (`photoPool.js`): `{ projects: {slug→künye}, items }` — künye (mimarlar/
+  firmalar/tür/tip/grup/yer/yıl/ödül/keywordSpaces/photoCredit) proje başına BİR kez, 11k görselde
+  tekrarlanmaz; uç sayfalama SONRASI birleştirir (`photos.js#expand`). `items[].spaces`: **null = AI
+  hiç bakmadı, [] = AI baktı mekan yok** — bu ayrım ikincil sonucun kapısıdır.
+- **Arama sıralaması** (`photos.js#selectPhotos`): (1) AI etiketi eşleşen görseller, (2) ardından AI'ın
+  bakmadığı (null) görsellerden projesinin KÜNYESİNDE (başlık+açıklama+tip/grup) o mekanın anahtar
+  kelimeleri geçenler (`via:'kunye'`, taksonomideki `keywords`). AI "yok" dediği ([]) görsel asla
+  ikincil sonuca girmez. Böylece etiketleme turu tamamlanmadan da sayfa boş kalmaz, "Daha Fazla
+  Göster" doğal olarak belirir; etiketleme ilerledikçe 1. küme büyür.
+- **"Hiç sonuç yok"un asıl nedeni** etiketleme kapsamıydı: 11.060 görsellik havuzda tur proje başına
+  6 görselle ve saatler sürerek ilerliyor (canlıda Oturma Odası 30, Tuvalet & Banyo 0). Yeni tur
+  proje başına sınırsız görselle (`max_images=0`) ve künye BAĞLAMIYLA (`classifyPhotoSpace(...,
+  context)` — `buildContextNote`: proje adı/tür/tip/grup/açıklama, "yalnızca ipucu, kararı görsele
+  göre ver") kuyruğa alındı; betik zaten etiketli görselleri atladığı için turlar üst üste
+  çalıştırılabilir (concurrency group sıraya sokar).
+- **Anahtar kelimeler istemcide de**: `PHOTO_SPACE_TAXONOMY.keywords` sayesinde "wc"/"salon"/"hamam"
+  AI'a gitmeden etikete düşer; AI ucu yalnızca hiçbiri eşleşmezse.
+- **Lightbox künyesi**: `#ph-lightbox-meta` — Mimar, Mimarlık Firması, Tür, Tip, Grup, Yer, Yıl, Ödül
+  (project-meta.js#renderMeta sırası), düz metin; Fotoğraf satırı yok (görselin altında "© Ad").
+- **Otomatik yükleme**: `IntersectionObserver` sentinel (600px önden) + düğme duruyor.
+- Testler: `test-2026-09-17-comments-identity-and-photo-page.mjs` 26 test (ikincil sonuç kapısı,
+  sıralama, bağlam notu, sayfa kelepçeleri).

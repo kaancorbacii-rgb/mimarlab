@@ -185,7 +185,11 @@ async function photoFixture() {
   const yeniId = db.prepare(`SELECT id FROM projects WHERE slug='yeni'`).get().id;
   db.prepare(`INSERT INTO project_designers (project_id,office_id) VALUES (?,1)`).run(eskiId);
   db.prepare(`INSERT INTO project_designers (project_id,architect_id) VALUES (?,7)`).run(yeniId);
-  db.prepare(`UPDATE projects SET photo_credit_text='Cemal Emden', image_credits=? WHERE slug='eski'`).run(JSON.stringify({ 'projects/eski-2.jpg': 'Stüdyo X' }));
+  db.prepare(`UPDATE projects SET photo_credit_text='Cemal Emden', image_credits=?, discipline='["Mimari"]', category='["Konut"]', project_date='2019', awards='["Ulusal Mimarlık Ödülü"]' WHERE slug='eski'`).run(JSON.stringify({ 'projects/eski-2.jpg': 'Stüdyo X' }));
+  // KÜNYE eşleşmesi (2026-09-18): açıklamasında "banyo" geçen, görselleri AI'ın HENÜZ BAKMADIĞI bir
+  // proje + AI'ın bakıp "mekan yok" dediği ([]) bir görsel. Yükleme sırası: en eski.
+  db.prepare(`INSERT INTO projects (slug,title,description,images,image_spaces,created_at) VALUES ('hamam','Hamam Evi','Yenilenen banyo ve hamam hacimleri', ?, ?, '2025-06-01 10:00:00')`)
+    .run(JSON.stringify(['projects/hamam-1.jpg', 'projects/hamam-2.jpg']), JSON.stringify({ 'projects/hamam-2.jpg': [] }));
   return { db, env: { DB: d1(db) } };
 }
 async function photos(env, query) {
@@ -198,9 +202,9 @@ await test('sıra: EN SON yüklenen projenin görselleri ÖNCE (yükleme sıras�
   const { env } = await photoFixture();
   const data = await photos(env);
   assert.deepEqual(data.items.map(i => i.url), [
-    'projects/yeni-1.jpg', 'projects/yeni-2.jpg', 'projects/eski-1.jpg', 'projects/eski-2.jpg',
+    'projects/yeni-1.jpg', 'projects/yeni-2.jpg', 'projects/eski-1.jpg', 'projects/eski-2.jpg', 'projects/hamam-1.jpg', 'projects/hamam-2.jpg',
   ]);
-  assert.equal(data.total, 4);
+  assert.equal(data.total, 6);
 });
 
 await test('gizli/arşiv VE blurlu (önizleme) proje görselleri havuzda YOK (madde 10)', async () => {
@@ -208,7 +212,7 @@ await test('gizli/arşiv VE blurlu (önizleme) proje görselleri havuzda YOK (ma
   const data = await photos(env);
   assert.ok(!data.items.some(i => i.url.includes('gizli')));
   assert.ok(!data.items.some(i => i.url.includes('blurlu')), 'blur kalkana kadar gösterilmez');
-  assert.equal(data.total, 4);
+  assert.equal(data.total, 6);
 });
 
 await test('mekan filtresi: yalnızca o etiketi taşıyan görseller, sıra KORUNUR', async () => {
@@ -220,7 +224,7 @@ await test('mekan filtresi: yalnızca o etiketi taşıyan görseller, sıra KORU
 
 await test('listede OLMAYAN bir mekan değeri filtreyi SESSİZCE yok sayar (boş sayfa göstermez)', async () => {
   const { env } = await photoFixture();
-  assert.equal((await photos(env, '?space=Uydurma')).total, 4);
+  assert.equal((await photos(env, '?space=Uydurma')).total, 6);
 });
 
 await test('sayfalama: limit/offset + hasMore', async () => {
@@ -230,7 +234,8 @@ await test('sayfalama: limit/offset + hasMore', async () => {
   assert.equal(p1.hasMore, true);
   const p2 = await photos(env, '?limit=2&offset=2');
   assert.deepEqual(p2.items.map(i => i.url), ['projects/eski-1.jpg', 'projects/eski-2.jpg']);
-  assert.equal(p2.hasMore, false);
+  assert.equal(p2.hasMore, true);
+  assert.equal((await photos(env, '?limit=2&offset=4')).hasMore, false);
 });
 
 await test('künye: firma (yoksa mimar) + fotoğrafçı; "paylaşan" YOK (madde 4/5/6)', async () => {
@@ -252,6 +257,36 @@ await test('künye: firma (yoksa mimar) + fotoğrafçı; "paylaşan" YOK (madde 
   assert.equal(yeni.photographer, null);
   assert.equal(eski1.ownerName, undefined, '"Projeyi paylaşan" alanı KALDIRILDI');
   assert.equal(eski1.ownerPhoto, undefined);
+  // 2026-09-18 madde 3: lightbox künyesi proje pop-up'ındaki alanları taşır.
+  assert.deepEqual(eski1.offices, ['A Mimarlık']); assert.deepEqual(eski1.architects, []);
+  assert.deepEqual(eski1.discipline, ['Mimari']); assert.deepEqual(eski1.category, ['Konut']);
+  assert.equal(eski1.projectDate, '2019'); assert.deepEqual(eski1.awards, ['Ulusal Mimarlık Ödülü']);
+});
+
+await test('KÜNYE İKİNCİL SONUÇ (2026-09-18): AI bakmadıysa künyedeki anahtar kelime, AI "yok" dediyse asla', async () => {
+  const { env } = await photoFixture();
+  const data = await photos(env, `?space=${encodeURIComponent('Tuvalet & Banyo')}`);
+  // eski-2 AI etiketi 'Banyo' DEĞİL 'Tuvalet & Banyo' değil — fikstürde 'Banyo' eski etiket; yeni
+  // listede yok, o yüzden yalnızca künye yolu çalışır: hamam-1 (spaces null) girer, hamam-2 ([]) girmez.
+  assert.deepEqual(data.items.map(i => i.url), ['projects/hamam-1.jpg']);
+  assert.equal(data.items[0].via, 'kunye');
+  assert.equal(data.total, 1);
+  // AI etiketi olanlar künye eşleşmesinin ÖNÜNDE gelir.
+  const { selectPhotos } = await import('../src/routes/photos.js');
+  const pool = { projects: { a: { keywordSpaces: ['Mutfak'] }, b: { keywordSpaces: ['Mutfak'] } },
+    items: [{ url: 'a1', projectSlug: 'a', spaces: null }, { url: 'b1', projectSlug: 'b', spaces: ['Mutfak'] }] };
+  assert.deepEqual(selectPhotos(pool, 'Mutfak').map(x => x.it.url), ['b1', 'a1']);
+  const { keywordSpacesFor } = await import('../src/lib/photoPool.js');
+  assert.deepEqual(keywordSpacesFor('Yeni WC ve mutfak yenilemesi'), ['Mutfak', 'Tuvalet & Banyo']);
+});
+
+await test('sınıflandırma promptu proje KÜNYESİNİ bağlam olarak taşır (2026-09-18)', async () => {
+  const { buildContextNote } = await import('../src/lib/photoSpaceClassify.js');
+  const note = buildContextNote({ title: 'Hamam Evi', category: ['Konut'], description: 'Yenilenen banyo' });
+  assert.match(note, /Proje adı: Hamam Evi/); assert.match(note, /Konut/); assert.match(note, /banyo/);
+  assert.match(note, /yalnızca ipucu/);
+  assert.equal(buildContextNote(null), '');
+  assert.match(read('../scripts/photo-space-classify-backfill.mjs'), /classifyPhotoSpace\(env, img\.bytes, VISION_TIMEOUT_MS, img\.mime, \{/);
 });
 
 await test('uç mekan listesini de döndürür (istemci ikinci bir liste taşımaz)', async () => {
@@ -336,7 +371,7 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   assert.match(s, /id="ph-grid"/);
   // Lightbox künyesi: başlık (proje bağlantısı), konum, mekan çipleri, "Projeyi paylaşan", Kaydet.
   assert.match(s, /id="ph-lightbox-title"/);
-  assert.match(s, /id="ph-lightbox-location"/);
+  assert.match(s, /id="ph-lightbox-meta"/);
   assert.match(s, /id="ph-lightbox-spaces"/);
   assert.ok(!/Projeyi paylaşan/.test(s), '"Projeyi paylaşan" hiçbir yerde yok (madde 5)');
   assert.match(s, /id="ph-lightbox-save"/);
@@ -356,6 +391,13 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   assert.match(s, /\.ph-search-field input:focus-visible[^{]*\{box-shadow:none/);
   // madde 2: hero metni.
   assert.match(s, /Projeler arasından sana ilham verecek mekanları ara ve bul\./);
+  // 2026-09-18: arama çubuğu yapışkan ve dropdown içeriğin ÜSTÜNDE; künye satırları; otomatik yükleme.
+  assert.match(s, /\.ph-search-sticky\{[^}]*position:sticky/);
+  assert.ok(!/\.ph-hero\{[^}]*overflow:hidden/.test(s), 'hero overflow:hidden dropdown\'ı kırpıyordu');
+  assert.match(s, /id="ph-lightbox-meta"/); assert.match(s, /rows\.push\(\['Mimarlık Firması'/); assert.match(s, /rows\.push\(\['Ödül'/);
+  assert.ok(!/rows\.push\(\['Fotoğraf'/.test(s), 'fotoğrafçı künye satırı değil (görselin altında)');
+  assert.match(s, /IntersectionObserver/); assert.match(s, /id="ph-loadmore-sentinel"/);
+  assert.match(s, /PHOTO_SPACE_TAXONOMY/, 'yerel eşleşme anahtar kelimeleri de kullanır');
   // madde 1: footer CSS bloğu sayfada var (site-chrome yalnızca markup'ı üretir).
   assert.match(s, /\.footer-top\{/); assert.match(s, /\.footer-col a\{/);
   // madde 4: kart altı etiketi firma/mimar.

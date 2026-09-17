@@ -173,7 +173,7 @@ console.log(`FOTOĞRAF mekan sınıflandırması — ${ALL ? 'TÜM canlı projel
 console.log(`  origin=${SITE_ORIGIN}  force=${FORCE ? 'evet' : 'hayır'}  max-images=${MAX_IMAGES || 'sınırsız'}`);
 
 const rows = await d1(
-  `SELECT id, slug, title, images, image_spaces FROM projects
+  `SELECT id, slug, title, images, image_spaces, discipline, category, type, description FROM projects
    WHERE ${where.join(' AND ')}
    ORDER BY created_at DESC, id DESC
    LIMIT ? OFFSET ?`,
@@ -181,6 +181,7 @@ const rows = await d1(
 );
 console.log(`  ${rows.length} proje okundu.\n`);
 
+function parseJsonArr(t){ try { const v = t ? JSON.parse(t) : []; return Array.isArray(v) ? v : []; } catch { return []; } }
 let projectsWritten = 0, imagesClassified = 0, imagesSkipped = 0, imagesFailed = 0;
 const tally = new Map();
 
@@ -201,7 +202,11 @@ for (const row of rows) {
     const img = await downloadImage(rawUrl);
     if (!img) { imagesFailed++; console.log(`    ! indirilemedi: ${rawUrl}`); continue; }
     try {
-      const { spaces, model } = await classifyPhotoSpace(env, img.bytes, VISION_TIMEOUT_MS, img.mime);
+      // Proje künyesi bağlam olarak (bkz. photoSpaceClassify.js#buildContextNote).
+      const { spaces, model } = await classifyPhotoSpace(env, img.bytes, VISION_TIMEOUT_MS, img.mime, {
+        title: row.title, description: row.description,
+        discipline: parseJsonArr(row.discipline), category: parseJsonArr(row.category), type: parseJsonArr(row.type),
+      });
       spacesByUrl[rawUrl] = spaces;
       changed = true;
       imagesClassified++;

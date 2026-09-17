@@ -152,22 +152,37 @@
 
   /* ---------- HERO ---------- */
   .ph-hero{
-    position:relative; min-height:320px; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; text-align:center; padding:48px 20px 60px; overflow:hidden;
+    position:relative; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:56px 20px 74px;
     background:linear-gradient(180deg, rgba(27,42,61,0.55), rgba(27,42,61,0.72)), var(--ink);
   }
   .ph-hero > *{position:relative; z-index:1;}
+  /* ARAMA ÇUBUĞU YAPIŞKAN (kullanıcı isteği, 2026-09-18 madde 1 — referans: co-architecture.com/
+     photos, kaydırdıkça pil üstte kalır). Hero'nun İÇİNDE DEĞİL, hemen ALTINDA kendi sticky
+     kapsayıcısında: sticky, kapsayıcısının sınırları içinde çalışır — hero içinde olsaydı hero
+     ekrandan çıkınca çubuk da giderdi. Üst kenar nav'ın altına (nav ~62px). Negatif margin pili
+     hero'nun alt kenarına bindirir (referanstaki gibi).
+     KÖK NEDEN (madde 2, "arama kısmı içeriğin arkasına geliyor"): eski hero `overflow:hidden`
+     taşıyordu ve dropdown hero'nun alt kenarında KIRPILIYOR, kalan kısmı da DOM'da daha sonra gelen
+     ızgara kartlarının (kendi stacking context'i yok ama sırayla üstte boyanıyor) ARKASINDA
+     kalıyordu. overflow:hidden kaldırıldı; sticky kapsayıcı z-index:30 ile ızgaranın (z-index yok)
+     üstünde, nav'ın (40) altında durur; dropdown onun içinde. */
+  .ph-search-sticky{
+    position:sticky; top:66px; z-index:30;
+    display:flex; justify-content:center; padding:0 20px; margin-top:-32px; pointer-events:none;
+  }
+  .ph-search-sticky > *{pointer-events:auto;}
   .ph-hero h1{
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size:38px; font-weight:700; color:#fff; margin:0 0 10px;
   }
   .ph-hero p{color:rgba(255,255,255,0.82); font-size:14.5px; margin:0 0 26px; max-width:520px;}
-  .ph-search{display:flex; align-items:center; gap:12px; width:100%; max-width:640px;}
-  .ph-search-field{
-    position:relative; flex:1; display:flex; align-items:center; gap:10px;
-    background:#fff; border-radius:100px; padding:12px 18px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.18);
+  .ph-search{
+    display:flex; align-items:center; gap:10px; width:100%; max-width:720px;
+    background:#fff; border-radius:100px; padding:8px 8px 8px 18px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.18);
   }
+  .ph-search-field{position:relative; flex:1; display:flex; align-items:center; gap:10px; min-width:0;}
   .ph-search-field svg{flex-shrink:0; color:#1B2A3D; opacity:0.55;}
   .ph-search-field input{
     flex:1; border:none; outline:none; background:none;
@@ -180,11 +195,11 @@
   .ph-search-field input::placeholder{color:#7A8798;}
   .ph-reset-btn{
     flex-shrink:0; background:#12171F; color:#fff; border:none; border-radius:100px;
-    padding:12px 22px; font-size:13.5px; font-weight:600; white-space:nowrap;
+    padding:11px 22px; font-size:13.5px; font-weight:600; white-space:nowrap;
   }
   .ph-reset-btn:hover{background:#232C38;}
   .ph-dropdown{
-    position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:20;
+    position:absolute; top:calc(100% + 16px); left:-18px; right:0; z-index:20;
     background:#fff; border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,0.18);
     max-height:300px; overflow-y:auto; text-align:left; padding:6px;
   }
@@ -197,7 +212,7 @@
   .ph-dropdown-note{padding:10px 14px; font-size:12.5px; color:#7A8798;}
 
   /* ---------- IZGARA (masonry — CSS columns) ---------- */
-  .ph-grid-wrap{max-width:1400px; margin:0 auto; padding:28px 24px 12px;}
+  .ph-grid-wrap{max-width:1400px; margin:0 auto; padding:40px 24px 12px;}
   .ph-grid{columns:4 260px; column-gap:16px;}
   .ph-card{
     display:block; break-inside:avoid; margin-bottom:16px; position:relative;
@@ -267,8 +282,13 @@
   .ph-lightbox-title{display:block; font-size:19px; font-weight:700; color:#1B2A3D; line-height:1.3; margin-bottom:5px;}
   .ph-lightbox-title:hover{text-decoration:underline;}
   .ph-lightbox-location{font-size:13px; color:#4E6478;}
-  .ph-lightbox-credit-line{font-size:13px; color:#1B2A3D; margin-top:8px;}
-  .ph-lightbox-credit-line span{color:#4E6478;}
+  /* Künye — proje pop-up'ındaki SIRAYLA (Mimar, Mimarlık Firması, Tür, Tip, Grup, Yer, Yıl, Ödül;
+     Fotoğraf satırı HARİÇ — o görselin altında). Düz metin satırları (kullanıcı isteği, 2026-09-18
+     madde 3: "sırayla direkt yazsın"). */
+  .ph-lightbox-meta{display:flex; flex-direction:column; gap:7px; font-size:13px; color:#1B2A3D; line-height:1.45;}
+  .ph-lightbox-meta strong{font-weight:600;}
+  .ph-lightbox-meta a{color:#2B425F; text-decoration:underline; text-decoration-color:rgba(43,66,95,0.35);}
+  .ph-lightbox-via{font-size:11.5px; color:#7A8798;}
   .ph-lightbox-spaces{display:flex; flex-wrap:wrap; gap:6px;}
   .ph-lightbox-space-chip{
     font-size:11.5px; font-weight:600; padding:4px 11px; border-radius:100px;
@@ -313,8 +333,10 @@
   @media (max-width:720px){
     .ph-hero{min-height:280px; padding:36px 16px 48px;}
     .ph-hero h1{font-size:28px;}
-    .ph-search{flex-direction:column; align-items:stretch;}
-    .ph-reset-btn{width:100%;}
+    .ph-search-sticky{top:58px; padding:0 12px; margin-top:-26px;}
+    .ph-search{padding:6px 6px 6px 14px; gap:6px;}
+    .ph-reset-btn{padding:10px 14px; font-size:12.5px;}
+    .ph-dropdown{left:-14px;}
     .ph-grid{columns:2 150px; column-gap:10px;}
     .ph-card{margin-bottom:10px; border-radius:10px;}
     .ph-grid-wrap{padding:20px 12px 8px;}
@@ -348,6 +370,8 @@
   <div class="ph-hero">
     <h1>Fotoğraflar</h1>
     <p>Projeler arasından sana ilham verecek mekanları ara ve bul.</p>
+  </div>
+  <div class="ph-search-sticky">
     <div class="ph-search">
       <div class="ph-search-field">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -363,6 +387,7 @@
     <div class="ph-empty" id="ph-empty" style="display:none;">Bu mekana ait fotoğraf bulunamadı.</div>
   </div>
   <div class="ph-loadmore-wrap">
+    <div id="ph-loadmore-sentinel" aria-hidden="true"></div>
     <button type="button" class="ph-loadmore-btn" id="ph-loadmore-btn" style="display:none;">Daha Fazla Göster</button>
   </div>
 
@@ -389,9 +414,8 @@
       </div>
       <div>
         <a class="ph-lightbox-title" id="ph-lightbox-title" href="#"></a>
-        <div class="ph-lightbox-location" id="ph-lightbox-location"></div>
-        <div class="ph-lightbox-credit-line" id="ph-lightbox-credit-line"></div>
       </div>
+      <div class="ph-lightbox-meta" id="ph-lightbox-meta"></div>
       <div class="ph-lightbox-spaces" id="ph-lightbox-spaces"></div>
     </div>
   </div>
@@ -429,9 +453,13 @@
 
   // ---------- Mekan arama (photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS — verilen SIRAYLA) ----------
   function spaceOptions(){ return (typeof PHOTO_SPACE_OPTIONS !== 'undefined') ? PHOTO_SPACE_OPTIONS : []; }
+  // Etiket adı YA DA anahtar kelimesi (photo-space-taxonomy.js#keywords: "wc", "salon", "hamam"...)
+  // eşleşir — böylece yaygın eş anlamlılar AI'a hiç gitmeden yakalanır (2026-09-18).
   function matchingOptions(query){
     const q = foldTr(query);
-    return spaceOptions().filter(s => !q || foldTr(s).includes(q));
+    if(!q) return spaceOptions();
+    const tax = (typeof PHOTO_SPACE_TAXONOMY !== 'undefined') ? PHOTO_SPACE_TAXONOMY : spaceOptions().map(l => ({ label: l, keywords: [] }));
+    return tax.filter(t => foldTr(t.label).includes(q) || (t.keywords || []).some(k => foldTr(k).includes(q) || q.includes(foldTr(k)))).map(t => t.label);
   }
   function selectSpace(space){
     currentSpace = space || '';
@@ -533,6 +561,14 @@
   }
   function reload(){ exhausted = false; loadPage(true); }
   loadMoreBtn.addEventListener('click', () => loadPage(false));
+  // Sayfanın altına inince sonraki sayfa kendiliğinden yüklenir (kullanıcı isteği, 2026-09-18
+  // madde 5) — düğme yine durur (JS'siz/IO'suz ortam ve erişilebilirlik için).
+  if('IntersectionObserver' in window){
+    const io = new IntersectionObserver((entries) => {
+      if(entries.some(e => e.isIntersecting) && !exhausted && !loading && items.length) loadPage(false);
+    }, { rootMargin: '600px 0px' });
+    io.observe(document.getElementById('ph-loadmore-sentinel'));
+  }
 
   // ---------- Kaydet (image tipi — bkz. save-widget.js, Koleksiyonum > Görsel filtresi) ----------
   // wireSaveButton HER çağrıda yeniden BOYAR ama dinleyiciyi bir kez takar (dataset.saveWired) —
@@ -558,8 +594,7 @@
   const lbImg = document.getElementById('ph-lightbox-img');
   const lbCredit = document.getElementById('ph-lightbox-credit');
   const lbTitle = document.getElementById('ph-lightbox-title');
-  const lbLocation = document.getElementById('ph-lightbox-location');
-  const lbCreditLine = document.getElementById('ph-lightbox-credit-line');
+  const lbMeta = document.getElementById('ph-lightbox-meta');
   const lbSpaces = document.getElementById('ph-lightbox-spaces');
   const lbSaveBtn = document.getElementById('ph-lightbox-save');
   let lightboxIdx = -1;
@@ -592,12 +627,21 @@
     lbCredit.hidden = !item.photographer;
     lbTitle.textContent = item.projectTitle || '';
     lbTitle.href = projectHref(item);
-    lbLocation.textContent = item.projectLocation || '';
-    lbLocation.style.display = item.projectLocation ? '' : 'none';
-    // Mimarlık firması (yoksa mimar) — madde 4; yükleyen hesabın kimliği artık gösterilmez (madde 5).
-    lbCreditLine.innerHTML = item.credit
-      ? `<span>${item.creditType === 'architect' ? 'Mimar:' : 'Mimarlık Firması:'}</span> ${escapeHtml(item.credit)}`
-      : '';
+    // KÜNYE — proje pop-up'ındaki sırayla (js/components/project-meta.js#renderDesigners +
+    // renderMeta): Mimar, Mimarlık Firması, Tür, Tip, Grup, Yer, Yıl, Ödül. Fotoğraf HARİÇ (görselin
+    // altında). Yükleyen hesabın kimliği gösterilmez (2026-09-17 madde 5).
+    const rows = [];
+    const list = (arr) => (arr || []).map(escapeHtml).join(', ');
+    if((item.architects || []).length) rows.push(['Mimar', list(item.architects)]);
+    if((item.offices || []).length) rows.push(['Mimarlık Firması', list(item.offices)]);
+    if((item.discipline || []).length) rows.push(['Tür', list(item.discipline)]);
+    if((item.category || []).length) rows.push(['Tip', list(item.category)]);
+    if((item.type || []).length) rows.push(['Grup', list(item.type)]);
+    if(item.projectLocation) rows.push(['Yer', escapeHtml(item.projectLocation)]);
+    if(item.projectDate) rows.push(['Yıl', escapeHtml(item.projectDate)]);
+    if((item.awards || []).length) rows.push(['Ödül', list(item.awards)]);
+    lbMeta.innerHTML = rows.map(([k, v]) => `<div><strong>${k}:</strong> ${v}</div>`).join('')
+      + (item.via === 'kunye' ? `<div class="ph-lightbox-via">Bu görsel projenin künyesindeki bilgiye göre listelendi.</div>` : '');
     lbSpaces.innerHTML = (item.spaces || []).map(s => `<span class="ph-lightbox-space-chip">${escapeHtml(s)}</span>`).join('');
     wirePhotoSaveBtn(lbSaveBtn, () => items[lightboxIdx]);
     wireShare();
