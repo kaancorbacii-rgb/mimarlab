@@ -380,9 +380,7 @@ else
 fi
 
 echo ""
-echo "13c) Fotoğraf sayfası (2026-09-17) — yayında, ama hiçbir menüde değil"
-# /danismanlik ile AYNI gerekçe: sayfaya hiçbir iç bağlantı gitmiyor, yani bir deploy onu sessizce
-# düşürse kimse fark etmezdi.
+echo "13c) Fotoğraf sayfası (2026-09-17) — yayında, ana menüde PROJE'den sonra"
 check_status "/fotograf" 200
 foto_html=$(curl -s "$BASE_URL/fotograf")
 if [[ "$foto_html" == *'id="ph-search-input"'* ]] && [[ "$foto_html" == *'id="ph-grid"'* ]] && [[ "$foto_html" == *'id="ph-lightbox"'* ]]; then
@@ -397,11 +395,13 @@ if [[ "$foto_api" == *'"items"'* ]] && [[ "$foto_api" == *'"projectSlug"'* ]] &&
 else
   bad "/api/photos boş/eksik yanıt verdi: $(printf '%s' "$foto_api" | head -c 160)"
 fi
-# Menüye sızma kontrolü (kullanıcı isteği: "sayfayı yayınla ama şimdilik bir menüye koyma").
-if [[ "$home_html" == *"/fotograf"* ]]; then
-  bad "ana sayfada /fotograf bağlantısı var (sayfa hiçbir menüye eklenmemeliydi)"
+# Menü kontrolü (kullanıcı isteği, 2026-09-17 ikinci tur madde 12: ana menü + footer'da PROJE'den
+# sonra). Menü site-chrome.js ile istemcide çizildiğinden ham HTML'de değil, dosyanın kendisinde aranır.
+chrome_js=$(curl -s "$BASE_URL/js/components/site-chrome.js")
+if [[ "$chrome_js" == *"key: 'fotograf'"* ]] && [[ "$chrome_js" == *'href="/fotograf">Fotoğraf</a>'* ]]; then
+  ok "site-chrome.js ana menü + footer'da /fotograf bağlantısı var"
 else
-  ok "ana sayfada /fotograf bağlantısı yok"
+  bad "site-chrome.js'te /fotograf menü bağlantısı YOK"
 fi
 
 echo ""

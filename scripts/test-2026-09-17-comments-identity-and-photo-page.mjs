@@ -154,7 +154,7 @@ await test('istemci: Sil düğmesi admin\'e ve künye yetkilisine görünür (ca
   assert.match(s, /canModerate = \(isOwner && hasActiveBadge\) \|\| canEditProject;/);
 });
 
-section('madde 2 — /fotograf: sıra, mekan filtresi, künye, menüde YOK');
+section('madde 2 — /fotograf: sıra, mekan filtresi, künye, menü');
 
 // Fotoğraf havuzu: İKİ proje, farklı created_at. En son yüklenen ÖNCE gelmeli.
 async function photoFixture() {
@@ -175,6 +175,17 @@ async function photoFixture() {
   // Gizli (arşiv) proje — hiçbir koşulda görünmemeli.
   db.prepare(`INSERT INTO projects (slug,title,images,created_at,hidden_at) VALUES ('gizli','Gizli',?,'2026-09-05 10:00:00','2026-09-06')`)
     .run(JSON.stringify(['projects/gizli-1.jpg']));
+  // BLURLU (önizleme) proje — madde 10: blur kalkana kadar bu sayfada GÖRÜNMEZ.
+  db.prepare(`INSERT INTO projects (slug,title,images,created_at,hidden_at,preview_at) VALUES ('blurlu','Blurlu',?,'2026-09-07 10:00:00','2026-09-08','2026-09-08')`)
+    .run(JSON.stringify(['projects/blurlu-1.jpg']));
+  // Künye bağı + fotoğrafçı: eski projede firma, yeni projede yalnızca mimar; görsel başına fotoğrafçı.
+  db.prepare(`INSERT INTO offices (id,name,slug,created_at) VALUES (1,'A Mimarlık','a-mimarlik',?)`).run(NOW);
+  db.prepare(`INSERT INTO architects (id,name,slug,created_at) VALUES (7,'Ayşe Mimar','ayse-mimar',?)`).run(NOW);
+  const eskiId = db.prepare(`SELECT id FROM projects WHERE slug='eski'`).get().id;
+  const yeniId = db.prepare(`SELECT id FROM projects WHERE slug='yeni'`).get().id;
+  db.prepare(`INSERT INTO project_designers (project_id,office_id) VALUES (?,1)`).run(eskiId);
+  db.prepare(`INSERT INTO project_designers (project_id,architect_id) VALUES (?,7)`).run(yeniId);
+  db.prepare(`UPDATE projects SET photo_credit_text='Cemal Emden', image_credits=? WHERE slug='eski'`).run(JSON.stringify({ 'projects/eski-2.jpg': 'Stüdyo X' }));
   return { db, env: { DB: d1(db) } };
 }
 async function photos(env, query) {
@@ -192,10 +203,12 @@ await test('sıra: EN SON yüklenen projenin görselleri ÖNCE (yükleme sıras�
   assert.equal(data.total, 4);
 });
 
-await test('gizli/arşiv proje görselleri havuzda YOK', async () => {
+await test('gizli/arşiv VE blurlu (önizleme) proje görselleri havuzda YOK (madde 10)', async () => {
   const { env } = await photoFixture();
   const data = await photos(env);
   assert.ok(!data.items.some(i => i.url.includes('gizli')));
+  assert.ok(!data.items.some(i => i.url.includes('blurlu')), 'blur kalkana kadar gösterilmez');
+  assert.equal(data.total, 4);
 });
 
 await test('mekan filtresi: yalnızca o etiketi taşıyan görseller, sıra KORUNUR', async () => {
@@ -220,17 +233,25 @@ await test('sayfalama: limit/offset + hasMore', async () => {
   assert.equal(p2.hasMore, false);
 });
 
-await test('künye (lightbox): başlık + konum + mekan + "Projeyi paylaşan"', async () => {
+await test('künye: firma (yoksa mimar) + fotoğrafçı; "paylaşan" YOK (madde 4/5/6)', async () => {
   const { env } = await photoFixture();
   const data = await photos(env);
-  const eski = data.items.find(i => i.url === 'projects/eski-1.jpg');
-  assert.equal(eski.projectTitle, 'Eski Proje');
-  assert.equal(eski.projectSlug, 'eski');
-  assert.equal(eski.projectLocation, 'İzmir');
-  assert.deepEqual(eski.spaces, ['Mutfak']);
-  assert.equal(eski.ownerName, 'Ayşe Mimar', 'claimed_by_user_id -> fetchOwnerByline');
+  const eski1 = data.items.find(i => i.url === 'projects/eski-1.jpg');
+  assert.equal(eski1.projectTitle, 'Eski Proje');
+  assert.equal(eski1.projectSlug, 'eski');
+  assert.equal(eski1.projectLocation, 'İzmir');
+  assert.deepEqual(eski1.spaces, ['Mutfak']);
+  assert.equal(eski1.credit, 'A Mimarlık', 'firma varsa firma');
+  assert.equal(eski1.creditType, 'office');
+  assert.equal(eski1.photographer, 'Cemal Emden', 'görsel başına etiket yoksa projenin künyesi');
+  const eski2 = data.items.find(i => i.url === 'projects/eski-2.jpg');
+  assert.equal(eski2.photographer, 'Stüdyo X', 'görsel başına fotoğrafçı (image_credits) öncelikli');
   const yeni = data.items.find(i => i.url === 'projects/yeni-1.jpg');
-  assert.equal(yeni.ownerName, 'MİMARLAB', 'sahipsiz (legacy/admin) kayıtta fallback');
+  assert.equal(yeni.credit, 'Ayşe Mimar', 'firma yoksa mimar');
+  assert.equal(yeni.creditType, 'architect');
+  assert.equal(yeni.photographer, null);
+  assert.equal(eski1.ownerName, undefined, '"Projeyi paylaşan" alanı KALDIRILDI');
+  assert.equal(eski1.ownerPhoto, undefined);
 });
 
 await test('uç mekan listesini de döndürür (istemci ikinci bir liste taşımaz)', async () => {
@@ -238,19 +259,40 @@ await test('uç mekan listesini de döndürür (istemci ikinci bir liste taşım
   assert.deepEqual((await photos(env)).spaces, PHOTO_SPACE_OPTIONS);
 });
 
-await test('taksonomi: sabit liste, TR alfabetik, 20 mekan', () => {
-  assert.ok(PHOTO_SPACE_OPTIONS.includes('Yatak Odası'));
-  assert.ok(PHOTO_SPACE_OPTIONS.includes('Banyo'));
-  assert.ok(PHOTO_SPACE_OPTIONS.includes('Mutfak'));
-  assert.equal(new Set(PHOTO_SPACE_OPTIONS).size, PHOTO_SPACE_OPTIONS.length, 'mükerrer olmamalı');
+await test('taksonomi: kullanıcının verdiği 15 mekan, VERİLEN SIRAYLA (madde 3)', () => {
+  assert.deepEqual(PHOTO_SPACE_OPTIONS, [
+    'Oturma Odası', 'Mutfak', 'Yatak Odası', 'Tuvalet & Banyo', 'Çalışma Odası', 'Koridor', 'Merdiven',
+    'Balkon', 'Bahçe', 'Havuz', 'Resepsiyon', 'Depo', 'Plan Çizimi', 'Kesit Çizimi', 'Cephe Çizimi',
+  ]);
 });
 
 await test('AI sınıflandırması whitelist DIŞINA çıkamaz (uydurma etiket süzülür)', async () => {
   const { classifyPhotoSpace } = await import('../src/lib/photoSpaceClassify.js');
   // Sahte env.AI: modelin biri listede OLMAYAN bir etiket döndürüyor.
-  const env = { AI: { async run() { return { response: '{"spaces":["Yatak Odası","Sinema Salonu"]}' }; } } };
+  const env = { AI: { async run() { return { response: '{"spaces":[{"label":"Yatak Odası","confidence":0.9},{"label":"Sinema Salonu","confidence":0.9}]}' }; } } };
   const out = await classifyPhotoSpace(env, new Uint8Array([1, 2, 3]), 5000, 'image/jpeg');
   assert.deepEqual(out.spaces, ['Yatak Odası'], 'listede olmayan "Sinema Salonu" düşmeli');
+});
+
+await test('AI: düşük güvenli etiket ELENİR, eski düz-string çıktı biçimi hâlâ kabul (madde 11)', async () => {
+  const { classifyPhotoSpace, SPACE_CONFIDENCE_MIN } = await import('../src/lib/photoSpaceClassify.js');
+  const low = { AI: { async run() { return { response: '{"spaces":[{"label":"Mutfak","confidence":0.9},{"label":"Koridor","confidence":0.2}]}' }; } } };
+  assert.deepEqual((await classifyPhotoSpace(low, new Uint8Array([1]), 5000, 'image/jpeg')).spaces, ['Mutfak']);
+  assert.ok(SPACE_CONFIDENCE_MIN > 0.2 && SPACE_CONFIDENCE_MIN < 0.9);
+  const legacy = { AI: { async run() { return { response: '{"spaces":["Havuz"]}' }; } } };
+  assert.deepEqual((await classifyPhotoSpace(legacy, new Uint8Array([1]), 5000, 'image/jpeg')).spaces, ['Havuz']);
+});
+
+await test('AI arama eşlemesi (serbest metin -> etiket) whitelist\'ten geçer', async () => {
+  const { normalizeQuerySpace, SPACE_QUERY_SCHEMA } = await import('../src/lib/photoSpaceClassify.js');
+  assert.equal(normalizeQuerySpace({ space: 'Tuvalet & Banyo' }), 'Tuvalet & Banyo');
+  assert.equal(normalizeQuerySpace({ space: 'Sinema' }), null);
+  assert.equal(normalizeQuerySpace({ space: null }), null);
+  assert.ok(SPACE_QUERY_SCHEMA.schema.properties.space.enum.includes(null));
+  const s = read('../src/routes/photos.js');
+  assert.match(s, /\/api\/photos\/space-for-query/);
+  assert.match(s, /checkRateLimit\(env, 'photo-space-query'/, 'herkese açık LLM ucu hız sınırsız olamaz');
+  assert.match(read('../src/index.js'), /path === '\/api\/photos\/space-for-query'/);
 });
 
 await test('AI net bir mekan göremezse boş dizi (o görsel filtrede hiç görünmez)', async () => {
@@ -270,17 +312,19 @@ await test('migration + schema.sql: projects.image_spaces her ikisinde de var', 
 await test('sayfa yayında: /fotograf.html -> /fotograf 301 + sitemap girdisi', () => {
   const s = read('../src/index.js');
   assert.match(s, /'\/fotograf\.html': '\/fotograf',/);
-  assert.match(s, /\{ loc: '\/fotograf', changefreq: 'daily', priority: '0\.6' \}/);
-  assert.match(s, /if \(path === '\/api\/photos'/);
+  assert.match(s, /\{ loc: '\/fotograf', changefreq: 'daily', priority: '0\.8' \}/);
+  assert.match(s, /path === '\/api\/photos'/);
 });
 
-await test('HİÇBİR MENÜDE YOK: site-chrome.js /fotograf\'a bağlantı vermiyor', () => {
+await test('ANA MENÜ + FOOTER: FOTOĞRAF, PROJE\'den hemen sonra (ikinci tur madde 12)', () => {
   const s = read('../js/components/site-chrome.js');
-  assert.ok(!/fotograf/.test(s), 'üst menü/mobil çekmece/footer hiçbir yerde /fotograf olmamalı');
-  // Sitedeki HİÇBİR sayfa da ona <a href> ile bağlanmamalı (keşif yolu yalnızca sitemap).
-  for (const page of ['../index.html', '../proje.html', '../kisi.html', '../firma.html', '../urun.html']) {
-    assert.ok(!/href="\/?fotograf"/.test(read(page)), `${page} /fotograf'a bağlanmamalı`);
-  }
+  const block = s.slice(s.indexOf('const NAV_ITEMS = ['), s.indexOf('const LOGO_LIGHT'));
+  const order = [...block.matchAll(/key: '([a-z0-9]+)'/g)].map(m => m[1]);
+  assert.equal(order[0], 'proje'); assert.equal(order[1], 'fotograf');
+  const col = s.slice(s.indexOf('<h4>Ana Menü</h4>'), s.indexOf('<h4>Topluluk</h4>'));
+  const links = [...col.matchAll(/href="\/([a-z0-9-]+)"/g)].map(m => m[1]);
+  assert.equal(links[0], 'proje'); assert.equal(links[1], 'fotograf');
+  assert.match(read('../fotograf.html'), /data-nav-active="fotograf"/, 'sayfa kendi menü öğesini aktif işaretler');
 });
 
 await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerinde', () => {
@@ -294,8 +338,28 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   assert.match(s, /id="ph-lightbox-title"/);
   assert.match(s, /id="ph-lightbox-location"/);
   assert.match(s, /id="ph-lightbox-spaces"/);
-  assert.match(s, /Projeyi paylaşan/);
+  assert.ok(!/Projeyi paylaşan/.test(s), '"Projeyi paylaşan" hiçbir yerde yok (madde 5)');
   assert.match(s, /id="ph-lightbox-save"/);
+  // madde 7: Kaydet · Paylaş · X aynı satırda, başlık o satırdan SONRA.
+  const bar = s.indexOf('id="ph-lightbox-bar"'); const title = s.indexOf('id="ph-lightbox-title"');
+  assert.ok(bar > -1 && title > bar, 'başlık, düğme satırından sonra');
+  assert.match(s, /id="ph-lightbox-share-slot"/);
+  assert.match(s, /<script src="js\/components\/share-button\.js" defer><\/script>/);
+  // madde 6: fotoğrafçı görselin hemen altında, "© Ad" biçiminde.
+  assert.match(s, /id="ph-lightbox-credit"/);
+  assert.match(s, /`© \$\{item\.photographer\}`/);
+  // madde 8: sağ panel beyaz (temaya bağlanmaz).
+  assert.match(s, /\.ph-lightbox-info\{[^}]*background:#fff/);
+  // madde 9: görselin dışına tıklamak kapatır.
+  assert.match(s, /e\.target === lbMedia\) closeLightbox\(\)/);
+  // madde 3: arama kutusunda odak çerçevesi yok.
+  assert.match(s, /\.ph-search-field input:focus-visible[^{]*\{box-shadow:none/);
+  // madde 2: hero metni.
+  assert.match(s, /Projeler arasından sana ilham verecek mekanları ara ve bul\./);
+  // madde 1: footer CSS bloğu sayfada var (site-chrome yalnızca markup'ı üretir).
+  assert.match(s, /\.footer-top\{/); assert.match(s, /\.footer-col a\{/);
+  // madde 4: kart altı etiketi firma/mimar.
+  assert.match(s, /class="ph-card-credit"/);
   // Taksonomi ve kaydetme altyapısı sayfaya yüklenmiş olmalı.
   assert.match(s, /<script src="photo-space-taxonomy\.js" defer><\/script>/);
   assert.match(s, /<script src="save-widget\.js" defer><\/script>/);

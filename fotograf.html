@@ -8,28 +8,26 @@
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>Fotoğraflar — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'a yüklenen tüm proje fotoğraflarını mekana göre keşfet — yatak odası, banyo, mutfak ve daha fazlası.">
+<meta name="description" content="Projeler arasından sana ilham verecek mekanları ara ve bul — oturma odası, mutfak, yatak odası, banyo ve daha fazlası.">
 <link rel="canonical" href="https://mimarlab.com/fotograf">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Fotoğraflar — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'a yüklenen tüm proje fotoğraflarını mekana göre keşfet.">
+<meta property="og:description" content="Projeler arasından sana ilham verecek mekanları ara ve bul.">
 <meta property="og:url" content="https://mimarlab.com/fotograf">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Fotoğraflar — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'a yüklenen tüm proje fotoğraflarını mekana göre keşfet.">
+<meta name="twitter:description" content="Projeler arasından sana ilham verecek mekanları ara ve bul.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <!-- kisi.html'in <head>'indeki iki senkron betik (detay yolu prefetch'i + liste ön-isteği) BURADA
      BİLEREK YOK: bu sayfanın iç içe bir detay yolu (/fotograf/:id) yoktur ve LIST_PAGE_PATHS'e
      eklenmediğinden sunucu bir #ml-list-data bloğu da GÖMMEZ (bkz. danismanlik.html'deki AYNI
-     gerekçe, src/index.js#HUB_SSR). Devralacak bir istek olmadığından shim yalnızca ölü kod olurdu. -->
+     gerekçe, src/index.js#HUB_SSR). -->
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"CollectionPage","name":"Fotoğraflar — MİMARLAB","url":"https://mimarlab.com/fotograf","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
-<!-- kisi.html'deki AYNI gerekçe: göreli kaynak yolları (script/link/img) sayfanın kendi yoluna
-     göre değil kökten çözülsün. -->
 <base href="/">
 <link rel="stylesheet" href="/fonts/inter.css">
 <style>
@@ -152,24 +150,19 @@
   }
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
-  /* ---------- HERO (kullanıcı isteği: co-architecture.com/photos referansı — tam genişlik arka
-     plan görseli üzerine başlık + mekan arama kutusu) ---------- */
+  /* ---------- HERO ---------- */
   .ph-hero{
-    position:relative; min-height:340px; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; text-align:center; padding:48px 20px 64px; overflow:hidden;
+    position:relative; min-height:320px; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:48px 20px 60px; overflow:hidden;
     background:linear-gradient(180deg, rgba(27,42,61,0.55), rgba(27,42,61,0.72)), var(--ink);
-    background-size:cover; background-position:center;
   }
-  .ph-hero-bg{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; opacity:0.55;}
   .ph-hero > *{position:relative; z-index:1;}
   .ph-hero h1{
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size:38px; font-weight:700; color:#fff; margin:0 0 10px;
   }
   .ph-hero p{color:rgba(255,255,255,0.82); font-size:14.5px; margin:0 0 26px; max-width:520px;}
-  .ph-search{
-    display:flex; align-items:center; gap:12px; width:100%; max-width:640px;
-  }
+  .ph-search{display:flex; align-items:center; gap:12px; width:100%; max-width:640px;}
   .ph-search-field{
     position:relative; flex:1; display:flex; align-items:center; gap:10px;
     background:#fff; border-radius:100px; padding:12px 18px;
@@ -180,6 +173,10 @@
     flex:1; border:none; outline:none; background:none;
     font-family:inherit; font-size:14px; color:#1B2A3D;
   }
+  /* Sayfa genelindeki :focus-visible kuralı (yukarıda) her odaklanan öğeye iç mavi çerçeve
+     çizer; arama kutusunda bu bir "mavi dikdörtgen" olarak görünüyordu (kullanıcı isteği,
+     2026-09-17 ikinci tur madde 3). Odak durumu zaten dropdown'ın açılmasıyla belli. */
+  .ph-search-field input:focus-visible, .ph-search-field input:focus{box-shadow:none; outline:none;}
   .ph-search-field input::placeholder{color:#7A8798;}
   .ph-reset-btn{
     flex-shrink:0; background:#12171F; color:#fff; border:none; border-radius:100px;
@@ -189,7 +186,7 @@
   .ph-dropdown{
     position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:20;
     background:#fff; border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,0.18);
-    max-height:280px; overflow-y:auto; text-align:left; padding:6px;
+    max-height:300px; overflow-y:auto; text-align:left; padding:6px;
   }
   .ph-dropdown[hidden]{display:none;}
   .ph-dropdown-option{
@@ -197,8 +194,9 @@
     padding:10px 14px; border-radius:8px; font-size:13.5px; color:#1B2A3D;
   }
   .ph-dropdown-option:hover, .ph-dropdown-option.active{background:#EDF0F3; color:#12171F;}
+  .ph-dropdown-note{padding:10px 14px; font-size:12.5px; color:#7A8798;}
 
-  /* ---------- IZGARA (Pinterest tarzı masonry — CSS columns, JS layout hesabı gerektirmez) ---------- */
+  /* ---------- IZGARA (masonry — CSS columns) ---------- */
   .ph-grid-wrap{max-width:1400px; margin:0 auto; padding:28px 24px 12px;}
   .ph-grid{columns:4 260px; column-gap:16px;}
   .ph-card{
@@ -209,16 +207,10 @@
   .ph-card-overlay{
     position:absolute; left:0; right:0; bottom:0;
     display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:9px 10px; background:linear-gradient(0deg, rgba(0,0,0,0.55), transparent);
+    padding:9px 12px; background:linear-gradient(0deg, rgba(0,0,0,0.55), transparent);
   }
-  .ph-card-owner{display:flex; align-items:center; gap:7px; min-width:0;}
-  .ph-card-owner-avatar{
-    width:22px; height:22px; border-radius:50%; flex-shrink:0; overflow:hidden;
-    background:var(--walnut); color:#fff; display:flex; align-items:center; justify-content:center;
-    font-size:9px; font-weight:700;
-  }
-  .ph-card-owner-avatar img{width:100%; height:100%; object-fit:cover;}
-  .ph-card-owner-name{color:#fff; font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* Kartın altında MİMARLIK FİRMASI (yoksa mimar) adı (kullanıcı isteği, madde 4) — avatar yok. */
+  .ph-card-credit{color:#fff; font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
   .ph-card-save{
     flex-shrink:0; width:26px; height:26px; border-radius:50%; border:none;
     background:rgba(0,0,0,0.35); color:#fff; display:flex; align-items:center; justify-content:center;
@@ -235,57 +227,80 @@
   .ph-loadmore-btn:hover{border-color:var(--walnut);}
   .ph-loadmore-btn[disabled]{opacity:0.55; cursor:default;}
 
-  /* ---------- LIGHTBOX (kullanıcı isteği: görsele tıklayınca proje künyesiyle açılsın, ekteki
-     2. görseldeki gibi — başlık/konum + "Projeyi paylaşan" + kaydet + kapat/önceki/sonraki) ---------- */
+  /* ---------- LIGHTBOX ----------
+     Sağ panel BEYAZ (madde 8); üst satırda Kaydet · Paylaş · X (madde 7), başlık bu satırdan
+     SONRA başlar; fotoğrafçı adı görselin HEMEN altında (madde 6, proje lightbox'ındaki "© Ad"
+     ile aynı); görselin DIŞINA tıklamak kapatır (madde 9). Panel renkleri temaya bağlanmaz —
+     lightbox bir overlay'dir, gece modunda da beyaz kalır. */
   .ph-lightbox{
     position:fixed; inset:0; z-index:200; background:rgba(10,14,20,0.92);
     display:none; align-items:stretch; justify-content:center;
   }
   .ph-lightbox.open{display:flex;}
   .ph-lightbox-media{
-    flex:1; display:flex; align-items:center; justify-content:center; padding:32px; min-width:0;
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:32px; min-width:0; cursor:zoom-out;
   }
-  .ph-lightbox-media img{max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;}
+  .ph-lightbox-media img{max-width:100%; max-height:calc(100% - 34px); object-fit:contain; border-radius:4px; cursor:default;}
+  .ph-lightbox-credit{
+    margin-top:10px; font-size:12.5px; color:rgba(237,240,243,0.92); background:rgba(27,42,61,0.55);
+    padding:5px 10px; border-radius:6px; max-width:80%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;
+  }
+  .ph-lightbox-credit[hidden]{display:none;}
   .ph-lightbox-info{
-    width:340px; flex-shrink:0; background:#12171F; color:#EDF0F3;
-    padding:28px 26px; display:flex; flex-direction:column; gap:18px; overflow-y:auto;
+    width:340px; flex-shrink:0; background:#fff; color:#1B2A3D;
+    padding:18px 22px 26px; display:flex; flex-direction:column; gap:16px; overflow-y:auto;
   }
-  /* display:block ŞART: <a> varsayılan olarak satır içidir ve altındaki .ph-lightbox-location
-     ile ÜST ÜSTE biniyordu (ölçüldü, Chromium — konum satırı başlığın üzerine taşıyordu).
-     Boşluk negatif margin ile DEĞİL, başlığın kendi margin'iyle verilir. */
-  .ph-lightbox-title{display:block; font-size:19px; font-weight:700; color:#fff; line-height:1.3; margin-bottom:5px;}
+  .ph-lightbox-bar{display:flex; align-items:center; justify-content:flex-end; gap:8px;}
+  .ph-lightbox-save, .ph-lightbox-close{
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:32px; height:32px; box-sizing:border-box; padding:0;
+    background:#F8FAFB; border:1px solid rgba(27,42,61,0.14); border-radius:100px; color:#4E6478;
+  }
+  .ph-lightbox-save:hover, .ph-lightbox-close:hover{border-color:#2B425F; color:#1B2A3D;}
+  .ph-lightbox-save.saved{background:#1B2A3D; color:#fff; border-color:#1B2A3D;}
+  .ph-lightbox-save.saved svg{fill:currentColor;}
+  /* share-button.js'in enjekte ettiği .share-btn temaya (var(--paper-card)) bağlı; beyaz panelde
+     açık tema değerlerine sabitlenir. */
+  .ph-lightbox-info .share-btn{background:#F8FAFB; border-color:rgba(27,42,61,0.14); color:#4E6478;}
+  .ph-lightbox-info .share-btn:hover{border-color:#2B425F; color:#1B2A3D;}
+  .ph-lightbox-title{display:block; font-size:19px; font-weight:700; color:#1B2A3D; line-height:1.3; margin-bottom:5px;}
   .ph-lightbox-title:hover{text-decoration:underline;}
-  .ph-lightbox-location{font-size:13px; color:rgba(237,240,243,0.65);}
+  .ph-lightbox-location{font-size:13px; color:#4E6478;}
+  .ph-lightbox-credit-line{font-size:13px; color:#1B2A3D; margin-top:8px;}
+  .ph-lightbox-credit-line span{color:#4E6478;}
   .ph-lightbox-spaces{display:flex; flex-wrap:wrap; gap:6px;}
   .ph-lightbox-space-chip{
     font-size:11.5px; font-weight:600; padding:4px 11px; border-radius:100px;
-    background:rgba(237,240,243,0.1); color:rgba(237,240,243,0.85);
+    background:#EDF0F3; color:#1B2A3D;
   }
-  .ph-lightbox-owner-label{font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:rgba(237,240,243,0.5); margin-bottom:8px;}
-  .ph-lightbox-owner-row{display:flex; align-items:center; gap:10px;}
-  .ph-lightbox-owner-avatar{
-    width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0;
-    background:var(--walnut); color:#fff; display:flex; align-items:center; justify-content:center;
-    font-size:12px; font-weight:700;
+  .ph-lightbox-prev, .ph-lightbox-next{
+    position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px;
+    background:none; border:none; color:#fff; opacity:0.8; z-index:2;
+    display:flex; align-items:center; justify-content:center;
   }
-  .ph-lightbox-owner-avatar img{width:100%; height:100%; object-fit:cover;}
-  .ph-lightbox-owner-name{font-size:14px; font-weight:600;}
-  .ph-lightbox-save{
-    margin-top:auto; align-self:flex-start; display:flex; align-items:center; gap:8px;
-    background:none; border:1px solid rgba(237,240,243,0.3); color:#EDF0F3;
-    padding:10px 18px; border-radius:100px; font-size:13px; font-weight:600;
+  .ph-lightbox-prev:hover, .ph-lightbox-next:hover{opacity:1;}
+  .ph-lightbox-prev{left:16px;}
+  .ph-lightbox-next{right:356px;}
+
+  /* ---------- FOOTER (her sayfada kopyalı; site-chrome.js yalnızca markup'ı üretir) ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{
+    max-width:1080px; margin:0 auto;
+    padding:48px 32px 32px;
+    display:grid; grid-template-columns:2fr 1fr 1fr 1fr;
+    gap:32px;
   }
-  .ph-lightbox-save:hover{border-color:#EDF0F3;}
-  .ph-lightbox-save.saved{background:#fff; color:#12171F; border-color:#fff;}
-  .ph-lightbox-save.saved svg{fill:currentColor;}
-  .ph-lightbox-close, .ph-lightbox-prev, .ph-lightbox-next{
-    position:absolute; background:none; border:none; color:#fff; opacity:0.8;
-    display:flex; align-items:center; justify-content:center; z-index:2;
-  }
-  .ph-lightbox-close:hover, .ph-lightbox-prev:hover, .ph-lightbox-next:hover{opacity:1;}
-  .ph-lightbox-close{top:20px; right:20px; width:38px; height:38px;}
-  .ph-lightbox-prev{top:50%; left:16px; transform:translateY(-50%); width:44px; height:44px;}
-  .ph-lightbox-next{top:50%; right:356px; transform:translateY(-50%); width:44px; height:44px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
   @media (max-width:960px){
     .nav{padding:10px 18px; gap:10px;}
@@ -304,37 +319,39 @@
     .ph-card{margin-bottom:10px; border-radius:10px;}
     .ph-grid-wrap{padding:20px 12px 8px;}
     .ph-lightbox{flex-direction:column;}
-    .ph-lightbox-media{padding:16px; padding-bottom:0;}
-    .ph-lightbox-info{width:100%; padding:18px 20px 28px;}
-    .ph-lightbox-next{right:20px; top:auto; bottom:calc(38% + 12px); transform:none;}
-    .ph-lightbox-prev{top:auto; bottom:calc(38% + 12px); transform:none;}
+    .ph-lightbox-media{padding:16px; padding-bottom:8px; flex:1 1 60%;}
+    .ph-lightbox-info{width:100%; padding:14px 18px 24px; flex:0 0 auto; max-height:44%;}
+    .ph-lightbox-prev, .ph-lightbox-next{top:30%;}
+    .ph-lightbox-next{right:16px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
   }
 </style>
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
-<!-- image-cdn.js SENKRON (kisi.html'deki AYNI gerekçe): ilk kart çizimi cdnImg/cdnSrcset'e bağlı
-     ve DOMContentLoaded'ı beklemiyor. -->
+<!-- image-cdn.js SENKRON (kisi.html'deki AYNI gerekçe): ilk kart çizimi cdnImg/cdnSrcset'e bağlı. -->
 <script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
 <script src="save-widget.js" defer></script>
+<script src="js/components/share-button.js" defer></script>
 <script src="photo-space-taxonomy.js" defer></script>
 <!-- lazy-modals.js — lightbox'taki proje başlığı bağlantısı (bkz. #ph-lightbox-title) gerçek bir
      <a href="/proje/:slug">'dır; bu script sitenin her yerinde olduğu gibi o tıklamayı yakalayıp
-     tam proje popup'ını AYNI belgede açar (yeniden sayfa yüklemesi olmaz). -->
+     tam proje popup'ını AYNI belgede açar. -->
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/broken-image-fallback.js" defer></script>
 
-  <div id="site-header-mount" data-nav-active=""></div>
+  <div id="site-header-mount" data-nav-active="fotograf"></div>
   <script src="js/components/site-chrome.js"></script>
 
   <div class="ph-hero">
     <h1>Fotoğraflar</h1>
-    <p>MİMARLAB'a yüklenen tüm projelerden, son eklenenden ilk eklenene doğru sıralanmış ilham veren mekanlar.</p>
+    <p>Projeler arasından sana ilham verecek mekanları ara ve bul.</p>
     <div class="ph-search">
       <div class="ph-search-field">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="ph-search-input" placeholder="Mekana göre ara (Yatak Odası, Banyo ve daha fazlası)" autocomplete="off" aria-label="Mekana göre ara">
+        <input type="text" id="ph-search-input" placeholder="Mekana göre ara (Oturma Odası, Mutfak ve daha fazlası)" autocomplete="off" aria-label="Mekana göre ara">
         <div class="ph-dropdown" id="ph-dropdown" hidden></div>
       </div>
       <button type="button" class="ph-reset-btn" id="ph-reset-btn">Sıfırla</button>
@@ -350,35 +367,32 @@
   </div>
 
   <div class="ph-lightbox" id="ph-lightbox" role="dialog" aria-modal="true" aria-hidden="true">
-    <button type="button" class="ph-lightbox-close" id="ph-lightbox-close" aria-label="Kapat">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
-    </button>
     <button type="button" class="ph-lightbox-prev" id="ph-lightbox-prev" aria-label="Önceki görsel">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     <button type="button" class="ph-lightbox-next" id="ph-lightbox-next" aria-label="Sonraki görsel">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
-    <div class="ph-lightbox-media">
+    <div class="ph-lightbox-media" id="ph-lightbox-media">
       <img id="ph-lightbox-img" src="" alt="">
+      <div class="ph-lightbox-credit" id="ph-lightbox-credit" hidden></div>
     </div>
     <div class="ph-lightbox-info">
+      <div class="ph-lightbox-bar" id="ph-lightbox-bar">
+        <button type="button" class="ph-lightbox-save" id="ph-lightbox-save" aria-label="Kaydet">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+        </button>
+        <span id="ph-lightbox-share-slot"></span>
+        <button type="button" class="ph-lightbox-close" id="ph-lightbox-close" aria-label="Kapat">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
       <div>
         <a class="ph-lightbox-title" id="ph-lightbox-title" href="#"></a>
         <div class="ph-lightbox-location" id="ph-lightbox-location"></div>
+        <div class="ph-lightbox-credit-line" id="ph-lightbox-credit-line"></div>
       </div>
       <div class="ph-lightbox-spaces" id="ph-lightbox-spaces"></div>
-      <div>
-        <div class="ph-lightbox-owner-label">Projeyi paylaşan</div>
-        <div class="ph-lightbox-owner-row">
-          <div class="ph-lightbox-owner-avatar" id="ph-lightbox-owner-avatar"></div>
-          <div class="ph-lightbox-owner-name" id="ph-lightbox-owner-name"></div>
-        </div>
-      </div>
-      <button type="button" class="ph-lightbox-save" id="ph-lightbox-save" aria-label="Kaydet">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
-        <span>Kaydet</span>
-      </button>
     </div>
   </div>
 
@@ -387,15 +401,9 @@
 <script src="badge-shared.js"></script>
 <script src="js/analytics-beacon.js" defer></script>
 <script>
-// FOTOĞRAF SAYFASI (kullanıcı isteği, 2026-09-17): "Ekteki görseldeki ve
-// https://co-architecture.com/photos bu linkteki şekilde siteye yüklenen projelerin
-// görsellerinin yükleme sırasına göre en son yüklenenden ilk yüklenene doğru sıralanacağı bir
-// sayfa yapacağız ... Mekan filtremesini yapay zeka yapsın. Görsele tıklayınca da lightbox
-// şeklinde açılacak ve projenin künyesi ... sergilenecek."
-//
-// HİÇBİR MENÜDE YOK: ne üst menüde, ne mobil çekmecede, ne altbilgide bir bağlantısı vardır
-// (js/components/site-chrome.js'e DOKUNULMADI). Sayfa yalnızca doğrudan adresle ve
-// /sitemap.xml üzerinden bulunur (bkz. src/index.js#SITEMAP_STATIC_PAGES).
+// FOTOĞRAF SAYFASI (kullanıcı isteği, 2026-09-17; ikinci tur aynı gün: footer, metin, sabit mekan
+// sırası, firma/mimar etiketi, yükleyen bilgisi yok, fotoğrafçı, Kaydet·Paylaş·X satırı, beyaz panel,
+// dışarı tıkla-kapat, blurlu görsel yok, AI destekli arama, ana menüye ekleme).
 //
 // Veri kaynağı: GET /api/photos (bkz. src/routes/photos.js) — src/lib/photoPool.js'in KV-önbellekli
 // havuzunu mekan filtresine göre süzüp sayfalar. Sıralama SUNUCUDA yapılır (proje created_at DESC,
@@ -403,7 +411,7 @@
 (function(){
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-  function initialsOf(name){ return (name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase(); }
+  function foldTr(s){ return String(s || '').toLocaleLowerCase('tr').trim(); }
 
   const grid = document.getElementById('ph-grid');
   const emptyEl = document.getElementById('ph-empty');
@@ -419,35 +427,51 @@
   let loading = false;
   let exhausted = false;
 
-  // ---------- Mekan arama dropdown'ı (photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS) ----------
-  function renderDropdown(query){
-    const q = (query || '').toLocaleLowerCase('tr').trim();
-    const list = (typeof PHOTO_SPACE_OPTIONS !== 'undefined' ? PHOTO_SPACE_OPTIONS : [])
-      .filter(s => !q || s.toLocaleLowerCase('tr').includes(q));
-    if(!list.length){ dropdown.innerHTML = '<div class="ph-dropdown-option" style="opacity:0.6;">Sonuç bulunamadı.</div>'; return; }
-    dropdown.innerHTML = list.map(s =>
+  // ---------- Mekan arama (photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS — verilen SIRAYLA) ----------
+  function spaceOptions(){ return (typeof PHOTO_SPACE_OPTIONS !== 'undefined') ? PHOTO_SPACE_OPTIONS : []; }
+  function matchingOptions(query){
+    const q = foldTr(query);
+    return spaceOptions().filter(s => !q || foldTr(s).includes(q));
+  }
+  function selectSpace(space){
+    currentSpace = space || '';
+    searchInput.value = currentSpace;
+    dropdown.hidden = true;
+    reload();
+  }
+  function renderDropdown(query, note){
+    const list = matchingOptions(query);
+    let html = list.map(s =>
       `<button type="button" class="ph-dropdown-option${s === currentSpace ? ' active' : ''}" data-space="${escapeAttr(s)}">${escapeHtml(s)}</button>`
     ).join('');
-    dropdown.querySelectorAll('[data-space]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        currentSpace = btn.dataset.space;
-        searchInput.value = currentSpace;
-        dropdown.hidden = true;
-        reload();
-      });
-    });
+    if(!list.length) html = `<div class="ph-dropdown-note">${escapeHtml(note || 'Listede yok — Enter\'a basarsan yapay zeka en yakın mekanı bulur.')}</div>`;
+    dropdown.innerHTML = html;
+    dropdown.querySelectorAll('[data-space]').forEach(btn => btn.addEventListener('click', () => selectSpace(btn.dataset.space)));
+  }
+  // AI DESTEKLİ ARAMA (kullanıcı isteği madde 11): listede birebir/alt dize eşleşmesi yoksa
+  // ("salon", "wc", "çocuk odası") sunucu metin modeliyle en yakın etiketi bulur (bkz.
+  // src/routes/photos.js#spaceForQuery). Enter'a bağlı — tuş vuruşu başına AI çağrısı YOK.
+  let aiQuerySeq = 0;
+  async function resolveQuery(){
+    const q = searchInput.value.trim();
+    if(!q){ selectSpace(''); return; }
+    const local = matchingOptions(q);
+    if(local.length){ selectSpace(local[0]); return; }
+    const mySeq = ++aiQuerySeq;
+    renderDropdown(q, 'Aranıyor…'); dropdown.hidden = false;
+    try{
+      const res = await fetch(`/api/photos/space-for-query?q=${encodeURIComponent(q)}`);
+      const data = res.ok ? await res.json() : { space: null };
+      if(mySeq !== aiQuerySeq) return;
+      if(data.space) selectSpace(data.space);
+      else renderDropdown(q, 'Eşleşen bir mekan bulunamadı.');
+    }catch{ if(mySeq === aiQuerySeq) renderDropdown(q, 'Eşleşen bir mekan bulunamadı.'); }
   }
   searchInput.addEventListener('focus', () => { renderDropdown(searchInput.value); dropdown.hidden = false; });
   searchInput.addEventListener('input', () => { renderDropdown(searchInput.value); dropdown.hidden = false; });
-  document.addEventListener('click', (e) => {
-    if(!e.target.closest('.ph-search-field')) dropdown.hidden = true;
-  });
-  resetBtn.addEventListener('click', () => {
-    currentSpace = '';
-    searchInput.value = '';
-    dropdown.hidden = true;
-    reload();
-  });
+  searchInput.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); resolveQuery(); } });
+  document.addEventListener('click', (e) => { if(!e.target.closest('.ph-search-field')) dropdown.hidden = true; });
+  resetBtn.addEventListener('click', () => selectSpace(''));
 
   // ---------- Izgara ----------
   function cardHtml(item, idx){
@@ -457,10 +481,7 @@
     <a class="ph-card" role="button" tabindex="0" data-idx="${idx}" aria-label="${escapeAttr(item.projectTitle || '')}">
       <img src="${escapeAttr(src)}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="(max-width:720px) 50vw, 260px"` : ''} alt="${escapeAttr(item.projectTitle || '')}" loading="lazy" decoding="async">
       <div class="ph-card-overlay">
-        <div class="ph-card-owner">
-          <div class="ph-card-owner-avatar">${item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initialsOf(item.ownerName))}</div>
-          <div class="ph-card-owner-name">${escapeHtml(item.ownerName)}</div>
-        </div>
+        <div class="ph-card-credit">${escapeHtml(item.credit || item.projectTitle || '')}</div>
         <button type="button" class="ph-card-save" data-idx="${idx}" aria-label="Kaydet">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         </button>
@@ -470,7 +491,7 @@
 
   function appendCards(newItems, startIdx){
     grid.insertAdjacentHTML('beforeend', newItems.map((it, i) => cardHtml(it, startIdx + i)).join(''));
-    grid.querySelectorAll(`.ph-card`).forEach(card => {
+    grid.querySelectorAll('.ph-card').forEach(card => {
       if(card.dataset.wired) return;
       card.dataset.wired = '1';
       card.addEventListener('click', (e) => {
@@ -505,7 +526,7 @@
       exhausted = !data.hasMore;
       loadMoreBtn.style.display = exhausted ? 'none' : '';
       emptyEl.style.display = items.length ? 'none' : '';
-    } catch { /* ağ hatası — mevcut ızgara olduğu gibi kalır, kullanıcı "Daha Fazla Göster"i tekrar deneyebilir */ }
+    } catch { /* ağ hatası — mevcut ızgara kalır, "Daha Fazla Göster" tekrar denenebilir */ }
     loading = false;
     loadMoreBtn.disabled = false;
     loadMoreBtn.textContent = 'Daha Fazla Göster';
@@ -514,14 +535,9 @@
   loadMoreBtn.addEventListener('click', () => loadPage(false));
 
   // ---------- Kaydet (image tipi — bkz. save-widget.js, Koleksiyonum > Görsel filtresi) ----------
-  // save-widget.js sayfa yüklenişinde YALNIZCA .card-save-btn sınıfını otomatik tarar; bu sayfanın
-  // hem ızgara hem lightbox düğmeleri KENDİ sınıflarını taşıyor (çakışma riskini sıfırlamak için,
-  // bkz. gallery.js#lightboxSaveBtn'deki AYNI gerekçe) — bu yüzden her biri wireSaveButton() ile
-  // TEK TEK, elle bağlanır.
-  // wireSaveButton HER çağrıda düğmeyi YENİDEN BOYAR ama dinleyiciyi yalnızca BİR kez takar
-  // (dataset.saveWired bayrağı, bkz. save-widget.js) — lightbox düğmesinin data-key'i her görselde
-  // değiştiğinden bu şart. save-widget.js yüklenmemişse (defer sırası) düğme işlevsiz kalmasın
-  // diye gizlenir: gallery.js#paintSaveBtnForImage'daki AYNI kontrol/gerekçe.
+  // wireSaveButton HER çağrıda yeniden BOYAR ama dinleyiciyi bir kez takar (dataset.saveWired) —
+  // lightbox düğmesinin data-key'i her görselde değiştiğinden bu şart. Düğmeler kendi sınıflarını
+  // taşır (bkz. gallery.js#lightboxSaveBtn'deki gerekçe), bu yüzden tek tek elle bağlanır.
   function wirePhotoSaveBtn(btn, getItem){
     const item = getItem();
     if(!item) return;
@@ -538,40 +554,60 @@
 
   // ---------- Lightbox ----------
   const lightbox = document.getElementById('ph-lightbox');
+  const lbMedia = document.getElementById('ph-lightbox-media');
   const lbImg = document.getElementById('ph-lightbox-img');
+  const lbCredit = document.getElementById('ph-lightbox-credit');
   const lbTitle = document.getElementById('ph-lightbox-title');
   const lbLocation = document.getElementById('ph-lightbox-location');
+  const lbCreditLine = document.getElementById('ph-lightbox-credit-line');
   const lbSpaces = document.getElementById('ph-lightbox-spaces');
-  const lbOwnerAvatar = document.getElementById('ph-lightbox-owner-avatar');
-  const lbOwnerName = document.getElementById('ph-lightbox-owner-name');
   const lbSaveBtn = document.getElementById('ph-lightbox-save');
   let lightboxIdx = -1;
+  let shareWired = false;
 
+  function projectHref(item){ return item.projectSlug ? `/proje/${encodeURIComponent(item.projectSlug)}` : '#'; }
+  function wireShare(){
+    if(shareWired || typeof ShareWidget === 'undefined') return;
+    const slot = document.getElementById('ph-lightbox-share-slot');
+    slot.innerHTML = ShareWidget.html('ph-share-btn');
+    // getData her tıklamada O ANKİ görseli okur — düğme bir kez bağlanır, hedef görselle değişir.
+    ShareWidget.wire('ph-share-btn', () => {
+      const item = items[lightboxIdx] || {};
+      return {
+        title: item.projectTitle || 'MİMARLAB',
+        url: `${window.location.origin}${projectHref(item)}`,
+        type: 'project', key: item.projectSlug || '',
+        image: item.url || '', meta: item.projectLocation || '',
+      };
+    });
+    shareWired = true;
+  }
   function renderLightbox(){
     const item = items[lightboxIdx];
     if(!item) return;
-    const src = (typeof cdnImg === 'function') ? cdnImg(item.url, 1600) : item.url;
-    lbImg.src = src;
+    lbImg.src = (typeof cdnImg === 'function') ? cdnImg(item.url, 1600) : item.url;
     lbImg.alt = item.projectTitle || '';
+    // Fotoğrafçı — görselin hemen altında, proje lightbox'ındaki "© Ad" ile aynı biçim (madde 6).
+    lbCredit.textContent = item.photographer ? `© ${item.photographer}` : '';
+    lbCredit.hidden = !item.photographer;
     lbTitle.textContent = item.projectTitle || '';
-    lbTitle.href = item.projectSlug ? `/proje/${encodeURIComponent(item.projectSlug)}` : '#';
+    lbTitle.href = projectHref(item);
     lbLocation.textContent = item.projectLocation || '';
     lbLocation.style.display = item.projectLocation ? '' : 'none';
+    // Mimarlık firması (yoksa mimar) — madde 4; yükleyen hesabın kimliği artık gösterilmez (madde 5).
+    lbCreditLine.innerHTML = item.credit
+      ? `<span>${item.creditType === 'architect' ? 'Mimar:' : 'Mimarlık Firması:'}</span> ${escapeHtml(item.credit)}`
+      : '';
     lbSpaces.innerHTML = (item.spaces || []).map(s => `<span class="ph-lightbox-space-chip">${escapeHtml(s)}</span>`).join('');
-    lbOwnerName.textContent = item.ownerName || 'MİMARLAB';
-    lbOwnerAvatar.innerHTML = item.ownerPhoto
-      ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
-      : escapeHtml(initialsOf(item.ownerName));
     wirePhotoSaveBtn(lbSaveBtn, () => items[lightboxIdx]);
+    wireShare();
   }
-  async function openLightbox(idx){
+  function openLightbox(idx){
     lightboxIdx = idx;
     renderLightbox();
     lightbox.classList.add('open');
     lightbox.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
-    // Sona yakınsa (kaydırma) sonraki sayfayı sessizce ısıt — kullanıcı "sonraki"ye bastığında
-    // beklemesin.
     if(!exhausted && lightboxIdx >= items.length - 5) loadPage(false);
   }
   function closeLightbox(){
@@ -589,7 +625,9 @@
   document.getElementById('ph-lightbox-close').addEventListener('click', closeLightbox);
   document.getElementById('ph-lightbox-prev').addEventListener('click', () => stepLightbox(-1));
   document.getElementById('ph-lightbox-next').addEventListener('click', () => stepLightbox(1));
-  lightbox.addEventListener('click', (e) => { if(e.target === lightbox) closeLightbox(); });
+  // Görselin DIŞINA tıklamak kapatır (madde 9): karartma da, görselin etrafındaki boşluk da.
+  // Görselin/fotoğrafçı etiketinin/panelin/okların üzeri kapatmaz.
+  lightbox.addEventListener('click', (e) => { if(e.target === lightbox || e.target === lbMedia) closeLightbox(); });
   document.addEventListener('keydown', (e) => {
     if(!lightbox.classList.contains('open')) return;
     if(e.key === 'Escape') closeLightbox();
@@ -597,11 +635,8 @@
     else if(e.key === 'ArrowRight') stepLightbox(1);
   });
 
-  // DOMContentLoaded'ı BEKLEMEK ŞART: bu satır içi betik ayrıştırma sırasında, TÜM `defer`'lı
-  // betiklerden ÖNCE çalışır (defer sözleşmesi) — yani save-widget.js#wireSaveButton ve
-  // photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS o anda henüz TANIMSIZDIR. İlk çizim beklemeden
-  // yapılırsa ızgaradaki Kaydet düğmeleri kalıcı olarak gizlenir (wirePhotoSaveBtn'in güvenli
-  // dalı) ve mekan dropdown'ı boş kalırdı.
+  // DOMContentLoaded'ı BEKLEMEK ŞART: bu satır içi betik TÜM `defer`'lı betiklerden ÖNCE çalışır —
+  // save-widget/share-button/taksonomi o anda henüz tanımsızdır.
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', reload);
   else reload();
 })();

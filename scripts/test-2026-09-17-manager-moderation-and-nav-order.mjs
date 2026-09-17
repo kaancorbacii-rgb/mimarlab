@@ -253,18 +253,18 @@ await test('firma.html yeni açıklamayı taşır, eskisini taşımaz', () => {
 
 section('madde 5 — ana menü + footer sırası: FİRMA, KİŞİ');
 
-await test('NAV_ITEMS sırası PROJE · FİRMA · KİŞİ · ÜRÜN · GÜNDEM', () => {
+await test('NAV_ITEMS sırası PROJE · FOTOĞRAF · FİRMA · KİŞİ · ÜRÜN · GÜNDEM (Fotoğraf: 2026-09-17 ikinci tur madde 12)', () => {
   const s = read('../js/components/site-chrome.js');
   const block = s.slice(s.indexOf('const NAV_ITEMS = ['), s.indexOf('const LOGO_LIGHT'));
   const order = [...block.matchAll(/key: '([a-z0-9]+)'/g)].map(m => m[1]);
-  assert.deepEqual(order, ['proje', 'firma', 'kisi', 'urun', 'gundem']);
+  assert.deepEqual(order, ['proje', 'fotograf', 'firma', 'kisi', 'urun', 'gundem']);
 });
 
 await test('footer "Ana Menü" sütunu AYNI sırayı taşır (iki liste ayrışamaz)', () => {
   const s = read('../js/components/site-chrome.js');
   const col = s.slice(s.indexOf('<h4>Ana Menü</h4>'), s.indexOf('<h4>Topluluk</h4>'));
   const order = [...col.matchAll(/href="\/([a-z0-9-]+)"/g)].map(m => m[1]);
-  assert.deepEqual(order, ['proje', 'firma', 'kisi', 'urun', 'gundem']);
+  assert.deepEqual(order, ['proje', 'fotograf', 'firma', 'kisi', 'urun', 'gundem']);
 });
 
 console.log(`\n${failed ? 'BAŞARISIZ' : 'TAMAM'} — ${passed} geçti, ${failed} kaldı`);

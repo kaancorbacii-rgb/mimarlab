@@ -1999,3 +1999,45 @@ Testler: `scripts/test-2026-09-17-comments-identity-and-photo-page.mjs` (22 test
 — yorum kimliği/silme yetkisi ve fotoğraf havuzu/filtre/künye GERÇEK SQLite + gerçek uçlarla,
 AI whitelist'i sahte bir `env.AI` ile ölçülür. **migrations/0124 KOD DEPLOY'undan ÖNCE uygulanmalı**
 (`.github/workflows/migrate.yml`): kolon yokken `photoPool.js`'in SELECT'i hata verir.
+
+## /fotograf ikinci tur — footer, sabit mekan listesi, firma/mimar etiketi, beyaz lightbox, AI arama, ana menü (2026-09-17)
+
+Kullanıcı isteği (13 madde): footer bozuk; hero metni; mekanlar VERİLEN sırayla + arama kutusunda
+mavi çerçeve yok; kart altında mimarlık firması (yoksa mimar); "projeyi paylaşan" HİÇBİR yerde yok;
+görselin altında fotoğrafçı; Kaydet·Paylaş X'in solunda, başlık o satırdan sonra; sağ panel beyaz;
+görselin dışına tıklayınca kapansın; blurlu görseller gösterilmesin; filtreyi AI ile geliştir;
+sayfayı ana menü + footer'a FOTOĞRAF olarak PROJE'den sonra ekle.
+
+- **Footer'ın KÖK NEDENİ**: `site-chrome.js` yalnızca footer MARKUP'ını üretir; `.site-footer/
+  .footer-top/.footer-col...` kuralları HER sayfanın kendi `<style>`'ında kopyalıdır (nav CSS'iyle
+  aynı desen) ve ilk turda bu blok fotograf.html'e KOPYALANMAMIŞTI — footer sütunları düz akışta
+  alt alta diziliyordu. Blok eklendi (720px'te 2 sütun dahil). Ölçüldü: `.footer-top` grid, 4 sütun.
+- **Taksonomi 15 mekan, KULLANICININ SIRASI** (`photo-space-taxonomy.js#PHOTO_SPACE_TAXONOMY` —
+  artık `{label, description}`; description yalnızca AI promptu içindir). Eski 20'lik liste ile
+  yazılan `image_spaces` değerleri artık eşleşmez → backfill `--force` ile YENİDEN koşturuldu
+  (workflow `force=evet`); eski etiketleri taşıyan bir tur yarıda iptal edildi.
+- **AI (madde 11)**: (a) sınıflandırma promptu her etiketin tanımını taşır, etiket başına GÜVEN
+  ister (`SPACE_CONFIDENCE_MIN=0.45` altı elenir, en fazla 3 etiket) ve fotoğraf/çizim ayrımını
+  açıkça yapar (dış cephe FOTOĞRAFI → boş dizi; "Cephe Çizimi" yalnızca çizim). Eski düz-string
+  çıktı biçimi hâlâ kabul (whitelist yine uygulanır). (b) **Serbest metin → etiket**: `GET
+  /api/photos/space-for-query?q=` (`aiProvider.js#callOnce`, JSON Mode, `AI_MODEL`); istemci önce
+  listeyi kendi süzer, yalnızca eşleşme yoksa ve **Enter'a basılınca** bu uca gider ("salon" →
+  Oturma Odası, "wc" → Tuvalet & Banyo). IP bazlı `checkRateLimit('photo-space-query', 20/10dk)`
+  ŞART — herkese açık bir LLM ucu.
+- **Havuz** (`photoPool.js`): `hidden_at IS NULL` (önizleme/blur DAHİL DEĞİL — projectPool'un
+  `OR preview_at IS NOT NULL` kuralından bilerek ayrılır; blur kalkınca invalidatePublicCache
+  havuzu tazeler). Görsel başına `credit` (project_designers → ilk firma, yoksa ilk mimar; bağ
+  yoksa `office_names_raw`/`designer_names_raw`), `creditType`, `photographer` (`image_credits[url]`
+  → `photo_credit_text`, gallery.js#paintCredit ile AYNI düşüş). `ownerName/ownerPhoto` ve
+  `fetchOwnerByline` çağrısı KALDIRILDI.
+- **Lightbox**: panel sabit beyaz (temaya bağlanmaz — overlay). Üst satır `#ph-lightbox-bar`:
+  Kaydet (32px pil, `.share-btn` ile aynı ölçü) · `ShareWidget.html('ph-share-btn')` · X; başlık
+  satırdan SONRA. Paylaş `ShareWidget.wire` ile BİR kez bağlanır, `getData` o anki görseli okur
+  (URL = /proje/:slug). Fotoğrafçı `#ph-lightbox-credit` görselin hemen altında ("© Ad"). Kapatma:
+  `e.target === lightbox || e.target === lbMedia` — görselin/etiketin/panelin üzeri kapatmaz.
+- **Menü**: `NAV_ITEMS`'a `fotograf` PROJE'den sonra, footer "Ana Menü"ye de; sayfa
+  `data-nav-active="fotograf"`. Sitemap önceliği 0.8. smoke-test 13c artık menü bağlantısının
+  VARLIĞINI doğrular (site-chrome.js dosyasında — menü istemcide çizildiğinden ham HTML'de yoktur).
+- Testler: `test-2026-09-17-comments-identity-and-photo-page.mjs` 24 test; nav sırası kelepçeleri
+  (`test-2026-09-17-manager-moderation-and-nav-order.mjs`) PROJE · FOTOĞRAF · FİRMA · KİŞİ · ÜRÜN ·
+  GÜNDEM olarak güncellendi.

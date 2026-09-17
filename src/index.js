@@ -420,9 +420,9 @@ const PATH_RENAME_REDIRECTS = {
   // yerine 301). Sitemap'te YOK: giriş gerektiren işlemsel bir başvuru sayfası (bkz. /rozet-al,
   // /iade-et ile aynı sınıf), indekslenmesi istenmiyor.
   '/danisman-ol.html': '/danisman-ol',
-  // FOTOĞRAF (kullanıcı isteği, 2026-09-17) — /danismanlik ile BİREBİR AYNI desen: yeni bir sayfa,
-  // yeniden adlandırma yok; buradaki tek amaç Assets'in 307'si yerine 301 vermek. Sayfa HİÇBİR
-  // menüde bağlanmaz (kullanıcı isteği: "sayfayı yayınla ama şimdilik bir menüye koyma").
+  // FOTOĞRAF (kullanıcı isteği, 2026-09-17) — yeni bir sayfa, yeniden adlandırma yok; buradaki tek
+  // amaç Assets'in 307'si yerine 301 vermek. İlk turda hiçbir menüde değildi; ikinci turda
+  // (madde 12) ana menüye ve footer'a PROJE'den sonra eklendi (bkz. site-chrome.js#NAV_ITEMS).
   '/fotograf.html': '/fotograf',
   // ---------------------------------------------------------------------------------------------
   // ADI DEĞİŞMEMİŞ SAYFALARIN ".html" BİÇİMİ (SEO denetimi, 2026-09-07)
@@ -576,10 +576,9 @@ const SITEMAP_STATIC_PAGES = [
   // danismanlik.html), dolayısıyla "indexlenebilir ama sitemap'te yok" çelişkisi oluşmasın diye
   // listeye alındı — bkz. aşağıdaki gizlilik/hizmet sayfalarındaki AYNI gerçek bulgu.
   { loc: '/danismanlik', changefreq: 'weekly', priority: '0.6' },
-  // FOTOĞRAF (kullanıcı isteği, 2026-09-17) — /danismanlik ile AYNI gerekçe: sayfa HİÇBİR menüde
-  // bağlanmaz, noindex DEĞİL, o yüzden tek keşif yolu burasıdır. İçeriği (proje eklendikçe)
-  // sürekli değiştiğinden 'daily' — /gundem ile AYNI değişim sıklığı sınıfı.
-  { loc: '/fotograf', changefreq: 'daily', priority: '0.6' },
+  // FOTOĞRAF (kullanıcı isteği, 2026-09-17) — ana menüde PROJE'den sonra (ikinci tur madde 12),
+  // içeriği proje eklendikçe değiştiğinden 'daily'; öncelik diğer ana içerik listeleriyle aynı sınıf.
+  { loc: '/fotograf', changefreq: 'daily', priority: '0.8' },
   // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı ana sunum
   // sayfası; kurumsal sayfalardan daha yüksek öncelik, içeriği (canlı sayaçlar) haftalık değişir.
   { loc: '/neden-mimarlab', changefreq: 'weekly', priority: '0.8' },
@@ -2259,9 +2258,10 @@ async function routeApi(request, env, url, ctx) {
   // '/api/consultations' önekiyle ÇAKIŞMAZ (ayrı yol) ama ona benzediği için burada, diğer herkese
   // açık liste uçlarının yanında durur.
   if (path === '/api/consultants' && (request.method === 'GET' || request.method === 'HEAD')) return handleConsultantsRoute(request, env, url);
-  // /fotograf sayfasının liste ucu (bkz. src/routes/photos.js) — /api/consultants ile AYNI desen:
-  // herkese açık, sabit yol, hiçbir menüde bağlantısı olmayan bir sayfanın veri kaynağı.
-  if (path === '/api/photos' && (request.method === 'GET' || request.method === 'HEAD')) return handlePhotosRoute(request, env, url);
+  // /fotograf sayfasının uçları (bkz. src/routes/photos.js): liste + serbest metni mekan etiketine
+  // eşleyen AI ucu (2026-09-17 ikinci tur madde 11). TAM eşleşme — '/api/photos' öneki başka bir
+  // yolla çakışmasın.
+  if ((path === '/api/photos' || path === '/api/photos/space-for-query') && (request.method === 'GET' || request.method === 'HEAD')) return handlePhotosRoute(request, env, url);
   // Danışman Ol başvurusu (kullanıcı isteği, 2026-09-15) — tamamen oturum korumalı, herkese açık
   // okuma ucu YOK. '/api/consultants' ile önek çakışması olmasın diye TAM eşleşme kullanılır.
   if (path === '/api/consultant-applications') return handleConsultantApplicationsRoute(request, env, url);
