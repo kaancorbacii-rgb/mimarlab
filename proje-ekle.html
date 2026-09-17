@@ -174,7 +174,15 @@
   .form-field textarea{resize:vertical; min-height:110px; line-height:1.5;}
   .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
-  .date-range-row{display:flex; gap:6px; align-items:center; margin-bottom:8px;}
+  /* align-items:flex-start ZORUNLU, center DEĞİL (kullanıcı isteği, 2026-09-17 madde 1: "bir tarih
+     girince kutucuklarda kayma meydana geliyor"). KÖK NEDEN: satırın çocukları SABİT YÜKSEKLİKLİ
+     DEĞİL — kutu mount'u (bkz. office-picker.js) seçilen değeri düğmenin ALTINA bir `.op-chip`
+     olarak da basar ve o an 39px'ten 74px'e uzar. `center` ile satırın yüksekliği en uzun çocuğa
+     göre belirlenip DİĞER çocuklar dikeyde ortalanıyordu: ölçüm (Chromium, gerçek CSS + gerçek
+     office-picker.js) — Bitiş kutusuna 2025 seçildiğinde Başlangıç düğmesinin tepesi 45px'ten
+     62px'e iniyor (17px kayma), "+ Ekle" de 63px'e. flex-start üçünün tepesini de 45px'te
+     sabitler; seçim olmayan hâlde görünüm BİREBİR aynı kalır (üç çocuk da zaten eşit yüksekte). */
+  .date-range-row{display:flex; gap:6px; align-items:flex-start; margin-bottom:8px;}
   .date-range-row:last-child{margin-bottom:0;}
   /* Kutu mount'ları eskiden burada duran input[type=text]'lerin YERİNİ alır (bkz. renderDateRows) —
      satırdaki esneme/daralma davranışı birebir korunur. Gizli input'lar görsel yer kaplamaz. */

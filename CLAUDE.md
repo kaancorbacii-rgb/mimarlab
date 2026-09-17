@@ -1763,3 +1763,101 @@ yerleştir."
 - Testler: `scripts/test-2026-09-17-project-view-urls.mjs` (7 test, preflight'a bağlı — gerçek
   `worker.fetch` ile iki yolun `/proje` kabuğunu 200 döndürdüğünü ölçer). Migration YOK, SSR sürüm
   bumpı YOK.
+
+## Tarih satırı hizası, yöneticinin sil/arşivlesi, marka arşiv sırası, KİŞİ↔FİRMA takası (2026-09-17, altıncı tur)
+
+Kullanıcı isteği (beş madde): (1) "Proje ekle sayfasında bir tarih girince ekteki görseldeki gibi
+kutucuklarda kayma meydana geliyor, bu sorunu kökten düzelt.", (2) "Bir kullanıcı yönetici olarak
+atandığı firmada bir proje ya da ürünü sil derse direkt silinsin, arşivle derse hesabım sayfasındaki
+arşivim kısmına düşsün.", (3) /firma sayfa açıklaması değişsin, (4) "Admin panelindeki arşiv
+kısmındaki markaları da en çok ürünü olandan en az ürünü olana doğru sırala.", (5) "Ana menüdeki ve
+footerdaki KİŞİ ile FİRMA'nın yerlerini değiştir."
+
+### 1. Tarih satırında kayma — KÖK NEDEN: satırın çocukları SABİT YÜKSEKLİKLİ DEĞİL
+- `.date-range-row` `align-items:center` taşıyordu. Kutu mount'u (`office-picker.js`) seçilen değeri
+  düğmenin ALTINA bir `.op-chip` olarak DA basar (`.op-chips:empty{display:none}`, `margin-top:8px`)
+  ve o an 39px'ten 74px'e uzar. `center` satır yüksekliğini en uzun çocuğa göre belirleyip DİĞER
+  çocukları dikeyde ortalıyordu.
+- **Ölçüldü** (Chromium, proje-ekle.html'in GERÇEK `<style>` bloğu + gerçek `office-picker.js`):
+  Bitiş kutusuna 2025 seçilince Başlangıç düğmesinin tepesi 45 -> **62px** (17px kayma), "+ Ekle"
+  63px. `align-items:flex-start` ile üçü de 45px'te (ikinci ölçüm: 21/21/21) sabitlenir. Seçim
+  olmayan hâlde görünüm BİREBİR aynı (üç çocuk zaten eşit yüksekte).
+- **Çip KALDIRILMADI**: tek seçimli kutuda düğme etiketi değeri zaten gösterir ama çipin ✕'i
+  seçimi TEMİZLEMENİN TEK yoludur (radio yeniden tıklanınca `change` yaymaz). Kayma çipin
+  varlığından değil satırın hizalamasından geliyordu.
+- `.brand-add-row` ZATEN `flex-start`, `#u-year` bir `.form-row` ızgarasında — kural yalnızca bu
+  satırda gerekiyordu (ölçüldü).
+
+### 2. Firma yöneticisinin "Sil"i tam silmiyor, "Arşivle"si çelişik durum bırakıyordu
+- **Yöneticinin yolu ZORUNLU olarak ANAHTAR tabanlıdır**: kendi taslağı yoktur, id tabanlı uç ona
+  404 döner (`submissions.js#canAccessSubmissionRow` — taslak ne onun, ne `claimed_slug`/
+  `claimed_profile_key` taşıyor). Yani `DELETE /api/project/:slug` ve
+  `POST /api/product/:slug/moderate`.
+- **KÖK NEDEN** (gerçek SQLite + gerçek uçlarla ÖLÇÜLDÜ): o yol taslakları YALNIZCA
+  `claimed_slug`/claim kolonundan topluyordu. İçeriği SİTEYE EKLEYEN üyenin taslağı (claimed_slug
+  NULL) kapsam dışıydı:
+  * **SİL**: canonical satır hard-delete + karaliste, ama üyenin taslağı `approved` kalıyor — o
+    üyenin Gönderilerim kutusunda "Yayında" görünmeye devam ediyor ve bir sonraki kaydetmesi
+    (`updateOwnSubmission` -> `syncApprovedSubmissionToCanonical`) kaydı GERİ getiriyordu.
+    products/materials'ta daha kötüydü: `key` dalındaki `if (config.claimedColumn)` koşulu o tipte
+    HİÇ girmiyor (claimedColumn yok), yani ürün taslakları hiç silinmiyordu.
+  * **ARŞİVLE**: kayıt Arşivim'e düşüyordu ama HER ZAMAN İKİNCİ bir taslak açılıyor, üyeninki
+    `approved` kalıyordu — aynı içerik bir yanda "Yayında" bir yanda "Arşivde", ve üyenin sonraki
+    kaydetmesi arşivi SESSİZCE yeniden yayına alıyordu. (Arşivin tanımı bu depoda status +
+    hidden_at İKİSİDİR — bkz. `src/lib/archiveSync.js`.)
+- **BAĞ İKİ YOLDAN, İKİSİ DE KESİN** (`legacyContent.js#canonicalDraftRows`): (a) `claimed_slug` /
+  claim kolonu, (b) canonical satırın **`legacy_key = 'submission:<id>'`** işareti — kayıt tam
+  olarak o taslağın onayından doğmuştur (`canonicalSync.js#submissionMarker`) ve bu, üyenin kendi
+  gönderisini bulmanın TEK kesin yoludur. **Adla/slug'la gevşek eşleşme YOK**: aynı başlıktan
+  üretilmiş, henüz onaylanmamış BAŞKA bir gönderiyi silmesin.
+- **Taslaklar canonical satır SİLİNMEDEN ÖNCE toplanır** (yoksa legacy_key okunamaz) — test bunu
+  çağrı sırasıyla kelepçeliyor. R2 sırası korunur: anahtarlar önce, satırlar sonra, medya en son
+  (`deleteR2MediaKeys` ÇAĞIRAN SÖZLEŞMESİ).
+- **ARŞİVLEME artık kaydın DOĞDUĞU taslağı YENİDEN KULLANIR** (yeni satır açmak yerine):
+  `owner_user_id` **KORUNUR** (`COALESCE`) — taslak, içeriği siteye ekleyen üyenin gönderi satırı
+  olabilir, onu arşivleyenin üzerine yazmak o üyenin gönderisini elinden almak olurdu. Yetkiliye
+  Arşivim'de GÖRÜNMESİ sahiplikten değil FİRMA BAĞINDAN gelir (bkz. `src/routes/archive.js`).
+  `claimed_slug` yazılır — "Düzenle ve Yayına Al"ın yetki kapısı o kolonu okur ve ürünlerde
+  olmadığında "Yayınla" İKİNCİ bir ürün satırı yaratırdı (migrations/0088).
+- **`DRAFT_LINK_COLUMN` ayrı bir eşlemedir**: architects/offices'te `claimed_profile_key`
+  (= config.claimedColumn), products/materials'ta **`claimed_slug`** — `config.claimedColumn` tek
+  başına ürünleri hep dışarıda bırakıyordu. Bağ ANAHTARI ürünlerde canonical **slug**'dır: o tipte
+  `key`, `/api/product/:slug/moderate` yolunda slug, admin `?adminedit=` yolunda "marka|||başlık"
+  olabilir, taslakta duran değer ise her zaman slug'dır.
+- **ADMIN yolları da kapsandı** (id dalı): admin'in Arşiv sekmesinden sildiği/arşivlediği kayıt da
+  aynı yetim/çelişik taslakları bırakıyordu.
+- **ÖLÇÜM** (`scripts/test-2026-09-17-manager-moderation-and-nav-order.mjs`, gerçek SQLite + gerçek
+  uçlar): sil -> canonical 0 + taslak 0 + üyenin Gönderilerim'i boş; arşivle -> TEK taslak
+  (`ps1`/`us1`, `archived`, owner `member`, claimed_slug dolu) + `hidden_at` dolu + hem yöneticinin
+  hem üyenin Arşivim'inde `canEdit=1`. **Fikstür canonical satırı ELLE YAZMAZ** — üyenin gönderisini
+  `syncApprovedSubmissionToCanonical`'den geçirir; elle yazılmış bir satırda legacy_key işareti
+  olmadığından düzeltme "çalışmıyor" görünürdü (ilk ölçümde tam bu oldu).
+
+### 3. /firma açıklaması
+`firma.html#.page-head p` -> "Türkiye'de yapı sektöründe faaliyet gösteren tasarım, uygulama ve
+satış yapan firmaları keşfedin." Metnin SSR/`src` kopyası YOK (ölçüldü) — tek yer bu satır.
+
+### 4. Admin > Arşiv > Marka: ÜRÜN sayısına göre
+- Ölçüt ALT SEKMEYE göre değişir: firma/kişi **proje**, marka **ürün**. Marka ayrı bir gönderi tipi
+  DEĞİL (aynı `offices` listesi, `isBrandOffice` ile süzülür), bu yüzden yanıt İKİ sayıyı da taşır
+  (`projectCount`, `productCount`) ve marka sıralaması istemcide yapılır (`admin.html#loadArchive`);
+  sunucunun `projectCount` sıralaması olduğu gibi kalır.
+- Marka bağı ürünlerde İKİ YOLDAN kurulur ve ikisi de sayılır (`canUserEditProductBySlug` /
+  `archive.js#brandMatchSql`'deki AYNI ayrım): yapısal `products.brand_office_id` ve serbest metin
+  `products.brand_name_raw`. İki küme AYRIK (b, yalnızca a NULL iken) olduğundan sayılar TOPLANIR;
+  aynı ofisin üç anahtarı (ad/slug/legacy_key) arasında ise `max` kullanılır (toplamak ürünleri üçe
+  katlardı). Ürün + yapı malzemesi birlikte, arşivdekiler DAHİL (arşivdeki markanın ürünleri de
+  çoğunlukla onunla birlikte arşivdedir).
+- **`isBrandOffice`'ı üretici yapan şey 'Üretim ve Satış' hizmet alanı DEĞİL**, `BRAND_CATS`'ten bir
+  ÜRÜN KATEGORİSİDİR (ör. 'Mobilya') — testin fikstürü bu yüzden ikisini birlikte yazar. `cats`
+  ' · ' AYRIMLI METİN olarak saklanır (JSON dizi değil; `parseSubmissionRow` o alanı ayrıştırmaz).
+
+### 5. Ana menü + footer: PROJE · FİRMA · KİŞİ · ÜRÜN · GÜNDEM
+- `site-chrome.js#NAV_ITEMS` sırası (üst menü VE mobil çekmece tek kaynaktan) ile footer'ın "Ana
+  Menü" sütunu AYRI listelerdir; ikisinde de takas yapıldı ve test ikisini AYNI sırayla kelepçeliyor
+  — ayrışırsa aynı site iki farklı sıra gösterir. Footer'ın etiketi "Mimar" olarak KALDI (hep öyleydi,
+  istek yalnızca sırayı kapsıyor). Gerçek Chromium'da ölçüldü: nav `[Proje, Firma, Kişi, Ürün,
+  Gündem]`, footer `[Proje, Firma, Mimar, Ürün, Gündem]`.
+
+Testler: `scripts/test-2026-09-17-manager-moderation-and-nav-order.mjs` (12 test, preflight'a bağlı).
+Migration YOK, SSR sürüm bumpı YOK (kabuklara script etiketi eklenmedi/kaldırılmadı).

@@ -159,10 +159,16 @@ await test('sunucu arşivdeki firmalara projectCount ekleyip azalan sıralar', (
   assert.match(block, /item\.projectCount = /);
   assert.match(block, /items\.sort\(\(a, b\) => b\.projectCount - a\.projectCount\)/);
 });
-await test('admin.html arşiv firma listesini aynı anahtarla sıralar ve sayıyı gösterir', () => {
+// 2026-09-17 (bu turun devamı, kullanıcı isteği: "arşiv kısmındaki markaları da en çok ürünü
+// olandan en az ürünü olana doğru sırala") — MARKA alt sekmesinin ölçütü artık projectCount DEĞİL
+// productCount. Firma/kişi dalı DEĞİŞMEDİ; kelepçe ikisini AYRI AYRI arıyor ki biri değişirken
+// öteki sessizce aynı anahtara dönmesin.
+await test('admin.html arşivde firmayı projeye, markayı ÜRÜNE göre sıralar ve iki sayıyı da gösterir', () => {
   const s = read('admin.html');
-  assert.match(s, /if\(archiveType === 'offices' \|\| archiveType === 'brands' \|\| archiveType === 'architects'\) items = items\.slice\(\)\.sort\(\(a, b\) => \(b\.projectCount \|\| 0\) - \(a\.projectCount \|\| 0\)\)/);
+  assert.match(s, /if\(archiveType === 'brands'\) items = items\.slice\(\)\.sort\(\(a, b\) => \(b\.productCount \|\| 0\) - \(a\.productCount \|\| 0\)\)/);
+  assert.match(s, /else if\(archiveType === 'offices' \|\| archiveType === 'architects'\) items = items\.slice\(\)\.sort\(\(a, b\) => \(b\.projectCount \|\| 0\) - \(a\.projectCount \|\| 0\)\)/);
   assert.match(s, /\(type === 'offices' \|\| type === 'architects'\) && typeof item\.projectCount === 'number'\) rows\.push\(\['Proje', String\(item\.projectCount\)\]\)/);
+  assert.match(s, /type === 'offices' && typeof item\.productCount === 'number'\) rows\.push\(\['Ürün', String\(item\.productCount\)\]\)/);
 });
 
 console.log(`\n${failed ? 'BAŞARISIZ' : 'TAMAM'} — ${passed} geçti, ${failed} kaldı`);

@@ -159,14 +159,19 @@
   // Düello özelliği ise 2026-08-29'da tamamen kaldırıldı (bkz. kullanıcı isteği: "Takip Et"
   // özelliğine yer açmak için) — footerHtml()'in Topluluk sütunundaki link de bu yüzden gitti.
   // Sıra kullanıcı isteğiyle sabitlendi (2026-08-31): PROJE · KİŞİ · FİRMA · ÜRÜN.
+  // 2026-09-17: KİŞİ ile FİRMA'nın YERİ DEĞİŞTİ (kullanıcı isteği: "Ana menüdeki ve footerdaki KİŞİ
+  // ile FİRMA'nın yerlerini değiştir") — artık PROJE · FİRMA · KİŞİ · ÜRÜN · GÜNDEM. Sıra HEM üst
+  // menüde HEM mobil çekmecede bu diziden okunur (tek kaynak); footer'ın "Ana Menü" sütunu AYRI bir
+  // listedir (bkz. footerHtml) ve orada da aynı takas yapıldı — ikisi ayrışırsa aynı site iki farklı
+  // sıra gösterir.
   // MARKA üst menüden KALDIRILDI (kullanıcı isteği, 2026-09-14 madde 1: "Ana menüden ve footer
   // menüsünden marka sayfasını kaldır"). /marka SAYFASI DURUYOR — yalnızca menü bağlantısı gitti:
   // marka.html, canlı /marka/:slug adresleri ve o sayfaya giden diğer bağlantılar (ör. Hesabım >
   // Takip Ettiklerim) çalışmaya devam eder. Geri eklenmeden önce buraya bakın, durumu varsaymayın.
   const NAV_ITEMS = [
     { key: 'proje', href: '/proje', label: 'Proje' },
-    { key: 'kisi', href: '/kisi', label: 'Kişi' },
     { key: 'firma', href: '/firma', label: 'Firma' },
+    { key: 'kisi', href: '/kisi', label: 'Kişi' },
     { key: 'urun', href: '/urun', label: 'Ürün', mega: true },
     // 'gundem' (kullanıcı isteği, 2026-09-06) — beş İÇERİK listesinin ardından altıncı sıraya
     // eklendi. "Neden MİMARLAB?"in bilerek dışarıda bırakılmasıyla (aşağıdaki not) ÇELİŞMEZ: o bir
@@ -512,7 +517,10 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/gundem">Gündem</a></div>
+      <!-- Sıra NAV_ITEMS ile AYNI (bkz. oradaki 2026-09-17 notu): Proje · Firma · Mimar · Ürün ·
+           Gündem. Etiket "Mimar" BİLEREK korunuyor — footer'ın bu satırı hep öyle yazıyordu,
+           kullanıcı isteği yalnızca SIRAYI değiştirmeyi kapsıyor. -->
+      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/firma">Firma</a><a href="/kisi">Mimar</a><a href="/urun">Ürün</a><a href="/gundem">Gündem</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <!-- Sıra (kullanıcı isteği, 2026-09-12): İletişim, Hakkında, Neden MİMARLAB?, sonrası aynı. -->
       <div class="footer-col"><h4>Kurumsal</h4><a href="/iletisim">İletişim</a><a href="/hakkinda">Hakkında</a><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>

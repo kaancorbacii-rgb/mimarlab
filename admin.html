@@ -844,6 +844,9 @@ function itemDetails(type, item){
   if(item.awards && item.awards.length) rows.push(['Ödüller', escapeHtml(item.awards.join(', '))]);
   // Proje sayısı yalnızca Arşiv listesinde gelir (sıralamanın anahtarı, bkz. admin.js#handleSubmissionsAdmin).
   if((type === 'offices' || type === 'architects') && typeof item.projectCount === 'number') rows.push(['Proje', String(item.projectCount)]);
+  // Ürün sayısı yalnızca Arşiv > Marka satırlarında gelir (o alt sekmenin sıralama anahtarı,
+  // bkz. admin.js#handleSubmissionsAdmin — markanın ölçütü proje değil ÜRÜNDÜR).
+  if(type === 'offices' && typeof item.productCount === 'number') rows.push(['Ürün', String(item.productCount)]);
   if(type === 'offices' && item.founders && item.founders.length) rows.push(['Kurucular', escapeHtml(item.founders.join(', '))]);
   if(type === 'offices' && item.team && item.team.length) rows.push(['Ekip', escapeHtml(item.team.join(', '))]);
   if(type === 'architects' && item.position) rows.push(['Pozisyon', escapeHtml(item.position)]);
@@ -1047,9 +1050,14 @@ async function loadArchive(){
   // Firma/Marka ayrımı (bkz. ARCHIVE_TYPE_LABELS yorumu) — ikisi de office_submissions'tan gelir.
   if(archiveType === 'brands') items = items.filter(it => !!it.isBrand);
   else if(archiveType === 'offices') items = items.filter(it => !it.isBrand);
-  // Firma: proje sayısı çoktan aza (kullanıcı isteği, 2026-09-17). Sunucu zaten bu sırayla gönderir;
-  // burada da uygulanır ki eski bir Worker sürümünden gelen yanıtta da sıra bozulmasın.
-  if(archiveType === 'offices' || archiveType === 'brands' || archiveType === 'architects') items = items.slice().sort((a, b) => (b.projectCount || 0) - (a.projectCount || 0));
+  // Firma/Kişi: PROJE sayısı çoktan aza. MARKA: ÜRÜN sayısı çoktan aza (kullanıcı isteği,
+  // 2026-09-17: "arşiv kısmındaki markaları da en çok ürünü olandan en az ürünü olana doğru
+  // sırala") — ölçüt alt sekmeye göre DEĞİŞİR, çünkü bir markanın büyüklüğü proje değil ürün
+  // sayısıdır. Sunucu yanıtı zaten projectCount sırasında gelir; burada da uygulanır ki eski bir
+  // Worker sürümünden gelen yanıtta da sıra bozulmasın (marka dalında bu ŞART: sunucu marka
+  // sıralamasını bilerek istemciye bırakıyor, bkz. admin.js#handleSubmissionsAdmin).
+  if(archiveType === 'brands') items = items.slice().sort((a, b) => (b.productCount || 0) - (a.productCount || 0));
+  else if(archiveType === 'offices' || archiveType === 'architects') items = items.slice().sort((a, b) => (b.projectCount || 0) - (a.projectCount || 0));
   const typeLabel = ARCHIVE_TYPE_LABELS[archiveType].toLowerCase();
   if(!items.length){ list.innerHTML = `<div class="admin-empty">Arşivlenmiş ${typeLabel} yok.</div>`; return; }
   // Arama: başlık + künye metni üzerinde Türkçe-duyarsız alt dize (foldTr yerine locale-aware

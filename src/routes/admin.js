@@ -716,6 +716,55 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       }
       items.sort((a, b) => b.projectCount - a.projectCount);
     }
+    // ARŞİV > MARKA: ürün sayısına göre ÇOKTAN AZA (kullanıcı isteği, 2026-09-17: "Admin panelindeki
+    // arşiv kısmındaki markaları da en çok ürünü olandan en az ürünü olana doğru sırala"). Marka
+    // AYRI bir gönderi tipi DEĞİL (bkz. yukarıdaki isBrand notu) — aynı `offices` listesi üzerinde
+    // ölçüt DEĞİŞİR: firmanın ölçütü proje, markanın ölçütü üründür. Bu yüzden iki sayı da AYNI
+    // yanıtta döner ve sıralamayı istemci alt sekmeye göre yapar (bkz. admin.html#loadArchive);
+    // sunucunun projectCount sıralaması korunur, marka sekmesi kendi anahtarıyla yeniden sıralar.
+    //
+    // Marka bağı ÜRÜNLERDE İKİ YOLDAN kurulur ve ikisi de sayılır (bkz. projectClaimAccess.js#
+    // canUserEditProductBySlug ve archive.js#brandMatchSql'deki AYNI ayrım): (a) yapısal
+    // `products.brand_office_id`, (b) brand_office_id'si boş eski kayıtlarda serbest metin
+    // `products.brand_name_raw`. İki küme AYRIK olduğundan (b, yalnızca a NULL iken) sayılar
+    // TOPLANIR. Ürün + yapı malzemesi birlikte sayılır (`products` tablosu ikisini de taşır,
+    // bkz. products.kind) — firma pop-up'ı da o iki bölümü birlikte gösterir. Arşivdeki ürünler de
+    // SAYILIR: arşivdeki bir markanın ürünleri de çoğunlukla onunla birlikte arşivdedir
+    // (legacyContent.js#archiveOfficeGraph), yalnızca canlıları saymak hepsini 0'a düşürürdü.
+    if (typeKey === 'offices' && status === 'archived' && items.some(it => it.isBrand)) {
+      const [{ results: linkRows }, { results: rawRows }] = await Promise.all([
+        env.DB.prepare(
+          `SELECT o.name, o.slug, o.legacy_key, COUNT(DISTINCT p.id) AS n
+           FROM offices o JOIN products p ON p.brand_office_id = o.id AND p.deleted_at IS NULL
+          GROUP BY o.id`
+        ).all(),
+        env.DB.prepare(
+          `SELECT p.brand_name_raw AS name, COUNT(*) AS n FROM products p
+           WHERE p.deleted_at IS NULL AND p.brand_office_id IS NULL
+             AND p.brand_name_raw IS NOT NULL AND p.brand_name_raw <> ''
+          GROUP BY p.brand_name_raw`
+        ).all(),
+      ]);
+      const productByKey = new Map();
+      // (a) yapısal bağ — aynı ofisin üç anahtarı (ad/slug/legacy_key) AYNI sayıyı gösterir, bu
+      // yüzden max; anahtarlar arasında toplama yapmak ürünleri üçe katlardı.
+      for (const r of linkRows || []) {
+        for (const k of [r.name, r.slug, r.legacy_key]) {
+          const f = k ? foldTr(String(k)) : '';
+          if (f) productByKey.set(f, Math.max(productByKey.get(f) || 0, Number(r.n) || 0));
+        }
+      }
+      // (b) serbest metin marka — (a) ile ayrık küme, bu yüzden EKLENİR.
+      for (const r of rawRows || []) {
+        const f = r.name ? foldTr(String(r.name)) : '';
+        if (f) productByKey.set(f, (productByKey.get(f) || 0) + (Number(r.n) || 0));
+      }
+      for (const item of items) {
+        if (!item.isBrand) continue;
+        const keys = [item.claimed_profile_key, item.name].filter(Boolean).map(k => foldTr(String(k)));
+        item.productCount = keys.reduce((max, k) => Math.max(max, productByKey.get(k) || 0), 0);
+      }
+    }
     return json({ items });
   }
 

@@ -838,6 +838,20 @@ else
 fi
 rm -f /tmp/preflight_20260917c
 
+# 2026-09-17 ALTINCI tur (beş madde): proje-ekle'de tarih satırının hizası (align-items:flex-start —
+# kutu mount'u seçimi çip olarak da bastığından çocuklar sabit yükseklikli DEĞİL), FİRMA YÖNETİCİSİNİN
+# sil/arşivle işleminin taslakları da kapsaması (sil -> üyenin taslağı da gider; arşivle -> TEK
+# arşiv taslağı, Arşivim'de düzenlenebilir), /firma açıklaması, admin arşivinde MARKALARIN ürün
+# sayısına göre sıralanması ve ana menü + footer'da KİŞİ/FİRMA takası.
+# Bkz. scripts/test-2026-09-17-manager-moderation-and-nav-order.mjs.
+if node scripts/test-2026-09-17-manager-moderation-and-nav-order.mjs >/tmp/preflight_20260917d 2>&1; then
+  ok "2026-09-17 altıncı tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260917d) test)"
+else
+  bad "2026-09-17 altıncı tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260917d >&2
+fi
+rm -f /tmp/preflight_20260917d
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

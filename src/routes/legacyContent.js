@@ -31,6 +31,100 @@ const FACET_TYPES = new Set(['projects']);
 // "Gizle" (hidden_at, geri alınabilir) ile "Sil" (deleted_at, kalıcı + cascade) artık canonical
 // satırın KENDİSİNDE tutulur — ayrı bir moderasyon tablosuna gerek kalmadı.
 
+// BİR CANONICAL KAYDIN TÜM *_submissions TASLAKLARI — kullanıcı isteği, 2026-09-17 madde 2 ("bir
+// kullanıcı yönetici olarak atandığı firmada bir proje ya da ürünü sil derse DİREKT silinsin,
+// arşivle derse hesabım sayfasındaki arşivim kısmına düşsün").
+//
+// GERÇEK BULGU (ölçüldü — scripts/test-2026-09-17-manager-moderation-drafts.mjs 1. bölümü aynı
+// ölçümü kalıcı kelepçeye çevirdi): firma yöneticisi (admin DEĞİL) zorunlu olarak ANAHTAR tabanlı
+// yolu kullanır (`DELETE /api/project/:slug`, `POST /api/product/:slug/moderate` — kendi taslağı
+// olmadığından id tabanlı uç ona 404 döner, bkz. submissions.js#canAccessSubmissionRow). O yol
+// taslakları YALNIZCA `claimed_slug`/claim kolonu üzerinden topluyordu:
+//   * SİL: canonical satır hard-delete + karaliste, ama projeyi/ürünü SİTEYE EKLEYEN üyenin kendi
+//     taslağı (claimed_slug NULL) `status='approved'` olarak D1'de KALIYORDU — o üyenin
+//     Hesabım > Gönderilerim kutusunda "Yayında" görünmeye devam ediyor ve bir sonraki kaydetmesi
+//     (updateOwnSubmission -> syncApprovedSubmissionToCanonical) kaydı GERİ getiriyordu. Yani
+//     "direkt silinsin" tutmuyordu. products/materials'ta durum daha kötüydü: `key` dalı
+//     claimedColumn olmadığı için HİÇBİR taslağı silmiyordu.
+//   * ARŞİVLE: kayıt arşivim kutusuna düşüyordu ama üyenin taslağı `approved` kaldığından AYNI
+//     içerik bir yanda "Yayında" bir yanda "Arşivde" görünüyor ve üyenin sonraki kaydetmesi
+//     arşivlenmiş kaydı SESSİZCE yeniden yayına alıyordu (arşivin tanımı bu depoda status +
+//     hidden_at İKİSİDİR — bkz. src/lib/archiveSync.js).
+//
+// BAĞ İKİ YOLDAN KURULUR ve ikisi de KESİNDİR (adla/slug'la gevşek eşleşme YOK — aynı başlıktan
+// üretilmiş, henüz onaylanmamış BAŞKA bir gönderiyi yanlışlıkla silmesin):
+//   1) `claimed_slug` / claim kolonu — sahiplenilen canonical kaydın düzenleme taslağı,
+//   2) canonical satırın `legacy_key = 'submission:<id>'` işareti — kayıt TAM OLARAK o taslağın
+//      onayından doğmuştur (bkz. src/lib/canonicalSync.js#submissionMarker). Bu, üyenin kendi
+//      gönderisini bulmanın TEK kesin yoludur.
+const SUBMISSION_MARKER_RE = /^submission:(.+)$/;
+function draftIdFromCanonicalRow(canonRow) {
+  const m = canonRow && canonRow.legacy_key ? SUBMISSION_MARKER_RE.exec(String(canonRow.legacy_key)) : null;
+  return m ? m[1] : null;
+}
+async function canonicalDraftRows(env, table, { claimedColumn, key, canonRow }) {
+  const rows = new Map();
+  if (claimedColumn && key) {
+    // ORDER BY created_at DESC — arşiv dalı birden fazla eşleşmede EN YENİSİNİ seçer (bu, kural
+    // değişmeden önceki `... ORDER BY created_at DESC LIMIT 1` davranışıdır; sırasız bir SELECT o
+    // seçimi sessizce başka bir taslağa kaydırırdı).
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM ${table} WHERE ${claimedColumn} = ? ORDER BY created_at DESC`
+    ).bind(key).all();
+    for (const r of results || []) rows.set(r.id, r);
+  }
+  const originId = draftIdFromCanonicalRow(canonRow);
+  if (originId && !rows.has(originId)) {
+    const row = await env.DB.prepare(`SELECT * FROM ${table} WHERE id = ?`).bind(originId).first();
+    if (row) rows.set(row.id, row);
+  }
+  return [...rows.values()];
+}
+
+// Silinen canonical kaydın taslaklarını da siler. R2 anahtarları ÖNCE toplanır, satırlar sonra
+// silinir, medya temizliği EN SONA kalır — bkz. src/lib/canonicalSync.js#deleteR2MediaKeys ÇAĞIRAN
+// SÖZLEŞMESİ (satır dururken kendi anahtarına "referans" sayılır).
+async function deleteCanonicalDrafts(env, type, table, { claimedColumn, key, canonRow, skipId }) {
+  const drafts = (await canonicalDraftRows(env, table, { claimedColumn, key, canonRow }))
+    .filter(r => r.id !== skipId);
+  if (!drafts.length) return;
+  const mediaKeys = drafts.flatMap(d => collectR2MediaKeys(d, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
+  await env.DB.batch(drafts.map(d => env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(d.id)));
+  await deleteR2MediaKeys(env, mediaKeys);
+}
+
+// Arşivlenen canonical kaydın, arşiv taslağı DIŞINDA kalan taslaklarını da 'archived' yapar —
+// "arşivde ama bir taslağı hâlâ approved" çelişkisi (ve üyenin sonraki kaydetmesinde sessiz yeniden
+// yayın) böyle kapanır. Zaten 'archived' olanlara dokunulmaz.
+async function archiveCanonicalDrafts(env, table, { claimedColumn, key, canonRow, skipId, now }) {
+  const drafts = (await canonicalDraftRows(env, table, { claimedColumn, key, canonRow }))
+    .filter(r => r.id !== skipId && r.status !== 'archived');
+  if (!drafts.length) return;
+  await env.DB.batch(drafts.map(d => env.DB.prepare(
+    `UPDATE ${table} SET status = 'archived', updated_at = ? WHERE id = ?`
+  ).bind(now, d.id)));
+}
+
+// Taslağı canonical kayda bağlayan KOLON, tip başına. architects/offices'te bu CONTENT_ACTION_TYPES#
+// claimedColumn ile aynıdır; products/materials'ta claimedColumn YOKTUR ama taslak `claimed_slug`
+// ile bağlanır (bkz. migrations/0088_product_claimed_slug.sql ve aşağıdaki key dalı) — bu yüzden
+// ayrı bir eşleme gerekir, config.claimedColumn tek başına ürünleri hep dışarıda bırakırdı.
+const DRAFT_LINK_COLUMN = {
+  architects: 'claimed_profile_key', offices: 'claimed_profile_key',
+  products: 'claimed_slug', materials: 'claimed_slug',
+};
+// Bağ ANAHTARI: architects/offices'te doğal anahtarın (ad) kendisi; products/materials'ta canonical
+// satırın SLUG'ı — o tipte `key` bir slug DA olabilir ('/api/product/:slug/moderate') ama legacy
+// "marka|||başlık" biçimi DE olabilir (admin ?adminedit= yolu), ve taslakta duran değer her zaman
+// slug'dır.
+function draftLinkFor(type, config, key, canonRow) {
+  const claimedColumn = DRAFT_LINK_COLUMN[type] || config.claimedColumn || null;
+  const linkKey = (type === 'products' || type === 'materials')
+    ? ((canonRow && canonRow.slug) || null)
+    : (key || null);
+  return { claimedColumn, key: linkKey };
+}
+
 async function runContentCascadeDelete(env, user, type, { id, row, key }) {
   const name = row ? row.name : key;
   if (type === 'architects') return cascadeDeleteArchitect(env, name);
@@ -446,12 +540,23 @@ export async function runProjectAction(env, user, { action, id, slug, skipFacets
       // (hard-delete/blacklist) ve engagement cascade'i (cascadeDeleteProject) HER ZAMAN birlikte
       // çalıştırır (bkz. src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
       const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', targetSlug);
+      // AYNI canonical projeyi temsil eden DİĞER taslaklar da gider (bkz. canonicalDraftRows) —
+      // canonical satır SİLİNMEDEN ÖNCE, çünkü bağın ikinci yolu o satırın legacy_key'idir.
+      await deleteCanonicalDrafts(env, 'projects', 'project_submissions',
+        { claimedColumn: 'claimed_slug', key: targetSlug, canonRow, skipId: id });
       await deleteCanonicalRowFully(env, user.id, 'projects', canonRow, targetSlug, () => cascadeDeleteProject(env, targetSlug));
       await bumpFacetCounts(env, 'projects');
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, true);
       else await bumpFacetCounts(env, 'projects');
+      // AYNI canonical projeyi temsil eden diğer taslaklar da 'archived' olur — biri 'approved'
+      // kalırsa proje bir yanda "Yayında" bir yanda "Arşivde" görünür ve o taslağın sahibi
+      // kaydederek arşivlenmiş projeyi sessizce yeniden yayına alabilir (bkz. archiveCanonicalDrafts).
+      await archiveCanonicalDrafts(env, 'project_submissions', {
+        claimedColumn: 'claimed_slug', key: targetSlug, now, skipId: id,
+        canonRow: await findCanonicalRowByNaturalKey(env, 'projects', targetSlug),
+      });
     } else {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, id).run();
       await syncApprovedSubmissionToCanonical(env, 'projects', parseSubmissionRow('projects', { ...row, status: 'approved' }));
@@ -472,14 +577,14 @@ export async function runProjectAction(env, user, { action, id, slug, skipFacets
     // deleteCanonicalRowFully bunu (hard-delete/blacklist) ve engagement cascade'i HER ZAMAN
     // birlikte çalıştırır (bkz. src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
     const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
+    // Taslaklar canonical satır SİLİNMEDEN ÖNCE toplanır: bağın ikinci (ve üyenin KENDİ gönderisi
+    // için TEK) yolu o satırın legacy_key='submission:<id>' işaretidir (bkz. canonicalDraftRows).
+    // Eskiden yalnızca `claimed_slug = slug` taslakları siliniyordu — bu yolu kullanan tek çağıran
+    // firma yetkilisinin "Sil"i olduğundan, projeyi siteye ekleyen üyenin taslağı 'approved' olarak
+    // kalıyor ve bir sonraki kaydetmesinde proje geri geliyordu ("direkt silinsin" tutmuyordu).
+    await deleteCanonicalDrafts(env, 'projects', 'project_submissions',
+      { claimedColumn: 'claimed_slug', key: slug, canonRow });
     await deleteCanonicalRowFully(env, user.id, 'projects', canonRow, slug, () => cascadeDeleteProject(env, slug));
-    const { results: draftRows } = await env.DB.prepare(`SELECT * FROM project_submissions WHERE claimed_slug = ?`).bind(slug).all();
-    // Anahtarlar ÖNCE toplanır, satırlar silinir, temizlik EN SONA kalır (bkz. src/lib/canonicalSync.js#
-    // deleteR2MediaKeys ÇAĞIRAN SÖZLEŞMESİ): taslak başına tek tek silmek, aynı görseli paylaşan
-    // ikinci bir taslak hâlâ D1'de dururken hiçbirini silememek demekti.
-    const draftKeys = draftRows.flatMap(draft => collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
-    await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
-    await deleteR2MediaKeys(env, draftKeys);
     await bumpFacetCounts(env, 'projects');
     await invalidatePublicCache(env);
     await purgeSsrDetailCache('project', slug, env);
@@ -489,13 +594,24 @@ export async function runProjectAction(env, user, { action, id, slug, skipFacets
   const fields = await currentCanonicalProjectFields(env, slug);
   if (!fields) return errorJson('Böyle bir proje bulunamadı.', 404);
   const now = Date.now();
-  const existing = await env.DB.prepare(
-    `SELECT id FROM project_submissions WHERE claimed_slug = ? ORDER BY created_at DESC LIMIT 1`
-  ).bind(slug).first();
+  const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
+  // ARŞİV TASLAĞI: önce claimed_slug'lı bir taslak, YOKSA projenin DOĞDUĞU taslak (canonical
+  // satırın legacy_key işareti — üyenin kendi gönderisi) kullanılır. İkinci dal kullanıcı isteğinin
+  // (2026-09-17 madde 2) gereği: eskiden HER ZAMAN İKİNCİ bir taslak açılıyor, üyenin taslağı
+  // 'approved' kalıyordu — aynı proje bir yanda "Yayında" bir yanda "Arşivde" görünüyordu.
+  const drafts = await canonicalDraftRows(env, 'project_submissions',
+    { claimedColumn: 'claimed_slug', key: slug, canonRow });
+  const existing = drafts.find(d => d.claimed_slug === slug) || drafts[0] || null;
   if (existing) {
+    // owner_user_id KORUNUR (varsa): taslak projeyi siteye ekleyen üyenin gönderi satırı olabilir,
+    // onu arşivleyenin üzerine yazmak o üyenin gönderisini elinden almak olurdu. Arşiv kutusunda
+    // yetkiliye GÖRÜNMESİ sahiplikten değil firma bağından gelir (bkz. src/routes/archive.js).
+    // claimed_slug da yazılır — "Düzenle ve Yayına Al" yolunun yetki kapısı (bkz. submissions.js#
+    // canAccessSubmissionRow -> claimedSlugVerifierFor) bu kolonu okur.
     await env.DB.prepare(
-      `UPDATE project_submissions SET ${PROJECT_FIELD_KEYS.map(f => `${f} = ?`).join(', ')}, status = 'archived', owner_user_id = ?, updated_at = ? WHERE id = ?`
-    ).bind(...bindProjectFields(fields), user.id, now, existing.id).run();
+      `UPDATE project_submissions SET ${PROJECT_FIELD_KEYS.map(f => `${f} = ?`).join(', ')}, status = 'archived',
+        claimed_slug = ?, owner_user_id = COALESCE(owner_user_id, ?), updated_at = ? WHERE id = ?`
+    ).bind(...bindProjectFields(fields), slug, user.id, now, existing.id).run();
   } else {
     const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', 'slug', 'claimed_slug', ...PROJECT_FIELD_KEYS];
     const placeholders = columns.map(() => '?').join(', ');
@@ -503,6 +619,9 @@ export async function runProjectAction(env, user, { action, id, slug, skipFacets
       `INSERT INTO project_submissions (${columns.join(', ')}) VALUES (${placeholders})`
     ).bind(newId(), user.id, 'archived', now, now, slug, slug, ...bindProjectFields(fields)).run();
   }
+  // Kalan taslaklar da 'archived' (normalde hiç yoktur; iki yetkilinin ayrı ayrı taslağı varsa olur).
+  await archiveCanonicalDrafts(env, 'project_submissions',
+    { claimedColumn: 'claimed_slug', key: slug, canonRow, now, skipId: existing ? existing.id : null });
   await setLegacyHidden(env, user, 'projects', slug, true, { skipFacets });
   await invalidatePublicCache(env);
   await purgeSsrDetailCache('project', slug, env);
@@ -762,12 +881,23 @@ export async function runContentAction(env, user, { type, action, id, key }) {
       // temizliği) ile hard-delete/blacklist'i HER ZAMAN birlikte çalıştırır (bkz.
       // src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
       const canonRow = targetKey ? await findCanonicalRowByNaturalKey(env, type, targetKey) : null;
+      // AYNI canonical kaydı temsil eden DİĞER taslaklar da gider (bkz. canonicalDraftRows) —
+      // canonical satır silinmeden ÖNCE, bağın ikinci yolu onun legacy_key'i olduğu için.
+      await deleteCanonicalDrafts(env, type, config.table,
+        { ...draftLinkFor(type, config, targetKey, canonRow), canonRow, skipId: id });
       await deleteCanonicalRowFully(env, user.id, type, canonRow, targetKey, () => runContentCascadeDelete(env, user, type, { id, row }));
       if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (targetKey) await setLegacyHidden(env, user, type, targetKey, true);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
+      // Kalan taslaklar da 'archived' — biri 'approved' kalırsa kayıt bir yanda "Yayında" bir yanda
+      // "Arşivde" görünür ve o taslağın sahibi kaydederek arşivi sessizce geri açabilir.
+      {
+        const canonRow = targetKey ? await findCanonicalRowByNaturalKey(env, type, targetKey) : null;
+        await archiveCanonicalDrafts(env, config.table,
+          { ...draftLinkFor(type, config, targetKey, canonRow), canonRow, now, skipId: id });
+      }
       // Firma/marka arşivleniyorsa künyesindeki kişi/proje/ürünler de — bkz. archiveOfficeGraph.
       cascade = await archiveOfficeGraph(env, user, type, targetKey || row.name);
     } else {
@@ -796,14 +926,14 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     // deleteCanonicalRowFully, runContentCascadeDelete ile hard-delete/blacklist'i HER ZAMAN
     // birlikte çalıştırır (bkz. src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
     const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
+    // Taslaklar canonical satır SİLİNMEDEN ÖNCE (bağın ikinci yolu onun legacy_key'i) ve ARTIK
+    // ÜRÜNLERDE DE: eski `if (config.claimedColumn)` koşulu products/materials'ta hiç girmiyordu
+    // (o tipte claimedColumn yok), yani markanın yetkilisi bir ürünü "Sil" dediğinde canonical satır
+    // gidiyor ama ürünü ekleyen üyenin taslağı 'approved' olarak kalıyordu — bir sonraki kaydetmesi
+    // ürünü geri getiriyordu (kullanıcı isteği, 2026-09-17 madde 2: "sil derse direkt silinsin").
+    await deleteCanonicalDrafts(env, type, config.table,
+      { ...draftLinkFor(type, config, key, canonRow), canonRow });
     await deleteCanonicalRowFully(env, user.id, type, canonRow, key, () => runContentCascadeDelete(env, user, type, { key }));
-    if (config.claimedColumn) {
-      const { results: draftRows } = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).all();
-      // bkz. yukarıdaki proje dalındaki AYNI sıra gerekçesi (deleteR2MediaKeys ÇAĞIRAN SÖZLEŞMESİ).
-      const draftKeys = draftRows.flatMap(draft => collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
-      await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
-      await deleteR2MediaKeys(env, draftKeys);
-    }
     if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     await invalidatePublicCache(env);
     const target = ssrPurgeTargetFor(type, { name: key });
@@ -816,35 +946,38 @@ export async function runContentAction(env, user, { type, action, id, key }) {
   const now = Date.now();
   const boundValues = bindContentFields(type, fields);
 
-  if (config.claimedColumn) {
-    const existing = await env.DB.prepare(
-      `SELECT id FROM ${config.table} WHERE ${config.claimedColumn} = ? ORDER BY created_at DESC LIMIT 1`
-    ).bind(key).first();
-    if (existing) {
-      await env.DB.prepare(
-        `UPDATE ${config.table} SET ${config.copyFields.map(f => `${f} = ?`).join(', ')}, status = 'archived', owner_user_id = ?, updated_at = ? WHERE id = ?`
-      ).bind(...boundValues, user.id, now, existing.id).run();
-    } else {
-      const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', config.claimedColumn, ...config.copyFields];
-      const placeholders = columns.map(() => '?').join(', ');
-      await env.DB.prepare(
-        `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
-      ).bind(newId(), user.id, 'archived', now, now, key, ...boundValues).run();
-    }
+  // ARŞİV TASLAĞI — tek dal, İKİ tip için (eskiden claimedColumn olan/olmayan diye ikiye ayrılmıştı
+  // ve ürün dalı HER ZAMAN yeni satır açıyordu). Sıra: önce bağ kolonuyla eşleşen taslak, YOKSA
+  // kaydın DOĞDUĞU taslak (canonical satırın legacy_key='submission:<id>' işareti — üyenin kendi
+  // gönderisi). İkinci dal kullanıcı isteğinin (2026-09-17 madde 2) gereği: ikinci bir taslak
+  // açmak, aynı kaydı bir yanda "Yayında" (üyenin taslağı) bir yanda "Arşivde" gösteriyordu.
+  const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
+  const link = draftLinkFor(type, config, key, canonRow);
+  // Taslağa yazılacak bağ değeri: architects/offices'te claim anahtarı, products/materials'ta
+  // canonical slug — "Yayınla" orijinal satırı geri açsın diye (aksi halde syncProduct İKİNCİ bir
+  // ürün satırı yaratırdı, bkz. migrations/0088_product_claimed_slug.sql).
+  const linkValue = link.key;
+  const drafts = await canonicalDraftRows(env, config.table, { ...link, canonRow });
+  const existing = drafts.find(d => link.claimedColumn && d[link.claimedColumn] === linkValue) || drafts[0] || null;
+  if (existing) {
+    // owner_user_id KORUNUR (varsa) — bkz. runProjectAction'daki AYNI gerekçe: taslak, kaydı siteye
+    // ekleyen üyenin gönderi satırı olabilir.
+    const setLink = link.claimedColumn && linkValue ? `, ${link.claimedColumn} = ?` : '';
+    await env.DB.prepare(
+      `UPDATE ${config.table} SET ${config.copyFields.map(f => `${f} = ?`).join(', ')}, status = 'archived'${setLink},
+        owner_user_id = COALESCE(owner_user_id, ?), updated_at = ? WHERE id = ?`
+    ).bind(...boundValues, ...(setLink ? [linkValue] : []), user.id, now, existing.id).run();
   } else {
-    // products/materials: claimedColumn YOK, ama taslak canonical satıra `claimed_slug` ile
-    // bağlanır (bkz. yukarıdaki targetKey yorumu ve src/lib/canonicalSync.js#syncProduct'ın
-    // claimedSlug dalı) — bağ kurulmazsa bu taslağın "Yayınla"sı orijinali geri açmak yerine
-    // ikinci bir ürün satırı yaratırdı.
-    const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
-    const claimedSlug = (canonRow && canonRow.slug) || null;
     const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at',
-      ...(claimedSlug ? ['claimed_slug'] : []), ...config.copyFields];
+      ...(link.claimedColumn && linkValue ? [link.claimedColumn] : []), ...config.copyFields];
     const placeholders = columns.map(() => '?').join(', ');
     await env.DB.prepare(
       `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
-    ).bind(newId(), user.id, 'archived', now, now, ...(claimedSlug ? [claimedSlug] : []), ...boundValues).run();
+    ).bind(newId(), user.id, 'archived', now, now, ...(link.claimedColumn && linkValue ? [linkValue] : []), ...boundValues).run();
   }
+  // Kalan taslaklar da 'archived' (normalde hiç yoktur; iki yetkilinin ayrı taslağı varsa olur).
+  await archiveCanonicalDrafts(env, config.table,
+    { ...link, canonRow, now, skipId: existing ? existing.id : null });
 
   await setLegacyHidden(env, user, type, key, true);
   // Firma/marka arşivleniyorsa künyesindeki kişi/proje/ürünler de — bkz. archiveOfficeGraph.
