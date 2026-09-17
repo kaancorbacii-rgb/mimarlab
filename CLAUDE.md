@@ -1678,3 +1678,29 @@ aktviteler yaptıkça sürekli yenilensin."
 
 Testler: `scripts/test-2026-09-17-saved-image-filters-foryou-refresh.mjs` (13 test, preflight'a
 bağlı) — tazeleme bloğu `vm` içinde GERÇEK kaynaktan koşturulur. Migration YOK, SSR sürüm bumpı YOK.
+
+## Projesi olmayan blurlu kişi/firmalar SİLİNDİ (2026-09-17, üçüncü tur)
+
+Kullanıcı isteği: "Şu an blurlu olup yani önizleme modunda olup üzerinde hiçbir proje olmayan tüm
+kişi ve firmaları canlı siteden ve admin panelindeki arşiv kısmından sil." + karar: "Bir kullanıcıya
+ait profilleri ve Projesi yok ama başka içeriği var olanları silme."
+
+- **Betik** `scripts/delete-projectless-preview-profiles.mjs` (`archive-empty-preview-profiles.mjs`'in
+  kardeşi; varsayılan DRY-RUN, `--apply`, `--expect=N`, `--skip=`). Silme ARŞİV DEĞİL, admin
+  panelindeki "Sil" ile AYNI canlı yol: `runContentAction({ action:'delete', key })` — canonical satır
+  + join kenarları + karaliste + `*_submissions` taslakları (Arşiv sekmesinden de düşer) + etkileşimler.
+  **GERİ ALINAMAZ.**
+- **"Proje yok" (şüphede korunur)**: pop-up'ta görünen proje (kişide fotoğrafladıkları dahil) YOK +
+  `project_designers`/`project_photographers`/`project_brands`'te ARŞİVDEKİ projeler dahil kenar YOK +
+  firma arşiv cascade'i proje toplamıyor + ad hiçbir fotoğraf künyesinde yok. Arşivdeki projeye bağlı
+  profil silinmez: o proje ileride yayına alınırsa künyesi eksik çıkardı.
+- **Korunanlar**: sahipli profiller (`fetchOwnership`) ve projesi olmayıp BAŞKA içeriği olanlar (firmada
+  kurucu/ekip/ürün, kişide firma/ürün/portfolyo). Ölçüm: projesi olmayan 305 blurlu kişinin 281'i,
+  194 firmanın 193'ü karşılıklı firma/kurucu bağı taşıyordu — bu kural onları kapsam dışı bırakır.
+- **Sonuç**: 20 kişi betikle silindi. Kuru çalıştırmada tek aday olan firma (Kolektif Mimarlar),
+  silme koşusundan önce başka bir yoldan zaten silinmişti (blurlu firma 515 -> 514; `--expect=1`
+  kapısı hiçbir şey yazmadan durdu, kayıt D1'de yok). 2026-09-15 on üçüncü turda arşivden
+  elle muaf tutulan dört ad (Arif Özden, Nur Urfalıoğlu, Alp Nuhoğlu, Serkan Ennaç) aynı gerekçeyle
+  `--skip` ile KORUNDU — silinmeleri istenirse betik `--skip` olmadan yeniden koşturulur.
+- **R2**: Node'da bağlama olmadığından betik görselleri silmez (`UPLOADS` no-op); yetim görselleri
+  r2Reconcile taraması temizler. KV havuzu 30 dk içinde kendiliğinden tazelenir.
