@@ -692,12 +692,17 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
     // legacyContent.js#archiveOfficeGraph) — yalnızca canlı projeleri saymak hepsini 0'a düşürürdü.
     // Eşleşme taslağın canonical anahtarı (claimed_profile_key) ya da adı üzerinden, foldTr ile.
     // Eşit sayıda mevcut sıra (created_at DESC) korunur — Array.prototype.sort kararlıdır.
-    if (typeKey === 'offices' && status === 'archived' && items.length) {
-      const { results: countRows } = await env.DB.prepare(
-        `SELECT o.name, o.slug, o.legacy_key, COUNT(DISTINCT pd.project_id) AS n
+    // ARŞİV > KİŞİ de aynı kuralla (kullanıcı isteği, 2026-09-17 ikinci tur): kişinin proje sayısı
+    // project_designers.architect_id kenarından — tablo/kolon adı dışında her şey firmayla ortak.
+    if ((typeKey === 'offices' || typeKey === 'architects') && status === 'archived' && items.length) {
+      const countSql = typeKey === 'offices'
+        ? `SELECT o.name, o.slug, o.legacy_key, COUNT(DISTINCT pd.project_id) AS n
            FROM offices o JOIN project_designers pd ON pd.office_id = o.id
           GROUP BY o.id`
-      ).all();
+        : `SELECT a.name, a.slug, a.legacy_key, COUNT(DISTINCT pd.project_id) AS n
+           FROM architects a JOIN project_designers pd ON pd.architect_id = a.id
+          GROUP BY a.id`;
+      const { results: countRows } = await env.DB.prepare(countSql).all();
       const countByKey = new Map();
       for (const r of countRows || []) {
         for (const k of [r.name, r.slug, r.legacy_key]) {

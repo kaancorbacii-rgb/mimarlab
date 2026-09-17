@@ -750,53 +750,6 @@
           <label for="p-desc" id="p-desc-label">Proje Açıklaması <span class="req" aria-hidden="true">*</span></label>
           <textarea id="p-desc" name="description" maxlength="1500" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
-        <!-- kullanıcı isteği (2026-09-10 madde 4): "Kaynak" kutusu GERİ GELDİ — Fotoğrafçı ile YAN
-             YANA, tek satırda iki sütun. 2026-09-01'de kutu formdan çıkarılırken photo_credit_url
-             alanı gizli bir input olarak korunmuştu (bkz. aşağıdaki not); şimdi aynı alan yeniden
-             görünür hale getirildi, yani veri yolunda (submissionTypes.js#urlFields ->
-             canonicalSync -> projectPool) değişen bir şey yok. Fotoğrafçı kutusunun başlığı da
-             "Fotoğrafçı veya Kaynak" yerine sadece "Fotoğrafçı" oldu: kaynak artık kendi
-             kutusunda. -->
-        <div class="form-row">
-          <!-- Fotoğrafçı: Mimar/Firma kutularının AYNISI — çoktan seçmeli kutu + elle isim girişi
-               (kullanıcı isteği, 2026-09-15 yedinci tur madde 4). TEK FARK kaynağın İKİ olması:
-               "burada firmalardan da seçim olabilsin çünkü fotoğrafçı bir kişi de olabilir firmada.
-               Ama hepsi aynı listenin içinde olsun ayrı bir kutucuk olarak ayırma." — bkz.
-               office-picker.js#createPersonOrOfficePicker (kişi + firma adları tek listede).
-               Bu, sunucunun ZATEN yaptığı ayrımsızlığın forma yansıması: künyedeki "Fotoğraf"
-               satırı hem architects hem offices eşleşmelerini gösterir (bkz. src/routes/project.js#
-               photographerDetails + photographerOffices) ve profilli bir isim seçilirse proje o
-               kişinin/firmanın pop-up'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz.
-               migrations/0080_project_photographers.sql). Profili olmayan isimler eskisi gibi
-               serbest metin olarak kaydedilir.
-               #p-credit-text gizli input olarak KALIR (#p-office/#p-designer ile birebir desen):
-               gönderim, prefill ve "Kaynak'ı firmanın sitesiyle doldur" akışı onun virgüllü
-               değerini okumaya devam eder. -->
-          <div class="form-field" id="ac-credit-field">
-            <label for="p-credit-picker" id="p-credit-text-label">Fotoğrafçı <span class="req" aria-hidden="true">*</span></label>
-            <input type="hidden" id="p-credit-text" name="photoCreditText">
-            <div id="p-credit-picker"></div>
-            <div class="form-hint">Listeden birden fazla kişi ya da firma seçebilirsin. Aradığın isim listede yoksa yazıp «ekle» diyerek künyeye ekleyebilirsin. Seçtiğin kayıtlı isimler profillerine bağlanır.</div>
-          </div>
-          <!-- Kaynak: görselin/projenin alındığı sayfanın bağlantısı. photo_credit_url kolonu ve onu
-               okuyan/yazan tüm yollar (bkz. src/lib/canonicalSync.js, projectPool.js) zaten vardı:
-               kutu 2026-09-01'de yalnızca GİZLENMİŞTİ (kolon hiç kaldırılmadı), şimdi geri açıldı.
-               type="url" DEĞİL: tarayıcının kendi doğrulaması "mimarlab.com" gibi şemasız girişleri
-               reddedip formu sessizce bloke ederdi; doğrulama sunucuda tek yerde yapılır (bkz.
-               submissionTypes.js#urlFields -> findInvalidUrlField). -->
-          <div class="form-field" id="credit-url-field">
-            <label for="p-credit-url" id="p-credit-url-label">Kaynak <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="p-credit-url" name="photoCreditUrl" autocomplete="off" inputmode="url">
-            <!-- AGREGATÖR UYARISI METNİ KALDIRILDI (kullanıcı isteği, 2026-09-15 yedinci tur
-                 madde 4): "kaynak kutucuğunun altında yazan 'Yayın/arşiv siteleri (arkitera,
-                 archello, archdaily, divisare gibi) kabul edilmez ...' cümlelerini sil."
-                 KURALIN KENDİSİ DURUYOR ve sunucuda zorlanmaya devam ediyor (bkz.
-                 src/lib/aggregatorSources.js#planProjectSourceUrls — böyle bir adres canonical
-                 kayda HİÇ yazılmaz, hangi yoldan gelirse gelsin). Kaldırılan yalnızca bu uyarı
-                 cümlesiydi; davranış değişmedi. -->
-            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma yazarsan web sitesi buraya otomatik gelir.</div>
-          </div>
-        </div>
       </div>
 
       <div class="form-section">
@@ -847,6 +800,55 @@
 
       <div class="form-section">
         <h2>Görseller</h2>
+        <!-- YER DEĞİŞTİ (kullanıcı isteği, 2026-09-17): Fotoğrafçı + Kaynak satırı Görseller kutusunun
+             EN ÜST satırında. Yalnızca DOM yeri değişti; id/name ve tüm okuma/yazma yolları aynı. -->
+        <!-- kullanıcı isteği (2026-09-10 madde 4): "Kaynak" kutusu GERİ GELDİ — Fotoğrafçı ile YAN
+             YANA, tek satırda iki sütun. 2026-09-01'de kutu formdan çıkarılırken photo_credit_url
+             alanı gizli bir input olarak korunmuştu (bkz. aşağıdaki not); şimdi aynı alan yeniden
+             görünür hale getirildi, yani veri yolunda (submissionTypes.js#urlFields ->
+             canonicalSync -> projectPool) değişen bir şey yok. Fotoğrafçı kutusunun başlığı da
+             "Fotoğrafçı veya Kaynak" yerine sadece "Fotoğrafçı" oldu: kaynak artık kendi
+             kutusunda. -->
+        <div class="form-row">
+          <!-- Fotoğrafçı: Mimar/Firma kutularının AYNISI — çoktan seçmeli kutu + elle isim girişi
+               (kullanıcı isteği, 2026-09-15 yedinci tur madde 4). TEK FARK kaynağın İKİ olması:
+               "burada firmalardan da seçim olabilsin çünkü fotoğrafçı bir kişi de olabilir firmada.
+               Ama hepsi aynı listenin içinde olsun ayrı bir kutucuk olarak ayırma." — bkz.
+               office-picker.js#createPersonOrOfficePicker (kişi + firma adları tek listede).
+               Bu, sunucunun ZATEN yaptığı ayrımsızlığın forma yansıması: künyedeki "Fotoğraf"
+               satırı hem architects hem offices eşleşmelerini gösterir (bkz. src/routes/project.js#
+               photographerDetails + photographerOffices) ve profilli bir isim seçilirse proje o
+               kişinin/firmanın pop-up'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz.
+               migrations/0080_project_photographers.sql). Profili olmayan isimler eskisi gibi
+               serbest metin olarak kaydedilir.
+               #p-credit-text gizli input olarak KALIR (#p-office/#p-designer ile birebir desen):
+               gönderim, prefill ve "Kaynak'ı firmanın sitesiyle doldur" akışı onun virgüllü
+               değerini okumaya devam eder. -->
+          <div class="form-field" id="ac-credit-field">
+            <label for="p-credit-picker" id="p-credit-text-label">Fotoğrafçı <span class="req" aria-hidden="true">*</span></label>
+            <input type="hidden" id="p-credit-text" name="photoCreditText">
+            <div id="p-credit-picker"></div>
+            <div class="form-hint">Listeden birden fazla kişi ya da firma seçebilirsin. Aradığın isim listede yoksa yazıp «ekle» diyerek künyeye ekleyebilirsin. Seçtiğin kayıtlı isimler profillerine bağlanır.</div>
+          </div>
+          <!-- Kaynak: görselin/projenin alındığı sayfanın bağlantısı. photo_credit_url kolonu ve onu
+               okuyan/yazan tüm yollar (bkz. src/lib/canonicalSync.js, projectPool.js) zaten vardı:
+               kutu 2026-09-01'de yalnızca GİZLENMİŞTİ (kolon hiç kaldırılmadı), şimdi geri açıldı.
+               type="url" DEĞİL: tarayıcının kendi doğrulaması "mimarlab.com" gibi şemasız girişleri
+               reddedip formu sessizce bloke ederdi; doğrulama sunucuda tek yerde yapılır (bkz.
+               submissionTypes.js#urlFields -> findInvalidUrlField). -->
+          <div class="form-field" id="credit-url-field">
+            <label for="p-credit-url" id="p-credit-url-label">Kaynak <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="p-credit-url" name="photoCreditUrl" autocomplete="off" inputmode="url">
+            <!-- AGREGATÖR UYARISI METNİ KALDIRILDI (kullanıcı isteği, 2026-09-15 yedinci tur
+                 madde 4): "kaynak kutucuğunun altında yazan 'Yayın/arşiv siteleri (arkitera,
+                 archello, archdaily, divisare gibi) kabul edilmez ...' cümlelerini sil."
+                 KURALIN KENDİSİ DURUYOR ve sunucuda zorlanmaya devam ediyor (bkz.
+                 src/lib/aggregatorSources.js#planProjectSourceUrls — böyle bir adres canonical
+                 kayda HİÇ yazılmaz, hangi yoldan gelirse gelsin). Kaldırılan yalnızca bu uyarı
+                 cümlesiydi; davranış değişmedi. -->
+            <div class="form-hint">Projenin ya da görsellerin alındığı sayfanın bağlantısını yapıştır. Fotoğrafçı kutusuna bir firma yazarsan web sitesi buraya otomatik gelir.</div>
+          </div>
+        </div>
         <p class="section-hint">İlk görsel kapak fotoğrafı olarak kullanılır. Varsa önce dış mekan, sonrasında iç mekan ve en son çizim vb. diğer görselleri yükleyin lütfen. Görsellere tıklayarak ürün etiketlemesi yapabilirsin.</p>
         <label class="image-drop" id="image-drop">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>

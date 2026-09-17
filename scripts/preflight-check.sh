@@ -827,6 +827,17 @@ else
 fi
 rm -f /tmp/preflight_20260917b
 
+# 2026-09-17 BEŞİNCİ tur: /proje-en-iyi-100 ve /proje-harita görünüm adresleri (aynı /proje kabuğu),
+# En İyi 100 tek sayfa, admin arşivinde kişiler de proje sayısına göre, proje-ekle'de Fotoğrafçı +
+# Kaynak Görseller kutusunun en üst satırında. Bkz. scripts/test-2026-09-17-project-view-urls.mjs.
+if node scripts/test-2026-09-17-project-view-urls.mjs >/tmp/preflight_20260917c 2>&1; then
+  ok "2026-09-17 beşinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260917c) test)"
+else
+  bad "2026-09-17 beşinci tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260917c >&2
+fi
+rm -f /tmp/preflight_20260917c
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

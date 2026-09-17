@@ -843,7 +843,7 @@ function itemDetails(type, item){
   if(item.website) rows.push(['Web Sitesi', `<a href="${escapeAttr(safeUrl(item.website))}" target="_blank" rel="noopener">${escapeHtml(item.website)}</a>`]);
   if(item.awards && item.awards.length) rows.push(['Ödüller', escapeHtml(item.awards.join(', '))]);
   // Proje sayısı yalnızca Arşiv listesinde gelir (sıralamanın anahtarı, bkz. admin.js#handleSubmissionsAdmin).
-  if(type === 'offices' && typeof item.projectCount === 'number') rows.push(['Proje', String(item.projectCount)]);
+  if((type === 'offices' || type === 'architects') && typeof item.projectCount === 'number') rows.push(['Proje', String(item.projectCount)]);
   if(type === 'offices' && item.founders && item.founders.length) rows.push(['Kurucular', escapeHtml(item.founders.join(', '))]);
   if(type === 'offices' && item.team && item.team.length) rows.push(['Ekip', escapeHtml(item.team.join(', '))]);
   if(type === 'architects' && item.position) rows.push(['Pozisyon', escapeHtml(item.position)]);
@@ -1049,7 +1049,7 @@ async function loadArchive(){
   else if(archiveType === 'offices') items = items.filter(it => !it.isBrand);
   // Firma: proje sayısı çoktan aza (kullanıcı isteği, 2026-09-17). Sunucu zaten bu sırayla gönderir;
   // burada da uygulanır ki eski bir Worker sürümünden gelen yanıtta da sıra bozulmasın.
-  if(archiveType === 'offices' || archiveType === 'brands') items = items.slice().sort((a, b) => (b.projectCount || 0) - (a.projectCount || 0));
+  if(archiveType === 'offices' || archiveType === 'brands' || archiveType === 'architects') items = items.slice().sort((a, b) => (b.projectCount || 0) - (a.projectCount || 0));
   const typeLabel = ARCHIVE_TYPE_LABELS[archiveType].toLowerCase();
   if(!items.length){ list.innerHTML = `<div class="admin-empty">Arşivlenmiş ${typeLabel} yok.</div>`; return; }
   // Arama: başlık + künye metni üzerinde Türkçe-duyarsız alt dize (foldTr yerine locale-aware

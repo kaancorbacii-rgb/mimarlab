@@ -1736,3 +1736,30 @@ kişi ve firmaları canlı siteden ve arşivden sil. Örneğin ekteki kişi ve f
   firmanın projeleri genelde onunla birlikte arşivdedir) ve azalan sıralar; `admin.html` aynı anahtarla
   istemcide de sıralar ve kartta "Proje: N" gösterir. Test:
   `scripts/test-2026-09-17-saved-image-filters-foryou-refresh.mjs` bölüm 4.
+
+## Proje görünüm adresleri, tek sayfa En İyi 100, kişi arşiv sırası, Fotoğrafçı/Kaynak yeri (2026-09-17, beşinci tur)
+
+Kullanıcı isteği (üç madde): (1) "Proje sayfasındaki en iyi 100 ve harita seçeneklerinin de ayrı bir
+URL'si olsun. Örneğin /proje-en-iyi-100 ve /proje-harita ... en iyi 100 sayfasında 100 eser de tek
+sayfada listelensin. Ama proje sayfasındaki sistem ve tasarım olduğu gibi kalsın.", (2) "Admin
+panelindeki arşiv bölümünde kişiler de en çok projesi olandan en az olana doğru sıralansın.",
+(3) "Proje ekle sayfasında fotoğrafçı ve kaynak kutucuklarını Görseller kutusunun en üst satırına
+yerleştir."
+
+- **Aynı kabuk, yeni adres**: `src/index.js#PROJECT_VIEW_PAGES` iki yolu `/proje` kabuğuna eşler
+  (`/proje/sayfa-N` ile aynı yöntem, kabuk önbelleği PAYLAŞILIR); yanıt üstünde yalnızca `<title>`,
+  `og:title`, canonical ve `og:url` yola çevrilir. İkisi de sitemap'te. Ayrı `/en-iyi-100` sayfası
+  DEĞİŞMEDİ.
+- **Görünüm adresten okunur, sekmeyle yazılır** (`js/pages/proje.js`): `viewFromPath` açılışta ve
+  geri/ileri tuşunda (`bootView`) görünümü uygular; `setView` sekme tıklamasında `syncBrowserUrl(true)`
+  çağırır. `listBasePath` artık görünüme göre döner — Harita'da filtre değiştirmek adresi
+  `/proje-harita?...` tutar, Liste'ye dönünce `/proje?...` olur. `/sayfa-N` yalnızca Liste'de.
+- **En İyi 100 sayfalanmaz**: top100 dalı süzülmüş listenin tamamını çizer (`renderPagination(1)`).
+  Liste görünümünün sayfalaması DEĞİŞMEDİ.
+- **Arşiv > Kişi**: firma bloğu genelleştirildi — sayı `project_designers.architect_id` kenarından
+  (arşivdeki projeler dahil), kartta "Proje: N".
+- **proje-ekle**: Fotoğrafçı + Kaynak `form-row`'u Görseller bölümünde başlığın hemen altına taşındı;
+  id/name ve tüm prefill/gönderim yolları aynı.
+- Testler: `scripts/test-2026-09-17-project-view-urls.mjs` (7 test, preflight'a bağlı — gerçek
+  `worker.fetch` ile iki yolun `/proje` kabuğunu 200 döndürdüğünü ölçer). Migration YOK, SSR sürüm
+  bumpı YOK.

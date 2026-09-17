@@ -564,6 +564,8 @@ const SITEMAP_STATIC_PAGES = [
   // 'daily'; tekil /gundem/:slug URL'leri buildSitemapUrlBlocks'ta ayrıca listelenir.
   { loc: '/gundem', changefreq: 'daily', priority: '0.8' },
   { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
+  { loc: '/proje-en-iyi-100', changefreq: 'weekly', priority: '0.7' },
+  { loc: '/proje-harita', changefreq: 'weekly', priority: '0.6' },
   // DANIŞMANLIK (kullanıcı isteği, 2026-09-15). Sayfa HİÇBİR menüde bağlanmaz — yani site içinden
   // hiçbir <a href> ona işaret etmiyor ve tek keşif yolu burasıdır. Sayfa noindex DEĞİL (bkz.
   // danismanlik.html), dolayısıyla "indexlenebilir ama sitemap'te yok" çelişkisi oluşmasın diye
@@ -700,6 +702,11 @@ function matchPagedListPath(pathname) {
   if (!m) return null;
   return PAGED_LIST_BASES.includes(m[1]) ? m[1] : null;
 }
+
+const PROJECT_VIEW_PAGES = {
+  '/proje-en-iyi-100': { path: '/proje-en-iyi-100', title: 'En İyi 100 Proje — MİMARLAB' },
+  '/proje-harita': { path: '/proje-harita', title: 'Proje Haritası — MİMARLAB' },
+};
 
 const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/arama', '/en-iyi-100', '/gundem']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
@@ -1054,6 +1061,27 @@ async function routeAsset(request, env, url, ctx) {
     const listUrl = new URL(url);
     listUrl.pathname = pagedList;
     return routeAsset(new Request(listUrl, request), env, listUrl, ctx);
+  }
+
+  // PROJE GÖRÜNÜM ADRESLERİ (kullanıcı isteği, 2026-09-17): /proje sayfasındaki "En İyi 100" ve
+  // "Harita" sekmelerinin kendi adresi var. Sayfa AYNI /proje kabuğudur (tasarım/sistem değişmez);
+  // görünümü istemci adresten okur (bkz. js/pages/proje.js#viewFromPath). Kabuk önbelleği /proje ile
+  // PAYLAŞILIR, yalnızca başlık/canonical yanıt üstünde bu yola çevrilir.
+  const projectView = PROJECT_VIEW_PAGES[url.pathname.replace(/\/+$/, '')];
+  if (projectView && (request.method === 'GET' || request.method === 'HEAD')) {
+    const listUrl = new URL(url);
+    listUrl.pathname = '/proje';
+    const res = await routeAsset(new Request(listUrl, request), env, listUrl, ctx);
+    if (res.status !== 200 || request.method !== 'GET') return res;
+    const canonical = `${SITE_ORIGIN}${projectView.path}`;
+    const setContent = { element(el) { el.setAttribute('content', projectView.title); } };
+    const rewritten = new HTMLRewriter()
+      .on('title#page-title', { element(el) { el.setInnerContent(projectView.title); } })
+      .on('meta#og-title', setContent)
+      .on('link#canonical-link', { element(el) { el.setAttribute('href', canonical); } })
+      .on('meta#og-url', { element(el) { el.setAttribute('content', canonical); } })
+      .transform(res);
+    return new Response(rewritten.body, { status: res.status, statusText: res.statusText, headers: res.headers });
   }
 
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);

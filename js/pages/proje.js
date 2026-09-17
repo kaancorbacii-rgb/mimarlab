@@ -322,12 +322,24 @@ function currentQueryParams(){
 // değil YOLDA taşınır — /proje?page=7 yerine /proje/sayfa-7. Sunucu bu yolu liste kabuğuna
 // eşler (bkz. src/index.js#matchPagedListPath). Filtreler sorgu dizesinde kalmaya devam eder.
 // listBasePath: adres /proje/sayfa-7 iken bile TABAN yol ('/proje') gerekir.
+// GÖRÜNÜM ADRESLERİ (kullanıcı isteği, 2026-09-17): "En İyi 100" -> /proje-en-iyi-100, "Harita" ->
+// /proje-harita. Aynı kabuk (bkz. src/index.js#PROJECT_VIEW_PAGES); görünüm adresten okunur ve
+// sekme değişince adres yazılır. Sayfa numarası yalnızca Liste görünümünde yolda taşınır.
+const PROJECT_VIEW_PATHS = { top100: '/proje-en-iyi-100', map: '/proje-harita' };
+function viewFromPath(){
+  const p = location.pathname.replace(/\/+$/, '');
+  if(p === PROJECT_VIEW_PATHS.top100) return 'top100';
+  if(p === PROJECT_VIEW_PATHS.map) return 'map';
+  return 'list';
+}
 function listBasePath(){
-  return location.pathname.replace(/\/sayfa-\d+\/?$/, '').replace(/\/+$/, '') || '/';
+  if(mapViewActive) return PROJECT_VIEW_PATHS.map;
+  if(top100ViewActive) return PROJECT_VIEW_PATHS.top100;
+  return '/proje';
 }
 function listPagePath(page){
   const base = listBasePath();
-  return page > 1 ? base + '/sayfa-' + page : base;
+  return (page > 1 && base === '/proje') ? base + '/sayfa-' + page : base;
 }
 // Eski ?page=N bağlantıları KIRILMAZ: adres yolunda sayfa yoksa sorgu dizesine düşülür.
 function pageFromUrl(){
@@ -956,12 +968,12 @@ async function render(){
     top100List.style.opacity = '1';
     const filtered = (TOP100_ITEMS || []).filter(it => passesTop100ActiveFilters(it) && passesTop100Search(it));
     const sorted = sortTop100Items(filtered);
-    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-    if(currentPage > totalPages) currentPage = totalPages;
-    const pageItems = sorted.slice((currentPage - 1) * PAGE_SIZE, (currentPage - 1) * PAGE_SIZE + PAGE_SIZE);
+    // 100 eserin TAMAMI tek sayfada (kullanıcı isteği, 2026-09-17) — En İyi 100'de sayfalama yok.
+    currentPage = 1;
+    const pageItems = sorted;
     document.getElementById('result-count').textContent = `${sorted.length} proje listeleniyor`;
     renderActiveChips();
-    renderPagination(totalPages);
+    renderPagination(1);
     currentItems = pageItems;
     if(pageItems.length === 0){ top100List.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
     empty.style.display = 'none';
@@ -1050,6 +1062,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 // (bkz. project-modal.js#loadMapForCurrentItem İLE AYNI gecikmeli-yükleme deseni) — Liste/Harita
 // arasında ileri geri geçişte tekrar tekrar yeniden istenmez; sonraki her render() (filtre/sayfa
 // değişimi) ise syncMapMarkers ile marker'ları senkron tutar.
+let applyProjectView = null;
 (function wireViewToggle() {
   const toggleWrap = document.getElementById('view-toggle');
   const listBtn = document.getElementById('view-toggle-list');
@@ -1074,7 +1087,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   // gidip bir filtre değiştirip Liste/En İyi 100'e dönmek grid'i yanlış veri kaynağıyla
   // (top100 yerine sunucu Liste sonucuyla) doldurmuş oluyordu.
   let contentSource = 'list';
-  function setView(view) {
+  function setView(view, opts) {
     const isMap = view === 'map';
     if (!isMap) contentSource = view;
     const isTop100 = contentSource === 'top100';
@@ -1114,6 +1127,8 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
         el.style.display = el.dataset.pmPrevDisplay || '';
       }
     });
+    // Sekme tıklamasında adres görünüme göre yazılır; açılış/geri-ileri ({push:false}) yazmaz.
+    if (!opts || opts.push !== false) syncBrowserUrl(true);
     if (isMap && !mapLoaded) {
       mapLoaded = true;
       loadLeaflet().then((L) => {
@@ -1149,6 +1164,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   listBtn.addEventListener('click', () => setView('list'));
   mapBtn.addEventListener('click', () => setView('map'));
   top100Btn.addEventListener('click', () => setView('top100'));
+  applyProjectView = setView;
 })();
 
 // Tarayıcı geri/ileri tuşu: /proje/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
@@ -1183,8 +1199,17 @@ window.addEventListener('popstate', ()=>{
   FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
   applyInitialFiltersFromQuery();
   buildSidebar();
-  render();
+  bootView();
 });
+
+// Adresteki görünümü uygular. setView Liste/En İyi 100'de render()'ı kendisi çağırır; Harita'da
+// alttaki liste verisi ayrıca çizilir.
+function bootView(){
+  const view = viewFromPath();
+  if(!applyProjectView){ render(); return; }
+  applyProjectView(view, { push:false });
+  if(view === 'map') render();
+}
 
 // İLK ÇİZİM ARTIK HEMEN (kullanıcı isteği, 2026-09-10): bu defer script çalıştığında belge ayrıştırılmış,
 // senkron bağımlılıklar (image-cdn.js, il-ilce-data.js) çalışmış ve proje.html'deki sıra gereği
@@ -1195,7 +1220,7 @@ let pendingCardWire = false;
 document.addEventListener('DOMContentLoaded', () => {
   if(pendingCardWire && typeof wireSaveButtons === 'function'){ pendingCardWire = false; wireSaveButtons('project'); }
 });
-function bootList(){ applyInitialFiltersFromQuery(); buildSidebar(); render(); }
+function bootList(){ applyInitialFiltersFromQuery(); buildSidebar(); bootView(); }
 if (typeof cdnImg === 'function') bootList(); else document.addEventListener('DOMContentLoaded', bootList);
 
 // Doğrudan /proje/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
