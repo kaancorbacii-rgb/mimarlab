@@ -16,6 +16,7 @@
 // kullanımı, orada NULL bırakılıyordu çünkü tek seferlikti; burada tekrar bulunabilir olması
 // gerekiyor).
 import { newId } from './crypto.js';
+import { safeDecode } from './http.js';
 import { filterUnreferencedKeys } from './r2References.js';
 import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
@@ -236,7 +237,9 @@ function collectMediaKeysFromValue(val, into) {
   if (typeof val !== 'string') return;
   const idx = val.indexOf(MEDIA_URL_MARKER);
   if (idx === -1) return; // statik/legacy dosya yolu (ör. "miras/..webp") — R2'de değil, dokunma
-  const key = decodeURIComponent(val.slice(idx + MEDIA_URL_MARKER.length));
+  // safeDecode: D1'de duran bozuk %-kodlamalı tek bir görsel yolu, kaydetme/silme yolunun
+  // TAMAMINI URIError ile düşürürdü (bkz. src/lib/http.js#safeDecode).
+  const key = safeDecode(val.slice(idx + MEDIA_URL_MARKER.length));
   if (key) into.push(key);
 }
 

@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
   about TEXT,
   social_links TEXT,
   kvkk_accepted_at INTEGER,
+  -- bkz. migrations/0045_user_company.sql
+  company TEXT,
   role TEXT NOT NULL DEFAULT 'user',
   created_at INTEGER NOT NULL
 );
@@ -319,6 +321,8 @@ CREATE TABLE IF NOT EXISTS collections (
   -- NULL = paylaşılmamış (varsayılan). Doluysa /pano/<share_token> adresinden herkese açık.
   share_token TEXT,
   shared_at INTEGER,
+  -- 'landscape' | 'portrait' — bkz. migrations/0095_board_a4_canvas_and_strokes.sql.
+  canvas_orientation TEXT NOT NULL DEFAULT 'landscape',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -341,6 +345,17 @@ CREATE TABLE IF NOT EXISTS collection_items (
   href TEXT,
   note TEXT,
   position INTEGER NOT NULL DEFAULT 0,
+  -- Serbest tuval (moodboard) konum/boyutları — bkz. migrations/0094_board_canvas_and_sharing.sql.
+  -- Yüzde (0-100); -1 "hiç konumlandırılmamış" demektir.
+  pos_x REAL NOT NULL DEFAULT -1,
+  pos_y REAL NOT NULL DEFAULT -1,
+  width REAL NOT NULL DEFAULT 22,
+  height REAL NOT NULL DEFAULT 22,
+  z_index INTEGER NOT NULL DEFAULT 0,
+  -- Not/metin öğelerinin biçimi — bkz. migrations/0095_board_a4_canvas_and_strokes.sql.
+  text_color TEXT,
+  font_size INTEGER,
+  font_weight TEXT,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id, position, created_at);
@@ -734,7 +749,9 @@ CREATE TABLE IF NOT EXISTS products (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 -- variants: ürünün "Versiyonlar" listesi (JSON dizi) — bkz. migrations/0086_product_variants.sql
 -- (neden ayrı bir product_variants tablosu DEĞİL + alan sözleşmesi orada anlatılıyor).
-, hidden_at TEXT, designer TEXT, year TEXT, files TEXT, variants TEXT);
+, hidden_at TEXT, designer TEXT, year TEXT, files TEXT, variants TEXT
+-- display_order: /urun listesinin açık sıralama kolonu — bkz. migrations/0089_product_display_order.sql.
+, display_order INTEGER);
 CREATE INDEX IF NOT EXISTS idx_products_brand_office ON products(brand_office_id);
 CREATE INDEX IF NOT EXISTS idx_products_hidden_or_deleted ON products(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 -- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
@@ -940,7 +957,9 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
   paid_at INTEGER,
   -- Görüşme süresi TALEBİN KENDİSİNDE (0121) — danışman başına değişebildiği için sonradan
   -- değiştirilebilir bir ayardan okunamaz (price_try ile AYNI gerekçe, bkz. o migration).
-  duration_min INTEGER NOT NULL DEFAULT 45
+  duration_min INTEGER NOT NULL DEFAULT 45,
+  -- bkz. migrations/0039_consultation_request_phone.sql
+  phone TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_host_status ON consultation_requests(host_slug, status, requested_date);
@@ -1104,8 +1123,16 @@ CREATE TABLE IF NOT EXISTS gundem_items (
   embedding TEXT,
   -- extra_sources: aynı haberi yazan İKİNCİL kaynaklar, JSON [{"name","domain","url"}].
   extra_sources TEXT,
-  -- ingest_mode: 'cron' | 'backfill'. Günlük yayın tavanı yalnızca 'cron' satırlarını sayar.
-  ingest_mode TEXT
+  -- ingest_mode: 'cron' | 'backfill' | 'user'. Günlük yayın tavanı yalnızca 'cron' satırlarını sayar.
+  ingest_mode TEXT,
+  -- migrations/0113_gundem_user_submissions.sql yansıması (gerekçelerin tamamı orada).
+  -- images: kullanıcı gönderisinin TÜM görselleri (en fazla 3), JSON dizi. image_url İLK görseldir.
+  images TEXT,
+  -- submitter_type: 'architect' | 'office' | 'user'; submitter_key o tablodaki canonical slug.
+  submitted_by TEXT,
+  submitter_type TEXT,
+  submitter_key TEXT,
+  submitter_name TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_gundem_items_published ON gundem_items(status, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gundem_items_category ON gundem_items(status, category, published_at DESC);

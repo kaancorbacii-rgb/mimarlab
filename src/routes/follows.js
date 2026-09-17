@@ -1,4 +1,4 @@
-import { json, errorJson, readJson } from '../lib/http.js';
+import { json, errorJson, readJson, safeDecode } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
@@ -136,7 +136,7 @@ async function deleteFollow(env, user, followedType, followedKey) {
   if (!FOLLOW_TYPES.has(followedType)) return errorJson('Geçersiz istek.');
   await env.DB.prepare(
     'DELETE FROM follows WHERE user_id = ? AND followed_type = ? AND followed_key = ?'
-  ).bind(user.id, followedType, decodeURIComponent(followedKey)).run();
+  ).bind(user.id, followedType, safeDecode(followedKey)).run();
   return json({ ok: true });
 }
 

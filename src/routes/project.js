@@ -1,4 +1,4 @@
-import { json, errorJson, pageParam } from '../lib/http.js';
+import { json, errorJson, pageParam, safeDecode } from '../lib/http.js';
 import { anyProfileClaimed } from '../lib/claimedProfiles.js';
 import { getSessionUser } from '../lib/auth.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
@@ -370,7 +370,7 @@ export async function handleProjectCanEditRoute(request, env, rawSlug) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const user = await getSessionUser(request, env);
   if (!user) return json({ canEdit: false });
-  const slug = decodeURIComponent(rawSlug || '');
+  const slug = safeDecode(rawSlug || '');
   return json({ canEdit: await canUserEditProjectBySlug(env, user, slug) });
 }
 
@@ -421,7 +421,7 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
   // HTTP semantiğini bozar ve uptime/monitoring araçlarını yanıltır. Gövde Cloudflare
   // runtime'ı tarafından zaten atılır (liste uçlarında kanıtlı: HEAD -> 200, size=0).
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
-  const slug = decodeURIComponent(rawSlug || '');
+  const slug = safeDecode(rawSlug || '');
   if (!slug) return errorJson('Geçersiz istek.');
 
   return cachedPublicJson(request, env, url.pathname, async () => {

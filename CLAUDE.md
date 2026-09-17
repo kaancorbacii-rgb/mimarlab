@@ -1568,3 +1568,68 @@ Testler: `scripts/test-2026-09-16-team-badges-lightbox-icons-and-account-speed.m
 preflight'a bağlı). Madde 3'ün ölçümü GERÇEK yardımcıları sahte bir D1 üzerinde koşturur ve eski
 (sıralı) kurgu ile yeni (paralel) kurguyu YAN YANA zamanlar — kurala değil gerçek süreye bakar.
 Migration YOK, SSR sürüm bumpı YOK.
+
+## Google Search Console "Server error (5xx)" — bozuk %-kodlaması (2026-09-17)
+
+Kullanıcı isteği: Search Console'un "New reason preventing your pages from being indexed: **Server
+error (5xx)**" bildirimi (ekran görüntüsü) — "Bu sorunu düzelt."
+
+- **KÖK NEDEN `decodeURIComponent`'tir**: geçersiz bir yüzde dizisinde URIError **FIRLATIR**. Yol
+  segmentini çözen çağıranların HİÇBİRİ bunu sarmalamıyordu, hata `src/index.js`'in en dıştaki
+  try/catch'ine kadar çıkıp `errorJson('Sunucu hatası oluştu.', 500)` üretiyordu.
+- **ÖLÇÜLDÜ, TAHMİN EDİLMEDİ** (düzeltmeden ÖNCE, gerçek `worker.fetch` Node'da koşturularak —
+  `scripts/test-2026-09-17-malformed-url-5xx.mjs` 1. bölümü aynı ölçümü kalıcı kelepçeye çevirdi):
+  `/proje/%E0%A4%A`, `/kisi/%`, `/firma/a%zz`, `/urun/%FF`, `/gundem/%E0%A4%A`, `/gorusme/%` ve
+  `/api/{project,architect,office,product,gundem}/%` -> **HEPSİ 500**. `/marka/%...` önce 301 ile
+  `/firma/%...`'e taşınıyor ve **yönlendirmenin HEDEFİNDE** 500 oluyordu — yani en çok indekslenmiş
+  eski önek de kapsam içindeydi.
+- **GERÇEK TRAFİKTE NEDEN OLUYOR**: (a) **Latin-1/Windows-1254 ile kodlanmış ESKİ Türkçe adresler** —
+  `%C7orbac%FD` ("Çorbacı") UTF-8 olarak GEÇERSİZDİR ve bu, Türkçe bir sitede en sık rastlanan hâldir;
+  (b) kopyala-yapıştır ile kırpılmış yarım diziler; (c) sondaki çıplak `%` (`/proje/100%`);
+  (d) tarayıcı/güvenlik probları. Googlebot 5xx'i GEÇİCİ bir arıza sayar: adresi indekslemez, tarama
+  bütçesini düşürür ve tekrar tekrar dener. **Doğru cevap 404'tür.**
+- **ÇÖZÜM TEK NOKTADA**: `src/lib/http.js#safeDecode` — çözülemeyen değer **HAM hâliyle** döner. Ham
+  değer hiçbir slug/anahtarla eşleşmediğinden çağıranların **MEVCUT** 404/410 akışı kendiliğinden
+  devreye girer; tek tek "geçersiz istek" dalları YAZILMADI. `%` taşımayan değerde
+  `decodeURIComponent` hiç çağrılmaz (sıcak yol). Aynı karar `gatedMedia.js` ve `upload.js`'te
+  (2026-09-05 denetimi, `/media/` yolu için) zaten verilmişti — bu, o kararın site geneline
+  taşınmasıdır.
+- **KAPSAM 18 çağrı noktası**: `src/index.js` (detay sayfaları — asıl yer, `/gorusme/:uuid`, self
+  content/project moderasyon yolları), `project.js`, `architect.js`, `office.js`, `product.js`,
+  `gundem.js`, `admin.js`, `saved.js`, `reads.js`, `follows.js`, `shares.js`, `seo.js`,
+  `canonicalSync.js` ve **`http.js#parseCookies`** — sonuncusu ayrı bir sınıf: bozuk %-kodlaması
+  taşıyan TEK bir çerez değeri, oturum okuması her yolun başında çalıştığı için o ziyaretçinin
+  **HER** isteğini 500'e düşürürdü.
+- **REGRESYON KELEPÇESİ dosya taramasıdır** (testin 3. bölümü): `src/` içinde sarmalanmamış tek bir
+  `decodeURIComponent` kalırsa preflight kırmızı döner. Muaf olan dört dosya kendi try/catch'ini
+  taşır ya da URL segmenti çözmez (`http.js` — safeDecode'un kendisi, `gatedMedia.js`,
+  `upload.js`, `oauth.js` — base64).
+- **`serveDetailPage`'in 503 dalı DEĞİŞMEDİ** ve doğrudur: `buildMeta` bir D1 hatasıyla fırlarsa
+  (MetaLookupError, 2026-09-01 madde 4) sayfa 404 DEĞİL 503 + `Retry-After` döner. O da Search
+  Console'da "5xx" görünür ama kasıtlıdır — geçici bir kesinti yayındaki bir kaydı indeksten
+  DÜŞÜRMEMELİ. Bu turda yalnızca o dalın YANLIŞ tetiklenmesi kapatıldı (bkz. aşağısı).
+
+### schema.sql migration'larla EŞİTLENDİ (aynı turun ikinci bulgusu)
+
+- `schema.sql`, migration'larda eklenmiş **12 kolonu** taşımıyordu: `consultation_requests.phone`
+  (0039), `users.company` (0045), `products.display_order` (0089), `collection_items.pos_x/pos_y/
+  width/height/z_index` (0094), `collections.canvas_orientation` + `collection_items.text_color/
+  font_size/font_weight` (0095), `gundem_items.images/submitted_by/submitter_type/submitter_key/
+  submitter_name` (0113).
+- **ÜRETİMİ ETKİLEMEZ** (orada migration'lar uygulanır) ama **yerel SQLite fikstürünü gerçeklikten
+  ayırır** — ve tam da bu yüzden `/gundem/:slug`'ın 404 yolu yerelde ölçülemiyordu: fikstürde
+  `no such column: submitter_type` -> `buildGundemMeta` fırlıyor -> `serveDetailPage` **503**
+  döndürüyordu. Yani var olmayan bir gündem adresi, yerelde Search Console'un gördüğü 5xx'in İKİNCİ
+  bir görünümünü üretiyordu ve hiçbir test bunu yakalayamazdı.
+- **0079 BİLEREK DIŞARIDA** (fold kolonları VIRTUAL generated'dır, tek kaynak
+  `migrations/0079_search_fold_columns.sql` — bkz. schema.sql'deki açık not); kelepçe onu muaf tutar.
+- **İKİ TEST GÜNCELLENDİ**: `test-2026-09-11-office-jobs.mjs` ve `test-2026-09-12-home-rails.mjs`
+  0113'ü schema.sql'in ÜSTÜNE uyguluyordu ("schema.sql canlı D1'in gerisinde" notuyla); artık
+  gereksiz ve `duplicate column name` veriyor, satırlar kaldırıldı.
+- **Kelepçe** (testin 4. bölümü): schema.sql GERÇEK SQLite'a yüklenir, tüm migration'lardaki
+  `ALTER TABLE ... ADD COLUMN` ifadeleri `PRAGMA table_info` ile karşılaştırılır. Yeni bir migration
+  schema.sql'e yansıtılmazsa preflight orada durur.
+
+Testler: `scripts/test-2026-09-17-malformed-url-5xx.mjs` (22 test, preflight'a bağlı). Düzeltme
+geri alındığında **12 test birden kırılır** (ölçüldü) — yani kelepçe kurala değil gerçek durum
+koduna bakıyor. Migration YOK, SSR sürüm bumpı YOK (kabuklara script etiketi eklenmedi/kaldırılmadı).

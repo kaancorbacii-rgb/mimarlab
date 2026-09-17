@@ -467,7 +467,7 @@ console.log('\nmadde 11 — firma yetkilisi firmanın gündem içeriğini düzen
 
 await test('firma adına gönderilen gündem içeriğini firmanın DİĞER yetkilisi düzenler/siler, yabancı düzenleyemez', async () => {
   const { db, env } = await freshEnv();
-  db.exec(readFileSync(new URL('../migrations/0113_gundem_user_submissions.sql', import.meta.url), 'utf8'));
+  // 0113 artık schema.sql'de (2026-09-17 şema eşitlemesi) — ayrıca uygulamak duplicate column verir.
   const now = Date.now();
   db.prepare(
     `INSERT INTO gundem_items (id, slug, title, summary, category, status, source_id, source_name, source_domain, source_url,

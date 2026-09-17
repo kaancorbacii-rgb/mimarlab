@@ -1,4 +1,4 @@
-import { json, errorJson, readJson } from '../lib/http.js';
+import { json, errorJson, readJson, safeDecode } from '../lib/http.js';
 import { getSessionUser, publicUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { updateUserProfileFields } from './auth.js';
@@ -1931,7 +1931,7 @@ async function handleConsultantApplicationsAdmin(request, env, url, segments) {
   }
 
   if (segments.length === 4 && request.method === 'PATCH') {
-    const slug = decodeURIComponent(segments[3] || '');
+    const slug = safeDecode(segments[3] || '');
     const body = await readJson(request);
     if (!['approved', 'rejected'].includes(body.status) || !CONSULTANT_STATUSES.has(body.status)) {
       return errorJson('Geçersiz durum.');

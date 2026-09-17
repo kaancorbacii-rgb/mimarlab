@@ -1,4 +1,4 @@
-import { json, errorJson, readJson, pageParam } from '../lib/http.js';
+import { json, errorJson, readJson, pageParam, safeDecode } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint, invalidatePublicCache } from '../lib/publicCache.js';
@@ -517,7 +517,7 @@ export async function handleArchitectRoute(request, env, url, rawKey) {
   // HTTP semantiğini bozar ve uptime/monitoring araçlarını yanıltır. Gövde Cloudflare
   // runtime'ı tarafından zaten atılır (liste uçlarında kanıtlı: HEAD -> 200, size=0).
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
-  const key = decodeURIComponent(rawKey || '');
+  const key = safeDecode(rawKey || '');
   if (!key) return errorJson('Geçersiz istek.');
 
   return cachedPublicJson(request, env, url.pathname, () => buildArchitectPayload(env, key));

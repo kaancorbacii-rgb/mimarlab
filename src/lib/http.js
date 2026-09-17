@@ -63,6 +63,34 @@ export async function readJson(request) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// BOZUK %-KODLAMASI ASLA 500 ÜRETMEZ (Google Search Console bulgusu, 2026-09-17: "Server error
+// (5xx)" — yeni indeksleme engeli).
+//
+// KÖK NEDEN: `decodeURIComponent` geçersiz bir yüzde dizisinde URIError FIRLATIR — "%", "a%zz",
+// "%E0%A4%A" (yarım dizi), "%C0%80" (overlong), "%FF" ve özellikle LATIN-1/Windows-1254 ile
+// kodlanmış ESKİ Türkçe adresler ("%C7orbac%FD" = "Çorbacı") bunların hepsi geçersizdir. Yol
+// segmentini çözen çağıranlar bunu sarmalamadığından hata src/index.js'in en dıştaki try/catch'ine
+// kadar çıkıyor ve istek `errorJson('Sunucu hatası oluştu.', 500)` ile bitiyordu. Ölçüldü (bu
+// değişiklikten ÖNCE, gerçek fetch handler'ı Node'da koşturularak): /proje/%E0%A4%A, /kisi/%,
+// /firma/a%zz, /urun/%FF, /gundem/%E0%A4%A, /gorusme/%, /api/{project,architect,office,product,
+// gundem}/% -> HEPSİ 500. /marka/%... önce 301 ile /firma/%...'e taşınıyor ve ORADA 500 oluyor.
+//
+// Googlebot bu adresleri gerçekten talep eder (eski/bozuk dış bağlantılar, yanlış kodlanmış legacy
+// Türkçe URL'ler, tarayıcı probları) ve 5xx'i GEÇİCİ bir sunucu arızası sayar: tarama bütçesini
+// düşürür, adresi indekslemez ve tekrar tekrar dener. DOĞRU cevap 404'tür — "bu adres yok".
+//
+// ÇÖZÜM, YENİ DAVRANIŞ DEĞİL: çözülemeyen değer HAM HÂLİYLE döner. Ham değer hiçbir slug/anahtarla
+// eşleşmediğinden çağıranların MEVCUT "bulunamadı" akışı (404/410) kendiliğinden devreye girer —
+// tek tek 400 dönen yeni dallar yazılmadı, hata sınıfı tek noktada kapatıldı. Aynı karar zaten
+// src/lib/gatedMedia.js ve src/routes/upload.js'te (2026-09-05 denetim bulgusu, /media/ yolu için)
+// verilmişti; bu, o kararın site genelindeki karşılığıdır.
+export function safeDecode(value) {
+  const raw = value == null ? '' : String(value);
+  if (!raw.includes('%')) return raw; // ezici çoğunluk — decodeURIComponent hiç çağrılmaz
+  try { return decodeURIComponent(raw); } catch { return raw; }
+}
+
 export function parseCookies(request) {
   const header = request.headers.get('Cookie') || '';
   const out = {};
@@ -71,7 +99,9 @@ export function parseCookies(request) {
     if (idx === -1) return;
     const k = part.slice(0, idx).trim();
     const v = part.slice(idx + 1).trim();
-    if (k) out[k] = decodeURIComponent(v);
+    // safeDecode: bozuk %-kodlaması taşıyan TEK bir çerez değeri, o ziyaretçinin HER isteğini
+    // 500'e düşürürdü (oturum okuması her yolun başında çalışır) — bkz. yukarıdaki gerekçe.
+    if (k) out[k] = safeDecode(v);
   });
   return out;
 }

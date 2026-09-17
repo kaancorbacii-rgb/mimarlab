@@ -13,7 +13,7 @@
 // çağırıyor) gelir ve yalnızca istemcide birleştirilir — böylece public gövde herkes için birebir
 // aynı bayt kalır ve paylaşılan önbellekte güvenle tutulabilir.
 
-import { json, errorJson, pageParam } from '../lib/http.js';
+import { json, errorJson, pageParam, safeDecode } from '../lib/http.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { GUNDEM_CATEGORIES, isValidGundemCategory } from '../lib/gundemCategories.js';
 import { GUNDEM_SOURCES } from '../lib/gundemSources.js';
@@ -158,7 +158,7 @@ async function gundemListFingerprint(env) {
 export async function handleGundemRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
   const rest = url.pathname.slice('/api/gundem'.length).replace(/^\//, '');
-  if (rest) return handleGundemDetail(request, env, url, decodeURIComponent(rest));
+  if (rest) return handleGundemDetail(request, env, url, safeDecode(rest));
   return handleGundemList(request, env, url);
 }
 

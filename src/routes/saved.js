@@ -1,4 +1,4 @@
-import { json, errorJson, readJson } from '../lib/http.js';
+import { json, errorJson, readJson, safeDecode } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
@@ -168,6 +168,6 @@ async function deleteSaved(env, user, itemType, itemKey) {
   if (!ITEM_TYPES.has(itemType)) return errorJson('Geçersiz istek.');
   await env.DB.prepare(
     'DELETE FROM saved_items WHERE user_id = ? AND item_type = ? AND item_key = ?'
-  ).bind(user.id, itemType, decodeURIComponent(itemKey)).run();
+  ).bind(user.id, itemType, safeDecode(itemKey)).run();
   return json({ ok: true });
 }

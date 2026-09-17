@@ -41,8 +41,9 @@ async function freshEnv() {
   // 0079: name_fold generated kolonu — claimedProfiles.js#fetchOwnArchitectRows (Kurucular üzerinden
   // yetki yolu) buna bağlı; schema.sql canlı D1'in gerisinde (bkz. test-2026-09-08-round.mjs AYNI satır).
   db.exec(readFileSync(new URL('../migrations/0079_search_fold_columns.sql', import.meta.url), 'utf8'));
-  // 0113: gundem_items.images/submitted_by/submitter_* — popup ilanının Gündem kopyası bunları yazar.
-  db.exec(readFileSync(new URL('../migrations/0113_gundem_user_submissions.sql', import.meta.url), 'utf8'));
+  // 0113 (gundem_items.images/submitted_by/submitter_*) BURADA UYGULANMAZ: 2026-09-17'de schema.sql
+  // o kolonlarla eşitlendi, ayrıca uygulamak "duplicate column name" ile patlar. Şema ile
+  // migration'ların ayrışmadığını scripts/test-2026-09-17-malformed-url-5xx.mjs (4. bölüm) kelepçeliyor.
   const now = Date.now();
   for (const [id, name, role] of USERS) {
     db.prepare(`INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, 'x', ?, ?)`).run(id, `${id}@example.com`, name, role, now);
