@@ -545,6 +545,23 @@ const AuthModal = (function () {
     #am-panel .saved-filter-scroll .saved-filter-btn{flex:0 0 auto; white-space:nowrap;}
     #am-panel .saved-filter-btn{padding:6px 13px; border-radius:100px; border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:600; color:var(--ink-soft);}
     #am-panel .saved-filter-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+    /* MOBİL: kutulardaki TÜM filtre satırları tek satır + yatay kaydırma (kullanıcı isteği,
+       2026-09-17: "Hesabım, Koleksiyonum ve Aktivitelerim sayfalarında kutuların içindeki filtreleme
+       butonları mobilde tek satırda sıralansın, sağa kaydırılarak görünür olsun, kutunun dışına asla
+       çıkmasın"). Negatif margin YOK — satır kutunun İÇ alanında kalır ve taşan düğmeler kutunun
+       kenarına değil kendi kaydırma alanının sınırına kırpılır. saved-filter-scroll'un masaüstündeki
+       kenara-uzanan deseni mobilde bu yüzden sıfırlanır. min-width:0 + max-width:100%: flex/grid
+       ata içinde satırın içerik genişliğine büyüyüp kutuyu itmesini engeller. */
+    @media (max-width:720px){
+      #am-panel .saved-filter, #am-panel .submissions-toolbar-row{
+        flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain;
+        -webkit-overflow-scrolling:touch; scrollbar-width:none;
+        min-width:0; max-width:100%; box-sizing:border-box;
+      }
+      #am-panel .saved-filter-scroll{margin-inline:0; padding-inline:0; scroll-padding-inline:0;}
+      #am-panel .saved-filter::-webkit-scrollbar{display:none;}
+      #am-panel .saved-filter .saved-filter-btn, #am-panel .submissions-toolbar-row > *{flex:0 0 auto; white-space:nowrap;}
+    }
     #am-panel .submissions-toolbar-row{display:flex; gap:6px; margin-bottom:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
     #am-panel .submissions-toolbar-row::-webkit-scrollbar{display:none;}
     #am-panel .submissions-filter-btn{flex:0 0 auto; padding:6px 13px; border-radius:100px; border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
@@ -7796,9 +7813,17 @@ const AuthModal = (function () {
       const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
       if (colSavedPage > totalPages) colSavedPage = totalPages;
       const startIdx = (colSavedPage - 1) * PAGE_SIZE_DASH;
+      // GÖRSEL satırı (item_type='image') bir sayfaya/pop-up'a GİTMEZ, görseli lightbox'ta açar
+      // (kullanıcı isteği, 2026-09-17: "görsele tıklayınca sadece görsel lightbox olarak açılsın,
+      // proje popupının açılmasına gerek yok"). Satır bu yüzden HREF'SİZ bir <a> taşır: href'siz
+      // bağlantı lazy-modals.js'in ve varlık pop-up'larının `a[href]` yakalayıcılarına HİÇ düşmez,
+      // yani proje pop-up'ı açılma yolu yapısal olarak kapalıdır (preventDefault yarışına kalmaz).
+      // Görselin adresi item_key'dir (kaydedilen anahtar TAM görsel url'si, bkz. saved.js#ITEM_TYPES).
       container.innerHTML = items.slice(startIdx, startIdx + PAGE_SIZE_DASH).map(it => `
         <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
-          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
+          ${it.item_type === 'image'
+            ? `<a class="saved-row-link saved-row-image" role="button" tabindex="0" data-image-src="${escapeAttr(safeUrl(it.item_key) || safeUrl(it.item_image) || '')}" data-image-alt="${escapeAttr(it.item_title || '')}" style="cursor:zoom-in;">`
+            : `<a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">`}
             ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
             <div style="min-width:0;">
               <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
@@ -7818,7 +7843,37 @@ const AuthModal = (function () {
           } catch { btn.disabled = false; }
         });
       });
+      container.querySelectorAll('.saved-row-image').forEach(link => {
+        const openIt = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openSavedImageLightbox(link.dataset.imageSrc, link.dataset.imageAlt);
+        };
+        link.addEventListener('click', openIt);
+        link.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openIt(e); });
+      });
       renderDashPagination('am-col-saved-pagination', colSavedPage, totalPages, (pg) => { colSavedPage = pg; renderColSaved(); });
+    }
+    // image-lightbox.js her sayfada yüklü DEĞİL (ör. ana sayfa dışındaki bazı kabuklar) — Koleksiyonum
+    // ise her sayfadan açılabiliyor. Modül yoksa İLK tıklamada tembel yüklenir (bu dosyadaki
+    // ensureConsultationDetailModalLoaded ile AYNI desen); yüklenemezse görsel yeni sekmede açılır —
+    // tıklama hiçbir koşulda sessizce boşa düşmez.
+    let imageLightboxLoad = null;
+    function openSavedImageLightbox(src, alt) {
+      if (!src) return;
+      if (window.ImageLightbox && window.ImageLightbox.open) { window.ImageLightbox.open(src, alt || ''); return; }
+      if (!imageLightboxLoad) {
+        imageLightboxLoad = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = '/js/components/image-lightbox.js';
+          script.onload = () => resolve();
+          script.onerror = () => { imageLightboxLoad = null; reject(new Error('image-lightbox yüklenemedi')); };
+          document.head.appendChild(script);
+        });
+      }
+      imageLightboxLoad
+        .then(() => { if (window.ImageLightbox && window.ImageLightbox.open) window.ImageLightbox.open(src, alt || ''); else window.open(src, '_blank', 'noopener'); })
+        .catch(() => window.open(src, '_blank', 'noopener'));
     }
     async function loadColSaved() {
       try {

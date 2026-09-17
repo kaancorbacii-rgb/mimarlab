@@ -1527,29 +1527,38 @@ function renderForYouCta(){
   </div>`;
 }
 
-async function loadForYou(){
+// refresh: kutu ZATEN çizilmişken yapılan canlı tazeleme (bkz. aşağıdaki "CANLI TAZELEME").
+// O yolda bir ağ/sunucu hatası ekrandaki geçerli kartları SİLMEZ — geçici bir hata yüzünden
+// kullanıcının baktığı kutunun kaybolması, tazelemenin kendisinden daha kötü bir deneyim olurdu.
+// Bölüm artık DOM'dan kaldırılmıyor, `hidden` ile gizleniyor: ilk yüklemede boş dönen bir kutu,
+// kullanıcı ilk etkileşimini yaptığında tazelemeyle yeniden görünebilsin diye.
+async function loadForYou(opts){
+  const refresh = !!(opts && opts.refresh);
   const section = document.getElementById('foryou-section');
   const body = document.getElementById('foryou-body');
   const sub = document.getElementById('foryou-sub');
   if(!section || !body) return;
+  const hideSection = () => { if(!refresh) section.hidden = true; };
 
   let res;
   try {
     res = await fetch('/api/foryou?limit=' + FORYOU_LIMIT, { cache: 'no-store' });
   } catch {
-    // Ağ hatası: yarım bir kutu göstermektense bölümü tamamen kaldır. Ana sayfanın geri kalanı
+    // Ağ hatası: yarım bir kutu göstermektense bölümü gizle. Ana sayfanın geri kalanı
     // (karuseller) bundan etkilenmez.
-    section.remove();
+    hideSection();
     return;
   }
 
-  if(res.status === 401){ renderForYouCta(); return; }
-  if(!res.ok){ section.remove(); return; }
+  if(res.status === 401){ section.hidden = false; renderForYouCta(); return; }
+  if(!res.ok){ hideSection(); return; }
 
   let data = null;
-  try { data = await res.json(); } catch { section.remove(); return; }
+  try { data = await res.json(); } catch { hideSection(); return; }
   const items = (data && Array.isArray(data.items)) ? data.items : [];
-  if(!items.length){ section.remove(); return; }
+  if(!items.length){ section.hidden = true; return; }
+  section.hidden = false;
+  foryouLoadedAt = Date.now();
 
   // Alt yazı, kutunun GERÇEKTEN kişiselleştirilmiş olup olmadığını söyler (bkz. forYou.js'teki
   // `personalized` bayrağı). Henüz hiç takip/kaydetme yapmamış bir üyeye "senin için seçtik"
@@ -1605,6 +1614,61 @@ window.addEventListener('mimarlab:authchange', () => {
   foryouStarted = false;
   startForYou();
 });
+
+// ===============================================================================================
+// CANLI TAZELEME (kullanıcı isteği, 2026-09-17: "Ana sayfadaki Senin İçin kullanıcı farklı
+// aktiviteler yaptıkça sürekli yenilensin.")
+// ===============================================================================================
+// Akışın beş sinyali (bkz. src/routes/forYou.js ALGORİTMA tablosu) kaydet/takip/beğeni/paylaşım/
+// yorumdur. Bu eylemleri yazan DÖRT ayrı bileşen var (save-widget.js, rating-widget.js,
+// share-button.js, project-comments.js) ve hepsi ana sayfada pop-up içinden de çalışıyor. Her
+// birine ayrı bir "aktivite oldu" olayı eklemek yerine sinyal TEK noktada, bu sayfanın fetch'inde
+// yakalanır: sinyal uçlarından birine giden BAŞARILI bir yazma isteği (GET dışı) tazelemeyi
+// planlar. Böylece ileride eklenecek yeni bir kaydet/beğen düğmesi de kendiliğinden kapsanır —
+// sinyal listesi forYou.js'in okuduğu tablolarla birebir aynı uçlardır.
+//
+// Sarmalayıcı ŞEFFAFTIR: özgün promise'i aynen döndürür, yanıtı okumaz/tüketmez, hata atmaz.
+// Tazeleme DEBOUNCE'ludur (art arda beş kayıt tek istek üretir) ve sekme görünmüyorsa görünür
+// olana kadar ertelenir. Başka bir sekmede/sayfada yapılan etkileşimler için sekmeye dönüşte
+// (visibilitychange) ve geri tuşuyla bfcache'ten dönüşte (pageshow.persisted) de tazelenir.
+const FORYOU_SIGNAL_PATH_RE = /^\/api\/(saved|follows|ratings|shares|comments)(\/|$)/;
+const FORYOU_REFRESH_DEBOUNCE_MS = 1200;
+const FORYOU_STALE_MS = 60 * 1000;
+let foryouLoadedAt = 0;
+let foryouRefreshTimer = null;
+let foryouRefreshPending = false;
+function scheduleForYouRefresh(){
+  if(!foryouStarted) return; // ilk yükleme henüz başlamadıysa o zaten güncel veriyi çekecek
+  if(document.visibilityState === 'hidden'){ foryouRefreshPending = true; return; }
+  clearTimeout(foryouRefreshTimer);
+  foryouRefreshTimer = setTimeout(() => {
+    foryouRefreshPending = false;
+    loadForYou({ refresh: true }).catch(() => {});
+  }, FORYOU_REFRESH_DEBOUNCE_MS);
+}
+(function wireForYouActivitySignal(){
+  const origFetch = window.fetch;
+  if(typeof origFetch !== 'function') return;
+  window.fetch = function(input, init){
+    const p = origFetch.apply(this, arguments);
+    try {
+      const method = String((init && init.method) || (input && typeof input === 'object' && input.method) || 'GET').toUpperCase();
+      if(method !== 'GET' && method !== 'HEAD'){
+        const raw = typeof input === 'string' ? input : (input && input.url) || String(input);
+        const path = new URL(raw, location.origin).pathname;
+        if(FORYOU_SIGNAL_PATH_RE.test(path)){
+          p.then((res) => { if(res && res.ok) scheduleForYouRefresh(); }, () => {});
+        }
+      }
+    } catch { /* sarmalayıcı hiçbir koşulda isteği bozmaz */ }
+    return p;
+  };
+})();
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState !== 'visible' || !foryouStarted) return;
+  if(foryouRefreshPending || (foryouLoadedAt && Date.now() - foryouLoadedAt > FORYOU_STALE_MS)) scheduleForYouRefresh();
+});
+window.addEventListener('pageshow', (e) => { if(e.persisted) scheduleForYouRefresh(); });
 </script>
 
 </body>

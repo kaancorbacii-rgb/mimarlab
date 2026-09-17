@@ -1633,3 +1633,48 @@ error (5xx)**" bildirimi (ekran görüntüsü) — "Bu sorunu düzelt."
 Testler: `scripts/test-2026-09-17-malformed-url-5xx.mjs` (22 test, preflight'a bağlı). Düzeltme
 geri alındığında **12 test birden kırılır** (ölçüldü) — yani kelepçe kurala değil gerçek durum
 koduna bakıyor. Migration YOK, SSR sürüm bumpı YOK (kabuklara script etiketi eklenmedi/kaldırılmadı).
+
+## Kaydettiklerim görseli lightbox'ta, mobil filtre satırları, canlı "Senin İçin" (2026-09-17, ikinci tur)
+
+Kullanıcı isteği (üç madde): (1) "Koleksiyonum sayfasında Kaydettiklerim kutusunda görsel butonuna
+kaydedilen görsellere tıklayınca sadece görsel lightbox olarak açılsın. Proje popupının açılmasına
+gerek yok.", (2) "Hesabım, Koleksiyonum ve Aktivitelerim sayfalarında kutuların içinde bulunan
+filtreleme butonları mobil görünümde tek satırda sıralansınlar ve sağa doğru kaydırılarak görünür
+olsunlar. Kutunun dışına asla çıkmasınlar.", (3) "Ana sayfadaki senin için kullanıcı farklı
+aktviteler yaptıkça sürekli yenilensin."
+
+### 1. Görsel satırı yalnızca lightbox açar
+- `auth-modal.js#renderColSaved`: `item_type === 'image'` satırı **HREF'SİZ** bir `<a role="button">`
+  taşır. Gerekçe yapısal: `lazy-modals.js`'in ve varlık pop-up'larının tıklama yakalayıcıları
+  `a[href]` arar — href yoksa proje pop-up'ı açılma yolu hiç oluşmaz (preventDefault yarışına
+  kalmaz). Görsel adresi `item_key`'dir (kaydedilen anahtar TAM görsel url'si).
+- Açılış `openSavedImageLightbox` üzerinden: `ImageLightbox` yoksa `image-lightbox.js` İLK tıklamada
+  tembel yüklenir, yüklenemezse görsel yeni sekmede açılır. Koleksiyonum her sayfadan açılabildiği,
+  modül ise her kabukta yüklü olmadığı için şart.
+- `hesabim.html`'deki Kaydettiklerim kopyası aynı kararı `data-lightbox-src` ile verir (o sayfa
+  modülü zaten yüklüyor, delege dinleyicisi işi görür).
+
+### 2. Mobilde filtre satırları tek satır + yatay kaydırma
+- `@media (max-width:720px)`: `.saved-filter` ve `.submissions-toolbar-row` → `flex-wrap:nowrap;
+  overflow-x:auto; min-width:0; max-width:100%`, düğmeler `flex:0 0 auto; white-space:nowrap`.
+  Kural İKİ yüzeyde: `auth-modal.js` (Hesabım/Koleksiyonum/Aktivitelerim modalleri) ve `hesabim.html`.
+- **Negatif margin YOK**: `.saved-filter-scroll`'un masaüstündeki kutu kenarına uzanan deseni
+  (`margin-inline:-24px`) mobilde sıfırlanır — satır kutunun İÇ alanında kalır ("kutunun dışına asla
+  çıkmasın"). Ölçüldü (Chromium 375px): tüm satırlar tek satır, kutunun iç kenarları arasında,
+  `document.scrollWidth === 375`.
+
+### 3. "Senin İçin" canlı tazeleme
+- Sinyal TEK noktada yakalanır: `index.html` kendi `window.fetch`'ini şeffaf biçimde sarar ve
+  forYou.js'in okuduğu beş sinyal ucuna (`/api/saved|follows|ratings|shares|comments`) giden
+  **başarılı, GET olmayan** bir istekten sonra tazeleme planlar. Dört ayrı bileşene (save-widget,
+  rating-widget, share-button, project-comments) ayrı olay eklemek yerine bu seçildi — yeni bir
+  kaydet/beğen düğmesi de kendiliğinden kapsanır. Sarmalayıcı özgün promise'i aynen döndürür.
+- **Debounce 1200 ms** (art arda kayıtlar tek istek), sekme gizliyken ertelenir; sekmeye dönüşte
+  (60 sn'den eskiyse ya da bekleyen tazeleme varsa) ve bfcache dönüşünde (`pageshow.persisted`)
+  de tazelenir.
+- `loadForYou({ refresh: true })`: tazelemede ağ/sunucu hatası ekrandaki kartları SİLMEZ. Bölüm artık
+  `section.remove()` ile değil **`hidden`** ile gizlenir — ilk yüklemede boş dönen kutu, kullanıcının
+  ilk etkileşiminden sonra tazelemeyle yeniden görünebilsin diye.
+
+Testler: `scripts/test-2026-09-17-saved-image-filters-foryou-refresh.mjs` (13 test, preflight'a
+bağlı) — tazeleme bloğu `vm` içinde GERÇEK kaynaktan koşturulur. Migration YOK, SSR sürüm bumpı YOK.

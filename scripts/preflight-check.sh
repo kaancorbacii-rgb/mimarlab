@@ -814,6 +814,19 @@ else
 fi
 rm -f /tmp/preflight_20260917
 
+# 2026-09-17 ikinci tur (üç madde): Koleksiyonum > Kaydettiklerim'de GÖRSEL satırı href'siz bir
+# bağlantıdır ve yalnızca lightbox açar (proje pop-up'ı açılmaz); Hesabım/Koleksiyonum/Aktivitelerim
+# kutularındaki filtre satırları mobilde tek satır + yatay kaydırma, kutunun dışına taşmaz; ana
+# sayfadaki "Senin İçin", sinyal uçlarına (saved/follows/ratings/shares/comments) giden başarılı bir
+# yazma isteğinden sonra kendini tazeler. Bkz. scripts/test-2026-09-17-saved-image-filters-foryou-refresh.mjs.
+if node scripts/test-2026-09-17-saved-image-filters-foryou-refresh.mjs >/tmp/preflight_20260917b 2>&1; then
+  ok "2026-09-17 ikinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260917b) test)"
+else
+  bad "2026-09-17 ikinci tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260917b >&2
+fi
+rm -f /tmp/preflight_20260917b
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

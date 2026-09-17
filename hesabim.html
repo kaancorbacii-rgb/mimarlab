@@ -229,6 +229,17 @@
     font-size:12px; font-weight:600; color:var(--ink-soft);
   }
   .saved-filter-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  /* MOBİL: filtre satırları tek satır + yatay kaydırma, kutunun dışına taşmaz (kullanıcı isteği,
+     2026-09-17 — Hesabım modalindeki kuralla BİREBİR aynı, bkz. js/components/auth-modal.js). */
+  @media (max-width:720px){
+    .saved-filter, .submissions-toolbar-row{
+      flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain;
+      -webkit-overflow-scrolling:touch; scrollbar-width:none;
+      min-width:0; max-width:100%; box-sizing:border-box;
+    }
+    .saved-filter::-webkit-scrollbar{display:none;}
+    .saved-filter .saved-filter-btn, .submissions-toolbar-row > *{flex:0 0 auto; white-space:nowrap;}
+  }
 
   /* ---------- PAYLAŞTIĞIM İÇERİKLER TÜR FİLTRESİ + HIZLI EKLE ---------- */
   .submissions-toolbar-row{
@@ -883,7 +894,9 @@ function renderSaved(){
   const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
   container.innerHTML = pageItems.map(it => `
     <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
-      <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
+      ${it.item_type === 'image'
+        ? `<a class="saved-row-link" role="button" tabindex="0" data-lightbox-src="${escapeAttr(safeUrl(it.item_key) || safeUrl(it.item_image) || '')}" data-lightbox-alt="${escapeAttr(it.item_title || '')}" style="cursor:zoom-in;">`
+        : `<a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">`}
         ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
         <div style="min-width:0;">
           <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
