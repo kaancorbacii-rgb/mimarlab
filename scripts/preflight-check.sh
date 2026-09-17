@@ -797,6 +797,23 @@ else
 fi
 rm -f /tmp/preflight_20260916g
 
+# 2026-09-17 — GOOGLE SEARCH CONSOLE "Server error (5xx)": bozuk %-kodlaması taşıyan HER detay
+# adresi (/proje, /kisi, /firma, /marka, /urun, /gundem + aynı adların /api karşılıkları ve
+# /gorusme/:uuid) 500 dönüyordu, çünkü decodeURIComponent geçersiz yüzde dizisinde URIError
+# fırlatıyor ve hiçbir çağıran bunu sarmalamıyordu. En sık gerçek kaynak: Windows-1254 ile
+# kodlanmış ESKİ Türkçe adresler ("%C7orbac%FD"). Artık src/lib/http.js#safeDecode ham değeri
+# döndürüyor ve mevcut 404/410 akışı devreye giriyor. Testin 3. bölümü src/ içinde sarmalanmamış
+# bir decodeURIComponent kalmadığını, 4. bölümü schema.sql'in migration kolonlarıyla aynı
+# olduğunu (yerel fikstür ayrışırsa 5xx yolları yerelde ölçülemez) doğrular.
+# Bkz. scripts/test-2026-09-17-malformed-url-5xx.mjs.
+if node scripts/test-2026-09-17-malformed-url-5xx.mjs >/tmp/preflight_20260917 2>&1; then
+  ok "2026-09-17 bozuk URL / 5xx testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260917) test)"
+else
+  bad "2026-09-17 bozuk URL / 5xx testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260917 >&2
+fi
+rm -f /tmp/preflight_20260917
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

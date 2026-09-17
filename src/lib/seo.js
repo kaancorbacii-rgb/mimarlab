@@ -1,4 +1,5 @@
 import { slugify } from './slugify.js';
+import { safeDecode } from './http.js';
 import { parseCanonicalRow } from './canonicalRead.js';
 // isOfficeName — bkz. fetchUnlinkedProjectCredits aşağısı. src/routes/project.js#
 // handleProjectDetailRoute ZATEN aynı fonksiyonu aynı amaçla (eski, office sütunu NULL olan
@@ -1209,7 +1210,10 @@ const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, proje
 // kaçırabilirdi (bkz. findArchitectRow/findOfficeRow'daki AYNI "gerçek slug" denetim notu).
 async function applySeoOverride(type, meta, env) {
   if (!env || !env.DB || !meta) return meta;
-  const key = decodeURIComponent(meta.canonicalUrl.split('/').pop());
+  // safeDecode: canonicalUrl'in son parçası encodeURIComponent'ten geçtiği için bugün her zaman
+  // geçerlidir — ama bu satır buildMeta'nın try'ı İÇİNDEDİR, yani buradan çıkan bir URIError
+  // MetaLookupError'a sarılıp sayfayı 503'e (Search Console'da yine 5xx) düşürürdü.
+  const key = safeDecode(meta.canonicalUrl.split('/').pop());
   let override;
   try {
     override = await env.DB.prepare(

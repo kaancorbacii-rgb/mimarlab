@@ -1,4 +1,4 @@
-import { json, errorJson, clearSessionCookieHeader } from './lib/http.js';
+import { json, errorJson, clearSessionCookieHeader, safeDecode } from './lib/http.js';
 import { logRequest } from './lib/logger.js';
 import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
@@ -1224,7 +1224,9 @@ async function serveInfoModalPage(request, env, url, meta) {
 // "sayfa var" sanmasını önler ve tarayıcıyı doğrudan giriş akışına sokar.
 const MEETING_ROOM_PAGE_HEADERS = { 'Cache-Control': 'private, no-store, must-revalidate' };
 async function serveMeetingRoomPage(request, env, url) {
-  const roomUuid = decodeURIComponent(url.pathname.slice('/gorusme/'.length).replace(/\/$/, ''));
+  // safeDecode: bozuk %-kodlaması URIError fırlatıp isteği 500'e düşürürdü (bkz. http.js#safeDecode).
+  // Ham değer ROOM_UUID_RE'yi geçemez, yani aşağıdaki 404 dalı zaten doğru cevaptır.
+  const roomUuid = safeDecode(url.pathname.slice('/gorusme/'.length).replace(/\/$/, ''));
   if (!ROOM_UUID_RE.test(roomUuid)) return notFoundPageResponse(request, env);
 
   const user = await getSessionUser(request, env);
@@ -1551,7 +1553,8 @@ const HUB_SSR = {
 // önbelleklenirken bu veri önbelleğin DIŞINDA her yanıta eklenir (serveGundemListPage ile aynı).
 // Şablonların <head> shim'i (mlPre) bunu __mlPrefetch'e yazar; modal-shell.js#fetchEntity oradan okur.
 // Anahtar, modalların ürettiğiyle BİREBİR aynı: `/api/<tip>/${encodeURIComponent(slug)}` (slug =
-// yol segmentinin decodeURIComponent'i — modallar da open(decodeURIComponent(m[1])) ile aynı yolu izler).
+// yol segmentinin çözülmüş hâli — istemcideki modallar da open(decodeURIComponent(m[1])) ile aynı
+// yolu izler; sunucu tarafı bunu safeDecode ile yapar, bkz. serveDetailPage#rawSlug).
 const DETAIL_API_PREFIX = { project: '/api/project/', architect: '/api/architect/', office: '/api/office/', product: '/api/product/' };
 // Proje galerisinin ilk görseli (js/components/gallery.js#render: cdnImg(img,480) + srcset [320,480,640],
 // sizes="480px") — doğrudan girişte modalın LCP görseli; preload ile HTML ayrıştırılırken başlar.
@@ -1751,7 +1754,13 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   // Yalnızca cache.match/put anahtarı için kullanılır — gerçek istek/yanıt URL'si (ve dolayısıyla
   // canonical/OG URL'leri) etkilenmez, bkz. SSR_CACHE_VERSION yorumu.
   const cacheKeyRequest = isGet ? withVersionedCacheKey(request, url) : null;
-  const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
+  // safeDecode — GOOGLE SEARCH CONSOLE "Server error (5xx)" BULGUSUNUN ASIL YERİ (2026-09-17).
+  // Buraya /proje/:slug, /kisi/:slug, /firma/:slug, /marka/:slug ve /urun/:slug'ın TAMAMI girer,
+  // yani sitenin indekslenen ~4.000 detay adresinin hepsi. Bozuk bir %-dizisi (yarım dizi,
+  // Latin-1/Windows-1254 ile kodlanmış eski Türkçe adresler, tarayıcı probları) URIError
+  // fırlatıyor ve istek en dıştaki catch'ten 500 ile çıkıyordu. Ham değer hiçbir slug ile
+  // eşleşmediğinden aşağıdaki MEVCUT 404/410 akışı devreye girer — bkz. http.js#safeDecode.
+  const rawSlug = safeDecode(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
   // Detay API yanıtı (bkz. loadDetailData) Cache API aramasıyla PARALEL — HIT yolunda da eklenir.
   // Yönlendirme/404 dallarında sonuç kullanılmaz (boşa gitmiş tek bir önbellekli okuma, zararsız).
   const detailDataPromise = (isGet && DETAIL_API_PREFIX[cleanRoute.type]) ? loadDetailData(env, ctx, cleanRoute.type, rawSlug) : Promise.resolve(null);
@@ -2252,10 +2261,10 @@ async function routeApi(request, env, url, ctx) {
   // halde detay handler'ı anahtarı "isim/moderate" olarak arardı. Yetki, düzenlemeyle AYNI
   // fonksiyondan okunur (bkz. src/routes/submissions.js#handleSelfContentModerate).
   const selfModerate = async (typeKey, rest) => {
-    if (request.method === 'DELETE') return handleSelfContentModerate(request, env, typeKey, decodeURIComponent(rest), 'delete');
+    if (request.method === 'DELETE') return handleSelfContentModerate(request, env, typeKey, safeDecode(rest), 'delete');
     if (rest.endsWith('/moderate') && request.method === 'POST') {
       const body = await request.json().catch(() => ({}));
-      return handleSelfContentModerate(request, env, typeKey, decodeURIComponent(rest.slice(0, -'/moderate'.length)), body && body.action);
+      return handleSelfContentModerate(request, env, typeKey, safeDecode(rest.slice(0, -'/moderate'.length)), body && body.action);
     }
     return null;
   };
@@ -2277,12 +2286,12 @@ async function routeApi(request, env, url, ctx) {
     // mountProjectAdminActions, kullanıcı isteği: Arşivle/Sil artık pop-up'ta değil, orada) kendi
     // projesini silmesi — GET (yukarıdaki handleProjectDetailRoute, herkese açık detay) ile AYNI
     // path'i paylaşır, method'a göre ayrılır.
-    if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
+    if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, safeDecode(projectSlug));
     // POST .../moderate {action:'archive'}: sahibin/admin'in proje-ekle.html'den (bkz. yukarısı
     // mountProjectAdminActions) "Arşivle"ye basması — GET'ten ÖNCE özel olarak yakalanmalı,
     // aksi halde handleProjectDetailRoute slug'ı "some-slug/moderate" olarak arardı.
     if (projectSlug.endsWith('/moderate') && request.method === 'POST') {
-      return handleSelfProjectModerate(request, env, decodeURIComponent(projectSlug.slice(0, -'/moderate'.length)));
+      return handleSelfProjectModerate(request, env, safeDecode(projectSlug.slice(0, -'/moderate'.length)));
     }
     // GET .../can-edit: sahiplik/claim tabanlı düzenleme yetkisi kontrolü (bkz. js/components/
     // project-actions.js#mountOwnerActions, proje-ekle.html#prefillForClaim) — yukarıdaki iki dal

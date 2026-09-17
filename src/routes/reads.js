@@ -19,7 +19,7 @@
 //
 // NEDEN saved_items'a YENİ BİR item_type DEĞİL: bkz. migrations/0101_read_items.sql dosya başı.
 
-import { json, errorJson, readJson } from '../lib/http.js';
+import { json, errorJson, readJson, safeDecode } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
@@ -85,6 +85,6 @@ async function deleteRead(env, user, itemType, itemKey) {
   if (!READ_ITEM_TYPES.has(itemType)) return errorJson('Geçersiz istek.');
   await env.DB.prepare(
     'DELETE FROM read_items WHERE user_id = ? AND item_type = ? AND item_key = ?'
-  ).bind(user.id, itemType, decodeURIComponent(itemKey)).run();
+  ).bind(user.id, itemType, safeDecode(itemKey)).run();
   return json({ ok: true });
 }

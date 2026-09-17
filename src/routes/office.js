@@ -1,4 +1,4 @@
-import { errorJson, pageParam } from '../lib/http.js';
+import { errorJson, pageParam, safeDecode } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { applyPinnedOrder, pinnedSlugsFromUrl } from '../lib/homeCarousels.js';
@@ -441,7 +441,7 @@ export async function handleOfficeRoute(request, env, url, rawKey) {
   // HTTP semantiğini bozar ve uptime/monitoring araçlarını yanıltır. Gövde Cloudflare
   // runtime'ı tarafından zaten atılır (liste uçlarında kanıtlı: HEAD -> 200, size=0).
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
-  const key = decodeURIComponent(rawKey || '');
+  const key = safeDecode(rawKey || '');
   if (!key) return errorJson('Geçersiz istek.');
 
   return cachedPublicJson(request, env, url.pathname, () => buildOfficePayload(env, key));

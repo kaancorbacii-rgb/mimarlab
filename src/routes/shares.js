@@ -1,4 +1,4 @@
-import { json, errorJson, readJson } from '../lib/http.js';
+import { json, errorJson, readJson, safeDecode } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
@@ -150,7 +150,7 @@ async function createShare(request, env, user) {
 async function deleteShare(env, user, id) {
   const row = await env.DB.prepare(
     'SELECT item_type, item_key FROM shared_items WHERE id = ? AND user_id = ?'
-  ).bind(decodeURIComponent(id), user.id).first();
+  ).bind(safeDecode(id), user.id).first();
   if (!row) return json({ ok: true });
   await env.DB.prepare(
     'DELETE FROM shared_items WHERE user_id = ? AND item_type = ? AND item_key = ?'
