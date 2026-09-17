@@ -393,7 +393,8 @@ await test('workflow: zamanlanmış koşu yalnızca eksikleri YAZAR; ölçüm mo
   const y = read('../.github/workflows/photo-space-classify.yml');
   assert.match(y, /schedule:\n\s+- cron: '41 2,8,14,20 \* \* \*'/);
   assert.match(y, /if \[ "\$\{GITHUB_EVENT_NAME\}" = "schedule" \]; then IN_APPLY=evet; IN_SCOPE=tumu;[^\n]*IN_FORCE=hayir; fi/);
-  assert.match(y, /node scripts\/photo-space-classify-backfill\.mjs --eval/);
+  assert.match(y, /evalarg="--eval"/); assert.match(y, /node scripts\/photo-space-classify-backfill\.mjs "\$\{evalarg\}"/);
+  assert.match(y, /case "\$\{IN_EVAL_FILE\}" in \*\[!a-zA-Z0-9\._\/-\]\*\|\*\.\.\*\|\/\*\)/, 'eval_file yol kaçışına kapalı');
   assert.match(y, /concurrency:\n\s+group: mimarlab-photo-space-classify/, 'iki tur aynı satırları aynı anda yazmaz');
 });
 

@@ -90,6 +90,16 @@ on:
         description: 'mode=olc iken: değerlendirme kümesi (boş = scripts/photo-space-gold.json)'
         required: false
         default: ''
+      model:
+        description: 'DENEY: yalnızca bu Workers AI vision modeli (boş = üretim kademesi)'
+        required: false
+        default: ''
+      context:
+        description: 'Proje künyesi prompta bağlam olarak eklensin mi'
+        required: false
+        default: 'evet'
+        type: choice
+        options: ['evet', 'hayir']
 
 # İki turun aynı satırları aynı anda yazmasını önler.
 concurrency:
@@ -135,6 +145,8 @@ jobs:
         env:
           IN_MODE: ${{ inputs.mode }}
           IN_EVAL_FILE: ${{ inputs.eval_file }}
+          IN_MODEL: ${{ inputs.model }}
+          IN_CONTEXT: ${{ inputs.context }}
           IN_CONCURRENCY: ${{ inputs.concurrency }}
           IN_APPLY: ${{ inputs.apply }}
           IN_SCOPE: ${{ inputs.scope }}
@@ -149,6 +161,11 @@ jobs:
           # (deploy.yml/gundem-retitle.yml'deki AYNI script-injection savunması).
           argv=()
           case "${IN_CONCURRENCY}" in '') ;; *[!0-9]*) echo "concurrency sayı olmalı" >&2; exit 1 ;; *) argv+=("--concurrency=${IN_CONCURRENCY}") ;; esac
+          if [ -n "${IN_MODEL}" ]; then
+            case "${IN_MODEL}" in *[!a-zA-Z0-9@._/-]*) echo "model geçersiz karakter içeriyor" >&2; exit 1 ;; esac
+            argv+=("--model=${IN_MODEL}")
+          fi
+          if [ "${IN_CONTEXT}" = "hayir" ]; then argv+=("--no-context"); fi
           if [ "${IN_MODE}" = "dizin" ]; then
             node scripts/photo-space-classify-backfill.mjs --index-report 2>&1 | tee photo-space-classify-log.txt
             exit 0

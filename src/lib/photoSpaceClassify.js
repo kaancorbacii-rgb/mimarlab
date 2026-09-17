@@ -160,11 +160,13 @@ export function buildContextNote(context) {
 diye banyo görünmeyen bir kareyi banyo etiketleme):\n${parts.join('\n')}`;
 }
 
-export async function classifyPhotoSpace(env, bytes, timeoutMs, mime, context) {
+// candidates (opsiyonel): model kademesini geçersiz kılar — yalnızca ölçüm/deney içindir
+// (scripts/photo-space-classify-backfill.mjs --model); üretim yolu VISION_CANDIDATES'i kullanır.
+export async function classifyPhotoSpace(env, bytes, timeoutMs, mime, context, candidates) {
   const b64 = toBase64(bytes);
   const prompt = PROMPT + buildContextNote(context);
   const errors = [];
-  for (const cand of VISION_CANDIDATES) {
+  for (const cand of (Array.isArray(candidates) && candidates.length ? candidates : VISION_CANDIDATES)) {
     try {
       const result = await Promise.race([
         env.AI.run(cand.model, cand.build(b64, prompt, bytes, mime || 'image/jpeg')),
