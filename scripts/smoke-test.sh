@@ -380,6 +380,31 @@ else
 fi
 
 echo ""
+echo "13c) Fotoğraf sayfası (2026-09-17) — yayında, ama hiçbir menüde değil"
+# /danismanlik ile AYNI gerekçe: sayfaya hiçbir iç bağlantı gitmiyor, yani bir deploy onu sessizce
+# düşürse kimse fark etmezdi.
+check_status "/fotograf" 200
+foto_html=$(curl -s "$BASE_URL/fotograf")
+if [[ "$foto_html" == *'id="ph-search-input"'* ]] && [[ "$foto_html" == *'id="ph-grid"'* ]] && [[ "$foto_html" == *'id="ph-lightbox"'* ]]; then
+  ok "/fotograf kabuğu mekan arama + ızgara + lightbox ile geliyor"
+else
+  bad "/fotograf kabuğunda arama kutusu, ızgara ya da lightbox YOK"
+fi
+# Izgarayı çizen TEK veri ucu. Boş dönerse sayfa boş görünür ama 200 kalır — durum kodu yetmez.
+foto_api=$(curl -s "$BASE_URL/api/photos?limit=3")
+if [[ "$foto_api" == *'"items"'* ]] && [[ "$foto_api" == *'"projectSlug"'* ]] && [[ "$foto_api" == *'"spaces"'* ]]; then
+  ok "/api/photos görselleri künyeyle birlikte dönüyor"
+else
+  bad "/api/photos boş/eksik yanıt verdi: $(printf '%s' "$foto_api" | head -c 160)"
+fi
+# Menüye sızma kontrolü (kullanıcı isteği: "sayfayı yayınla ama şimdilik bir menüye koyma").
+if [[ "$home_html" == *"/fotograf"* ]]; then
+  bad "ana sayfada /fotograf bağlantısı var (sayfa hiçbir menüye eklenmemeliydi)"
+else
+  ok "ana sayfada /fotograf bağlantısı yok"
+fi
+
+echo ""
 echo "14) Güvenli Görüşme Gateway'i (/gorusme/:room_uuid, 2026-09-08) — anonim/geçersiz erişim"
 # Anonim ziyaretçi giriş akışına yönlendirilir (302 /giris?next=...), geçersiz oda 404, çıplak yol
 # 404, API ucu oturumsuz 401. Hiçbiri kişisel veri ya da Meet adresi döndürmez.

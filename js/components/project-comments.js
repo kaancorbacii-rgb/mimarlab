@@ -6,10 +6,19 @@
 //
 // targetType (mount()'un 4. argümanı, options.targetType) — varsayılan 'project'; bileşen 'architect'/
 // 'office' hedeflerini de destekleyecek şekilde tasarlandı ama şu an yalnızca project-modal.js
-// tarafından, varsayılan değerle çağrılıyor. Sahiplik/moderasyon kontrolü hedefe göre DEĞİŞİR: 'project' için
-// gönderi sahipliği + aktif rozet (mevcut davranış, DEĞİŞMEDİ); 'architect'/'office' için
-// src/routes/comments.js#canDeleteComment'teki AYNI kural — profile_claims'te onaylı sahiplik yeterli,
-// rozet ŞARTI YOK.
+// tarafından, varsayılan değerle çağrılıyor. Sahiplik/moderasyon kontrolü hedefe göre DEĞİŞİR:
+// 'project' için (a) gönderi sahipliği + aktif rozet (mevcut davranış, DEĞİŞMEDİ) YA DA (b) projenin
+// künyesindeki bir mimar/firma profilini onaylı sahiplenmek (YENİ, kullanıcı isteği, 2026-09-17:
+// "admine ve firma yöneticisine yorumu silme yetkisi ver" — bkz. src/routes/comments.js#
+// canDeleteComment'teki AYNI iki yol); admin AYRICA açıkça kontrol edilir (server zaten admin'i
+// koşulsuz geçiriyordu, istemci bunu hiç sormuyordu — Sil düğmesi admine hiç görünmüyordu).
+// 'architect'/'office' için src/routes/comments.js#canDeleteComment'teki AYNI kural —
+// profile_claims'te onaylı sahiplik yeterli, rozet ŞARTI YOK.
+//
+// "commenterProfile" KALDIRILDI (kullanıcı isteği, 2026-09-17: "Her kullanıcı sadece kullanıcı
+// ismiyle yorum yapabilsin. Kişi popuplarını yorum kısmına karıştırma") — bkz. src/routes/
+// comments.js#listComments'teki AYNI gerekçe. Her yorum artık KOŞULSUZ `user_name`/`user_photo`
+// ile gösterilir, hiçbir /kisi veya /firma bağlantısı kurulmaz.
 const ProjectComments = (function () {
   const DEFAULT_IDS = { count: 'pm-comments-count', formWrap: 'pm-comment-form-wrap', list: 'pm-comments-list' };
   // mountSeq: proje popup'ı hızla değiştirildiğinde önceki projenin yavaş kalan /api/comments
@@ -25,30 +34,23 @@ const ProjectComments = (function () {
     const data = res.ok ? await res.json() : { items: [] };
     if (mySeq !== mountSeq) return;
     const items = data.items || [];
-    document.getElementById(ids.count).textContent = items.length;
+    // "Yorumlar (1)" biçimi, 0 yorumda TAMAMEN boş (kullanıcı isteği, 2026-09-17) — auth-modal.js#
+    // loadArchive'daki "am-archive-count" ile AYNI desen (bkz. o dosyadaki `\` (${n})\` : ''`).
+    document.getElementById(ids.count).textContent = items.length ? ` (${items.length})` : '';
     const list = document.getElementById(ids.list);
     if (!items.length) { list.innerHTML = ''; return; }
     list.innerHTML = items.map(c => {
+      // canModerate artık admin'i de kapsıyor (bkz. mount()'taki YENİ satır) — server zaten
+      // admin'i koşulsuz geçiriyordu, bu yalnızca düğmeyi görünür kılıyor.
       const canDelete = currentUser && (currentUser.id === c.user_id || canModerate);
-      // commenterProfile: yorumcunun hesabı bir mimar/firma profiline bağlıysa (bkz.
-      // src/routes/comments.js#listComments) varsayılan baş harf avatarı/düz isim yerine profil
-      // fotoğrafı+adı gösterilir, ikisi de /kisi veya /firma sayfasına link olur (kullanıcı isteği).
-      // href, proje künyesindeki designer-chip ile AYNI kuralı (slugify(name), stored slug değil —
-      // bkz. js/components/project-meta.js#designerChipHtml yorumu) izler.
-      const cp = c.commenterProfile;
-      const profileHref = cp ? escapeAttr(`/${cp.type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(slugify(cp.name))}`) : null;
+      // Her yorum KOŞULSUZ kendi hesap kimliğiyle gösterilir (kullanıcı isteği, 2026-09-17) —
+      // /kisi veya /firma'ya giden bir "commenterProfile" bağlantısı YOK, bkz. src/routes/
+      // comments.js#listComments'teki AYNI gerekçe.
       const userInitials = escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
-      // commenterProfile yoksa (mimar/firma sahiplenmesi olmayan sıradan üye) kendi hesap
-      // fotoğrafı (users.photo_url) gösterilir, o da yoksa baş harflere düşülür (kullanıcı isteği).
-      const cpPhotoUrl = cp && cp.photo ? safeUrl(cp.photo) : '';
       const userPhotoUrl = c.user_photo ? safeUrl(c.user_photo) : '';
-      const avatarInner = cp
-        ? `${escapeHtml(initials(cp.name))}${cpPhotoUrl ? `<img src="${escapeAttr(cpPhotoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`
-        : `${userInitials}${userPhotoUrl ? `<img src="${escapeAttr(userPhotoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
-      const avatarHtml = cp
-        ? `<a class="comment-avatar" href="${profileHref}" style="background:${officeColor(cp.name)}">${avatarInner}</a>`
-        : `<div class="comment-avatar">${avatarInner}</div>`;
-      const nameHtml = cp ? `<a class="comment-author-link" href="${profileHref}">${escapeHtml(cp.name)}</a>` : escapeHtml(c.user_name);
+      const avatarInner = `${userInitials}${userPhotoUrl ? `<img src="${escapeAttr(userPhotoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
+      const avatarHtml = `<div class="comment-avatar">${avatarInner}</div>`;
+      const nameHtml = escapeHtml(c.user_name);
       return `
       <div class="comment-row">
         ${avatarHtml}
@@ -121,15 +123,32 @@ const ProjectComments = (function () {
     let canModerate = false;
     await savedWidgetReady;
     if (currentUser) {
+      // Admin AYRICA burada kontrol edilir (kullanıcı isteği, 2026-09-17: "admine ... yorumu silme
+      // yetkisi ver") — server (canDeleteComment) admin'i zaten koşulsuz geçiriyordu ama istemci
+      // bunu hiç sormadığından Sil düğmesi admine popup'ta HİÇ görünmüyordu (yalnızca admin paneli
+      // üzerinden silinebiliyordu). Diğer dallar bu durumda hiç çalıştırılmaz.
+      if (currentUser.role === 'admin') {
+        canModerate = true;
+      } else {
       try {
         if (targetType === 'project') {
-          const [projRes, badgesRes] = await Promise.all([fetch('/api/projects/mine'), fetch('/api/badges/mine')]);
+          // firma yöneticisi (YENİ, kullanıcı isteği, 2026-09-17: "firma yöneticisine yorumu silme
+          // yetkisi ver") — projenin künyesindeki bir mimar/firma profilini onaylı sahiplenen
+          // kullanıcı, /api/project/:slug/can-edit'in AYNI yetki kuralıyla (bkz. src/lib/
+          // projectClaimAccess.js#canUserEditProjectBySlug, src/routes/comments.js#
+          // canDeleteComment'teki AYNI ikinci yol). ESKİ yol (isOwner && hasActiveBadge)
+          // DARALTILMADI — ikisi OR'lanır.
+          const [projRes, badgesRes, canEditRes] = await Promise.all([
+            fetch('/api/projects/mine'), fetch('/api/badges/mine'),
+            fetch(`/api/project/${encodeURIComponent(slug)}/can-edit`),
+          ]);
           const data = projRes.ok ? await projRes.json() : { items: [] };
           const isOwner = (data.items || []).some(it => it.slug === slug);
           const badgesData = badgesRes.ok ? await badgesRes.json() : { items: [] };
           const now = Date.now();
           const hasActiveBadge = (badgesData.items || []).some(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
-          canModerate = isOwner && hasActiveBadge;
+          const canEditProject = canEditRes.ok ? !!(await canEditRes.json()).canEdit : false;
+          canModerate = (isOwner && hasActiveBadge) || canEditProject;
         } else {
           // architect/office — src/routes/comments.js#canDeleteComment ile AYNI kural: rozet
           // ŞARTI YOK, yalnızca bu profil için onaylı bir profile_claims kaydı yeterli.
@@ -138,6 +157,7 @@ const ProjectComments = (function () {
           canModerate = data.status === 'approved';
         }
       } catch { /* yetki kontrolü başarısız — güvenli varsayılan: canModerate=false */ }
+      }
     }
     if (mySeq !== mountSeq) return;
     renderCommentForm(slug, mergedIds, targetType, mySeq);

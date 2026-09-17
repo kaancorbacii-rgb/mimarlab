@@ -866,6 +866,20 @@ else
 fi
 rm -f /tmp/preflight_20260917e
 
+# 2026-09-17 SEKİZİNCİ tur (iki madde): (1) yorumlar artık KOŞULSUZ hesap adıyla görünür
+# ("commenterProfile" kişi/firma köprüsü kaldırıldı), sayaç "Yorumlar (N)" biçiminde ve 0'da hiç
+# görünmez, silme yetkisi admin + künye yetkilisine (firma yöneticisi) açıldı; (2) /fotograf
+# sayfası — tüm proje görselleri yükleme sırasına göre, AI'ın belirlediği mekan etiketiyle
+# filtrelenebilir, lightbox'ta proje künyesi. Hiçbir menüde bağlantısı YOK.
+# Bkz. scripts/test-2026-09-17-comments-identity-and-photo-page.mjs.
+if node scripts/test-2026-09-17-comments-identity-and-photo-page.mjs >/tmp/preflight_20260917f 2>&1; then
+  ok "2026-09-17 sekizinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260917f) test)"
+else
+  bad "2026-09-17 sekizinci tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260917f >&2
+fi
+rm -f /tmp/preflight_20260917f
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

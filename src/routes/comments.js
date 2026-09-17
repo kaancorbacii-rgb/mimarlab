@@ -6,6 +6,7 @@ import { createNotification } from '../lib/notify.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 
 // 'news' KALDIRILDI (2026-09-05): haber özelliği yayından çekilmişti ve `news`/`news_submissions`
 // tabloları migrations/0090_drop_dead_feature_tables.sql ile düşürüldü. Canlıda target_type='news'
@@ -32,23 +33,15 @@ export async function handleCommentsRoute(request, env, url) {
 // profile_claims'ten tamamen bağımsız, mimar/marka profili olmasa bile ismi yanında gözükür
 // (bkz. kullanıcı talebi). 'destekci' hiçbir görünür rozet vermediği için hariç tutulur.
 //
-// commenterProfile: yorumu yapan kullanıcının hesabı bir mimar/firma profiline BAĞLIYSA (bkz.
-// architects/offices.claimed_by_user_id — profile_claims onayında kanonik satıra yazılır) o
-// profilin fotoğrafı/adı/slug'ı (kullanıcı isteği: yorumda varsayılan avatar yerine profil fotosu,
-// tıklanınca /kisi veya /firma'ya git). Bir hesap teorik olarak hem bir mimar HEM bir firma
-// kaydını claim etmiş olabilir — architects/offices'ten en fazla BİRER satırı garanti eden
-// korelasyonlu alt sorgularla (LIMIT 1) satır çoğalması önlenir, ikisi de doluysa proje.html
-// #DESIGNER_JOIN_SQL'deki COALESCE(ar, ofc) ile AYNI önceliğe (mimar > firma) uyulur.
-//
-// GERÇEK BULGU (bkz. kullanıcı isteği: "Admin hesabından ... yorumum Renzo Piano hesabıyla
-// gözüktü ... kökten çöz"): admin (kurumsal mimarlabcom@gmail.com hesabı) platform içeriği olarak
-// onlarca mimar/firma profili eklemişti; eskiden syncArchitect/syncOffice bunların HEPSİNİN
-// claimed_by_user_id'sini admin'e yazıyordu (bkz. src/lib/canonicalSync.js#resolveClaimedByUserId
-// — kök neden orada düzeltildi, artık admin'in eklediği yeni kayıtlarda bu alan hep NULL). Bu JOIN'e
-// eklenen "AND u.role != 'admin'" ise İKİNCİ bir savunma katmanı: admin kurumsal/platform hesabı
-// olduğundan (kişisel bir mimar/firma kimliği DEĞİL) admin'in yorumları geçmişte oluşmuş ya da
-// ileride farklı bir yoldan (ör. profile_claims onayı) oluşabilecek HERHANGİ bir claimed_by_user_id
-// bağından bağımsız olarak HER ZAMAN kendi adıyla ("MİMARLAB") görünür.
+// "commenterProfile" KALDIRILDI (kullanıcı isteği, 2026-09-17: "Her kullanıcı sadece kullanıcı
+// ismiyle yorum yapabilsin. Kişi popuplarını yorum kısmına karıştırma"). Eskiden yorumu yapan
+// hesabın bağlı olduğu bir mimar/firma profili varsa (architects/offices.claimed_by_user_id) yorum
+// KENDİ hesap adı yerine o profilin adı/fotoğrafıyla görünüyor, tıklanınca /kisi ya da /firma'ya
+// gidiyordu — bir kişi profilinin kendi popup'ında bile bu köprü kuruluyordu (kendi profiline
+// yorum yazan bir mimar, kendi ADINA link veren bir yorum görüyordu), kafa karıştırıcıydı. Artık
+// HER yorum, hedefi (proje/kişi/firma) ne olursa olsun, koşulsuz olarak `users.name` + `users.
+// photo_url`la gösterilir — architects/offices JOIN'i TAMAMEN kaldırıldı, kişi/firma profiline
+// bağlantı YOK.
 async function listComments(env, url) {
   const targetType = url.searchParams.get('targetType');
   const targetId = url.searchParams.get('targetId');
@@ -58,14 +51,10 @@ async function listComments(env, url) {
   // (bkz. kullanıcı isteği: yorum moderasyonu, migrations/0029_comment_moderation.sql) — admin
   // panelindeki src/routes/admin.js#handleCommentsAdmin bu filtreden ETKİLENMEZ, tüm statüleri görür.
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, u.photo_url AS user_photo, b.badge_type AS user_badge,
-            ar.name AS profile_ar_name, ar.photo_url AS profile_ar_photo,
-            ofc.name AS profile_ofc_name, ofc.logo_url AS profile_ofc_logo
+    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, u.photo_url AS user_photo, b.badge_type AS user_badge
      FROM comments c JOIN users u ON u.id = c.user_id
      LEFT JOIN badge_requests b ON b.user_id = c.user_id AND b.target_type = 'self' AND b.status = 'active'
        AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
-     LEFT JOIN architects ar ON ar.id = (SELECT id FROM architects WHERE claimed_by_user_id = c.user_id AND deleted_at IS NULL LIMIT 1) AND u.role != 'admin'
-     LEFT JOIN offices ofc ON ofc.id = (SELECT id FROM offices WHERE claimed_by_user_id = c.user_id AND deleted_at IS NULL LIMIT 1) AND u.role != 'admin'
      WHERE c.target_type = ? AND c.target_id = ? AND c.status = 'approved'
      ORDER BY c.created_at ASC`
   ).bind(Date.now(), targetType, targetId).all();
@@ -76,10 +65,7 @@ async function listComments(env, url) {
   const adminBadgeByUser = await getPersonalAdminBadgesForUsers(env, results.map(r => r.user_id));
   const items = results.map(r => {
     const badge = higherRankBadge(r.user_badge, adminBadgeByUser.get(r.user_id));
-    const item = { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_photo: r.user_photo || null, user_badge: badge };
-    if (r.profile_ar_name) item.commenterProfile = { type: 'architect', name: r.profile_ar_name, photo: r.profile_ar_photo || null };
-    else if (r.profile_ofc_name) item.commenterProfile = { type: 'office', name: r.profile_ofc_name, photo: r.profile_ofc_logo || null };
-    return item;
+    return { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_photo: r.user_photo || null, user_badge: badge };
   });
 
   return json({ items });
@@ -250,8 +236,17 @@ async function canDeleteComment(env, user, comment) {
   if (user.role === 'admin') return true;
 
   if (comment.target_type === 'project') {
-    // ('news' ortak yolu 2026-09-05'te kaldırıldı — news_submissions tablosu düşürüldü; geriye
-    // yalnızca project_submissions kaldığından tablo/alan adları artık sabit.)
+    // İKİ AYRI yol — ESKİ yol DARALTILMADI, YENİ bir yol EKLENDİ (kullanıcı isteği, 2026-09-17:
+    // "admine ve firma yöneticisine yorumu silme yetkisi ver").
+    //   1) YENİ — projenin künyesindeki bir mimar/firma profilini onaylı bir profile_claims ile
+    //      sahiplenen kullanıcı (proje-ekle.html?claim= akışının AYNI yetki kuralı, bkz. src/lib/
+    //      projectClaimAccess.js#canUserEditProjectBySlug — admin de bu fonksiyonun içinde zaten
+    //      true döner, yukarıdaki satırla üst üste biner ama zararsız). Rozet ŞARTI YOK: admin
+    //      onayından geçmiş bir profil sahipliği zaten yeterli bir güven sinyalidir.
+    if (await canUserEditProjectBySlug(env, user, comment.target_id)) return true;
+    // 2) ESKİ — projeyi BİZZAT gönderen hesap (owner_user_id), rozet şartıyla. ('news' ortak yolu
+    //    2026-09-05'te kaldırıldı — news_submissions tablosu düşürüldü; geriye yalnızca
+    //    project_submissions kaldığından tablo/alan adları artık sabit.)
     const row = await env.DB.prepare(
       `SELECT id FROM project_submissions WHERE owner_user_id = ? AND slug = ?`
     ).bind(user.id, comment.target_id).first();

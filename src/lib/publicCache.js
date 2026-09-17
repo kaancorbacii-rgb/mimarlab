@@ -711,7 +711,12 @@ const POOL_CACHE_TTL_SECONDS = 1800;
 // (audit bulgusu: proje havuzu daha önce hiç KV'de önbelleklenmiyordu, her filtreli/aramalı istekte
 // TAM tablo taranıyordu). facetCounts.js#recomputeProjectFacets bu önbelleği ATLAYIP ham
 // fetchActiveProjectPool'u çağırmaya devam eder (bir yazma sonrası her zaman TAZE veri gerekir).
-const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept'];
+// 'photos' — /fotograf sayfasının (bkz. kullanıcı isteği, 2026-09-17, src/routes/photos.js) TÜM
+// canlı proje görsellerinin düzleştirilmiş havuzu. Diğer beşiyle AYNI TTL/invalidation deseni: bir
+// proje eklenip/düzenlenip/gizlenip invalidatePublicCache() çağrıldığında bu havuz da temizlenir —
+// AI'ın ürettiği image_spaces etiketleri ise bu invalidation'dan BAĞIMSIZ ayrı bir yazma yoludur
+// (scripts/photo-space-classify-backfill.mjs), o da kendi turunun sonunda AYNI fonksiyonu çağırır.
+const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept', 'photos'];
 export function poolCacheKey(kind) { return `pool:${kind}`; }
 
 // fetchPool() yalnızca KV boşsa çağrılır (pahalı JOIN+subquery sorgusu) — dönen değer, çağıranın

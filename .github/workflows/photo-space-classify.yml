@@ -1,0 +1,141 @@
+name: Fotoğraf sayfası — mekan sınıflandırması (AI)
+
+# PROJE GÖRSELLERİNİ MEKANA GÖRE ETİKETLER (kullanıcı isteği, 2026-09-17: "Mekan filtremesini
+# yapay zeka yapsın.") — /fotograf sayfasındaki "Mekana Göre Ara" filtresinin veri kaynağı olan
+# `projects.image_spaces` kolonunu doldurur (bkz. scripts/photo-space-classify-backfill.mjs,
+# src/lib/photoSpaceClassify.js, migrations/0124_project_image_spaces.sql).
+#
+# NEDEN WORKFLOW — UZAK OTURUMDAN ÇALIŞTIRILAMIYOR: gundem-retitle.yml'deki AYNI gerekçe. Claude
+# Code'un uzak (web/telefon) oturumunda `api.cloudflare.com` ve `mimarlab.com` çıkışı ağ
+# politikasıyla kapalıdır; bu betiğin ihtiyacı olan İKİ şey de oradadır (D1 + Workers AI REST ve
+# görselleri indirmek için canlı site). Runner'da ikisi de var.
+#
+# NE YAPAR / NE YAPMAZ:
+#   YAPAR   : canlı projelerin görsellerini indirir, her birini bir vision modeline sorar ve
+#             dönen mekan etiketini (photo-space-taxonomy.js'teki SABİT listeden) YALNIZCA
+#             `projects.image_spaces` kolonuna yazar.
+#   YAPMAZ  : başka HİÇBİR kolona dokunmaz (başlık/künye/görsel listesi/sıralama/yayın durumu
+#             DEĞİŞMEZ). Yeni satır AÇILMAZ, satır SİLİNMEZ. Görsel dosyalarına dokunulmaz.
+#   KAPI    : model listede OLMAYAN bir etiket üretirse süzülür (whitelist), net bir mekan
+#             göremezse o görsel boş dizi ile etiketlenir ve filtrede hiç görünmez.
+#
+# TEKRAR ÇALIŞTIRILABİLİR: varsayılan olarak yalnızca ETİKETSİZ görseller işlenir (zaten etiketli
+# olanlar atlanır), yani yeni proje eklendikçe betik tekrar koşturulup yalnızca eksikler tamamlanır.
+#
+# VARSAYILAN DRY-RUN: `apply` açıkça `evet` yapılmadıkça hiçbir şey yazılmaz.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "D1'e YAZ (evet = gerçekten güncelle, hayır = yalnızca rapor)"
+        required: true
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+      scope:
+        description: 'Kapsam: tumu = tüm canlı projeler, ornek = --limit kadar proje'
+        required: true
+        default: 'ornek'
+        type: choice
+        options: ['ornek', 'tumu']
+      limit:
+        description: 'Proje sayısı (scope=ornek iken geçerli)'
+        required: false
+        default: '10'
+      offset:
+        description: 'scope=tumu iken: en yeniden geriye ilk N projeyi atla (yarıda kalan turu sürdürmek için)'
+        required: false
+        default: '0'
+      max_images:
+        description: 'Proje başına en fazla N görsel (0 = sınırsız)'
+        required: false
+        default: '0'
+      slug:
+        description: 'Yalnızca bu proje slug(lar)ı (virgülle; boş = hepsi)'
+        required: false
+        default: ''
+      force:
+        description: 'Zaten etiketli görselleri de YENİDEN sınıflandır'
+        required: false
+        default: 'hayir'
+        type: choice
+        options: ['hayir', 'evet']
+
+# İki turun aynı satırları aynı anda yazmasını önler.
+concurrency:
+  group: mimarlab-photo-space-classify
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    # Görsel başına 1 indirme + 1 vision çağrısı (~3-8 sn). Binlerce görsellik tam tarama saatler
+    # sürer; yarıda kalırsa `offset` ile kaldığı yerden sürdürülür (betik zaten etiketli görselleri
+    # atladığı için aynı komut tekrar çalıştırılarak da tamamlanabilir).
+    timeout-minutes: 330
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NPM_CONFIG_YES: 'true'
+
+    steps:
+      - name: Cloudflare sırları tanımlı mı
+        run: |
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then echo "EKSİK SIR: CLOUDFLARE_API_TOKEN" >&2; missing=1; fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then echo "EKSİK SIR: CLOUDFLARE_ACCOUNT_ID" >&2; missing=1; fi
+          if [ "$missing" -eq 1 ]; then
+            echo "Kurulum adımları deploy.yml'in aynı adımında listeli." >&2
+            echo "Bu iş için gereken izinler: D1:Edit ve Workers AI:Edit (Account kapsamlı)." >&2
+            exit 1
+          fi
+          echo "Cloudflare sırları yerinde."
+
+      # Betik yalnızca src/lib/*.js modüllerini, D1'i ve CANLI SİTEDEN indirilen görselleri
+      # kullanıyor — depodaki görsel ağacına ihtiyacı yok, sığ checkout yeterli.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sınıflandırma
+        env:
+          IN_APPLY: ${{ inputs.apply }}
+          IN_SCOPE: ${{ inputs.scope }}
+          IN_LIMIT: ${{ inputs.limit }}
+          IN_OFFSET: ${{ inputs.offset }}
+          IN_MAX_IMAGES: ${{ inputs.max_images }}
+          IN_SLUG: ${{ inputs.slug }}
+          IN_FORCE: ${{ inputs.force }}
+        run: |
+          set -o pipefail
+          # Kullanıcı girdileri kabuk satırına GÖMÜLMEZ, ortam değişkeni olarak okunur
+          # (deploy.yml/gundem-retitle.yml'deki AYNI script-injection savunması).
+          argv=()
+          if [ "${IN_APPLY}" = "evet" ]; then argv+=("--apply"); fi
+          if [ "${IN_FORCE}" = "evet" ]; then argv+=("--force"); fi
+          if [ "${IN_SCOPE}" = "tumu" ]; then
+            argv+=("--all")
+            case "${IN_OFFSET}" in ''|0) ;; *[!0-9]*) echo "offset sayı olmalı" >&2; exit 1 ;; *) argv+=("--offset=${IN_OFFSET}") ;; esac
+          else
+            case "${IN_LIMIT}" in ''|*[!0-9]*) echo "limit sayı olmalı" >&2; exit 1 ;; *) argv+=("--limit=${IN_LIMIT}") ;; esac
+          fi
+          case "${IN_MAX_IMAGES}" in ''|0) ;; *[!0-9]*) echo "max_images sayı olmalı" >&2; exit 1 ;; *) argv+=("--max-images=${IN_MAX_IMAGES}") ;; esac
+          if [ -n "${IN_SLUG}" ]; then
+            case "${IN_SLUG}" in *[!a-zA-Z0-9,_-]*) echo "slug geçersiz karakter içeriyor" >&2; exit 1 ;; esac
+            argv+=("--slug=${IN_SLUG}")
+          fi
+          echo "Çalıştırılıyor: node scripts/photo-space-classify-backfill.mjs ${argv[*]}"
+          node scripts/photo-space-classify-backfill.mjs "${argv[@]}" 2>&1 | tee photo-space-classify-log.txt
+
+      - name: Rapor (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: photo-space-classify-log
+          path: photo-space-classify-log.txt
+          if-no-files-found: warn

@@ -1895,3 +1895,107 @@ sorun var" — buton neredeyse görünmez, çerçevesiz/dolgusuz bir dikdörtgen
   kalıtım kurallarına göre hesaplanan render sonucunu (background/padding/border-radius) ayrı ayrı
   kelepçeler. Migration YOK, SSR sürüm bumpı YOK (CSS dosyası zaten revalidate edilir, sürümlenmiş
   Cache API anahtarıyla servis edilmiyor).
+
+## Yorum kimliği + FOTOĞRAF sayfası (/fotograf) — 2026-09-17, sekizinci tur
+
+Kullanıcı isteği (iki madde): (1) "Her kullanıcı sadece kullanıcı ismiyle yorum yapabilsin. Kişi
+popuplarını yorum kısmına karıştırma. Eğer projeye yorum yapıldıysa örneğin Yorumlar (1) şeklinde
+gözüksün, yorum yapılmadıysa 0'ı gösterme. Ayrıca admine ve firma yöneticisine yorumu silme yetkisi
+ver.", (2) "... siteye yüklenen projelerin görsellerinin yükleme sırasına göre en son yüklenenden
+ilk yüklenene doğru sıralanacağı bir sayfa ... istediği mekanı seçerek (örneğin yatak odası) ...
+Mekan filtremesini yapay zeka yapsın. Görsele tıklayınca da lightbox şeklinde açılacak ve projenin
+künyesi ... sergilenecek. Bu sayfanın ismi fotoğraf olsun, sayfayı yayınla ama şimdilik bir menüye
+koyma."
+
+### 1. "commenterProfile" KALDIRILDI — yorum HER ZAMAN hesap kimliğiyle
+- `listComments`, yorumu yapan hesabın bağlı olduğu bir kişi/firma profili varsa
+  (`architects/offices.claimed_by_user_id`) yorumu O PROFİLİN adı+fotoğrafıyla gösteriyor ve adı
+  `/kisi`|`/firma`'ya LİNK yapıyordu. Kendi profiline yorum yazan bir mimar, kendi adına link veren
+  bir yorum görüyordu — istekteki "kişi popuplarını yorum kısmına karıştırma" tam olarak buydu.
+- **İKİ JOIN + shaping SİLİNDİ** (`LEFT JOIN architects` / `LEFT JOIN offices` ve `commenterProfile`
+  alanı). Yanıt şekli artık SABİT yedi anahtar: `id, body, created_at, user_name, user_id,
+  user_photo, user_badge` — test bunu anahtar KÜMESİYLE kelepçeliyor (yeni bir profil köprüsü
+  sessizce geri gelmesin). İstemcide (`project-comments.js`) avatar artık HER ZAMAN `<div>`,
+  hiçbir bağlantı yok; `.comment-author-link` ve `a.comment-avatar` CSS kuralları ÖLÜ KOD olarak
+  iki kopyadan da (`css/project-detail.css` + `en-iyi-100.html`) düştü.
+- **`canonicalSync.js#resolveClaimedByUserId` DOKUNULMADI**: o, admin'in eklediği kayıtların
+  sahipliğini NULL bırakan ayrı bir doğruluk düzeltmesidir (2026-09-01) ve bu turdan bağımsız
+  olarak geçerli kalır — yalnızca onun dosya başı notundaki "commenterProfile JOIN'ini etkiliyordu"
+  cümlesi artık tarihsel bir kayıttır.
+
+### 2. Sayaç "Yorumlar (N)", 0'da hiç görünmez
+- `pm-comments-count` span'ı **inline `style="display:none;"` ve sabit `0` ile doğuyordu ve hiçbir
+  kod o display'i KALDIRMIYORDU** — yani sayaç bugüne kadar HİÇ görünmemişti (0 da dahil). Artık
+  span BOŞ doğar ve `loadComments` `items.length ? \` (${items.length})\` : ''` yazar —
+  `auth-modal.js#loadArchive`'ın "am-archive-count" deseniyle BİREBİR aynı.
+
+### 3. Silme yetkisi: admin + firma yöneticisi
+- **Sunucu** (`comments.js#canDeleteComment`, `project` dalı): ESKİ yol DARALTILMADI, YENİ bir yol
+  EKLENDİ — `canUserEditProjectBySlug` (proje-ekle `?claim=` akışının AYNI kuralı: künyedeki
+  mimar/firma profilini onaylı `profile_claims` ile sahiplenmek, firmada `OFFICE_EDIT_POSITIONS`
+  görev kısıtıyla). Rozet ŞARTI YOK: admin onayından geçmiş bir sahiplik zaten yeterli güven
+  sinyalidir. Eski yol (gönderi sahibi + aktif rozet) aynen duruyor.
+- **İstemci**: `canModerate` artık (a) `currentUser.role === 'admin'` ile KISA DEVRE yapıyor —
+  server admin'i zaten koşulsuz geçiriyordu ama istemci bunu HİÇ sormadığından **Sil düğmesi
+  admine popup'ta hiç görünmüyordu** (yalnızca admin panelinden silinebiliyordu); (b) proje
+  hedefinde `/api/project/:slug/can-edit` sonucunu eski `isOwner && hasActiveBadge` ile OR'luyor.
+  Üç fetch AYNI `Promise.all`'da.
+
+### 4. /fotograf — tüm proje görselleri, AI mekan filtresi, künyeli lightbox
+- **Sıralama "YÜKLEME SIRASI"dır, editoryal sıra DEĞİL**: `projects.created_at DESC, id DESC` —
+  en son eklenen projenin TÜM görselleri önce, sonra bir önceki proje. `/proje` listesinin
+  `COALESCE(relisted_at, publish_date, created_at)` zinciri BİLEREK kullanılmadı (o "1. sırada
+  görünme" sorusunun cevabı; bu sayfa "ne zaman yüklendi" soruyor). Bir projenin KENDİ görselleri
+  arasındaki sıra `images[]` dizisinin sırasıdır (proje-ekle'deki sürükle-bırak sırası).
+  `id DESC` tie-break ŞART: `created_at` SQLite'ta SANİYE çözünürlüklüdür ve toplu içe aktarılmış
+  legacy satırlar aynı damgayı paylaşabilir.
+- **Mekan etiketi AI ÜRETİMİ, kolon `projects.image_spaces`** (`migrations/0124`, görsel URL'sine
+  anahtarlı JSON — İNDEKS DEĞİL URL, 0076/0122'nin AYNI gerekçesi). **canonicalSync'in yazdığı
+  kolonlar arasında DEĞİL ve `project_submissions`'ta karşılığı YOK** (image_credits'in aksine):
+  kullanıcı girişi olmadığından bir taslak kavramı yok, ve syncProject bu kolona hiç değinmediği
+  için normal proje kaydetme akışı etiketleri SİLEMEZ. Test bunu `canonicalSync.js`'te
+  `image_spaces` geçmediğini arayarak kelepçeliyor.
+- **Sınıflandırma** `src/lib/photoSpaceClassify.js`: model kademesi (`VISION_CANDIDATES`),
+  `toBase64` ve `parseJsonLoose` `visionAnalyze.js`'ten PAYLAŞILIR (kopyalanmadı; o üçü bu turda
+  export edildi). Prompt/şema AYRI ve küçüktür — visionAnalyze.js TERS GÖRSEL ARAMA için
+  `identity/visibleText/brand/products/description` üretir, bu modül ise "bu karede hangi mekan
+  var" sorusunun cevabını verir. Çıktı `photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS` (20 mekan,
+  TR alfabetik) whitelist'inden geçer — model uydurma bir etiket üretirse SÜZÜLÜR, net bir mekan
+  göremezse boş dizi döner ve o görsel filtrede hiç görünmez.
+- **Etiketleme ÇEVRİMDIŞIDIR**: `scripts/photo-space-classify-backfill.mjs` +
+  `.github/workflows/photo-space-classify.yml` (`workflow_dispatch`, **varsayılan dry-run**,
+  `apply=evet` ile yazar). `env.AI` binding'i yalnızca deploy edilmiş Worker'da var olduğundan
+  betik Workers AI'ın **REST ucunu** `env.AI.run(model, opts)` ile aynı şekli döndüren bir
+  adaptörle kullanır (`gundem-retitle-backfill.mjs`'teki BİREBİR aynı desen/token mekaniği).
+  Varsayılan olarak YALNIZCA etiketsiz görseller işlenir — betik tekrar tekrar koşturulabilir,
+  yeni eklenen projeler için yalnızca eksikleri tamamlar (`--force` bunu kapatır).
+- **Veri ucu** `GET /api/photos` (`src/routes/photos.js`): havuz `src/lib/photoPool.js`'ten,
+  `getCachedPool(env, 'photos')` ile KV'de (30 dk TTL) — `POOL_CACHE_KINDS`'a `'photos'` eklendi,
+  yani her içerik yazımındaki `invalidatePublicCache()` onu da tazeler. Görünürlük kuralı sitedeki
+  her liste yüzeyiyle AYNI: `deleted_at IS NULL AND (hidden_at IS NULL OR preview_at IS NOT NULL)`.
+  Geçersiz bir `space` değeri filtreyi SESSİZCE yok sayar (boş sayfa göstermek yerine tüm havuz).
+- **Lightbox künyesi** (ekteki 2. görselin karşılığı): proje başlığı (gerçek `<a href="/proje/:slug">`
+  — `lazy-modals.js` onu yakalayıp TAM proje popup'ını aynı belgede açar), konum, mekan çipleri,
+  "Projeyi paylaşan" + avatar + ad, ve Kaydet. **"Projeyi paylaşan" `fetchOwnerByline`'dan gelir** —
+  2026-09-09'da ANA proje popup'ından kaldırılmış olan alan, bu YENİ sayfa için yeniden kullanılıyor
+  (farklı bağlam, aynı fonksiyon); `claimed_by_user_id` NULL olan legacy/admin kayıtlarında
+  "MİMARLAB"a düşer. Kaydet, var olan `saved_items` `'image'` tipini ve `save-widget.js#
+  wireSaveButton`'ı kullanır (Koleksiyonum > Kaydettiklerim > **Görsel** filtresi kendiliğinden
+  çalışır); yeni bir kaydetme yolu AÇILMADI.
+- **Izgara kartı `href` TAŞIMAYAN `<a role="button">`dır** (`auth-modal.js#renderColSaved`'deki AYNI
+  desen): `lazy-modals.js`'in yakalayıcıları `a[href]` arıyor — href olsaydı karta tıklamak MY
+  lightbox yerine proje popup'ını açardı.
+- **İlk çizim `DOMContentLoaded`'ı BEKLER**: sayfanın satır içi betiği ayrıştırma sırasında, TÜM
+  `defer`'lı betiklerden ÖNCE çalışır; beklenmezse `wireSaveButton`/`PHOTO_SPACE_OPTIONS` henüz
+  tanımsız olur ve Kaydet düğmeleri kalıcı olarak gizlenirdi.
+- **HİÇBİR MENÜDE YOK** (kullanıcı isteği): `site-chrome.js`'e DOKUNULMADI, sitedeki hiçbir sayfa
+  `/fotograf`'a `<a href>` ile bağlanmıyor. `/danismanlik` precedent'i birebir izlenir: sayfa
+  `noindex` DEĞİL, o yüzden "indexlenebilir ama sitemap'te yok" çelişkisi oluşmasın diye
+  `SITEMAP_STATIC_PAGES`'e eklendi (tek keşif yolu budur); `/fotograf.html` -> `/fotograf` 301.
+  `smoke-test.sh` 13c canlıda 200 + kabuk bütünlüğü + `/api/photos` dolu + ana sayfada bağlantı YOK
+  kontrollerini yapıyor.
+
+Testler: `scripts/test-2026-09-17-comments-identity-and-photo-page.mjs` (22 test, preflight'a bağlı)
+— yorum kimliği/silme yetkisi ve fotoğraf havuzu/filtre/künye GERÇEK SQLite + gerçek uçlarla,
+AI whitelist'i sahte bir `env.AI` ile ölçülür. **migrations/0124 KOD DEPLOY'undan ÖNCE uygulanmalı**
+(`.github/workflows/migrate.yml`): kolon yokken `photoPool.js`'in SELECT'i hata verir.

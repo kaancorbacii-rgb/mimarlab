@@ -145,7 +145,9 @@ Kurallar:
 - "description": fotoğrafın Türkçe betimlemesi, 2-3 cümle. Neyi gördüğünü mümkün olduğunca AYIRT EDİCİ biçimde anlat: yapı/ürün türü, biçim ve geometri, malzeme, renk, cephe/yüzey karakteri, çevre ve peyzaj, iç/dış mekan, ışık, dönem/üslup. Bu metin veritabanında eşleşme aramak için kullanılacak, o yüzden "güzel bir bina" gibi genel ifadelerden kaçın.`;
 }
 
-function parseJsonLoose(text) {
+// export edildi (bkz. src/lib/photoSpaceClassify.js) — /fotograf sayfasının mekan sınıflandırması
+// AYNI "model listesinden geçici JSON parçala" mekaniğini kullanıyor, kopyalamak yerine paylaşıyor.
+export function parseJsonLoose(text) {
   if (typeof text !== 'string') return null;
   const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
   try { return JSON.parse(cleaned); } catch { /* aşağıda ilk {...} bloğu denenir */ }
@@ -251,8 +253,8 @@ export function normalizeVision(raw) {
 }
 
 // analyzeImage — TEK vision çağrısı. Görsel Uint8Array olarak verilir (Workers AI `image` alanı
-// bayt dizisi bekler).
-function toBase64(bytes) {
+// bayt dizisi bekler). export edildi (bkz. src/lib/photoSpaceClassify.js) — AYNI kodlama.
+export function toBase64(bytes) {
   let bin = '';
   const CH = 0x8000; // parça parça — tek seferde apply çok büyük diziyle yığını taşırır
   for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));

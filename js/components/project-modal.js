@@ -41,7 +41,11 @@ const ProjectModal = (function () {
       <div class="pm-map-wrap" id="pm-map-wrap"></div>
     </details>
     <details class="comments-section" id="pm-comments-section" aria-live="polite">
-      <summary class="comments-title">Yorumlar<span id="pm-comments-count" style="display:none;">0</span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <!-- pm-comments-count boş doğar, ProjectComments#loadComments dolduruyor: 0 yorumda BOŞ
+           kalır (span'ın kendisi hiçbir şey göstermez), 1+ yorumda " (N)" yazar (kullanıcı isteği,
+           2026-09-17: "Yorumlar (1) şeklinde gözüksün, yorum yapılmadıysa 0'ı gösterme" — bkz. o
+           dosyadaki AYNI desen, auth-modal.js#loadArchive'daki "am-archive-count" ile birebir). -->
+      <summary class="comments-title">Yorumlar<span id="pm-comments-count"></span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
       <div class="comments-list" id="pm-comments-list"></div>
     </details>

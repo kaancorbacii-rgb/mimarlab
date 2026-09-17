@@ -1,0 +1,23 @@
+-- FOTOĞRAF sayfası — /fotograf (kullanıcı isteği, 2026-09-17): "Kişi arama butonundan istediği
+-- mekanı seçerek (örneğin yatak odası) yatak odasıyla alakalı tüm fotoğraflar ... sıralanacak.
+-- Mekan filtremesini yapay zeka yapsın."
+--
+-- image_spaces — GÖRSEL BAŞINA, AI'ın belirlediği mekan etiketi/etiketleri (bkz.
+-- photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS, src/lib/photoSpaceClassify.js). Biçim
+-- image_hotspots (migrations/0076) / image_credits (migrations/0122) İLE BİREBİR AYNI: görsel
+-- URL'sine göre anahtarlanmış bir JSON nesnesi —
+--   { "<görsel url>": ["Yatak Odası"] }
+-- İNDEKS DEĞİL URL: proje-ekle'de görseller sürükle-bırak ile yeniden sıralanabiliyor, indeks
+-- tabanlı bir eşleme her sıralama değişiminde sessizce yanlış görseli etiketlerdi (0076/0122'nin
+-- AYNI gerekçesi).
+--
+-- KASITLI OLARAK canonicalSync.js#syncProject'İN YAZDIĞI KOLONLAR ARASINDA DEĞİL, VE
+-- project_submissions'TA KARŞILIĞI YOK (image_credits'in aksine): bu alan tamamen AI tarafından,
+-- kullanıcı GİRİŞİ OLMADAN üretilir — bir "taslak" kavramı yok, dolayısıyla normal proje
+-- düzenleme/kaydetme akışının bu kolona sessizce NULL yazıp mevcut sınıflandırmayı silmesi riski
+-- de yok (syncProject bu kolona hiç değinmediği için bir UPDATE onu hiçbir koşulda etkilemez).
+-- Tek yazan: scripts/photo-space-classify-backfill.mjs (bkz. o betiğin dosya başı notu). Bir
+-- projenin görselleri sonradan değişirse (yeni eklenen/silinen görsel) o görsellerin etiketi
+-- eksik/fazla kalabilir — kabul edilen ödünleşme, backfill betiği periyodik olarak yeniden
+-- çalıştırılarak (yalnızca eksik URL'leri işleyerek) kapatılır.
+ALTER TABLE projects ADD COLUMN image_spaces TEXT;

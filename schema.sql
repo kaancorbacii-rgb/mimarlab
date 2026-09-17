@@ -1423,3 +1423,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_membership_claims_pending
   ON profile_membership_claims (office_id, architect_id, requested_by_user_id) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_membership_claims_status
   ON profile_membership_claims (status, created_at DESC);
+
+-- migrations/0124_project_image_spaces.sql yansıması — /fotograf sayfası (kullanıcı isteği,
+-- 2026-09-17). image_hotspots/image_credits İLE AYNI biçim (görsel URL'sine anahtarlı JSON),
+-- ama canonicalSync.js'in yazdığı kolonlar arasında DEĞİL ve project_submissions'ta karşılığı
+-- YOK — tamamen AI tarafından üretilir, tek yazan scripts/photo-space-classify-backfill.mjs.
+ALTER TABLE projects ADD COLUMN image_spaces TEXT;
