@@ -86,6 +86,10 @@ on:
         description: 'Aynı anda işlenen görsel sayısı (1-32)'
         required: false
         default: '10'
+      eval_file:
+        description: 'mode=olc iken: değerlendirme kümesi (boş = scripts/photo-space-gold.json)'
+        required: false
+        default: ''
 
 # İki turun aynı satırları aynı anda yazmasını önler.
 concurrency:
@@ -130,6 +134,7 @@ jobs:
       - name: Sınıflandırma
         env:
           IN_MODE: ${{ inputs.mode }}
+          IN_EVAL_FILE: ${{ inputs.eval_file }}
           IN_CONCURRENCY: ${{ inputs.concurrency }}
           IN_APPLY: ${{ inputs.apply }}
           IN_SCOPE: ${{ inputs.scope }}
@@ -149,8 +154,13 @@ jobs:
             exit 0
           fi
           if [ "${IN_MODE}" = "olc" ]; then
-            echo "Çalıştırılıyor (ÖLÇÜM, yazma yok): node scripts/photo-space-classify-backfill.mjs --eval ${argv[*]}"
-            node scripts/photo-space-classify-backfill.mjs --eval "${argv[@]}" 2>&1 | tee photo-space-classify-log.txt
+            evalarg="--eval"
+            if [ -n "${IN_EVAL_FILE}" ]; then
+              case "${IN_EVAL_FILE}" in *[!a-zA-Z0-9._/-]*|*..*|/*) echo "eval_file geçersiz" >&2; exit 1 ;; esac
+              evalarg="--eval=${IN_EVAL_FILE}"
+            fi
+            echo "Çalıştırılıyor (ÖLÇÜM, yazma yok): node scripts/photo-space-classify-backfill.mjs ${evalarg} ${argv[*]}"
+            node scripts/photo-space-classify-backfill.mjs "${evalarg}" "${argv[@]}" 2>&1 | tee photo-space-classify-log.txt
             exit 0
           fi
           # ZAMANLANMIŞ koşuda girdi YOKTUR: her zaman "tüm canlı projeler, yalnızca eksikler, YAZ".

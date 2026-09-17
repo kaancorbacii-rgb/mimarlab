@@ -59,14 +59,16 @@ KONUSU olan mekanı sınıflandırmak.
 
 ADIM 1 — "scene": görselin TÜRÜ. Şunlardan TAM BİRİ:
 - "ic_mekan": bir İÇ MEKANIN fotoğrafı (fotogerçekçi iç mekan render'ı da buraya)
-- "dis_mekan": bahçe, avlu, havuz, teras/balkon gibi bir AÇIK ALANIN fotoğrafı (ana konu o açık alansa)
-- "dis_cephe": bir binanın DIŞARIDAN görünümü — cephe, sokaktan bina, gece görünümü, hava/drone
-  fotoğrafı, kent silüeti, anıt, köprü, harabe
+- "dis_cephe": karede bir BİNA (ya da binalar, kent dokusu, anıt, köprü, harabe) ana öğe olarak
+  DIŞARIDAN görünüyor. Önünde bahçe, çim, ağaç, havuz, meydan ya da otopark OLSA BİLE bina ana
+  öğeyse "dis_cephe"dir. Hava/drone fotoğrafı ve kent silüeti HER ZAMAN "dis_cephe"dir.
+- "dis_mekan": bina ana öğe DEĞİL; kare bir bahçenin, avlunun, havuzun, terasın ya da balkonun
+  İÇİNDEN / ona odaklanarak çekilmiş (bitkiler, su yüzeyi, dış mekan mobilyası kareyi dolduruyor).
 - "cizim": plan, kesit, görünüş, vaziyet planı, diyagram, eskiz, aksonometri, pafta
 - "detay": malzeme/doku, mobilya, aydınlatma yakın çekimi; maket; insan portresi; logo/yazı
 
-ADIM 2 — "spaces": aşağıdaki listelerden en fazla ${MAX_SPACES} etiket, en olası ÖNCE. Her etiket
-için 0-1 arası güven ver.
+ADIM 2 — "spaces": aşağıdaki listelerden en olası etiket; GEREKİRSE ikinci bir etiket (en fazla
+${MAX_SPACES}). Her etiket için 0-1 arası güven ver. Karelerin ÇOĞUNDA doğru cevap TEK etikettir.
 
 ARANAN MEKANLAR:
 ${SEARCHABLE_DEFS}
@@ -79,13 +81,17 @@ ${DISTRACTOR_DEFS}
 
 KURALLAR:
 - scene="dis_cephe" ise tek etiket "Dış Cephe"dir. Bir binanın önündeki çim ya da kaldırım onu
-  "Bahçe" YAPMAZ; binanın girişi onu "Resepsiyon" YAPMAZ; pencereleri onu "Çalışma Odası" YAPMAZ.
+  "Bahçe" YAPMAZ; binanın girişi onu "Resepsiyon" YAPMAZ; pencereleri onu "Çalışma Odası" YAPMAZ;
+  cephedeki balkonlar onu "Balkon" YAPMAZ.
 - scene="detay" ise tek etiket "Detay"dır.
 - scene="cizim" ise YALNIZCA bir çizim etiketi ver, mekan etiketi VERME.
-- İLK etiket karenin ÇOĞUNU kaplayan, fotoğrafın asıl gösterdiği mekandır. Arka planda, kapı
-  aralığından ya da karenin küçük bir köşesinde görünen mekanı EKLEME.
-- İkinci etiketi YALNIZCA kare gerçekten iki mekanı birlikte gösteriyorsa ver (ör. mutfak + oturma
-  alanı tek hacimde). Emin değilsen TEK etiket ver.
+- İLK etiket karenin ÇOĞUNU kaplayan, fotoğrafın asıl gösterdiği mekandır.
+- İKİNCİ etiketi YALNIZCA o mekan da karenin en az üçte birini kaplıyorsa ver (ör. tek hacimde
+  mutfak + oturma alanı). Arka planda, kapı aralığından, camın ardında ya da karenin bir köşesinde
+  görünen mekanı EKLEME. Bir odadan görünen koridor "Koridor", salondan görünen merdiven
+  "Merdiven", ofisteki bekleme koltuğu "Resepsiyon" DEĞİLDİR.
+- "Resepsiyon" için karede bir karşılama BANKOSU ya da belirgin bir lobi/bekleme düzeni olmalı;
+  "Koridor" için karenin ana konusu geçiş hacminin kendisi olmalı.
 - Hiçbiri tam uymuyorsa "Genel İç Mekan" ya da uygun DİĞER etiketini seç; listede olmayan bir
   kelime YAZMA.
 - Yanlış bir etiket, eksik bir etiketten daha kötüdür.
