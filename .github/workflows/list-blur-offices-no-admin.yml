@@ -1,0 +1,35 @@
+name: Blurlu Firmalar Listesi (Yönetici Atanmamış)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Blurlu firmalar sorgula
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node scripts/list-blur-offices-no-admin.mjs
+
+      - name: Sonuç artefakt olarak kaydet
+        if: always()
+        run: |
+          node scripts/list-blur-offices-no-admin.mjs > /tmp/blur-offices.txt 2>&1
+
+      - name: Artefakt yükle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blur-offices-list
+          path: /tmp/blur-offices.txt
+          retention-days: 7
