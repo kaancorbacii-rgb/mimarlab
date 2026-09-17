@@ -148,5 +148,21 @@ await test('tazeleme hatası ekrandaki kartları silmez; bölüm DOM\'dan kaldı
   assert.match(fn, /const hideSection = \(\) => \{ if\(!refresh\) section\.hidden = true; \};/);
 });
 
+console.log('\n4 — Admin > Arşiv: firmalar proje sayısına göre çoktan aza');
+
+await test('sunucu arşivdeki firmalara projectCount ekleyip azalan sıralar', () => {
+  const s = read('src/routes/admin.js');
+  const block = s.slice(s.indexOf("if (typeKey === 'offices' && status === 'archived' && items.length)"), s.indexOf('return json({ items });', s.indexOf("status === 'archived' && items.length")));
+  assert.ok(block.length > 0, 'arşiv sıralama bloğu yok');
+  assert.match(block, /FROM offices o JOIN project_designers pd ON pd\.office_id = o\.id/);
+  assert.match(block, /item\.projectCount = /);
+  assert.match(block, /items\.sort\(\(a, b\) => b\.projectCount - a\.projectCount\)/);
+});
+await test('admin.html arşiv firma listesini aynı anahtarla sıralar ve sayıyı gösterir', () => {
+  const s = read('admin.html');
+  assert.match(s, /if\(archiveType === 'offices' \|\| archiveType === 'brands'\) items = items\.slice\(\)\.sort\(\(a, b\) => \(b\.projectCount \|\| 0\) - \(a\.projectCount \|\| 0\)\)/);
+  assert.match(s, /rows\.push\(\['Proje', String\(item\.projectCount\)\]\)/);
+});
+
 console.log(`\n${failed ? 'BAŞARISIZ' : 'TAMAM'} — ${passed} geçti, ${failed} kaldı`);
 if (failed) { for (const f of failures) console.error(` - ${f.name}: ${f.message}`); process.exit(1); }

@@ -1704,3 +1704,35 @@ ait profilleri ve Projesi yok ama başka içeriği var olanları silme."
   `--skip` ile KORUNDU — silinmeleri istenirse betik `--skip` olmadan yeniden koşturulur.
 - **R2**: Node'da bağlama olmadığından betik görselleri silmez (`UPLOADS` no-op); yetim görselleri
   r2Reconcile taraması temizler. KV havuzu 30 dk içinde kendiliğinden tazelenir.
+
+## İçeriği olmayan blurlu kişi/firmalar SİLİNDİ — kişi↔firma bağı içerik SAYILMAZ (2026-09-17, dördüncü tur)
+
+Kullanıcı isteği: "Üzerinde herhangi bir proje, ürün, fotoğraf ya da kullanıcı ataması olmayan blurlu
+kişi ve firmaları canlı siteden ve arşivden sil. Örneğin ekteki kişi ve firmanın silinmesi gerekiyor."
+(örnek: Zeynep Mutlu + Mimarize Mimarlık — yalnızca birbirinin kurucusu/firması olan iki boş profil)
++ "Admin panelindeki 'Arşiv' bölümünde firmaları proje sayısı çok olandan az olana doğru sırala."
+
+- **Üçüncü turun kuralı GENİŞLETİLDİ**: orada kişi↔firma bağı "başka içerik" sayılıp 305 kişinin 281'i,
+  194 firmanın 193'ü korunmuştu — kullanıcının örneği tam o gruptaydı. `scripts/delete-projectless-
+  preview-profiles.mjs` artık İKİ TİPİ TEK koşuda tarar; İÇERİK = proje (arşivdekiler dahil kenar),
+  ürün (kenar dahil), fotoğraf (fotoğrafladığı proje, kenar, künyede ad), kişide portfolyo, KULLANICI
+  ATAMASI/sahiplik. Kurucu/ekip/birincil firma bağı içerik DEĞİLDİR.
+- **BAĞ KAPANIŞI**: içeriği olmayan bir profil, içeriği OLAN (ya da canlı, ya da `--skip` ile dışlanan)
+  bir profile bağlıysa korunur, sabit noktaya kadar yayılır. Yalnızca TAMAMEN boş kümeler silinir;
+  projeli bir firmanın Kurucular/Ekip listesinden kişi koparılmaz. (Kuru çalıştırmada 7 kişi bu yüzden
+  korundu — örn. Zambak Mimarlık, Archist Mimarlık, PARCH'a bağlı olanlar.)
+- **Sayım kapıları** `--expect-offices` / `--expect-architects`; silme sırası önce firmalar.
+- **Token yenileme**: tarama ~1 saati aşabiliyor; 7403 gelince betik `wrangler whoami` ile OAuth
+  token'ı yenileyip isteği tekrarlar.
+- Dört ad (Arif Özden, Nur Urfalıoğlu, Alp Nuhoğlu, Serkan Ennaç) kullanıcı kararıyla yine KORUNDU.
+- **Sonuç (iki koşuda, aralarında ağ hatası)**: 193 firma + 20 kişi (üçüncü tur kalıntısı) + 324 kayıt
+  (50 firma + 274 kişi, bu tur) = toplam **243 firma + 294 kişi** silindi. Koşunun ortasında Cloudflare
+  API'ye geçici bir ağ erişim hatası (`EHOSTUNREACH`) `rawQuery`'nin sarmalanmamış `fetch()` çağrısından
+  fırlayıp süreci çökertti (142 firma silinmiş hâldeyken) — betik artık ağ seviyesi hataları da (HTTP
+  yanıtı hiç gelmeyen durumlar) 6 kez yeniden dener, yalnızca HTTP yanıtındaki 7403/10000 kodlarını
+  değil. Kalan kayıtlar aynı betikle, D1'den zaten silinenleri otomatik atlayarak tamamlandı.
+- **Arşiv sıralaması**: `admin.js#handleSubmissionsAdmin` `status=archived&type=offices` yanıtına
+  `projectCount` ekler (canonical `project_designers.office_id`, TEK tarama, arşivdeki projeler dahil —
+  firmanın projeleri genelde onunla birlikte arşivdedir) ve azalan sıralar; `admin.html` aynı anahtarla
+  istemcide de sıralar ve kartta "Proje: N" gösterir. Test:
+  `scripts/test-2026-09-17-saved-image-filters-foryou-refresh.mjs` bölüm 4.

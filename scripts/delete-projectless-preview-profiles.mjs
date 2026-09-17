@@ -1,30 +1,32 @@
 #!/usr/bin/env node
-// PROJESİ OLMAYAN BLURLU (ÖNİZLEME) KİŞİ ve FİRMALARI KALICI OLARAK SİL
-// (kullanıcı isteği, 2026-09-17: "Şu an blurlu olup yani önizleme modunda olup üzerinde hiçbir proje
-//  olmayan tüm kişi ve firmaları canlı siteden ve admin panelindeki arşiv kısmından sil.")
+// İÇERİĞİ OLMAYAN BLURLU (ÖNİZLEME) KİŞİ ve FİRMALARI KALICI OLARAK SİL
+// (kullanıcı isteği, 2026-09-17 üçüncü tur: "projesi olmayan blurlu kişi ve firmaları sil" + dördüncü
+//  tur: "Üzerinde herhangi bir proje, ürün, fotoğraf ya da kullanıcı ataması olmayan blurlu kişi ve
+//  firmaları canlı siteden ve arşivden sil." — örnek: Zeynep Mutlu + Mimarize Mimarlık, birbirinin
+//  kurucusu/firması olan ve başka hiçbir şeyi olmayan iki blurlu profil.)
 //
-// archive-empty-preview-profiles.mjs'in KARDEŞİ, iki farkla: (1) karar yalnızca PROJE üzerinden
-// verilir (istek "üzerinde hiçbir proje olmayan" diyor), (2) işlem arşiv DEĞİL SİLMEDİR — admin
-// panelindeki "Sil" ile BİREBİR aynı canlı kod yolu: runContentAction({ action:'delete', key }).
-// Bu yol canonical satırı + join kenarlarını siler, anahtarı karalisteye alır (statik kaynaktan geri
-// doğmasın), *_submissions taslaklarını siler (Arşiv sekmesinden de düşer) ve yorum/puan/kaydetme
-// etkileşimlerini temizler. GERİ ALINAMAZ.
+// SİLME, ARŞİV DEĞİL: admin panelindeki "Sil" ile BİREBİR aynı canlı yol —
+// runContentAction({ action:'delete', key }). Canonical satır + join kenarları + karaliste +
+// *_submissions taslakları (Arşiv sekmesinden de düşer) + etkileşimler. GERİ ALINAMAZ.
 //
-// "PROJE YOK" TANIMI (güvenli yön — şüphede profil KORUNUR):
-//   KİŞİ : pop-up'ın Projeler + Fotoğrafladığı Projeler bölümleri boş VE project_designers /
-//          project_photographers'ta HİÇBİR projeye (arşivdekiler dahil) kenarı yok VE adı hiçbir
-//          proje künyesinin fotoğraf satırında geçmiyor.
-//   FİRMA: pop-up'ın Projeler bölümü boş VE project_designers / project_brands'te HİÇBİR projeye
-//          kenarı yok VE arşiv cascade'i hiçbir proje toplamıyor VE adı hiçbir fotoğraf künyesinde yok.
-//   Arşivdeki projelere bağlı profiller de korunur: silmek o projelerin künyesinden kenarı koparır ve
-//   proje ileride yayına alınırsa künyesi eksik çıkar.
+// İÇERİK SAYILANLAR (biri bile varsa profil KORUNUR; şüphede korunur):
+//   KİŞİ : proje (pop-up'taki + arşivdekiler dahil project_designers kenarı), FOTOĞRAF (fotoğrafladığı
+//          projeler, project_photographers kenarı, künyenin fotoğraf satırında adı), ÜRÜN (pop-up +
+//          product_architects kenarı), portfolyo, KULLANICI ATAMASI/sahiplik (fetchOwnership).
+//   FİRMA: proje (pop-up + project_designers/project_brands kenarı + arşiv cascade'inin projeleri),
+//          ÜRÜN (pop-up + products.brand_office_id + cascade ürünleri), fotoğraf künyesinde adı,
+//          KULLANICI ATAMASI/sahiplik.
+// İÇERİK SAYILMAYAN: kişi <-> firma bağı (kurucu/ekip/birincil firma). Kullanıcının örneği tam
+// olarak bu: yalnızca birbirine bağlı iki boş profil.
 //
-// Projesi olmayıp BAŞKA içeriği (ürün, kurucu/ekip, firma, portfolyo) olan profiller SİLİNMEZ.
-// SAHİPLİ profiller (üye kaydı / admin ataması / bekleyen talep / danışman) VARSAYILAN olarak
-// SİLİNMEZ — emptyProfileAudit.js#fetchOwnership. --include-owned ile açıkça dahil edilebilir.
+// BAĞ KAPANIŞI (güvenlik): bir aday, kişi<->firma bağıyla içeriği OLAN (silinmeyecek) bir profile
+// bağlıysa o da KORUNUR ve bu kural sabit noktaya kadar yayılır. Aksi halde içeriği olan bir firmanın
+// Kurucular/Ekip listesinden kişiler, projeli bir kişinin künyesinden firması sessizce koparılırdı.
+// Yani yalnızca TAMAMEN boş kümeler (örnekteki çift gibi) silinir.
 //
-// VARSAYILAN DRY-RUN. Yazmak için --apply. --expect=N sayım kapısı.
-// KULLANIM: node scripts/delete-projectless-preview-profiles.mjs --type=architects|offices [--apply] [--expect=N] [--skip=a,b]
+// VARSAYILAN DRY-RUN. Yazmak için --apply. Sayım kapıları --expect-architects=N --expect-offices=N.
+// --skip=a,b (slug ya da ad) elle dışlama — dışlanan da "korunan" sayılır ve bağ kapanışına girer.
+// KULLANIM: node scripts/delete-projectless-preview-profiles.mjs [--apply] [--skip=...] [--expect-architects=N] [--expect-offices=N]
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 
@@ -44,10 +46,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
   return [k, v === undefined ? true : v];
 }));
 const APPLY = !!args.apply && !args['dry-run'];
-const INCLUDE_OWNED = !!args['include-owned'];
-const KIND = String(args.type || 'architects');
-if (!PROFILE_KINDS[KIND]) throw new Error(`--type 'offices' ya da 'architects' olmalı (verilen: ${KIND}).`);
-const KIND_LABEL = PROFILE_KINDS[KIND].label;
+const CONCURRENCY = Math.max(1, Number(args.concurrency) || 6);
 
 const ACCOUNT_ID = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim() || '2e3cd3c1a471552e19436913b2368c4f';
 const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
@@ -64,19 +63,48 @@ function oauthToken() {
   }
   throw new Error('wrangler OAuth token bulunamadı — `npx wrangler login` çalıştırın (ya da CLOUDFLARE_API_TOKEN verin).');
 }
-const TOKEN = (process.env.CLOUDFLARE_API_TOKEN || '').trim() || oauthToken();
+let TOKEN = (process.env.CLOUDFLARE_API_TOKEN || '').trim() || oauthToken();
+// wrangler OAuth token'ı ~1 saatte dolar ve bu betiğin taraması o süreyi aşabilir (bkz. hafıza notu
+// project_wrangler_oauth_token_expires_mid_script). 7403 gelince `wrangler whoami` token'ı yeniler,
+// dosyadan yeniden okunur ve istek tekrarlanır. Yalnızca OAuth yolunda — CLOUDFLARE_API_TOKEN dolmaz.
+let refreshing = null;
+async function refreshToken() {
+  if (process.env.CLOUDFLARE_API_TOKEN) return false;
+  if (!refreshing) {
+    refreshing = (async () => {
+      const { execSync } = await import('node:child_process');
+      try { execSync('npx wrangler whoami', { stdio: 'ignore' }); } catch { /* yine de dosyayı oku */ }
+      TOKEN = oauthToken();
+      console.log('   (wrangler token yenilendi)');
+    })().finally(() => { setTimeout(() => { refreshing = null; }, 30000); });
+  }
+  await refreshing;
+  return true;
+}
 
 async function rawQuery(sql, params = []) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`,
-      { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sql, params }) }
-    );
+  const MAX_ATTEMPTS = 6;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // Ağ seviyesi hata (EHOSTUNREACH, ECONNRESET, timeout...) fetch()'in KENDİSİNDEN fırlar — bir
+    // HTTP yanıtı hiç gelmez. GERÇEK BULGU: bu try/catch olmadan böyle bir hata denemeyi hiç
+    // atlamadan sürecin tamamını (yüzlerce kayıtlık bir silme koşusunun ortasında) çökertiyordu.
+    let res;
+    try {
+      res = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`,
+        { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sql, params }) }
+      );
+    } catch (netErr) {
+      if (attempt === MAX_ATTEMPTS) throw new Error(`Ağ hatası (${MAX_ATTEMPTS} denemeden sonra): ${netErr.message}\n${sql}`);
+      await new Promise(r => setTimeout(r, 500 * attempt));
+      continue;
+    }
     const json = await res.json().catch(() => null);
     if (json && json.success) return json.result[0];
     const msg = JSON.stringify((json && json.errors) || res.status);
+    if ((msg.includes('7403') || msg.includes('10000')) && attempt < MAX_ATTEMPTS && await refreshToken()) continue;
     if (msg.includes('7403') || msg.includes('10000')) throw new Error(`D1 yetkilendirme hatası (token dolmuş olabilir): ${msg}`);
-    if (attempt === 3) throw new Error(`D1 sorgusu başarısız: ${msg}\n${sql}`);
+    if (attempt === MAX_ATTEMPTS) throw new Error(`D1 sorgusu başarısız: ${msg}\n${sql}`);
     await new Promise(r => setTimeout(r, 400 * attempt));
   }
 }
@@ -100,88 +128,130 @@ const env = {
 const adminRow = await env.DB.prepare(`SELECT id, email FROM users WHERE role = 'admin' ORDER BY created_at LIMIT 1`).first();
 if (!adminRow) throw new Error('Admin kullanıcı bulunamadı.');
 const user = { id: adminRow.id, role: 'admin' };
-console.log(`Admin: ${adminRow.email}   [tip: ${KIND}]${APPLY ? '   [SİLME AÇIK]' : '   [DRY-RUN — YAZMA YOK]'}\n`);
+console.log(`Admin: ${adminRow.email}${APPLY ? '   [SİLME AÇIK]' : '   [DRY-RUN — YAZMA YOK]'}\n`);
 
-// Yapısal proje kenarları — pop-up'ın göremediği (arşivdeki projelere giden) bağlar dahil.
 async function idSet(sql) {
   const { results } = await env.DB.prepare(sql).all();
   return new Set((results || []).map(r => r.id).filter(Boolean));
 }
-const edgeIds = KIND === 'architects'
-  ? new Set([...(await idSet(`SELECT DISTINCT architect_id AS id FROM project_designers WHERE architect_id IS NOT NULL`)),
-             ...(await idSet(`SELECT DISTINCT architect_id AS id FROM project_photographers WHERE architect_id IS NOT NULL`))])
-  : new Set([...(await idSet(`SELECT DISTINCT office_id AS id FROM project_designers WHERE office_id IS NOT NULL`)),
-             ...(await idSet(`SELECT DISTINCT office_id AS id FROM project_brands WHERE office_id IS NOT NULL`))]);
+const union = (...sets) => new Set(sets.flatMap(x => [...x]));
+// Yapısal İÇERİK kenarları — pop-up'ın göremediği (arşivdeki kayıtlara giden) bağlar dahil.
+const archProjectEdge = union(
+  await idSet(`SELECT DISTINCT architect_id AS id FROM project_designers WHERE architect_id IS NOT NULL`));
+const archPhotoEdge = await idSet(`SELECT DISTINCT architect_id AS id FROM project_photographers WHERE architect_id IS NOT NULL`);
+const archProductEdge = await idSet(`SELECT DISTINCT architect_id AS id FROM product_architects WHERE architect_id IS NOT NULL`);
+const officeProjectEdge = union(
+  await idSet(`SELECT DISTINCT office_id AS id FROM project_designers WHERE office_id IS NOT NULL`),
+  await idSet(`SELECT DISTINCT office_id AS id FROM project_brands WHERE office_id IS NOT NULL`));
+const officeProductEdge = await idSet(`SELECT DISTINCT brand_office_id AS id FROM products WHERE brand_office_id IS NOT NULL`);
 
-const previewRows = await fetchPreviewProfiles(env, KIND);
-const [photographerFolds, ownership] = await Promise.all([fetchPhotographerNameFolds(env), fetchOwnership(env, KIND)]);
-console.log(`Blurlu (önizleme) ${KIND_LABEL}: ${previewRows.length}`);
+// Kişi <-> firma bağ grafı (İÇERİK DEĞİL, yalnızca bağ kapanışı için). Canlı profiller de düğümdür.
+const { results: founderRows } = await env.DB.prepare(`SELECT architect_id AS a, office_id AS o FROM office_founders WHERE architect_id IS NOT NULL AND office_id IS NOT NULL`).all();
+const { results: primaryRows } = await env.DB.prepare(`SELECT id AS a, office_id AS o FROM architects WHERE office_id IS NOT NULL AND deleted_at IS NULL`).all();
+const links = new Map();
+const addLink = (x, y) => { (links.get(x) || links.set(x, new Set()).get(x)).add(y); };
+for (const r of [...(founderRows || []), ...(primaryRows || [])]) { addLink(`a:${r.a}`, `o:${r.o}`); addLink(`o:${r.o}`, `a:${r.a}`); }
 
-const audits = [];
-let scanned = 0;
-for (const raw of previewRows) {
-  const row = parseCanonicalRow(KIND, raw);
-  const payload = KIND === 'offices' ? await buildOfficePayload(env, row.slug) : await buildArchitectPayload(env, row.slug);
-  const cascade = KIND === 'offices' ? await collectOfficeArchiveTargets(env, row) : null;
-  const shownProjects = (payload.relatedProjects || []).length + (KIND === 'architects' ? (payload.photographedProjects || []).length : 0);
-  const cascadeProjects = cascade ? (cascade.projects || []).length + (cascade.skipped?.projects || []).length : 0;
-  const edge = edgeIds.has(row.id);
-  const photographer = photographerFolds.has(foldTr(row.name || ''));
-  const owned = ownership.ownedIds.has(row.id) || ownership.claimedFolds.has(foldTr(row.name || '')) || ownership.consultantSlugs.has(row.slug);
-  const other = KIND === 'offices'
-    ? { kurucu: (payload.founders || []).length, ekip: (payload.team || []).length, urun: (payload.relatedProducts || []).length + (payload.relatedMaterials || []).length }
-    : { firma: (payload.offices || []).length, urun: (payload.relatedProducts || []).length, portfolyo: ((payload.item || {}).portfolio || []).length };
-  audits.push({ name: row.name, slug: row.slug, shownProjects, cascadeProjects, edge, photographer, owned, other,
-    noProject: shownProjects === 0 && cascadeProjects === 0 && !edge && !photographer });
-  if (++scanned % 25 === 0) console.log(`   ... tarandı ${scanned}/${previewRows.length}`);
+const photographerFolds = await fetchPhotographerNameFolds(env);
+const ownership = { architects: await fetchOwnership(env, 'architects'), offices: await fetchOwnership(env, 'offices') };
+
+async function mapLimit(list, limit, fn) {
+  const out = new Array(list.length);
+  let next = 0, done = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, list.length) }, async () => {
+    while (next < list.length) {
+      const i = next++;
+      out[i] = await fn(list[i]);
+      if (++done % 50 === 0) console.log(`   ... tarandı ${done}/${list.length}`);
+    }
+  }));
+  return out;
 }
 
+async function auditKind(kind) {
+  const rows = await fetchPreviewProfiles(env, kind);
+  console.log(`Blurlu (önizleme) ${PROFILE_KINDS[kind].label}: ${rows.length}`);
+  return mapLimit(rows, CONCURRENCY, async (raw) => {
+    const row = parseCanonicalRow(kind, raw);
+    const own = ownership[kind];
+    const owned = own.ownedIds.has(row.id) || own.claimedFolds.has(foldTr(row.name || '')) || own.consultantSlugs.has(row.slug);
+    const photoCredit = photographerFolds.has(foldTr(row.name || ''));
+    const content = {};
+    if (kind === 'architects') {
+      const p = await buildArchitectPayload(env, row.slug);
+      content.proje = (p.relatedProjects || []).length + (archProjectEdge.has(row.id) ? 1 : 0);
+      content.fotograf = (p.photographedProjects || []).length + (archPhotoEdge.has(row.id) ? 1 : 0) + (photoCredit ? 1 : 0);
+      content.urun = (p.relatedProducts || []).length + (archProductEdge.has(row.id) ? 1 : 0);
+      content.portfolyo = ((p.item || {}).portfolio || []).length;
+    } else {
+      const p = await buildOfficePayload(env, row.slug);
+      const cascade = await collectOfficeArchiveTargets(env, row);
+      content.proje = (p.relatedProjects || []).length + (officeProjectEdge.has(row.id) ? 1 : 0)
+        + (cascade.projects || []).length + (cascade.skipped?.projects || []).length;
+      content.urun = (p.relatedProducts || []).length + (p.relatedMaterials || []).length + (officeProductEdge.has(row.id) ? 1 : 0)
+        + (cascade.products || []).length + (cascade.skipped?.products || []).length;
+      content.fotograf = photoCredit ? 1 : 0;
+    }
+    content.atama = owned ? 1 : 0;
+    const node = `${kind === 'architects' ? 'a' : 'o'}:${row.id}`;
+    return { kind, node, id: row.id, name: row.name, slug: row.slug, content, empty: Object.values(content).every(n => !n) };
+  });
+}
+
+const audits = [...(await auditKind('architects')), ...(await auditKind('offices'))];
 const skipFolds = parseSkipList(args.skip === true ? '' : args.skip);
-const otherText = (a) => Object.entries(a.other).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(', ');
-const projectless = audits.filter(a => a.noProject);
-const skipped = projectless.filter(a => isSkipped(a, skipFolds));
-const ownedOnes = projectless.filter(a => a.owned && !isSkipped(a, skipFolds));
-// BAŞKA İÇERİĞİ OLAN profil de SİLİNMEZ (kullanıcı kararı, 2026-09-17: "Projesi yok ama başka
-// içeriği var olanları silme") — ürünü, kurucusu/ekibi, firması ya da portfolyosu olan kayıt korunur.
-const hasOther = (a) => Object.values(a.other).some(n => n > 0);
-const otherOnes = projectless.filter(a => hasOther(a) && !isSkipped(a, skipFolds) && (INCLUDE_OWNED || !a.owned));
-const toDelete = projectless.filter(a => !isSkipped(a, skipFolds) && (INCLUDE_OWNED || !a.owned) && !hasOther(a));
-const kept = audits.filter(a => !a.noProject);
 
-console.log(`\n=== SİLİNECEK (projesi yok${INCLUDE_OWNED ? ', sahipliler DAHİL' : ''}): ${toDelete.length} ===`);
-for (const a of toDelete) console.log(`   · ${a.name}   (${a.slug})${otherText(a) ? '   [başka içerik: ' + otherText(a) + ']' : ''}${a.owned ? '   [SAHİPLİ]' : ''}`);
-console.log(`\n=== KORUNDU — projesi yok ama BAŞKA içeriği var: ${otherOnes.length} ===`);
-for (const a of otherOnes) console.log(`   · ${a.name}   (${a.slug})   [${otherText(a)}]`);
-if (!INCLUDE_OWNED) {
-  console.log(`\n=== KORUNDU — projesi yok ama SAHİPLİ (üye kaydı / atama / talep / danışman): ${ownedOnes.length} ===`);
-  for (const a of ownedOnes) console.log(`   · ${a.name}   (${a.slug})`);
+// Aday kümesi: içeriği yok + elle dışlanmamış. Bağ kapanışı: aday DIŞINDAKİ (canlı, içerikli,
+// dışlanmış) bir düğüme bağlı aday korunur; sabit noktaya kadar tekrar.
+const candidates = new Set(audits.filter(a => a.empty && !isSkipped(a, skipFolds)).map(a => a.node));
+const protectedByLink = new Map();
+for (let changed = true; changed;) {
+  changed = false;
+  for (const node of [...candidates]) {
+    const blocker = [...(links.get(node) || [])].find(n => !candidates.has(n));
+    if (blocker) { candidates.delete(node); protectedByLink.set(node, blocker); changed = true; }
+  }
 }
-if (skipFolds.size) {
-  console.log(`\n=== ELLE DIŞLANDI (--skip): ${skipped.length} ===`);
-  for (const a of skipped) console.log(`   · ${a.name}   (${a.slug})`);
-}
-console.log(`\n=== DOKUNULMADI — projesi var: ${kept.length} ===`);
-for (const a of kept) {
-  const why = [a.shownProjects && `${a.shownProjects} görünen proje`, a.cascadeProjects && `${a.cascadeProjects} bağlı proje`, a.edge && 'proje kenarı (arşivdekiler dahil)', a.photographer && 'fotoğraf künyesi'].filter(Boolean).join(', ');
-  console.log(`   · ${a.name} — ${why}`);
-}
+const byNode = new Map(audits.map(a => [a.node, a]));
+const describe = (node) => byNode.get(node) ? `${byNode.get(node).name}` : `canlı profil (${node})`;
+const contentText = (a) => Object.entries(a.content).filter(([, n]) => n).map(([k]) => k).join(', ');
 
-if (args.expect !== undefined && Number(args.expect) !== toDelete.length) {
-  throw new Error(`${KIND_LABEL} sayısı beklenenden farklı: beklenen ${args.expect}, bulunan ${toDelete.length} — hiçbir şey silinmedi.`);
+const toDelete = audits.filter(a => candidates.has(a.node));
+const del = { architects: toDelete.filter(a => a.kind === 'architects'), offices: toDelete.filter(a => a.kind === 'offices') };
+for (const kind of ['offices', 'architects']) {
+  console.log(`\n=== SİLİNECEK ${PROFILE_KINDS[kind].label.toUpperCase()}: ${del[kind].length} ===`);
+  for (const a of del[kind]) console.log(`   · ${a.name}   (${a.slug})`);
+}
+const skipped = audits.filter(a => a.empty && isSkipped(a, skipFolds));
+if (skipped.length) { console.log(`\n=== ELLE DIŞLANDI (--skip): ${skipped.length} ===`); for (const a of skipped) console.log(`   · ${a.name}   (${a.slug})`); }
+console.log(`\n=== KORUNDU — boş ama içeriği OLAN bir profile bağlı: ${protectedByLink.size} ===`);
+for (const [node, blocker] of protectedByLink) console.log(`   · ${byNode.get(node).name} <- ${describe(blocker)}`);
+const kept = audits.filter(a => !a.empty);
+console.log(`\n=== DOKUNULMADI — içeriği var: ${kept.length} (kişi ${kept.filter(a => a.kind === 'architects').length}, firma ${kept.filter(a => a.kind === 'offices').length}) ===`);
+const tally = {};
+for (const a of kept) for (const [k, n] of Object.entries(a.content)) if (n) tally[k] = (tally[k] || 0) + 1;
+console.log(`   içerik türüne göre: ${JSON.stringify(tally)}`);
+
+for (const [kind, flag] of [['architects', 'expect-architects'], ['offices', 'expect-offices']]) {
+  if (args[flag] !== undefined && Number(args[flag]) !== del[kind].length) {
+    throw new Error(`${PROFILE_KINDS[kind].label} sayısı beklenenden farklı: beklenen ${args[flag]}, bulunan ${del[kind].length} — hiçbir şey silinmedi.`);
+  }
 }
 if (!APPLY) { console.log('\n[DRY-RUN] Hiçbir şey silinmedi. Gerçekten silmek için --apply.'); process.exit(0); }
-if (!toDelete.length) { console.log(`\nSilinecek ${KIND_LABEL} yok.`); process.exit(0); }
+if (!toDelete.length) { console.log('\nSilinecek kayıt yok.'); process.exit(0); }
 
 console.log('\n--- SİLİNİYOR ---');
 const failed = [];
 let done = 0;
-for (const a of toDelete) {
-  const res = await runContentAction(env, user, { type: KIND, action: 'delete', key: a.name });
+// Önce FİRMALAR: firma silme zinciri bağlı kişilerin office alanını temizler (cascadeDeleteOffice);
+// kişiler sonra silindiğinde temizlenecek bağ kalmamış olur.
+for (const a of [...del.offices, ...del.architects]) {
+  const res = await runContentAction(env, user, { type: a.kind, action: 'delete', key: a.name });
   if (res && res.status >= 400) { failed.push(a.name); console.log(`   HATA ${a.name} (${res.status})`); continue; }
-  const still = await env.DB.prepare(`SELECT id FROM ${PROFILE_KINDS[KIND].table} WHERE slug = ? AND deleted_at IS NULL`).bind(a.slug).first();
+  const still = await env.DB.prepare(`SELECT id FROM ${PROFILE_KINDS[a.kind].table} WHERE id = ?`).bind(a.id).first();
   if (still) { failed.push(a.name); console.log(`   HATA ${a.name} — satır hâlâ duruyor`); continue; }
   done++;
-  console.log(`   silindi: ${a.name}`);
+  console.log(`   silindi (${PROFILE_KINDS[a.kind].label}): ${a.name}`);
 }
 console.log(`\n=== ÖZET ===\nSilindi : ${done}/${toDelete.length}`);
 if (failed.length) { console.log(`\nBAŞARISIZ (${failed.length}): ${failed.join(', ')}`); process.exit(1); }

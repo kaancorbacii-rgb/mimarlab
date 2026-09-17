@@ -684,6 +684,33 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
     if (typeKey === 'offices') {
       for (const item of items) item.isBrand = isBrandOffice(item.cats, 0);
     }
+    // ARŞİV > FİRMA: proje sayısına göre ÇOKTAN AZA (kullanıcı isteği, 2026-09-17: "Admin
+    // panelindeki 'Arşiv' bölümünde firmaları proje sayısı çok olandan az olana doğru sırala").
+    // Sayı canonical künye bağından (project_designers.office_id) TEK taramayla okunur — firma başına
+    // sorgu açmak 2000 satırlık listede yüzlerce D1 turu olurdu. Arşivdeki projeler de SAYILIR: arşiv
+    // listesindeki bir firmanın projeleri de çoğunlukla onunla birlikte arşivdedir (bkz.
+    // legacyContent.js#archiveOfficeGraph) — yalnızca canlı projeleri saymak hepsini 0'a düşürürdü.
+    // Eşleşme taslağın canonical anahtarı (claimed_profile_key) ya da adı üzerinden, foldTr ile.
+    // Eşit sayıda mevcut sıra (created_at DESC) korunur — Array.prototype.sort kararlıdır.
+    if (typeKey === 'offices' && status === 'archived' && items.length) {
+      const { results: countRows } = await env.DB.prepare(
+        `SELECT o.name, o.slug, o.legacy_key, COUNT(DISTINCT pd.project_id) AS n
+           FROM offices o JOIN project_designers pd ON pd.office_id = o.id
+          GROUP BY o.id`
+      ).all();
+      const countByKey = new Map();
+      for (const r of countRows || []) {
+        for (const k of [r.name, r.slug, r.legacy_key]) {
+          const f = k ? foldTr(String(k)) : '';
+          if (f) countByKey.set(f, Math.max(countByKey.get(f) || 0, Number(r.n) || 0));
+        }
+      }
+      for (const item of items) {
+        const keys = [item.claimed_profile_key, item.name].filter(Boolean).map(k => foldTr(String(k)));
+        item.projectCount = keys.reduce((max, k) => Math.max(max, countByKey.get(k) || 0), 0);
+      }
+      items.sort((a, b) => b.projectCount - a.projectCount);
+    }
     return json({ items });
   }
 
