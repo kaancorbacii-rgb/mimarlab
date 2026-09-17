@@ -852,6 +852,20 @@ else
 fi
 rm -f /tmp/preflight_20260917d
 
+# 2026-09-17 YEDİNCİ tur: proje popup'ındaki yorum "Gönder" butonu (.comment-submit-btn) yalnızca
+# proje.html/en-iyi-100.html'in KENDİ satır içi <style>'ında tanımlı bir token katmanına
+# (--color-primary/--space-*/--radius-full/--font-body-2) bağımlıydı; popup bu token'ları hiç
+# tanımlamayan başka bir sayfadan (ana sayfa, /kisi, /firma...) açılınca buton şeffaf/dolgusuz/
+# köşesiz render ediyordu (css/project-detail.css'in kendi dosya başındaki 2026-09-12 sınıf
+# hatasının bir tekrarı). Bkz. scripts/test-2026-09-17-comment-submit-button.mjs.
+if node scripts/test-2026-09-17-comment-submit-button.mjs >/tmp/preflight_20260917e 2>&1; then
+  ok "2026-09-17 yedinci tur testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260917e) test)"
+else
+  bad "2026-09-17 yedinci tur testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260917e >&2
+fi
+rm -f /tmp/preflight_20260917e
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

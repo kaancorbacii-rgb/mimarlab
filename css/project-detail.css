@@ -186,9 +186,27 @@
   .comment-input-wrap .comment-submit-btn{position:absolute; right:8px; bottom:8px;}
   /* Gönder ve Bildir (bkz. .feedback-input-wrap altında) AYNI boyut/tipografi Design Token'larını
      kullanır (bkz. kullanıcı isteği) — sarmalayıcılar (bkz. yukarısı/aşağısı) yalnızca konum farkını
-     taşır, boyutla ilgili hiçbir override yoktur. */
-  .comment-submit-btn{background:var(--color-primary); color:var(--paper-card); padding:var(--space-2) var(--space-4); border-radius:var(--radius-full); font-weight:600; font-size:var(--font-body-2); line-height:1.2;}
-  .comment-submit-btn:hover{background:var(--color-primary-hover);}
+     taşır, boyutla ilgili hiçbir override yoktur.
+     KÖK NEDEN (kullanıcı bildirimi, 2026-09-17: "yorumlar kısmındaki gönder butonunda sorun var" —
+     ekran görüntüsü butonu neredeyse görünmez, çerçevesiz, dolgusuz bir dikdörtgen olarak
+     gösteriyordu): bu kural `--color-primary`/`--color-primary-hover`/`--space-2`/`--space-4`/
+     `--radius-full`/`--font-body-2` adlı bir "Design Token" katmanı KULLANIYORDU, ama bu katman
+     YALNIZCA proje.html ve en-iyi-100.html'in KENDİ satır içi <style>'ında tanımlıydı — dosya başı
+     notundaki 2026-09-12 konsolidasyonu tam da bu sınıf hatayı (host sayfanın CSS'ini varsayma)
+     kapatmak için tüm proje popup kurallarını BU dosyaya taşımıştı, ama bu iki satır o taşımadan
+     SONRA eklenmiş ve aynı hataya bir daha düşmüştü. Popup artık lazy-modals.js ile HER sayfada
+     (ana sayfa, /kisi, /firma, /urun, /gundem, /arama, /danismanlik...) açılabiliyor ve o
+     sayfaların HİÇBİRİ bu token katmanını tanımlamıyor (ölçüldü — yalnızca proje.html/
+     en-iyi-100.html'de var) — token tanımsız olduğunda `var()` çözümlenemez ve ilgili özellik
+     kalıtımsız olduğundan (background/padding/border-radius) İLK DEĞERİNE düşer: şeffaf zemin,
+     SIFIR dolgu, sıfır yuvarlama — ekran görüntüsündeki "boş kutu" tam olarak budur.
+     ÇÖZÜM: token katmanına bağımlılık KALDIRILDI, doğrudan HER sayfada zaten evrensel olarak
+     tanımlı temel paletin (--ink/--walnut/--paper-card) ve proje.html'deki token'ların ta
+     kendisinin sabit karşılıklarının (8px/16px/999px/12px) kullanılması — görünüm HİÇBİR sayfada
+     değişmez (proje.html/en-iyi-100.html'de --color-primary zaten --ink'e, --space-2 zaten 8px'e
+     eşitti), yalnızca token'ı hiç tanımlamayan sayfalarda düzelir. */
+  .comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:8px 16px; border-radius:999px; font-weight:600; font-size:12px; line-height:1.2;}
+  .comment-submit-btn:hover{background:var(--walnut);}
   .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
   .comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
   .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}

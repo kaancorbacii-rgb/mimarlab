@@ -1861,3 +1861,37 @@ satış yapan firmaları keşfedin." Metnin SSR/`src` kopyası YOK (ölçüldü)
 
 Testler: `scripts/test-2026-09-17-manager-moderation-and-nav-order.mjs` (12 test, preflight'a bağlı).
 Migration YOK, SSR sürüm bumpı YOK (kabuklara script etiketi eklenmedi/kaldırılmadı).
+
+## Proje popup'ındaki yorum "Gönder" butonu — sayfa-özel token bağımlılığı (2026-09-17, yedinci tur)
+
+Kullanıcı bildirimi (ekran görüntüsü): "Proje popuplarındaki yorumlar kısmındaki gönder butonunda
+sorun var" — buton neredeyse görünmez, çerçevesiz/dolgusuz bir dikdörtgen olarak görünüyordu.
+
+- **KÖK NEDEN, `css/project-detail.css`'in KENDİ dosya başı notundaki 2026-09-12 sınıf hatasının
+  BİREBİR TEKRARI**: `.comment-submit-btn` `--color-primary`/`--color-primary-hover`/`--space-2`/
+  `--space-4`/`--radius-full`/`--font-body-2` adlı bir "Design Token" katmanı kullanıyordu, ama bu
+  katman YALNIZCA `proje.html` ve `en-iyi-100.html`'in KENDİ satır içi `<style>`'ında tanımlıydı —
+  2026-09-12'de tüm popup kuralları TAM DA bu yüzden (host sayfanın CSS'ini varsayma) bu dosyaya
+  taşınmıştı, ama bu iki satır o taşımadan SONRA eklenmiş ve aynı hataya bir daha düşmüştü. Popup
+  artık `lazy-modals.js` ile HER sayfada (ana sayfa, `/kisi`, `/firma`, `/urun`, `/gundem`, `/arama`,
+  `/danismanlik`...) açılabiliyor ve o sayfaların HİÇBİRİ bu token katmanını tanımlamıyor (ölçüldü).
+  Token tanımsız olduğunda `var()` çözülemez ve KALITIMSIZ özellikler (background/padding/
+  border-radius) İLK DEĞERLERİNE düşer: şeffaf zemin, sıfır dolgu, sıfır yuvarlama — bildirimdeki
+  "boş kutu" tam olarak budur. **Gerçek tarayıcıda (Chromium) yeniden üretildi**: aynı belge
+  `index.html`'in `:root`'u + eski (bozuk) kuralla render edilince buton `background:transparent;
+  padding:0; border-radius:0` ölçüldü; düzeltilmiş kuralla `background:#1B2A3D (--ink); padding:8px
+  16px; border-radius:999px` ölçüldü.
+- **ÇÖZÜM**: `.comment-submit-btn` artık YALNIZCA HER sayfanın `:root`'unda evrensel olarak tanımlı
+  temel palet token'larını (`--ink`/`--walnut`/`--paper-card`) ve proje.html'deki token'ların ta
+  kendisinin sabit sayısal karşılıklarını (8px/16px/999px/12px) kullanır — görünüm HİÇBİR sayfada
+  değişmez (proje.html/en-iyi-100.html'de `--color-primary` zaten `--ink`'e, `--space-2` zaten 8px'e
+  eşitti), yalnızca token'ı hiç tanımlamayan sayfalarda düzelir.
+- **`en-iyi-100.html`'in kendi satır içi `.comment-submit-btn` KOPYASI KASITLI OLARAK DOKUNULMADI**:
+  o sayfa `css/project-detail.css`'i `<link>` ile satır içi `<style>`'dan SONRA yükler (bkz. o
+  dosyadaki açık not: "eşit özgüllükte olan kurallarda paylaşılan sürüm kazanır") — yani bu dosyadaki
+  düzeltme orada da otomatik olarak kazanır, ikinci bir düzenleme YAPILMASA da davranış doğrudur.
+- Testler: `scripts/test-2026-09-17-comment-submit-button.mjs` (4 test, preflight'a bağlı) — kaynak
+  taraması (yasaklı token'lar + evrensel token'lar) VE düzeltmeden ÖNCEKİ/SONRAKİ kuralın CSS
+  kalıtım kurallarına göre hesaplanan render sonucunu (background/padding/border-radius) ayrı ayrı
+  kelepçeler. Migration YOK, SSR sürüm bumpı YOK (CSS dosyası zaten revalidate edilir, sürümlenmiş
+  Cache API anahtarıyla servis edilmiyor).
