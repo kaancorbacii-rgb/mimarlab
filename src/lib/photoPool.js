@@ -25,10 +25,19 @@
 //       ÜRETMEZ (ölçüldü: bir proje seviyesi sinyal görsel seçemiyor) — yalnızca CLIP kanıtıyla
 //       birlikte ve yalnızca ölçümün desteklediği sınıflarda (photoSpaceClip.js#CLIP_KUNYE_MIN).
 //
-// ÇİZİMLER havuza HİÇ GİRMEZ ("arama sonuçlarında çizimler de çıkmasın", 2026-09-18): LLM çizim
-// etiketi verdiyse YA DA LLM henüz bakmamışken CLIP çizim olasılığı >= CLIP_DRAWING_MIN ise (gözle
-// ölçüm: 72/72). İkincisi sayesinde ~1.100 çizim, etiketleme turu bitmeden ANINDA sayfadan düşer.
-// LLM bakıp "fotoğraf" dediyse CLIP'in çizim demesi görseli DÜŞÜRMEZ (hüküm LLM'indir).
+// ÇİZİMLER havuza HİÇ GİRMEZ ("arama sonuçlarında çizimler de çıkmasın", 2026-09-18; "Fotoğraflar
+// sayfasında mimar çizimler yayınlanmasın, sadece fotoğraflar olsun", 2026-09-18 sekizinci tur).
+// Görsel YALNIZCA en az bir sinyal onu FOTOĞRAF olarak tanıdıysa gösterilir:
+//   - LLM çizim etiketi verdiyse düşer;
+//   - CLIP çizim olasılığı >= CLIP_DRAWING_MIN ise düşer (gözle ölçüm: 72/72) — LLM "fotoğraf"
+//     demiş olsa BİLE. Sekizinci turdan önce hüküm LLM'indi; oysa CLIP'in bu eşikteki isabeti
+//     LLM'in çizim/fotoğraf ayrımından yüksek ve bir çizimi göstermek, bir fotoğrafı saklamaktan
+//     çok daha görünür bir hata;
+//   - LLM bakmamışken CLIP'in EN OLASI sınıfı çizimse düşer;
+//   - HİÇBİR sinyali olmayan görsel (LLM bakmadı + dizinde embedding yok) GÖSTERİLMEZ. GERÇEK
+//     BULGU: en yeni projenin (Ahiler Kalkınma Ajansı) plan/kesit paftaları tam bu durumdaydı ve
+//     akışın en üstünde yayınlanıyordu. Worker cron'u (photoSpaceCron.js) yeni görseli en geç 15 dk
+//     içinde etiketler; o ana kadar kare "bekliyor"dur (stats.unknownHidden).
 //
 // CLIP İPUÇLARI KALICI ÖNBELLEKLİDİR (KV `photo:cliphints:...`): bir görselin embedding'i değişmez,
 // dolayısıyla ipucu da değişmez. Havuz her kurulduğunda (30 dk TTL + her içerik yazımı) 11 bin satırı
@@ -41,7 +50,7 @@ import { reserveKvWrite } from './kvQuota.js';
 import { foldTr } from './textMatch.js';
 import { loadImageIndex } from './imageEmbedStore.js';
 import {
-  clipHintForRow, clipIsDrawing, canonicalImageKey, CLIP_PROMPT_SOURCE_SHA,
+  clipHintForRow, clipIsDrawing, canonicalImageKey, CLIP_PROMPT_SOURCE_SHA, CLIP_DRAWING_CLASS,
 } from './photoSpaceClip.js';
 import { SPACE_LABEL_VERSION } from './photoSpaceClassify.js';
 import photoSpaceTaxonomyJs from '../../photo-space-taxonomy.js';
@@ -261,10 +270,12 @@ async function fetchPhotoPoolRaw(env) {
   }
 
   const clipStats = await attachClipHints(env, candidates);
-  // LLM henüz bakmamışken CLIP'in çizim dediği görsel de düşer (dosya başı notu).
+  // Yalnızca FOTOĞRAF olduğu bilinen görseller (dosya başı notu).
   let clipDrawings = 0;
+  let unknown = 0;
   const items = candidates.filter((it) => {
-    if (it.spaces === null && clipIsDrawing(it.clip)) { clipDrawings++; return false; }
+    if (clipIsDrawing(it.clip) || (it.spaces === null && it.clip && it.clip.t === CLIP_DRAWING_CLASS)) { clipDrawings++; return false; }
+    if (it.spaces === null && !it.clip) { unknown++; return false; }
     return true;
   });
   const stats = {
@@ -274,16 +285,17 @@ async function fetchPhotoPoolRaw(env) {
     clipMissing: clipStats.clipMissing,
     clipPending: clipStats.clipPending,
     clipDrawingsHidden: clipDrawings,
+    unknownHidden: unknown,
     builtAt: new Date().toISOString(),
   };
   return { projects: projectsOut, items, stats };
 }
 
-// HAVUZ ŞEKLİ SÜRÜMLÜ ('photos:v2'): KV'deki havuz 30 dk yaşar ve deploy onu TEMİZLEMEZ. Beşinci
+// HAVUZ ŞEKLİ SÜRÜMLÜ ('photos:v3' — v3: sekizinci tur, 'yalnızca fotoğraf' kuralı eski havuzda uygulanmamış olurdu): KV'deki havuz 30 dk yaşar ve deploy onu TEMİZLEMEZ. Beşinci
 // turun deploy'unda (2026-09-18) ilk ~30 dk boyunca eski şekilli havuz (clip/stats/primary yok)
 // yeni koda servis edildi ve tüm filtreler 0 döndü — smoke-test bunu yakaladı. Havuzun şekli
 // değişince bu anahtar ve publicCache.js#POOL_CACHE_KINDS birlikte artırılır.
-export const PHOTO_POOL_KIND = 'photos:v2';
+export const PHOTO_POOL_KIND = 'photos:v3';
 export async function fetchPhotoPool(env) {
   return getCachedPool(env, PHOTO_POOL_KIND, () => fetchPhotoPoolRaw(env), {
     // CLIP puanlaması tur başına sınırlı: bitmediyse havuz kısa yaşar, sonraki istek sürdürür.

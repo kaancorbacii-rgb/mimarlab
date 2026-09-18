@@ -216,11 +216,19 @@
   .ph-dropdown-option:hover, .ph-dropdown-option.active{background:#EDF0F3; color:#12171F;}
   .ph-dropdown-note{padding:10px 14px; font-size:12.5px; color:#7A8798;}
 
-  /* ---------- IZGARA (masonry — CSS columns) ---------- */
+  /* ---------- IZGARA (masonry — SABİT SÜTUNLAR, JS ile yerleşim) ----------
+     CSS columns KULLANILMAZ (kullanıcı isteği, 2026-09-18 sekizinci tur: "daha fazla gör butonuna
+     tıklayınca fotoğrafların sıralaması değişmesin, yeni gelecek fotoğraflar alt sıralardan
+     gözükmeye başlasın"): columns, içerik değişince TÜM kartları sütunlara yeniden dağıtır ve yeni
+     yüklenen kartlar üst sıralara karışırdı. Artık her kart eklendiği anda en kısa sütunun SONUNA
+     yerleşir ve bir daha taşınmaz (bkz. placeCard). Sütun sayısı: 4 / 3 (<=960px) / 2 (<=720px). */
   .ph-grid-wrap{max-width:1400px; margin:0 auto; padding:40px 24px 12px;}
-  .ph-grid{columns:4 260px; column-gap:16px;}
+  .ph-grid{display:flex; align-items:flex-start; gap:16px;}
+  .ph-col{flex:1 1 0; min-width:0; display:flex; flex-direction:column;}
+  /* Görsel yüklenene kadar yer tutucu oran: sütun yükseklikleri yerleşim anında anlamlı olsun. */
+  .ph-card img:not(.ph-loaded){aspect-ratio:4 / 3; object-fit:cover;}
   .ph-card{
-    display:block; break-inside:avoid; margin-bottom:16px; position:relative;
+    display:block; margin-bottom:16px; position:relative;
     border-radius:14px; overflow:hidden; background:var(--paper-alt); cursor:pointer;
   }
   .ph-card img{display:block; width:100%; height:auto;}
@@ -332,7 +340,6 @@
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
-    .ph-grid{columns:3 200px;}
   }
   @media (max-width:720px){
     .ph-hero{padding:22px 16px 46px;}
@@ -341,7 +348,7 @@
     .ph-search{padding:6px 6px 6px 14px; gap:6px;}
     .ph-reset-btn{padding:10px 14px; font-size:12.5px;}
     .ph-dropdown{left:-14px;}
-    .ph-grid{columns:2 150px; column-gap:10px;}
+    .ph-grid{gap:10px;}
     .ph-card{margin-bottom:10px; border-radius:10px;}
     .ph-grid-wrap{padding:20px 12px 8px;}
     .ph-lightbox{flex-direction:column;}
@@ -521,11 +528,47 @@
     </a>`;
   }
 
+  // ---------- Masonry yerleşimi (bkz. .ph-grid CSS notu) ----------
+  // Kartlar yalnızca EKLENİR: yeni bir kart en kısa sütunun sonuna gider, var olan kartlar yerinden
+  // oynamaz. Görsel yüklenince yalnızca kendi sütunundaki alttaki kartlar aşağı kayar.
+  // Sütun sayısı değişirse (pencere boyutu) TÜM kartlar yükleme sırasıyla yeniden dağıtılır — tek
+  // yeniden dağıtım anı budur, "Daha Fazla Göster" asla yeniden dağıtmaz.
+  const mqTwo = window.matchMedia('(max-width:720px)');
+  const mqThree = window.matchMedia('(max-width:960px)');
+  function columnCount(){ return mqTwo.matches ? 2 : (mqThree.matches ? 3 : 4); }
+  let columns = [];
+  function buildColumns(){
+    const cards = Array.from(grid.querySelectorAll('.ph-card')).sort((a, b) => Number(a.dataset.idx) - Number(b.dataset.idx));
+    grid.innerHTML = '';
+    columns = Array.from({ length: columnCount() }, () => {
+      const col = document.createElement('div');
+      col.className = 'ph-col';
+      grid.appendChild(col);
+      return col;
+    });
+    cards.forEach(placeCard);
+  }
+  function placeCard(card){
+    let best = columns[0];
+    for(const col of columns) if(col.offsetHeight < best.offsetHeight) best = col;
+    best.appendChild(card);
+  }
+  function onColumnsChange(){ if(columns.length !== columnCount()) buildColumns(); }
+  [mqTwo, mqThree].forEach(mq => { if(mq.addEventListener) mq.addEventListener('change', onColumnsChange); else if(mq.addListener) mq.addListener(onColumnsChange); });
+  function clearGrid(){ grid.innerHTML = ''; columns = []; buildColumns(); }
+
   function appendCards(newItems, startIdx){
-    grid.insertAdjacentHTML('beforeend', newItems.map((it, i) => cardHtml(it, startIdx + i)).join(''));
-    grid.querySelectorAll('.ph-card').forEach(card => {
-      if(card.dataset.wired) return;
-      card.dataset.wired = '1';
+    if(!columns.length) buildColumns();
+    const tpl = document.createElement('template');
+    newItems.forEach((it, i) => {
+      tpl.innerHTML = cardHtml(it, startIdx + i).trim();
+      const card = tpl.content.firstElementChild;
+      const img = card.querySelector('img');
+      if(img){
+        const done = () => img.classList.add('ph-loaded');
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+      }
       card.addEventListener('click', (e) => {
         if(e.target.closest('.ph-card-save')) return;
         openLightbox(Number(card.dataset.idx));
@@ -533,12 +576,9 @@
       card.addEventListener('keydown', (e) => {
         if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openLightbox(Number(card.dataset.idx)); }
       });
-    });
-    grid.querySelectorAll('.ph-card-save').forEach(btn => {
-      if(btn.dataset.wired) return;
-      btn.dataset.wired = '1';
-      const idx = Number(btn.dataset.idx);
-      wirePhotoSaveBtn(btn, () => items[idx]);
+      placeCard(card);
+      const btn = card.querySelector('.ph-card-save');
+      if(btn){ const idx = Number(btn.dataset.idx); wirePhotoSaveBtn(btn, () => items[idx]); }
     });
   }
 
@@ -552,9 +592,12 @@
       if(currentSpace) params.set('space', currentSpace);
       const res = await fetch(`/api/photos?${params.toString()}`);
       const data = res.ok ? await res.json() : { items: [], hasMore: false };
-      const newItems = data.items || [];
-      if(reset){ items = newItems; offset = newItems.length; grid.innerHTML = ''; appendCards(newItems, 0); }
-      else { const start = items.length; items = items.concat(newItems); offset += newItems.length; appendCards(newItems, start); }
+      // Havuz iki istek arasında tazelenebilir (cron yeni etiket yazar) ve offset bir kareyi iki kez
+      // getirebilir — zaten ızgarada olan görsel yeniden eklenmez.
+      const seen = reset ? new Set() : new Set(items.map(it => it.url));
+      const newItems = (data.items || []).filter(it => !seen.has(it.url) && seen.add(it.url));
+      if(reset){ items = newItems; offset = (data.items || []).length; clearGrid(); appendCards(newItems, 0); }
+      else { const start = items.length; items = items.concat(newItems); offset += (data.items || []).length; appendCards(newItems, start); }
       exhausted = !data.hasMore;
       loadMoreBtn.style.display = exhausted ? 'none' : '';
       emptyEl.style.display = items.length ? 'none' : '';

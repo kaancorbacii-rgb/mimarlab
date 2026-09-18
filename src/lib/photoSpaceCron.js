@@ -23,9 +23,12 @@
 // zamanlı vision çağrısı. Günde ~2.300 görsel kapasite; olağan yükleme temposunun çok üstünde.
 // Nöron harcaması yalnızca YENİ görsel içindir (etiketli görsel yeniden sorulmaz).
 //
-// GÖRSEL BAYTLARI, GitHub betiğiyle AYNI adresten: sitenin kendi /media/_derived/w800/... türev
-// yolu (bkz. image-cdn.js#derivativeUrl). Worker'ın kendi alan adına istek atması olağan bir
-// subrequest'tir; türev yoksa media yolu orijinali servis eder.
+// GÖRSEL BAYTLARI ÖNCE DOĞRUDAN R2'DEN (env.UPLOADS): `_derived/w800/r2/<anahtar>` türevi, yoksa
+// orijinal nesne. GERÇEK BULGU (2026-09-18 sekizinci tur): ilk sürüm sitenin kendi
+// /media/_derived/w800/... adresine fetch atıyordu — Worker'ın KENDİ alan adına attığı subrequest
+// canlıda HER görselde başarısız oldu (tur özeti: 24 görsel, 24 "failed", 1,1 sn) ve yeni yüklenen
+// hiçbir görsel etiketlenmedi. Statik (s/) yollar env.ASSETS'ten okunur; ikisi de yoksa (testler,
+// yerel ortam) eski fetch yolu yedektir.
 import { classifyPhotoSpace, storedSpaceEntry, SPACE_LABEL_VERSION } from './photoSpaceClassify.js';
 import { poolCacheKey } from './publicCache.js';
 import { PHOTO_POOL_KIND } from './photoPool.js';
@@ -55,7 +58,49 @@ export function originalUrlFor(rawPath, origin = SITE_ORIGIN) {
   return `${origin}/${String(rawPath || '').replace(/^\/+/, '')}`;
 }
 
-async function downloadImage(rawPath, fetchFn, origin) {
+function localPathOf(rawPath, origin) {
+  let p = String(rawPath || '');
+  if (/^https?:\/\//i.test(p)) {
+    if (!p.startsWith(origin)) return null;
+    p = p.slice(origin.length);
+  }
+  return p.replace(/[?#].*$/, '').replace(/^\/+/, '');
+}
+
+async function readFromBindings(env, rawPath, origin) {
+  const clean = localPathOf(rawPath, origin);
+  if (!clean) return null;
+  if (clean.startsWith('media/') && env.UPLOADS && typeof env.UPLOADS.get === 'function') {
+    const key = clean.slice('media/'.length);
+    for (const k of [`_derived/w${CLASSIFY_WIDTH}/r2/${key}`, key]) {
+      try {
+        const obj = await env.UPLOADS.get(k);
+        if (!obj) continue;
+        const bytes = new Uint8Array(await obj.arrayBuffer());
+        if (!bytes.length) continue;
+        const mime = (obj.httpMetadata && obj.httpMetadata.contentType) || (/\.webp$/i.test(k) ? 'image/webp' : /\.png$/i.test(k) ? 'image/png' : 'image/jpeg');
+        return { bytes, mime: mime.split(';')[0].trim() };
+      } catch { /* sıradaki anahtar */ }
+    }
+    return null;
+  }
+  if (!clean.startsWith('media/') && env.ASSETS && typeof env.ASSETS.fetch === 'function') {
+    try {
+      const res = await env.ASSETS.fetch(new Request(`${origin}/${clean}`));
+      if (res && res.ok) {
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        if (bytes.length) return { bytes, mime: (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim() };
+      }
+    } catch { /* fetch yedeğine düş */ }
+  }
+  return null;
+}
+
+async function downloadImage(rawPath, fetchFn, origin, env) {
+  if (env) {
+    const direct = await readFromBindings(env, rawPath, origin);
+    if (direct) return direct;
+  }
   for (const url of [derivativeUrlFor(rawPath, origin), originalUrlFor(rawPath, origin)]) {
     try {
       const res = await fetchFn(url, { headers: { 'User-Agent': 'MimarlabPhotoSpaceCron/1.0' } });
@@ -140,7 +185,7 @@ export async function labelPendingPhotoSpaces(env, opts = {}) {
         const job = jobs[next++];
         if (!job) return;
         try {
-          const img = await downloadImage(job.url, fetchFn, origin);
+          const img = await downloadImage(job.url, fetchFn, origin, env);
           if (!img) { stats.failed++; continue; }
           const result = await classifyPhotoSpace(env, img.bytes, limits.visionTimeoutMs, img.mime);
           if (!results.has(job.projectId)) results.set(job.projectId, new Map());

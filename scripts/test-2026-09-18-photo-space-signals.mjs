@@ -320,13 +320,14 @@ await test('havuz: ipuçları dizinden iliştirilir (üç anahtar biçimi de eş
   assert.ok(!by['/media/u/cizim.webp'], 'LLM bakmadan CLIP çizimi sayfadan düşürür');
   assert.equal(by['projects/banyo.webp'].clip.t, 'Tuvalet & Banyo');
   assert.equal(by['https://mimarlab.com/projects/cephe.webp'].clip.t, '_exterior');
-  assert.equal(by['projects/dizinde-yok.webp'].clip, undefined);
+  assert.ok(!by['projects/dizinde-yok.webp'], 'hiçbir sinyali olmayan (LLM bakmadı + embedding yok) görsel GÖSTERİLMEZ — çizim olabilir');
   assert.equal(by['projects/v1.webp'].spaces, null, 'v1 girdisi "bakılmadı"');
   assert.equal(by['projects/v1.webp'].clip.t, 'Çalışma Odası');
   assert.deepEqual(by['projects/llm-mutfak.webp'].spaces, [{ label: 'Mutfak', confidence: 0.9, primary: true }]);
   assert.deepEqual(pool.projects.ofis.kunye, ['Çalışma Odası']);
-  assert.equal(pool.stats.images, 5); assert.equal(pool.stats.llmLabeled, 1); assert.equal(pool.stats.clipHinted, 4);
+  assert.equal(pool.stats.images, 4); assert.equal(pool.stats.llmLabeled, 1); assert.equal(pool.stats.clipHinted, 4);
   assert.equal(pool.stats.clipMissing, 1); assert.equal(pool.stats.clipDrawingsHidden, 1); assert.equal(pool.stats.clipPending, 0);
+  assert.equal(pool.stats.unknownHidden, 1);
 });
 
 await test('uç: banyo araması CLIP-güçlü görseli ÖNCE getirir; LLM\'in "mutfak" dediği banyo-benzeri kare EN SONDA; çip CLIP\'ten', async () => {
@@ -339,7 +340,7 @@ await test('uç: banyo araması CLIP-güçlü görseli ÖNCE getirir; LLM\'in "m
   assert.ok(!('clip' in data.items[0]) && !('via' in data.items[0]), 'iç sinyaller yanıta sızmaz');
   const all = new URL('https://mimarlab.com/api/photos');
   const feed = JSON.parse(await (await handlePhotosRoute(new Request(all.href), env, all)).text());
-  assert.equal(feed.total, 5, 'filtresiz akışta çizim yok, gerisi var');
+  assert.equal(feed.total, 4, 'filtresiz akışta çizim ve sinyalsiz görsel yok, gerisi var');
   const ext = feed.items.find(i => i.url.endsWith('cephe.webp'));
   assert.deepEqual(ext.spaces, [], 'çeldirici sınıf çip OLMAZ');
 });
@@ -348,7 +349,7 @@ await test('/api/photos/stats: kapsam + mekan başına kademe sayıları (yalnı
   const { env } = await poolFixture();
   const url = new URL('https://mimarlab.com/api/photos/stats');
   const s = JSON.parse(await (await handlePhotosRoute(new Request(url.href), env, url)).text());
-  assert.equal(s.images, 5); assert.equal(s.llmLabeled, 1);
+  assert.equal(s.images, 4); assert.equal(s.unknownHidden, 1); assert.equal(s.llmLabeled, 1);
   assert.deepEqual(s.spaces['Tuvalet & Banyo'], { total: 2, byTier: [0, 1, 0, 0, 0, 1] });
   assert.deepEqual(s.spaces['Mutfak'].byTier, [0, 0, 0, 0, 0, 1], 'LLM mutfak dedi, CLIP karşı (banyo): en son kademe');
   assert.equal(s.spaces['Çalışma Odası'].total, 1, 'v1.webp: CLIP güçlü ofis');
@@ -363,7 +364,7 @@ await test('ipuçları KALICI önbellekte: dizin KV\'den silinse de ikinci kurul
   assert.equal(cached['projects/banyo.webp'].t, 'Tuvalet & Banyo');
   assert.ok(cached['projects/dizinde-yok.webp'].m != null, 'dizinde olmayan görsel "yok" işaretlenir');
   assert.ok(!('x' in cached), 'havuzda olmayan anahtar önbelleğe girmez');
-  kv.store.delete(imageIndexKvKey('project')); kv.store.delete('pool:photos:v2'); resetImageIndexMemCache();
+  kv.store.delete(imageIndexKvKey('project')); kv.store.delete('pool:photos:v3'); resetImageIndexMemCache();
   kv.log.gets.length = 0;
   const again = await fetchPhotoPool(env);
   assert.equal(again.items.find(i => i.url === 'projects/banyo.webp').clip.t, 'Tuvalet & Banyo');
@@ -374,12 +375,12 @@ await test('CPU bütçesi: tur başına en fazla CLIP_SCORE_PER_BUILD görsel pu
   const { env, kv } = await poolFixture({ extraImages: CLIP_SCORE_PER_BUILD + 40 });
   const first = await fetchPhotoPool(env);
   assert.ok(first.stats.clipPending > 0, 'ilk turda hepsi puanlanmaz');
-  const put1 = kv.log.puts.filter(p => p.key === 'pool:photos:v2').pop();
+  const put1 = kv.log.puts.filter(p => p.key === 'pool:photos:v3').pop();
   assert.equal(put1.opts.expirationTtl, 60, 'KV alt sınırı 60 sn — altı 400 döner');
-  kv.store.delete('pool:photos:v2');
+  kv.store.delete('pool:photos:v3');
   const second = await fetchPhotoPool(env);
   assert.equal(second.stats.clipPending, 0);
-  const put2 = kv.log.puts.filter(p => p.key === 'pool:photos:v2').pop();
+  const put2 = kv.log.puts.filter(p => p.key === 'pool:photos:v3').pop();
   assert.equal(put2.opts.expirationTtl, 1800, 'tamamlanınca olağan TTL');
 });
 
@@ -387,7 +388,18 @@ await test('KV yoksa (yerel/test) havuz çalışmaya devam eder: ipucu yok, LLM 
   const { db } = await poolFixture();
   const pool = await fetchPhotoPool({ DB: d1(db) });
   assert.equal(pool.stats.clipHinted, 0);
-  assert.equal(pool.items.length, 6, 'CLIP yokken çizim ancak LLM etiketiyle düşer');
+  assert.deepEqual(pool.items.map(i => i.url), ['projects/llm-mutfak.webp'], 'CLIP yokken yalnızca LLM\'in tanıdığı görsel gösterilir — sinyalsiz kare çizim olabilir');
+});
+
+await test('sekizinci tur: LLM "fotoğraf" dese BİLE CLIP\'in güçlü çizim dediği kare düşer', async () => {
+  const { db, env } = await poolFixture();
+  const row = db.prepare(`SELECT image_spaces FROM projects WHERE slug='ofis'`).get();
+  const spaces = JSON.parse(row.image_spaces);
+  spaces['/media/u/cizim.webp'] = { v: 2, scene: 'ic_mekan', spaces: [{ label: 'Oturma Odası', confidence: 0.8 }] };
+  db.prepare(`UPDATE projects SET image_spaces=? WHERE slug='ofis'`).run(JSON.stringify(spaces));
+  const pool = await fetchPhotoPool(env);
+  assert.ok(!pool.items.some(i => i.url === '/media/u/cizim.webp'));
+  assert.equal(pool.stats.clipDrawingsHidden, 1);
 });
 
 // ---------------------------------------------------------------------------------------------

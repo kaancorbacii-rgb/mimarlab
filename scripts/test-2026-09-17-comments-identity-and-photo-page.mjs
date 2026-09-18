@@ -217,9 +217,9 @@ await test('sıra: EN SON yüklenen projenin görselleri ÖNCE (yükleme sıras�
   const { env } = await photoFixture();
   const data = await photos(env);
   assert.deepEqual(data.items.map(i => i.url), [
-    'projects/yeni-1.jpg', 'projects/yeni-2.jpg', 'projects/eski-1.jpg', 'projects/eski-2.jpg', 'projects/hamam-1.jpg', 'projects/hamam-2.jpg', 'projects/hamam-4.jpg',
-  ], 'çizim (hamam-3) havuzda HİÇ yok');
-  assert.equal(data.total, 7);
+    'projects/yeni-1.jpg', 'projects/yeni-2.jpg', 'projects/eski-1.jpg', 'projects/eski-2.jpg', 'projects/hamam-2.jpg', 'projects/hamam-4.jpg',
+  ], 'çizim (hamam-3) ve hiçbir sinyali olmayan kare (hamam-1, 2026-09-18 sekizinci tur) havuzda YOK');
+  assert.equal(data.total, 6);
 });
 
 await test('gizli/arşiv VE blurlu (önizleme) proje görselleri havuzda YOK (madde 10)', async () => {
@@ -227,7 +227,7 @@ await test('gizli/arşiv VE blurlu (önizleme) proje görselleri havuzda YOK (ma
   const data = await photos(env);
   assert.ok(!data.items.some(i => i.url.includes('gizli')));
   assert.ok(!data.items.some(i => i.url.includes('blurlu')), 'blur kalkana kadar gösterilmez');
-  assert.equal(data.total, 7);
+  assert.equal(data.total, 6);
 });
 
 await test('mekan filtresi: yalnızca o etiketi taşıyan görseller, sıra KORUNUR', async () => {
@@ -239,9 +239,9 @@ await test('mekan filtresi: yalnızca o etiketi taşıyan görseller, sıra KORU
 
 await test('listede OLMAYAN bir mekan değeri filtreyi SESSİZCE yok sayar (boş sayfa göstermez)', async () => {
   const { env } = await photoFixture();
-  assert.equal((await photos(env, '?space=Uydurma')).total, 7);
+  assert.equal((await photos(env, '?space=Uydurma')).total, 6);
   // Çizim etiketi aranabilir DEĞİL: filtre değeri olarak gelirse de yok sayılır (tüm havuz).
-  assert.equal((await photos(env, `?space=${encodeURIComponent('Plan Çizimi')}`)).total, 7);
+  assert.equal((await photos(env, `?space=${encodeURIComponent('Plan Çizimi')}`)).total, 6);
 });
 
 await test('sayfalama: limit/offset + hasMore', async () => {
@@ -478,7 +478,7 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
 await test('havuz KV önbelleğine bağlı ve yazmalarda temizlenir (POOL_CACHE_KINDS); şekil SÜRÜMLÜ', async () => {
   assert.match(read('../src/lib/photoPool.js'), /getCachedPool\(env, PHOTO_POOL_KIND/);
   const { PHOTO_POOL_KIND } = await import('../src/lib/photoPool.js');
-  assert.equal(PHOTO_POOL_KIND, 'photos:v2');
+  assert.equal(PHOTO_POOL_KIND, 'photos:v3');
   assert.match(read('../src/lib/publicCache.js'), new RegExp(`'projects:concept', '${PHOTO_POOL_KIND}'\\]`), 'şekil sürümü invalidation listesiyle hizalı');
 });
 

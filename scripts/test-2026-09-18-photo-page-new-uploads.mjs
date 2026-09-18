@@ -111,6 +111,30 @@ await test('cron turu: etiketler v2 olarak yazılır, mevcut v2 girdisi KORUNUR,
   assert.equal(again.pending, 0); assert.equal(aiCalls.length, 2); assert.deepEqual(kv.deleted, []);
 });
 
+await test('sekizinci tur: baytlar ÖNCE R2/ASSETS binding\'inden okunur (kendi alan adına fetch canlıda 24/24 başarısızdı)', async () => {
+  const { env, aiCalls } = fixture();
+  const r2Gets = [];
+  env.UPLOADS = { async get(k) { r2Gets.push(k); return k === 'u/x/a.webp' ? { httpMetadata: { contentType: 'image/webp' }, async arrayBuffer() { return new Uint8Array([9, 9]).buffer; } } : null; } };
+  const assetGets = [];
+  env.ASSETS = { async fetch(req) { assetGets.push(req.url); return new Response(new Uint8Array([7]), { headers: { 'content-type': 'image/webp' } }); } };
+  const stats = await labelPendingPhotoSpaces(env, { fetch: async () => { throw new Error('fetch çağrılmamalı'); } });
+  assert.equal(stats.classified, 2); assert.equal(stats.failed, 0); assert.equal(aiCalls.length, 2);
+  assert.deepEqual(r2Gets, ['_derived/w800/r2/u/x/a.webp', 'u/x/a.webp'], 'önce türev, yoksa orijinal');
+  assert.deepEqual(assetGets, ['https://mimarlab.com/projects/c.webp']);
+});
+
+await test('sekizinci tur: ızgara CSS columns DEĞİL — kart en kısa sütunun SONUNA eklenir, "Daha Fazla Göster" yeniden dağıtmaz', () => {
+  const h = readFileSync(new URL('../fotograf.html', import.meta.url), 'utf8');
+  const css = h.slice(0, h.indexOf('</style>'));
+  assert.ok(!/\.ph-grid\{[^}]*columns\s*:/.test(css), 'CSS columns içerik değişince tüm kartları yeniden dağıtır');
+  assert.match(css, /\.ph-grid\{display:flex;/);
+  assert.match(h, /function placeCard\(card\)\{[\s\S]*?best\.appendChild\(card\);/);
+  const append = h.slice(h.indexOf('function appendCards('), h.indexOf('async function loadPage('));
+  assert.ok(!/buildColumns\(\)\s*;?\s*\n[^\n]*placeCard/.test(append.replace('if(!columns.length) buildColumns();', '')), 'ekleme yolu yeniden dağıtmaz');
+  assert.match(append, /placeCard\(card\);/);
+  assert.ok(!/grid\.insertAdjacentHTML/.test(h));
+});
+
 await test('sınırlar: maxImages tur başına iş sayısını, budgetMs süreyi keser; kalan bir sonraki tura', async () => {
   const { env, fetchFn, aiCalls } = fixture();
   const s1 = await labelPendingPhotoSpaces(env, { fetch: fetchFn, maxImages: 1 });

@@ -2243,3 +2243,27 @@ görsel, 1,2 sn sonra yönlendirme). Blur (önizleme) kuralı DEĞİŞMEDİ: blu
   embedding'i görsel arama içindir).
 - Testler: `scripts/test-2026-09-18-photo-page-new-uploads.mjs` (11 test, preflight'a bağlı) —
   cron turu GERÇEK SQLite + sahte AI/fetch ile ölçülür. Migration YOK, SSR sürüm bumpı YOK.
+
+## /fotograf sekizinci tur — yalnızca fotoğraf + "Daha Fazla Göster" sırayı bozmaz (2026-09-18)
+
+Kullanıcı isteği: "Fotoğraflar sayfasında mimar çizimler yayınlanmasın, sadece fotoğraflar olsun.
+Ayrıca daha fazla göre butonuna tıklayınca fotoğrafların sıralaması değişmesin, yeni gelecek
+fotoğraflar ... alt sıralardan gözükmeye başlasın üst tarafa dahil olmasınlar."
+
+- **Çizimlerin KÖK NEDENİ "sinyalsiz" görsellerdi**: akışın en üstündeki en yeni projenin (Ahiler
+  Kalkınma Ajansı) plan/kesit paftaları ne LLM etiketi ne CLIP embedding'i taşıyordu; havuz
+  bilinmeyen görseli "fotoğraf" sayıyordu. Kural artık (`photoPool.js`): görsel YALNIZCA bir sinyal
+  onu fotoğraf olarak tanıdıysa gösterilir — sinyalsiz kare gizli (`stats.unknownHidden`), CLIP
+  `_drawing >= 0.6` LLM "fotoğraf" dese BİLE düşer, LLM bakmamışken CLIP'in en olası sınıfı çizimse
+  düşer. Havuz şekli `photos:v3`.
+- **Cron hiçbir yeni görseli etiketleyemiyordu** (canlı özet: 24/24 failed, 1,1 sn): Worker'ın
+  KENDİ alan adına attığı `/media/_derived/...` fetch'i başarısız. `photoSpaceCron.js` baytları artık
+  önce doğrudan `env.UPLOADS`tan (`_derived/w800/r2/<k>`, yoksa orijinal) ya da `env.ASSETS`ten
+  okur; fetch yalnızca yedek. Sinyalsiz yeni görsel bu sayede ~15 dk içinde görünür olur.
+- **Sıralama**: ızgara CSS `columns` idi — içerik değişince tarayıcı TÜM kartları sütunlara yeniden
+  dağıtıyor, yeni gelenler üst sıralara karışıyordu. Artık sabit `.ph-col` sütunları; her kart
+  eklendiği anda en kısa sütunun SONUNA konur (`placeCard`) ve bir daha taşınmaz. Yeniden dağıtım
+  yalnızca sütun sayısı değişince (4 / 3 ≤960px / 2 ≤720px). Görsel yüklenene kadar 4:3 yer tutucu
+  oran (yerleşim anında sütun yükseklikleri anlamlı olsun). Sayfalar arası mükerrer url atılır.
+- Testler: `test-2026-09-18-photo-space-signals.mjs` (30), `test-2026-09-18-photo-page-new-uploads.mjs`
+  (13), `test-2026-09-17-comments-identity-and-photo-page.mjs` (26). Migration YOK, SSR bumpı YOK.
