@@ -2288,3 +2288,20 @@ Kullanıcı isteği: "Fotoğraf kartlarının altında proje adı yazsın, mimar
 `fotograf.html#cardHtml` artık `.ph-card-credit`e `item.projectTitle` yazar (ikinci turdaki
 "firma, yoksa mimar" kuralı kaldırıldı). Firma/mimar bilgisi lightbox künyesinde DURUYOR; API'nin
 `credit` alanı değişmedi. Test: `test-2026-09-17-comments-identity-and-photo-page.mjs`.
+
+## Admin üye pop-up'ı yalnızca hesap alanları + gündem bülteni 10'da 1 (2026-09-18)
+
+Kullanıcı isteği: (1) "admin panelinde siteye üye olan kullanıcıların gözüktüğü paneldeki doğum
+yılı, üniversite vs. gibi bilgileri kaldır. Sadece Ad Soyad, kullanıcı adı ve e-posta gözüksün.",
+(2) "Gündem içerikleri abone olan e-postalara 10 tanede 1 tane şeklinde gitsin."
+
+- **Admin > Üyeler detay pop-up'ı** (`admin.html#ud-overlay`): "Profil Bilgileri" artık yalnızca
+  Ad Soyad + Kullanıcı Adı (düzenlenebilir) + E-posta (`readonly`). Kaydet gövdesi yalnızca
+  `name`/`username` taşır — `updateUserProfileFields` kullanıcı adında kayıttaki AYNI kuralı ve
+  tekillik kontrolünü uygular, e-postayı zaten kabul etmez. `users` kolonları (dob/school/...)
+  SİLİNMEDİ, yalnızca ekran kaldırıldı. Bu, "Hesap üyeliği ile kişi profili AYRIDIR" kuralının
+  admin tarafıdır.
+- **Gündem bülteni**: `newsletterNotify.js#GUNDEM_NOTIFY_EVERY_N = 10` (proje/ürün hâlâ 5'te 1,
+  ayrı sayaç). Sayaç sıfırlanmaz; ilk gündem maili sayacın bir sonraki 10'un katında gider.
+- Testler: `scripts/test-2026-09-18-admin-user-account-fields.mjs` + güncellenen
+  `scripts/test-2026-09-12-newsletter-scope-and-gundem.mjs` (ikisi de preflight'a bağlı).

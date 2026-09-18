@@ -637,17 +637,8 @@
         <h3>Profil Bilgileri</h3>
         <div class="admin-form" style="margin-bottom:0;">
           <div class="admin-field"><label>Ad Soyad</label><input type="text" id="ud-f-name"></div>
-          <div class="admin-field"><label>Doğum Yılı</label><input type="number" id="ud-f-dob" min="1900" max="2099" step="1" placeholder="ör. 1990"></div>
-          <div class="admin-field"><label>Üniversite</label><input type="text" id="ud-f-school"></div>
-          <div class="admin-field">
-            <label>Meslek</label>
-            <select id="ud-f-profession"></select>
-          </div>
-          <div class="admin-field">
-            <label>Pozisyon</label>
-            <select id="ud-f-position"></select>
-          </div>
-          <div class="admin-field"><label>Hakkında</label><textarea id="ud-f-about"></textarea></div>
+          <div class="admin-field"><label>Kullanıcı Adı</label><input type="text" id="ud-f-username" autocomplete="off" spellcheck="false"></div>
+          <div class="admin-field"><label>E-posta</label><input type="email" id="ud-f-email" readonly></div>
           <button type="button" class="admin-btn primary" id="ud-save-btn">Kaydet</button>
           <span class="ud-save-msg" id="ud-save-msg"></span>
         </div>
@@ -1201,7 +1192,7 @@ async function loadOwnershipClaims(){
 // src/routes/admin.js#OFFICE_POSITIONS_ADMIN'deki gerçek bulgu — canlıda "MEEZ Mimarlık" talebi
 // pozisyonsuz onaylandığı için sahibine HİÇBİR düzenleme yetkisi vermemişti). Kişi (architect)
 // taleplerinde pozisyonun yetkiyle ilgisi yok, o yüzden yalnızca office için çizilir.
-// UD_POSITIONS ile AYNI liste; OFFICE_EDIT_POSITIONS ise src/routes/submissions.js'teki düzenleme
+// src/routes/auth.js#POSITIONS ile AYNI liste; OFFICE_EDIT_POSITIONS ise src/routes/submissions.js'teki düzenleme
 // yetkisi veren alt küme (BİREBİR aynı dört değer).
 const CLAIM_OFFICE_EDIT_POSITIONS = ['Yönetici', 'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri'];
 // (Görev SEÇİM listesi kaldırıldı — kullanıcı isteği, 2026-09-12: atama artık tek bir görevle,
@@ -1882,18 +1873,10 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 // handleUsersAdmin). İçerik düzenlemesi (proje/mimar/firma/ürün) burada değil, "Düzenle" linkiyle
 // açılan *-ekle.html?edit= sayfasında yapılır (admin zaten o sayfalarda herkesin gönderisini
 // düzenleyebiliyor, bkz. src/routes/submissions.js#getOwnSubmission).
-const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', muhendis:'Mühendis', fotografci:'Fotoğrafçı', ogrenci:'Öğrenci', diger:'Diğer' };
-const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
 const UD_CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
 const UD_CLAIM_EDIT_STYPE = { architect: 'architects', office: 'offices' };
 const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi', revoked: 'Yetki kaldırıldı' };
 
-(function wireUdSelects(){
-  const prof = document.getElementById('ud-f-profession');
-  prof.innerHTML = '<option value="">—</option>' + Object.entries(UD_PROFESSION_LABELS).map(([k,v]) => `<option value="${escapeAttr(k)}">${escapeHtml(v)}</option>`).join('');
-  const pos = document.getElementById('ud-f-position');
-  pos.innerHTML = '<option value="">—</option>' + UD_POSITIONS.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
-})();
 
 let udCurrentUserId = null;
 
@@ -1914,11 +1897,12 @@ async function openUserDetail(userId){
   document.getElementById('ud-title').textContent = u.name || '—';
   document.getElementById('ud-subtitle').textContent = (u.username ? '@' + u.username + ' · ' : '') + u.email + (u.role === 'admin' ? ' · Admin' : '');
   document.getElementById('ud-f-name').value = u.name || '';
-  document.getElementById('ud-f-dob').value = u.dob || '';
-  document.getElementById('ud-f-school').value = u.school || '';
-  document.getElementById('ud-f-profession').value = u.profession || '';
-  document.getElementById('ud-f-position').value = u.position || '';
-  document.getElementById('ud-f-about').value = u.about || '';
+  // Üye kaydında YALNIZCA hesap alanları (kullanıcı isteği, 2026-09-18): ad soyad, kullanıcı adı,
+  // e-posta. Doğum yılı/üniversite/meslek/pozisyon/hakkında kişi künyesine aittir (bkz. CLAUDE.md
+  // "Hesap üyeliği ile kişi profili AYRIDIR"). E-posta salt okunur — updateUserProfileFields onu
+  // zaten kabul etmez.
+  document.getElementById('ud-f-username').value = u.username || '';
+  document.getElementById('ud-f-email').value = u.email || '';
 
   loadUdClaims(userId);
   loadUdSubmissions(userId);
@@ -1941,11 +1925,7 @@ document.getElementById('ud-save-btn').addEventListener('click', async ()=>{
   const msg = document.getElementById('ud-save-msg');
   const body = {
     name: document.getElementById('ud-f-name').value,
-    dob: document.getElementById('ud-f-dob').value || null,
-    school: document.getElementById('ud-f-school').value || null,
-    profession: document.getElementById('ud-f-profession').value || null,
-    position: document.getElementById('ud-f-position').value || null,
-    about: document.getElementById('ud-f-about').value || null,
+    username: document.getElementById('ud-f-username').value,
   };
   btn.disabled = true;
   msg.textContent = 'Kaydediliyor…';
@@ -1959,6 +1939,7 @@ document.getElementById('ud-save-btn').addEventListener('click', async ()=>{
       usersCache = null; // ad değişmiş olabilir — liste yeniden çekilmeli (bkz. usersCache yorumu)
       loadUsers();
       document.getElementById('ud-title').textContent = data.user.name || '—';
+      if(data.user.username) document.getElementById('ud-f-username').value = data.user.username;
     }
   }catch{
     msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';

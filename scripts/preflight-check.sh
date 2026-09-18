@@ -923,6 +923,17 @@ else
 fi
 rm -f /tmp/preflight_20260918c
 
+# 2026-09-18: Admin > Üyeler detay pop-up'ı yalnızca Ad Soyad / Kullanıcı Adı / E-posta (salt okunur)
+# gösterir; gündem bülteni 10 gönderiden 1'inde gider (proje/ürün 5'te 1 kaldı — o kelepçe
+# test-2026-09-12-newsletter-scope-and-gundem.mjs'te). Bkz. scripts/test-2026-09-18-admin-user-account-fields.mjs.
+if node scripts/test-2026-09-18-admin-user-account-fields.mjs >/tmp/preflight_20260918d 2>&1; then
+  ok "2026-09-18 admin üye alanları testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260918d) test)"
+else
+  bad "2026-09-18 admin üye alanları testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260918d >&2
+fi
+rm -f /tmp/preflight_20260918d
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

@@ -142,21 +142,21 @@ await test('products: proje ile AYNI sayacı paylaşır (tür başına ayrı say
   assert.match(f.calls[0].body[0].subject, /^Yeni ürün: Ürün 5$/);
 });
 
-console.log('\nGündem: her 5 gönderiden 1\'i (madde 2)');
+console.log('\nGündem: her 10 gönderiden 1\'i (2026-09-18 — eskiden 5\'te 1)');
 
-await test('gundem: 5. gönderide TEK mail, linki /gundem/:slug', async () => {
+await test('gundem: 10. gönderide TEK mail, linki /gundem/:slug', async () => {
   const { env, db } = freshEnv();
   const f = captureFetch();
   try {
-    for (let i = 1; i <= 4; i++) await notifyNewsletterOfNewGundem(env, gundemRow(i));
-    assert.equal(f.calls.length, 0, 'ilk 4 gündem gönderisinde mail gitmiş');
-    await notifyNewsletterOfNewGundem(env, gundemRow(5));
+    for (let i = 1; i <= 9; i++) await notifyNewsletterOfNewGundem(env, gundemRow(i));
+    assert.equal(f.calls.length, 0, 'ilk 9 gündem gönderisinde mail gitmiş (5. dahil — eski oran)');
+    await notifyNewsletterOfNewGundem(env, gundemRow(10));
   } finally { f.restore(); }
   assert.equal(f.calls.length, 1);
-  assert.equal(counterOf(db, 'gundem'), 5);
+  assert.equal(counterOf(db, 'gundem'), 10);
   const mail = f.calls[0].body[0];
-  assert.match(mail.subject, /^Yeni gündem içeriği: Haber 5$/);
-  assert.match(mail.html, /https:\/\/mimarlab\.com\/gundem\/haber-5/);
+  assert.match(mail.subject, /^Yeni gündem içeriği: Haber 10$/);
+  assert.match(mail.html, /https:\/\/mimarlab\.com\/gundem\/haber-10/);
   assert.match(mail.html, /api\/newsletter\/unsubscribe\?token=tok-1/, 'kişiselleştirilmiş abonelikten çık linki yok');
 });
 
@@ -164,7 +164,7 @@ await test('gundem sayacı içerik sayacından AYRI (biri diğerinin sırasını
   const { env, db } = freshEnv();
   const f = captureFetch();
   try {
-    // 4 gündem + 4 proje: hiçbiri 5'e ulaşmadığından tek mail bile çıkmamalı.
+    // 4 gündem + 4 proje: hiçbiri eşiğe ulaşmadığından tek mail bile çıkmamalı.
     for (let i = 1; i <= 4; i++) {
       await notifyNewsletterOfNewGundem(env, gundemRow(i));
       await notifyNewsletterOfNewContent(env, 'projects', projectRow(i));
@@ -172,13 +172,15 @@ await test('gundem sayacı içerik sayacından AYRI (biri diğerinin sırasını
     assert.equal(f.calls.length, 0, 'sayaçlar karışmış — 8 çağrıdan mail çıktı');
     assert.equal(counterOf(db, 'gundem'), 4);
     assert.equal(counterOf(db, 'global'), 4);
-    // Beşinciler: her iki hat kendi sayacıyla TEK mail üretir.
+    // 5. proje kendi sayacıyla mail üretir; 5. gündem (oran 10) üretmez.
     await notifyNewsletterOfNewGundem(env, gundemRow(5));
     await notifyNewsletterOfNewContent(env, 'projects', projectRow(5));
+    assert.equal(f.calls.length, 1);
+    for (let i = 6; i <= 10; i++) await notifyNewsletterOfNewGundem(env, gundemRow(i));
   } finally { f.restore(); }
   assert.equal(f.calls.length, 2);
   const subjects = f.calls.map(c => c.body[0].subject).sort();
-  assert.deepEqual(subjects, ['Yeni gündem içeriği: Haber 5', 'Yeni proje: Proje 5']);
+  assert.deepEqual(subjects, ['Yeni gündem içeriği: Haber 10', 'Yeni proje: Proje 5']);
 });
 
 await test('gundem: slug/title eksikse sessizce döner ve sayaç artmaz', async () => {

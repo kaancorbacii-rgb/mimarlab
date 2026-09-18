@@ -87,17 +87,22 @@ const BATCH_SIZE = 100;
 // paylaşılan proje/ürünlerin sırasını yiyip onları neredeyse hiç göndermezdi. Sayaç tablosu zaten
 // `key` ile anahtarlı (bkz. migrations/0060) — 'gundem' satırı ilk çağrıda kendiliğinden oluşur,
 // yeni bir migration GEREKMEZ.
+//
+// GÜNDEM ORANI 10'DA 1 (kullanıcı isteği, 2026-09-18: "Gündem içerikleri abone olan e-postalara 10
+// tanede 1 tane şeklinde gitsin"). Proje/ürün oranı DEĞİŞMEDİ (5'te 1). Sayaç hiç sıfırlanmadığından
+// geçişte ilk gündem maili, sayacın bir sonraki 10'un katında gider.
 const NOTIFY_EVERY_N = 5;
+const GUNDEM_NOTIFY_EVERY_N = 10;
 const COUNTER_CONTENT = 'global';
 const COUNTER_GUNDEM = 'gundem';
-async function shouldSendThisTime(env, counterKey) {
+async function shouldSendThisTime(env, counterKey, everyN = NOTIFY_EVERY_N) {
   try {
     const row = await env.DB.prepare(
       `INSERT INTO newsletter_notify_counter (key, count) VALUES (?, 1)
        ON CONFLICT(key) DO UPDATE SET count = count + 1
        RETURNING count`
     ).bind(counterKey).first();
-    return !!row && row.count % NOTIFY_EVERY_N === 0;
+    return !!row && row.count % everyN === 0;
   } catch (err) {
     console.error('newsletter notify counter failed', err);
     return false;
@@ -191,7 +196,7 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
 // asla geri almamalı.
 export async function notifyNewsletterOfNewGundem(env, row) {
   if (!env.RESEND_API_KEY || !row || !row.slug || !row.title) return;
-  if (!(await shouldSendThisTime(env, COUNTER_GUNDEM))) return;
+  if (!(await shouldSendThisTime(env, COUNTER_GUNDEM, GUNDEM_NOTIFY_EVERY_N))) return;
 
   await sendToSubscribers(env, {
     label: 'Yeni gündem içeriği',
