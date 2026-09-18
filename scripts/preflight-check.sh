@@ -909,6 +909,20 @@ else
 fi
 rm -f /tmp/preflight_20260918b
 
+# 2026-09-18 AUTH SIKILAŞTIRMA (denetim bulguları): (1) `next` açık yönlendirme — "/\evil.com",
+# kontrol karakterleri ve %-kodlanmış ters bölü/eğik çizgi server (auth.js#safeNextPath) ve istemci
+# (auth-modal.js#mlSafeNextPath) kopyalarında AYNI vektörlerle reddedilir; (2) forgot-password yanıt
+# yolu var/yok e-postada özdeş SQL koşar, token + e-posta ctx.waitUntil'de; (3) OAuth state'i HttpOnly
+# __Host- bağlama çerezine bağlı; (4) mevcut formatta hash'li kullanıcı girişi, açık oturumlar ve
+# users satırlarına UPDATE yapılmaması regresyonu. Bkz. scripts/test-2026-09-18-auth-hardening.mjs.
+if node scripts/test-2026-09-18-auth-hardening.mjs >/tmp/preflight_20260918c 2>&1; then
+  ok "2026-09-18 auth sıkılaştırma testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260918c) test)"
+else
+  bad "2026-09-18 auth sıkılaştırma testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260918c >&2
+fi
+rm -f /tmp/preflight_20260918c
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

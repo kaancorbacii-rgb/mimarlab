@@ -2234,7 +2234,7 @@ async function routeApi(request, env, url, ctx) {
   // worker_version'ın gerçekten değiştiğini bu uçtan teyit eder. Auth gerektirmez, hassas veri
   // dönmez (version id/tag secret DEĞİLDİR).
   if (path === '/api/_health' && request.method === 'GET') return handleHealthRoute(env);
-  if (path.startsWith('/api/auth/')) return handleAuthRoute(request, env, url);
+  if (path.startsWith('/api/auth/')) return handleAuthRoute(request, env, url, ctx);
   if (path === '/api/profile') return handleProfileRoute(request, env, url);
   if (path === '/api/profile/office') return handleArchitectPrimaryOfficeRoute(request, env, url);
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);

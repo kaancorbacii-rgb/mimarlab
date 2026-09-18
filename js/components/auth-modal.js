@@ -835,15 +835,33 @@ const AuthModal = (function () {
   // ---------------------------------------------------------------------------------------------
   // Giriş sonrası dönüş yolu (Güvenli Görüşme Gateway'i, 2026-09-08): /gorusme/:uuid gibi oturum
   // gerektiren bir sayfa anonim ziyaretçiyi /giris?next=<yol>'a yönlendirir (bkz. src/index.js#
-  // serveMeetingRoomPage). Kural src/routes/auth.js#safeNextPath ile AYNI: yalnızca site içi,
-  // "/" ile başlayan, "//" ile başlamayan ve "://" içermeyen bir yol kabul edilir — aksi halde
-  // eskisi gibi /hesabim. Hem e-posta girişi/kaydı (aşağıdaki wireLogin/wireSignup) hem OAuth
-  // düğmeleri (next= parametresi) aynı fonksiyonu kullanır.
+  // serveMeetingRoomPage). Kural src/routes/auth.js#safeNextPath'in BİREBİR kopyasıdır: yalnızca
+  // AYNI-ORIGIN bir yol; "/\evil.com", kontrol karakterleri ve %-kodlanmış ters bölü/eğik çizgi
+  // reddedilir, karar URL ayrıştırıcısıyla verilir (denetim 2026-09-18 — eski dize kontrolü
+  // "/\evil.com"u geçiriyordu). İki kopya scripts/test-2026-09-18-auth-hardening.mjs'te aynı
+  // vektörlerle kelepçeli. Hem e-posta girişi/kaydı hem OAuth düğmeleri bu fonksiyonu kullanır.
+  // ML_SAFE_NEXT_PATH_BEGIN
+  function mlSafeNextPath(raw, fallback, origin) {
+    const unsafe = /[\x00-\x1f\x7f\\]/;
+    if (typeof raw !== 'string') return fallback;
+    const next = raw.trim();
+    if (!next || next.length > 2048 || next[0] !== '/' || unsafe.test(next)) return fallback;
+    let layer = next;
+    for (let i = 0; i < 3 && layer.includes('%'); i++) {
+      try { layer = decodeURIComponent(layer); } catch { return fallback; }
+      if (unsafe.test(layer) || layer.startsWith('//')) return fallback;
+    }
+    if (next.includes('://') || layer.includes('://')) return fallback;
+    let parsed;
+    try { parsed = new URL(next, origin); } catch { return fallback; }
+    if (parsed.origin !== origin) return fallback;
+    return parsed.pathname + parsed.search + parsed.hash;
+  }
+  // ML_SAFE_NEXT_PATH_END
   function loginNextPath() {
     let next = '';
-    try { next = (new URLSearchParams(window.location.search).get('next') || '').trim(); } catch { next = ''; }
-    if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('://')) return '/hesabim';
-    return next;
+    try { next = new URLSearchParams(window.location.search).get('next') || ''; } catch { next = ''; }
+    return mlSafeNextPath(next, '/hesabim', window.location.origin);
   }
   // Giriş/kayıt başarılıysa ve bir dönüş yolu varsa oraya git; yoksa mevcut davranış (popup içinde
   // Hesabım'a geç) korunur. true dönerse çağıran taraf swap() YAPMAZ.

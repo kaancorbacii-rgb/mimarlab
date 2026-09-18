@@ -1,4 +1,4 @@
-import { json, errorJson, readJson, sessionCookieHeader, clearSessionCookieHeader, parseCookies, sessionCookieName } from '../lib/http.js';
+import { json, errorJson, readJson, sessionCookieHeader, clearSessionCookieHeader, parseCookies, sessionCookieName, isHttps, safeDecode } from '../lib/http.js';
 import { hashPassword, verifyPassword, newId, randomToken, sha256Hex } from '../lib/crypto.js';
 import { createSession, destroySession, getSessionUser, publicUser } from '../lib/auth.js';
 import { isSafeUrlValue, isInvalidSchoolValue } from '../lib/submissionTypes.js';
@@ -45,7 +45,7 @@ const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bol
 // listede eskiden yoktu, hesap profili formu o formdaki tüm seçenekleri sunmadığından.
 export const POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz']);
 
-export async function handleAuthRoute(request, env, url) {
+export async function handleAuthRoute(request, env, url, ctx) {
   const path = url.pathname;
   const method = request.method;
 
@@ -54,7 +54,7 @@ export async function handleAuthRoute(request, env, url) {
   if (path === '/api/auth/logout' && method === 'POST') return logout(request, env);
   if (path === '/api/auth/me' && method === 'GET') return me(request, env);
   if (path === '/api/auth/change-password' && method === 'POST') return changePassword(request, env);
-  if (path === '/api/auth/forgot-password' && method === 'POST') return forgotPassword(request, env);
+  if (path === '/api/auth/forgot-password' && method === 'POST') return forgotPassword(request, env, ctx);
   if (path === '/api/auth/reset-password' && method === 'POST') return resetPassword(request, env);
   if (path === '/api/auth/google/start' && method === 'GET') return oauthStart(request, env, url, 'google');
   if (path === '/api/auth/google/callback' && method === 'GET') return oauthCallback(request, env, url, 'google');
@@ -63,29 +63,72 @@ export async function handleAuthRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
-// "next" yalnızca SİTE İÇİ göreli bir yol olabilir (bkz. kullanıcı isteği: açık yönlendirme/open
-// redirect'e izin verilmez) — "//evil.com" (protokole göreli) ve "https://..." gibi mutlak/harici
-// hedefler reddedilir, geçersizse güvenli varsayılana (hesabim.html) düşülür.
-function safeNextPath(raw) {
-  const next = (raw || '').trim();
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('://')) return '/hesabim.html';
-  return next;
+// "next" yalnızca AYNI-ORIGIN bir site yolu olabilir (open redirect'e izin verilmez). Karar bir
+// dize kalıbıyla DEĞİL, tarayıcının kullandığı URL ayrıştırıcısıyla verilir: eski kontrol
+// ("/" ile başlar, "//" ile başlamaz, "://" içermez) "/\evil.com"u geçiriyordu ve tarayıcı özel
+// şemalarda "\"yi "/" sayıp onu //evil.com'a çözüyordu (denetim, 2026-09-18). Ayrıca reddedilir:
+// kontrol karakterleri (CR/LF/TAB — ayrıştırıcı TAB/LF'yi sessizce siler: "/\t/evil.com"),
+// %-kodlanmış ters bölü/eğik çizgi/kontrol karakteri (iç içe kodlama dahil) ve çözülemeyen %-dizileri.
+// İstemci kopyası: js/components/auth-modal.js#mlSafeNextPath — iki kopya
+// scripts/test-2026-09-18-auth-hardening.mjs'te AYNI vektör listesiyle kelepçeli.
+const NEXT_FALLBACK = '/hesabim.html';
+const NEXT_PROBE_ORIGIN = 'https://next-probe.invalid';
+const NEXT_UNSAFE_CHARS = /[\x00-\x1f\x7f\\]/;
+export function safeNextPath(raw, fallback = NEXT_FALLBACK) {
+  if (typeof raw !== 'string') return fallback;
+  const next = raw.trim();
+  if (!next || next.length > 2048 || next[0] !== '/' || NEXT_UNSAFE_CHARS.test(next)) return fallback;
+  let layer = next;
+  for (let i = 0; i < 3 && layer.includes('%'); i++) {
+    // "%" içeren bir dize ya çözülüp DEĞİŞİR ya da geçersizdir — safeDecode geçersizde ham döner.
+    const decoded = safeDecode(layer);
+    if (decoded === layer) return fallback;
+    layer = decoded;
+    if (NEXT_UNSAFE_CHARS.test(layer) || layer.startsWith('//')) return fallback;
+  }
+  if (next.includes('://') || layer.includes('://')) return fallback;
+  let parsed;
+  try { parsed = new URL(next, NEXT_PROBE_ORIGIN); } catch { return fallback; }
+  if (parsed.origin !== NEXT_PROBE_ORIGIN) return fallback;
+  return parsed.pathname + parsed.search + parsed.hash;
 }
 
-function redirectResponse(location, extraHeaders) {
-  return new Response(null, { status: 302, headers: { Location: location, ...extraHeaders } });
+// cookies: Set-Cookie dizileri — birden fazla çerez (oturum + OAuth bağlama çerezinin silinmesi)
+// tek bir düz nesneyle taşınamaz, Headers.append gerekir.
+function redirectWithCookies(location, cookies = []) {
+  const headers = new Headers({ Location: location });
+  for (const c of cookies) headers.append('Set-Cookie', c);
+  return new Response(null, { status: 302, headers });
+}
+
+// OAUTH TARAYICI BAĞLAMASI (denetim, 2026-09-18): state yalnızca HMAC imzalı olduğunda başka bir
+// tarayıcıda da geçerliydi — saldırgan kendi akışının callback URL'ini kurbana açtırıp onu KENDİ
+// hesabına oturum açtırabiliyordu (login CSRF). Artık /start rastgele bir değeri HttpOnly bir çereze
+// yazar, state yalnızca onun SHA-256'sını taşır (çerezin kendisi URL'lere/loglara çıkmaz) ve
+// callback ikisi eşleşmezse kod değişimine HİÇ geçmeden reddeder. SameSite=Lax: sağlayıcıdan dönüş
+// üst düzey bir GET gezinmesidir, Lax çerez gönderilir. Sağlayıcı başına ayrı ad: iki sekmede farklı
+// sağlayıcı akışları birbirini ezmesin.
+const OAUTH_BIND_MAX_AGE = 10 * 60; // oauth.js#STATE_TTL_MS ile aynı
+function oauthBindCookieName(request, provider) {
+  return `${isHttps(request) ? '__Host-' : ''}mimarlab_oauth_${provider}`;
+}
+function oauthBindCookie(request, provider, value, maxAge) {
+  const secure = isHttps(request) ? '; Secure' : '';
+  return `${oauthBindCookieName(request, provider)}=${value}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 }
 
 async function oauthStart(request, env, url, provider) {
   const configured = provider === 'google' ? isGoogleConfigured(env) : isLinkedInConfigured(env);
   if (!configured) {
-    return redirectResponse(`/giris-yap.html?oauth_error=not_configured`);
+    return redirectWithCookies(`/giris-yap.html?oauth_error=not_configured`);
   }
   const next = safeNextPath(url.searchParams.get('next'));
+  const binding = randomToken();
+  const bindHash = await sha256Hex(binding);
   const authUrl = provider === 'google'
-    ? await buildGoogleAuthUrl(request, env, next)
-    : await buildLinkedInAuthUrl(request, env, next);
-  return redirectResponse(authUrl);
+    ? await buildGoogleAuthUrl(request, env, next, bindHash)
+    : await buildLinkedInAuthUrl(request, env, next, bindHash);
+  return redirectWithCookies(authUrl, [oauthBindCookie(request, provider, binding, OAUTH_BIND_MAX_AGE)]);
 }
 
 // Google/LinkedIn callback: e-posta sağlayıcı tarafından doğrulanmış sayıldığından (bkz.
@@ -137,8 +180,12 @@ async function upsertOAuthUser(env, { email, name }) {
 }
 
 async function oauthCallback(request, env, url, provider) {
+  // Bağlama çerezi tek kullanımlıktır: callback'in HER çıkışında silinir.
+  const clearBind = [oauthBindCookie(request, provider, '', 0)];
+  const redirectResponse = (location, cookies = []) => redirectWithCookies(location, [...cookies, ...clearBind]);
   const configured = provider === 'google' ? isGoogleConfigured(env) : isLinkedInConfigured(env);
   if (!configured) return redirectResponse('/giris-yap.html?oauth_error=not_configured');
+  const bindCookie = parseCookies(request)[oauthBindCookieName(request, provider)] || '';
 
   // gerçek bulgu: handleGoogleCallback/handleLinkedInCallback içindeki token-exchange/userinfo
   // fetch() çağrıları (bkz. src/lib/oauth.js) try/catch içinde değildi — HTTP durumu kötü dönerse
@@ -150,8 +197,8 @@ async function oauthCallback(request, env, url, provider) {
   let result;
   try {
     result = provider === 'google'
-      ? await handleGoogleCallback(request, env, url)
-      : await handleLinkedInCallback(request, env, url);
+      ? await handleGoogleCallback(request, env, url, { bindCookie })
+      : await handleLinkedInCallback(request, env, url, { bindCookie });
   } catch (err) {
     console.error(`oauthCallback(${provider}) failed`, err);
     return redirectResponse('/giris-yap.html?oauth_error=network_error');
@@ -166,7 +213,7 @@ async function oauthCallback(request, env, url, provider) {
   try {
     const user = await upsertOAuthUser(env, result.profile);
     const { token, maxAge } = await createSession(env, user.id);
-    return redirectResponse(safeNextPath(result.next), { 'Set-Cookie': sessionCookieHeader(token, request, maxAge) });
+    return redirectResponse(safeNextPath(result.next), [sessionCookieHeader(token, request, maxAge)]);
   } catch (err) {
     console.error(`oauthCallback(${provider}) session creation failed`, err);
     return redirectResponse('/giris-yap.html?oauth_error=network_error');
@@ -393,7 +440,22 @@ async function sendPasswordResetEmail(env, user, token, request) {
   }
 }
 
-async function forgotPassword(request, env) {
+// ZAMANLAMA EŞİTLİĞİ (denetim, 2026-09-18): yanıt yolu var/yok hesap için AYNI iş olmalı. Eskiden
+// kayıtlı e-postada token INSERT'i + Resend çağrısı yanıttan ÖNCE await ediliyordu; canlıda
+// ~200 ms'ye karşı ~560-790 ms ölçüldü, yani hesabın varlığı süreden okunuyordu. Artık yanıttan önce
+// iki durumda da yalnızca hız sınırları + aynı SELECT koşar; token üretimi ve e-posta
+// ctx.waitUntil ile yanıttan SONRA yapılır. ctx yoksa (Workers dışı çağıran) eski sıralı yol.
+async function issuePasswordReset(env, user, request) {
+  const token = randomToken();
+  const tokenHash = await sha256Hex(token);
+  const now = Date.now();
+  await env.DB.prepare(
+    'INSERT INTO password_resets (token_hash, user_id, created_at, expires_at, used) VALUES (?, ?, ?, ?, 0)'
+  ).bind(tokenHash, user.id, now, now + RESET_TTL_SECONDS * 1000).run();
+  await sendPasswordResetEmail(env, user, token, request);
+}
+
+async function forgotPassword(request, env, ctx) {
   const ip = clientIp(request);
   // E-posta var/yok bilgisini sızdırmamak için her durumda aynı genel yanıt döner.
   const generic = { ok: true, message: 'Bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.' };
@@ -405,16 +467,12 @@ async function forgotPassword(request, env) {
   if (!(await checkRateLimit(env, 'forgot-password-email', email, 3, 60 * 60 * 1000))) return json(generic);
 
   const user = await env.DB.prepare('SELECT id, email, name FROM users WHERE email = ?').bind(email).first();
-  if (!user) return json(generic);
-
-  const token = randomToken();
-  const tokenHash = await sha256Hex(token);
-  const now = Date.now();
-  await env.DB.prepare(
-    'INSERT INTO password_resets (token_hash, user_id, created_at, expires_at, used) VALUES (?, ?, ?, ?, 0)'
-  ).bind(tokenHash, user.id, now, now + RESET_TTL_SECONDS * 1000).run();
-
-  await sendPasswordResetEmail(env, user, token, request);
+  if (user) {
+    const work = issuePasswordReset(env, user, request)
+      .catch(err => console.error('issuePasswordReset failed', err && err.message));
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
+    else await work;
+  }
   return json(generic);
 }
 

@@ -1,4 +1,4 @@
-import { hmacSha256Hex, constantTimeEqual } from './crypto.js';
+import { hmacSha256Hex, constantTimeEqual, sha256Hex } from './crypto.js';
 
 // Google / LinkedIn Sosyal Giriş (bkz. kullanıcı isteği) — mevcut kimlik doğrulama altyapısına
 // (bkz. src/lib/auth.js#createSession, D1 `sessions` tablosu, mimarlab_session çerezi) dokunmadan
@@ -30,8 +30,12 @@ function b64urlDecode(str) {
 
 // Google Meet OAuth kurulum akışı (src/routes/googleMeetAuth.js) AYNI imzalama şemasını kullanır —
 // ikinci bir kopya yazmak, iki state formatının sessizce ayrışacağı yer olurdu.
-export async function signState(secret, provider, next) {
-  const payload = JSON.stringify({ ts: Date.now(), next: next || '', nonce: crypto.randomUUID() });
+// bind (isteğe bağlı): tarayıcıdaki HttpOnly bağlama çerezinin SHA-256'sı (bkz. src/routes/auth.js#
+// oauthStart). Google Meet kurulumu bind GEÇMEZ ve davranışı değişmez.
+export async function signState(secret, provider, next, bind) {
+  const body = { ts: Date.now(), next: next || '', nonce: crypto.randomUUID() };
+  if (bind) body.bind = bind;
+  const payload = JSON.stringify(body);
   const encoded = b64urlEncode(payload);
   const sig = await hmacSha256Hex(secret, `${provider}.${encoded}`);
   return `${encoded}.${sig}`;
@@ -51,12 +55,21 @@ export async function verifyState(secret, provider, state) {
   return payload;
 }
 
+// Callback'e gelen state, akışı BU tarayıcının başlattığını kanıtlamalı: state.bind ile tarayıcının
+// gönderdiği bağlama çerezinin hash'i eşleşmezse (çerez yok, başka tarayıcının state'i, bind'siz
+// eski state) kod değişimine hiç geçilmez.
+export async function isStateBoundToBrowser(payload, bindCookie) {
+  if (!payload || typeof payload.bind !== 'string' || !payload.bind) return false;
+  if (typeof bindCookie !== 'string' || !bindCookie) return false;
+  return constantTimeEqual(await sha256Hex(bindCookie), payload.bind);
+}
+
 function redirectUriFor(request, provider) {
   return `${new URL(request.url).origin}/api/auth/${provider}/callback`;
 }
 
-export async function buildGoogleAuthUrl(request, env, next) {
-  const state = await signState(env.GOOGLE_CLIENT_SECRET, 'google', next);
+export async function buildGoogleAuthUrl(request, env, next, bind) {
+  const state = await signState(env.GOOGLE_CLIENT_SECRET, 'google', next, bind);
   const params = new URLSearchParams({
     client_id: env.GOOGLE_CLIENT_ID,
     redirect_uri: redirectUriFor(request, 'google'),
@@ -68,11 +81,11 @@ export async function buildGoogleAuthUrl(request, env, next) {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-export async function handleGoogleCallback(request, env, url) {
+export async function handleGoogleCallback(request, env, url, { bindCookie } = {}) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const payload = await verifyState(env.GOOGLE_CLIENT_SECRET, 'google', state);
-  if (!code || !payload) return { error: 'invalid_state' };
+  if (!code || !payload || !(await isStateBoundToBrowser(payload, bindCookie))) return { error: 'invalid_state' };
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -98,8 +111,8 @@ export async function handleGoogleCallback(request, env, url) {
   return { profile: { email: profile.email, name: profile.name || '', photoUrl: profile.picture || null }, next: payload.next };
 }
 
-export async function buildLinkedInAuthUrl(request, env, next) {
-  const state = await signState(env.LINKEDIN_CLIENT_SECRET, 'linkedin', next);
+export async function buildLinkedInAuthUrl(request, env, next, bind) {
+  const state = await signState(env.LINKEDIN_CLIENT_SECRET, 'linkedin', next, bind);
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: env.LINKEDIN_CLIENT_ID,
@@ -110,11 +123,11 @@ export async function buildLinkedInAuthUrl(request, env, next) {
   return `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
 }
 
-export async function handleLinkedInCallback(request, env, url) {
+export async function handleLinkedInCallback(request, env, url, { bindCookie } = {}) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const payload = await verifyState(env.LINKEDIN_CLIENT_SECRET, 'linkedin', state);
-  if (!code || !payload) return { error: 'invalid_state' };
+  if (!code || !payload || !(await isStateBoundToBrowser(payload, bindCookie))) return { error: 'invalid_state' };
 
   const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
     method: 'POST',
