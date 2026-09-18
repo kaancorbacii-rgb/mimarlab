@@ -237,7 +237,8 @@
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:9px 12px; background:linear-gradient(0deg, rgba(0,0,0,0.55), transparent);
   }
-  /* Kartın altında MİMARLIK FİRMASI (yoksa mimar) adı (kullanıcı isteği, madde 4) — avatar yok. */
+  /* Kartın altında PROJE ADI (kullanıcı isteği, 2026-09-18 onuncu tur: "proje adı yazsın, mimarlık
+     firmasının adı yazmasın") — firma/mimar künyesi lightbox'ta. Avatar yok. */
   .ph-card-credit{color:#fff; font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
   .ph-card-save{
     flex-shrink:0; width:26px; height:26px; border-radius:50%; border:none;
@@ -524,7 +525,7 @@
     <a class="ph-card" role="button" tabindex="0" data-idx="${idx}" aria-label="${escapeAttr(item.projectTitle || '')}">
       <img src="${escapeAttr(src)}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="(max-width:720px) 50vw, 260px"` : ''} alt="${escapeAttr(item.projectTitle || '')}" loading="lazy" decoding="async">
       <div class="ph-card-overlay">
-        <div class="ph-card-credit">${escapeHtml(item.credit || item.projectTitle || '')}</div>
+        <div class="ph-card-credit">${escapeHtml(item.projectTitle || '')}</div>
         <button type="button" class="ph-card-save" data-idx="${idx}" aria-label="Kaydet">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         </button>

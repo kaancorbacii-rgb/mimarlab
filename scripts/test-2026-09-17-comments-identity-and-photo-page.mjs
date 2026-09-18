@@ -462,8 +462,9 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   assert.match(s, /PHOTO_SPACE_TAXONOMY/, 'yerel eşleşme anahtar kelimeleri de kullanır');
   // madde 1: footer CSS bloğu sayfada var (site-chrome yalnızca markup'ı üretir).
   assert.match(s, /\.footer-top\{/); assert.match(s, /\.footer-col a\{/);
-  // madde 4: kart altı etiketi firma/mimar.
-  assert.match(s, /class="ph-card-credit"/);
+  // Kart altı etiketi PROJE ADI (2026-09-18 onuncu tur; önceki "firma/mimar" kuralı kaldırıldı).
+  assert.match(s, /<div class="ph-card-credit">\$\{escapeHtml\(item\.projectTitle \|\| ''\)\}<\/div>/);
+  assert.ok(!/ph-card-credit">\$\{escapeHtml\(item\.credit/.test(s), 'kartta firma adı YOK');
   // Taksonomi ve kaydetme altyapısı sayfaya yüklenmiş olmalı.
   assert.match(s, /<script src="photo-space-taxonomy\.js" defer><\/script>/);
   assert.match(s, /<script src="save-widget\.js" defer><\/script>/);

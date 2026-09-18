@@ -2281,3 +2281,10 @@ yüklenen projenin fotoğrafları ilk sıraya gelsin kuralını kaldır."
 - Önbellek anahtarı normalize parametrelerden kurulur (tohum 1000'e kısılı → sınırlı anahtar sayısı).
   Tohumsuz istek havuz (yükleme) sırasını döner — smoke-test/eski istemci için.
 - Test: `scripts/test-2026-09-18-photo-page-new-uploads.mjs` (14).
+
+## /fotograf onuncu tur — kart altında PROJE ADI (2026-09-18)
+
+Kullanıcı isteği: "Fotoğraf kartlarının altında proje adı yazsın, mimarlık firmasının adı yazmasın."
+`fotograf.html#cardHtml` artık `.ph-card-credit`e `item.projectTitle` yazar (ikinci turdaki
+"firma, yoksa mimar" kuralı kaldırıldı). Firma/mimar bilgisi lightbox künyesinde DURUYOR; API'nin
+`credit` alanı değişmedi. Test: `test-2026-09-17-comments-identity-and-photo-page.mjs`.
