@@ -10,22 +10,23 @@
 // MEKAN FİLTRESİ — ÜÇ SİNYAL, TEK SIRALAMA (2026-09-18 beşinci tur, kullanıcı isteği: "arama
 // filtreleri için en doğru ve en çok sonuç için gereken en iyi sistemi kur")
 // ============================================================================================
-// Sinyaller (bkz. photoPool.js dosya başı): vision-LLM etiketi (en isabetli, kapsamı etiketleme
-// turuyla büyür), CLIP sıfır-atış ipucu (anlık, her görselde var) ve proje künyesi (ön bilgi).
+// Sinyaller (bkz. photoPool.js dosya başı): vision-LLM etiketi, CLIP sıfır-atış ipucu ve proje
+// künyesi (ön bilgi). KADEMELER ÖLÇÜLEN İSABET SIRASINDADIR — havuzdan rastgele 700 görsel
+// LLM'e sorulup CLIP'le çaprazlandı, uyuşmazlık hücreleri gözle hakemlendi
+// (scripts/photo-space-sample.json ile `--eval`, 2026-09-18):
 //
-// KADEMELER — küçük numara ÖNCE; her kademe kendi içinde YÜKLEME SIRASINI korur ("en yeni proje
-// önce" ilkesi bozulmaz, yalnızca daha az kesin eşleşmeler kümenin sonuna iner):
-//   1  LLM birincil/yüksek güven  +  CLIP de aynı mekanı destekliyor   ("çifte onay")
-//   2  LLM birincil/yüksek güven
-//   3  LLM HENÜZ BAKMADI, CLIP güçlü (sınıf başına ölçülmüş eşik, ~%85-95 isabet)
-//   4  LLM ikincil etiket  +  CLIP destekliyor
-//   5  LLM ikincil etiket (güveni >= SECONDARY_MIN)
-//   6  LLM HENÜZ BAKMADI, CLIP orta + KÜNYE o mekanı anıyor (yalnızca ölçümün desteklediği sınıflar)
-//   0  eşleşmez
+//   LLM birincil etiket + CLIP aynı mekanı destekliyor (p>=0.25) ..... %90+   (700'de 110)
+//   CLIP güçlü, LLM henüz bakmadı ..................................... ~%90   (eşikler gözle)
+//   LLM ikincil etiket + CLIP destekliyor ............................. ~%78   (18)
+//   CLIP orta + KÜNYE (yalnızca "Çalışma Odası", LLM bakmadı) .......... ~%78
+//   LLM birincil, CLIP zayıf destek (0.10<=p<0.25) ya da ipucu yok .... ~%65   (135'in yarısı)
+//   LLM birincil, CLIP karşı (p<0.10) / CLIP güçlü, LLM başka dedi ..... ~%45-50 (en sona)
+//   LLM ikincil, CLIP desteklemiyor ................................... ~%35   -> HİÇ GÖSTERİLMEZ
 //
-// HÜKÜM LLM'İNDİR: LLM bir görsele bakıp o mekanı SAYMADIYSA, CLIP ne derse desin görsel sonuca
-// girmez. CLIP yalnızca LLM'in bakmadığı görselde (yeni yükleme / süren tur) sonuç üretir — böylece
-// filtreler hiçbir zaman boş kalmaz ve etiketleme ilerledikçe 3/6 kademeleri kendiliğinden erir.
+// Yani "hüküm tek modelin" DEĞİL: iki model HEMFİKİRSE isabet çok yüksek, tek model tek başına
+// konuşuyorsa düşüyor. Sıralama bunu doğrudan yansıtır; her kademe kendi içinde YÜKLEME SIRASINI
+// korur ("en yeni proje önce" ilkesi bozulmaz, yalnızca daha az kesin eşleşmeler kümenin sonuna
+// iner). Etiketleme ilerledikçe "LLM bakmadı" kademeleri kendiliğinden erir.
 //
 // KÜNYE TEK BAŞINA SONUÇ ÜRETMEZ (2026-09-18 üçüncü turda kaldırılan ikincil sonuç GERİ GELMEDİ):
 // ölçüm photoSpaceClip.js dosya başında — bir proje seviyesi sinyal görsel seçemiyor.
@@ -37,30 +38,37 @@ import { callOnce, isAiProviderConfigured } from '../lib/aiProvider.js';
 import { AI_MODEL } from '../lib/aiConfig.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { spaceQuerySystemPrompt, SPACE_QUERY_SCHEMA, normalizeQuerySpace, PHOTO_SPACE_OPTIONS } from '../lib/photoSpaceClassify.js';
-import { clipProbOf, clipVerdict, CLIP_AGREE_MIN } from '../lib/photoSpaceClip.js';
+import { clipProbOf, clipVerdict, CLIP_AGREE_MIN, CLIP_WEAK_MIN } from '../lib/photoSpaceClip.js';
 
 const DEFAULT_LIMIT = 60;
 const MAX_LIMIT = 120;
-export const PRIMARY_MIN = 0.7;
+// İkincil (listenin ilki olmayan) LLM etiketinin sayılması için en düşük güven.
 export const SECONDARY_MIN = 0.55;
 export const TIER_COUNT = 6;
 
 // Bir görselin bir mekana eşleşme kademesi (dosya başındaki tablo). project: havuzdaki künye kaydı.
 export function spaceTier(item, space, project) {
   const spaces = item && item.spaces;
+  const hint = item && item.clip;
+  const p = clipProbOf(hint, space);
   if (Array.isArray(spaces)) {
     const hit = spaces.find(s => s.label === space);
-    if (!hit) return 0;
-    const c = hit.confidence;
-    const agrees = clipProbOf(item.clip, space) >= CLIP_AGREE_MIN;
-    if (hit.primary || (c != null && c >= PRIMARY_MIN)) return agrees ? 1 : 2;
-    if (c == null || c >= SECONDARY_MIN) return agrees ? 4 : 5;
-    return 0;
+    if (hit && hit.primary) {
+      if (p >= CLIP_AGREE_MIN) return 1;                 // çifte onay
+      if (!hint || p >= CLIP_WEAK_MIN) return 5;         // ikinci görüş yok / zayıf destek
+      return 6;                                          // CLIP karşı
+    }
+    if (hit) {
+      // İkincil etiket: yalnızca CLIP de destekliyorsa (desteklemeyen ikincil %35 — gösterilmez).
+      return hit.confidence == null || hit.confidence >= SECONDARY_MIN ? (p >= CLIP_AGREE_MIN ? 3 : 0) : 0;
+    }
+    // LLM baktı, bu mekanı saymadı; CLIP yine de güçlü diyorsa en sona.
+    return clipVerdict(hint, space, false) === 'strong' ? 6 : 0;
   }
   const kunyeHas = !!(project && Array.isArray(project.kunye) && project.kunye.includes(space));
-  const verdict = clipVerdict(item && item.clip, space, kunyeHas);
-  if (verdict === 'strong') return 3;
-  if (verdict === 'kunye') return 6;
+  const verdict = clipVerdict(hint, space, kunyeHas);
+  if (verdict === 'strong') return 2;
+  if (verdict === 'kunye') return 4;
   return 0;
 }
 
@@ -79,7 +87,7 @@ export function selectPhotos(pool, space) {
 function displaySpaces(it, project) {
   if (Array.isArray(it.spaces)) return it.spaces.map(s => s.label).filter(l => PHOTO_SPACE_OPTIONS.includes(l));
   const top = it.clip && it.clip.t;
-  return top && PHOTO_SPACE_OPTIONS.includes(top) && spaceTier(it, top, project) === 3 ? [top] : [];
+  return top && PHOTO_SPACE_OPTIONS.includes(top) && spaceTier(it, top, project) === 2 ? [top] : [];
 }
 
 function expand(pool, it) {

@@ -50,7 +50,9 @@
 //   --eval[=dosya]       değerlendirme modu (varsayılan scripts/photo-space-gold.json)
 //   --eval-limit=N       değerlendirmede en fazla N görsel
 //   --model=<id>         DENEY: yalnızca bu Workers AI vision modelini kullan (OpenAI uyumlu messages biçimi)
-//   --no-context         DENEY: proje künyesini prompta bağlam olarak EKLEME
+//   --with-context       DENEY: proje künyesini prompta bağlam olarak EKLE (varsayılan KAPALI — ölçüldü:
+//                        bağlam isabeti artırmadı, modeli projenin tipine doğru yanlılaştırdı ve Scout'ta
+//                        %3,6 yanıt hatası üretti; bkz. src/lib/photoSpaceClassify.js#buildContextNote)
 //   --index-report       CLIP görsel dizininin (KV) havuzu NE KADAR kapsadığını raporla (yazmaz, AI çağırmaz)
 //   --apply              D1'e YAZ (varsayılan: yazma yok)
 //
@@ -89,7 +91,7 @@ const CONCURRENCY = Math.min(32, Math.max(1, Number(args.concurrency ?? 10) || 1
 const MAX_MINUTES = Math.max(1, Number(args['max-minutes'] ?? 320) || 320);
 const INDEX_REPORT = !!args['index-report'];
 const MODEL_OVERRIDE = typeof args.model === 'string' ? args.model : '';
-const NO_CONTEXT = !!args['no-context'];
+const WITH_CONTEXT = !!args['with-context'];
 const EVAL = args.eval !== undefined;
 const EVAL_FILE = typeof args.eval === 'string' ? args.eval : new URL('./photo-space-gold.json', import.meta.url).pathname;
 const EVAL_LIMIT = Number(args['eval-limit'] ?? 0);
@@ -232,7 +234,7 @@ const CANDIDATES = MODEL_OVERRIDE ? [{
 function parseJsonArr(t) { try { const v = t ? JSON.parse(t) : []; return Array.isArray(v) ? v : []; } catch { return []; } }
 function parseJsonObj(t) { try { const v = t ? JSON.parse(t) : {}; return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; } }
 const isV2 = (entry) => !!entry && typeof entry === 'object' && !Array.isArray(entry) && Number(entry.v) === SPACE_LABEL_VERSION;
-const contextOf = (row) => (NO_CONTEXT ? null : {
+const contextOf = (row) => (!WITH_CONTEXT ? null : {
   title: row.title, description: row.description,
   discipline: parseJsonArr(row.discipline), category: parseJsonArr(row.category), type: parseJsonArr(row.type),
 });
@@ -318,9 +320,9 @@ if (EVAL) {
     const img = await downloadImage(g.url);
     if (!img) { failed++; return; }
     try {
-      const r = await classifyPhotoSpace(env, img.bytes, VISION_TIMEOUT_MS, img.mime, NO_CONTEXT ? null : ctxBySlug.get(g.slug), CANDIDATES);
+      const r = await classifyPhotoSpace(env, img.bytes, VISION_TIMEOUT_MS, img.mime, WITH_CONTEXT ? ctxBySlug.get(g.slug) : null, CANDIDATES);
       results.push({ url: g.url, yes: g.yes, no: g.no, goldScene: g.scene || null, scene: r.scene, spaces: r.spaces });
-    } catch (err) { failed++; console.log(`  ! ${g.url}: ${String(err.message || err).slice(0, 100)}`); }
+    } catch (err) { failed++; console.log(`  ! ${g.url}: ${String(err.message || err).slice(0, 100)}${err && err.details ? ' ' + JSON.stringify(err.details).slice(0, 240) : ''}`); }
     if (++done % 50 === 0) console.log(`  ${done}/${sample.length}  (${((Date.now() - STARTED) / 1000).toFixed(0)} sn)`);
   });
   const rows = [];
@@ -432,7 +434,7 @@ await runPool(jobs, async (job) => {
     if (!ALL || imagesClassified % 100 === 0) console.log(`    [${imagesClassified}] ${fmt(result)}  <- ${job.url}`);
   } catch (err) {
     imagesFailed++;
-    console.log(`    ! sınıflandırılamadı (${job.url}): ${String(err.message || err).slice(0, 120)}`);
+    console.log(`    ! sınıflandırılamadı (${job.url}): ${String(err.message || err).slice(0, 120)}${err && err.details ? ' ' + JSON.stringify(err.details).slice(0, 240) : ''}`);
   } finally {
     state.pending--;
     if (state.pending === 0) {

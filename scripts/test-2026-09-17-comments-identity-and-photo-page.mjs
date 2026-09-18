@@ -290,19 +290,21 @@ await test('ARAMA KALİTESİ (2026-09-18 üçüncü tur): künye ikincil sonucu 
   // eski-1'in düz-string 'Mutfak' etiketi (güven bilinmiyor, birincil) çıkar.
   const mutfak = await photos(env, '?space=Mutfak');
   assert.deepEqual(mutfak.items.map(i => i.url), ['projects/eski-1.jpg']);
-  // Kademe kuralı doğrudan: birincil/yüksek güven önce, ikincil sonra; her kademede yükleme sırası.
-  // (CLIP ipucu/künye kademeleri scripts/test-2026-09-18-photo-space-signals.mjs'te.)
-  const { selectPhotos, spaceTier, PRIMARY_MIN, SECONDARY_MIN } = await import('../src/routes/photos.js');
+  // Kademe kuralı doğrudan (2026-09-18 beşinci turda ÖLÇÜMLE yeniden kuruldu — tam tablo
+  // scripts/test-2026-09-18-photo-space-signals.mjs'te): birincil LLM etiketi CLIP desteğiyle önce;
+  // ikincil etiket YALNIZCA CLIP de destekliyorsa; her kademede yükleme sırası.
+  const { selectPhotos, spaceTier, SECONDARY_MIN } = await import('../src/routes/photos.js');
+  const clip = (l, p) => ({ t: l, s: [[l, p]] });
   const pool = { projects: {}, items: [
-    { url: 'a', projectSlug: 'p', spaces: [{ label: 'Havuz', confidence: 0.6, primary: true }, { label: 'Bahçe', confidence: 0.6, primary: false }] },
-    { url: 'b', projectSlug: 'p', spaces: [{ label: 'Bahçe', confidence: 0.9, primary: true }] },
+    { url: 'a', projectSlug: 'p', spaces: [{ label: 'Havuz', confidence: 0.6, primary: true }, { label: 'Bahçe', confidence: 0.6, primary: false }], clip: clip('Bahçe', 0.5) },
+    { url: 'b', projectSlug: 'p', spaces: [{ label: 'Bahçe', confidence: 0.9, primary: true }], clip: clip('Bahçe', 0.9) },
     { url: 'c', projectSlug: 'p', spaces: [{ label: 'Havuz', confidence: 0.9, primary: true }, { label: 'Bahçe', confidence: 0.8, primary: false }] },
-    { url: 'd', projectSlug: 'p', spaces: [{ label: 'Havuz', confidence: 0.9, primary: true }, { label: 'Bahçe', confidence: 0.3, primary: false }] },
+    { url: 'd', projectSlug: 'p', spaces: [{ label: 'Havuz', confidence: 0.9, primary: true }, { label: 'Bahçe', confidence: 0.3, primary: false }], clip: clip('Bahçe', 0.5) },
     { url: 'e', projectSlug: 'p', spaces: null },
   ] };
-  assert.deepEqual(selectPhotos(pool, 'Bahçe').map(x => x.url), ['b', 'c', 'a'], 'b/c birincil-güçlü, a ikincil, d elenir, e yok');
+  assert.deepEqual(selectPhotos(pool, 'Bahçe').map(x => x.url), ['b', 'a'], 'b çifte onay, a ikincil+CLIP; c CLIP desteksiz ikincil (yok), d düşük güven, e yok');
   assert.equal(spaceTier(pool.items[3], 'Bahçe'), 0);
-  assert.ok(PRIMARY_MIN > SECONDARY_MIN);
+  assert.ok(SECONDARY_MIN > 0.5);
   // Kurucu düşüşü: mimarı olmayan projede firmanın kurucusu "Mimar" satırında.
   const hamam = (await photos(env)).items.find(i => i.url === 'projects/hamam-4.jpg');
   assert.deepEqual(hamam.offices, ['B Mimarlık']); assert.deepEqual(hamam.architects, ['Kurucu Kişi']);
@@ -313,13 +315,16 @@ await test('ARAMA KALİTESİ (2026-09-18 üçüncü tur): künye ikincil sonucu 
   assert.equal(normalizeStoredSpaces(undefined), null);
 });
 
-await test('sınıflandırma promptu proje KÜNYESİNİ bağlam olarak taşır (2026-09-18)', async () => {
+await test('künye bağlamı: fonksiyon duruyor ama ÜRETİMDE KAPALI (2026-09-18 beşinci tur ölçümü)', async () => {
   const { buildContextNote } = await import('../src/lib/photoSpaceClassify.js');
   const note = buildContextNote({ title: 'Hamam Evi', category: ['Konut'], description: 'Yenilenen banyo' });
   assert.match(note, /Proje adı: Hamam Evi/); assert.match(note, /Konut/); assert.match(note, /banyo/);
   assert.match(note, /yalnızca ipucu/);
   assert.equal(buildContextNote(null), '');
-  assert.match(read('../scripts/photo-space-classify-backfill.mjs'), /classifyPhotoSpace\(env, img\.bytes, VISION_TIMEOUT_MS, img\.mime, contextOf\(state\.row\)\)/);
+  const script = read('../scripts/photo-space-classify-backfill.mjs');
+  assert.match(script, /classifyPhotoSpace\(env, img\.bytes, VISION_TIMEOUT_MS, img\.mime, contextOf\(state\.row\), CANDIDATES\)/);
+  assert.match(script, /const contextOf = \(row\) => \(!WITH_CONTEXT \? null : \{/, 'bağlam yalnızca --with-context ile (deney)');
+  assert.match(read('../.github/workflows/photo-space-classify.yml'), /if \[ "\$\{IN_CONTEXT\}" = "evet" \]; then argv\+=\("--with-context"\); fi/);
 });
 
 await test('uç mekan listesini de döndürür (istemci ikinci bir liste taşımaz)', async () => {

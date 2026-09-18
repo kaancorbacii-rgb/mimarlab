@@ -42,6 +42,21 @@ const {
 } = photoSpaceTaxonomyJs;
 
 export const SPACE_LABEL_VERSION = 2;
+
+// MODEL KADEMESİ — bu görev için AYRI (visionAnalyze.js#VISION_CANDIDATES görsel aramanın kademesidir
+// ve DEĞİŞMEDİ). Gözle etiketli 656 görselde ve rastgele 700 görselde ÖLÇÜLDÜ (2026-09-18):
+//     model                                   isabet / kapsama (tüm etiketler)   dış cephe hatası
+//     @cf/meta/llama-4-scout-17b-16e-instruct  %89,8 / %85,9                      2/72
+//     @cf/mistralai/mistral-small-3.1-24b       %87,2 / %84,0                      4/72
+// Rastgele örneklemde Scout, CLIP'in desteklemediği YANLIŞ etiketlerin 28'inden 19'unu vermedi
+// (Mistral hepsini verdi). Scout ~%2 istekte yanıt üretemiyor (JSON/geçici hata) — o karelerde
+// kademe Mistral'a düşer; Mistral'ın başarısızlığı 0/656. Her iki model de OpenAI uyumlu
+// messages + data URL alır (VISION_CANDIDATES'in ilk adayıyla AYNI build).
+const chatBuild = VISION_CANDIDATES[0].build;
+export const PHOTO_SPACE_CANDIDATES = [
+  { model: '@cf/meta/llama-4-scout-17b-16e-instruct', build: chatBuild },
+  ...VISION_CANDIDATES,
+];
 // Bir etiketin kabul edilmesi için gereken en düşük güven. Modeller güveni genelde 0.6-0.95
 // bandında veriyor; 0.45 "emin değilim ama olabilir" tahminlerini eler, "ikincil ama gerçek"
 // etiketleri (ör. mutfak+yemek alanı birleşik) korur.
@@ -143,11 +158,14 @@ export function reconcileScene(scene, spaces) {
 // ham görsel). Adaylar sırayla denenir (bkz. VISION_CANDIDATES); hiçbiri yanıt vermezse fırlatır —
 // çağıran (scripts/photo-space-classify-backfill.mjs) bunu "atla, bir sonrakine geç" olarak ele
 // alır, tek bir görselin başarısız olması turu durdurmaz.
-// context (2026-09-18, kullanıcı isteği: "Arama motoru sonuçlarını proje künyelerini de kullanarak
-// geliştir"): projenin KÜNYESİ ({title, discipline, category, type, description}) prompta bağlam
-// olarak eklenir — "Hamam" başlıklı projede bir ıslak hacim "Tuvalet & Banyo"ya, "Ofis" grubundaki bir
-// çalışma alanı "Çalışma Odası"na daha güvenle düşer. Bağlam KARAR DEĞİL ipucudur: model yine
-// yalnızca GÖRDÜĞÜNÜ etiketler (prompt bunu açıkça söyler), whitelist ve güven eşiği aynen uygulanır.
+// context: projenin KÜNYESİ ({title, discipline, category, type, description}) prompta bağlam olarak
+// eklenebilir. ÜRETİMDE KAPALI (2026-09-18 beşinci tur, ÖLÇÜLDÜ): gözle etiketli 656 görselde bağlam
+// isabeti artırmadı (Scout: %89,8 -> %89,4, fark gürültü); rastgele 700 görselde ise modeli projenin
+// TİPİNE doğru yanlılaştırdı — "Ofis" projesindeki atrium/koridor/merdiven kareleri "Çalışma Odası"
+// oluyordu (CLIP'in desteklemediği yanlış etiketlerin 28'inden Scout bağlamla 9'unu, bağlamsız 4'ünü
+// verdi) ve Scout bağlamlı istekte %3,6 yanıt hatası üretti, bağlamsızda 0. Künye ön bilgisi artık
+// YALNIZCA ölçümün desteklediği yerde kullanılır (photoSpaceClip.js#CLIP_KUNYE_MIN). Fonksiyon deney
+// için duruyor (betik `--with-context`).
 export function buildContextNote(context) {
   if (!context || typeof context !== 'object') return '';
   const parts = [];
@@ -161,12 +179,12 @@ diye banyo görünmeyen bir kareyi banyo etiketleme):\n${parts.join('\n')}`;
 }
 
 // candidates (opsiyonel): model kademesini geçersiz kılar — yalnızca ölçüm/deney içindir
-// (scripts/photo-space-classify-backfill.mjs --model); üretim yolu VISION_CANDIDATES'i kullanır.
+// (scripts/photo-space-classify-backfill.mjs --model); üretim yolu PHOTO_SPACE_CANDIDATES'i kullanır.
 export async function classifyPhotoSpace(env, bytes, timeoutMs, mime, context, candidates) {
   const b64 = toBase64(bytes);
   const prompt = PROMPT + buildContextNote(context);
   const errors = [];
-  for (const cand of (Array.isArray(candidates) && candidates.length ? candidates : VISION_CANDIDATES)) {
+  for (const cand of (Array.isArray(candidates) && candidates.length ? candidates : PHOTO_SPACE_CANDIDATES)) {
     try {
       const result = await Promise.race([
         env.AI.run(cand.model, cand.build(b64, prompt, bytes, mime || 'image/jpeg')),

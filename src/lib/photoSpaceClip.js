@@ -33,10 +33,11 @@
 // farklıdır çünkü olasılık kütlesi sınıftan sınıfa farklı dağılıyor ("Oturma Odası" 0.40'ta bile
 // %94 isabetli, "Resepsiyon" genel ticari iç mekanların mıknatısı olduğundan 0.75 istiyor).
 //
-// ROLÜ: vision-LLM etiketinin YERİNE geçmez. LLM bir görsele bakmışsa hüküm ONUNDUR; CLIP o zaman
-// yalnızca sıralamada "çifte onay" olarak kullanılır. LLM henüz bakmamışsa (yeni yükleme, süren
-// tur) CLIP güçlü eşleşmeleri sonuç üretir — böylece filtreler hiçbir zaman boş kalmaz.
-// Bkz. src/routes/photos.js#spaceTier.
+// ROLÜ (rastgele 700 görsellik örneklemle ÖLÇÜLDÜ — bkz. src/routes/photos.js dosya başı): vision-LLM
+// etiketinin YERİNE geçmez, onun İKİNCİ GÖRÜŞÜDÜR. İki model hemfikirse isabet %90+; LLM'in CLIP'in
+// desteklemediği etiketleri ~%50 isabetli, dolayısıyla sıralamada EN SONA iner. LLM henüz bakmamışsa
+// (yeni yükleme, süren tur) CLIP güçlü eşleşmeleri tek başına sonuç üretir — böylece filtreler
+// hiçbir zaman boş kalmaz. Bkz. src/routes/photos.js#spaceTier.
 //
 // SAF MODÜL: env/KV/D1'e dokunmaz (betik ve testler de kullanır).
 import {
@@ -64,8 +65,11 @@ export const CLIP_STRONG_MIN = {
 // YALNIZCA ölçümün desteklediği sınıflarda tanımlıdır (dosya başındaki tablo): bir sınıf burada
 // yoksa künye o sınıfta sonuç ÜRETMEZ. Yeni bir sınıf eklemeden önce aynı ölçümü yapın.
 export const CLIP_KUNYE_MIN = { 'Çalışma Odası': 0.25 };
-// ÇİFTE ONAY — LLM etiketiyle aynı mekanı CLIP de destekliyorsa (sıralamada öne alınır).
+// ÇİFTE ONAY — LLM etiketiyle aynı mekanı CLIP de destekliyorsa (sıralamada en öne alınır).
+// Rastgele 700 görsellik örneklemde LLM'in birincil etiketlerinin %45'i bu eşiğin altındaydı ve
+// gözle hakemlenen 59'unda isabet: p>=0.10 -> %65, p<0.10 -> %42 (bkz. src/routes/photos.js).
 export const CLIP_AGREE_MIN = 0.25;
+export const CLIP_WEAK_MIN = 0.10;
 
 let decoded = null;
 function promptMatrix() {

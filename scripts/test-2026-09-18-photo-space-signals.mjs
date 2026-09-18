@@ -131,6 +131,22 @@ await test('taksonomi: kullanıcının 15\'lik listesi DEĞİŞMEDİ; çeldirici
   assert.ok(!PHOTO_SPACE_TAXONOMY.some(t => PHOTO_SPACE_DISTRACTOR_LABELS.includes(t.label)));
 });
 
+await test('model kademesi bu göreve ÖZEL: Scout önce, Mistral yedek; görsel aramanın kademesi DEĞİŞMEDİ', async () => {
+  const { PHOTO_SPACE_CANDIDATES } = await import('../src/lib/photoSpaceClassify.js');
+  const { VISION_CANDIDATES } = await import('../src/lib/visionAnalyze.js');
+  assert.equal(PHOTO_SPACE_CANDIDATES[0].model, '@cf/meta/llama-4-scout-17b-16e-instruct');
+  assert.equal(PHOTO_SPACE_CANDIDATES[1].model, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+  assert.equal(PHOTO_SPACE_CANDIDATES[0].build, VISION_CANDIDATES[0].build, 'aynı OpenAI uyumlu messages biçimi');
+  assert.equal(VISION_CANDIDATES[0].model, '@cf/mistralai/mistral-small-3.1-24b-instruct', 'görsel arama kademesine dokunulmadı');
+  // Kademe: ilk aday hata verirse ikincisi devreye girer (Scout ~%2 yanıt üretemiyor).
+  const calls = [];
+  const env = { AI: { async run(model) { calls.push(model); if (model.includes('scout')) throw new Error('boom'); return { response: '{"scene":"ic_mekan","spaces":[{"label":"Mutfak","confidence":0.9}]}' }; } } };
+  const { classifyPhotoSpace } = await import('../src/lib/photoSpaceClassify.js');
+  const out = await classifyPhotoSpace(env, new Uint8Array([1]), 5000, 'image/jpeg');
+  assert.deepEqual(calls, ['@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/mistralai/mistral-small-3.1-24b-instruct']);
+  assert.equal(out.model, '@cf/mistralai/mistral-small-3.1-24b-instruct'); assert.deepEqual(out.spaces, [{ label: 'Mutfak', confidence: 0.9 }]);
+});
+
 await test('prompt: sahne adımı + çeldirici listesi + en fazla 2 etiket', () => {
   const s = read('../src/lib/photoSpaceClassify.js');
   assert.match(s, /ADIM 1 — "scene"/); assert.match(s, /"dis_cephe"/); assert.match(s, /ZORLA UYDURMA/);
@@ -188,32 +204,38 @@ await test('kunyeSpacesFor: kelime başı + Türkçe ek serbest; kısa kök TAM 
 section('4 — tek sıralama (kademeler)');
 
 const hint = (label, p, top) => ({ t: top || label, s: [[label, p]] });
-await test('kademe sırası: çifte onay > LLM birincil > CLIP güçlü > LLM ikincil(+CLIP) > LLM ikincil > CLIP+künye', () => {
+await test('kademeler ÖLÇÜLEN İSABET sırasında: çifte onay > CLIP güçlü > LLM ikincil+CLIP > CLIP+künye > LLM zayıf destek > tek model', () => {
   const S = 'Çalışma Odası';
   const proj = { kunye: [S] };
   const pool = { projects: { p: proj, q: { kunye: [] } }, items: [
-    { url: 't6', projectSlug: 'p', spaces: null, clip: hint(S, 0.3) },
-    { url: 't5', projectSlug: 'p', spaces: [{ label: 'Resepsiyon', confidence: 0.9, primary: true }, { label: S, confidence: 0.6, primary: false }] },
-    { url: 't4', projectSlug: 'p', spaces: [{ label: 'Resepsiyon', confidence: 0.9, primary: true }, { label: S, confidence: 0.6, primary: false }], clip: hint(S, 0.4, 'Resepsiyon') },
-    { url: 't3', projectSlug: 'q', spaces: null, clip: hint(S, 0.8) },
-    { url: 't2', projectSlug: 'p', spaces: [{ label: S, confidence: 0.9, primary: true }] },
+    { url: 't6a', projectSlug: 'p', spaces: [{ label: S, confidence: 0.9, primary: true }], clip: hint('Resepsiyon', 0.9, 'Resepsiyon') },   // LLM birincil, CLIP karşı (p<0.10)
+    { url: 't6b', projectSlug: 'p', spaces: [{ label: 'Mutfak', confidence: 0.9, primary: true }], clip: hint(S, 0.99) },           // CLIP güçlü, LLM başka dedi
+    { url: 't5a', projectSlug: 'p', spaces: [{ label: S, confidence: 0.9, primary: true }] },                                          // ipucu yok
+    { url: 't5b', projectSlug: 'p', spaces: [{ label: S, confidence: 0.9, primary: true }], clip: hint(S, 0.15, 'Resepsiyon') },     // zayıf destek
+    { url: 't4', projectSlug: 'p', spaces: null, clip: hint(S, 0.3) },                                                                // CLIP orta + künye
+    { url: 't3', projectSlug: 'p', spaces: [{ label: 'Resepsiyon', confidence: 0.9, primary: true }, { label: S, confidence: 0.6, primary: false }], clip: hint(S, 0.4, 'Resepsiyon') },
+    { url: 't2', projectSlug: 'q', spaces: null, clip: hint(S, 0.8) },
     { url: 't1', projectSlug: 'p', spaces: [{ label: S, confidence: 0.9, primary: true }], clip: hint(S, 0.7) },
     { url: 'no-künye-tek-başına', projectSlug: 'p', spaces: null },
     { url: 'no-zayıf-clip-künyesiz', projectSlug: 'q', spaces: null, clip: hint(S, 0.3) },
-    { url: 'no-llm-hayır-dedi', projectSlug: 'p', spaces: [], clip: hint(S, 0.99) },
-    { url: 'no-llm-başka-dedi', projectSlug: 'p', spaces: [{ label: 'Mutfak', confidence: 0.9, primary: true }], clip: hint(S, 0.99) },
+    { url: 'no-llm-hayır-dedi-clip-zayıf', projectSlug: 'p', spaces: [], clip: hint(S, 0.3) },
+    { url: 'no-ikincil-clip-desteksiz', projectSlug: 'p', spaces: [{ label: 'Resepsiyon', confidence: 0.9, primary: true }, { label: S, confidence: 0.8, primary: false }] },
+    { url: 'no-ikincil-düşük-güven', projectSlug: 'p', spaces: [{ label: 'Resepsiyon', confidence: 0.9, primary: true }, { label: S, confidence: 0.5, primary: false }], clip: hint(S, 0.4, 'Resepsiyon') },
   ] };
-  assert.deepEqual(pool.items.map(it => spaceTier(it, S, pool.projects[it.projectSlug])), [6, 5, 4, 3, 2, 1, 0, 0, 0, 0]);
-  assert.deepEqual(selectPhotos(pool, S).map(i => i.url), ['t1', 't2', 't3', 't4', 't5', 't6']);
+  assert.deepEqual(pool.items.map(it => spaceTier(it, S, pool.projects[it.projectSlug])), [6, 6, 5, 5, 4, 3, 2, 1, 0, 0, 0, 0, 0]);
+  assert.deepEqual(selectPhotos(pool, S).map(i => i.url), ['t1', 't2', 't3', 't4', 't5a', 't5b', 't6a', 't6b']);
   assert.equal(TIER_COUNT, 6);
 });
 
-await test('HÜKÜM LLM\'İNDİR: LLM bakıp saymadıysa CLIP ne derse desin sonuç YOK; künye tek başına sonuç YOK', () => {
+await test('tek model tek başına EN SONDA; künye tek başına sonuç YOK; CLIP desteklemeyen ikincil etiket HİÇ yok', () => {
   const proj = { kunye: ['Tuvalet & Banyo', 'Çalışma Odası'] };
-  assert.equal(spaceTier({ spaces: [], clip: hint('Tuvalet & Banyo', 0.99) }, 'Tuvalet & Banyo', proj), 0);
+  assert.equal(spaceTier({ spaces: [], clip: hint('Tuvalet & Banyo', 0.99) }, 'Tuvalet & Banyo', proj), 6, 'LLM baktı "yok" dedi, CLIP güçlü: iki model çelişiyor -> en son');
+  assert.equal(spaceTier({ spaces: [], clip: hint('Tuvalet & Banyo', 0.5) }, 'Tuvalet & Banyo', proj), 0, 'CLIP güçlü değilse LLM\'in "yok"u kalır');
   assert.equal(spaceTier({ spaces: null }, 'Tuvalet & Banyo', proj), 0, 'künyede "banyo" geçmesi görsel seçemez (kaldırılan ikincil sonuç GERİ GELMEDİ)');
   assert.equal(spaceTier({ spaces: null, clip: hint('Tuvalet & Banyo', 0.6) }, 'Tuvalet & Banyo', proj), 0, 'banyoda künye+orta CLIP de yetmez (ölçüm: %50)');
-  assert.equal(spaceTier({ spaces: null, clip: hint('Tuvalet & Banyo', 0.85) }, 'Tuvalet & Banyo', { kunye: [] }), 3);
+  assert.equal(spaceTier({ spaces: null, clip: hint('Tuvalet & Banyo', 0.85) }, 'Tuvalet & Banyo', { kunye: [] }), 2);
+  // Birincillik GÜVENE değil listenin ilki olmasına bağlıdır (v2 promptunda ikinci etiketler de 0.8 alıyor).
+  assert.equal(spaceTier({ spaces: [{ label: 'Resepsiyon', confidence: 0.9, primary: true }, { label: 'Koridor', confidence: 0.9, primary: false }] }, 'Koridor', {}), 0);
 });
 
 await test('her kademe KENDİ içinde yükleme sırasını korur', () => {
@@ -224,7 +246,7 @@ await test('her kademe KENDİ içinde yükleme sırasını korur', () => {
     { url: 'eski-clip', projectSlug: 'b', spaces: null, clip: hint(S, 0.7) },
     { url: 'eski-llm', projectSlug: 'b', spaces: [{ label: S, confidence: 0.8, primary: true }] },
   ] };
-  assert.deepEqual(selectPhotos(pool, S).map(i => i.url), ['yeni-llm', 'eski-llm', 'yeni-clip', 'eski-clip']);
+  assert.deepEqual(selectPhotos(pool, S).map(i => i.url), ['yeni-clip', 'eski-clip', 'yeni-llm', 'eski-llm'], 'CLIP güçlü (LLM bakmadı) %90, ipucusuz LLM %65: kademe 2 vs 5');
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -307,12 +329,13 @@ await test('havuz: ipuçları dizinden iliştirilir (üç anahtar biçimi de eş
   assert.equal(pool.stats.clipMissing, 1); assert.equal(pool.stats.clipDrawingsHidden, 1); assert.equal(pool.stats.clipPending, 0);
 });
 
-await test('uç: banyo araması CLIP-güçlü görseli getirir; LLM\'in "mutfak" dediği banyo-benzeri kare GELMEZ; çip CLIP\'ten', async () => {
+await test('uç: banyo araması CLIP-güçlü görseli ÖNCE getirir; LLM\'in "mutfak" dediği banyo-benzeri kare EN SONDA; çip CLIP\'ten', async () => {
   const { env } = await poolFixture();
   const url = new URL(`https://mimarlab.com/api/photos?space=${encodeURIComponent('Tuvalet & Banyo')}`);
   const data = JSON.parse(await (await handlePhotosRoute(new Request(url.href), env, url)).text());
-  assert.deepEqual(data.items.map(i => i.url), ['projects/banyo.webp']);
+  assert.deepEqual(data.items.map(i => i.url), ['projects/banyo.webp', 'projects/llm-mutfak.webp'], 'iki model çelişince görsel düşmez, sona iner');
   assert.deepEqual(data.items[0].spaces, ['Tuvalet & Banyo']);
+  assert.deepEqual(data.items[1].spaces, ['Mutfak'], 'çip LLM\'in etiketi — sıralama CLIP\'in itirazını yansıtır, çip değil');
   assert.ok(!('clip' in data.items[0]) && !('via' in data.items[0]), 'iç sinyaller yanıta sızmaz');
   const all = new URL('https://mimarlab.com/api/photos');
   const feed = JSON.parse(await (await handlePhotosRoute(new Request(all.href), env, all)).text());
@@ -326,8 +349,8 @@ await test('/api/photos/stats: kapsam + mekan başına kademe sayıları (yalnı
   const url = new URL('https://mimarlab.com/api/photos/stats');
   const s = JSON.parse(await (await handlePhotosRoute(new Request(url.href), env, url)).text());
   assert.equal(s.images, 5); assert.equal(s.llmLabeled, 1);
-  assert.deepEqual(s.spaces['Tuvalet & Banyo'], { total: 1, byTier: [0, 0, 1, 0, 0, 0] });
-  assert.deepEqual(s.spaces['Mutfak'].byTier.slice(0, 2), [0, 1]);
+  assert.deepEqual(s.spaces['Tuvalet & Banyo'], { total: 2, byTier: [0, 1, 0, 0, 0, 1] });
+  assert.deepEqual(s.spaces['Mutfak'].byTier, [0, 0, 0, 0, 0, 1], 'LLM mutfak dedi, CLIP karşı (banyo): en son kademe');
   assert.equal(s.spaces['Çalışma Odası'].total, 1, 'v1.webp: CLIP güçlü ofis');
   assert.match(read('../src/index.js'), /path === '\/api\/photos\/stats'/);
 });

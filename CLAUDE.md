@@ -2110,3 +2110,78 @@ ve sonuçlarda çizim çıkmasın.
   düz-string etiketleri geçerli kalır. `--force` ile tam yeniden etiketleme güven verisini tamamlar.
 - Testler: `test-2026-09-17-comments-identity-and-photo-page.mjs` 26 test (kademe kuralı, çizim
   dışlama, kurucu düşüşü, eski/yeni biçim normalize).
+
+## /fotograf beşinci tur — ÜÇ SİNYALLİ arama sistemi: CLIP + vision-LLM v2 + künye (2026-09-18)
+
+Kullanıcı isteği: "Fotoğraf sayfası için Künye fallbackini neden kaldırdın? Fotoğraf sayfasındaki
+arama filtreleri için en doğru ve en çok sonuç için gereken en iyi sistemi kur."
+
+**ÖLÇÜLEN DURUM (deploy öncesi canlı)**: 11.058 görselin yalnızca **275'i** etiketliydi ("Tuvalet &
+Banyo": 3 sonuç) — süren tur saatte ~280 görsel işliyordu (görsel başına ~13 sn, SIRALI; tam havuz
+~40 saat, iş sınırı 6 saat). Etiketler de güvenilmezdi: v1 promptu kapalı 15'lik listeye zorlandığı
+için dış cephe kareleri "Resepsiyon + Çalışma Odası + Bahçe" oluyordu (ilk 282 görselin neredeyse
+tamamı 2-3 etiket, boş dizi hiç yok). İki eski tur iptal edildi (junk üretiyorlardı).
+
+- **Künye tek başına GERİ GELMEDİ ve nedeni ölçüldü** (761 projenin açıklaması + 11.058 görsel):
+  proje seviyesi bir sinyal görsel seçemiyor — görsel kanıtı zayıfken künye eşleşse bile isabet
+  Banyo %50 / Mutfak %40 / Resepsiyon %42 / Bahçe fark yok. Tek anlamlı kazanç **Çalışma Odası %78**
+  (proje tipi "Ofis" ile örtüşen sınıf). Künye artık yalnızca orada ve yalnızca CLIP kanıtıyla
+  birlikte sonuç üretir (`photoSpaceClip.js#CLIP_KUNYE_MIN`); LLM promptuna BAĞLAM olarak eklenmesi
+  de ölçümle KAPATILDI (aşağıda).
+- **Sinyal 1 — CLIP sıfır-atış ipucu (`src/lib/photoSpaceClip.js`)**: görsel arama dizininin
+  (KV `vsearch:imgindex:project:v1`, havuzun %97,6'sını kapsıyor) her görsel için ZATEN tuttuğu
+  CLIP ViT-B/32 embedding'i ile 158 İngilizce alt-kavram cümlesinin (`scripts/photo-space-clip-
+  classes.json` → `scripts/build-photo-space-clip-prompts.py` → ÜRETİLMİŞ
+  `src/lib/photoSpaceClipVectors.js`, int16) kosinüsü; softmax(100·cos), sınıf başına toplam.
+  12 aranabilir sınıf + 19 çeldirici sınıf (`_exterior`, `_drawing`, `_worship`, `_hamam`...) —
+  çeldiriciler olmadan olasılık kütlesi aranabilir sınıflara akıyordu. AI çağrısı YOK, yeni
+  yüklenen görselde de anında (tarayıcı embedding'i kayıt anında dizine ekliyor). Sınıf başına
+  GÜÇLÜ eşikler (`CLIP_STRONG_MIN`) 48'lik gözle etiketli örneklemlerden okundu (~%85-95 isabet);
+  `_drawing >= 0.6` çizim tespiti 72/72 → **~1.190 çizim LLM bakmadan sayfadan düştü**.
+  * JS uygulaması Python/float referansını yeniden üretir (`scripts/photo-space-clip-fixture.json`,
+    28 canlı vektör); kaynak sınıf dosyası ile üretilmiş modül SHA ile kelepçeli — dosya değişince
+    üretici yeniden koşturulmalı (`/tmp/clip_env`, build-image-embeddings.py ile aynı venv deseni).
+  * Havuz (`photoPool.js#attachClipHints`) ipuçlarını KV `photo:cliphints:v1:<sha>` altında KALICI
+    tutar; kurulum başına en fazla `CLIP_SCORE_PER_BUILD` (2500) görsel puanlanır, bitmediyse havuz
+    **60 sn** TTL ile yazılır (`getCachedPool` yeni `opts.ttlSeconds`), sonraki istek sürdürür.
+    KV yazma hakkı (`reserveKvWrite`) puanlamadan ÖNCE ayrılır; alınamazsa bütçe 300'e iner.
+    Dizinde olmayan görsel 6 saat "yok" işaretlenir (14 MB'lık dizin boşuna okunmasın).
+- **Sinyal 2 — vision-LLM v2 (`photoSpaceClassify.js`)**: (1) önce SAHNE (`ic_mekan/dis_mekan/
+  dis_cephe/cizim/detay`; dış cephe/detay sahnesinde aranabilir etiket TUTULMAZ — sahne kazanır),
+  (2) 15 çeldirici etiket (`photo-space-taxonomy.js#PHOTO_SPACE_DISTRACTORS` — "Dış Cephe",
+  "Restoran / Kafe", "Genel İç Mekan"...; kullanıcının 15'lik listesi DEĞİŞMEDİ, çeldiriciler
+  aranmaz/çip olmaz ama SAKLANIR), (3) en fazla 2 etiket. **Saklama v2**: `image_spaces[url] =
+  {v:2, scene, spaces:[{label,confidence}]}` — v1 düz dizileri havuz "bakılmadı" sayar, betik
+  `--force`suz yeniden işler. Birincillik ÇELDİRİCİ ATILMADAN ÖNCE belirlenir (["Dış Cephe","Bahçe"]
+  → Bahçe birincil değil). **Model kademesi bu göreve ÖZEL** (`PHOTO_SPACE_CANDIDATES`):
+  `@cf/meta/llama-4-scout-17b-16e-instruct` önce (gold 656: %89,8/%85,9; dış cephe hatası 2/72),
+  Mistral-small-3.1 yedek (%87,2/%84,0; 4/72); görsel aramanın `VISION_CANDIDATES`'i DEĞİŞMEDİ.
+  Künye BAĞLAMI kapalı: gold'da fark yok, rastgele 700'de modeli proje tipine yanlılaştırdı
+  ("Ofis" projesinin atrium/koridoru "Çalışma Odası") ve Scout'ta %3,6 yanıt hatası üretti.
+- **Tek sıralama = ÖLÇÜLEN İSABET SIRASI** (`photos.js#spaceTier`; rastgele 700 görsel LLM'e sorulup
+  CLIP'le çaprazlandı, uyuşmazlık hücreleri gözle hakemlendi): 1 LLM birincil + CLIP≥0.25 (%90+) ·
+  2 CLIP güçlü, LLM bakmadı (~%90) · 3 LLM ikincil + CLIP≥0.25 (%78) · 4 CLIP orta + künye (yalnız
+  Çalışma Odası, %78) · 5 LLM birincil, CLIP zayıf (0.10-0.25) ya da ipucu yok (%65) · 6 tek model
+  tek başına — LLM birincil ama CLIP<0.10 / CLIP güçlü ama LLM başka dedi (%45-50, EN SONDA).
+  CLIP'in desteklemediği İKİNCİL etiket (%35) hiç gösterilmez. **"Hüküm tek modelin" DEĞİL**:
+  LLM'in CLIP'in desteklemediği birincil etiketleri (LLM etiketlerinin %55'i) ~%50 isabetliydi.
+  Her kademe kendi içinde yükleme sırasını korur. Simülasyon (canlı dizinle, LLM bakmadan):
+  1.589 sonuç (eskiden ~607, %2,5 kapsam).
+- **Etiketleme betiği** (`scripts/photo-space-classify-backfill.mjs`): `--concurrency` (varsayılan
+  10) ile PARALEL (656 görsel 1,7-2,4 dk; tam havuz ~1 saat), proje bitince YAZ ve yazmadan hemen önce
+  kolonu yeniden oku/birleştir, `--max-minutes` (320) sonrası temiz çıkış, ağ/429/5xx yeniden
+  deneme, havuzla AYNI görünürlük (blurlu projeye AI harcanmaz). **Üç mod**: etiketle / `--eval`
+  (656 gözle etiketli `scripts/photo-space-gold.json`, sınıf başına isabet-kapsama, HİÇ YAZMAZ) /
+  `--index-report` (CLIP dizin kapsamı + LLM bakmadan mekan başına sonuç sayısı). Deney bayrakları
+  `--model=`, `--with-context`, `--eval=scripts/photo-space-sample.json` (rastgele 700, yansız).
+- **Workflow** `.github/workflows/photo-space-classify.yml`: `mode` (etiketle/olc/dizin),
+  `concurrency`, `eval_file`, `model`, `context`; **`schedule: 41 2,8,14,20 * * *`** — zamanlanmış
+  koşu her zaman `apply=evet, scope=tumu` (yalnızca eksikler; eksik yoksa tek D1 sorgusu). Yeni
+  yüklenen proje o ana kadar CLIP ile aranabilir, sonra LLM etiketi gelir.
+- **`GET /api/photos/stats`** (yalnızca sayılar): `images/llmLabeled/clipHinted/clipMissing/
+  clipPending/clipDrawingsHidden` + mekan başına kademe sayıları; `smoke-test.sh` 13c artık
+  "mekan sinyali > 0 ve Oturma Odası > 0" ister (boş filtre 200 dönmeye devam ediyordu).
+- Testler: `scripts/test-2026-09-18-photo-space-signals.mjs` (29 test, preflight'a bağlı) +
+  `test-2026-09-17-comments-identity-and-photo-page.mjs` v2 biçimine geçti (26). Migration YOK,
+  SSR sürüm bumpı YOK. Maliyet notu: tam havuz etiketlemesi ~11 bin vision çağrısı (~$5-8, bir
+  kez); zamanlanmış koşular yalnızca yeni görseller için harcar.
