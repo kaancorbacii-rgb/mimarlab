@@ -25,8 +25,8 @@
 //
 // Yani "hüküm tek modelin" DEĞİL: iki model HEMFİKİRSE isabet çok yüksek, tek model tek başına
 // konuşuyorsa düşüyor. Sıralama bunu doğrudan yansıtır; her kademe kendi içinde YÜKLEME SIRASINI
-// korur ("en yeni proje önce" ilkesi bozulmaz, yalnızca daha az kesin eşleşmeler kümenin sonuna
-// iner). Etiketleme ilerledikçe "LLM bakmadı" kademeleri kendiliğinden erir.
+// SIRASI tohumla karıştırılır (dokuzuncu tur — bkz. seededShuffle; yalnızca daha az kesin eşleşmeler
+// kümenin sonuna iner). Etiketleme ilerledikçe "LLM bakmadı" kademeleri kendiliğinden erir.
 //
 // KÜNYE TEK BAŞINA SONUÇ ÜRETMEZ (2026-09-18 üçüncü turda kaldırılan ikincil sonuç GERİ GELMEDİ):
 // ölçüm photoSpaceClip.js dosya başında — bir proje seviyesi sinyal görsel seçemiyor.
@@ -73,14 +73,48 @@ export function spaceTier(item, space, project) {
   return 0;
 }
 
-export function selectPhotos(pool, space) {
-  if (!space || !PHOTO_SPACE_OPTIONS.includes(space)) return pool.items.slice();
+// RASTGELE SIRA (kullanıcı isteği, 2026-09-18 dokuzuncu tur: "Fotoğraf sayfasına her girdiğimizde
+// farklı bir sıralamada karşılaşalım, en son yüklenen projenin fotoğrafları ilk sıraya gelsin
+// kuralını kaldır."). Sayfa her açılışta bir TOHUM (`seed`) üretir ve TÜM isteklerinde (sayfalama
+// dahil) aynı tohumu gönderir: sıra bir ziyarette SABİT kalır ("Daha Fazla Göster" aynı karıştırmanın
+// devamını getirir — tekrar/atlama olmaz), yeni ziyarette değişir. Karıştırma tohumlu ve
+// deterministiktir, bu yüzden yanıt önbelleği de doğru kalır; tohum 0..SEED_SPACE-1 aralığına
+// kısılır ki önbellek anahtarı sayısı sınırlı olsun. Mekan filtresinde isabet KADEMELERİ korunur,
+// karıştırma her kademenin KENDİ İÇİNDE yapılır (kesin eşleşmeler yine önde). Tohumsuz istek
+// (smoke-test, eski istemci) havuz sırasını döndürür.
+export const SEED_SPACE = 1000;
+export function parseSeed(raw) {
+  if (raw == null || raw === '') return null;
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) && n >= 0 ? n % SEED_SPACE : null;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+export function seededShuffle(arr, seed) {
+  const out = arr.slice();
+  if (seed == null) return out;
+  const rnd = mulberry32(0x9E3779B1 ^ (seed + 1));
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+  }
+  return out;
+}
+
+export function selectPhotos(pool, space, seed = null) {
+  if (!space || !PHOTO_SPACE_OPTIONS.includes(space)) return seededShuffle(pool.items, seed);
   const tiers = Array.from({ length: TIER_COUNT }, () => []);
   for (const it of pool.items) {
     const t = spaceTier(it, space, pool.projects && pool.projects[it.projectSlug]);
     if (t) tiers[t - 1].push(it);
   }
-  return [].concat(...tiers);
+  return [].concat(...tiers.map(t => seededShuffle(t, seed)));
 }
 
 // Lightbox çipleri: LLM baktıysa onun ARANABİLİR etiketleri; bakmadıysa CLIP'in GÜÇLÜ dediği mekan
@@ -135,12 +169,15 @@ export async function handlePhotosRoute(request, env, url) {
       return { ...poolStats(pool), cron };
     });
   }
-  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+  // Önbellek anahtarı NORMALİZE parametrelerden kurulur (ham tohum 0..999'a kısılır).
+  const space = (url.searchParams.get('space') || '').trim();
+  const seed = parseSeed(url.searchParams.get('seed'));
+  const limit = Math.min(MAX_LIMIT, Math.max(1, Number(url.searchParams.get('limit')) || DEFAULT_LIMIT));
+  const offset = Math.max(0, Math.floor(Number(url.searchParams.get('offset')) || 0));
+  const cacheKey = `${url.pathname}?space=${encodeURIComponent(space)}&seed=${seed == null ? '' : seed}&limit=${limit}&offset=${offset}`;
+  return cachedPublicJson(request, env, cacheKey, async () => {
     const pool = await fetchPhotoPool(env);
-    const space = (url.searchParams.get('space') || '').trim();
-    const selected = selectPhotos(pool, space);
-    const limit = Math.min(MAX_LIMIT, Math.max(1, Number(url.searchParams.get('limit')) || DEFAULT_LIMIT));
-    const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
+    const selected = selectPhotos(pool, space, seed);
     const items = selected.slice(offset, offset + limit).map(it => expand(pool, it));
     return { items, total: selected.length, hasMore: offset + limit < selected.length, spaces: PHOTO_SPACE_OPTIONS };
   });

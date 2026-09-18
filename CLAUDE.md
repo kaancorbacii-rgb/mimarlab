@@ -2267,3 +2267,17 @@ fotoğraflar ... alt sıralardan gözükmeye başlasın üst tarafa dahil olmas�
   oran (yerleşim anında sütun yükseklikleri anlamlı olsun). Sayfalar arası mükerrer url atılır.
 - Testler: `test-2026-09-18-photo-space-signals.mjs` (30), `test-2026-09-18-photo-page-new-uploads.mjs`
   (13), `test-2026-09-17-comments-identity-and-photo-page.mjs` (26). Migration YOK, SSR bumpı YOK.
+
+## /fotograf dokuzuncu tur — her açılışta RASTGELE sıra (2026-09-18)
+
+Kullanıcı isteği: "Fotoğraf sayfasına her girdiğimizde farklı bir sıralamada karşılaşalım, en son
+yüklenen projenin fotoğrafları ilk sıraya gelsin kuralını kaldır."
+
+- `fotograf.html` her açılışta `ORDER_SEED` (0..999) üretir ve TÜM `/api/photos` isteklerine `seed`
+  olarak ekler; sunucu (`photos.js#seededShuffle`, mulberry32) listeyi o tohumla karıştırır. Sıra bir
+  ziyaret içinde SABİT (sayfalama aynı karıştırmanın devamı — tekrar/atlama yok, sekizinci turun
+  "Daha Fazla Göster sırayı bozmaz" kuralı korunur), yenilemede değişir.
+- Mekan filtresinde isabet KADEMELERİ korunur; karıştırma her kademenin kendi içindedir.
+- Önbellek anahtarı normalize parametrelerden kurulur (tohum 1000'e kısılı → sınırlı anahtar sayısı).
+  Tohumsuz istek havuz (yükleme) sırasını döner — smoke-test/eski istemci için.
+- Test: `scripts/test-2026-09-18-photo-page-new-uploads.mjs` (14).

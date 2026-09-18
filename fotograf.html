@@ -440,8 +440,8 @@
 // dışarı tıkla-kapat, blurlu görsel yok, AI destekli arama, ana menüye ekleme).
 //
 // Veri kaynağı: GET /api/photos (bkz. src/routes/photos.js) — src/lib/photoPool.js'in KV-önbellekli
-// havuzunu mekan filtresine göre süzüp sayfalar. Sıralama SUNUCUDA yapılır (proje created_at DESC,
-// proje İÇİNDE images[] dizisinin kendi sırası) — istemci yalnızca gelen sırayı render eder.
+// havuzunu mekan filtresine göre süzüp sayfalar. Sıralama SUNUCUDA yapılır: sayfanın her açılışta
+// ürettiği tohumla RASTGELE (ORDER_SEED, 2026-09-18 dokuzuncu tur) — istemci gelen sırayı render eder.
 (function(){
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -455,6 +455,10 @@
   const resetBtn = document.getElementById('ph-reset-btn');
 
   const PAGE_SIZE = 60;
+  // Her sayfa açılışında YENİ bir karıştırma tohumu (bkz. src/routes/photos.js#seededShuffle): sıra
+  // bu ziyaret boyunca sabit, sayfa yenilenince farklı. "En son yüklenen proje önce" kuralı YOK
+  // (kullanıcı isteği, 2026-09-18 dokuzuncu tur).
+  const ORDER_SEED = Math.floor(Math.random() * 1000);
   let currentSpace = '';
   let offset = 0;
   let items = []; // o ana kadar yüklenmiş TÜM kartlar — lightbox önceki/sonraki için
@@ -590,6 +594,7 @@
     try{
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(reset ? 0 : offset) });
       if(currentSpace) params.set('space', currentSpace);
+      params.set('seed', String(ORDER_SEED));
       const res = await fetch(`/api/photos?${params.toString()}`);
       const data = res.ok ? await res.json() : { items: [], hasMore: false };
       // Havuz iki istek arasında tazelenebilir (cron yeni etiket yazar) ve offset bir kareyi iki kez

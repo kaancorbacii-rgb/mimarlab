@@ -135,6 +135,23 @@ await test('sekizinci tur: ızgara CSS columns DEĞİL — kart en kısa sütunu
   assert.ok(!/grid\.insertAdjacentHTML/.test(h));
 });
 
+await test('dokuzuncu tur: sıra tohumla RASTGELE — aynı tohum aynı sıra (sayfalama tutarlı), farklı tohum farklı sıra; kademeler korunur', async () => {
+  const { selectPhotos, seededShuffle, parseSeed } = await import('../src/routes/photos.js');
+  const items = Array.from({ length: 200 }, (_, i) => ({ url: `u${i}`, projectSlug: `p${i}`, spaces: [] }));
+  const pool = { items, projects: {} };
+  const a = selectPhotos(pool, '', 7).map(i => i.url);
+  assert.deepEqual(selectPhotos(pool, '', 7).map(i => i.url), a, 'aynı tohum = aynı sıra');
+  assert.notDeepEqual(selectPhotos(pool, '', 8).map(i => i.url), a, 'farklı tohum = farklı sıra');
+  assert.notDeepEqual(a, items.map(i => i.url), 'yükleme sırası DEĞİL');
+  assert.deepEqual([...a].sort(), items.map(i => i.url).sort(), 'hiçbir görsel kaybolmaz/tekrarlanmaz');
+  assert.deepEqual(selectPhotos(pool, '', null).map(i => i.url), items.map(i => i.url), 'tohumsuz istek havuz sırası');
+  assert.equal(parseSeed('1234'), 234); assert.equal(parseSeed('x'), null); assert.equal(parseSeed(''), null);
+  assert.deepEqual(seededShuffle([1, 2, 3], null), [1, 2, 3]);
+  const h = readFileSync(new URL('../fotograf.html', import.meta.url), 'utf8');
+  assert.match(h, /const ORDER_SEED = Math\.floor\(Math\.random\(\) \* 1000\);/);
+  assert.match(h, /params\.set\('seed', String\(ORDER_SEED\)\);/);
+});
+
 await test('sınırlar: maxImages tur başına iş sayısını, budgetMs süreyi keser; kalan bir sonraki tura', async () => {
   const { env, fetchFn, aiCalls } = fixture();
   const s1 = await labelPendingPhotoSpaces(env, { fetch: fetchFn, maxImages: 1 });
