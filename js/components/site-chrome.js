@@ -521,9 +521,8 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
       <!-- Sıra NAV_ITEMS ile AYNI (bkz. oradaki 2026-09-17 notları): Proje · Fotoğraf · Firma ·
-           Mimar · Ürün · Gündem. Etiket "Mimar" BİLEREK korunuyor — footer'ın bu satırı hep öyle
-           yazıyordu, kullanıcı isteği yalnızca SIRAYI değiştirmeyi kapsıyor. -->
-      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/fotograf">Fotoğraf</a><a href="/firma">Firma</a><a href="/kisi">Mimar</a><a href="/urun">Ürün</a><a href="/gundem">Gündem</a></div>
+           Kişi · Ürün · Gündem. -->
+      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/fotograf">Fotoğraf</a><a href="/firma">Firma</a><a href="/kisi">Kişi</a><a href="/urun">Ürün</a><a href="/gundem">Gündem</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <!-- Sıra (kullanıcı isteği, 2026-09-12): İletişim, Hakkında, Neden MİMARLAB?, sonrası aynı. -->
       <div class="footer-col"><h4>Kurumsal</h4><a href="/iletisim">İletişim</a><a href="/hakkinda">Hakkında</a><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
