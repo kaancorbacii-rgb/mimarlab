@@ -54,7 +54,7 @@ from huggingface_hub import hf_hub_download
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # bkz. generate-image-derivatives.py'deki AYNI gerekçe
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ACCOUNT_ID = '2e3cd3c1a471552e19436913b2368c4f'
+ACCOUNT_ID = (os.environ.get('CLOUDFLARE_ACCOUNT_ID') or '').strip() or '2e3cd3c1a471552e19436913b2368c4f'
 DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246'
 KV_NAMESPACE_ID = '9a8a1cfde13447a498bc5dcc4bc7d4ae'  # FACET_CACHE
 SITE_ORIGIN = 'https://mimarlab.com'
@@ -146,12 +146,18 @@ def derivative_url(path, width):
     return f'{SITE_ORIGIN}/media/_derived/w{width}/s/{clean}"'.rstrip('"')
 
 def oauth_token():
+    # CI'da (bkz. .github/workflows/photo-space-classify.yml) CLOUDFLARE_API_TOKEN sırrı; yerelde
+    # wrangler OAuth token'ı (photo-space-classify-backfill.mjs ile AYNI öncelik). `npx wrangler kv
+    # key put` de aynı ortam değişkenini kendiliğinden kullanır.
+    env_token = (os.environ.get('CLOUDFLARE_API_TOKEN') or '').strip()
+    if env_token:
+        return env_token
     path = os.path.expanduser('~/Library/Preferences/.wrangler/config/default.toml')
     with open(path) as f:
         toml = f.read()
     m = re.search(r'oauth_token\s*=\s*"([^"]+)"', toml)
     if not m:
-        raise RuntimeError('wrangler OAuth token bulunamadı — `npx wrangler login` çalıştırın.')
+        raise RuntimeError('wrangler OAuth token bulunamadı — `npx wrangler login` çalıştırın ya da CLOUDFLARE_API_TOKEN verin.')
     return m.group(1)
 
 TOKEN = oauth_token()

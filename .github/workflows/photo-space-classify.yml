@@ -34,6 +34,16 @@ name: Fotoğraf sayfası — mekan sınıflandırması (AI)
 #     CLIP ipucu doldurur (src/lib/photoSpaceClip.js) — yani yeni görsel hiçbir an "aranamaz" kalmaz.
 #   * `mode=olc`: scripts/photo-space-gold.json'daki gözle etiketli kümede isabet/kapsama ölçer,
 #     HİÇBİR ŞEY yazmaz. Prompt değişikliği canlıya çıkmadan önce bununla ölçülür.
+#
+# 2026-09-18 YEDİNCİ TUR ("bundan sonra yüklenecek tüm projeler ... aynı kurallara göre işlesin"):
+#   * CLIP EMBEDDING ADIMI (etiketlemeden ÖNCE): scripts/build-image-embeddings.py --only-changed —
+#     görsel arama dizininde (KV) embedding'i olmayan YENİ projelerin görsellerini runner'da embed
+#     edip dizine ekler. Tarayıcı bunu kayıt anında yapıyor ama sayfa 1,2 sn sonra yönlendiği için
+#     güvenilmezdi (dizin raporu: en yeni 14 projenin hiç embedding'i yoktu) — CLIP ipucu olmayan
+#     görsel filtrede ancak LLM etiketiyle ve alt kademede yer alır. Bu adım eksikleri kapatır;
+#     hata verirse etiketleme yine koşar (continue-on-error).
+#   * Yeni yüklemelerin LLM etiketi artık Worker'ın kendi cron'unda 15 dakikada bir tamamlanır
+#     (src/lib/photoSpaceCron.js); bu iş toplu geri dolum, ölçüm ve CLIP embedding için kalır.
 
 on:
   # Günde dört kez, Gündem/görsel-dizin cron'larıyla çakışmayan bir dakikada. Yalnızca eksikler
@@ -86,6 +96,12 @@ on:
         description: 'Aynı anda işlenen görsel sayısı (1-32)'
         required: false
         default: '10'
+      embed:
+        description: "Etiketlemeden önce CLIP görsel dizinindeki eksik embedding'leri tamamla (yeni projeler)"
+        required: false
+        default: 'evet'
+        type: choice
+        options: ['evet', 'hayir']
       eval_file:
         description: 'mode=olc iken: değerlendirme kümesi (boş = scripts/photo-space-gold.json)'
         required: false
@@ -140,6 +156,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      # CLIP EMBEDDING — yalnızca etiketleme modunda (zamanlanmış koşu dahil). Python + onnxruntime
+      # (build-image-embeddings.py'nin kendi venv tarifi); model HF'den indirilir (~89 MB, bir kez
+      # per runner). --only-changed: images listesi dizindekiyle aynı olan projelere DOKUNMAZ, yeni/
+      # değişmiş projelerin görsellerini indirip embed eder, değişiklik yoksa KV'ye YAZMAZ.
+      - uses: actions/setup-python@v5
+        if: ${{ github.event_name == 'schedule' || (inputs.mode == 'etiketle' && inputs.embed != 'hayir') }}
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/photo-space-embed-requirements.txt
+      - name: CLIP embedding — dizindeki eksikleri tamamla
+        if: ${{ github.event_name == 'schedule' || (inputs.mode == 'etiketle' && inputs.embed != 'hayir') }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 -m pip install --quiet -r scripts/photo-space-embed-requirements.txt
+          python3 scripts/build-image-embeddings.py --type project --only-changed --max-images 0 --derivative 400 --workers 8 2>&1 | tee photo-space-embed-log.txt
 
       - name: Sınıflandırma
         env:
@@ -206,4 +240,5 @@ jobs:
           path: |
             photo-space-classify-log.txt
             photo-space-eval-result.json
+            photo-space-embed-log.txt
           if-no-files-found: warn

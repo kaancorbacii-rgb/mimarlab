@@ -2201,3 +2201,45 @@ Kullanıcı isteği: "Fotoğraf sayfasında ilk çıkan açık mavi alan çok ge
   alt kenarına biner.
 - Test: `scripts/test-2026-09-17-comments-identity-and-photo-page.mjs` (iki hero kuralında dolgu üst
   sınırı + min-height yokluğu + `p{margin:0}`). Migration YOK, SSR sürüm bumpı YOK.
+
+## /fotograf yedinci tur — YENİ YÜKLENEN projeler aynı kurallarla, kendiliğinden (2026-09-18)
+
+Kullanıcı isteği: "Bundan sonra yüklenecek tüm projeler de fotoğraflar sayfasında görünür olsun ve
+aynı kurallara göre işlesinler."
+
+**ÖLÇÜLEN BOŞLUK**: yayına giren proje havuza ANINDA giriyordu (her içerik yazımı
+`invalidatePublicCache` ile `pool:photos:v2`yi düşürür; en yeni proje en önde) ama görselleri "LLM
+bakmadı" durumundaydı: LLM etiketi yalnızca günde 4 kez koşan GitHub işine, CLIP ipucu ise sayfa
+yönlenmeden bitmesi mümkün olmayan bir tarayıcı işine bağlıydı — dizin raporunda en yeni 14
+projenin (kc-evi, cer-loft...) HİÇBİR görselinin embedding'i yoktu (kayıt anında 89 MB model + 13
+görsel, 1,2 sn sonra yönlendirme). Blur (önizleme) kuralı DEĞİŞMEDİ: blurlu proje sayfada görünmez
+(2026-09-17 madde 10), blur kalkınca aynı zincir onu alır.
+
+- **Worker cron'u `*/15 * * * *`** (`src/lib/photoSpaceCron.js#labelPendingPhotoSpaces`,
+  `src/index.js#PHOTO_SPACE_CRON`, wrangler.jsonc): havuzla AYNI görünürlükteki projelerden v2 etiketi
+  OLMAYAN görseller (en yeni proje önce; v1 düz diziler de "yok" sayılır) — betikle AYNI
+  `classifyPhotoSpace` + `storedSpaceEntry` (Scout→Mistral), AYNI türev adresi
+  (`/media/_derived/w800/...`, Worker kendi alan adına subrequest atar), yazmadan önce kolon
+  yeniden okunup birleştirilir, kalıntı girdiler atılır, sonra yalnızca `pool:photos:v2` düşürülür.
+  Sınırlar `PHOTO_SPACE_CRON_LIMITS`: 24 görsel / ~100 sn / 3 eşzamanlı → günde ~2.300 kapasite,
+  nöron yalnızca YENİ görsel için. Son turun özeti `site_settings.photo_space_cron_last` (iç anahtar,
+  `INTERNAL_SETTING_KEYS`) → `/api/photos/stats.cron` (`at/scanned/pending/classified/failed/
+  remaining/budgetHit`).
+- **Dispatcher**: Gündem dalı `cron !== VISUAL_INDEX_CRON && !isPhotoSpaceCron` — aksi halde
+  "tanınmayan ifadede Gündem yine de çalışsın" kuralı Gündem'i 15 dakikada bir koştururdu. Meet
+  yeniden denemesi de aynı dışlamayla. Test: `test-gundem.mjs` 5a-5e değişmedi.
+- **GitHub işi** (`photo-space-classify.yml`): etiketlemeden ÖNCE **CLIP embedding adımı** —
+  `build-image-embeddings.py --type project --only-changed --max-images 0 --derivative 400`
+  (Python 3.11 + `scripts/photo-space-embed-requirements.txt`, `continue-on-error`). Betik artık
+  `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` ortam değişkenlerini tanır (toml runner'da yok).
+  Bu adım tarayıcı yolunun tamamlayamadığı embedding'leri kapatır; `--only-changed` yalnızca images
+  listesi dizindekinden farklı projeleri embed eder (tarayıcı yolunun `/media/u/..` göreli anahtarı
+  ile betiğin mutlak anahtarı farklı olduğundan o projeler bir kez yeniden embed edilir — beklenen).
+  `photoPool.js#CLIP_MISS_RETRY_HOURS` 6 → **1**: yeni embedding en geç 1 saatte ipucuya döner.
+- **Tarayıcı** (`proje-ekle.html`): embedding dosya eklenir eklenmez ARKA PLANDA sırayla hesaplanır
+  (`precomputeImageEmbeddings`, tek kuyruk), gönderim `keepalive: true`, üç yayın yolu da
+  `navigateAfterEmbeddings` ile gönderim bitene kadar (en fazla `EMBED_NAV_WAIT_MS` = 8 sn, en az
+  1,2 sn) bekler. urun-ekle.html'e dokunulmadı (ürünler fotoğraf sayfasında değil; ürün
+  embedding'i görsel arama içindir).
+- Testler: `scripts/test-2026-09-18-photo-page-new-uploads.mjs` (11 test, preflight'a bağlı) —
+  cron turu GERÇEK SQLite + sahte AI/fetch ile ölçülür. Migration YOK, SSR sürüm bumpı YOK.

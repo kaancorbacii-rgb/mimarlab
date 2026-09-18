@@ -896,6 +896,19 @@ else
 fi
 rm -f /tmp/preflight_20260918a
 
+# 2026-09-18 YEDİNCİ tur (/fotograf, yeni yüklemeler): Worker'ın kendi cron'u 15 dakikada bir v2
+# etiketi olmayan görselleri AYNI sınıflandırıcı/saklama/görünürlükle etiketler; dispatcher bu
+# ifadede Gündem/Meet/görsel-dizini tetiklemez; zamanlanmış GitHub işi etiketlemeden önce CLIP
+# embedding eksiklerini tamamlar; proje-ekle embedding'i önceden hesaplayıp keepalive ile gönderir.
+# Bkz. scripts/test-2026-09-18-photo-page-new-uploads.mjs.
+if node scripts/test-2026-09-18-photo-page-new-uploads.mjs >/tmp/preflight_20260918b 2>&1; then
+  ok "2026-09-18 yeni yükleme akışı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260918b) test)"
+else
+  bad "2026-09-18 yeni yükleme akışı testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260918b >&2
+fi
+rm -f /tmp/preflight_20260918b
+
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET
 # (Ortaklar kartıyla AYNI çağrı; renderVerifiedBadges onu da tazeler); lightbox'taki kapat /
 # "Tümünü Gör" / kaydet / ok ikonları GECE görünümünde de beyaz (color:var(--paper) gece temasında

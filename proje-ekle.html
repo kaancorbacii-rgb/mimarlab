@@ -2326,6 +2326,9 @@ function addFiles(fileList){
   }
   mediaItems.push(...files.slice(0, remaining).map(file => ({ key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) })));
   renderPreviews();
+  // Görsel arama/fotoğraf sayfası embedding'i kullanıcı formu doldururken arka planda hesaplanır —
+  // kayıt anında yalnızca hazır vektör gönderilir (bkz. syncNewImageEmbeddings).
+  precomputeImageEmbeddings();
 }
 
 fileInput.addEventListener('change', (e)=> addFiles(e.target.files));
@@ -2961,24 +2964,53 @@ function loadClipEmbedModulePE(){
   }
   return clipEmbedLoaderPE;
 }
+// 2026-09-18 (yedinci tur, kullanıcı isteği: "bundan sonra yüklenecek tüm projeler ... aynı
+// kurallara göre işlesin") — ÖLÇÜLEN ARIZA: embedding hesabı kayıt ANINDA başlıyordu ve sayfa 1,2 sn
+// sonra proje sayfasına yönlendiğinden 89 MB'lık model çoğu zaman yüklenemeden iş yarıda kalıyordu;
+// canlı dizin raporunda en yeni 14 projenin HİÇBİR görselinin embedding'i yoktu. Üç değişiklik:
+//   1. Vektörler dosya eklenir eklenmez ARKA PLANDA, sırayla hesaplanır (precomputeImageEmbeddings) —
+//      kullanıcı formu doldururken model yüklenir ve iş biter; kayıt anında yalnızca gönderim kalır.
+//   2. Gönderim `keepalive: true` ile: sayfa yönlense bile istek tamamlanır.
+//   3. Yönlendirme, gönderim bitene kadar (en fazla EMBED_NAV_WAIT_MS) bekler (navigateAfterEmbeddings).
+// Yine de tamamlanamayan görseller (model desteklenmeyen tarayıcı, çok yavaş cihaz) zamanlanmış
+// işte tamamlanır (bkz. .github/workflows/photo-space-classify.yml "CLIP embedding" adımı) — bu
+// yol yalnızca "anında" olmasını sağlar, tek yol DEĞİLDİR.
+const EMBED_NAV_WAIT_MS = 8000;
+let embedQueue = Promise.resolve();
+function precomputeImageEmbeddings(){
+  for(const it of mediaItems){
+    if(!it.file || it.embedPromise) continue;
+    it.embedPromise = embedQueue = embedQueue
+      .then(() => loadClipEmbedModulePE())
+      .then(clip => (clip ? clip.embed(it.file) : null))
+      .catch(() => null);
+  }
+}
 async function syncNewImageEmbeddings(type, slug){
-  if(!slug) return;
+  if(!slug) return 0;
   const fresh = mediaItems.filter(it => it.file && it.finalUrl);
-  if(!fresh.length) return;
-  try{
-    const clip = await loadClipEmbedModulePE();
-    if(!clip) return;
-    for(const it of fresh){
-      try{
-        const vec = await clip.embed(it.file);
-        if(!vec) continue;
-        await fetch('/api/ai/image-embed', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ type, slug, imageKey: it.finalUrl, embedding: Array.from(vec) }),
-        });
-      }catch(e){ /* tek görselin başarısız olması diğerlerini/kaydetmeyi engellemez */ }
-    }
-  }catch(e){ /* CLIP modülü yüklenemedi — sessizce atlanır */ }
+  if(!fresh.length) return 0;
+  precomputeImageEmbeddings();
+  const deadline = Date.now() + EMBED_NAV_WAIT_MS;
+  let sent = 0;
+  for(const it of fresh){
+    try{
+      const vec = await Promise.race([it.embedPromise, new Promise(r => setTimeout(() => r(null), Math.max(0, deadline - Date.now())))]);
+      if(!vec) continue;
+      await fetch('/api/ai/image-embed', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, keepalive: true,
+        body: JSON.stringify({ type, slug, imageKey: it.finalUrl, embedding: Array.from(vec) }),
+      });
+      sent++;
+    }catch(e){ /* tek görselin başarısız olması diğerlerini/kaydetmeyi engellemez */ }
+  }
+  return sent;
+}
+// Bildirim en az 1,2 sn görünür; embedding gönderimi bitmediyse en fazla EMBED_NAV_WAIT_MS beklenir.
+function navigateAfterEmbeddings(go, syncPromise){
+  const minDelay = new Promise(r => setTimeout(r, 1200));
+  const bounded = Promise.race([Promise.resolve(syncPromise).catch(() => null), new Promise(r => setTimeout(r, EMBED_NAV_WAIT_MS))]);
+  Promise.all([minDelay, bounded]).then(go, go);
 }
 
 // Görsel üzeri ürün işaretçilerinin sunucuya gidecek hâli: { <nihai görsel url>: [{x,y,slug,title}] }
@@ -3163,9 +3195,8 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      syncNewImageEmbeddings('project', data.slug || claimSlug);
       const dest = data.slug ? `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}` : `/proje/${encodeURIComponent(claimSlug)}`;
-      setTimeout(()=>{ window.location.replace(dest); }, 1200);
+      navigateAfterEmbeddings(() => { window.location.replace(dest); }, syncNewImageEmbeddings('project', data.slug || claimSlug));
       return;
     }
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi düzenlemesi, bkz. src/routes/
@@ -3177,9 +3208,8 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      syncNewImageEmbeddings('project', data.slug || existingSlug);
       const dest = data.slug ? `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}` : `/proje/${encodeURIComponent(existingSlug)}`;
-      setTimeout(()=>{ window.location.replace(dest); }, 1200);
+      navigateAfterEmbeddings(() => { window.location.replace(dest); }, syncNewImageEmbeddings('project', data.slug || existingSlug));
       return;
     }
     // claimSlug/existingSlug'lı yukarıdaki iki durumun DIŞINDA kalan, admin'in SIFIRDAN (editId'siz)
@@ -3189,8 +3219,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Proje eklendi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      syncNewImageEmbeddings('project', data.slug);
-      setTimeout(()=>{ window.location.href = `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}`; }, 1200);
+      navigateAfterEmbeddings(() => { window.location.href = `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}`; }, syncNewImageEmbeddings('project', data.slug));
       return;
     }
     if(editId){

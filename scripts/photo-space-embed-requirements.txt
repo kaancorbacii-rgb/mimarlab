@@ -1,0 +1,10 @@
+# scripts/build-image-embeddings.py'nin CI bağımlılıkları (bkz. .github/workflows/photo-space-classify.yml
+# "CLIP embedding" adımı). Yerelde aynı liste /tmp/clip_env venv'ine kurulur (dosya başı yorumu).
+# Sürümler sabitlenmedi: betik yalnızca kararlı API'ler kullanıyor (onnxruntime InferenceSession,
+# CLIPImageProcessor, PIL). torch GEREKMEZ — transformers'ın görsel işleyicisi numpy ile çalışır.
+onnxruntime
+pillow
+numpy
+transformers
+huggingface_hub
+requests

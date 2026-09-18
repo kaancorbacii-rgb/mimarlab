@@ -114,7 +114,13 @@
   // içerik sayısına bağlıdır ve ızgarayı sıklaştırmak onu artırmaz.
   // İki ifadeyi de AYNI scheduled handler karşılar (dispatcher, bkz. src/index.js#scheduled) —
   // "23 */6 * * *" ifadesi src/index.js#VISUAL_INDEX_CRON ile birebir aynı kalmalıdır.
-  "triggers": { "crons": ["23 */6 * * *", "0 1,5,9,13,17,21 * * *"] },
+  //
+  // "*/15 * * * *" — FOTOĞRAF sayfası mekan etiketi (kullanıcı isteği, 2026-09-18 yedinci tur:
+  // "bundan sonra yüklenecek tüm projeler ... aynı kurallara göre işlesin"): yeni yüklenen
+  // görselleri 15 dakikada bir etiketler (tur başına en fazla 24 görsel, bkz. src/lib/
+  // photoSpaceCron.js#PHOTO_SPACE_CRON_LIMITS). İfade src/index.js#PHOTO_SPACE_CRON ile birebir
+  // aynı kalmalı; dispatcher bu ifadede Gündem'i ÇALIŞTIRMAZ.
+  "triggers": { "crons": ["23 */6 * * *", "0 1,5,9,13,17,21 * * *", "*/15 * * * *"] },
   "vars": {
     // iyzico CANLI ortamı (kullanıcı isteği, 2026-09-13: "iyzico base url'i canlıya çevir").
     // Buradan itibaren kart ödemeleri GERÇEK PARA çeker. Test ortamına dönmek için değer yeniden

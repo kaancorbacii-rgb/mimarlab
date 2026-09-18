@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS = {
 // gelen isteklerde 15 sn boyunca son değer elde tutulur; KV'nin kendi 60 sn TTL'i zaten bu kadar
 // gecikmeyi kabul ediyordu, yani bakım modu/duyuru yayılması pratikte değişmez. setSiteSetting aynı
 // isolate'teki kopyayı hemen düşürür.
-const INTERNAL_SETTING_KEYS = new Set(['gated_media_version', 'admin_users_seen_at']);
+const INTERNAL_SETTING_KEYS = new Set(['gated_media_version', 'admin_users_seen_at', 'photo_space_cron_last']);
 
 const MEMO_TTL_MS = 15000;
 let memo = { value: null, expiresAt: 0 };
@@ -76,6 +76,7 @@ async function readSiteSettings(env) {
   // nesnesine (public uç/admin Site Ayarları) karışmazlar:
   //   gated_media_version  — görsel kapısının sürüm damgası (bkz. src/lib/gatedMedia.js)
   //   admin_users_seen_at  — Üyeler sekmesinin "son bakış" imleci (bkz. src/routes/admin.js#USERS_SEEN_KEY)
+  //   photo_space_cron_last — fotoğraf mekan etiketi cron'unun son tur özeti (bkz. src/lib/photoSpaceCron.js)
   for (const row of results) if (!INTERNAL_SETTING_KEYS.has(row.key)) out[row.key] = row.value;
   if (env.FACET_CACHE && await reserveKvWrite(env)) {
     try {

@@ -55,8 +55,10 @@ const CLIP_SCORE_WITHOUT_PERSIST = 300;
 const CLIP_PENDING_TTL_SECONDS = 60;
 // Dizinde embedding'i BULUNMAYAN görsel: her kurulumda 14 MB'lık dizini yeniden okutmasın diye
 // "yok" olarak işaretlenir ve bu kadar saat sonra yeniden denenir (embedding sonradan gelebilir:
-// tarayıcı kayıttan hemen sonra gönderir, import betikleri dizini artımlı günceller).
-const CLIP_MISS_RETRY_HOURS = 6;
+// tarayıcı kayıttan hemen sonra gönderir, zamanlanmış iş eksikleri tamamlar — bkz.
+// .github/workflows/photo-space-classify.yml'deki CLIP adımı). 1 saat: kalıcı olarak eksik bir
+// görsel için saatte bir 14 MB'lık KV okuması, yeni bir projenin ipucusuz kalmasından ucuzdur.
+const CLIP_MISS_RETRY_HOURS = 1;
 export function clipHintCacheKey() { return `photo:cliphints:v1:${CLIP_PROMPT_SOURCE_SHA}`; }
 
 function parseJsonSafe(text, fallback) {

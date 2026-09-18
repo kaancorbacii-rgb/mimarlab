@@ -39,6 +39,7 @@ import { AI_MODEL } from '../lib/aiConfig.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { spaceQuerySystemPrompt, SPACE_QUERY_SCHEMA, normalizeQuerySpace, PHOTO_SPACE_OPTIONS } from '../lib/photoSpaceClassify.js';
 import { clipProbOf, clipVerdict, CLIP_AGREE_MIN, CLIP_WEAK_MIN } from '../lib/photoSpaceClip.js';
+import { readLastRun as readPhotoSpaceCronRun } from '../lib/photoSpaceCron.js';
 
 const DEFAULT_LIMIT = 60;
 const MAX_LIMIT = 120;
@@ -127,7 +128,12 @@ export async function handlePhotosRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
   if (url.pathname === '/api/photos/space-for-query') return spaceForQuery(request, env, url);
   if (url.pathname === '/api/photos/stats') {
-    return cachedPublicJson(request, env, url.pathname, async () => poolStats(await fetchPhotoPool(env)));
+    // `cron`: Worker cron'unun son turu (src/lib/photoSpaceCron.js) — yeni yüklemelerin etiketlenip
+    // etiketlenmediği buradan izlenir (smoke-test 13c okur).
+    return cachedPublicJson(request, env, url.pathname, async () => {
+      const [pool, cron] = await Promise.all([fetchPhotoPool(env), readPhotoSpaceCronRun(env)]);
+      return { ...poolStats(pool), cron };
+    });
   }
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const pool = await fetchPhotoPool(env);

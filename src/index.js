@@ -64,6 +64,7 @@ import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
 import { handleGundemRoute, gundemSsrListBody, listGundemSitemapUrls } from './routes/gundem.js';
 import { handleGundemSubmitRoute } from './routes/gundemSubmit.js';
 import { runGundemIngestion } from './lib/gundemIngest.js';
+import { labelPendingPhotoSpaces } from './lib/photoSpaceCron.js';
 import { gundemCronHealthFields } from './lib/gundemRuns.js';
 // Güvenli Görüşme Gateway'i (kullanıcı isteği, 2026-09-08) — /gorusme/:room_uuid sayfası + Meet
 // yeniden deneme cron işçisi. Bkz. src/lib/consultationMeet.js.
@@ -78,6 +79,9 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // scheduled dispatcher). Ayrışırsa görsel dizin turu Gündem ızgarasında da çalışmaya başlar — bu yüzden
 // scripts/preflight-check.sh iki dosyadaki değeri statik olarak karşılaştırır.
 const VISUAL_INDEX_CRON = '23 */6 * * *';
+// Fotoğraf sayfası mekan etiketi — yeni yüklenen görselleri 15 dakikada bir etiketler (bkz.
+// src/lib/photoSpaceCron.js). wrangler.jsonc#triggers ile birebir aynı kalmalı.
+const PHOTO_SPACE_CRON = '*/15 * * * *';
 
 // X-Frame-Options bilerek DENY olarak korunuyor (spec Faz 5'in önerdiği SAMEORIGIN yerine) — sitede
 // hiçbir yerde <iframe>/<frame> kullanılmıyor (bkz. depo çapında arama), yani kendi kendini
@@ -896,6 +900,8 @@ const DEFAULT_SCHEDULED_RUNNERS = {
   // Onaylı ama Meet'i oluşturulamamış (Google geçici hatası / secret sonradan eklendi) danışmanlık
   // rezervasyonlarını yeniden dener — Gündem ifadesiyle aynı 4 saatlik ızgarada koşar.
   meetRetry: (env) => retryPendingMeets(env, { limit: 10 }),
+  // Fotoğraf sayfası: v2 mekan etiketi olmayan görseller (yeni yüklemeler) — kendi ifadesinde.
+  photoSpaces: (env) => labelPendingPhotoSpaces(env),
 };
 
 export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDULED_RUNNERS) {
@@ -904,9 +910,12 @@ export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDUL
 
   // Gündem — yalnızca kendi ifadesinde. (Bir cron ifadesi tanınmazsa — ör. ileride biri
   // wrangler.jsonc'u değiştirir ve buradaki dizeler ayrışırsa — Gündem yine de çalışsın diye
-  // "bilinen görsel-dizin ifadesi DEĞİLSE" mantığı kullanılır; sessizce hiç çalışmamak, bu
-  // depodaki tekrar eden "iki yerde tutulan sabit ayrıştı, özellik sessizce öldü" tuzağıdır.)
-  if (cron !== VISUAL_INDEX_CRON) {
+  // "bilinen görsel-dizin/fotoğraf ifadesi DEĞİLSE" mantığı kullanılır; sessizce hiç çalışmamak,
+  // bu depodaki tekrar eden "iki yerde tutulan sabit ayrıştı, özellik sessizce öldü" tuzağıdır.)
+  // PHOTO_SPACE_CRON 15 dakikada bir tetiklenir — o ifadede Gündem ÇALIŞMAMALI (4 saatlik ızgara
+  // ve kaynak başına seyreltme varsayımı bozulurdu).
+  const isPhotoSpaceCron = cron === PHOTO_SPACE_CRON;
+  if (cron !== VISUAL_INDEX_CRON && !isPhotoSpaceCron) {
     jobs.push((async () => {
       try {
         // ingestMode AÇIKÇA 'cron' (2026-09-07): gundem_runs.ingest_mode ve health-check'in
@@ -923,13 +932,25 @@ export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDUL
   // Google Meet yeniden deneme turu — Gündem ile AYNI ifadede (4 saatte bir), AYRI bir cron
   // satırı eklemeden. `runners.meetRetry` yoksa (scripts/test-gundem.mjs'in kendi runner seti)
   // sessizce atlanır; hatası diğer işleri ve Worker'ı düşürmez.
-  if (cron !== VISUAL_INDEX_CRON && typeof runners.meetRetry === 'function') {
+  if (cron !== VISUAL_INDEX_CRON && !isPhotoSpaceCron && typeof runners.meetRetry === 'function') {
     jobs.push((async () => {
       try {
         const res = await runners.meetRetry(env);
         console.log('meetRetry cron', JSON.stringify(res));
       } catch (err) {
         console.error('meetRetry cron başarısız', err && err.message);
+      }
+    })());
+  }
+
+  // Fotoğraf sayfası mekan etiketi — yalnızca kendi ifadesinde (bkz. src/lib/photoSpaceCron.js).
+  if (isPhotoSpaceCron && typeof runners.photoSpaces === 'function') {
+    jobs.push((async () => {
+      try {
+        const res = await runners.photoSpaces(env);
+        console.log('photoSpaces cron', JSON.stringify(res));
+      } catch (err) {
+        console.error('photoSpaces cron başarısız', err && err.message);
       }
     })());
   }
