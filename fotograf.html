@@ -151,9 +151,14 @@
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
   /* ---------- HERO ---------- */
+  /* DARALTILDI (kullanıcı isteği, 2026-09-18: "ilk çıkan açık mavi alan çok geniş, bunu daralt").
+     Ölçüldü (Chromium): masaüstünde 229px -> ~140px, mobilde 280px (min-height) -> ~140px.
+     Alt dolgu, altındaki yapışkan arama pilinin bindirme payını (margin-top:-32px / mobilde -26px)
+     + metinle pil arasındaki nefes payını taşır; p'nin alt boşluğu bu dolguya KATLANDI (iki ayrı
+     boşluk aynı mesafeyi iki kez sayıyordu). Mobil `min-height` kaldırıldı — bant içeriği kadar. */
   .ph-hero{
     position:relative; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; text-align:center; padding:56px 20px 74px;
+    justify-content:center; text-align:center; padding:28px 20px 52px;
     background:linear-gradient(180deg, rgba(27,42,61,0.55), rgba(27,42,61,0.72)), var(--ink);
   }
   .ph-hero > *{position:relative; z-index:1;}
@@ -174,9 +179,9 @@
   .ph-search-sticky > *{pointer-events:auto;}
   .ph-hero h1{
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size:38px; font-weight:700; color:#fff; margin:0 0 10px;
+    font-size:32px; font-weight:700; color:#fff; margin:0 0 6px;
   }
-  .ph-hero p{color:rgba(255,255,255,0.82); font-size:14.5px; margin:0 0 26px; max-width:520px;}
+  .ph-hero p{color:rgba(255,255,255,0.82); font-size:14.5px; margin:0; max-width:520px;}
   .ph-search{
     display:flex; align-items:center; gap:10px; width:100%; max-width:720px;
     background:#fff; border-radius:100px; padding:8px 8px 8px 18px;
@@ -330,8 +335,8 @@
     .ph-grid{columns:3 200px;}
   }
   @media (max-width:720px){
-    .ph-hero{min-height:280px; padding:36px 16px 48px;}
-    .ph-hero h1{font-size:28px;}
+    .ph-hero{padding:22px 16px 46px;}
+    .ph-hero h1{font-size:26px;}
     .ph-search-sticky{top:58px; padding:0 12px; margin-top:-26px;}
     .ph-search{padding:6px 6px 6px 14px; gap:6px;}
     .ph-reset-btn{padding:10px 14px; font-size:12.5px;}

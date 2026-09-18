@@ -2185,3 +2185,19 @@ tamamı 2-3 etiket, boş dizi hiç yok). İki eski tur iptal edildi (junk üreti
   `test-2026-09-17-comments-identity-and-photo-page.mjs` v2 biçimine geçti (26). Migration YOK,
   SSR sürüm bumpı YOK. Maliyet notu: tam havuz etiketlemesi ~11 bin vision çağrısı (~$5-8, bir
   kez); zamanlanmış koşular yalnızca yeni görseller için harcar.
+
+## /fotograf altıncı tur — hero (açık mavi bant) daraltıldı (2026-09-18)
+
+Kullanıcı isteği: "Fotoğraf sayfasında ilk çıkan açık mavi alan çok geniş, bunu daralt."
+
+- Bant `fotograf.html#.ph-hero`. Ölçüldü (Chromium): masaüstünde 229 → 142 px, mobilde (390px)
+  280 → 139 px. Üç kaynak: dolgu 56/74 → 28/52 (mobil 36/48 → 22/46), h1 38 → 32 px (mobil 28 → 26),
+  p'nin 26px alt boşluğu KALDIRILDI — o mesafeyi alt dolgu zaten taşıyordu (yapışkan pilin -32px
+  bindirmesi + ~20px nefes payı), iki boşluk aynı aralığı iki kez sayıyordu.
+- Mobil `min-height:280px` KALDIRILDI: bant artık içeriği kadar. "Açık mavi": gece temasında hero'nun
+  tabanı `var(--ink)` (#E8ECF1) olduğundan bant açık çelik mavisi görünür (açık temada koyu lacivert);
+  renk bu turda BİLEREK değişmedi — istek yalnızca yüksekliği kapsıyor.
+- Yapışkan arama pilinin kuralları (`.ph-search-sticky`: top / margin-top) DEĞİŞMEDİ; pil hâlâ bandın
+  alt kenarına biner.
+- Test: `scripts/test-2026-09-17-comments-identity-and-photo-page.mjs` (iki hero kuralında dolgu üst
+  sınırı + min-height yokluğu + `p{margin:0}`). Migration YOK, SSR sürüm bumpı YOK.

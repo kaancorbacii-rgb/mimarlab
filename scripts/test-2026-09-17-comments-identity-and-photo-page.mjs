@@ -439,6 +439,17 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   // 2026-09-18: arama çubuğu yapışkan ve dropdown içeriğin ÜSTÜNDE; künye satırları; otomatik yükleme.
   assert.match(s, /\.ph-search-sticky\{[^}]*position:sticky/);
   assert.ok(!/\.ph-hero\{[^}]*overflow:hidden/.test(s), 'hero overflow:hidden dropdown\'ı kırpıyordu');
+  // 2026-09-18 altıncı tur: hero DARALTILDI ("ilk çıkan açık mavi alan çok geniş, bunu daralt").
+  // Ölçüldü (Chromium): masaüstü 229 -> 142px, mobil 280 -> 139px. İki kural (masaüstü + <=720px):
+  // dolgular sınırlı, mobil min-height:280 YOK, p'nin alt boşluğu alt dolguya KATLANDI.
+  const heroRules = [...s.matchAll(/\.ph-hero\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.equal(heroRules.length, 2, 'masaüstü + mobil hero kuralı');
+  for (const rule of heroRules) {
+    assert.ok(!/min-height/.test(rule), `hero min-height bandı boş yere uzatıyordu: ${rule}`);
+    const pad = rule.match(/padding:(\d+)px \d+px (\d+)px/);
+    assert.ok(pad && +pad[1] <= 32 && +pad[2] <= 56, `hero dolgusu dar kalmalı: ${rule}`);
+  }
+  assert.match(s, /\.ph-hero p\{[^}]*margin:0;/, 'p alt boşluğu dolguya katlandı');
   assert.match(s, /id="ph-lightbox-meta"/); assert.match(s, /rows\.push\(\['Mimarlık Firması'/); assert.match(s, /rows\.push\(\['Ödül'/);
   assert.ok(!/rows\.push\(\['Fotoğraf'/.test(s), 'fotoğrafçı künye satırı değil (görselin altında)');
   // 2026-09-18 üçüncü tur: OTOMATİK yükleme YOK, yalnızca "Daha Fazla Göster" düğmesi.
