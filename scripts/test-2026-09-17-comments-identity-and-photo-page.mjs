@@ -464,9 +464,11 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   assert.match(s, /document\.addEventListener\('DOMContentLoaded', reload\)/);
 });
 
-await test('havuz KV önbelleğine bağlı ve yazmalarda temizlenir (POOL_CACHE_KINDS)', () => {
-  assert.match(read('../src/lib/photoPool.js'), /getCachedPool\(env, 'photos'/);
-  assert.match(read('../src/lib/publicCache.js'), /'projects:concept', 'photos'\]/);
+await test('havuz KV önbelleğine bağlı ve yazmalarda temizlenir (POOL_CACHE_KINDS); şekil SÜRÜMLÜ', async () => {
+  assert.match(read('../src/lib/photoPool.js'), /getCachedPool\(env, PHOTO_POOL_KIND/);
+  const { PHOTO_POOL_KIND } = await import('../src/lib/photoPool.js');
+  assert.equal(PHOTO_POOL_KIND, 'photos:v2');
+  assert.match(read('../src/lib/publicCache.js'), new RegExp(`'projects:concept', '${PHOTO_POOL_KIND}'\\]`), 'şekil sürümü invalidation listesiyle hizalı');
 });
 
 console.log(`\n${failed ? 'BAŞARISIZ' : 'TAMAM'} — ${passed} geçti, ${failed} kaldı`);

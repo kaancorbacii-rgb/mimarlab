@@ -277,8 +277,13 @@ async function fetchPhotoPoolRaw(env) {
   return { projects: projectsOut, items, stats };
 }
 
+// HAVUZ ŞEKLİ SÜRÜMLÜ ('photos:v2'): KV'deki havuz 30 dk yaşar ve deploy onu TEMİZLEMEZ. Beşinci
+// turun deploy'unda (2026-09-18) ilk ~30 dk boyunca eski şekilli havuz (clip/stats/primary yok)
+// yeni koda servis edildi ve tüm filtreler 0 döndü — smoke-test bunu yakaladı. Havuzun şekli
+// değişince bu anahtar ve publicCache.js#POOL_CACHE_KINDS birlikte artırılır.
+export const PHOTO_POOL_KIND = 'photos:v2';
 export async function fetchPhotoPool(env) {
-  return getCachedPool(env, 'photos', () => fetchPhotoPoolRaw(env), {
+  return getCachedPool(env, PHOTO_POOL_KIND, () => fetchPhotoPoolRaw(env), {
     // CLIP puanlaması tur başına sınırlı: bitmediyse havuz kısa yaşar, sonraki istek sürdürür.
     ttlSeconds: (pool) => (pool && pool.stats && pool.stats.clipPending > 0 ? CLIP_PENDING_TTL_SECONDS : undefined),
   });

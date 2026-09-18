@@ -363,7 +363,7 @@ await test('ipuçları KALICI önbellekte: dizin KV\'den silinse de ikinci kurul
   assert.equal(cached['projects/banyo.webp'].t, 'Tuvalet & Banyo');
   assert.ok(cached['projects/dizinde-yok.webp'].m != null, 'dizinde olmayan görsel "yok" işaretlenir');
   assert.ok(!('x' in cached), 'havuzda olmayan anahtar önbelleğe girmez');
-  kv.store.delete(imageIndexKvKey('project')); kv.store.delete('pool:photos'); resetImageIndexMemCache();
+  kv.store.delete(imageIndexKvKey('project')); kv.store.delete('pool:photos:v2'); resetImageIndexMemCache();
   kv.log.gets.length = 0;
   const again = await fetchPhotoPool(env);
   assert.equal(again.items.find(i => i.url === 'projects/banyo.webp').clip.t, 'Tuvalet & Banyo');
@@ -374,12 +374,12 @@ await test('CPU bütçesi: tur başına en fazla CLIP_SCORE_PER_BUILD görsel pu
   const { env, kv } = await poolFixture({ extraImages: CLIP_SCORE_PER_BUILD + 40 });
   const first = await fetchPhotoPool(env);
   assert.ok(first.stats.clipPending > 0, 'ilk turda hepsi puanlanmaz');
-  const put1 = kv.log.puts.filter(p => p.key === 'pool:photos').pop();
+  const put1 = kv.log.puts.filter(p => p.key === 'pool:photos:v2').pop();
   assert.equal(put1.opts.expirationTtl, 60, 'KV alt sınırı 60 sn — altı 400 döner');
-  kv.store.delete('pool:photos');
+  kv.store.delete('pool:photos:v2');
   const second = await fetchPhotoPool(env);
   assert.equal(second.stats.clipPending, 0);
-  const put2 = kv.log.puts.filter(p => p.key === 'pool:photos').pop();
+  const put2 = kv.log.puts.filter(p => p.key === 'pool:photos:v2').pop();
   assert.equal(put2.opts.expirationTtl, 1800, 'tamamlanınca olağan TTL');
 });
 

@@ -716,7 +716,9 @@ const POOL_CACHE_TTL_SECONDS = 1800;
 // proje eklenip/düzenlenip/gizlenip invalidatePublicCache() çağrıldığında bu havuz da temizlenir —
 // AI'ın ürettiği image_spaces etiketleri ise bu invalidation'dan BAĞIMSIZ ayrı bir yazma yoludur
 // (scripts/photo-space-classify-backfill.mjs), o da kendi turunun sonunda AYNI fonksiyonu çağırır.
-const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept', 'photos'];
+// 'photos:v2' — şekil sürümü (bkz. photoPool.js#PHOTO_POOL_KIND): eski 'pool:photos' anahtarı kendi
+// TTL'iyle düşer, temizlenmesine gerek yok.
+const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept', 'photos:v2'];
 export function poolCacheKey(kind) { return `pool:${kind}`; }
 
 // fetchPool() yalnızca KV boşsa çağrılır (pahalı JOIN+subquery sorgusu) — dönen değer, çağıranın
