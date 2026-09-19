@@ -79,7 +79,14 @@ function d1() {
       const r = await rawQuery(sql, params); const row = (r.results || [])[0]; if (!row) return null; return col ? row[col] : row;
     },
     async all() { const r = await rawQuery(sql, params); return { results: r.results || [] }; },
-    async run() { const r = await rawQuery(sql, params); return { success: true, meta: r.meta || {} }; },
+    async run() {
+      // facetCounts.js#replaceFacetCounts DELETE + INSERT'leri tek batch'te yazar; bu shim batch'i
+      // SIRALI yürüttüğünden (D1'deki gibi tek işlem değil) arada canlı /api/projects/filters ucu
+      // boş tabloyu görüp kendini onarabilir ve aynı satırları yazar (2026-09-19 ilk apply'da
+      // UNIQUE hatası) — sayaç satırı için OR REPLACE aynı sonucu verir.
+      const q = sql.replace(/^\s*INSERT INTO facet_counts/, 'INSERT OR REPLACE INTO facet_counts');
+      const r = await rawQuery(q, params); return { success: true, meta: r.meta || {} };
+    },
   });
   return { prepare: (sql) => stmt(sql, []), async batch(stmts) { const out = []; for (const st of stmts) out.push(await st.run()); return out; } };
 }
@@ -155,7 +162,10 @@ const order = (await rawQuery(ORDER_SQL)).results;
 // migrations/0087 — toplu partiler bu kolonla serpiştirildi); display_order=0/NULL kovası yalnızca
 // en üstteki birkaç yüz satırdır. Yeni proje hedef sıranın ÜSTÜNDEKİ komşunun display_order'ını
 // devralır ve yayın tarihi o kova içinde komşunun hemen altına düşer.
-const liveBucket = order.filter(r => !r.pv);
+// Bu partiden ÖNCEKİ bir koşuda zaten yazılmış projeler sıralamaya dahil edilmez (kendi kendilerine
+// komşu olmasınlar) — aşağıda yeniden konumlanırlar.
+const alreadyImported = new Set(DATA.projects.map(p => findExisting(p)).filter(Boolean).map(r => r.slug));
+const liveBucket = order.filter(r => !r.pv && !alreadyImported.has(r.slug));
 const zeroBucket = liveBucket.filter(r => Number(r.d) === 0).length;
 console.log(`Havuz: ${order.length} proje, canlı ${liveBucket.length} (display_order=0 kovası: ${zeroBucket})`);
 if (liveBucket.length < LAST_PAGE * PAGE_SIZE) throw new Error('Canlı havuz hedef sayfaları kapsamıyor.');
@@ -231,6 +241,14 @@ for (const it of plan) {
     publishDate: it.publishDate, lat: p.lat, lng: p.lng,
     rightsAccepted: true, rightsTextVersion: '2026-09-10',
   };
+  if (existing && images.every(u => (existing.images || '').includes(u))) {
+    // Önceki koşuda bu betikle yazılmış: yeniden gönderme, yalnızca sırasını ayarla.
+    console.log(`${APPLY ? 'YENİDEN KONUMLANDIRILIYOR' : 'YENİDEN KONUMLANDIRILACAK'}: ${p.title} -> /proje/${existing.slug} (görseller zaten yerinde)`);
+    if (!APPLY) continue;
+    await rawQuery(`UPDATE projects SET display_order = ?, publish_date = ? WHERE slug = ? AND deleted_at IS NULL`, [it.displayOrder, it.sortKey, existing.slug]);
+    results.push({ ...it, slug: existing.slug });
+    continue;
+  }
   if (existing) {
     let old = [];
     try { old = JSON.parse(existing.images || '[]'); } catch {}
