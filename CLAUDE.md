@@ -1,5 +1,20 @@
 # MİMARLAB — Proje Notları
 
+## ÜCRETLİ KAYNAK KURALI — ÖNCE SOR (2026-09-19, kesin kullanıcı kuralı)
+
+Kullanıcı: "Bir daha asla böyle yüksek ücretli bir şeyi aktif etmek istemiyorum ... Asla ama asla
+bir daha böyle bir şey yapma." (17-18 Eylül'de fotoğraf mekan etiketlemesi Workers AI'da ~15,5 $
+fatura çıkardı; maliyet yalnızca bu dosyaya not düşülmüş, kullanıcıya SORULMAMIŞTI.)
+
+- Ücret doğurabilecek HİÇBİR şey kullanıcının AÇIK onayı olmadan eklenmez, çalıştırılmaz ya da
+  zamanlanmaz: Workers AI çağrıları (özellikle görsel/LLM modelleri, toplu backfill'ler), yeni
+  cron/`schedule` tetikleyicileri, AI kullanan GitHub Actions zamanlamaları, ücretli API'ler, R2/KV/D1
+  kotasını aşabilecek toplu işler, yeni ücretli Cloudflare ürünleri.
+- Önce kullanıcıya TAHMİNİ MALİYETİ ($ olarak) ve ücretsiz kotayı aşıp aşmayacağını söyle, onay
+  bekle. "Bu dosyaya not düşmek" onay DEĞİLDİR.
+- Mevcut durum: fotoğraf mekan etiketi cron'u (`*/15`) ve `photo-space-classify.yml` zamanlaması
+  KAPALI. Yeniden açmak kullanıcı onayı ister.
+
 ## Deploy
 
 **Production'a HER ZAMAN `./deploy.sh` ile deploy edin — asla doğrudan `wrangler deploy` çalıştırmayın.**

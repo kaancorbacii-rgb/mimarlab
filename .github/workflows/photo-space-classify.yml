@@ -48,8 +48,10 @@ name: Fotoğraf sayfası — mekan sınıflandırması (AI)
 on:
   # Günde dört kez, Gündem/görsel-dizin cron'larıyla çakışmayan bir dakikada. Yalnızca eksikler
   # işlendiği için boş geçen koşu saniyeler sürer.
-  schedule:
-    - cron: '41 2,8,14,20 * * *'
+  # ZAMANLAMA KAPATILDI (kullanıcı isteği, 2026-09-19): görsel model (Workers AI) ücretli nöron
+  # harcıyor — 17-18 Eylül'de ~15,5 $ fatura çıktı. Yalnızca elle (workflow_dispatch) çalışır.
+  # schedule:
+  #   - cron: '41 2,8,14,20 * * *'
   workflow_dispatch:
     inputs:
       mode:
