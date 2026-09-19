@@ -932,6 +932,16 @@ else
   bad "2026-09-18 admin üye alanları testleri BAŞARISIZ:"
   tail -30 /tmp/preflight_20260918d >&2
 fi
+
+# 2026-09-19: Ücret doğurabilecek AI yolları kısıldı — görsel aramaya site geneli günlük tavan
+# (aiConfig.js#VISUAL_SEARCH_GLOBAL_DAILY_LIMIT) + Gündem cron'u günde 2 tur (TR 08:00/20:00).
+# Bkz. scripts/test-2026-09-19-ai-cost-caps.mjs.
+if node scripts/test-2026-09-19-ai-cost-caps.mjs >/tmp/preflight_20260919a 2>&1; then
+  ok "2026-09-19 AI maliyet tavanı testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260919a) test)"
+else
+  bad "2026-09-19 AI maliyet tavanı testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260919a >&2
+fi
 rm -f /tmp/preflight_20260918d
 
 # 2026-09-16 SEKİZİNCİ tur (dört madde): kişi pop-up'ındaki "Ekip Arkadaşları" kartlarında da ROZET

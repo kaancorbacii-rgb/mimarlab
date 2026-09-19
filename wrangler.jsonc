@@ -86,9 +86,12 @@
   // 6 saatte bir: yeni/değişmiş proje ve ürünlerin embedding'i üretilip dizin yeniden paketlenir;
   // değişiklik yoksa hiçbir AI çağrısı yapılmaz ve KV'ye yazılmaz.
   //
-  // "0 1,5,9,13,17,21 * * *" — GÜNDEM otomatik toplama turu (kullanıcı isteği, 2026-09-06 madde 21).
+  // "0 5,17 * * *" — GÜNDEM otomatik toplama turu (kullanıcı isteği, 2026-09-06 madde 21).
   //
-  // SAATLER (kullanıcı isteği, 2026-09-07 ikinci tur): turlar TÜRKİYE SAATİYLE dört saatte bir —
+  // SAATLER (2026-09-19, ücretli kaynak kuralı — kullanıcı onayıyla): günde İKİ tur, TÜRKİYE
+  // SAATİYLE 08:00 ve 20:00 (= 05:00 ve 17:00 UTC). Her tur Workers AI çağırır (başlık/özet/kalite/
+  // embedding); 6 turdan 2'ye inmek günlük AI tavanını 120 haberden 40'a indirir. Sağlık kontrolü
+  // (GUNDEM_CRON_STALE_MS = 30 saat) 12 saatlik aralıkla uyumlu. Eski ızgara TR 4 saatte birdi —
   // 00:00, 04:00, 08:00, 12:00, 16:00, 20:00. Cloudflare cron ifadeleri HER ZAMAN UTC'dir; Türkiye
   // kalıcı olarak UTC+3'tür (2016'dan beri yaz saati uygulaması YOKTUR), dolayısıyla dönüşüm
   // sabittir ve yılın hiçbir döneminde kaymaz:
@@ -124,7 +127,7 @@
   // KAPATILDI (kullanıcı isteği, 2026-09-19): "*/15 * * * *" listeden çıkarıldı. Fotoğraf mekan
   // etiketi görsel modelle (Workers AI) çalışıyor ve 17-18 Eylül'de ~15,5 $ nöron ücreti doğurdu.
   // Yeni yüklenen görseller artık otomatik etiketlenmez. Yeniden açmak için ifadeyi listeye geri ekleyin.
-  "triggers": { "crons": ["23 */6 * * *", "0 1,5,9,13,17,21 * * *"] },
+  "triggers": { "crons": ["23 */6 * * *", "0 5,17 * * *"] },
   "vars": {
     // iyzico CANLI ortamı (kullanıcı isteği, 2026-09-13: "iyzico base url'i canlıya çevir").
     // Buradan itibaren kart ödemeleri GERÇEK PARA çeker. Test ortamına dönmek için değer yeniden

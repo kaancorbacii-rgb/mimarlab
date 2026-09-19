@@ -45,7 +45,7 @@
 //                   kullan — tur bütçesi 120sn ve feed'ler 3'erli gruplar hâlinde çekiliyor.
 //  defaultCategory  AI'nin kategori önerisi whitelist dışına düşerse/emin olmazsa kullanılan değer
 //  categoryHints    feed'in kendi <category> etiketlerinden kategori türetme kuralları (AI'den ÖNCE)
-//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron DÖRT SAATTE BİR çalışır: TR
+//  fetchIntervalMin kaynağın ne sıklıkla YENİDEN okunacağı (cron 2026-09-19'dan beri GÜNDE İKİ KEZ, TR 08:00/20:00 çalışır; eskiden DÖRT SAATTE BİR: TR
 //                   00/04/08/12/16/20 — kullanıcı isteği 2026-09-07; bkz. wrangler.jsonc
 //                   #triggers.crons). Turlar arası 240 dakika olduğu için 180 = her turda okunur,
 //                   360 = iki turda bir (bkz. gundem_source_health.last_run_at). Şu an 360 beyan

@@ -202,7 +202,7 @@ await test('fotoğraf ifadesi YALNIZCA photoSpaces işçisini çağırır; Günd
   assert.deepEqual(calls, { gundem: 0, visual: 0, meet: 0, photo: 1 });
   assert.ok(settled.every(r => r.status === 'fulfilled'));
   // Gündem ifadesi fotoğraf işçisini çağırmaz (nöron harcaması 4 saatte bir DEĞİL, 15 dk'da bir ve yalnızca kendi ifadesinde).
-  await handleScheduled({ cron: '0 1,5,9,13,17,21 * * *' }, {}, ctx, runners);
+  await handleScheduled({ cron: '0 5,17 * * *' }, {}, ctx, runners);
   assert.equal(calls.photo, 1); assert.equal(calls.gundem, 1); assert.equal(calls.meet, 1);
   // photoSpaces işçisi fırlatırsa dispatcher düşmez.
   const bad = { ...runners, photoSpaces: async () => { throw new Error('patladı'); } };

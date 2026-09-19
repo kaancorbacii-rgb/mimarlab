@@ -31,6 +31,12 @@ export const AI_EXTRACT_CALL_TIMEOUT_MS = 25000;
 export const AI_EXTRACT_PER_USER_HOURLY_LIMIT = 5;
 export const AI_EXTRACT_GLOBAL_DAILY_LIMIT = 50;
 
+// Görsel arama (/api/ai/visual-search) için SİTE GENELİ günlük tavan (2026-09-19, ücretli kaynak
+// kuralı). IP başına sınır (5 dk'da 6) tek başına toplam harcamayı sınırlamıyordu: çok ziyaretçi =
+// sınırsız vision çağrısı. Yalnızca YENİ analizler sayılır — aynı görsel KV önbelleğinden gelirse AI
+// çağrılmaz ve tavandan düşmez. Tavan dolunca uç 429 döner; ertesi gün (UTC) sıfırlanır.
+export const VISUAL_SEARCH_GLOBAL_DAILY_LIMIT = 100;
+
 // Gönderim anında dış görselleri R2'ye kopyalayan uç nokta için ayrı, biraz daha gevşek bir
 // kullanıcı limiti (bir gönderi birden çok görsel taşıyabilir) + istek başına azami görsel sayısı.
 // htmlExtract.js#extractPageContent'in aday listesi için kullandığı maxImages (60) ile hizalı —

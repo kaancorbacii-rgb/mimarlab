@@ -870,7 +870,7 @@ export default {
   //
   // Artık İKİ cron ifadesi var (bkz. wrangler.jsonc#triggers.crons):
   //   "23 *&#47;6 * * *"   → görsel arama varlık dizininin artımlı bakımı (ESKİ, DEĞİŞMEDİ)
-  //   "0 1,5,9,13,17,21 * * *" → Gündem toplama turu (UTC; = TR 00/04/08/12/16/20, UTC+3 sabit)
+  //   "0 5,17 * * *"       → Gündem toplama turu (UTC; = TR 08:00/20:00, UTC+3 sabit; 2026-09-19'a dek 4 saatte bir)
   // event.cron hangi ifadenin tetiklendiğini söyler; iş seçimi buna göre yapılır. İki ifade artık
   // aynı dakikaya hiç denk gelmiyor (biri :23, diğeri :00), ama denk gelseler bile ikisi de çalışır
   // ve BİRBİRİNİ BEKLEMEZ (Promise.allSettled), böylece yavaş bir görsel dizin turu Gündem'in kendi
@@ -929,7 +929,7 @@ export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDUL
     })());
   }
 
-  // Google Meet yeniden deneme turu — Gündem ile AYNI ifadede (4 saatte bir), AYRI bir cron
+  // Google Meet yeniden deneme turu — Gündem ile AYNI ifadede (günde iki kez, 2026-09-19), AYRI bir cron
   // satırı eklemeden. `runners.meetRetry` yoksa (scripts/test-gundem.mjs'in kendi runner seti)
   // sessizce atlanır; hatası diğer işleri ve Worker'ı düşürmez.
   if (cron !== VISUAL_INDEX_CRON && !isPhotoSpaceCron && typeof runners.meetRetry === 'function') {

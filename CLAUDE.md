@@ -14,6 +14,11 @@ fatura çıkardı; maliyet yalnızca bu dosyaya not düşülmüş, kullanıcıya
   bekle. "Bu dosyaya not düşmek" onay DEĞİLDİR.
 - Mevcut durum: fotoğraf mekan etiketi cron'u (`*/15`) ve `photo-space-classify.yml` zamanlaması
   KAPALI. Yeniden açmak kullanıcı onayı ister.
+- 2026-09-19 kısıtları (kullanıcı onayıyla): /fotograf arama kutusu yazılamaz, serbest metin → AI
+  ucu (`/api/photos/space-for-query`) SİLİNDİ; görsel aramaya site geneli günlük tavan
+  (`aiConfig.js#VISUAL_SEARCH_GLOBAL_DAILY_LIMIT` = 100 YENİ analiz/gün, önbellek isabeti sayılmaz);
+  Gündem cron'u günde 6 turdan **2'ye** (`0 5,17 * * *` = TR 08:00/20:00; Meet yeniden denemesi de
+  aynı ifadede). Kelepçe: `scripts/test-2026-09-19-ai-cost-caps.mjs`. Bunları gevşetmek onay ister.
 
 ## Deploy
 

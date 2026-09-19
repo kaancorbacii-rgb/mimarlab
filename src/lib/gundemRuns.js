@@ -31,7 +31,7 @@
 
 import { newId } from './crypto.js';
 
-// Cron ızgarası TR saatiyle 4 saatte bir (bkz. wrangler.jsonc#triggers.crons). 30 saat ≈ arka
+// Cron ızgarası TR saatiyle 12 saatte bir (08:00/20:00, 2026-09-19'dan önce 4 saatte bir) (bkz. wrangler.jsonc#triggers.crons). 30 saat ≈ arka
 // arkaya 7 kaçırılmış tur — tek bir boş/kaçırılmış turun gürültü yapmaması için bilerek geniş.
 export const GUNDEM_CRON_STALE_MS = 30 * 60 * 60 * 1000;
 

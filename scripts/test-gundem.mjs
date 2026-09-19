@@ -1018,7 +1018,7 @@ await test('6c) health alanları: hiç satır yoksa no_run + null alanlar', asyn
 
 // --- 5) scheduled() dispatcher ---------------------------------------------------------------------
 function fakeCtx() { const c = { waited: [] }; c.waitUntil = (p) => c.waited.push(p); return c; }
-const GUNDEM_CRON = '0 1,5,9,13,17,21 * * *';
+const GUNDEM_CRON = '0 5,17 * * *';
 const VISUAL_CRON = '23 */6 * * *';
 
 await test('5a) scheduled(): Gündem ifadesi -> gundem işçisi { ingestMode: "cron" } ile çağrılır, görsel dizin ÇAĞRILMAZ', async () => {

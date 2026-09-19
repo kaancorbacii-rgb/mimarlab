@@ -69,6 +69,7 @@
 
 import { json, errorJson } from '../lib/http.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
+import { VISUAL_SEARCH_GLOBAL_DAILY_LIMIT } from '../lib/aiConfig.js';
 import { fetchActiveProjectPoolCached, parseProjectDateYear } from './project.js';
 import { fetchProductPool } from './product.js';
 import { emptyPlan, searchProjectPool } from '../lib/searchEngine.js';
@@ -877,6 +878,10 @@ export async function handleVisualSearchRoute(request, env, url) {
   } catch { /* önbellek okunamazsa normal yola devam */ }
 
   if (!vision) {
+    // Site geneli günlük tavan — yalnızca AI'ya gidecek (önbellekte olmayan) aramalar sayılır.
+    if (!(await checkRateLimit(env, 'visual-search-global', 'all', VISUAL_SEARCH_GLOBAL_DAILY_LIMIT, 24 * 60 * 60 * 1000))) {
+      return errorJson('Görsel arama bugünlük kapasitesine ulaştı. Lütfen yarın tekrar dene.', 429, { 'Retry-After': '3600' });
+    }
     try {
       vision = await analyzeImage(env, bytes, VISION_TIMEOUT_MS, mime);
       aiCalls++;
