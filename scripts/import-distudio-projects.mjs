@@ -30,6 +30,7 @@ globalThis.caches ||= { default: { match: async () => undefined, put: async () =
 
 const { handleSubmissionRoute } = await import('../src/routes/submissions.js');
 const { foldTr } = await import('../src/lib/textMatch.js');
+const { invalidatePublicCache } = await import('../src/lib/publicCache.js');
 
 const ACCOUNT_ID = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim() || '2e3cd3c1a471552e19436913b2368c4f';
 const DATABASE_ID = '65856ee8-f2a3-4461-867d-3ed7faf2c246';
@@ -150,9 +151,14 @@ function findExisting(p) {
 
 // ---- 1. sayfa dışı hedef sıralar ----------------------------------------------------------------
 const order = (await rawQuery(ORDER_SQL)).results;
-const liveBucket = order.filter(r => !r.pv && Number(r.d) === 0);
-console.log(`Havuz: ${order.length} proje, sıralanan ilk kova (önizleme değil, display_order=0): ${liveBucket.length}`);
-if (liveBucket.length < LAST_PAGE * PAGE_SIZE) throw new Error('İlk kova hedef sayfaları kapsamıyor — dağılım yeniden düşünülmeli.');
+// Canlı (önizleme olmayan) sıra. Katalogdaki projelerin çoğu açık bir display_order taşır (bkz.
+// migrations/0087 — toplu partiler bu kolonla serpiştirildi); display_order=0/NULL kovası yalnızca
+// en üstteki birkaç yüz satırdır. Yeni proje hedef sıranın ÜSTÜNDEKİ komşunun display_order'ını
+// devralır ve yayın tarihi o kova içinde komşunun hemen altına düşer.
+const liveBucket = order.filter(r => !r.pv);
+const zeroBucket = liveBucket.filter(r => Number(r.d) === 0).length;
+console.log(`Havuz: ${order.length} proje, canlı ${liveBucket.length} (display_order=0 kovası: ${zeroBucket})`);
+if (liveBucket.length < LAST_PAGE * PAGE_SIZE) throw new Error('Canlı havuz hedef sayfaları kapsamıyor.');
 
 const pages = shuffle(Array.from({ length: LAST_PAGE - FIRST_PAGE + 1 }, (_, i) => FIRST_PAGE + i)).slice(0, DATA.projects.length);
 const plan = DATA.projects.map((p, i) => ({ p, page: pages[i], slot: Math.floor(rand() * PAGE_SIZE) }));
@@ -176,9 +182,14 @@ for (const item of sorted) {
   for (let tries = 0; tries < PAGE_SIZE; tries++) {
     const origIdx = t - placedBefore;             // bu sıraya yerleşince önünde origIdx eski kayıt var
     const upper = liveBucket[origIdx - 1], lower = liveBucket[origIdx];
-    const d = upper && lower ? dateBetween(upper.k, lower.k) : null;
+    // Aynı kovadaysa iki komşunun ARASI; kova sınırındaysa üstteki kovanın SONU (alt sınır yok).
+    const sameBucket = upper && lower && Number(upper.d) === Number(lower.d);
+    const d = upper && lower ? dateBetween(upper.k, sameBucket ? lower.k : '0000-01-01') : null;
     const samePage = Math.floor(t / PAGE_SIZE) + 1 === item.page;
-    if (d && samePage) { item.publishDate = d; item.target = t; item.between = [upper.slug, lower.slug]; break; }
+    if (d && samePage) {
+      item.publishDate = d; item.displayOrder = Number(upper.d) || null;
+      item.target = t; item.between = [upper.slug, lower.slug]; break;
+    }
     t++;
   }
   if (!item.publishDate) throw new Error(`${item.p.slug}: ${item.page}. sayfada uygun tarih aralığı bulunamadı.`);
@@ -187,7 +198,7 @@ for (const item of sorted) {
 }
 console.log('\nDağılım (sayfa · sıra · yayın tarihi · komşular):');
 for (const it of plan) {
-  console.log(`  ${it.p.slug.padEnd(28)} sayfa ${String(it.page).padStart(2)} · #${String(it.target % PAGE_SIZE + 1).padStart(2)} · ${it.publishDate} · ${it.between.join(' > * > ')}`);
+  console.log(`  ${it.p.slug.padEnd(28)} sayfa ${String(it.page).padStart(2)} · #${String(it.target % PAGE_SIZE + 1).padStart(2)} · ${it.publishDate} · display_order ${it.displayOrder ?? '-'} · ${it.between.join(' > * > ')}`);
 }
 
 // ---- gönderim ----------------------------------------------------------------------------------
@@ -228,11 +239,17 @@ for (const it of plan) {
   if (!res.ok) { process.exitCode = 1; continue; }
   let slug = existing ? existing.slug : null;
   try { slug = JSON.parse(text).slug || slug; } catch {}
+  // display_order'ı yazan bir uç YOK (yalnızca toplu partilerin backfill'i ve admin promosyonu
+  // yazar, bkz. admin.js); syncProject bu kolona hiç dokunmadığından sonraki düzenlemeler de korur.
+  await rawQuery(`UPDATE projects SET display_order = ? WHERE slug = ? AND deleted_at IS NULL`, [it.displayOrder, slug]);
   results.push({ ...it, slug });
 }
 
 // ---- doğrulama ---------------------------------------------------------------------------------
 if (APPLY && results.length) {
+  // display_order UPDATE'leri POST'un kendi önbellek temizliğinden SONRA yazıldı — havuzu bir kez
+  // daha düşür (KV silme gerçek, bkz. FACET_CACHE shim'i).
+  await invalidatePublicCache(env);
   const after = (await rawQuery(ORDER_SQL)).results;
   const pos = new Map(after.map((r, i) => [r.slug, i]));
   console.log('\nDOĞRULAMA — canlı sıralamadaki yer:');
