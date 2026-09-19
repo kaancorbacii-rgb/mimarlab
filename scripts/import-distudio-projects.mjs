@@ -80,12 +80,13 @@ function d1() {
     },
     async all() { const r = await rawQuery(sql, params); return { results: r.results || [] }; },
     async run() {
-      // facetCounts.js#replaceFacetCounts DELETE + INSERT'leri tek batch'te yazar; bu shim batch'i
-      // SIRALI yürüttüğünden (D1'deki gibi tek işlem değil) arada canlı /api/projects/filters ucu
-      // boş tabloyu görüp kendini onarabilir ve aynı satırları yazar (2026-09-19 ilk apply'da
-      // UNIQUE hatası) — sayaç satırı için OR REPLACE aynı sonucu verir.
-      const q = sql.replace(/^\s*INSERT INTO facet_counts/, 'INSERT OR REPLACE INTO facet_counts');
-      const r = await rawQuery(q, params); return { success: true, meta: r.meta || {} };
+      // facetCounts.js#replaceFacetCounts DELETE + yüzlerce INSERT'i tek D1 batch'inde yazar; bu shim
+      // her ifadeyi ayrı bir REST çağrısıyla yürüttüğünden proje başına ~10 dk sürüyor ve arada canlı
+      // uçla UNIQUE yarışına giriyordu (2026-09-19, iki apply). INSERT'ler atlanır: DELETE tabloyu
+      // boşaltır ve /api/projects/filters boş tabloyu görünce sayaçları KENDİSİ yeniden hesaplar
+      // (bkz. CLAUDE.md "Sayaçlar boşken uç KENDİNİ ONARIR").
+      if (/^\s*INSERT INTO facet_counts/.test(sql)) return { success: true, meta: {} };
+      const r = await rawQuery(sql, params); return { success: true, meta: r.meta || {} };
     },
   });
   return { prepare: (sql) => stmt(sql, []), async batch(stmts) { const out = []; for (const st of stmts) out.push(await st.run()); return out; } };
