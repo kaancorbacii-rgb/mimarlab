@@ -361,18 +361,16 @@ await test('AI: düşük güvenli etiket ELENİR, eski düz-string çıktı biç
   assert.deepEqual((await classifyPhotoSpace(legacy, new Uint8Array([1]), 5000, 'image/jpeg')).spaces, [{ label: 'Havuz', confidence: null }]);
 });
 
-await test('AI arama eşlemesi (serbest metin -> etiket) whitelist\'ten geçer', async () => {
-  const { normalizeQuerySpace, SPACE_QUERY_SCHEMA } = await import('../src/lib/photoSpaceClassify.js');
-  assert.equal(normalizeQuerySpace({ space: 'Tuvalet & Banyo' }), 'Tuvalet & Banyo');
-  assert.equal(normalizeQuerySpace({ space: 'Sinema' }), null);
-  assert.equal(normalizeQuerySpace({ space: 'Plan Çizimi' }), null, 'çizim aranabilir etiket değil');
-  assert.ok(!SPACE_QUERY_SCHEMA.schema.properties.space.enum.includes('Plan Çizimi'));
-  assert.equal(normalizeQuerySpace({ space: null }), null);
-  assert.ok(SPACE_QUERY_SCHEMA.schema.properties.space.enum.includes(null));
-  const s = read('../src/routes/photos.js');
-  assert.match(s, /\/api\/photos\/space-for-query/);
-  assert.match(s, /checkRateLimit\(env, 'photo-space-query'/, 'herkese açık LLM ucu hız sınırsız olamaz');
-  assert.match(read('../src/index.js'), /path === '\/api\/photos\/space-for-query'/);
+await test('Arama kutusu YAZILAMAZ, serbest metin -> AI eşleme ucu YOK (2026-09-19, ücretli kaynak kuralı)', async () => {
+  const cls = await import('../src/lib/photoSpaceClassify.js');
+  assert.equal(cls.normalizeQuerySpace, undefined, 'ölü AI arama yardımcısı geri gelmemeli');
+  assert.equal(cls.SPACE_QUERY_SCHEMA, undefined);
+  const r = read('../src/routes/photos.js');
+  assert.doesNotMatch(r, /callOnce|aiProvider|['"`]\/api\/photos\/space-for-query/, 'fotoğraf ucu AI çağırmamalı');
+  assert.doesNotMatch(read('../src/index.js'), /\/api\/photos\/space-for-query/);
+  const html = read('../fotograf.html');
+  assert.match(html, /<input[^>]*id="ph-search-input"[^>]*\sreadonly/, 'kutu readonly olmalı');
+  assert.doesNotMatch(html, /space-for-query/);
 });
 
 await test('AI net bir mekan göremezse boş dizi (o görsel filtrede hiç görünmez)', async () => {
@@ -458,8 +456,9 @@ await test('fotograf.html: hero arama kutusu + ızgara + lightbox künyesi yerin
   assert.match(s, /loadMoreBtn\.addEventListener\('click', \(\) => loadPage\(false\)\)/);
   assert.ok(!/künyesindeki bilgiye göre listelendi/.test(s), 'via metni silindi');
   assert.match(s, /rows\.push\(\['Mimar', list\(item\.architects\)\]\)/, 'künyede Mimar satırı');
-  assert.match(s, /t\.kind !== 'drawing'/, 'dropdown çizimleri sunmaz');
-  assert.match(s, /PHOTO_SPACE_TAXONOMY/, 'yerel eşleşme anahtar kelimeleri de kullanır');
+  // Dropdown yalnızca PHOTO_SPACE_OPTIONS'ı listeler; o liste çizimleri kaynağında dışlar.
+  assert.match(s, /spaceOptions\(\)\.map\(/, 'dropdown listeyi PHOTO_SPACE_OPTIONS\'tan çizer');
+  assert.match(read('../photo-space-taxonomy.js'), /PHOTO_SPACE_OPTIONS = PHOTO_SPACE_TAXONOMY\.filter\(t => t\.kind !== 'drawing'\)/, 'dropdown çizimleri sunmaz');
   // madde 1: footer CSS bloğu sayfada var (site-chrome yalnızca markup'ı üretir).
   assert.match(s, /\.footer-top\{/); assert.match(s, /\.footer-col a\{/);
   // Kart altı etiketi PROJE ADI (2026-09-18 onuncu tur; önceki "firma/mimar" kuralı kaldırıldı).

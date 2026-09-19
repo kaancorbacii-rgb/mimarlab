@@ -192,6 +192,7 @@
   .ph-search-field input{
     flex:1; border:none; outline:none; background:none;
     font-family:inherit; font-size:14px; color:#1B2A3D;
+    cursor:pointer; caret-color:transparent;
   }
   /* Sayfa genelindeki :focus-visible kuralı (yukarıda) her odaklanan öğeye iç mavi çerçeve
      çizer; arama kutusunda bu bir "mavi dikdörtgen" olarak görünüyordu (kullanıcı isteği,
@@ -214,7 +215,6 @@
     padding:10px 14px; border-radius:8px; font-size:13.5px; color:#1B2A3D;
   }
   .ph-dropdown-option:hover, .ph-dropdown-option.active{background:#EDF0F3; color:#12171F;}
-  .ph-dropdown-note{padding:10px 14px; font-size:12.5px; color:#7A8798;}
 
   /* ---------- IZGARA (masonry — SABİT SÜTUNLAR, JS ile yerleşim) ----------
      CSS columns KULLANILMAZ (kullanıcı isteği, 2026-09-18 sekizinci tur: "daha fazla gör butonuna
@@ -387,8 +387,8 @@
     <div class="ph-search">
       <div class="ph-search-field">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="ph-search-input" placeholder="Mekana göre ara (Oturma Odası, Mutfak ve daha fazlası)" autocomplete="off" aria-label="Mekana göre ara">
-        <div class="ph-dropdown" id="ph-dropdown" hidden></div>
+        <input type="text" id="ph-search-input" readonly placeholder="Mekan seç (Oturma Odası, Mutfak ve daha fazlası)" autocomplete="off" aria-label="Mekan seç" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="ph-dropdown">
+        <div class="ph-dropdown" id="ph-dropdown" role="listbox" hidden></div>
       </div>
       <button type="button" class="ph-reset-btn" id="ph-reset-btn">Sıfırla</button>
     </div>
@@ -438,7 +438,8 @@
 <script>
 // FOTOĞRAF SAYFASI (kullanıcı isteği, 2026-09-17; ikinci tur aynı gün: footer, metin, sabit mekan
 // sırası, firma/mimar etiketi, yükleyen bilgisi yok, fotoğrafçı, Kaydet·Paylaş·X satırı, beyaz panel,
-// dışarı tıkla-kapat, blurlu görsel yok, AI destekli arama, ana menüye ekleme).
+// dışarı tıkla-kapat, blurlu görsel yok, ana menüye ekleme). Arama kutusu 2026-09-19'dan beri yazılamaz,
+// yalnızca listeden mekan seçilir (serbest metin -> AI eşlemesi ücret doğurabildiği için kaldırıldı).
 //
 // Veri kaynağı: GET /api/photos (bkz. src/routes/photos.js) — src/lib/photoPool.js'in KV-önbellekli
 // havuzunu mekan filtresine göre süzüp sayfalar. Sıralama SUNUCUDA yapılır: sayfanın her açılışta
@@ -446,7 +447,6 @@
 (function(){
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-  function foldTr(s){ return String(s || '').toLocaleLowerCase('tr').trim(); }
 
   const grid = document.getElementById('ph-grid');
   const emptyEl = document.getElementById('ph-empty');
@@ -466,55 +466,44 @@
   let loading = false;
   let exhausted = false;
 
-  // ---------- Mekan arama (photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS — verilen SIRAYLA) ----------
+  // ---------- Mekan seçimi (photo-space-taxonomy.js#PHOTO_SPACE_OPTIONS — verilen SIRAYLA) ----------
+  // Kutu YAZILAMAZ (readonly, 2026-09-19): kullanıcı yalnızca listedeki mekanlardan birini seçer.
+  // Serbest metin -> AI eşleme ucu ücret doğurabildiği için kaldırıldı (bkz. src/routes/photos.js).
   function spaceOptions(){ return (typeof PHOTO_SPACE_OPTIONS !== 'undefined') ? PHOTO_SPACE_OPTIONS : []; }
-  // Etiket adı YA DA anahtar kelimesi (photo-space-taxonomy.js#keywords: "wc", "salon", "hamam"...)
-  // eşleşir — böylece yaygın eş anlamlılar AI'a hiç gitmeden yakalanır (2026-09-18).
-  function matchingOptions(query){
-    const q = foldTr(query);
-    if(!q) return spaceOptions();
-    // Çizim etiketleri (kind:'drawing') aramada SUNULMAZ (2026-09-18 üçüncü tur).
-    const tax = ((typeof PHOTO_SPACE_TAXONOMY !== 'undefined') ? PHOTO_SPACE_TAXONOMY : spaceOptions().map(l => ({ label: l, keywords: [] }))).filter(t => t.kind !== 'drawing');
-    return tax.filter(t => foldTr(t.label).includes(q) || (t.keywords || []).some(k => foldTr(k).includes(q) || q.includes(foldTr(k)))).map(t => t.label);
+  function setDropdownOpen(open){
+    dropdown.hidden = !open;
+    searchInput.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
   function selectSpace(space){
     currentSpace = space || '';
     searchInput.value = currentSpace;
-    dropdown.hidden = true;
+    setDropdownOpen(false);
     reload();
   }
-  function renderDropdown(query, note){
-    const list = matchingOptions(query);
-    let html = list.map(s =>
-      `<button type="button" class="ph-dropdown-option${s === currentSpace ? ' active' : ''}" data-space="${escapeAttr(s)}">${escapeHtml(s)}</button>`
+  function renderDropdown(){
+    dropdown.innerHTML = spaceOptions().map(s =>
+      `<button type="button" role="option" aria-selected="${s === currentSpace}" class="ph-dropdown-option${s === currentSpace ? ' active' : ''}" data-space="${escapeAttr(s)}">${escapeHtml(s)}</button>`
     ).join('');
-    if(!list.length) html = `<div class="ph-dropdown-note">${escapeHtml(note || 'Listede yok — Enter\'a basarsan yapay zeka en yakın mekanı bulur.')}</div>`;
-    dropdown.innerHTML = html;
     dropdown.querySelectorAll('[data-space]').forEach(btn => btn.addEventListener('click', () => selectSpace(btn.dataset.space)));
   }
-  // AI DESTEKLİ ARAMA (kullanıcı isteği madde 11): listede birebir/alt dize eşleşmesi yoksa
-  // ("salon", "wc", "çocuk odası") sunucu metin modeliyle en yakın etiketi bulur (bkz.
-  // src/routes/photos.js#spaceForQuery). Enter'a bağlı — tuş vuruşu başına AI çağrısı YOK.
-  let aiQuerySeq = 0;
-  async function resolveQuery(){
-    const q = searchInput.value.trim();
-    if(!q){ selectSpace(''); return; }
-    const local = matchingOptions(q);
-    if(local.length){ selectSpace(local[0]); return; }
-    const mySeq = ++aiQuerySeq;
-    renderDropdown(q, 'Aranıyor…'); dropdown.hidden = false;
-    try{
-      const res = await fetch(`/api/photos/space-for-query?q=${encodeURIComponent(q)}`);
-      const data = res.ok ? await res.json() : { space: null };
-      if(mySeq !== aiQuerySeq) return;
-      if(data.space) selectSpace(data.space);
-      else renderDropdown(q, 'Eşleşen bir mekan bulunamadı.');
-    }catch{ if(mySeq === aiQuerySeq) renderDropdown(q, 'Eşleşen bir mekan bulunamadı.'); }
-  }
-  searchInput.addEventListener('focus', () => { renderDropdown(searchInput.value); dropdown.hidden = false; });
-  searchInput.addEventListener('input', () => { renderDropdown(searchInput.value); dropdown.hidden = false; });
-  searchInput.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); resolveQuery(); } });
-  document.addEventListener('click', (e) => { if(!e.target.closest('.ph-search-field')) dropdown.hidden = true; });
+  function openDropdown(){ renderDropdown(); setDropdownOpen(true); }
+  searchInput.addEventListener('click', () => { if(dropdown.hidden) openDropdown(); else setDropdownOpen(false); });
+  searchInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown'){
+      e.preventDefault();
+      openDropdown();
+      const first = dropdown.querySelector('.ph-dropdown-option.active') || dropdown.querySelector('.ph-dropdown-option');
+      if(first) first.focus();
+    } else if(e.key === 'Escape'){ setDropdownOpen(false); }
+  });
+  dropdown.addEventListener('keydown', (e) => {
+    const opts = [...dropdown.querySelectorAll('.ph-dropdown-option')];
+    const i = opts.indexOf(document.activeElement);
+    if(e.key === 'ArrowDown'){ e.preventDefault(); (opts[i + 1] || opts[0]).focus(); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); (opts[i - 1] || opts[opts.length - 1]).focus(); }
+    else if(e.key === 'Escape'){ setDropdownOpen(false); searchInput.focus(); }
+  });
+  document.addEventListener('click', (e) => { if(!e.target.closest('.ph-search-field')) setDropdownOpen(false); });
   resetBtn.addEventListener('click', () => selectSpace(''));
 
   // ---------- Izgara ----------

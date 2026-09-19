@@ -209,33 +209,4 @@ export function storedSpaceEntry(result) {
   return { v: SPACE_LABEL_VERSION, scene: result.scene || null, spaces: result.spaces || [] };
 }
 
-// ARAMA KUTUSUNDAKİ SERBEST METNİ BİR ETİKETE EŞLE (kullanıcı isteği madde 11) — kullanıcı
-// "salon", "çocuk odası", "wc", "kat planı" gibi listede birebir geçmeyen bir şey yazdığında metin
-// modeli (aiProvider.js#callOnce, JSON Mode) hangi etiketin kastedildiğini söyler. Çıktı yine
-// whitelist'ten geçer; hiçbiri uymuyorsa null. Vision modeli DEĞİL, metin modeli: görsel yok,
-// yalnızca kısa bir sorgu var — AI_MODEL (llama-3.3-70b) bunun için hem daha isabetli hem ucuz.
-export function spaceQuerySystemPrompt() {
-  return `Sen bir mimarlık fotoğraf arşivinin arama yardımcısısın. Kullanıcının Türkçe (ya da İngilizce)
-arama metnini aşağıdaki SABİT mekan etiketlerinden EN uygun olanına eşle. Hiçbiri gerçekten uymuyorsa
-null döndür — zorla eşleme yapma.
-
-ETİKETLER VE TANIMLARI:
-${SEARCHABLE_DEFS}
-
-Yalnızca JSON döndür: {"space": <etiket ya da null>}`;
-}
-export const SPACE_QUERY_SCHEMA = {
-  name: 'photo_space_query',
-  schema: {
-    type: 'object',
-    properties: { space: { type: ['string', 'null'], enum: [...PHOTO_SPACE_OPTIONS, null] } },
-    required: ['space'],
-    additionalProperties: false,
-  },
-};
-export function normalizeQuerySpace(parsed) {
-  const v = parsed && typeof parsed.space === 'string' ? parsed.space.trim() : null;
-  return v && PHOTO_SPACE_OPTIONS.includes(v) ? v : null;
-}
-
 export { PHOTO_SPACE_OPTIONS, PHOTO_SPACE_TAXONOMY, PHOTO_SPACE_LABELS, PHOTO_SPACE_DISTRACTOR_LABELS };

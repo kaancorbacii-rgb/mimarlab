@@ -1,7 +1,6 @@
 // /fotograf sayfasının (kullanıcı isteği, 2026-09-17) veri uçları:
 //   GET /api/photos                      — havuzu mekan filtresine göre süzer ve sayfalar
 //   GET /api/photos/stats                — etiketleme/ipucu kapsamı + mekan başına sonuç sayıları
-//   GET /api/photos/space-for-query?q=   — serbest metni bir mekan etiketine eşler (AI)
 //
 // Havuz src/lib/photoPool.js#fetchPhotoPool'dan gelir (KV-önbellekli). Bu uç süzer, sıralar,
 // sayfalar ve sayfa başına proje künyesini görsele birleştirir (expand).
@@ -34,10 +33,7 @@
 import { json, errorJson } from '../lib/http.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { fetchPhotoPool } from '../lib/photoPool.js';
-import { callOnce, isAiProviderConfigured } from '../lib/aiProvider.js';
-import { AI_MODEL } from '../lib/aiConfig.js';
-import { checkRateLimit } from '../lib/rateLimit.js';
-import { spaceQuerySystemPrompt, SPACE_QUERY_SCHEMA, normalizeQuerySpace, PHOTO_SPACE_OPTIONS } from '../lib/photoSpaceClassify.js';
+import { PHOTO_SPACE_OPTIONS } from '../lib/photoSpaceClassify.js';
 import { clipProbOf, clipVerdict, CLIP_AGREE_MIN, CLIP_WEAK_MIN } from '../lib/photoSpaceClip.js';
 import { readLastRun as readPhotoSpaceCronRun } from '../lib/photoSpaceCron.js';
 
@@ -160,7 +156,6 @@ function poolStats(pool) {
 
 export async function handlePhotosRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
-  if (url.pathname === '/api/photos/space-for-query') return spaceForQuery(request, env, url);
   if (url.pathname === '/api/photos/stats') {
     // `cron`: Worker cron'unun son turu (src/lib/photoSpaceCron.js) — yeni yüklemelerin etiketlenip
     // etiketlenmediği buradan izlenir (smoke-test 13c okur).
@@ -183,26 +178,7 @@ export async function handlePhotosRoute(request, env, url) {
   });
 }
 
-// SERBEST METİN -> ETİKET. İstemci önce listeyi + anahtar kelimeleri kendi süzer; yalnızca hiçbiri
-// eşleşmeyince buraya gelir. Herkese açık bir LLM ucu olduğu için IP bazlı hız sınırı ŞART.
-async function spaceForQuery(request, env, url) {
-  const q = (url.searchParams.get('q') || '').trim().slice(0, 80);
-  if (q.length < 2) return json({ space: null });
-  if (!isAiProviderConfigured(env)) return json({ space: null, reason: 'ai_unavailable' });
-  const ip = request.headers.get('cf-connecting-ip') || 'anon';
-  if (!(await checkRateLimit(env, 'photo-space-query', ip, 20, 10 * 60 * 1000))) {
-    return errorJson('Çok fazla arama. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '600' });
-  }
-  try {
-    const parsed = await callOnce(env, {
-      system: spaceQuerySystemPrompt(),
-      userText: `Arama metni: "${q}"`,
-      schema: SPACE_QUERY_SCHEMA,
-      model: AI_MODEL,
-      maxTokens: 60,
-    });
-    return json({ space: normalizeQuerySpace(parsed) });
-  } catch {
-    return json({ space: null, reason: 'ai_error' });
-  }
-}
+// SERBEST METİN ARAMASI KALDIRILDI (2026-09-19): /api/photos/space-for-query her aramada Workers AI
+// metin modelini çağırıyordu — ücret doğurabilecek bir yol (CLAUDE.md "ÜCRETLİ KAYNAK KURALI").
+// Arama kutusu artık yazılamaz; kullanıcı yalnızca PHOTO_SPACE_OPTIONS listesinden seçer. Uç geri
+// gelmemeli; preflight bunu arıyor (scripts/test-2026-09-17-comments-identity-and-photo-page.mjs).

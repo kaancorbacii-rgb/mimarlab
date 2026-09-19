@@ -2283,7 +2283,7 @@ async function routeApi(request, env, url, ctx) {
   // eşleyen AI ucu (2026-09-17 ikinci tur madde 11). TAM eşleşme — '/api/photos' öneki başka bir
   // yolla çakışmasın.
   // '/api/photos/stats' (2026-09-18): etiketleme/ipucu kapsamı — yalnızca sayılar.
-  if ((path === '/api/photos' || path === '/api/photos/space-for-query' || path === '/api/photos/stats') && (request.method === 'GET' || request.method === 'HEAD')) return handlePhotosRoute(request, env, url);
+  if ((path === '/api/photos' || path === '/api/photos/stats') && (request.method === 'GET' || request.method === 'HEAD')) return handlePhotosRoute(request, env, url);
   // Danışman Ol başvurusu (kullanıcı isteği, 2026-09-15) — tamamen oturum korumalı, herkese açık
   // okuma ucu YOK. '/api/consultants' ile önek çakışması olmasın diye TAM eşleşme kullanılır.
   if (path === '/api/consultant-applications') return handleConsultantApplicationsRoute(request, env, url);

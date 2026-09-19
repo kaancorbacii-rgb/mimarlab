@@ -424,9 +424,10 @@ await test('değerlendirme modu HİÇBİR ŞEY yazmaz', () => {
   assert.match(evalBlock, /process\.exit\(0\);/);
 });
 
-await test('workflow: zamanlanmış koşu yalnızca eksikleri YAZAR; ölçüm modu --eval çağırır', () => {
+await test('workflow: ZAMANLAMA KAPALI (2026-09-19, ücretli kaynak kuralı); elle koşu yalnızca eksikleri YAZAR; ölçüm modu --eval çağırır', () => {
   const y = read('../.github/workflows/photo-space-classify.yml');
-  assert.match(y, /schedule:\n\s+- cron: '41 2,8,14,20 \* \* \*'/);
+  assert.doesNotMatch(y, /^\s*schedule:/m, 'AI etiketleme zamanlaması kullanıcı onayı olmadan AÇILMAZ (CLAUDE.md)');
+  assert.match(y, /^\s*workflow_dispatch:/m);
   assert.match(y, /if \[ "\$\{GITHUB_EVENT_NAME\}" = "schedule" \]; then IN_APPLY=evet; IN_SCOPE=tumu;[^\n]*IN_FORCE=hayir; fi/);
   assert.match(y, /evalarg="--eval"/); assert.match(y, /node scripts\/photo-space-classify-backfill\.mjs "\$\{evalarg\}"/);
   assert.match(y, /case "\$\{IN_EVAL_FILE\}" in \*\[!a-zA-Z0-9\._\/-\]\*\|\*\.\.\*\|\/\*\)/, 'eval_file yol kaçışına kapalı');
