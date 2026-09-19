@@ -120,7 +120,11 @@
   // görselleri 15 dakikada bir etiketler (tur başına en fazla 24 görsel, bkz. src/lib/
   // photoSpaceCron.js#PHOTO_SPACE_CRON_LIMITS). İfade src/index.js#PHOTO_SPACE_CRON ile birebir
   // aynı kalmalı; dispatcher bu ifadede Gündem'i ÇALIŞTIRMAZ.
-  "triggers": { "crons": ["23 */6 * * *", "0 1,5,9,13,17,21 * * *", "*/15 * * * *"] },
+  //
+  // KAPATILDI (kullanıcı isteği, 2026-09-19): "*/15 * * * *" listeden çıkarıldı. Fotoğraf mekan
+  // etiketi görsel modelle (Workers AI) çalışıyor ve 17-18 Eylül'de ~15,5 $ nöron ücreti doğurdu.
+  // Yeni yüklenen görseller artık otomatik etiketlenmez. Yeniden açmak için ifadeyi listeye geri ekleyin.
+  "triggers": { "crons": ["23 */6 * * *", "0 1,5,9,13,17,21 * * *"] },
   "vars": {
     // iyzico CANLI ortamı (kullanıcı isteği, 2026-09-13: "iyzico base url'i canlıya çevir").
     // Buradan itibaren kart ödemeleri GERÇEK PARA çeker. Test ortamına dönmek için değer yeniden
