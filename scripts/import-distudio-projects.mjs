@@ -163,14 +163,27 @@ if (liveBucket.length < LAST_PAGE * PAGE_SIZE) throw new Error('Canlı havuz hed
 const pages = shuffle(Array.from({ length: LAST_PAGE - FIRST_PAGE + 1 }, (_, i) => FIRST_PAGE + i)).slice(0, DATA.projects.length);
 const plan = DATA.projects.map((p, i) => ({ p, page: pages[i], slot: Math.floor(rand() * PAGE_SIZE) }));
 
-const dayStr = (d) => d.toISOString().slice(0, 10);
-function dateBetween(upper, lower) {
-  // upper > v > lower (METİN karşılaştırması — SQLite'ın yaptığı gibi); v = "YYYY-MM-DD 00:00:00"
-  const top = new Date(`${String(upper).slice(0, 10)}T00:00:00Z`);
-  const bottom = new Date(`${String(lower).slice(0, 10)}T00:00:00Z`);
-  for (let d = new Date(top); d >= bottom; d.setUTCDate(d.getUTCDate() - 1)) {
-    const v = `${dayStr(d)} 00:00:00`;
-    if (v < String(upper) && v > String(lower)) return dayStr(d);
+// Sıralama anahtarı METİN karşılaştırılır (SQLite) ve satırlarda üç biçim bir arada yaşar:
+// relisted_at ISO ("2026-09-15T09:00:00.000Z"), publish_date "YYYY-MM-DD 00:00:00", created_at
+// "YYYY-MM-DD HH:MM:SS". Gün çözünürlüğü yetmez (üst kovadaki satırların çoğu aynı günde yazılmış),
+// bu yüzden alttaki komşunun anahtarından 1 sn SONRASI iki biçimde denenir: upper > v > lower.
+const pad = (n, w = 2) => String(n).padStart(w, '0');
+const spaceFmt = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+const parseKey = (k) => { const t = String(k).trim(); return new Date(/[zZ]$/.test(t) ? t : `${t.replace(' ', 'T')}Z`); };
+function keyBetween(upper, lower) {
+  upper = String(upper);
+  if (lower === null) {
+    // kova sınırı: üst kovanın sonuna — yalnızca upper'dan küçük olmak yeter
+    const d = parseKey(upper); d.setUTCSeconds(d.getUTCSeconds() - 1);
+    const v = spaceFmt(d);
+    return v < upper ? v : `${upper.slice(0, 10)} 00:00:00` < upper ? `${upper.slice(0, 10)} 00:00:00` : null;
+  }
+  lower = String(lower);
+  const base = parseKey(lower);
+  if (Number.isNaN(base.getTime())) return null;
+  const next = new Date(base.getTime() + 1000);
+  for (const v of [spaceFmt(next), next.toISOString(), spaceFmt(base) + '.5']) {
+    if (v > lower && v < upper) return v;
   }
   return null;
 }
@@ -184,10 +197,10 @@ for (const item of sorted) {
     const upper = liveBucket[origIdx - 1], lower = liveBucket[origIdx];
     // Aynı kovadaysa iki komşunun ARASI; kova sınırındaysa üstteki kovanın SONU (alt sınır yok).
     const sameBucket = upper && lower && Number(upper.d) === Number(lower.d);
-    const d = upper && lower ? dateBetween(upper.k, sameBucket ? lower.k : '0000-01-01') : null;
+    const key = upper && lower ? keyBetween(upper.k, sameBucket ? lower.k : null) : null;
     const samePage = Math.floor(t / PAGE_SIZE) + 1 === item.page;
-    if (d && samePage) {
-      item.publishDate = d; item.displayOrder = Number(upper.d) || null;
+    if (key && samePage) {
+      item.sortKey = key; item.publishDate = key.slice(0, 10); item.displayOrder = Number(upper.d) || null;
       item.target = t; item.between = [upper.slug, lower.slug]; break;
     }
     t++;
@@ -198,7 +211,7 @@ for (const item of sorted) {
 }
 console.log('\nDağılım (sayfa · sıra · yayın tarihi · komşular):');
 for (const it of plan) {
-  console.log(`  ${it.p.slug.padEnd(28)} sayfa ${String(it.page).padStart(2)} · #${String(it.target % PAGE_SIZE + 1).padStart(2)} · ${it.publishDate} · display_order ${it.displayOrder ?? '-'} · ${it.between.join(' > * > ')}`);
+  console.log(`  ${it.p.slug.padEnd(28)} sayfa ${String(it.page).padStart(2)} · #${String(it.target % PAGE_SIZE + 1).padStart(2)} · ${it.sortKey} · display_order ${it.displayOrder ?? '-'} · ${it.between.join(' > * > ')}`);
 }
 
 // ---- gönderim ----------------------------------------------------------------------------------
@@ -241,7 +254,9 @@ for (const it of plan) {
   try { slug = JSON.parse(text).slug || slug; } catch {}
   // display_order'ı yazan bir uç YOK (yalnızca toplu partilerin backfill'i ve admin promosyonu
   // yazar, bkz. admin.js); syncProject bu kolona hiç dokunmadığından sonraki düzenlemeler de korur.
-  await rawQuery(`UPDATE projects SET display_order = ? WHERE slug = ? AND deleted_at IS NULL`, [it.displayOrder, slug]);
+  // publish_date da saniye çözünürlüğünde yazılır (form yalnızca gün taşır, bkz. keyBetween). Taslaktaki
+  // publishDate aynı günü taşıdığından ileride admin kaydederse proje yalnızca gün içinde kayar.
+  await rawQuery(`UPDATE projects SET display_order = ?, publish_date = ? WHERE slug = ? AND deleted_at IS NULL`, [it.displayOrder, it.sortKey, slug]);
   results.push({ ...it, slug });
 }
 
