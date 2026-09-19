@@ -70,6 +70,9 @@ const gundemRow = (n) => ({ slug: `haber-${n}`, title: `Haber ${n}`, summary: '�
 
 console.log('\nKapsam: kişi/firma/marka bülten maili ALMAZ (madde 2)');
 
+// 2026-09-19: BÜLTEN İPTAL (newsletterNotify.js#NEWSLETTER_ENABLED = false, footer formu kaldırıldı).
+// "N'de 1 mail" ve footer metni testleri kaldırıldı — kapalı bir özelliği ölçüyorlardı. Gönderimin
+// GERÇEKTEN kapalı olduğu scripts/test-2026-09-19-ai-cost-caps.mjs'te kelepçeli.
 await test('architects: mail gitmez ve sayaç HİÇ artmaz', async () => {
   const { env, db } = freshEnv();
   const f = captureFetch();
@@ -111,77 +114,11 @@ await test('kaynak: TYPE_LABEL ve buildLink kişi/firma/marka TANIMI TAŞIMIYOR'
 
 console.log('\nKapsam: proje/ürün hâlâ 5 paylaşımda 1 gönderilir (mevcut davranış korunuyor)');
 
-await test('projects: 5. paylaşımda TEK mail, arada hiç mail yok', async () => {
-  const { env, db } = freshEnv();
-  const f = captureFetch();
-  try {
-    for (let i = 1; i <= 4; i++) await notifyNewsletterOfNewContent(env, 'projects', projectRow(i));
-    assert.equal(f.calls.length, 0, 'ilk 4 paylaşımda mail gitmiş');
-    await notifyNewsletterOfNewContent(env, 'projects', projectRow(5));
-  } finally { f.restore(); }
-  assert.equal(f.calls.length, 1, '5. paylaşımda tam bir mail bekleniyordu');
-  assert.equal(counterOf(db, 'global'), 5);
-  const mail = f.calls[0].body[0];
-  assert.match(mail.subject, /^Yeni proje: Proje 5$/);
-  assert.match(mail.html, /https:\/\/mimarlab\.com\/proje\/proje-5/);
-});
 
-await test('products: proje ile AYNI sayacı paylaşır (tür başına ayrı sayaç yok)', async () => {
-  const { env, db } = freshEnv();
-  const f = captureFetch();
-  try {
-    await notifyNewsletterOfNewContent(env, 'projects', projectRow(1));
-    await notifyNewsletterOfNewContent(env, 'projects', projectRow(2));
-    await notifyNewsletterOfNewContent(env, 'products', { slug: 'urun-3', title: 'Ürün 3', description: 'x', images: '[]' });
-    await notifyNewsletterOfNewContent(env, 'products', { slug: 'urun-4', title: 'Ürün 4', description: 'x', images: '[]' });
-    assert.equal(f.calls.length, 0);
-    await notifyNewsletterOfNewContent(env, 'products', { slug: 'urun-5', title: 'Ürün 5', description: 'x', images: '[]' });
-  } finally { f.restore(); }
-  assert.equal(counterOf(db, 'global'), 5);
-  assert.equal(f.calls.length, 1);
-  assert.match(f.calls[0].body[0].subject, /^Yeni ürün: Ürün 5$/);
-});
 
 console.log('\nGündem: her 10 gönderiden 1\'i (2026-09-18 — eskiden 5\'te 1)');
 
-await test('gundem: 10. gönderide TEK mail, linki /gundem/:slug', async () => {
-  const { env, db } = freshEnv();
-  const f = captureFetch();
-  try {
-    for (let i = 1; i <= 9; i++) await notifyNewsletterOfNewGundem(env, gundemRow(i));
-    assert.equal(f.calls.length, 0, 'ilk 9 gündem gönderisinde mail gitmiş (5. dahil — eski oran)');
-    await notifyNewsletterOfNewGundem(env, gundemRow(10));
-  } finally { f.restore(); }
-  assert.equal(f.calls.length, 1);
-  assert.equal(counterOf(db, 'gundem'), 10);
-  const mail = f.calls[0].body[0];
-  assert.match(mail.subject, /^Yeni gündem içeriği: Haber 10$/);
-  assert.match(mail.html, /https:\/\/mimarlab\.com\/gundem\/haber-10/);
-  assert.match(mail.html, /api\/newsletter\/unsubscribe\?token=tok-1/, 'kişiselleştirilmiş abonelikten çık linki yok');
-});
 
-await test('gundem sayacı içerik sayacından AYRI (biri diğerinin sırasını yemez)', async () => {
-  const { env, db } = freshEnv();
-  const f = captureFetch();
-  try {
-    // 4 gündem + 4 proje: hiçbiri eşiğe ulaşmadığından tek mail bile çıkmamalı.
-    for (let i = 1; i <= 4; i++) {
-      await notifyNewsletterOfNewGundem(env, gundemRow(i));
-      await notifyNewsletterOfNewContent(env, 'projects', projectRow(i));
-    }
-    assert.equal(f.calls.length, 0, 'sayaçlar karışmış — 8 çağrıdan mail çıktı');
-    assert.equal(counterOf(db, 'gundem'), 4);
-    assert.equal(counterOf(db, 'global'), 4);
-    // 5. proje kendi sayacıyla mail üretir; 5. gündem (oran 10) üretmez.
-    await notifyNewsletterOfNewGundem(env, gundemRow(5));
-    await notifyNewsletterOfNewContent(env, 'projects', projectRow(5));
-    assert.equal(f.calls.length, 1);
-    for (let i = 6; i <= 10; i++) await notifyNewsletterOfNewGundem(env, gundemRow(i));
-  } finally { f.restore(); }
-  assert.equal(f.calls.length, 2);
-  const subjects = f.calls.map(c => c.body[0].subject).sort();
-  assert.deepEqual(subjects, ['Yeni gündem içeriği: Haber 10', 'Yeni proje: Proje 5']);
-});
 
 await test('gundem: slug/title eksikse sessizce döner ve sayaç artmaz', async () => {
   const { env, db } = freshEnv();
@@ -221,18 +158,6 @@ console.log('\nFooter + Üye Ol metinleri (madde 1 ve 2)');
 // NOT (2026-09-12 ikinci tur): footer metni kullanıcı isteğiyle "Ücretsiz Üye Ol"dan tekrar
 // "Üye Ol"a döndü — bu testin footer beklentisi artık orada, tek yerde yaşıyor (bkz.
 // scripts/test-2026-09-12-home-rails.mjs#madde 1). Burada yalnızca bülten AÇIKLAMASI kalır.
-await test('footer: yeni bülten açıklaması (metin + BEYAZ renk)', () => {
-  const chrome = readFileSync(new URL('../js/components/site-chrome.js', import.meta.url), 'utf8');
-  // Metin 2026-09-13'te bir kez daha güncellendi (kullanıcı isteği madde 4): baştaki "Yeni" düştü.
-  assert.match(chrome, /Proje, ürün ve gündem içerikleri e-postana gelsin\./);
-  assert.ok(!/Yeni proje, ürün, firma ve markalar e-postana gelsin\./.test(chrome), 'eski bülten metni hâlâ duruyor');
-  assert.ok(!/Yeni proje, ürün ve gündem içerikleri e-postana gelsin\./.test(chrome), 'bir önceki bülten metni hâlâ duruyor');
-  // Aynı maddede rengi de beyaza çekildi — soluk gri (%60) koyu zeminde sönük kalıyordu.
-  assert.match(chrome, /\.footer-newsletter-desc\{font-size:16px; color:#fff;/, 'bülten açıklaması beyaz değil');
-  // Madde 5: logonun altındaki tanıtım yazısı da beyaz. Kural 32 HTML dosyasındaki kopyaları
-  // ezebilmek için yüksek özgüllükle burada yazılı.
-  assert.match(chrome, /\.site-footer \.footer-brand p\{color:#fff;\}/, 'footer logo altı yazı beyaz değil');
-});
 
 await test('Üye Ol başlığı: "MİMARLAB\'a Ücretsiz Katıl" (sayfa + popup AYNI metin)', () => {
   const page = readFileSync(new URL('../uye-ol.html', import.meta.url), 'utf8');

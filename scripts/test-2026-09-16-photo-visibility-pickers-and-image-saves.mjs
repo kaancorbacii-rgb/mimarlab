@@ -121,7 +121,8 @@ await test('urun-ekle: yıl kutusu 1299\'dan başlar, MÖ YOK', () => {
 
 await test('#u-year\'a yazan HER nokta kutuyu senkronlar', () => {
   const writes = urunEkle.split('\n').filter(l => /getElementById\('u-year'\)\.value =/.test(l));
-  assert.ok(writes.length >= 2, `beklenen en az 2 yazma noktası, bulunan ${writes.length}`);
+  // 2026-09-19: Yapay zeka ile ekle kaldırıldı — AI yazma noktası eksildi (2 -> 1).
+  assert.ok(writes.length >= 1, `beklenen en az 1 yazma noktası, bulunan ${writes.length}`);
   const lines = urunEkle.split('\n');
   lines.forEach((l, i) => {
     if (!/getElementById\('u-year'\)\.value =/.test(l)) return;

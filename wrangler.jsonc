@@ -81,7 +81,7 @@
   // https://developers.cloudflare.com/workers-ai/platform/pricing/) — her iki uç noktadaki rate
   // limit'ler maliyeti sınırlı tutar.
   "ai": { "binding": "AI" },
-  // Görsel arama VARLIK DİZİNİNİN artımlı bakımı (bkz. src/index.js#scheduled, src/lib/
+  // [KALDIRILDI 2026-09-19 — tarihsel not] Görsel arama VARLIK DİZİNİNİN artımlı bakımı (bkz. src/index.js#scheduled, src/lib/
   // visualIndexStore.js#rebuildIndex). Cron Triggers Workers planına DAHİLDİR, ek ücreti yoktur.
   // 6 saatte bir: yeni/değişmiş proje ve ürünlerin embedding'i üretilip dizin yeniden paketlenir;
   // değişiklik yoksa hiçbir AI çağrısı yapılmaz ve KV'ye yazılmaz.
@@ -115,8 +115,9 @@
   // kaynak başına 6, günde 50, duvar-saati bütçesi 120sn). AI çağrısı yalnızca mükerrer ve görsel
   // kapılarından GEÇEN içerik için yapılır (madde 18) — yani AI maliyeti tur SAYISINA değil, YENİ
   // içerik sayısına bağlıdır ve ızgarayı sıklaştırmak onu artırmaz.
-  // İki ifadeyi de AYNI scheduled handler karşılar (dispatcher, bkz. src/index.js#scheduled) —
-  // "23 */6 * * *" ifadesi src/index.js#VISUAL_INDEX_CRON ile birebir aynı kalmalıdır.
+  // Bütün ifadeleri AYNI scheduled handler karşılar (dispatcher, bkz. src/index.js#scheduled).
+  // 2026-09-19: görsel arama dizininin 6 saatlik ifadesi KALDIRILDI (görsel arama kalktı, her tur
+  // Workers AI embedding'i harcıyordu) — preflight geri eklenmesini engeller.
   //
   // "*/15 * * * *" — FOTOĞRAF sayfası mekan etiketi (kullanıcı isteği, 2026-09-18 yedinci tur:
   // "bundan sonra yüklenecek tüm projeler ... aynı kurallara göre işlesin"): yeni yüklenen
@@ -127,7 +128,7 @@
   // KAPATILDI (kullanıcı isteği, 2026-09-19): "*/15 * * * *" listeden çıkarıldı. Fotoğraf mekan
   // etiketi görsel modelle (Workers AI) çalışıyor ve 17-18 Eylül'de ~15,5 $ nöron ücreti doğurdu.
   // Yeni yüklenen görseller artık otomatik etiketlenmez. Yeniden açmak için ifadeyi listeye geri ekleyin.
-  "triggers": { "crons": ["23 */6 * * *", "0 5,17 * * *"] },
+  "triggers": { "crons": ["0 5,17 * * *"] },
   "vars": {
     // iyzico CANLI ortamı (kullanıcı isteği, 2026-09-13: "iyzico base url'i canlıya çevir").
     // Buradan itibaren kart ödemeleri GERÇEK PARA çeker. Test ortamına dönmek için değer yeniden

@@ -202,7 +202,8 @@ test('#p-designer.value yazan HER nokta syncDesignerPicker() çağırır', () =>
   // Gizli input'a yazıp kutuyu senkronlamayı unutan bir yol, kullanıcının gördüğü çiplerle
   // gönderilen değeri sessizce ayırırdı (firma kutusundaki syncOfficePicker ile aynı sözleşme).
   const writes = [...projeEkle.matchAll(/getElementById\('p-designer'\)\.value\s*=/g)];
-  assert.ok(writes.length >= 5, `beklenenden az yazma noktası: ${writes.length}`);
+  // 2026-09-19: Yapay zeka ile ekle (applyAiResult) kaldırıldı — bir yazma noktası eksildi (5 -> 4).
+  assert.ok(writes.length >= 4, `beklenenden az yazma noktası: ${writes.length}`);
   for (const m of writes) {
     const after = projeEkle.slice(m.index, m.index + 400);
     assert.match(after, /syncDesignerPicker\(\)/, `senkronsuz yazma: ...${projeEkle.slice(m.index - 60, m.index + 60)}`);

@@ -19,6 +19,14 @@ fatura çıkardı; maliyet yalnızca bu dosyaya not düşülmüş, kullanıcıya
   (`aiConfig.js#VISUAL_SEARCH_GLOBAL_DAILY_LIMIT` = 100 YENİ analiz/gün, önbellek isabeti sayılmaz);
   Gündem cron'u günde 6 turdan **2'ye** (`0 5,17 * * *` = TR 08:00/20:00; Meet yeniden denemesi de
   aynı ifadede). Kelepçe: `scripts/test-2026-09-19-ai-cost-caps.mjs`. Bunları gevşetmek onay ister.
+- 2026-09-19 ikinci tur (kullanıcı isteği): **görsel arama**, **/arama yapay zeka araması** ve
+  **"Yapay zeka ile ekle"** KALDIRILDI — `/api/ai/*` uçları 410 döner (`src/routes/ai.js` silindi),
+  yalnızca `/api/ai/image-embed` (tarayıcıda hesaplanan CLIP, AI YOK — /fotograf'ı besler) duruyor.
+  Görsel arama dizini cron'u (`23 */6`) ve admin'in dizin yeniden kurma POST'u kapalı. **Bülten iptal**:
+  `newsletterNotify.js#NEWSLETTER_ENABLED = false`, abonelik 410, footer formu kaldırıldı (abone
+  listesi ve abonelikten çıkma ucu duruyor). **AI'lı GitHub işleri** (`photo-space-classify.yml`,
+  `gundem-retitle.yml`) zamanlanamaz ve `maliyet_onayi` alanına ONAYLIYORUM yazılmadan ilk adımda
+  durur — kuru çalıştırma da AI çağırır. Kalan tek otomatik AI tüketicisi Gündem hattı.
 
 ## Deploy
 

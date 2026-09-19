@@ -36,7 +36,7 @@ import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSe
 import { handleGundemAdminRoute } from './gundemAdmin.js';
 import { SAFE_STORAGE_BYTES, SAFE_OPS_PER_MONTH } from '../lib/r2Quota.js';
 import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
-import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
+import { indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
 import { removeEntityImages } from '../lib/imageEmbedStore.js';
 import { resolveCanonicalName } from '../lib/canonicalRead.js';
 // Proje YILI (künyedeki serbest metin `project_date`) — promosyonun "en yeni proje" tanımı budur
@@ -356,16 +356,9 @@ async function handleVisualIndexAdmin(request, env, url) {
     const status = await Promise.all(types.map(t => indexStatus(env, t)));
     return json({ items: status });
   }
-  if (request.method === 'POST') {
-    const type = url.searchParams.get('type') || 'project';
-    if (!INDEX_TYPES[type]) return errorJson('Geçersiz dizin türü.');
-    // Üst sınır kelepçelenir: tek bir istekte binlerce embedding üretmek hem Worker CPU süresini
-    // hem de AI maliyetini kontrolsüz bırakırdı. Kalan iş `pending` olarak döner, çağıran döngüye
-    // girip bitirebilir (scripts/build-visual-index.mjs bunu yapar).
-    const max = Math.max(1, Math.min(400, Number(url.searchParams.get('max')) || 200));
-    const res = await rebuildIndex(env, type, { maxEmbeds: max });
-    return json(res);
-  }
+  // Yeniden kurulum KAPALI (2026-09-19): görsel arama kaldırıldı ve kurulum Workers AI embedding'i
+  // harcıyordu (ücretli kaynak kuralı). Durum okuması (GET, AI çağrısı yok) duruyor.
+  if (request.method === 'POST') return errorJson('Görsel arama kaldırıldı; dizin yeniden kurulmuyor.', 410);
   return errorJson('Bulunamadı', 404);
 }
 

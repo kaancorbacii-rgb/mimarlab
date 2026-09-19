@@ -191,7 +191,6 @@
   .form-field textarea{resize:vertical; min-height:100px; line-height:1.5;}
   .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
-  .ai-manual-link{display:none; background:none; border:none; padding:0; margin-top:10px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--sage); text-decoration:underline; cursor:pointer;}
   .check-grid{display:flex; flex-wrap:wrap; gap:8px;}
   .check-pill{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:100px; padding:7px 14px 7px 10px; font-size:13px; color:var(--ink-soft); background:var(--paper); cursor:pointer;}
   .check-pill input{accent-color:var(--ink); width:14px; height:14px;}
@@ -354,8 +353,6 @@
   .form-danger-btn.form-danger-btn-delete{border-color:rgba(184,76,76,0.4); color:#B84C4C;}
   .form-danger-btn.form-danger-btn-delete:hover{background:rgba(184,76,76,0.08);}
   .form-danger-btn:disabled{opacity:0.5; cursor:not-allowed;}
-  .ai-analyze-btn{background:var(--ink); color:var(--paper-card); border:none; border-radius:10px; padding:0 18px; height:42px; font-weight:600; font-size:13px;}
-  .ai-analyze-btn:hover{background:var(--walnut);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
   .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
@@ -449,18 +446,7 @@
 
   <div class="form-wrap" id="form-wrap">
     <form id="urun-ekle-form">
-      <div class="form-section" id="ai-panel" style="display:none;">
-        <h2>Yapay Zeka ile Otomatik Doldur</h2>
-        <p class="section-hint">Ürünün yayında olduğu sayfanın linkini yapıştır, bilgileri senin için dolduralım. Aşağıdaki alanların hepsi düzenlenebilir — göndermeden önce kontrol et.</p>
-        <div class="form-field">
-          <label for="ai-url-input">Kaynak Bağlantı</label>
-          <input type="url" id="ai-url-input" placeholder="https://ornek-marka.com/urun-sayfasi">
-        </div>
-        <button type="button" class="ai-analyze-btn" id="ai-analyze-btn">Analiz Et</button>
-        <div id="ai-status" class="form-hint" style="display:none; margin-top:12px;"></div>
-        <button type="button" class="ai-manual-link" id="ai-manual-fallback-btn">Formu manuel doldurmaya devam et ↓</button>
-      </div>
-
+      <!-- 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — #ai-panel paneli silindi. -->
       <div class="form-section">
         <h2>Ürün Bilgileri</h2>
         <div class="form-field">
@@ -471,7 +457,7 @@
           <!-- Firma ve Tasarımcı: proje-ekle.html'deki kutuların AYNISI — siteye yüklü kayıtlardan
                seçim + listede olmayan ad için elle giriş (kullanıcı isteği, 2026-09-15 yedinci tur
                madde 2). İkisi de gizli input + picker deseni taşır (#p-office/#p-designer ile
-               birebir), bu yüzden gönderim/prefill/AI yollarının hiçbiri değişmedi.
+               birebir), bu yüzden gönderim/prefill yollarının hiçbiri değişmedi.
 
                FİRMA TEK SEÇİMDİR (single:true), Tasarımcı çoklu. Bu bir tercih değil, şemanın
                gereği: bir ürünün üreticisi TEK bir kayıttır — products.brand_office_id tek kolondur
@@ -610,13 +596,6 @@
         </div>
       </div>
 
-      <div class="form-field" id="ai-consent-field" style="display:none;">
-        <label class="check-pill" style="width:100%; box-sizing:border-box;">
-          <input type="checkbox" id="ai-consent-checkbox">
-          Bu içeriğin hak sahibiyim veya yayınlama iznine sahibim.
-        </label>
-      </div>
-
       <!-- Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1): "Gönder" butonunun
            ÜZERİNDE zorunlu onay kutucuğu; işaretlenmeden içerik yayınlanamaz. Metnin/­davranışın TEK
            kaynağı js/components/rights-consent.js — beş ekleme formu ve Hesabım > Arşivim'deki
@@ -699,12 +678,8 @@ const dupNameCheck = DuplicateNameCheck.attach({
   getExclude: () => originalTitle,
   getExcludeBrand: () => originalBrand,
 });
-// ?ai=1: urun.html'deki seçim modalından "Yapay Zeka ile Otomatik Ekle" seçilince buraya düşülür
-// (AI ile ekle akışı şimdilik kapalı, bkz. aşağıdaki wireAiPanel). editId ile aynı anda anlamlı
-// değildir; edit varsa AI paneli gösterilmez.
-const aiMode = new URLSearchParams(window.location.search).get('ai') === '1';
-let aiSourceUrl = null; // gönderimde source_url olarak payload'a eklenir
-let aiGenerated = false; // gönderimde ai_generated:1 olarak payload'a eklenir + onay kutusunu zorunlu kılar
+// 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — ?ai=1 modu, aiSourceUrl/aiGenerated
+// bayrakları ve source_url/ai_generated payload alanları artık yok.
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -1209,7 +1184,7 @@ function renderVariantPreview(){
   }));
 }
 document.getElementById('variant-add-btn').addEventListener('click', ()=>{ markVariantsDirty(); addVariantRow(); });
-// Düzenleme/AI ön doldurması: mevcut versiyonlar karta çevrilir; alan artık "dolu" sayılır (dirty),
+// Düzenleme ön doldurması: mevcut versiyonlar karta çevrilir; alan artık "dolu" sayılır (dirty),
 // yani gönderimde olduğu gibi geri gider — kullanıcı hiçbirini silmediyse liste değişmez.
 function setVariantsFromItem(variants){
   variantRowsEl.innerHTML = '';
@@ -1730,135 +1705,17 @@ document.getElementById('u-project-input').addEventListener('keydown', (e)=>{
 // başındaki gerekçe). Buradaki eski resizeImageForUpload/convertCopiedImageToWebp kopyaları
 // KALDIRILDI — türev üretmiyorlardı, yeni her görsel tam boy iniyordu.
 
-// ---------- AI ile Otomatik Doldur (?ai=1) ----------
-// AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit) ile AYNI alanları AYNI fonksiyonlarla
-// (taxonomyGroupOf/populateCategoryOptions, renderPreviews) doldurur — tek fark veri kaynağının bir
-// gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
-function applyAiResult(data){
-  document.getElementById('u-title').value = data.title || '';
-  document.getElementById('u-brand').value = data.brand || '';
-  syncBrandPicker();
-  document.getElementById('u-website').value = data.website || '';
-  document.getElementById('u-year').value = data.year || '';
-  yearPicker.syncFromInput();
-  document.getElementById('u-designer').value = (data.designer_names || []).join(', ');
-  syncDesignerPicker();
-  document.getElementById('u-desc').value = data.description || '';
-  if(data.category){
-    const group = taxonomyGroupOf(CATALOG_TAXONOMY, data.category);
-    if(group){
-      groupSelect.value = group;
-      setSelectedCategories([data.category]);
-    }
-  }
-  // Teknik Özellikler (bkz. src/routes/ai.js#URUN_SCHEMA.specs) — malzeme/renk/ölçü/ağırlık vb.
-  // sayfada AÇIKÇA yazan {etiket, değer} çiftleri, manuel eklenen satırlarla AYNI addSpecRow ile.
-  specsRows.innerHTML = '';
-  (data.specs || []).forEach(s => addSpecRow(s.label, s.value));
-}
-
-function wireAiPanel(){
-  // AI ile ekle özelliği ŞİMDİLİK KAPALI (kullanıcı kararı). Aşağıdaki gövde bilinçli olarak
-  // korunuyor: özellik geri açılacağı gün tek satırlık bu return silinerek devreye girer.
-  // (Eskiden seçim modalını add-choice.js açardı; o dosya 2026-09-04 denetiminde no-op olduğu için
-  // silindi — geri gelirse modal yeniden yazılır.)
-  return;
-  if(!aiMode || editId) return; // düzenleme akışıyla asla aynı anda değil
-  document.getElementById('ai-panel').style.display = 'block';
-  const urlInput = document.getElementById('ai-url-input');
-  const analyzeBtn = document.getElementById('ai-analyze-btn');
-  const statusEl = document.getElementById('ai-status');
-  const notice = document.getElementById('form-notice');
-  const manualBtn = document.getElementById('ai-manual-fallback-btn');
-  manualBtn.addEventListener('click', ()=>{
-    document.getElementById('u-title').scrollIntoView({behavior:'smooth', block:'center'});
-    document.getElementById('u-title').focus();
-  });
-
-  // bkz. proje-ekle.html#wireAiPanel'deki AYNI gerekçe — /api/ai/extract tek bir senkron istektir,
-  // gerçek adım-adım ilerleme yok, ama bu mesajlar kullanıcı beklerken sırayla dönerek "donmuş"
-  // hissini önler (bkz. kullanıcı isteği).
-  const AI_PROGRESS_MESSAGES = [
-    'Kaynak sayfa analiz ediliyor...',
-    'Ürün bilgileri araştırılıyor...',
-    'Marka ve tasarımcı bilgileri kontrol ediliyor...',
-    'Teknik özellikler taranıyor...',
-    'Görseller taranıyor, duplicate olanlar temizleniyor...',
-    'MİMARLAB kayıtlarıyla eşleştiriliyor...',
-    'Form hazırlanıyor...',
-  ];
-
-  async function analyze(){
-    const url = urlInput.value.trim();
-    if(!url){ urlInput.focus(); return; }
-    analyzeBtn.disabled = true;
-    urlInput.disabled = true;
-    notice.classList.remove('show');
-    manualBtn.style.display = 'none';
-    let progressIdx = 0;
-    statusEl.textContent = AI_PROGRESS_MESSAGES[0];
-    statusEl.style.display = 'block';
-    const progressTimer = setInterval(() => {
-      progressIdx = Math.min(progressIdx + 1, AI_PROGRESS_MESSAGES.length - 1);
-      statusEl.textContent = AI_PROGRESS_MESSAGES[progressIdx];
-    }, 2200);
-    try{
-      const res = await fetch('/api/ai/extract', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ url, kind: 'urun' }),
-      });
-      if(res.status === 401){ window.location.href = '/giris'; return; }
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
-        notice.classList.add('show');
-        manualBtn.style.display = 'inline-block';
-        return;
-      }
-      if(!data.found){
-        notice.textContent = data.reason || 'Bu sayfada bir ürün bulamadık — formu kendin doldurabilirsin.';
-        notice.classList.add('show');
-        manualBtn.style.display = 'inline-block';
-        return;
-      }
-      applyAiResult(data.data);
-      setExistingImages((data.images || []).map(im => im.url));
-      renderPreviews();
-      aiSourceUrl = data.sourceUrl;
-      aiGenerated = true;
-      document.getElementById('ai-consent-field').style.display = 'block';
-      if(data.aiFailed){
-        notice.textContent = data.message || 'Yapay zeka şu anda analiz edemedi; bulabildiğimiz temel bilgilerle formu doldurduk.';
-        notice.classList.add('show');
-      }
-      document.getElementById('u-title').scrollIntoView({behavior:'smooth', block:'center'});
-    }catch{
-      notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
-      notice.classList.add('show');
-      manualBtn.style.display = 'inline-block';
-    }finally{
-      clearInterval(progressTimer);
-      statusEl.style.display = 'none';
-      analyzeBtn.disabled = false;
-      urlInput.disabled = false;
-    }
-  }
-  analyzeBtn.addEventListener('click', analyze);
-  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); analyze(); } });
-}
-wireAiPanel();
+// 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — applyAiResult + wireAiPanel
+// (/api/ai/extract) silindi.
 
 async function collectImages(){
   const urls = [];
   const owners = [];
-  const externalIndexes = [];
   for(const item of mediaItems){
     item.finalUrl = null;
     if(item.kind === 'existing'){
       urls.push(item.url);
       owners.push(item);
-      if(/^https?:\/\//i.test(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
     const fd = await MimarlabUpload.buildUploadForm(item.file, { context: 'product', maxEdge: 1600, quality: 0.85 });
@@ -1868,71 +1725,16 @@ async function collectImages(){
     urls.push(data.url);
     owners.push(item);
   }
-  // AI akışında önizlemedeki "existing" görsellerin url'i henüz bizim değil, dış bir sitenin adresi
-  // olabilir (tarayıcı CORS nedeniyle bunları kendi indiremez) — bu yüzden http(s) ile başlayan
-  // "existing" url'ler burada toplanıp SUNUCU tarafında /api/ai/copy-images ile R2'ye kopyalanır;
-  // zaten /media/ ya da site-relative (ör. "products/x.jpg") olanlar eskisi gibi aynen geçer.
-  if(externalIndexes.length){
-    const res = await fetch('/api/ai/copy-images', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ images: externalIndexes.map(i => urls[i]) }),
-    });
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error || 'Görseller kopyalanamadı.');
-    const byUrl = new Map((data.items || []).map(it => [it.url, it]));
-    // Kopyalanamayan (ör. kaynak site erişime kapattı) görseli sessizce listeden düşür — tek bir
-    // görselin başarısız olması tüm gönderiyi engellemesin.
-    externalIndexes.forEach(i => {
-      const result = byUrl.get(urls[i]);
-      urls[i] = result && result.mediaUrl ? result.mediaUrl : null;
-    });
-    // MİMARLAB standardı (WebP, ≤2000px) + responsive türevler — bkz. image-upload.js.
-    await Promise.all(externalIndexes.map(async i => {
-      if(urls[i]) urls[i] = await MimarlabUpload.reuploadFromMediaUrl(urls[i], { context: 'product', maxEdge: 2000 });
-    }));
-  }
-  // Her mediaItem'a NİHAİ url'ini yaz — syncNewImageEmbeddings() bunu kullanarak hangi yüklenen
-  // dosyanın hangi imageKey'e karşılık geldiğini bulur (bkz. proje-ekle.html#collectImages AYNI desen).
+  // 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — dış "existing" görselleri
+  // /api/ai/copy-images ile R2'ye kopyalayan dal silindi; "existing" url'ler olduğu gibi korunur.
+  // Her mediaItem'a NİHAİ url'ini yaz — versiyon görsel eşlemesi (collectVariants) bunu kullanır.
   urls.forEach((u, i) => { if(owners[i]) owners[i].finalUrl = u || null; });
   return urls.filter(Boolean);
 }
 
-// GÖRSEL ARAMA — ARTIMLI İNDEKSLEME. bkz. proje-ekle.html#syncNewImageEmbeddings dosya başı
-// yorumu — AYNI gerekçe, ürün tarafı için.
-let clipEmbedLoaderUE = null;
-function loadClipEmbedModuleUE(){
-  if(window.MimarlabClipEmbed) return Promise.resolve(window.MimarlabClipEmbed);
-  if(!clipEmbedLoaderUE){
-    clipEmbedLoaderUE = new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = '/image-clip-embed.js';
-      script.onload = () => resolve(window.MimarlabClipEmbed || null);
-      script.onerror = () => resolve(null);
-      document.head.appendChild(script);
-    });
-  }
-  return clipEmbedLoaderUE;
-}
-async function syncNewImageEmbeddings(type, slug){
-  if(!slug) return;
-  const fresh = mediaItems.filter(it => it.file && it.finalUrl);
-  if(!fresh.length) return;
-  try{
-    const clip = await loadClipEmbedModuleUE();
-    if(!clip) return;
-    for(const it of fresh){
-      try{
-        const vec = await clip.embed(it.file);
-        if(!vec) continue;
-        await fetch('/api/ai/image-embed', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ type, slug, imageKey: it.finalUrl, embedding: Array.from(vec) }),
-        });
-      }catch(e){ /* tek görselin başarısız olması diğerlerini/kaydetmeyi engellemez */ }
-    }
-  }catch(e){ /* CLIP modülü yüklenemedi — sessizce atlanır */ }
-}
+// 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — görsel arama da kaldırıldığından
+// tarayıcıda CLIP embedding'i hesaplayıp /api/ai/image-embed'e gönderen syncNewImageEmbeddings
+// (ve büyük model indirmesi) silindi. Ürünler /fotograf sayfasında yer almaz.
 
 document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -1972,13 +1774,6 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(aiGenerated && !document.getElementById('ai-consent-checkbox').checked){
-    notice.textContent = 'Devam etmek için içeriğin hak sahibi olduğunu ya da yayınlama iznine sahip olduğunu onaylamalısın.';
-    notice.classList.add('show');
-    notice.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
-
   submitBtn.disabled = true;
   loading.classList.add('show');
   let images, files;
@@ -2010,7 +1805,6 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     // kullanıcı, mevcut bağların da kaldırılmasını bekler.
     projects: projectChips.map(c => ({ slug: c.slug || '', title: c.title || '' })),
   };
-  if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
   if(claimSlug) payload.claimed_slug = claimSlug;
   // Versiyonlar — YALNIZCA dokunulduysa/önceden dolduysa gönderilir (bkz. variantsDirty notu);
   // boş dizi "versiyonları kaldır" demektir, alanın yokluğu "dokunma".
@@ -2067,7 +1861,6 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      syncNewImageEmbeddings('product', data.slug || adminEditSlug);
       setTimeout(()=>{ window.location.replace(`/urun/${encodeURIComponent(data.slug || adminEditSlug)}`); }, 1200);
       return;
     }
@@ -2083,7 +1876,6 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       // bkz. src/routes/submissions.js#createSubmission/updateOwnSubmission — artık gerçek/nihai
       // canonical slug'ı (başlık+marka'dan üretilen) döner, eskiden burada 'm-' + data.id ile
       // (artık doğru olmayan bir varsayımla) yeniden üretiliyordu.
-      syncNewImageEmbeddings('product', data.slug || ('m-' + data.id));
       setTimeout(()=>{ window.location.replace(`/urun/${encodeURIComponent(data.slug || ('m-' + data.id))}`); }, 1200);
       return;
     }

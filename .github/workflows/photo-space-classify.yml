@@ -54,6 +54,10 @@ on:
   #   - cron: '41 2,8,14,20 * * *'
   workflow_dispatch:
     inputs:
+      maliyet_onayi:
+        description: 'ÜCRETLİ (Workers AI). Tahmini maliyeti kullanıcıya sorup onay aldıysan buraya ONAYLIYORUM yaz; aksi halde iş hiçbir şey yapmadan durur.'
+        required: true
+        default: ''
       mode:
         description: 'etiketle = görselleri sınıflandır; olc = gözle etiketli kümede isabet ölç (yazmaz); dizin = CLIP dizin kapsamını raporla (yazmaz, AI çağırmaz)'
         required: true
@@ -137,6 +141,15 @@ jobs:
       NPM_CONFIG_YES: 'true'
 
     steps:
+      - name: Maliyet onayı (Workers AI ücretli — CLAUDE.md "ÜCRETLİ KAYNAK KURALI")
+        if: ${{ inputs.mode != 'dizin' }}
+        env:
+          ONAY: ${{ inputs.maliyet_onayi }}
+        run: |
+          if [ "${ONAY}" != "ONAYLIYORUM" ]; then
+            echo "::error::Bu iş Workers AI çağırır ve ücret doğurabilir (kuru çalıştırma dahil). 'maliyet_onayi' alanına ONAYLIYORUM yazılmadan çalışmaz."
+            exit 1
+          fi
       - name: Cloudflare sırları tanımlı mı
         run: |
           missing=0

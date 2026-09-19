@@ -163,27 +163,7 @@ if(location.pathname.replace(/\/+$/,'')==='/arama'){var q=(new URLSearchParams(l
   .result-go{flex-shrink:0; color:var(--ink-soft); font-size:20px;}
   .result-more-note{font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center;}
 
-  /* ---------- MİMARLAB AI ----------
-     Faz 4 — kullanıcı isteği: ayrı bir "MİMARLAB AI" arama kutusu/butonu OLMASIN, üst nav'daki TEK
-     arama kutusuna yazılan her sorgu hem normal (foldTr fuzzy) hem AI ile aransın; bu blok artık
-     yalnızca AI sonucunu göstermek için var, kendi input/buton'u yok (bkz. aşağıdaki runAiSearch,
-     runSearch() tarafından otomatik tetiklenir). */
-  .ai-search-result{max-width:880px; margin:24px auto 0; padding:0 32px;}
-  .ai-eyebrow{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
-  .ai-summary{background:var(--paper-alt); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.6; color:var(--ink); margin-bottom:16px; white-space:pre-line;}
-  .ai-loading, .ai-error{padding:2px 2px 16px; font-size:13.5px; color:var(--ink-soft);}
-  /* ai-facets — gerçek dağılım sayımları (bkz. src/routes/ai.js#computeFacets). Sayısal bir
-     "eşleşme skoru" DEĞİL, yalnızca "kaç projede geçiyor" sayımı (bkz. kullanıcı isteği: "anlamsız
-     yüzde skorları üretme") — bu yüzden görsel olarak da normal metinden ayrılmayan, sade bir bilgi
-     satırı. */
-  /* Aktif filtre etiketleri (kullanıcı isteği 2026-09-02, brief 9) — AI'ın GERÇEKTEN uyguladığı
-     plandan üretilir (bkz. activeFiltersHtml). */
-  .ai-chips{display:flex; flex-wrap:wrap; gap:6px; margin:0 2px 14px;}
-  .ai-chip{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px;
-    border:1px solid var(--line); background:var(--paper); font-size:12px; color:var(--ink);}
-  .ai-chip-k{font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
-  .ai-facets{display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--ink-soft); margin-bottom:20px; padding:0 2px;}
-  .ai-facet-row strong{color:var(--ink); font-weight:600;}
+  /* 2026-09-19: yapay zeka araması kaldırıldı (ücretli AI) — .ai-* kuralları silindi. */
 
   .search-empty{text-align:center; padding:50px 20px;}
   .search-empty p{color:var(--ink-soft); font-size:15px; margin:0 0 22px; line-height:1.6; max-width:440px; margin-left:auto; margin-right:auto;}
@@ -262,8 +242,6 @@ if(location.pathname.replace(/\/+$/,'')==='/arama'){var q=(new URLSearchParams(l
     <p id="search-subtitle"></p>
   </div>
 
-  <div class="ai-search-result" id="ai-search-result" hidden></div>
-
   <div class="search-wrap" id="search-wrap"></div>
 
   <footer id="site-footer-mount"></footer>
@@ -287,19 +265,8 @@ function foldTr(s){ return trLower(s).replace(/[\u0300-\u036f]/g,'').replace(/ı
 const MAX_PER_GROUP = 20;
 
 // ---------------------------------------------------------------------------
-// KÖK NEDEN (kullanıcı bildirimi, 2026-09-01): /arama sayfası "Mimarlar (12), Firmalar (2),
-// Projeler (14), Mimarlar (24), Firmalar (2), Projeler (68)" gibi HER TÜRDEN İKİ tablo
-// gösteriyordu. Sebep, sayfanın BİRBİRİNDEN BAĞIMSIZ iki sonuç bloğu render etmesiydi:
-//   1) #ai-search-result — MİMARLAB AI panosu, KENDİ Mimarlar/Firmalar/Projeler bölümlerini çizerdi
-//      (AI daralttığı için sayılar daha küçük: 12/2/14)
-//   2) #search-wrap      — klasik anahtar-kelime araması, AYNI başlıklarla (24/2/68)
-// İki blok görsel olarak neredeyse aynı olduğundan "tablo iki kere çıkıyor" olarak görünüyordu.
-//
-// ÇÖZÜM: her tür için TEK bölüm. AI'nın SONUÇ SATIRLARI artık klasik bölümlerin İÇİNE birleştirilir
-// (slug'a göre tekilleştirilerek); AI panosu yalnızca kendine özgü katkısını (özet + facet'ler)
-// gösterir, kendi tablolarını çizmez. Böylece "bursa'daki camiler" gibi yalnızca AI'nın
-// yanıtlayabildiği doğal dil sorgularında sonuçlar KAYBOLMAZ (bkz. runAiSearch yorumu), sadece
-// mükerrer tablolar ortadan kalkar.
+// Her tür için TEK bölüm (kullanıcı bildirimi, 2026-09-01 — eskiden ayrı bir AI panosu aynı
+// başlıklarla ikinci bir tablo seti çiziyordu; 2026-09-19'da yapay zeka araması tamamen kaldırıldı).
 //
 // Bölüm sırası (kullanıcı isteği): Projeler, Mimarlar, Firmalar, Ürünler, Markalar, Sayfalar.
 // ---------------------------------------------------------------------------
@@ -333,20 +300,6 @@ const SITE_PAGES = [
   { title: 'Ürün Ekle', href: '/urun-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
   { title: 'Gündem İçeriği Ekle', href: '/gundem-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder haber etkinlik yarisma gundem' },
 ];
-
-// AI sonuçları burada saklanır ki runSearch() onları klasik bölümlerin içine karıştırabilsin.
-// Sorgu değiştiğinde bayatlamasın diye sorgunun kendisi de tutulur.
-let lastAiResults = { query: null, architects: [], offices: [], projects: [], products: [], brands: [] };
-
-// İki listeyi slug'a göre birleştirir: önce klasik sonuçlar (mevcut alaka sırası korunur), sonra
-// yalnızca AI'nın bulduğu ekstralar. Dönen sayı, bölüm başlığındaki toplamın ne kadar artacağını
-// bildirir — klasik toplam AI'nın bulduğu YENİ kayıtlarla toplanır, böylece başlıktaki sayı asla
-// olduğundan büyük gösterilmez.
-function mergeWithAi(classicItems, aiItems, classicTotal){
-  const seen = new Set(classicItems.map(x => x.slug).filter(Boolean));
-  const extras = (aiItems || []).filter(x => x && x.slug && !seen.has(x.slug));
-  return { items: classicItems.concat(extras), total: (classicTotal || 0) + extras.length };
-}
 
 // badge: yalnızca Mimarlar/Firmalar gruplarında geçilir (bkz. kullanıcı isteği: mavi onay
 // rozetinin arama sonuçlarında da görünmesi) — proje/ürün satırlarında rozet anlamsız
@@ -392,9 +345,9 @@ function listFetch(url){
   return fetch(url);
 }
 // Son başarılı arama yanıtı. GERÇEK BULGU (performans turu, 2026-09-08): runSearch() aynı sorgu için
-// üç kez çalışıyor (ilk çizim, AI sonuçlarını karıştırma, rozetler gelince) ve her seferinde
-// /api/public/search'ü — Cache API'de TUTULMAYAN, tam bir D1 araması — yeniden çekiyordu. Sorgu
-// aynıysa eldeki yanıtla yeniden çizilir.
+// birden fazla kez çalışıyor (ilk çizim, rozetler gelince) ve her seferinde /api/public/search'ü —
+// Cache API'de TUTULMAYAN, tam bir D1 araması — yeniden çekiyordu. Sorgu aynıysa eldeki yanıtla
+// yeniden çizilir.
 let lastSearch = null;
 async function runSearch(){
   const runToken = ++searchRunToken;
@@ -460,34 +413,20 @@ async function runSearch(){
   const firmaTotal = allOffices.length ? Math.round(officeTotal * firmaResults.length / allOffices.length) : 0;
   const markaTotal = allOffices.length ? Math.round(officeTotal * markaResults.length / allOffices.length) : 0;
 
-  // AI sonuçları (varsa, AYNI sorgu için) klasik bölümlerin içine karıştırılır — ayrı bir tablo
-  // seti oluşturulmaz (bkz. dosya başındaki kök neden notu).
-  const ai = (lastAiResults.query === query) ? lastAiResults : { architects: [], offices: [], projects: [], products: [], brands: [] };
-  const mimarMerged  = mergeWithAi(full.architects || [], ai.architects, full.totals.architects);
-  const projeMerged  = mergeWithAi(full.projects || [], ai.projects, full.totals.projects);
-  // AI'nın döndürdüğü ofisler firma/marka ayrımı taşımaz; saf marka olmayanlar Firmalar'a eklenir
-  // (AI ekstraları zaten yalnızca klasik aramanın kaçırdıklarıdır, sayı olarak küçüktür).
-  const markaSlugs = new Set(markaResults.map(o => o.slug));
-  const firmaMerged = mergeWithAi(firmaResults, (ai.offices || []).filter(o => !markaSlugs.has(o.slug)), firmaTotal);
-  // Ürün ve Marka da artık AI kanalından besleniyor (2026-09-02): sunucu tarafı hibrit arama bu iki
-  // türü de döndürüyor, oysa klasik uçlar yalnızca düz metin eşleşmesi yapıyor — ör. "Vitra" sorgusu
-  // klasik tarafta ürün başlıklarında geçmediği için kaçıyordu, AI kanalı marka alanından buluyor.
-  const urunMerged  = mergeWithAi(urunResults, ai.products, urunTotal);
-  const markaMerged = mergeWithAi(markaResults, ai.brands, markaTotal);
+  const projeGroup  = { items: full.projects || [], total: full.totals.projects || 0 };
+  const mimarGroup  = { items: full.architects || [], total: full.totals.architects || 0 };
+  const firmaGroup  = { items: firmaResults, total: firmaTotal };
+  const urunGroup   = { items: urunResults, total: urunTotal };
+  const markaGroup  = { items: markaResults, total: markaTotal };
 
   // Sayfalar — sabit site sayfaları, aynı foldTr eşleştirmesiyle.
   const qFold = foldTr(query);
   const sayfaResults = SITE_PAGES.filter(p => foldTr(p.title).includes(qFold) || foldTr(p.keywords || '').includes(qFold));
 
-  const total = projeMerged.total + mimarMerged.total + firmaMerged.total + urunMerged.total + markaMerged.total + sayfaResults.length;
+  const total = projeGroup.total + mimarGroup.total + firmaGroup.total + urunGroup.total + markaGroup.total + sayfaResults.length;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
-    // MİMARLAB AI aynı sorgu için gerçek bir sonuç/özet gösteriyorsa (bkz. aiHasResultsPromise
-    // yorumu yukarısı) klasik "bulunamadı" kutusu AI panosunun hemen altında yanlış/çelişkili bir
-    // izlenim verir — bu durumda kutu hiç render edilmez, yalnızca AI panosu gösterilir.
-    const aiHasResults = await aiHasResultsPromise;
-    if(aiHasResults){ wrap.innerHTML = ''; return; }
     wrap.innerHTML = `<div class="search-empty">
       <p>"${queryHtml}" için bir sonuç bulunamadı. Başka bir anahtar kelimeyle tekrar dene.</p>
       <div class="nav-search">
@@ -499,8 +438,8 @@ async function runSearch(){
     return;
   }
 
-  // Ortak satır üreticileri — AYNI tür hem klasik hem AI kaynağından gelebildiği ve Firma/Marka
-  // aynı satır biçimini paylaştığı için tek noktada tanımlanır.
+  // Ortak satır üreticileri — Firma/Marka aynı satır biçimini paylaştığı için tek noktada
+  // tanımlanır.
   const projectRow = p => rowHtml({
     href: `/proje/${encodeURIComponent(p.slug)}`,
     avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
@@ -517,11 +456,11 @@ async function runSearch(){
   });
   // Firma ve marka satırları AYNI biçimi paylaşır, yalnızca URL öneki kayda göre değişir: saf
   // markalar /marka/:slug (bkz. src/lib/officeUrl.js, kullanıcı isteği 2026-09-06 madde 2).
-  // `o.brand` bayrağı /api/offices'ten gelir; taşımayan kaynaklarda (AI kanalı, arama uçları)
+  // `o.brand` bayrağı /api/offices'ten gelir; taşımayan kaynaklarda (arama uçları)
   // eski /firma/:slug üretilir ve sunucu 301 ile kanonik adrese yönlendirir.
   const officeRow = o => rowHtml({
     // Sunucu kanonik yolu (`href`) zaten veriyor (bkz. src/lib/officeUrl.js); vermeyen kaynaklar
-    // (AI kanalı) için saf marka bayrağına göre üretilir, sunucu gerekirse 301 ile düzeltir.
+    // için /firma/:slug üretilir, sunucu gerekirse 301 ile düzeltir.
     href: o.href || `/firma/${encodeURIComponent(o.slug)}`,
     avatarStyle: `background:${officeColor(o.name)}`,
     avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
@@ -533,16 +472,16 @@ async function runSearch(){
   // Bölüm sırası kullanıcı isteğiyle sabit: Projeler → Mimarlar → Firmalar → Ürünler → Markalar →
   // Sayfalar. groupHtml boş listeler için '' döndürdüğünden sonuçsuz türler kendiliğinden gizlenir.
   wrap.innerHTML = [
-    groupHtml('Projeler', projeMerged.items, projectRow, projeMerged.total),
-    groupHtml('Kişiler', mimarMerged.items, architectRow, mimarMerged.total),
-    groupHtml('Firmalar', firmaMerged.items, officeRow, firmaMerged.total),
-    groupHtml('Ürünler', urunMerged.items, p => rowHtml({
+    groupHtml('Projeler', projeGroup.items, projectRow, projeGroup.total),
+    groupHtml('Kişiler', mimarGroup.items, architectRow, mimarGroup.total),
+    groupHtml('Firmalar', firmaGroup.items, officeRow, firmaGroup.total),
+    groupHtml('Ürünler', urunGroup.items, p => rowHtml({
       href: `/urun/${encodeURIComponent(p.slug)}`,
       avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.category, p.brand].filter(Boolean).join(' · '),
-    }), urunMerged.total),
-    groupHtml('Markalar', markaMerged.items, officeRow, markaMerged.total),
+    }), urunGroup.total),
+    groupHtml('Markalar', markaGroup.items, officeRow, markaGroup.total),
     groupHtml('Sayfalar', sayfaResults, s => rowHtml({
       href: s.href,
       avatarStyle: `background:${officeColor(s.title)}`,
@@ -558,9 +497,9 @@ async function runSearch(){
   // "arama gösterimi" metriği istekte profil metrikleri altında tanımlı.
   if (window.MimarlabAnalytics) {
     MimarlabAnalytics.impressions([
-      ...mimarMerged.items.map(a => ({ type: 'architect', key: a.slug })),
-      ...firmaMerged.items.map(o => ({ type: 'office', key: o.slug })),
-      ...markaMerged.items.map(o => ({ type: 'office', key: o.slug })),
+      ...mimarGroup.items.map(a => ({ type: 'architect', key: a.slug })),
+      ...firmaGroup.items.map(o => ({ type: 'office', key: o.slug })),
+      ...markaGroup.items.map(o => ({ type: 'office', key: o.slug })),
     ].filter(x => x.key));
   }
 
@@ -568,163 +507,14 @@ async function runSearch(){
 }
 
 
-
-// MİMARLAB AI (bkz. kullanıcı isteği, Faz 4: ayrı bir arama kutusu/buton OLMASIN) — üst nav'daki
-// TEK arama kutusuna yazılan sorgu artık HEM normal (foldTr fuzzy, runSearch) HEM AI (/api/ai/search)
-// ile otomatik aranır, aynı groupHtml/rowHtml render mantığını (yukarısı) paylaşır ki AI sonuçları
-// normal arama sonuçlarıyla BİREBİR aynı görünsün (bkz. kullanıcı isteği: "generic chatbot görünümü
-// oluşturma"). Faz 3'teki (Araştırma Modu) sunucu tarafı previousFilters/daraltma desteği
-// (src/routes/ai.js) burada KULLANILMAZ — tek giriş noktası artık her zaman TAM sayfa yenileyen nav
-// arama kutusu olduğundan (bkz. wireNavSearch, site-chrome.js) istemci tarafı bir "konuşma durumu"
-// tutmanın anlamı kalmadı, her /arama?q= YENİ ve bağımsız bir sorgu olarak ele alınır.
-let aiRunToken = 0;
-const aiResultEl = document.getElementById('ai-search-result');
-// runSearch()'ün "sonuç bulunamadı" boş-durumu (aşağıdaki total===0 dalı) bu promise'i bekler —
-// MİMARLAB AI aynı sorgu için gerçek bir sonuç/özet gösteriyorsa (bkz. gerçek bulgu: klasik foldTr
-// araması "bursa'daki camiler" gibi doğal dil sorgularında 0 sonuç dönse bile AI panosu doğru
-// yanıtı buluyordu) klasik boş-durum metni AI panosunun HEMEN ALTINDA gereksiz bir çelişki olarak
-// görünmesin diye (kullanıcı isteği).
-let aiHasResultsPromise = Promise.resolve(false);
-
-// activeFiltersHtml — brief 9: AI açıklamasının altında "hangi filtreler uygulandı" görünsün.
-// Bunlar sunucunun GERÇEKTEN uyguladığı plandan (data.filters) gelir, ayrı bir tahminden DEĞİL;
-// yani kullanıcının gördüğü etiket ile sonucu üreten filtre her zaman aynıdır.
-function activeFiltersHtml(plan){
-  if(!plan) return '';
-  const chips = [];
-  const add = (label, value) => chips.push(
-    `<span class="ai-chip"><span class="ai-chip-k">${escapeHtml(label)}</span>${escapeHtml(value)}</span>`);
-  if(plan.city) add('Şehir', plan.city);
-  if(plan.district) add('İlçe', plan.district);
-  if(plan.yearFrom != null || plan.yearTo != null){
-    const a = plan.yearFrom != null ? plan.yearFrom : '…';
-    const b = plan.yearTo != null ? plan.yearTo : '…';
-    add('Yıl', `${a} – ${b}`);
-  }
-  (plan.discipline || []).forEach(d => add('Tür', d));
-  (plan.category || []).forEach(c => add('Tip', c));
-  (plan.type || []).forEach(t => add('Grup', t));
-  if(plan.name) add('İsim', plan.name);
-  // Malzeme/üslup gibi D1'de kolonu olmayan ama ZORUNLU metin filtresi olarak uygulanan terimler
-  // (bkz. src/lib/searchConcepts.js#textGroups) — kullanıcı bunların da uygulandığını görmeli.
-  (plan.textGroups || []).forEach(g => { if(g && g.length) add('Geçen', g[0]); });
-  if(!chips.length) return '';
-  return `<div class="ai-chips">${chips.join('')}</div>`;
-}
-
-const FACET_LABELS = { cities: 'Şehir', districts: 'İlçe', categories: 'Tip', discipline: 'Tür', types: 'Grup' };
-// facetsHtml — computeFacets()'in (bkz. src/routes/ai.js) döndürdüğü GERÇEK sayımları düz metin
-// olarak listeler, hiçbir yüzde/skor göstermez (bkz. kullanıcı isteği: "anlamsız yüzde skorları
-// üretme").
-function facetsHtml(facets){
-  if(!facets) return '';
-  const parts = [];
-  ['cities', 'districts', 'types', 'categories', 'discipline'].forEach(key => {
-    const items = facets[key];
-    if(items && items.length) parts.push(`<div class="ai-facet-row"><strong>${FACET_LABELS[key]}:</strong> ${items.map(i => `${escapeHtml(i.value)} (${i.count})`).join(', ')}</div>`);
-  });
-  if(facets.yearRange) parts.push(`<div class="ai-facet-row"><strong>Yıl Aralığı:</strong> ${facets.yearRange.from < 0 ? `MÖ ${-facets.yearRange.from}` : facets.yearRange.from} – ${facets.yearRange.to < 0 ? `MÖ ${-facets.yearRange.to}` : facets.yearRange.to}</div>`);
-  if(!parts.length) return '';
-  return `<div class="ai-facets">${parts.join('')}</div>`;
-}
-
-async function runAiSearch(q){
-  q = (q || '').trim();
-  if(!q) return;
-  const runToken = ++aiRunToken;
-  aiResultEl.hidden = false;
-  aiResultEl.innerHTML = '<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-loading">MİMARLAB AI aranıyor…</div>';
-
-  let res, data;
-  try{
-    res = await fetch('/api/ai/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q }),
-    });
-  } catch(e){
-    if(runToken !== aiRunToken) return false;
-    aiResultEl.innerHTML = '<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-error">Bağlantı sorunu oluştu.</div>';
-    return false;
-  }
-  if(runToken !== aiRunToken) return false;
-
-  if(!res.ok){
-    // 429 (hız sınırı) dahil — bkz. kullanıcı isteği: normal arama zaten aynı sonucu gösterdiğinden
-    // AI tarafında bir hata olması TÜM sayfayı bozmamalı, yalnızca bu blok sessizce gizlenir.
-    aiResultEl.hidden = true;
-    aiResultEl.innerHTML = '';
-    return false;
-  }
-  data = await res.json();
-  if(runToken !== aiRunToken) return false;
-
-  const total = data.totals.architects + data.totals.offices + data.totals.projects
-    + (data.totals.products || 0) + (data.totals.brands || 0);
-  if(!total){
-    // AI hiç sonuç bulamadıysa (yanıt veremediği İÇİN ya da gerçekten eşleşme yoksa fark etmez) bu
-    // blok, klasik arama kutusunun (bkz. aşağıdaki aiHasResultsPromise/runSearch total===0 dalı,
-    // "Tekrar arayın" girişi dahil) göstereceği tek bir "bulunamadı" mesajının üstünde gereksiz bir
-    // tekrar olur — sessizce gizlenir, mesajlaşmayı klasik kutuya bırakır.
-    aiResultEl.hidden = true;
-    aiResultEl.innerHTML = '';
-    lastAiResults = { query: null, architects: [], offices: [], projects: [], products: [], brands: [] };
-    return false;
-  }
-
-  // kullanıcı bildirimi (2026-09-01): bu blok ESKİDEN kendi Mimarlar/Firmalar/Projeler tablolarını
-  // da çiziyordu — klasik aramanınkilerle birlikte sayfada her türden İKİ tablo oluşuyordu (bkz.
-  // dosya başındaki kök neden notu). Artık AI panosu yalnızca kendine ÖZGÜ katkısını gösterir
-  // (doğal dil özeti + gerçek sayımlara dayalı facet'ler); bulduğu KAYITLAR aşağıdaki runSearch()
-  // çağrısıyla klasik bölümlerin İÇİNE karıştırılır, böylece yalnızca AI'nın yanıtlayabildiği
-  // sorgularda ("bursa'daki camiler" gibi) sonuçlar kaybolmaz ama tablo tekrarı da olmaz.
-  aiResultEl.innerHTML = [
-    `<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-summary">${escapeHtml(data.summary)}</div>`,
-    activeFiltersHtml(data.filters),
-    facetsHtml(data.facets),
-  ].join('');
-
-  lastAiResults = {
-    query: q,
-    architects: data.architects || [],
-    offices: data.offices || [],
-    projects: data.projects || [],
-    products: data.products || [],
-    brands: data.brands || [],
-  };
-  // Sonuçları klasik bölümlere karıştırmak için tek bir yeniden render. runSearch() AI'yı geri
-  // ÇAĞIRMAZ (maybeRunAiSearch ayrı ve tek seferliktir), bu yüzden döngü oluşmaz.
-  runSearch();
-  return true;
-}
-
-// AI araması runSearch()'ten AYRI tetiklenir (aynı sorguyla, paralel) — runSearch() rozetler
-// hazır olduğunda (bkz. aşağısı) bir kez daha çalıştığından, AI'yı runSearch() İÇİNE koymak her
-// rozet güncellemesinde gereksiz ikinci bir LLM çağrısına (maliyet/rate-limit) yol açardı. Sorgu
-// değişmediği sürece (aynı sekme, aynı /arama?q=) yalnızca BİR kez tetiklenir.
-let lastAiQuery = null;
-function maybeRunAiSearch(){
-  const params = new URLSearchParams(window.location.search);
-  const query = (params.get('q') || '').trim();
-  if(!query){
-    aiResultEl.hidden = true;
-    aiResultEl.innerHTML = '';
-    lastAiQuery = null;
-    aiHasResultsPromise = Promise.resolve(false);
-    return;
-  }
-  if(query === lastAiQuery) return;
-  lastAiQuery = query;
-  aiHasResultsPromise = runAiSearch(query);
-}
-
+// 2026-09-19: yapay zeka araması kaldırıldı (ücretli AI). Eskiden aynı sorgu burada ayrıca
+// /api/ai/search'e gönderiliyor, dönen özet/filtre etiketleri/facet'ler #ai-search-result'ta
+// gösteriliyor ve bulunan kayıtlar runSearch() bölümlerinin içine karıştırılıyordu. Artık tek yol
+// klasik arama (runSearch -> /api/public/search).
 runSearch();
-maybeRunAiSearch();
 // Rozetler /api/public/badges'ten asenkron gelir (bkz. badge-shared.js) — ilk arama sonucu bu fetch
 // tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir, bu yüzden rozetler
-// gelince runSearch() bir kez daha (ve yalnızca bir kez) çalıştırılır. AI bloğu ZATEN doğru
-// render edildiğinden (rozetler yalnızca normal sonuç satırlarını etkiler) burada tekrar
-// tetiklenmez (bkz. yukarıdaki maybeRunAiSearch yorumu).
+// gelince runSearch() bir kez daha (ve yalnızca bir kez) çalıştırılır.
 window.addEventListener('mimarlab-badges-ready', () => runSearch(), { once: true });
 </script>
 </body>

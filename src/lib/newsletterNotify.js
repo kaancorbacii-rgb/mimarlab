@@ -166,7 +166,15 @@ async function sendToSubscribers(env, { label, title, summary, coverImage, link 
   }
 }
 
+// BÜLTEN İPTAL (2026-09-19, kullanıcı isteği: "Bülteni iptal et"). Resend ücretsiz kotası (günde
+// 100 / ayda 3.000 e-posta) abone sayısıyla aşılabiliyordu — CLAUDE.md "ÜCRETLİ KAYNAK KURALI".
+// İki gönderim fonksiyonu da bu bayrakla HİÇBİR ŞEY yapmadan döner (sayaç da artmaz); çağrı
+// noktaları (submissions/admin/gundemIngest/gundemAdmin) değişmedi. Abone listesi SİLİNMEDİ.
+// Açmak kullanıcı onayı ister; kelepçe: scripts/test-2026-09-19-ai-cost-caps.mjs.
+export const NEWSLETTER_ENABLED = false;
+
 export async function notifyNewsletterOfNewContent(env, typeKey, row) {
+  if (!NEWSLETTER_ENABLED) return;
   if (!env.RESEND_API_KEY || !row) return;
   // TYPE_LABEL kapsam kapısı (bkz. o tablonun yorumu): kişi/firma/marka burada sessizce döner ve
   // sayaç da ARTMAZ — o türler bültenin "5'te 1" sırasını yemesin.
@@ -195,6 +203,7 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
 // image_url). Mail hiç fırlatmaz (bkz. sendToSubscribers'ın kendi try/catch'i) — bülten, bir yayını
 // asla geri almamalı.
 export async function notifyNewsletterOfNewGundem(env, row) {
+  if (!NEWSLETTER_ENABLED) return;
   if (!env.RESEND_API_KEY || !row || !row.slug || !row.title) return;
   if (!(await shouldSendThisTime(env, COUNTER_GUNDEM, GUNDEM_NOTIFY_EVERY_N))) return;
 

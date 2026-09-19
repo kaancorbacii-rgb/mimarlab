@@ -8,9 +8,7 @@ import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectNamesR
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeNamesRoute, handleOfficeListRoute, fetchOfficePool } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute, fetchActiveProjectPoolCached } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute, fetchProductPool } from './routes/product.js';
-import { handleAiSearchRoute } from './routes/ai.js';
-import { handleVisualSearchRoute, handleImageEmbedAppendRoute, handleImageProxyRoute } from './routes/visualSearch.js';
-import { rebuildIndex } from './lib/visualIndexStore.js';
+import { handleImageEmbedAppendRoute } from './routes/visualSearch.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
@@ -43,7 +41,6 @@ import { handlePhotoClaimsRoute } from './routes/photoClaims.js';
 import { handleMembershipClaimsRoute } from './routes/membershipClaims.js';
 import { handleMessagesRoute } from './routes/messages.js';
 import { handleOfficeJobsRoute } from './routes/officeJobs.js';
-import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
 // Unicode NFC normalizasyonu — bkz. src/lib/textMatch.js başındaki kök neden açıklaması
 // ("doçem" NFD hâlde hiçbir aramada eşleşmiyordu).
@@ -896,9 +893,10 @@ const DEFAULT_SCHEDULED_RUNNERS = {
     fetchProductPool,
     fetchProjectPool: (e) => fetchActiveProjectPoolCached(e, 'built'),
   }, options),
-  visualIndex: (env, type) => rebuildIndex(env, type, { maxEmbeds: 400 }),
+  // visualIndex runner'ı KALDIRILDI (2026-09-19): görsel arama kalktı, dizin kurulumu Workers AI
+  // embedding'i harcıyordu. wrangler.jsonc'ta '23 */6' tetikleyicisi de yok (preflight kelepçeler).
   // Onaylı ama Meet'i oluşturulamamış (Google geçici hatası / secret sonradan eklendi) danışmanlık
-  // rezervasyonlarını yeniden dener — Gündem ifadesiyle aynı 4 saatlik ızgarada koşar.
+  // rezervasyonlarını yeniden dener — Gündem ifadesiyle aynı ızgarada (günde iki kez) koşar.
   meetRetry: (env) => retryPendingMeets(env, { limit: 10 }),
   // Fotoğraf sayfası: v2 mekan etiketi olmayan görseller (yeni yüklemeler) — kendi ifadesinde.
   photoSpaces: (env) => labelPendingPhotoSpaces(env),
@@ -957,7 +955,8 @@ export async function handleScheduled(event, env, ctx, runners = DEFAULT_SCHEDUL
 
   // Görsel arama dizini — DEĞİŞMEDİ, yalnızca kendi ifadesinde çalışır (önceden tek cron olduğu
   // için koşulsuzdu; Gündem ifadesinde de çalışsaydı 6 saatlik maliyet varsayımı bozulurdu).
-  if (cron === VISUAL_INDEX_CRON || !cron) {
+  // 2026-09-19'dan beri varsayılan runner setinde visualIndex YOK -> bu dal üretimde çalışmaz.
+  if ((cron === VISUAL_INDEX_CRON || !cron) && typeof runners.visualIndex === 'function') {
     jobs.push((async () => {
       for (const type of ['project', 'product']) {
         try {
@@ -2309,13 +2308,9 @@ async function routeApi(request, env, url, ctx) {
   // urun-ekle.html'deki "Kullanılan Projeler" kutusunun autocomplete'i — /api/projects/:id gibi
   // dinamik uçlardan ÖNCE yakalanmalı (bkz. yukarıdaki /api/architects/search ile AYNI gerekçe).
   if (path === '/api/projects/search') return handleProjectSearchRoute(request, env, url);
-  if (path === '/api/ai/search') return handleAiSearchRoute(request, env, url);
-  // Görsel arama — /api/ai/ genel eşleşmesinden (handleAiRoute) ÖNCE yakalanmalı, tıpkı
-  // /api/ai/search gibi (bkz. o satırın gerekçesi).
-  if (path === '/api/ai/visual-search') return handleVisualSearchRoute(request, env, url);
+  // Tarayıcıda hesaplanan CLIP vektörünü dizine ekler (AI ÇAĞRISI YOK) — /fotograf'ın mekan ipuçlarını
+  // besler (bkz. src/lib/photoPool.js#attachClipHints). Aşağıdaki /api/ai/ kapanışından ÖNCE olmalı.
   if (path === '/api/ai/image-embed') return handleImageEmbedAppendRoute(request, env, url);
-  // "Görsel URL'si yapıştır" kutusunun SSRF-korumalı görsel borusu (bkz. handleImageProxyRoute).
-  if (path === '/api/ai/image-proxy') return handleImageProxyRoute(request, env, url);
   if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
   // KANONİK ANAHTARLA ARŞİVLE/SİL (kullanıcı isteği, 2026-09-10 madde 2) — /api/project/:slug'daki
   // AYNI desen: DELETE = sil, POST .../moderate {action:'archive'} = arşivle. GET detay ucuyla
@@ -2426,7 +2421,11 @@ async function routeApi(request, env, url, ctx) {
   // Firma/marka İş / Staj İlanları (kullanıcı isteği, 2026-09-11) — bkz. src/routes/officeJobs.js.
   // /api/offices öneki DEĞİL (o önek aşağıda gönderi CRUD'una düşer), bu yüzden ayrı bir yol.
   if (path === '/api/office-jobs' || path.startsWith('/api/office-jobs/')) return handleOfficeJobsRoute(request, env, url);
-  if (path.startsWith('/api/ai/')) return handleAiRoute(request, env, url);
+  // ÜCRETLİ AI UÇLARI KALDIRILDI (2026-09-19, kullanıcı kararı — CLAUDE.md "ÜCRETLİ KAYNAK KURALI"):
+  // /api/ai/search (akıllı arama), /api/ai/visual-search + /api/ai/image-proxy (görsel arama),
+  // /api/ai/extract + /api/ai/copy-images (Yapay zeka ile ekle). Hepsi Workers AI çağırıyordu.
+  // Eski istemciler/önbellekli sayfalar için 410 döner; geri açmak kullanıcı onayı ister.
+  if (path.startsWith('/api/ai/')) return errorJson('Bu özellik kaldırıldı.', 410);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
     path.startsWith('/api/products') || path.startsWith('/api/materials') ||

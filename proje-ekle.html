@@ -208,7 +208,6 @@
     display:flex; align-items:center; justify-content:center;
   }
   .date-range-remove-btn:hover{background:var(--paper); color:var(--ink);}
-  .ai-manual-link{display:none; background:none; border:none; padding:0; margin-top:10px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--sage); text-decoration:underline; cursor:pointer;}
   .check-grid{display:flex; flex-wrap:wrap; gap:8px;}
   .check-pill{
     display:inline-flex; align-items:center; gap:6px;
@@ -624,17 +623,7 @@
   <div class="form-wrap">
     <form id="proje-ekle-form">
 
-      <div class="form-section" id="ai-panel" style="display:none;">
-        <h2>Yapay Zeka ile Otomatik Doldur</h2>
-        <p class="section-hint">Projenin yayında olduğu sayfanın linkini yapıştır, bilgileri senin için dolduralım. Aşağıdaki alanların hepsi düzenlenebilir — göndermeden önce kontrol et.</p>
-        <div class="form-field">
-          <label for="ai-url-input">Kaynak Bağlantı</label>
-          <input type="url" id="ai-url-input" placeholder="https://ornek-site.com/proje-sayfasi">
-        </div>
-        <button type="button" class="brand-add-btn" id="ai-analyze-btn">Analiz Et</button>
-        <div id="ai-status" class="form-hint" style="display:none; margin-top:12px;"></div>
-        <button type="button" class="ai-manual-link" id="ai-manual-fallback-btn">Formu manuel doldurmaya devam et ↓</button>
-      </div>
+      <!-- 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — #ai-panel paneli silindi. -->
 
       <div class="form-section">
         <h2>Temel Bilgiler</h2>
@@ -868,13 +857,6 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
-      <div class="form-field" id="ai-consent-field" style="display:none;">
-        <label class="check-pill" style="width:100%; box-sizing:border-box;">
-          <input type="checkbox" id="ai-consent-checkbox">
-          Bu içeriğin hak sahibiyim veya yayınlama iznine sahibim.
-        </label>
-      </div>
-
       <!-- Telif ve Sorumluluk Beyanı (kullanıcı isteği, 2026-09-10 madde 1): "Gönder" butonunun
            ÜZERİNDE zorunlu onay kutucuğu; işaretlenmeden içerik yayınlanamaz. Metnin/­davranışın TEK
            kaynağı js/components/rights-consent.js — beş ekleme formu ve Hesabım > Arşivim'deki
@@ -967,13 +949,8 @@ let mediaKeySeq = 0;
 const editParams = new URLSearchParams(window.location.search);
 let editId = editParams.get('edit');
 let claimSlug = editParams.get('claim');
-// ?ai=1: proje.html'deki seçim modalından "Yapay Zeka ile Otomatik Ekle" seçilince buraya düşülür
-// (AI ile ekle akışı şimdilik kapalı, bkz. aşağıdaki wireAiPanel). editId/claimSlug ile aynı anda
-// anlamlı değildir; edit/claim varsa AI paneli
-// hiç gösterilmez (aşağıdaki wireAiPanel guard'ı).
-const aiMode = editParams.get('ai') === '1';
-let aiSourceUrl = null; // gönderimde source_url olarak payload'a eklenir
-let aiGenerated = false; // gönderimde ai_generated:1 olarak payload'a eklenir + onay kutusunu zorunlu kılar
+// 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — ?ai=1 modu, aiSourceUrl/aiGenerated
+// bayrakları ve source_url/ai_generated payload alanları artık yok.
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -1394,7 +1371,7 @@ async function onCreditPickerChange(names){
   }
 }
 // #p-credit-text.value'ya doğrudan yazan her noktadan sonra çağrılır (#p-office/#p-designer ile
-// AYNI desen). Programatik yüklemelerde Kaynak otomatik doldurma SUSTURULUR: prefill/AI yolları
+// AYNI desen). Programatik yüklemelerde Kaynak otomatik doldurma SUSTURULUR: prefill yolları
 // photo_credit_url'i zaten kendileri getiriyor, kutunun onu ezmesi kullanıcının kayıtlı değerini
 // kaybettirirdi.
 function syncCreditPicker(){
@@ -1440,7 +1417,7 @@ let officePicker = null;
 let lastOfficeSelection = [];
 let officeAutoFillMuted = false;
 // Kullanıcının YENİ işaretlediği firma, eskiden öneri seçilince olduğu gibi Mimar kutusunu o firmanın
-// ortakları/ekibiyle doldurur. Programatik yüklemelerde (prefill, AI) bu SUSTURULUR — o yollar
+// ortakları/ekibiyle doldurur. Programatik yüklemelerde (prefill) bu SUSTURULUR — o yollar
 // Mimar kutusunu kendileri doldurur.
 function onOfficePickerChange(names){
   const before = new Set(lastOfficeSelection.map(n => trLower(n)));
@@ -1456,7 +1433,7 @@ function syncOfficePicker(){
 // Mimar kutusunun AYNI deseni (bkz. #p-designer-picker HTML notu). #p-designer.value'ya doğrudan
 // yazan her nokta bunu çağırır; kutu değeri okur, Türkçe katlamayla TEKİLLEŞTİRİR ve temizlenmiş
 // hâlini input'a geri yazar (office-picker.js#api.set -> pushToInput) — yani mükerrer bir ad hangi
-// yoldan gelirse gelsin (prefill, AI, firma üyeleri, elle giriş) forma yerleşemez.
+// yoldan gelirse gelsin (prefill, firma üyeleri, elle giriş) forma yerleşemez.
 let designerPicker = null;
 function syncDesignerPicker(){
   if(!designerPicker) return;
@@ -1693,7 +1670,7 @@ function mediaItemSrc(item){
 
 // hotspotsByUrl: görsel URL'sine göre anahtarlı { url: [{x,y,slug,title}] } haritası (bkz.
 // migrations/0076_project_image_hotspots.sql) — düzenleme modunda API'den geldiği gibi geçirilir,
-// yeni/AI akışında hiç verilmez. mediaItems'ta her görselin işaretçileri KENDİ öğesinde taşınır ki
+// yeni proje akışında hiç verilmez. mediaItems'ta her görselin işaretçileri KENDİ öğesinde taşınır ki
 // sürükle-bırak sıralaması onları da beraberinde götürsün.
 function setExistingImages(urls, hotspotsByUrl, creditsByUrl){
   mediaItems.forEach(item => { if(item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
@@ -1715,7 +1692,7 @@ function setExistingImages(urls, hotspotsByUrl, creditsByUrl){
 }
 
 // Künyeye yazılmış fotoğrafçı adları — TEK kaynak #p-credit-text'in virgüllü değeridir (kutunun
-// KENDİ iç durumu DEĞİL: gönderim, prefill ve AI yolları hep o gizli input'u okuyup yazıyor, bkz.
+// KENDİ iç durumu DEĞİL: gönderim ve prefill yolları hep o gizli input'u okuyup yazıyor, bkz.
 // o kutunun HTML notu). foldTrLocal ile tekilleştirilir — sitenin her yerindeki "aynı ad" tanımı
 // (bkz. CLAUDE.md "Bir projede aynı ad künyeye İKİ KEZ yazılamaz").
 function photographerNames(){
@@ -2649,10 +2626,10 @@ if(claimSlug) prefillForClaim(); else prefillForEdit();
 // GET /api/claims/mine → onaylı profile_type='office' talepleri (firma VE marka) + officeLinks (kişi
 // profilinin office_founders üzerinden bağlı olduğu firmalar). Kurucular GET /api/office/:ad'dan
 // (fillDesignerFromOffice'in kullandığı AYNI uç) — ama yalnızca `founders`; o yardımcı ekibi (team)
-// de eklediği için burada yeniden kullanılmadı. Düzenleme/sahiplenme/AI akışlarında hiç çalışmaz ve
+// de eklediği için burada yeniden kullanılmadı. Düzenleme/sahiplenme akışlarında hiç çalışmaz ve
 // kullanıcının zaten yazdığı bir değerin üzerine ASLA yazmaz (her yazmadan hemen önce yeniden bakılır).
 async function prefillOwnOfficeForNewProject(){
-  if(editId || claimSlug || aiMode) return;
+  if(editId || claimSlug) return;
   try{ await meReady; }catch{ return; }
   const officeInput = document.getElementById('p-office');
   const designerInput = document.getElementById('p-designer');
@@ -2700,151 +2677,8 @@ async function prefillOwnOfficeForNewProject(){
 }
 prefillOwnOfficeForNewProject();
 
-// ---------- AI ile Otomatik Doldur (?ai=1) ----------
-// AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit/prefillForClaim) ile AYNI alanları AYNI
-// fonksiyonlarla (parseLocationFull, updateKategoriLabel, setExistingImages/renderPreviews) doldurur
-// — tek fark veri kaynağının bir gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
-// GERÇEK BULGU (bkz. kullanıcı isteği: AI import sistemi denetimi): bu fonksiyon eskiden Yer/Tarih/
-// Grup alanları için artık var olmayan DOM kimliklerine (dd-il-btn-label, dd-ilce-btn, p-date,
-// p-type) yazmaya çalışıyordu — form Leaflet haritası + çoklu tarih aralığı çipleri + sabit 40'lı
-// Grup çoklu seçimine geçileli beri bu kimlikler hiç yoktu, yani AI konum/tarih/grup bilgisini asla
-// forma yansıtamıyordu (yalnızca başlık/açıklama/kaynak/kategori/mimar/firma dolduruluyordu).
-// Aşağıdaki sürüm mevcut UI'ın KENDİ fonksiyonlarını (selectIlIlceFromNames, setMapMarker,
-// loadDateRowsFromString, wireMultiDropdown'ın updateXLabel'ları) kullanır — manuel doldurmayla
-// birebir aynı yol.
-async function applyAiResult(data){
-  document.getElementById('p-title').value = data.title || '';
-  if(data.location_text){
-    // Çevrimdışı/hızlı yol: il-ilce-data.js'in kendi metin ayrıştırıcısı (bkz. yukarıdaki AYNI
-    // fonksiyon, reverseGeocodeAndFillLocation'ın da kullandığı) — ağ isteği beklemeden selectedIl/
-    // selectedIlce'yi doldurur, "Haritada bir yer işaretle" zorunluluğunu (yalnızca selectedIl
-    // kontrol edilir, bkz. submit handler) haritaya hiç dokunmadan bile karşılar.
-    const loc = parseLocationFull(data.location_text);
-    if(loc.city) selectIlIlceFromNames(loc.city, loc.district);
-    // Ek olarak (best-effort, opsiyonel): haritada gerçek bir işaretçi görünsün diye AYNI sunucu
-    // proxy'sinden (bkz. src/routes/geocode.js — Nominatim CORS sorunu yüzünden doğrudan çağrılmaz)
-    // ileri jeokodlama denenir; sonuç bulunursa setMapMarker zaten reverseGeocodeAndFillLocation'ı
-    // tetikleyip selectedIl/selectedIlce'yi (varsa) daha kesin bir değerle günceller.
-    try{
-      const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(data.location_text)}`);
-      if(res.ok){
-        const results = await res.json();
-        if(Array.isArray(results) && results.length) setMapMarker(parseFloat(results[0].lat), parseFloat(results[0].lon));
-      }
-    }catch{ /* haritada işaretçi göstermek opsiyonel — il/ilçe zaten yukarıda çözülmüş olabilir */ }
-  }
-  if(data.date_text) loadDateRowsFromString(data.date_text);
-  document.getElementById('p-designer').value = (data.designer_names || []).join(', ');
-  document.getElementById('p-office').value = (data.office_names || []).join(', ');
-  syncOfficePicker();
-  syncDesignerPicker();
-  document.getElementById('p-desc').value = data.description || '';
-  document.getElementById('p-credit-text').value = data.photo_credit_text || '';
-  syncCreditPicker();
-  document.getElementById('p-credit-url').value = data.photo_credit_url || '';
-  document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (data.category || []).includes(cb.value));
-  updateKategoriLabel();
-  document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (data.discipline || []).includes(cb.value));
-  updateTurLabel();
-  document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (data.type || []).includes(cb.value));
-  updateGrupLabel();
-  document.querySelectorAll('input[name="award"]').forEach(cb => cb.checked = (data.awards || []).includes(cb.value));
-  updateOdulLabel();
-}
-
-function wireAiPanel(){
-  // AI ile ekle özelliği ŞİMDİLİK KAPALI (kullanıcı kararı). Aşağıdaki gövde bilinçli olarak
-  // korunuyor: özellik geri açılacağı gün tek satırlık bu return silinerek devreye girer.
-  // (Eskiden seçim modalını add-choice.js açardı; o dosya 2026-09-04 denetiminde no-op olduğu için
-  // silindi — geri gelirse modal yeniden yazılır.)
-  return;
-  if(!aiMode || editId || claimSlug) return; // düzenleme/sahiplenme akışlarıyla asla aynı anda değil
-  document.getElementById('ai-panel').style.display = 'block';
-  const urlInput = document.getElementById('ai-url-input');
-  const analyzeBtn = document.getElementById('ai-analyze-btn');
-  const statusEl = document.getElementById('ai-status');
-  const notice = document.getElementById('form-notice');
-  const manualBtn = document.getElementById('ai-manual-fallback-btn');
-  manualBtn.addEventListener('click', ()=>{
-    document.getElementById('p-title').scrollIntoView({behavior:'smooth', block:'center'});
-    document.getElementById('p-title').focus();
-  });
-
-  // /api/ai/extract TEK bir senkron istektir (bkz. src/routes/ai.js#handleExtract — sayfa çekme +
-  // alt sayfa keşfi + AI çıkarımı hepsi bu tek çağrı içinde olur, ayrı bir job/poll mekanizması yok),
-  // bu yüzden gerçek adım-adım ilerleme bilgisi YOK — ama kullanıcı "donmuş" hissetmesin diye (bkz.
-  // kullanıcı isteği: "Frontend işlem sırasında donmuş görünmemeli") istek sürerken bu mesajlar
-  // sırayla döner. Son mesajda kalır (isteğin geri kalanı genelde görsel indirme/analiz aşamasıdır).
-  const AI_PROGRESS_MESSAGES = [
-    'Kaynak sayfa analiz ediliyor...',
-    'Proje bilgileri araştırılıyor...',
-    'Mimar ve firma bilgileri kontrol ediliyor...',
-    'İlgili alt sayfalar araştırılıyor...',
-    'Görseller taranıyor, duplicate olanlar temizleniyor...',
-    'MİMARLAB kayıtlarıyla eşleştiriliyor...',
-    'Form hazırlanıyor...',
-  ];
-
-  async function analyze(){
-    const url = urlInput.value.trim();
-    if(!url){ urlInput.focus(); return; }
-    analyzeBtn.disabled = true;
-    urlInput.disabled = true;
-    notice.classList.remove('show');
-    manualBtn.style.display = 'none';
-    let progressIdx = 0;
-    statusEl.textContent = AI_PROGRESS_MESSAGES[0];
-    statusEl.style.display = 'block';
-    const progressTimer = setInterval(() => {
-      progressIdx = Math.min(progressIdx + 1, AI_PROGRESS_MESSAGES.length - 1);
-      statusEl.textContent = AI_PROGRESS_MESSAGES[progressIdx];
-    }, 2200);
-    try{
-      const res = await fetch('/api/ai/extract', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ url, kind: 'project' }),
-      });
-      if(res.status === 401){ window.location.href = '/giris'; return; }
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
-        notice.classList.add('show');
-        manualBtn.style.display = 'inline-block';
-        return;
-      }
-      if(!data.found){
-        notice.textContent = data.reason || 'Bu sayfada bir proje bulamadık — formu kendin doldurabilirsin.';
-        notice.classList.add('show');
-        manualBtn.style.display = 'inline-block';
-        return;
-      }
-      await applyAiResult(data.data);
-      setExistingImages((data.images || []).map(im => im.url));
-      renderPreviews();
-      aiSourceUrl = data.sourceUrl;
-      aiGenerated = true;
-      document.getElementById('ai-consent-field').style.display = 'block';
-      if(data.aiFailed){
-        notice.textContent = data.message || 'Yapay zeka şu anda analiz edemedi; bulabildiğimiz temel bilgilerle formu doldurduk.';
-        notice.classList.add('show');
-      }
-      document.getElementById('p-title').scrollIntoView({behavior:'smooth', block:'center'});
-    }catch{
-      notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
-      notice.classList.add('show');
-      manualBtn.style.display = 'inline-block';
-    }finally{
-      clearInterval(progressTimer);
-      statusEl.style.display = 'none';
-      analyzeBtn.disabled = false;
-      urlInput.disabled = false;
-    }
-  }
-  analyzeBtn.addEventListener('click', analyze);
-  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); analyze(); } });
-}
-wireAiPanel();
+// 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI) — applyAiResult + wireAiPanel
+// (/api/ai/extract) silindi.
 
 // mediaItems, kullanıcının sürükleyip bıraktığı sırayı korur — yeni dosyalar bu sıradaki
 // konumlarında yüklenir, sonuç dizisi hem mevcut hem yeni görselleri son (kullanıcının belirlediği)
@@ -2856,29 +2690,9 @@ wireAiPanel();
 // hem master'ı hem w400/w800/w1600 türevlerini üretir, sunucu doğrulayıp kalıcı olarak R2'ye yazar
 // (bkz. src/lib/derivativeIngest.js) — ücretli hiçbir Cloudflare Image Transformation kullanılmaz.
 
-// AI akışında önizlemedeki "existing" görsellerin url'i henüz bizim değil, dış bir sitenin adresi
-// olabilir (tarayıcı CORS nedeniyle bunları kendi indiremez) — bu yüzden http(s) ile başlayan
-// "existing" url'ler burada toplanıp SUNUCU tarafında /api/ai/copy-images ile R2'ye kopyalanır;
-// zaten /media/ ya da site-relative (ör. "projects/x.jpg") olanlar eskisi gibi aynen geçer.
-// GERÇEK BULGU (kullanıcı bildirimi, 2026-09-01 — görsel üzeri ürün işaretçileri kaydedilmiyordu):
-// buradaki "dış görsel" testi düz bir /^https?:\/\// idi. Ama sitedeki projelerin bir kısmının
-// görselleri MUTLAK ve BİZE AİT adreslerle saklanıyor (ör. "https://mimarlab.com/media/projects/
-// x.webp" — bkz. eski Arkitera içe aktarmaları). Bu yüzden her kaydetmede kendi görsellerimiz
-// "dışarıdan" sayılıp /api/ai/copy-images ile YENİDEN indirilip R2'ye kopyalanıyordu; kopyalama
-// başarısız olan görsel ise sessizce listeden düşürülüyordu (aşağıdaki urls[i] = null). Sonuç:
-// Koleksiyon Park Maçka gönderisinde olduğu gibi images alanı [] olarak kaydediliyor, buna bağlı
-// olarak hiçbir mediaItem'a finalUrl yazılamıyor ve collectImageHotspots() boş dönüyordu — yani
-// işaretçiler hiç kaydedilmiyordu (canonical satır images'i boş yazımda korumaya aldığından
-// görseller yerinde kalıyor, kullanıcı yalnızca işaretçilerin kaybolduğunu görüyordu).
-//
-// Aynı origin'deki mutlak adres ZATEN bizim: kopyalanmaz, olduğu gibi korunur. Böylece hem
-// işaretçi anahtarları bozulmaz hem de her kaydetmede R2'ye gereksiz kopya yazılmaz.
-function isForeignImageUrl(url){
-  if(!/^https?:\/\//i.test(url)) return false;
-  try{ return new URL(url, location.origin).origin !== location.origin; }
-  catch{ return true; }
-}
-
+// 2026-09-19: Yapay zeka ile ekle kaldırıldı (ücretli AI). Dış sitedeki "existing" görselleri
+// /api/ai/copy-images ile R2'ye kopyalayan dal (ve isForeignImageUrl) yalnızca AI akışı için vardı;
+// uç silindi. "existing" görseller artık her zaman olduğu gibi (url'leriyle) korunur.
 async function collectImages(){
   const urls = [];
   // owners[i], urls[i]'yi üreten mediaItems öğesi — görsel üzeri ürün işaretçileri (bkz.
@@ -2886,13 +2700,11 @@ async function collectImages(){
   // eşleştirilebilmesi için bu eşleme gerekiyor (fonksiyon yalnızca url listesi döndüğünden başka
   // türlü hangi işaretçinin hangi son url'e ait olduğu bilinemezdi).
   const owners = [];
-  const externalIndexes = [];
   for(const item of mediaItems){
     item.finalUrl = null;
     if(item.kind === 'existing'){
       urls.push(item.url);
       owners.push(item);
-      if(isForeignImageUrl(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
     // Proje galerisi fotoğrafları tam genişlik hero/galeri olarak gösterilebildiğinden kenar
@@ -2904,38 +2716,14 @@ async function collectImages(){
     urls.push(data.url);
     owners.push(item);
   }
-  if(externalIndexes.length){
-    const res = await fetch('/api/ai/copy-images', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ images: externalIndexes.map(i => urls[i]) }),
-    });
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error || 'Görseller kopyalanamadı.');
-    const byUrl = new Map((data.items || []).map(it => [it.url, it]));
-    // Kopyalanamayan (ör. kaynak site erişime kapattı) görseli sessizce listeden düşür — tek bir
-    // görselin başarısız olması tüm gönderiyi engellemesin.
-    externalIndexes.forEach(i => {
-      const result = byUrl.get(urls[i]);
-      urls[i] = result && result.mediaUrl ? result.mediaUrl : null;
-    });
-    // MİMARLAB standardı (WebP, ≤2000px) + responsive türevler (bkz. image-upload.js). Yalnızca
-    // BAŞARIYLA kopyalanmış (null olmayan) görseller için denenir; dönüştürme başarısız olursa
-    // fonksiyon zaten ham kopya URL'ini olduğu gibi döner.
-    await Promise.all(externalIndexes.map(async i => {
-      if(urls[i]) urls[i] = await MimarlabUpload.reuploadFromMediaUrl(urls[i], { context: 'project', maxEdge: 2000 });
-    }));
-  }
   // Her mediaItem'a kendi NİHAİ url'ini yaz — collectImageHotspots bunu kullanarak işaretçi
   // haritasını doğru anahtarlarla kurar (elenen/kopyalanamayan görseller null kalır).
   urls.forEach((u, i) => { if(owners[i]) owners[i].finalUrl = u || null; });
   const kept = urls.filter(Boolean);
-  // Tek bir görselin kopyalanamaması gönderiyi engellemesin (bkz. yukarısı) — ama HEPSİNİN birden
-  // düşmesi bir "kısmi başarı" değil, sessiz bir veri kaybıdır: images:[] kaydedilir, kullanıcı
-  // galerisinin silindiğini fark etmez (bkz. yukarıdaki gerçek bulgu). Bu durumda kaydetmeyi
-  // durdurup nedeni söylemek tek doğru davranış.
+  // Görsel listesi dolu iken HEPSİNİN düşmesi sessiz bir veri kaybı olurdu (images:[] kaydedilir,
+  // kullanıcı galerisinin silindiğini fark etmez) — kaydetmeyi durdurup nedeni söyle.
   if(!kept.length && mediaItems.length){
-    throw new Error('Görseller kaydedilemedi (kopyalama başarısız oldu). Değişiklikler kaydedilmedi — lütfen tekrar dene.');
+    throw new Error('Görseller kaydedilemedi. Değişiklikler kaydedilmedi — lütfen tekrar dene.');
   }
   return kept;
 }
@@ -3105,13 +2893,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(aiGenerated && !document.getElementById('ai-consent-checkbox').checked){
-    notice.textContent = 'Devam etmek için içeriğin hak sahibi olduğunu ya da yayınlama iznine sahip olduğunu onaylamalısın.';
-    notice.classList.add('show');
-    notice.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
-
   submitBtn.disabled = true;
   loading.classList.add('show');
   let images;
@@ -3154,7 +2935,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     payload.publishDate = document.getElementById('p-publish-date').value || null;
   }
   if(claimSlug) payload.claimed_slug = claimSlug;
-  if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
 
   // Telif ve Sorumluluk Beyanı onayı (bkz. js/components/rights-consent.js) — sunucu bu iki alanı
   // ZORUNLU kılar (src/lib/rightsConsent.js#requireRightsAcceptance); kutu işaretlenmeden gönderim

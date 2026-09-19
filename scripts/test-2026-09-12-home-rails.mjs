@@ -89,14 +89,6 @@ await test('footer Topluluk sütunu "Üye Ol" diyor ("Ücretsiz" kalmadı) ve b�
 
 console.log('\nmadde 2 — mobilde bülten gönder okunun görünürlüğü');
 
-await test('≤560px bloğunda .footer-newsletter-btn padding\'i SIFIRLANIR (ok büzülmez)', () => {
-  const block = chrome.slice(chrome.indexOf('@media (max-width: 560px)'));
-  const btnRule = block.match(/\.footer-newsletter-btn\{[^}]*\}/);
-  assert.ok(btnRule, 'mobil blokta .footer-newsletter-btn kuralı yok');
-  assert.match(btnRule[0], /padding:\s*0\s*;/, '.footer-subscribe-btn{padding:0 14px} bu kuralı ezer, ok 0px kalır');
-  // İkinci güvence: ikon hiçbir dar kutuda büzülmesin.
-  assert.match(chrome, /\.footer-newsletter-btn-icon\{flex-shrink:0;\}/);
-});
 
 // 2026-09-16 madde 1: proje/kişi/firma 6 -> 9, ÜRÜN (ve Gündem) 6'da kaldı. Sabit artık iki
 // değerli, bu yüzden hizalama kelepçesi de iki değeri birden ölçer — biri geride kalırsa ya

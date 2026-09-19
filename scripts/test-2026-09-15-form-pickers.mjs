@@ -152,8 +152,9 @@ test('kutular prefill çağrılarından ÖNCE kurulur (TDZ)', () => {
 });
 
 test('#u-brand / #u-designer yazan HER nokta kutuyu senkronlar', () => {
-  assertEverySyncCall(urunEkle, 'u-brand', 'syncBrandPicker', 3);
-  assertEverySyncCall(urunEkle, 'u-designer', 'syncDesignerPicker', 3);
+  // 2026-09-19: Yapay zeka ile ekle kaldırıldı — u-brand'ın AI yazma noktası eksildi (3 -> 2).
+  assertEverySyncCall(urunEkle, 'u-brand', 'syncBrandPicker', 2);
+  assertEverySyncCall(urunEkle, 'u-designer', 'syncDesignerPicker', 2); // 2026-09-19: AI yazma noktası eksildi (3 -> 2)
 });
 
 test('Firma zorunluluğu artık ELLE kontrol ediliyor (gizli input `required` almaz)', () => {
@@ -208,7 +209,8 @@ test('Kaynak\'ı firmanın sitesiyle doldurma davranışı KORUNDU', () => {
 });
 
 test('#p-credit-text yazan HER nokta kutuyu senkronlar', () => {
-  assertEverySyncCall(projeEkle, 'p-credit-text', 'syncCreditPicker', 4);
+  // 2026-09-19: Yapay zeka ile ekle kaldırıldı — AI yazma noktası eksildi (4 -> 3).
+  assertEverySyncCall(projeEkle, 'p-credit-text', 'syncCreditPicker', 3);
 });
 
 test('Fotoğrafçı zorunluluğu elle kontrol edilmeye devam ediyor', () => {

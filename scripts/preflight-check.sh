@@ -1396,17 +1396,13 @@ else
   ok "Okundu işareti — route + buton + stil + tablo dördü de yerinde"
 fi
 
-# Cron dispatcher — src/index.js#VISUAL_INDEX_CRON, wrangler.jsonc'taki görsel-dizin ifadesiyle
-# BİREBİR aynı olmalı. Ayrışırsa dispatcher o ifadeyi tanımaz ve 6 saatlik görsel dizin turu her
-# 30 dakikada bir çalışmaya başlar (12 kat maliyet), üstelik sessizce.
-wrangler_cron=$(grep -o '"23 \*/6 \* \* \*"' wrangler.jsonc | head -1 | tr -d '"')
-index_cron=$(grep -o "^const VISUAL_INDEX_CRON = '[^']*'" src/index.js | sed "s/.*'\(.*\)'/\1/")
-if [ -z "$wrangler_cron" ] || [ -z "$index_cron" ]; then
-  bad "cron ifadesi okunamadı (wrangler='$wrangler_cron' index='$index_cron')"
-elif [ "$wrangler_cron" != "$index_cron" ]; then
-  bad "VISUAL_INDEX_CRON ayrışmış: wrangler.jsonc='$wrangler_cron', src/index.js='$index_cron'"
+# Görsel arama dizini cron'u KAPALI (2026-09-19, ücretli kaynak kuralı): wrangler.jsonc'ta
+# '23 */6' tetikleyicisi ve src/index.js'in varsayılan runner setinde visualIndex OLMAMALI — her tur
+# Workers AI embedding'i harcıyordu ve tek tüketicisi (görsel arama) kaldırıldı.
+if grep -E '^\s*"triggers"' wrangler.jsonc | grep -q '23 \*/6' || grep -q "^  visualIndex: " src/index.js; then
+  bad "görsel dizin cron'u yeniden açılmış (wrangler.jsonc tetikleyicisi ya da DEFAULT runner) — kullanıcı onayı gerekir"
 else
-  ok "cron dispatcher ifadesi wrangler.jsonc ile hizalı ($index_cron)"
+  ok "görsel dizin cron'u kapalı (tetikleyici + runner yok)"
 fi
 
 # Gündem görselleri kaynağın kendi CDN'inden gelir; CSP img-src listesi kaynak yapılandırmasından

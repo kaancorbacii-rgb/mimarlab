@@ -1,6 +1,4 @@
-import { json, errorJson, readJson } from '../lib/http.js';
-import { newId, randomToken } from '../lib/crypto.js';
-import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
+import { errorJson } from '../lib/http.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,34 +20,10 @@ a{color:#5B7A9B;font-weight:600;text-decoration:none;}</style></head>
 // submissions.js/admin.js + src/lib/gundemIngest.js/src/routes/gundemAdmin.js'teki çağrı
 // noktaları). Kişi/firma/marka BİLEREK kapsam dışı (kullanıcı isteği, 2026-09-12 madde 2).
 export async function handleNewsletterRoute(request, env, url) {
-  if (url.pathname === '/api/newsletter/subscribe' && request.method === 'POST') {
-    if (!(await checkRateLimit(env, 'newsletter_subscribe', clientIp(request), 8, 60 * 60 * 1000))) {
-      return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
-    }
-
-    const body = await readJson(request);
-    const email = (body.email || '').trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) return errorJson('Geçerli bir e-posta adresi gir.');
-    if (email.length > 320) return errorJson('Geçerli bir e-posta adresi gir.');
-
-    // E-posta zaten kayıtlıysa (aboneyken tekrar formu doldurdu ya da daha önce abonelikten
-    // çıkmıştı) sessizce başarı döner — abone olup olmadığını numaralandırmaya (enumeration) izin
-    // vermemek için hem yeni kayıt hem "zaten abone" aynı { ok: true } cevabını verir.
-    const existing = await env.DB.prepare('SELECT id, unsubscribed_at FROM newsletter_subscribers WHERE email = ?').bind(email).first();
-    if (existing) {
-      if (existing.unsubscribed_at) {
-        await env.DB.prepare('UPDATE newsletter_subscribers SET unsubscribed_at = NULL WHERE id = ?').bind(existing.id).run();
-      }
-      return json({ ok: true });
-    }
-
-    await env.DB.prepare(
-      'INSERT INTO newsletter_subscribers (id, email, unsubscribe_token, created_at) VALUES (?, ?, ?, ?)'
-    ).bind(newId(), email, randomToken(), Date.now()).run();
-
-    return json({ ok: true }, 201);
-  }
-
+  // ABONELİK KAPALI (2026-09-19, kullanıcı isteği: "Bülteni iptal et"): footer'daki form kaldırıldı,
+  // gönderim src/lib/newsletterNotify.js#NEWSLETTER_ENABLED ile kapalı. Eski sayfa kopyaları için 410.
+  // Abonelikten ÇIKMA ucu aşağıda DURUYOR — daha önce gönderilmiş maillerdeki bağlantılar çalışsın.
+  if (url.pathname === '/api/newsletter/subscribe') return errorJson('Bülten aboneliği kapatıldı.', 410);
   // GET /api/newsletter/unsubscribe?token=... — abonelik mailinin altındaki linkten tıklanır (bkz.
   // src/lib/newsletterNotify.js), bu yüzden JSON değil doğrudan basit bir onay sayfası döner.
   if (url.pathname === '/api/newsletter/unsubscribe' && request.method === 'GET') {
@@ -59,7 +33,7 @@ export async function handleNewsletterRoute(request, env, url) {
         'UPDATE newsletter_subscribers SET unsubscribed_at = ? WHERE unsubscribe_token = ? AND unsubscribed_at IS NULL'
       ).bind(Date.now(), token).run();
     }
-    return new Response(unsubscribePage('Abonelikten çıktın. Dilediğin zaman footer\'daki formdan tekrar abone olabilirsin.'), {
+    return new Response(unsubscribePage('Abonelikten çıktın.'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
   }

@@ -219,19 +219,16 @@
     style.textContent = `
       /* kullanıcı isteği (2026-08-30): arama çubuğu masaüstünde Giriş Yap butonuyla (.nav-rate,
          36px), tablet/mobilde hamburger düğmesiyle (.nav-hamburger, 38px) AYNI yükseklikte olsun —
-         .nav-search'ün yüksekliğini asıl belirleyen, içindeki 26px'lik .nav-search-visual-btn (bkz.
-         aşağısı); dikey padding buna göre daraltılır (9px → 4px/5px), yatay padding/border-radius
-         her sayfanın KENDİ <style>'ındaki değerlerle DEĞİŞMEDEN kalır. */
-      .nav-search{padding-right:6px; padding-top:4px; padding-bottom:4px;}
+         yatay padding/border-radius her sayfanın KENDİ <style>'ındaki değerlerle DEĞİŞMEDEN kalır.
+         2026-09-19: görsel arama kaldırıldı (ücretli AI). Yüksekliği eskiden içerideki 26px'lik
+         kamera düğmesi (.nav-search-visual-btn) belirliyordu (26 + 4/5px dikey padding + 1px
+         kenarlık = masaüstü 36px, ≤960px 38px — ölçüldü). Düğme gidince pil yalnızca ~18px'lik
+         input'a göre küçülürdü; bu yüzden AYNI ölçü artık açık height ile verilir. padding-right:6px
+         de düğmeye yer açmak içindi, kaldırıldı (sayfanın kendi yatay padding'i geçerli). */
+      .nav-search{box-sizing:border-box; height:36px; padding-top:4px; padding-bottom:4px;}
       @media (max-width:960px){
-        .nav-search{padding-top:5px; padding-bottom:5px;}
+        .nav-search{height:38px; padding-top:5px; padding-bottom:5px;}
       }
-      .nav-search-visual-btn{
-        flex-shrink:0; display:flex; align-items:center; justify-content:center;
-        width:26px; height:26px; border-radius:8px; border:none;
-        background:var(--paper-alt); color:var(--ink-soft); padding:0;
-      }
-      .nav-search-visual-btn:hover{background:var(--brass-soft); color:var(--ink);}
       .nav-mobile-overlay{display:none; position:fixed; inset:0; z-index:120; background:rgba(15,19,26,0.55);}
       .nav-mobile-overlay.open{display:block;}
       .nav-mobile-menu{
@@ -444,9 +441,7 @@
     <div class="nav-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="f-search-topnav" placeholder="Aradığını yaz, bulmana yardımcı olalım" aria-label="Ara">
-      <button type="button" class="nav-search-visual-btn" id="nav-search-visual-btn" aria-label="Görsel ile ara">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2"/></svg>
-      </button>
+      <!-- 2026-09-19: görsel arama (kamera) düğmesi kaldırıldı (ücretli AI). -->
     </div>
     <div class="nav-links">
       ${desktopLinks}
@@ -493,26 +488,8 @@
 
   function footerHtml(){
     return `<footer class="site-footer">
-    <div class="footer-subscribe">
-      <div class="footer-subscribe-inner">
-        <!-- "MİMARLAB'da yok musun?" başlığı, açıklaması ve Üye Ol butonu KALDIRILDI (kullanıcı
-             isteği, 2026-09-13: "Bültene Abone Ol ve altındaki kısımlar kalsın"). Üye Ol çağrısı
-             sitede başka iki yerde duruyor: üst menünün sağ ucu ve mobil menünün alt bloğu
-             (bkz. headerHtml) — yani kayıt yolu footer'dan kalkmakla kaybolmuyor. -->
-        <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
-        <p class="footer-newsletter-desc">Proje, ürün ve gündem içerikleri e-postana gelsin.</p>
-        <div class="footer-subscribe-news-action">
-          <form class="footer-newsletter-form" id="footer-newsletter-form">
-            <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
-            <button type="submit" class="footer-subscribe-btn footer-newsletter-btn" aria-label="Abone Ol">
-              <span class="footer-newsletter-btn-text">Abone Ol</span>
-              <svg class="footer-newsletter-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="20" y2="12"/><polyline points="13 5 20 12 13 19"/></svg>
-            </button>
-          </form>
-          <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
-        </div>
-      </div>
-    </div>
+    <!-- 2026-09-19: bülten kaldırıldı (e-posta gönderim maliyeti). Eski "Bültene Abone Ol" bandı
+         (.footer-subscribe + /api/newsletter/subscribe formu) footer'dan tamamen çıktı. -->
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="/">
@@ -598,24 +575,7 @@
         font-size:13.5px; font-weight:600; color:var(--ink); text-decoration:none;
       }
       .add-content-list a:hover{background:var(--ink); color:var(--paper-card);}
-      .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
-      /* Açık mavi üst bant: sayfaya ortalanmış TEK bir dikey akış (kullanıcı isteği, 2026-09-01 —
-         o turda İKİ SÜTUNluk yerleşim terk edilmişti; tek sütunda satır hizalama sorunu ortadan
-         kalktığı için düz flex yeterli ve DOM sırası görsel sırayla birebir, bkz. footerHtml()).
-         2026-09-13'te bandın ilk yarısı ("MİMARLAB'da yok musun?" başlığı, açıklaması ve Üye Ol
-         butonu) kullanıcı isteğiyle kaldırıldı; bant artık yalnızca bülten aboneliğini taşıyor. */
-      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:flex; flex-direction:column; align-items:center; text-align:center;}
-      .footer-subscribe-news-title{font-size:20px; font-weight:700; color:var(--paper); margin:0 0 8px;}
-      /* margin-top:30px KALDIRILDI: bu boşluk, üstteki "Üye Ol" bloğundan ayırmak içindi;
-         o blok kalkınca başlık kutunun ilk öğesi oldu ve boşluk üstte asılı kalıyordu. */
-      /* E-posta kutusu masaüstünde 390px'lik sabit bir ölçüde durur (kullanıcı isteği,
-         2026-09-01). Açıklama metni ise bilerek DAHA GENİŞ (max-width yok, bkz.
-         .footer-newsletter-desc kuralı) ki tek satırda kalsın. Bu kural eskiden "Üye Ol"
-         butonuyla ortak ölçüyü de tanımlıyordu; o buton 2026-09-13'te footer'dan kaldırıldı. */
-      .footer-subscribe-news-action{width:100%; max-width:390px;}
-      .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
-      .footer-subscribe-btn:hover{opacity:0.9;}
-      .footer-subscribe-btn:disabled{opacity:0.6; cursor:default;}
+      /* 2026-09-19: bülten kaldırıldı — .footer-subscribe / .footer-newsletter-* kuralları silindi. */
       /* FOOTER MENÜSÜ SÜTUNLARA ORTALANIR (kullanıcı isteği, 2026-09-12: "logo, açıklama,
          başlıkların ve sayfa isimlerinin sütunlara ortalanmasını istiyorum ... Masaüstü
          görünümde 4 sütun olarak görünen bu kısım yine sütunlara göre hizalansınlar").
@@ -704,57 +664,12 @@
       .footer-theme-toggle .theme-icon-sun{display:none;}
       [data-theme="dark"] .footer-theme-toggle .theme-icon-sun{display:flex;}
       [data-theme="dark"] .footer-theme-toggle .theme-icon-moon{display:none;}
-      /* max-width YOK (kullanıcı isteği, 2026-09-01: "açıklama metnini tek satırda topladım") —
-         340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün ve gündem içerikleri e-postana
-         gelsin.") iki satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek
-         satırda kalır, dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
-      /* BEYAZ (kullanıcı isteği, 2026-09-13: "bu yazi beyaz renk olsun"). Eskiden %60 opaklıkta
-         soluk gri idi; koyu mavi (#4E6478) zemin üzerinde başlığın yanında sönük kalıyordu. */
-      .footer-newsletter-desc{font-size:16px; color:#fff; margin:0 0 16px;}
-      /* kullanıcı isteği (2026-08-30): abone ol gönder butonu artık TÜM görünümlerde (masaüstü/
-         tablet/mobil) input'un sağ ucuna gömülü dairesel bir ikon — eskiden yalnızca mobilde
-         (≤560px) böyleydi, masaüstünde ayrı metin butonu vardı; artık üç görünüm de aynı deseni
-         kullanıyor. */
-      .footer-newsletter-form{position:relative; display:block;}
-      .footer-newsletter-input{box-sizing:border-box; height:40px; width:100%; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 48px 0 16px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
-      .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
-      .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
-      .footer-newsletter-btn-text{display:none;}
-      .footer-newsletter-btn-icon{display:block;}
-      .footer-newsletter-btn{position:absolute; top:50%; right:3px; transform:translateY(-50%); width:34px; height:34px; padding:0; border-radius:50%;}
-      .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
-      .footer-newsletter-msg.ok{color:#8FD6A8;}
-      .footer-newsletter-msg.err{color:#E39B9B;}
       @media (max-width: 860px){
         /* Tablet/mobil: aynı ortalama, iki sütunda (kullanıcı isteği — ekli görselde bu kısım
            sol baştan hizalıydı). text-align/justify-content kuralları yukarıdaki taban bloktan
            gelir, burada yalnızca sütun sayısı ve boşluklar değişir. */
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
-        .footer-subscribe-inner{padding:26px 32px;}
-        .footer-subscribe-news-title{font-size:18px;}
-        .footer-newsletter-desc{font-size:14.5px;}
-      }
-      @media (max-width: 560px){
-        .footer-subscribe-news-title{font-size:16px;}
-        .footer-newsletter-desc{font-size:13px;}
-        .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
-        .footer-newsletter-input{height:34px; padding:0 40px 0 12px;}
-        /* padding:0 BURADA TEKRAR EDİLİR (kullanıcı bulgusu, 2026-09-12: "mobilde e-posta
-           çubuğunun sağındaki ok işareti gözükmüyor"). GERÇEK NEDEN: hemen yukarıdaki
-           .footer-subscribe-btn kuralı (padding:0 14px) bu media bloğunda daha SONRA
-           geldiğinden (aynı özgüllük, kaynak sırası kazanır) dairesel gönder butonunun yatay
-           dolgusunu 14px'e çıkarıyordu; buton 28px geniş ve global box-sizing:border-box
-           yürürlükte olduğundan içeriğe kalan genişlik TAM SIFIR oluyor, flex çocuğu olan SVG de
-           sıfıra büzülüp ok görünmez hale geliyordu (masaüstünde sorun yoktu: orada
-           .footer-newsletter-btn kuralı sonra geliyor). flex-shrink:0 ikinci güvence — ikon bir
-           daha hiçbir dar kutuda büzülmez.
-           NOT — bu yorumda ASLA ters tırnak karakteri kullanılmaz: tüm blok injectFooterStyle içindeki
-           bir şablon dizesinin (template literal) İÇİNDE yaşıyor; tek bir ters tırnak dizeyi
-           erkenden kapatıp dosyayı sözdizimi hatasına düşürür ve site-chrome.js hiç çalışmadığı
-           için ÜST MENÜ İLE FOOTER TAMAMEN KAYBOLUR (canlıda bu şekilde yaşandı, 2026-09-12). */
-        .footer-newsletter-btn{width:28px; height:28px; padding:0;}
-        .footer-newsletter-btn-icon{flex-shrink:0;}
       }
       /* TABLET (561–860px; kullanıcı isteği, 2026-09-12): alt satır ÜÇ SÜTUN kalır ve üç öğe de
          kendi sütununun ortasına hizalanır. Masaüstündeki 4 raylı hizalama burada bırakılır: üstteki
@@ -815,57 +730,15 @@
     });
   }
 
-  const NEWSLETTER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  function wireFooterNewsletter(){
-    const form = document.getElementById('footer-newsletter-form');
-    const msg = document.getElementById('footer-newsletter-msg');
-    if(!form || !msg || form.dataset.wired) return;
-    form.dataset.wired = '1';
-    form.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const input = document.getElementById('footer-newsletter-email');
-      const email = (input.value || '').trim();
-      const btn = form.querySelector('button[type="submit"]');
-      msg.textContent = '';
-      msg.className = 'footer-newsletter-msg';
-      if(!NEWSLETTER_EMAIL_RE.test(email)){
-        msg.textContent = 'Geçerli bir e-posta adresi gir.';
-        msg.className = 'footer-newsletter-msg err';
-        return;
-      }
-      btn.disabled = true;
-      try{
-        const res = await fetch('/api/newsletter/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        const data = await res.json().catch(()=>({}));
-        if(res.ok){
-          msg.textContent = 'Abone oldun, teşekkürler!';
-          msg.className = 'footer-newsletter-msg ok';
-          form.reset();
-        } else {
-          msg.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
-          msg.className = 'footer-newsletter-msg err';
-        }
-      } catch(err){
-        msg.textContent = 'Bağlantı hatası, tekrar dene.';
-        msg.className = 'footer-newsletter-msg err';
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  }
+  // 2026-09-19: bülten kaldırıldı — wireFooterNewsletter (/api/newsletter/subscribe) silindi.
 
   // kullanıcı isteği (2026-08-28, ekli Architonic ekran görüntüleri referans alınarak): üst
   // menüdeki arama kutusuna tıklayınca artık küçük bir öneri açılır penceresi DEĞİL, tüm ekranı
-  // kaplayan bir popup büyüyor — üstte büyük arama kutusu, boşken "Önerilen Aramalar" çipleri +
-  // "Görsel ile Proje ve Ürün Arama" bölümü (bkz. aşağıdaki NAV_SEARCH_RECOMMENDED), yazmaya başlanınca
-  // öneriler AYNI /api/public/search-suggest ucundan (eski panelin kullandığı UÇLA BİREBİR AYNI)
-  // canlı sonuçlarla değişiyor. Görsel arama bölümü YALNIZCA görsel — hiçbir dosya seçici/URL
-  // gönderimi bağlı değil (kullanıcı isteği: "ürün arama kısmı şimdilik aktif olmasın").
+  // kaplayan bir popup büyüyor — üstte büyük arama kutusu, boşken "Önerilen Aramalar" çipleri
+  // (bkz. aşağıdaki NAV_SEARCH_RECOMMENDED), yazmaya başlanınca öneriler AYNI
+  // /api/public/search-suggest ucundan (eski panelin kullandığı UÇLA BİREBİR AYNI) canlı sonuçlarla
+  // değişiyor. 2026-09-19: görsel arama kaldırıldı (ücretli AI) — popup'taki "Görsel ile Proje ve
+  // Ürün Arama" bölümü artık yok; popup yalnızca metin aramasını taşır.
   // kullanıcı isteği (2026-08-30, düzeltme): sabit örnek terimler yerine, PROJE gönderilerindeki
   // en kalabalık 5 "Grup" değeri gösterilsin — proje.js#FILTER_GROUPS'ta "Grup" etiketi `type`
   // anahtarına karşılık gelir (bkz. js/pages/proje.js#FILTER_GROUPS, "Tür"/discipline ile
@@ -911,9 +784,6 @@
       .catch(() => {});
   }
   let navSearchModalApi = null;
-
-  // Görsel arama sonuçlarının geri dönüşte yeniden açılması için kullanılan sessionStorage anahtarı.
-  const VS_RESTORE_KEY = 'mimarlab-visual-search-restore';
 
   function ensureNavSearchModal(){
     if(navSearchModalApi) return navSearchModalApi;
@@ -969,68 +839,8 @@
         @media (max-width: 480px){ .nav-search-modal-row-meta{max-width:80px;} .nav-search-modal-row-thumb{width:34px; height:34px;} }
         .nav-search-modal-more{display:block; margin-top:6px; padding:10px 12px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
         .nav-search-modal-empty{padding:14px 12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
-        /* Kutu, temanın kendi mavi yüzey token'ından türetilmiş AÇIK MAVİ bir zemin taşır
-           (kullanıcı isteği, 2026-09-14: "Görsel ile ürün yükleme kutucuğunun arka planını
-           temadaki en açık mavi renklerden biri yap"). Doğrudan --brass-soft KULLANILMADI: açık
-           temada #AFC5D8 üzerinde kutunun 12,5 px'lik --ink-soft ipucu metni 3,4:1'e düşüyordu
-           (WCAG AA küçük metin için 4,5:1 ister). --paper-card ile karıştırılmış hâli (#D7E2EB)
-           hem gözle görülür mavi hem 4,7:1. color-mix, koyu temada da doğru yönde çalışır
-           (--brass-soft orada #2E3F52, yani kart zemininin bir ton üstü mavi). İlk background
-           satırı color-mix desteklemeyen tarayıcılar için yedektir. */
-        .nav-search-modal-image-box{
-          display:flex; align-items:center; gap:18px; border:1.5px dashed var(--line); border-radius:14px;
-          padding:20px;
-          background:var(--paper-alt);
-          background:color-mix(in srgb, var(--brass-soft) 45%, var(--paper-card));
-        }
-        .nav-search-modal-image-drop{
-          flex:1; min-width:0; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.6;
-          cursor:pointer; border-radius:10px; padding:6px; transition:background .15s ease, box-shadow .15s ease;
-          display:flex; align-items:center; justify-content:center;
-        }
-        /* Kutunun zemini artık açık mavi (bkz. .nav-search-modal-image-box) — dragover/hover geri
-           bildirimi --paper-alt kalsaydı o mavinin üstünde neredeyse aynı tona düşer, yani
-           "görsel buraya bırakılabilir" vurgusu gözden kaybolurdu. --paper-card mavinin üstünde
-           açık bir kare olarak okunur. */
-        .nav-search-modal-image-drop.dragover{background:var(--paper-card); box-shadow:0 0 0 1.5px var(--walnut) inset;}
-        .nav-search-modal-image-drop strong{color:var(--walnut); font-weight:600;}
-        .nav-search-modal-image-preview{display:flex; align-items:center; gap:10px; text-align:left; width:100%;}
-        .nav-search-modal-image-preview[hidden]{display:none;}
-        .nav-search-modal-image-preview img{width:44px; height:44px; object-fit:cover; border-radius:8px; flex-shrink:0; background:var(--paper-alt);}
-        .nav-search-modal-image-preview-name{flex:1; min-width:0; font-size:12.5px; color:var(--ink); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-        .nav-search-modal-image-remove{flex-shrink:0; background:none; border:none; color:var(--ink-soft); padding:5px; border-radius:50%; display:flex;}
-        .nav-search-modal-image-remove:hover{background:var(--paper-card); color:var(--ink);}
-        .nav-vs-status{margin-top:12px; font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:8px; justify-content:center;}
-        .nav-vs-status[hidden]{display:none;}
-        .nav-vs-spin{width:13px; height:13px; border:2px solid var(--line); border-top-color:var(--walnut); border-radius:50%; animation:nav-vs-rot .7s linear infinite; flex-shrink:0;}
-        @keyframes nav-vs-rot{to{transform:rotate(360deg);}}
-        .nav-vs-results[hidden]{display:none;}
-        .nav-search-modal-row-why{
-          display:block; font-size:11px; font-weight:600; color:var(--walnut, #8A6A4B);
-          margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-        }
-        .nav-vs-analysis{margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-alt); font-size:12.5px; color:var(--ink);}
-        .nav-vs-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px;}
-        .nav-vs-chip{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--paper-card); font-size:11.5px;}
-        .nav-vs-chip-k{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
-        .nav-vs-group-title{margin-top:16px; margin-bottom:7px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);}
-        .nav-vs-empty{margin-top:8px; font-size:12.5px; color:var(--ink-soft);}
-        /* Tier 1 — "aynı varlık" bulgusu benzerlerden GÖRSEL OLARAK da ayrılır (kullanıcı isteği,
-           2026-09-03 madde 20): eşleşme vurgulu bir başlık + kendi çerçevesi alır, benzerler
-           sıradan liste satırları olarak kalır. Böylece kullanıcı "bu senin görselindeki yapının
-           kendisi" ile "buna benziyor" arasındaki farkı okumadan da görür. */
-        .nav-vs-match-title{color:var(--accent);}
-        .nav-vs-match{border:1px solid var(--accent); border-radius:10px; padding:2px 6px; background:var(--paper-alt);}
-        .nav-search-modal-image-error{margin-top:10px; font-size:12px; color:var(--rust); text-align:center;}
-        .nav-search-modal-image-or{flex-shrink:0; font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
-        .nav-search-modal-image-paste{
-          flex:1; min-width:0; display:flex; align-items:center; gap:8px; border:1px solid var(--line);
-          border-radius:10px; padding:10px 14px; background:var(--paper);
-        }
-        .nav-search-modal-image-paste svg{flex-shrink:0; color:var(--ink-soft);}
-        .nav-search-modal-image-paste input{flex:1; min-width:0; border:none; outline:none; background:none; font-family:inherit; font-size:12.5px; color:var(--ink);}
-        .nav-search-modal-image-paste input::placeholder{color:var(--ink-soft);}
-        .nav-search-modal-image-paste input:focus-visible{box-shadow:none;}
+        /* 2026-09-19: görsel arama kaldırıldı (ücretli AI) — .nav-search-modal-image-* ve .nav-vs-*
+           kuralları silindi. */
         @media (max-width:640px){
           .nav-search-modal-overlay{padding:60px 12px 12px;}
           /* X, arama çubuğuyla AYNI yatay bantta duruyordu (ölçüldü: kapat 76-110 px, çubuk
@@ -1043,12 +853,6 @@
           .nav-search-modal{padding:48px 22px 22px;}
           .nav-search-modal-close{top:8px; right:12px;}
           .nav-search-modal-input-row{margin-right:0;}
-          /* Sütuna dönen kutuda 18px gap + 20px padding, "Görseli sürükle..." / VEYA / URL kutusu
-             arasında mobilde gereğinden geniş boşluklar bırakıyordu (kullanıcı isteği, 2026-09-14:
-             "VEYA yazısıyla üst yazının ve alttaki URL kutucuğunun arası çok açık"). Yatay
-             yerleşimde 18px iki sütunu ayıran makul bir aralıktı; dikeyde üç satırı gereksiz yere
-             birbirinden koparıyor. Masaüstü (yan yana) düzeni değişmedi. */
-          .nav-search-modal-image-box{flex-direction:column; gap:8px; padding:14px;}
           /* Önerilen aramalar mobilde TEK SATIR + yatay kaydırma (kullanıcı isteği, 2026-09-14).
              Beş chip sarmalandığında ("Ofis / İş Merkezi", "Turizm / Otel"... uzun etiketler) üç
              satıra kadar çıkıp popup'ın yarısını yiyordu. Negatif margin + eşit padding, satırın
@@ -1083,33 +887,8 @@
           <input type="text" id="nav-search-modal-input" placeholder="Aradığını yaz, bulmana yardımcı olalım" aria-label="Ara">
         </div>
         <div class="nav-search-modal-section" id="nav-search-modal-body"></div>
-        <div class="nav-search-modal-section">
-          <div class="nav-search-modal-section-title">Görsel ile Proje ve Ürün Arama</div>
-          <div class="nav-search-modal-image-box">
-            <div class="nav-search-modal-image-drop" id="nav-search-modal-image-drop" role="button" tabindex="0" aria-label="Görsel seç">
-              <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görseli sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG, JPEG ya da WEBP (Maks. 10mb)</span>
-              <div class="nav-search-modal-image-preview" id="nav-search-modal-image-preview" hidden>
-                <img id="nav-search-modal-image-preview-img" alt="">
-                <span class="nav-search-modal-image-preview-name" id="nav-search-modal-image-preview-name"></span>
-                <button type="button" class="nav-search-modal-image-remove" id="nav-search-modal-image-remove" aria-label="Görseli kaldır">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <input type="file" accept="image/png,image/jpeg,image/webp" id="nav-search-modal-image-input" hidden>
-            </div>
-            <div class="nav-search-modal-image-or">veya</div>
-            <label class="nav-search-modal-image-paste">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <input type="text" id="nav-search-modal-image-url" placeholder="Görsel URL'si yapıştır" aria-label="Görsel URL'si yapıştır">
-            </label>
-          </div>
-          <div class="nav-search-modal-image-error" id="nav-search-modal-image-error" hidden></div>
-          <!-- Görsel arama durumu ve sonuçları (kullanıcı isteği, 2026-09-02). İlerleme GERÇEK
-               aşamaları gösterir (sahte ilerleme çubuğu YOK, brief 21): yükleme -> analiz ->
-               eşleştirme; her aşama gerçekten o an olan işi anlatır. -->
-          <div class="nav-vs-status" id="nav-vs-status" hidden></div>
-          <div class="nav-vs-results" id="nav-vs-results" hidden></div>
-        </div>
+        <!-- 2026-09-19: görsel arama kaldırıldı (ücretli AI) — "Görsel ile Proje ve Ürün Arama"
+             bölümü (görsel bırakma kutusu, URL yapıştırma, durum/sonuç alanları) silindi. -->
       </div>`;
     document.body.appendChild(overlay);
 
@@ -1135,372 +914,9 @@
     let debounceTimer = null;
     let currentQuery = '';
 
-    // kullanıcı isteği (2026-08-28): "Görsel ile Proje ve Ürün Arama" görsel yükleme/sürükle-bırakla dosya
-    // seçilip önizlenebiliyor — ama arama tarafı henüz bağlı değil, bu yüzden seçilen görsel hiçbir
-    // yere gönderilmez, yalnızca istemci tarafında önizlenir.
-    // gerçek bulgu (2026-08-30, kullanıcı isteği: "görsel yükleme... aktif değil"): #nav-search-modal-
-    // image-drop eskiden bir <label> idi ve dosya input'u İÇİNDE barındırıyordu — tıklamanın native
-    // label→input yönlendirmesiyle dosya seçiciyi açması bekleniyordu, ama bu yönlendirme (özellikle
-    // otomasyon/CDP kaynaklı sentetik tıklamalarda, muhtemelen bazı gerçek tarayıcı/uzantı
-    // kombinasyonlarında da) güvenilir şekilde tetiklenmiyordu — tıklayınca HİÇBİR ŞEY olmuyordu.
-    // Artık düz bir <div role="button"> — tıklama/klavye (Enter/Space) input.click()'i AÇIKÇA çağırır,
-    // native label davranışına hiç güvenilmez.
-    const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-    const imageDrop = overlay.querySelector('#nav-search-modal-image-drop');
-    const imageInput = overlay.querySelector('#nav-search-modal-image-input');
-    const imageDropText = overlay.querySelector('#nav-search-modal-image-drop-text');
-    const imagePreview = overlay.querySelector('#nav-search-modal-image-preview');
-    const imagePreviewImg = overlay.querySelector('#nav-search-modal-image-preview-img');
-    const imagePreviewName = overlay.querySelector('#nav-search-modal-image-preview-name');
-    const imageRemoveBtn = overlay.querySelector('#nav-search-modal-image-remove');
-    const imageError = overlay.querySelector('#nav-search-modal-image-error');
-    let imagePreviewUrl = null;
-
-    function showImageError(message){
-      imageError.textContent = message;
-      imageError.hidden = false;
-    }
-    function clearImage(){
-      imageInput.value = '';
-      if(imagePreviewUrl){ URL.revokeObjectURL(imagePreviewUrl); imagePreviewUrl = null; }
-      imagePreview.hidden = true;
-      imageDropText.hidden = false;
-      imageError.hidden = true;
-      vsClear();
-    }
-    function acceptImageFile(file){
-      if(!file) return;
-      imageError.hidden = true;
-      // WEBP DESTEĞİ (üçüncü tur denetim, madde 8): file.type tarayıcının BEYANIdır (dosya
-      // uzantısına göre türetilir) — GERÇEK doğrulama sunucuda magic byte ile yapılır (bkz.
-      // src/routes/visualSearch.js#sniffImageMime), burası yalnızca kullanıcıya ERKEN, anlamlı bir
-      // hata göstermek için bir ön-kontrol. WebP kalite kaybı olmadan olduğu gibi gönderilir —
-      // hiçbir dönüştürme yapılmaz (image-clip-embed.js'in createImageBitmap'i WebP'yi tarayıcının
-      // KENDİ donanım/yazılım kod çözücüsüyle doğrudan çözer, ayrı bir kütüphane gerekmez).
-      if(!/^image\/(png|jpe?g|webp)$/.test(file.type)){
-        showImageError('Yalnızca PNG, JPG, JPEG ya da WEBP dosyaları desteklenir.');
-        return;
-      }
-      if(file.size > IMAGE_MAX_BYTES){
-        showImageError('Görsel 10mb\'tan küçük olmalı.');
-        return;
-      }
-      if(imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-      imagePreviewUrl = URL.createObjectURL(file);
-      imagePreviewImg.src = imagePreviewUrl;
-      imagePreviewName.textContent = file.name;
-      imageDropText.hidden = true;
-      imagePreview.hidden = false;
-      runVisualSearch(file);
-    }
-    // ---------------------------------------------------------------------------------------
-    // GÖRSEL ARAMA (kullanıcı isteği, 2026-09-02). Önceden görsel yalnızca istemcide önizleniyordu
-    // ("arama tarafı henüz bağlı değil" — bkz. yukarıdaki eski yorum); artık gerçekten
-    // /api/ai/visual-search'e gönderiliyor.
-    // ---------------------------------------------------------------------------------------
-    const vsStatus = overlay.querySelector('#nav-vs-status');
-    const vsResults = overlay.querySelector('#nav-vs-results');
-    let vsToken = 0;
-
-    function vsSetStatus(text){
-      if(!text){ vsStatus.hidden = true; vsStatus.innerHTML = ''; return; }
-      vsStatus.hidden = false;
-      vsStatus.innerHTML = `<span class="nav-vs-spin"></span><span>${escapeHtml(text)}</span>`;
-    }
-    function vsClear(){
-      vsToken++;              // uçuştaki bir isteğin geç gelen yanıtı ekrana yazmasın
-      vsSetStatus('');
-      vsResults.hidden = true;
-      vsResults.innerHTML = '';
-    }
-    function vsRow(it){
-      const thumb = it.image
-        ? `<img class="nav-search-modal-row-thumb" src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.image, 96) : it.image)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
-        : `<span class="nav-search-modal-row-thumb nav-search-modal-row-thumb-ph">${escapeHtml((it.title || '?').trim().charAt(0).toLocaleUpperCase('tr'))}</span>`;
-      // EŞLEŞME GEREKÇESİ (kullanıcı isteği, 2026-09-05 / brief madde 14: "neden eşleşti" —
-      // ama SAHTE YÜZDE ya da uydurma açıklama YOK). İki durum ayrılır:
-      //   near-duplicate -> yüklenen görsel, o projenin N. galeri görselinin KENDİSİ (ya da
-      //                     yeniden kodlanmış/boyutlandırılmış hâli). Kesin bir ifade kullanılır.
-      //   similar        -> yalnızca görsel benzerlik; "benzer" denir, eşleşme İDDİA EDİLMEZ.
-      // Sıra numarası uydurma değil: dizin, galerideki images[] sırasıyla aynı kurulur.
-      const why = it.why ? `<span class="nav-search-modal-row-why">${escapeHtml(it.why)}</span>` : '';
-      return `<a class="nav-search-modal-row" href="${escapeAttr(it.href)}">
-        <span class="nav-search-modal-row-tag">${escapeHtml(it.label)}</span>
-        <span class="nav-search-modal-row-title">${escapeHtml(it.title)}</span>
-        <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}${why ? ' ' : ''}</span>
-        ${why}
-        ${thumb}
-      </a>`;
-    }
-    function vsRender(data){
-      const a = data.analysis || {};
-      const chips = [];
-      if(a.spaceType) chips.push(['Mekan', a.spaceType]);
-      if(a.discipline) chips.push(['Tür', a.discipline]);
-      (a.materials || []).forEach(m => chips.push(['Malzeme', m]));
-      // Tespit KATEGORİ olarak gösterilir, ürün ADI olarak değil (brief 11): sistem "bu şu üründür"
-      // demez, "şu kategoride bir nesne gördüm, MİMARLAB'da benzerleri şunlar" der.
-      (a.products || []).forEach(p => chips.push(['Tespit', p.category]));
-
-      const parts = [];
-      if(a.description || chips.length){
-        parts.push(`<div class="nav-vs-analysis">
-          ${a.description ? `<div>${escapeHtml(a.description)}</div>` : ''}
-          ${chips.length ? `<div class="nav-vs-chips">${chips.map(([k,v]) =>
-            `<span class="nav-vs-chip"><span class="nav-vs-chip-k">${escapeHtml(k)}</span>${escapeHtml(v)}</span>`).join('')}</div>` : ''}
-        </div>`);
-      }
-      if(data.message) parts.push(`<div class="nav-vs-empty">${escapeHtml(data.message)}</div>`);
-
-      // İKİ KADEMELİ SUNUM (kullanıcı isteği, 2026-09-03 madde 20): "aynı varlık" bulunduysa
-      // ÖNCE o gösterilir ve açıkça EŞLEŞME olarak etiketlenir; benzerler ondan sonra ve AYRI bir
-      // başlık altında gelir. Eşleşme yoksa sistem eşleşme iddiasında BULUNMAZ — başlık
-      // "en yakın ..." olur. İkisi asla aynı listede karışmaz.
-      const match = data.match || {};
-      const projects = data.projects || [];
-      const products = data.products || [];
-      // visualEvidence sunucudan gelir (bkz. src/routes/visualSearch.js#visualEvidencePayload).
-      // Görsel kanal kullanılmadıysa (metin yedeği) alan null olur ve hiçbir gerekçe yazılmaz —
-      // olmayan bir kanıt uydurulmaz.
-      function whyText(ve){
-        if(!ve) return '';
-        const n = ve.matchedImageOrdinal;
-        if(ve.matchType === 'near-duplicate'){
-          return n ? `Projenin ${n}. görseliyle birebir eşleşme` : 'Görselin birebir eşleşmesi';
-        }
-        return n ? `Projenin ${n}. görseliyle görsel benzerlik` : '';
-      }
-      const projectRow = (p) => vsRow({
-        href: '/proje/' + encodeURIComponent(p.slug), label: 'Proje', title: p.title,
-        meta: [p.location, p.date].filter(Boolean).join(' · '), image: p.image,
-        why: whyText(p.visualEvidence),
-      });
-      const productRow = (p) => vsRow({
-        href: '/urun/' + encodeURIComponent(p.slug), label: 'Ürün', title: p.title,
-        meta: [p.category, p.brand].filter(Boolean).join(' · '), image: p.image,
-        why: (p.visualEvidence && p.visualEvidence.matchType === 'near-duplicate')
-          ? 'Ürün görseliyle birebir eşleşme' : '',
-      });
-
-      const projectParts = [];
-      if(match.project){
-        projectParts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen proje</div>');
-        projectParts.push(`<div class="nav-vs-match">${projectRow(match.project)}</div>`);
-      }
-      if(projects.length){
-        projectParts.push(`<div class="nav-vs-group-title">${match.project ? 'Benzer projeler' : 'Görseline en yakın projeler'}</div>`);
-        projectParts.push(projects.map(projectRow).join(''));
-      } else if(!data.message && !match.project){
-        projectParts.push('<div class="nav-vs-group-title">Görseline en yakın projeler</div><div class="nav-vs-empty">Eşleşen proje bulunamadı.</div>');
-      }
-
-      const productParts = [];
-      if(match.product){
-        productParts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen ürün</div>');
-        productParts.push(`<div class="nav-vs-match">${productRow(match.product)}</div>`);
-      }
-      if(products.length){
-        productParts.push(`<div class="nav-vs-group-title">${match.product ? 'Benzer ürünler' : 'Görseline en yakın ürünler'}</div>`);
-        productParts.push(products.map(productRow).join(''));
-      } else if(!data.message && !data.productsSuppressed && !match.product){
-        // productsSuppressed: görselde hiç ürün tespit edilmedi — o zaman "bulunamadı" bile YAZMA,
-        // bölüm hiç açılmaz (kullanıcı isteği madde 11/20: "Eğer güvenilir ürün eşleşmesi yoksa
-        // ürün bölümünü hiç gösterme"). Zorla sonuç üretmemek, yanlış ürün göstermekten iyidir.
-        productParts.push('<div class="nav-vs-group-title">Görseline en yakın ürünler</div><div class="nav-vs-empty">Eşleşen ürün bulunamadı.</div>');
-      }
-      // SIRA KONUYA GÖRE (2026-09-07): bir ürün fotoğrafı yüklendiğinde (vision subject=product ya da
-      // sonuç türü ürün) ürün bölümü ÜSTTE gelir — eskiden her durumda önce "en yakın projeler"
-      // basılıyor, katalogdaki ürünün birebir eşleşmesi alakasız bir proje listesinin altında
-      // kalıyordu (canlı yoklamada ölçüldü). Mimari fotoğrafta sıra eskisi gibi proje → ürün.
-      const productFirst = a.subject === 'product' || data.matchType === 'EXACT_PRODUCT' || data.matchType === 'SIMILAR_PRODUCT';
-      parts.push(...(productFirst ? [...productParts, ...projectParts] : [...projectParts, ...productParts]));
-      vsResults.innerHTML = parts.join('');
-      vsResults.hidden = false;
-      // Sonuca tıklanınca TAM SAYFA gidilir (proje/ürün popup'ı o sayfada açılır). Kullanıcı o
-      // popup'ı kapatıp geri döndüğünde arama sonuçlarını YENİDEN GÖRMELİ (kullanıcı isteği,
-      // 2026-09-02 madde 8) — aksi halde her tıklama aramayı sıfırlıyor ve görseli yeniden
-      // yüklemek gerekiyordu. Sonuç kümesi sessionStorage'a yazılır; geri dönüşte (bkz. aşağıdaki
-      // restoreVisualSearch) modal aynı sonuçlarla yeniden açılır. Yeniden AI çağrısı YAPILMAZ.
-      vsResults.querySelectorAll('a.nav-search-modal-row').forEach(a => {
-        a.addEventListener('click', () => {
-          try {
-            sessionStorage.setItem(VS_RESTORE_KEY, JSON.stringify({ from: location.href, data }));
-          } catch (e) { /* kota/gizli mod — geri dönüşte sadece eski davranış olur */ }
-        });
-      });
-    }
-
-    // js/components/auth-modal.js#loadImageUploadModule İLE AYNI desen (bkz. o dosyadaki yorum):
-    // 100 MB'a yakın CLIP model + WASM çalışma zamanı yalnızca GÖRSEL ARAMA gerçekten kullanılınca
-    // indirilir, her sayfa yüklemesinde DEĞİL. Yüklenemezse null döner, çağıran metin-kanalı
-    // yedeğine (sunucudaki bge-m3) sorunsuz düşer — akış hiçbir zaman kırılmaz.
-    let clipEmbedLoader = null;
-    function loadClipEmbedModule(){
-      if(window.MimarlabClipEmbed) return Promise.resolve(window.MimarlabClipEmbed);
-      if(!clipEmbedLoader){
-        clipEmbedLoader = new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = '/image-clip-embed.js';
-          script.onload = () => resolve(window.MimarlabClipEmbed || null);
-          script.onerror = () => resolve(null);
-          document.head.appendChild(script);
-        });
-      }
-      return clipEmbedLoader;
-    }
-
-    async function runVisualSearch(file){
-      const token = ++vsToken;
-      vsResults.hidden = true;
-      vsResults.innerHTML = '';
-      // GERÇEK aşamalar (brief 21: sahte ilerleme yok) — her metin o an fiilen yapılan işi anlatır.
-      // GERÇEK GÖRSEL EMBEDDING (kullanıcı isteği, 2026-09-03 ikinci tur): sunucuya göndermeden
-      // ÖNCE tarayıcıda GERÇEK bir CLIP vektörü hesaplanır (bkz. image-clip-embed.js dosya başı
-      // yorumu — Cloudflare Workers AI'de image embedding modeli yok, harici bir API hesap
-      // gerektiriyor, bu yüzden hesaplama tarayıcıda yapılıyor). Başarısız olursa (WASM yok, ağ
-      // hatası, model ısınmamış) `imageEmbedding` gönderilmez ve sunucu OTOMATİK olarak metin
-      // kanalına düşer — kullanıcı hiçbir hata GÖRMEZ, yalnızca biraz daha az kesin sonuç alır.
-      vsSetStatus('Görsel imzası hesaplanıyor…');
-      let imageEmbedding = null;
-      try{
-        const clip = await loadClipEmbedModule();
-        if(clip){
-          const vec = await clip.embed(file);
-          if(vec) imageEmbedding = Array.from(vec);
-        }
-      } catch(e){ /* sessizce yedek kanala düşülür */ }
-      if(token !== vsToken) return;
-
-      vsSetStatus('Görsel yükleniyor…');
-      const fd = new FormData();
-      fd.append('image', file);
-      if(imageEmbedding) fd.append('imageEmbedding', JSON.stringify(imageEmbedding));
-      let res, data;
-      try{
-        const p = fetch('/api/ai/visual-search', { method: 'POST', body: fd });
-        // İstek yola çıktı; sunucu tarafındaki asıl iş analiz.
-        vsSetStatus('Görsel analiz ediliyor…');
-        res = await p;
-        if(token !== vsToken) return;
-        vsSetStatus('Projeler ve ürünler eşleştiriliyor…');
-        data = await res.json();
-      } catch(e){
-        if(token !== vsToken) return;
-        vsSetStatus('');
-        showImageError('Bağlantı sorunu oluştu, tekrar dene.');
-        return;
-      }
-      if(token !== vsToken) return;
-      vsSetStatus('');
-      if(!res.ok || !data.ok){
-        // brief 22: hiçbir durumda boş beyaz alan bırakma.
-        showImageError((data && data.error) || 'Görsel araması şu anda yapılamıyor.');
-        return;
-      }
-      vsRender(data);
-    }
-
-    imageInput.addEventListener('change', () => acceptImageFile(imageInput.files && imageInput.files[0]));
-    imageRemoveBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearImage(); });
-    // imageRemoveBtn kendi handler'ında stopPropagation() çağırdığından ("Görseli kaldır" tıklaması
-    // buraya hiç ulaşmaz) — burası yalnızca kutunun geri kalanına (metin/önizleme alanı) tıklanınca çalışır.
-    imageDrop.addEventListener('click', () => imageInput.click());
-    imageDrop.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); imageInput.click(); }
-    });
-    imageDrop.addEventListener('dragover', (e) => { e.preventDefault(); imageDrop.classList.add('dragover'); });
-    imageDrop.addEventListener('dragleave', () => imageDrop.classList.remove('dragover'));
-    imageDrop.addEventListener('drop', (e) => {
-      e.preventDefault();
-      imageDrop.classList.remove('dragover');
-      const file = e.dataTransfer.files && e.dataTransfer.files[0];
-      acceptImageFile(file);
-    });
-
-    // "Görsel URL'si yapıştır" kutusu — GERÇEK BULGU (arama denetimi, 2026-09-07): bu kutu
-    // arayüzde vardı ama hiçbir dinleyicisi YOKTU; yapıştırılan adres sessizce hiçbir şey
-    // yapmıyordu. Tarayıcı üçüncü taraf bir görselin PİKSELLERİNİ CORS yüzünden okuyamaz (CLIP
-    // imzası çıkarılamaz), bu yüzden görsel sunucudaki SSRF-korumalı /api/ai/image-proxy
-    // üzerinden çekilir (bkz. src/routes/visualSearch.js#handleImageProxyRoute) ve dosya
-    // seçilmiş gibi AYNI akışa (acceptImageFile → CLIP → /api/ai/visual-search) verilir.
-    const imageUrlInput = overlay.querySelector('#nav-search-modal-image-url');
-    let lastImageUrl = '';
-    async function acceptImageUrl(raw){
-      const url = String(raw || '').trim();
-      if(!url || url === lastImageUrl) return;
-      if(!/^https?:\/\//i.test(url)){ showImageError('Görsel adresi http:// ya da https:// ile başlamalı.'); return; }
-      lastImageUrl = url;
-      imageError.hidden = true;
-      vsClear();
-      vsSetStatus('Görsel adresten alınıyor…');
-      let res;
-      try{
-        res = await fetch('/api/ai/image-proxy?url=' + encodeURIComponent(url));
-      } catch(e){
-        vsSetStatus('');
-        showImageError('Görsel adresine ulaşılamadı.');
-        lastImageUrl = '';
-        return;
-      }
-      if(!res.ok){
-        vsSetStatus('');
-        let msg = 'Bu adresten görsel alınamadı.';
-        try { const d = await res.json(); if(d && d.error) msg = d.error; } catch(e) {}
-        showImageError(msg);
-        lastImageUrl = '';   // aynı adres tekrar denenebilsin (geçici ağ hatası olabilir)
-        return;
-      }
-      const blob = await res.blob();
-      vsSetStatus('');
-      const name = (url.split('/').pop() || 'gorsel').split('?')[0].slice(0, 80) || 'gorsel';
-      acceptImageFile(new File([blob], name, { type: blob.type || 'image/jpeg' }));
-    }
-    if(imageUrlInput){
-      imageUrlInput.addEventListener('keydown', (e) => {
-        // Bazı sanal klavyeler/otomasyon araçları key olarak 'Return' ya da keyCode 13 gönderir.
-        if(e.key === 'Enter' || e.key === 'Return' || e.keyCode === 13){ e.preventDefault(); acceptImageUrl(imageUrlInput.value); }
-      });
-      // Yapıştırma: değer olay anında henüz kutuya yazılmamıştır, bir sonraki döngüde okunur.
-      imageUrlInput.addEventListener('paste', () => setTimeout(() => acceptImageUrl(imageUrlInput.value), 0));
-      imageUrlInput.addEventListener('change', () => acceptImageUrl(imageUrlInput.value));
-    }
-
-    // CLIP ISITMA ARTIK "GÖRSEL ARAMA NİYETİ"NE BAĞLI (performans denetimi, 2026-09-06 madde 1).
-    //
-    // ÖLÇÜLEN SORUN: warmup() navSearchModalApi.open() içinde çağrılıyordu — yani üst navigasyondaki
-    // arama kutusuna SADECE METİN yazmak için odaklanan (ezici çoğunluk) her ziyaretçi de ~89 MB'lık
-    // CLIP modelini + ~11 MB WASM çalışma zamanını indirmeye başlıyordu. Metin araması bu baytların
-    // HİÇBİRİNE ihtiyaç duymaz.
-    //
-    // YENİ TETİKLEYİCİ: yalnızca kullanıcı görsel bırakma kutusuna GERÇEKTEN yaklaştığında
-    // (pointerenter/pointerdown/focus) ya da bir dosyayı kutunun üzerine sürüklediğinde. Bu, dosya
-    // seçicinin açık kaldığı ya da sürüklemenin tamamlandığı süreyi kazanç olarak korur — "Görsel
-    // seç"e basıldığında model çoğu zaman yine hazırdır — ama metin arayan hiç kimseye maliyet
-    // çıkarmaz. İlk gerçek aramada model hâlâ hazır değilse runVisualSearch zaten aynı
-    // loadClipEmbedModule() promise'ine bağlanır (tekilleştirme loadClipEmbedModule/loadSession
-    // içinde), ikinci bir indirme oluşmaz; hiç yüklenemezse akış metin kanalı yedeğine düşer.
-    //
-    // AĞ KAPISI: Save-Data açıksa ya da bağlantı 2g/slow-2g ise ÖNCEDEN indirme YAPILMAZ (kullanıcı
-    // açıkça veri tasarrufu istiyor / 89 MB bu bağlantıda zaten anlamsız). Bu yalnızca ISITMAYI
-    // kapatır — kullanıcı gerçekten bir görsel seçerse runVisualSearch modülü yine yükler.
-    function clipWarmupAllowed(){
-      const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      if(!c) return true;
-      if(c.saveData === true) return false;
-      if(c.effectiveType === '2g' || c.effectiveType === 'slow-2g') return false;
-      return true;
-    }
-    let clipWarmStarted = false;
-    function warmClipOnIntent(){
-      if(clipWarmStarted) return;
-      clipWarmStarted = true;
-      if(!clipWarmupAllowed()) return;
-      loadClipEmbedModule().then(m => { if(m) m.warmup(); });
-    }
-    imageDrop.addEventListener('pointerenter', warmClipOnIntent);
-    imageDrop.addEventListener('pointerdown', warmClipOnIntent);
-    imageDrop.addEventListener('focus', warmClipOnIntent);
-    imageDrop.addEventListener('dragover', warmClipOnIntent);
+    // 2026-09-19: görsel arama kaldırıldı (ücretli AI) — görsel seçme/sürükle-bırak/URL yapıştırma,
+    // /api/ai/visual-search + /api/ai/image-proxy çağrıları, image-clip-embed.js (CLIP) tembel
+    // yüklemesi/ısıtması ve sonuç çizimi (vsRender) tamamen silindi.
 
     function renderRecommended(){
       body.innerHTML = `
@@ -1572,24 +988,6 @@
     overlay.querySelector('.nav-search-modal-close').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
 
-    // Geri dönüşte (tarayıcı geri tuşu, ModalShell'in returnToPreviousPage'i ya da bfcache) arama
-    // sonuçlarını olduğu gibi geri getirir. Kayıt TEK KULLANIMLIK: okunur okunmaz silinir, aksi
-    // halde kullanıcı bambaşka bir gezinmeden sonra da beklenmedik şekilde modalı açık bulurdu.
-    function restoreVisualSearch(){
-      let saved = null;
-      try {
-        const raw = sessionStorage.getItem(VS_RESTORE_KEY);
-        if (raw) saved = JSON.parse(raw);
-      } catch (e) { saved = null; }
-      if (!saved || !saved.data) return;
-      // Yalnızca AYRILDIĞIMIZ sayfaya geri dönüldüyse aç.
-      if (saved.from && saved.from !== location.href) return;
-      try { sessionStorage.removeItem(VS_RESTORE_KEY); } catch (e) {}
-      navSearchModalApi.open('');
-      vsRender(saved.data);
-    }
-    overlay.__restoreVisualSearch = restoreVisualSearch;
-
     navSearchModalApi = {
       open(prefill){
         modalInput.value = prefill || '';
@@ -1599,9 +997,6 @@
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
         setTimeout(() => modalInput.focus(), 0);
-        // BURADA CLIP ISITMA YOK — bilinçli. Popup'ın açılması "görsel arama yapacağım" demek
-        // değildir; ziyaretçilerin ezici çoğunluğu buraya metin yazmak için gelir. Isıtma, görsel
-        // bırakma kutusuna gerçekten yaklaşıldığında tetiklenir (bkz. yukarıdaki warmClipOnIntent).
       },
     };
     return navSearchModalApi;
@@ -1793,28 +1188,8 @@
   window.NavDrawer = initNavDrawer();
   wireNavSearch();
 
-  // Görsel arama sonuçlarını geri dönüşte yeniden aç (kullanıcı isteği, 2026-09-02 madde 8).
-  // pageshow KULLANILIR, DOMContentLoaded değil: bfcache'ten dönen sayfada script yeniden
-  // çalışmaz ve DOMContentLoaded bir daha tetiklenmez (aynı tuzak modal-shell.js'te de kayıtlı) —
-  // pageshow her iki durumda da (normal yükleme + bfcache) çalışır.
-  function tryRestoreVisualSearch(){
-    let has = false;
-    try { has = !!sessionStorage.getItem(VS_RESTORE_KEY); } catch (e) { has = false; }
-    if (!has) return;   // kayıt yoksa modalı BOŞ YERE kurma (DOM/CSS maliyeti)
-    const api = ensureNavSearchModal();
-    const overlay = document.querySelector('.nav-search-modal-overlay');
-    if (overlay && overlay.__restoreVisualSearch) overlay.__restoreVisualSearch();
-  }
-  window.addEventListener('pageshow', tryRestoreVisualSearch);
-  tryRestoreVisualSearch();
-
-  const navSearchVisualBtn = document.getElementById('nav-search-visual-btn');
-  if(navSearchVisualBtn){
-    navSearchVisualBtn.addEventListener('click', (e)=>{
-      e.preventDefault();
-      ensureNavSearchModal().open('');
-    });
-  }
+  // 2026-09-19: görsel arama kaldırıldı (ücretli AI) — geri dönüşte sonuçları yeniden açan
+  // tryRestoreVisualSearch (sessionStorage) ve nav'daki kamera düğmesinin dinleyicisi silindi.
 
   // "İçerik Ekle" (kullanıcı isteği, 2026-08-31): footer'ın Topluluk sütunundaki son satır, ekleme
   // sayfalarına (proje/mimar/firma/ürün) götüren bağlantıları taşıyan küçük bir popup açar.
@@ -2054,7 +1429,6 @@
     if(footerMount) footerMount.outerHTML = footerHtml();
     injectFooterStyle();
     wireFooterTheme();
-    wireFooterNewsletter();
     wireAddContent();
     initConsent();
     wireConsentPrefBox();
