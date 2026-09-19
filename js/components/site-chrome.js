@@ -175,7 +175,11 @@
     { key: 'fotograf', href: '/fotograf', label: 'Fotoğraf' },
     { key: 'firma', href: '/firma', label: 'Firma' },
     { key: 'kisi', href: '/kisi', label: 'Kişi' },
-    { key: 'urun', href: '/urun', label: 'Ürün', mega: true },
+    // ÜRÜN üst menüden ve footer'dan KALDIRILDI (kullanıcı isteği, 2026-09-19: "ÜRÜN başlığını ana
+    // menü ve footer menüsünden kaldırıp proje sayfasındaki En İyi 100 başlığının yanına koy").
+    // Ürün açılır menüsü artık /proje sonuç çubuğunda yaşar (proje.html#view-toggle-urun,
+    // js/components/nav-product-menu.js#initInline). /urun SAYFASI DURUYOR. headerHtml'deki
+    // `mega` dalı genel kaldı; geri eklenmeden önce buraya bakın, durumu varsaymayın.
     // 'gundem' (kullanıcı isteği, 2026-09-06) — beş İÇERİK listesinin ardından altıncı sıraya
     // eklendi. "Neden MİMARLAB?"in bilerek dışarıda bırakılmasıyla (aşağıdaki not) ÇELİŞMEZ: o bir
     // kurumsal anlatım sayfası, bu ise sitenin altıncı içerik akışıdır ve gündelik olarak değişir —
@@ -497,9 +501,9 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı, restorasyon, şehir planlama, fotoğrafçılık, tasarım gibi farklı disiplinleri ve çeşitli üreticileri bir araya getiren mimar platformu.</p>
       </div>
-      <!-- Sıra NAV_ITEMS ile AYNI (bkz. oradaki 2026-09-17 notları): Proje · Fotoğraf · Firma ·
-           Kişi · Ürün · Gündem. -->
-      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/fotograf">Fotoğraf</a><a href="/firma">Firma</a><a href="/kisi">Kişi</a><a href="/urun">Ürün</a><a href="/gundem">Gündem</a></div>
+      <!-- Sıra NAV_ITEMS ile AYNI (bkz. oradaki 2026-09-17/2026-09-19 notları): Proje · Fotoğraf ·
+           Firma · Kişi · Gündem (Ürün 2026-09-19'da kaldırıldı — /proje'deki Ürün menüsüne taşındı). -->
+      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/fotograf">Fotoğraf</a><a href="/firma">Firma</a><a href="/kisi">Kişi</a><a href="/gundem">Gündem</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">Sen de Ekle</button></div>
       <!-- Sıra (kullanıcı isteği, 2026-09-12): İletişim, Hakkında, Neden MİMARLAB?, sonrası aynı. -->
       <div class="footer-col"><h4>Kurumsal</h4><a href="/iletisim">İletişim</a><a href="/hakkinda">Hakkında</a><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>

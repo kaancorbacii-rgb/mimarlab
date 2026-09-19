@@ -933,6 +933,15 @@ else
   tail -30 /tmp/preflight_20260918d >&2
 fi
 
+# 2026-09-19: ÜRÜN ana menü + footer'dan kaldırıldı, /proje'de En İyi 100'ün yanında açılır menü.
+# Bkz. scripts/test-2026-09-19-urun-menu-on-proje.mjs.
+if node scripts/test-2026-09-19-urun-menu-on-proje.mjs >/tmp/preflight_20260919u 2>&1; then
+  ok "2026-09-19 /proje Ürün menüsü testleri geçti ($(grep -c '^  ok ' /tmp/preflight_20260919u) test)"
+else
+  bad "2026-09-19 /proje Ürün menüsü testleri BAŞARISIZ:"
+  tail -30 /tmp/preflight_20260919u >&2
+fi
+
 # 2026-09-19: Ücret doğurabilecek AI yolları kısıldı — görsel aramaya site geneli günlük tavan
 # (aiConfig.js#VISUAL_SEARCH_GLOBAL_DAILY_LIMIT) + Gündem cron'u günde 2 tur (TR 08:00/20:00).
 # Bkz. scripts/test-2026-09-19-ai-cost-caps.mjs.

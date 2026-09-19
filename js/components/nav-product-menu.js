@@ -49,6 +49,19 @@
       .nav-mobile-subcat:hover{background:var(--paper-alt); color:var(--ink);}
       .nav-mobile-viewall{display:flex; align-items:center; min-height:44px; padding:10px 12px; margin-top:2px; border-radius:8px; font-size:13.5px; font-weight:700; color:var(--walnut); text-transform:none; box-sizing:border-box;}
       .nav-mobile-viewall:hover{background:var(--paper-alt);}
+      /* /proje sonuç çubuğundaki Ürün menüsü (bkz. initInline). Panel .result-bar'a (position:relative)
+         göre konumlanır: left/right:0 -> proje ızgarasının genişliğine oturur, sayfayı taşırmaz. */
+      .proje-urun-menu{display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:60; background:var(--paper-card); border:1px solid var(--line); border-radius:16px; box-shadow:0 18px 40px rgba(27,42,61,0.18); padding:24px 26px; max-height:min(70vh, 640px); overflow-y:auto; overscroll-behavior:contain; box-sizing:border-box;}
+      .proje-urun-menu.open{display:block;}
+      .proje-urun-menu .ipm-cols{columns:170px auto; column-gap:24px;}
+      .proje-urun-menu .ipm-group{break-inside:avoid; margin-bottom:20px;}
+      .proje-urun-menu .mega-menu-footer{margin-top:4px;}
+      .proje-urun-menu .ipm-mobile{display:none; flex-direction:column;}
+      @media (max-width:720px){
+        .proje-urun-menu{padding:8px 6px; border-radius:12px;}
+        .proje-urun-menu .ipm-desktop{display:none;}
+        .proje-urun-menu .ipm-mobile{display:flex;}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -68,10 +81,11 @@
       <div class="mega-menu-footer"><a class="mega-viewall" href="/urun">Tümünü Gör →</a></div>`;
   }
 
-  function mobilePanelHtml(){
+  function mobilePanelHtml(idPrefix){
+    const prefix = idPrefix || 'urun-mobile-sub';
     const groups = CATALOG_MENU_COLUMNS.flat().map((group, i) => {
       const cats = CATALOG_TAXONOMY[group] || [];
-      const gid = `urun-mobile-sub-${i}`;
+      const gid = `${prefix}-${i}`;
       return `<div class="nav-mobile-subgroup">
         <button type="button" class="nav-mobile-subtrigger" data-target="${gid}" aria-expanded="false" aria-controls="${gid}">
           ${escapeHtml(group)}
@@ -86,8 +100,80 @@
     return groups + `<a class="nav-mobile-viewall" href="/urun">Tümünü Gör</a>`;
   }
 
+  function wireSubgroups(container){
+    container.querySelectorAll('.nav-mobile-subtrigger').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const sub = document.getElementById(btn.dataset.target);
+        if(!sub) return;
+        const willOpen = !sub.classList.contains('open');
+        container.querySelectorAll('.nav-mobile-subpanel.open').forEach(p=>{ if(p!==sub) p.classList.remove('open'); });
+        container.querySelectorAll('.nav-mobile-subtrigger[aria-expanded="true"]').forEach(b=>{ if(b!==btn) b.setAttribute('aria-expanded','false'); });
+        sub.classList.toggle('open', willOpen);
+        btn.setAttribute('aria-expanded', String(willOpen));
+      });
+    });
+  }
+
+  // ---------- /proje SONUÇ ÇUBUĞUNDAKİ ÜRÜN MENÜSÜ (kullanıcı isteği, 2026-09-19) ----------
+  // "ÜRÜN başlığını ana menü ve footer menüsünden kaldırıp proje sayfasındaki En İyi 100 başlığının
+  // yanına koy. Ürün başlığı aşağı doğru çentikli olsun ve buna tıklayınca projeler kısmına sığacak
+  // şekilde hali hazırda olduğu gibi menü açılsın ... Menü tablet ve mobil görünümde de açılabilir
+  // olsun." İçerik üst menüdeki çekmeceyle BİREBİR aynı kaynaktan (CATALOG_MENU_COLUMNS/TAXONOMY)
+  // üretilir; panel sonuç çubuğunun (yani proje ızgarasının) genişliğine oturur. >720px'te grup
+  // sütunları (CSS multi-column — genişliğe göre kendiliğinden 5..2 sütun), <=720px'te üst menünün
+  // mobil çekmecesindeki akordeon. Bağlantılar tam sayfa gezintisidir (/urun?group=..&category=..),
+  // "Tümünü Gör" filtresiz /urun'e gider. Açılma TIKLAMAYLA (hover yok — istek "tıklayınca" diyor
+  // ve aynı davranış dokunmatikte de geçerli); Cmd/Ctrl/orta tık tetikleyicinin href'ini (/urun)
+  // yeni sekmede açar.
+  function inlineMenuHtml(){
+    const groups = CATALOG_MENU_COLUMNS.flat().map(group => {
+      const cats = CATALOG_TAXONOMY[group] || [];
+      return `<div class="mega-group ipm-group">
+        <a class="mega-group-title" href="${escapeAttr(groupHref(group))}">${escapeHtml(group)}</a>
+        ${cats.map(cat => `<a class="mega-cat-link" href="${escapeAttr(categoryHref(group, cat))}">${escapeHtml(cat)}</a>`).join('')}
+      </div>`;
+    }).join('');
+    return `<div class="ipm-desktop"><div class="ipm-cols">${groups}</div>
+        <div class="mega-menu-footer"><a class="mega-viewall" href="/urun">Tümünü Gör →</a></div></div>
+      <div class="ipm-mobile">${mobilePanelHtml('proje-urun-sub')}</div>`;
+  }
+
+  function initInline(){
+    const trigger = document.getElementById('view-toggle-urun');
+    const panel = document.getElementById('proje-urun-menu');
+    if(!trigger || !panel) return;
+    injectStyleOnce();
+    let built = false;
+    const build = () => {
+      if(built) return;
+      panel.innerHTML = inlineMenuHtml();
+      wireSubgroups(panel);
+      built = true;
+    };
+    const setOpen = (open) => {
+      if(open) build();
+      panel.classList.toggle('open', open);
+      trigger.setAttribute('aria-expanded', String(open));
+    };
+    trigger.addEventListener('click', (e)=>{
+      if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(!panel.classList.contains('open'));
+    });
+    document.addEventListener('click', (e)=>{
+      if(!panel.classList.contains('open')) return;
+      if(trigger.contains(e.target) || panel.contains(e.target)) return;
+      setOpen(false);
+    });
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape' && panel.classList.contains('open')){ setOpen(false); trigger.focus(); }
+    });
+  }
+
   function init(){
     if(typeof CATALOG_MENU_COLUMNS === 'undefined' || typeof CATALOG_TAXONOMY === 'undefined') return;
+    initInline();
     const trigger = document.getElementById('urun-menu-trigger');
     const wrap = document.getElementById('urun-menu-wrap');
     const panel = document.getElementById('urun-mega-menu');
@@ -155,16 +241,7 @@
         if(!mobileBuilt){
           mobilePanel.innerHTML = mobilePanelHtml();
           mobileBuilt = true;
-          mobilePanel.querySelectorAll('.nav-mobile-subtrigger').forEach(btn=>{
-            btn.addEventListener('click', ()=>{
-              const sub = document.getElementById(btn.dataset.target);
-              const willOpen = !sub.classList.contains('open');
-              mobilePanel.querySelectorAll('.nav-mobile-subpanel.open').forEach(p=>{ if(p!==sub) p.classList.remove('open'); });
-              mobilePanel.querySelectorAll('.nav-mobile-subtrigger[aria-expanded="true"]').forEach(b=>{ if(b!==btn) b.setAttribute('aria-expanded','false'); });
-              sub.classList.toggle('open', willOpen);
-              btn.setAttribute('aria-expanded', String(willOpen));
-            });
-          });
+          wireSubgroups(mobilePanel);
         }
         const willOpen = !mobilePanel.classList.contains('open');
         mobilePanel.classList.toggle('open', willOpen);

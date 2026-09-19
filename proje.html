@@ -344,6 +344,9 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
 
   .result-bar{
     display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;
+    /* position:relative — Ürün menüsü (#proje-urun-menu) bu çubuğa göre konumlanıp proje
+       ızgarasının genişliğine oturur (bkz. js/components/nav-product-menu.js#initInline). */
+    position:relative;
   }
   .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
   .sort-select{position:relative;}
@@ -373,6 +376,12 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
   }
   .view-toggle-btn:hover{color:var(--ink);}
   .view-toggle-btn.active{color:var(--ink); text-decoration:underline; text-underline-offset:4px;}
+  /* Ürün tetikleyicisi — ilk boyamada da doğru görünsün diye burada (menü JS'i defer'lı). */
+  .view-toggle-urun{display:inline-flex; align-items:center; gap:5px; cursor:pointer; color:var(--ink-soft);}
+  .view-toggle-urun svg{transition:transform .15s ease; flex-shrink:0;}
+  .view-toggle-urun[aria-expanded="true"]{color:var(--ink);}
+  .view-toggle-urun[aria-expanded="true"] svg{transform:rotate(180deg);}
+  .proje-urun-menu{display:none;}
   .view-toggle.is-map-view #view-toggle-list{order:1;}
   .view-toggle.is-map-view #view-toggle-map{order:2;}
   /* En İyi 100 sekmesi — kullanıcı isteği: Liste/Harita'nın SOLUNA eklensin (bkz. yukarıdaki
@@ -690,6 +699,11 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
       <div class="result-bar">
         <div class="result-count" id="result-count"></div>
         <div class="view-toggle" id="view-toggle">
+          <!-- ÜRÜN (kullanıcı isteği, 2026-09-19): ana menü + footer'dan buraya, En İyi 100'ün yanına
+               taşındı. Bir görünüm sekmesi DEĞİL (data-view yok, proje.js#setView onu görmez); tıklanınca
+               #proje-urun-menu açılır (js/components/nav-product-menu.js#initInline). Gerçek bir
+               <a href="/urun">: Cmd/orta tık ürün sayfasını yeni sekmede açar. -->
+          <a class="view-toggle-btn view-toggle-urun" id="view-toggle-urun" href="/urun" role="button" aria-haspopup="true" aria-expanded="false" aria-controls="proje-urun-menu">Ürün<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></a>
           <button type="button" class="view-toggle-btn" id="view-toggle-top100" data-view="top100">En İyi 100</button>
           <button type="button" class="view-toggle-btn" id="view-toggle-map" data-view="map">Harita</button>
           <button type="button" class="view-toggle-btn active" id="view-toggle-list" data-view="list">Liste</button>
@@ -704,6 +718,7 @@ if(p.replace(/\/+$/,'')==='/proje'&&!location.search){var u='/api/projects?build
           </select>
           <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </div>
+        <div class="proje-urun-menu" id="proje-urun-menu" aria-label="Ürün kategorileri"></div>
       </div>
       <div class="active-chips" id="active-chips"></div>
       <div class="content-grid" id="card-grid"></div>

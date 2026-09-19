@@ -2333,3 +2333,24 @@ yılı, üniversite vs. gibi bilgileri kaldır. Sadece Ad Soyad, kullanıcı ad�
   ayrı sayaç). Sayaç sıfırlanmaz; ilk gündem maili sayacın bir sonraki 10'un katında gider.
 - Testler: `scripts/test-2026-09-18-admin-user-account-fields.mjs` + güncellenen
   `scripts/test-2026-09-12-newsletter-scope-and-gundem.mjs` (ikisi de preflight'a bağlı).
+
+## ÜRÜN ana menüden /proje sonuç çubuğuna taşındı (2026-09-19)
+
+Kullanıcı isteği: "ÜRÜN başlığını ana menü ve footer menüsünden kaldırıp proje sayfasındaki En İyi
+100 başlığının yanına koy. Ürün başlığı aşağı doğru çentikli olsun ve buna tıklayınca projeler
+kısmına sığacak şekilde hali hazırda olduğu gibi menü açılsın ... Tümünü Gör'e tıkladığı zaman ürün
+sayfası açılsın. Menü tablet ve mobil görünümde de açılabilir olsun."
+
+- `site-chrome.js#NAV_ITEMS` ve footer "Ana Menü" sütunu artık PROJE · FOTOĞRAF · FİRMA · KİŞİ ·
+  GÜNDEM (mobil çekmece de NAV_ITEMS'tan çizildiği için oradan da düştü). **/urun SAYFASI DURUYOR**;
+  headerHtml'deki `mega` dalı genel kaldı, urun.html'in kendi nav-menü kodu null-güvenli, etkisiz.
+- `proje.html#view-toggle-urun`: En İyi 100'ün solunda, aşağı çentikli gerçek `<a href="/urun">`
+  (data-view YOK — proje.js#setView onu görmez; Cmd/orta tık /urun'ü yeni sekmede açar). Panel
+  `#proje-urun-menu` `.result-bar`ın (artık `position:relative`) içinde, `left/right:0` → proje
+  ızgarasının genişliğine oturur, `max-height:70vh` + kendi kaydırması.
+- Menü `nav-product-menu.js#initInline` — içerik üst menü çekmecesiyle AYNI kaynak
+  (`CATALOG_MENU_COLUMNS`/`CATALOG_TAXONOMY`). >720px grup sütunları (CSS multi-column,
+  genişliğe göre sütun sayısı), <=720px mobil çekmecedeki akordeon. Açılma TIKLAMAYLA (hover yok);
+  dışarı tıklama/Escape kapatır. Bağlantılar tam sayfa gezintisi, "Tümünü Gör" → /urun.
+- Ölçüldü (Chromium): 1024px panel = main (310→992), 768px 32→736, 375px 16→359; hiçbirinde yatay
+  taşma yok. Test: `scripts/test-2026-09-19-urun-menu-on-proje.mjs` (preflight'a bağlı).
